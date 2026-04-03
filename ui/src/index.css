@@ -1,0 +1,415 @@
+@import "tailwindcss";
+@config "../tailwind.config.ts";
+
+/* ============================================================================
+   FireHOL editorial design system.
+
+   The palette is intentionally narrow:
+     - Dark mode (DEFAULT): navy page surfaces (#080b12 … #212940),
+       near-white text, one signature red-to-blue gradient accent used
+       sparingly for the most important call-out per section.
+     - Light mode: warm cream page, near-black text, same accent.
+     - Soft radii (10–14px). Never sharp corners. Never square cards.
+     - Charts deliberately use a restrained palette: one accent plus neutral
+       greys. Categorical data only uses a different colour when the colour
+       itself carries meaning (the threat-category palette in tailwind.config).
+     - Quality reference: HackTheBox. Refined dark theme, clean cards,
+       minimal noise, one signature accent.
+
+   Type scale follows the Apple product page model: huge display sizes for
+   the hero number on each page, then a clean step-down. Body type is 17px
+   (1.0625rem) — slightly larger than the SaaS-default 16px to feel
+   editorial rather than dashboard.
+   ========================================================================== */
+
+@layer base {
+  :root {
+    /* =====================================================================
+       Light mode — cream editorial surface. This is the :root default so
+       any component that forgets to set a theme still renders sensibly.
+       The navy palette is the DEFAULT via ThemeProvider, applied via the
+       `.dark` class below; when that class is absent, these cream tokens
+       take over.
+       ===================================================================== */
+
+    /* Page surfaces */
+    --background: 38 30% 97%;          /* #faf8f4 warm cream */
+    --foreground: 220 25% 8%;          /* #0f131b near-navy-black */
+
+    --card: 0 0% 100%;                 /* pure white */
+    --card-foreground: 220 25% 8%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 25% 8%;
+
+    /* The accent. Used SPARINGLY — only on the most important call-out per
+       section, plus the focus rings. Never on every button. */
+    --primary: 0 72% 51%;              /* #dc2626 FireHOL red */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 38 25% 94%;
+    --secondary-foreground: 220 25% 8%;
+
+    --muted: 38 25% 94%;
+    --muted-foreground: 220 10% 40%;
+
+    --accent: 38 25% 94%;
+    --accent-foreground: 220 25% 8%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 38 15% 88%;              /* warm hairline */
+    --input: 38 15% 90%;
+    --ring: 0 72% 51%;
+
+    /* Softer radii for the whole system. Old Alpine design had
+       sm=4 md=8 lg=12 xl=16 — we echo that scale here via calc()
+       derivatives on a 10px base so every card, badge and tile
+       rounds the same way. */
+    --radius: 0.625rem;                /* 10px base — rounded but not bubble */
+
+    /* Display surfaces — used for the dark hero strip on every page.
+       Even in light mode the hero is dark so the big display numbers
+       carry visual weight. */
+    --display-bg: 222 32% 6%;          /* #0a0e15 deep navy */
+    --display-fg: 210 20% 98%;
+    --display-muted: 220 10% 55%;
+    --display-border: 222 30% 13%;
+
+    /* Chart palette — INTENTIONALLY narrow.
+       --chart-accent is the single colour used to highlight the most
+       important value in any chart. Everything else uses --chart-context
+       (neutral) so the eye knows where to land.
+
+       Every chart uses these via useChartTheme(), which returns string
+       literals like `"var(--chart-accent)"`. Recharts and raw SVG pass
+       them straight through as `fill=` / `stroke=` attributes and the
+       browser resolves them at paint time — so a theme switch becomes
+       a pure CSS repaint with ZERO React re-renders. */
+    --chart-accent: #dc2626;
+    --chart-accent-soft: #fca5a5;
+    --chart-secondary: #2563eb;        /* second half of the signature gradient */
+    --chart-context: #cbd5e1;
+    --chart-grid: #e5e7eb;
+    --chart-axis: #64748b;
+    --chart-tooltip-bg: #ffffff;
+    --chart-tooltip-border: #e2e8f0;
+    --chart-tooltip-fg: #0f131b;
+    --chart-tooltip-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+
+    /* Status palette — stable operational states used by admin and public
+       health surfaces. Keep these as tokens instead of ad-hoc Tailwind
+       arbitrary colours so status meaning is consistent across components. */
+    --status-healthy: #16a34a;
+    --status-warning: #ca8a04;
+    --status-delayed: #a16207;
+    --status-risky: #ea580c;
+    --status-archived: #64748b;
+    --status-info: #2563eb;
+  }
+
+  .dark {
+    /* =====================================================================
+       Dark mode — navy palette locked in commit c45497f and refined with
+       the deeper #080b12 base referenced in the April-5 "HackTheBox
+       quality bar" discussion. Every surface is warm navy, not cold black.
+       Background hierarchy: inset < bg < surface < surface-alt < elevated.
+       ===================================================================== */
+
+    --background: 222 32% 6%;          /* #0a0e15 — one step lighter than the
+                                          original #080b12 (5%). Three steps
+                                          softer was too much; this is the
+                                          requested lighter variant. */
+    --foreground: 210 25% 96%;
+
+    --card: 222 28% 12%;               /* #181f2c lifted navy */
+    --card-foreground: 210 25% 96%;
+
+    --popover: 222 28% 12%;
+    --popover-foreground: 210 25% 96%;
+
+    /* Signature red, slightly brighter for the navy background. */
+    --primary: 0 72% 60%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 222 25% 15%;          /* #1e2536 */
+    --secondary-foreground: 210 25% 96%;
+
+    --muted: 222 25% 15%;
+    --muted-foreground: 220 12% 62%;
+
+    --accent: 222 25% 15%;
+    --accent-foreground: 210 25% 96%;
+
+    --destructive: 0 72% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 222 25% 17%;             /* visible hairline on navy */
+    --input: 222 25% 18%;
+    --ring: 0 72% 60%;
+
+    /* Hero strip surfaces — a half-step deeper than the page so the hero
+       feels embedded, not bolted on. */
+    --display-bg: 222 38% 4%;          /* deeper than --background */
+    --display-fg: 210 20% 98%;
+    --display-muted: 220 15% 56%;
+    --display-border: 222 30% 12%;
+
+    /* Chart palette for dark mode — slightly brighter accents so they
+       pop against navy, muted grid that disappears into the background. */
+    --chart-accent: #ef4444;
+    --chart-accent-soft: rgba(239, 68, 68, 0.35);
+    --chart-secondary: #3b82f6;
+    --chart-context: #334155;
+    --chart-grid: rgba(148, 163, 184, 0.12);
+    --chart-axis: #64748b;
+    --chart-tooltip-bg: #0f1623;
+    --chart-tooltip-border: #1d2435;
+    --chart-tooltip-fg: #f1f5f9;
+    --chart-tooltip-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  }
+
+  /*
+   * Signature red-to-blue gradient — "the police line". Used for:
+   *   - the primary hero accent bar
+   *   - the active-tab underline
+   *   - one-off emphasis in hero CTAs
+   * NEVER use for chart fills, card backgrounds, or body text. One accent
+   * per section, max.
+   */
+  :root {
+    --accent-gradient: linear-gradient(90deg, #dc2626 0%, #7c3aed 50%, #2563eb 100%);
+    --accent-gradient-2stop: linear-gradient(90deg, #dc2626 0%, #2563eb 100%);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
+    scroll-padding-top: 5rem;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    font-feature-settings: "ss01", "cv11";
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* Editorial body type — 17px feels reading, not dashboard. */
+    font-size: 1.0625rem;
+    line-height: 1.55;
+  }
+  /* Tabular numerals for any element with .num. Critical for stat numbers
+     and tables — keeps digits aligned across rows. */
+  .num {
+    font-feature-settings: "tnum" on, "lnum" on;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* ============================================================================
+   Editorial typography. The display font sizes mirror Apple's product page
+   scale where the hero number is the loudest thing on the screen.
+   ========================================================================== */
+
+@layer components {
+  .display-hero {
+    font-family: "Inter Display", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-weight: 700;
+    font-size: 4rem;
+    line-height: 0.92;
+    letter-spacing: 0;
+  }
+  .display-title {
+    font-family: "Inter Display", "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+    font-weight: 700;
+    font-size: 2.25rem;
+    line-height: 1.05;
+    letter-spacing: 0;
+  }
+  .display-subtitle {
+    font-family: "Inter Display", "Inter", sans-serif;
+    font-weight: 600;
+    font-size: 1.5rem;
+    line-height: 1.15;
+    letter-spacing: 0;
+  }
+  .display-stat {
+    font-family: "Inter Display", "Inter", sans-serif;
+    font-weight: 700;
+    font-size: 2rem;
+    line-height: 1;
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  .display-stat-compact {
+    font-size: 1.5rem;
+    letter-spacing: 0;
+  }
+  .display-stat-medium {
+    font-size: 1.75rem;
+    letter-spacing: 0;
+  }
+  .display-stat-card {
+    font-family: "Inter Display", "Inter", sans-serif;
+    font-weight: 700;
+    font-size: 1.35rem;
+    line-height: 1.08;
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  @media (min-width: 768px) {
+    .display-hero {
+      font-size: 6rem;
+    }
+    .display-title {
+      font-size: 3rem;
+    }
+    .display-subtitle {
+      font-size: 1.75rem;
+    }
+    .display-stat {
+      font-size: 2.5rem;
+    }
+  }
+  @media (min-width: 1280px) {
+    .display-hero {
+      font-size: 9rem;
+    }
+    .display-title {
+      font-size: 3.75rem;
+    }
+    .display-subtitle {
+      font-size: 2rem;
+    }
+    .display-stat {
+      font-size: 3rem;
+    }
+  }
+  @media (min-width: 768px) {
+    .display-stat-card {
+      font-size: 1.65rem;
+    }
+  }
+  /* The kind of label that appears above huge stats — uppercase, tracked,
+     muted. Apple uses this everywhere on product pages. */
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground;
+  }
+  /* Intro paragraph that sits below an editorial section title. Spans
+     the full container width so the section reads as one wide unit
+     rather than a narrow column under a big title. If you want the
+     traditional reading measure back, add `max-width: 60ch` here. */
+  .lede {
+    font-size: 1.125rem;
+    line-height: 1.6;
+    color: hsl(var(--muted-foreground));
+  }
+  /* Centred page-width container with editorial breathing room. */
+  .page-container {
+    @apply mx-auto max-w-[1280px] px-6 md:px-10;
+  }
+  /* Same width but slightly tighter — for narrow editorial sections. */
+  .page-container-narrow {
+    @apply mx-auto max-w-[920px] px-6 md:px-10;
+  }
+  /* Drop-cap on the first letter of the first paragraph of an editorial
+     long-description. Modeled on classic print magazines: a serif glyph
+     ~3.5 line-heights tall, floated into the body copy. */
+  .editorial-dropcap::first-letter {
+    float: left;
+    font-family: "Inter Display", ui-serif, Georgia, serif;
+    font-weight: 700;
+    font-size: 4.25em;
+    line-height: 0.85;
+    margin: 0.1em 0.12em 0 0;
+    color: hsl(var(--foreground));
+  }
+  /* Admin console container — full viewport width with modest gutters.
+     The operator console breaks the editorial width rule because
+     density matters more than reading measure here. Every pixel of
+     horizontal real estate is used for rows of operational data. */
+  .admin-container {
+    @apply w-full px-4 md:px-6 lg:px-8;
+  }
+}
+
+/* Inter Display — used for every display-* class above. */
+@font-face {
+  font-family: "Inter Display";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/static/fonts/InterDisplay-Regular.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Inter Display";
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url("/static/fonts/InterDisplay-SemiBold.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Inter Display";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/static/fonts/InterDisplay-Bold.woff2") format("woff2");
+}
+
+/* ============================================================================
+   Themed scrollbars. Default browser scrollbars render as cold light-grey
+   on the navy theme — they read as a different application bolted on. We
+   restyle them per theme so any element that scrolls (data tables, admin
+   feed list, methodology pages, sankey overflow, etc.) inherits the right
+   palette automatically.
+
+   Two cascades because no spec covers both: WebKit/Blink uses the
+   ::-webkit-scrollbar pseudo-elements; Firefox uses the standard
+   `scrollbar-color` / `scrollbar-width` properties. Safari supports both
+   prefixed forms.
+   ========================================================================== */
+
+/* Standards-mode (Firefox 64+, Safari 18+, future Chromium): thin
+   scrollbar with theme-coloured thumb. */
+html {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--border)) transparent;
+}
+html.dark {
+  scrollbar-color: hsl(222 25% 22%) transparent;
+}
+
+/* WebKit/Blink (Chromium, current Safari, Edge). Custom track + thumb. */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 8px;
+  transition: background-color 150ms ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.6);
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: hsl(222 25% 22%);
+  background-clip: padding-box;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: hsl(222 20% 32%);
+  background-clip: padding-box;
+}

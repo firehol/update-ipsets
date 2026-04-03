@@ -1,0 +1,176 @@
+sources:
+  dataplane_sshpwauth:
+    license: Dataplane.org — non-commercial use only, redistribution prohibited
+    redistributable: false
+    url: https://dataplane.org/sshpwauth.txt
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - dataplane_column3
+    processor_raw: dataplane_column3
+    category: intrusion
+    info: '[DataPlane.org](https://dataplane.org/) IP addresses that has been seen
+      attempting to remotely login to a host using SSH password authentication. This
+      report lists hosts that are highly suspicious and are likely conducting malicious
+      SSH password authentication attacks.'
+    maintainer: DataPlane.org
+    maintainer_url: https://dataplane.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-15T20:21:35Z'
+      official_name: SSH password authentication
+      official_url: https://dataplane.org/analysis/sshpwauth-tac.html
+      short_description: IPv4 addresses observed attempting to authenticate to SSH
+        servers using password-based login, collected passively from a distributed
+        network of sensors.
+      long_description: "DataPlane.org publishes this signal as a weekly rolling-window
+        report of IPv4 addresses observed attempting SSH password authentication against
+        their distributed sensor network. Each entry records the autonomous system
+        number and name, the source address, a last-seen timestamp, and the category
+        tag.\n\nThe organization is a 501(c)(3) nonprofit founded in 2016 by researcher
+        John Kristoff. Its sensor network spans over 300 nodes across 65 metropolitan
+        areas on 6 continents, providing broad geographic visibility into Internet-wide
+        scanning and attack behavior. The sshpwauth signal is derived from unsolicited
+        authentication attempts received by these unadvertised SSH sensors.\n\nThe
+        feed is primarily intended for security analytics and situational awareness.
+        DataPlane.org explicitly advises that signals are not block lists and should
+        not be used as enforcement tools; operators are expected to apply their own
+        judgment and whitelisting. The complementary sshidpw feed captures the credential
+        pairs observed in these attempts, useful for password-policy auditing."
+      roles:
+      - role: maintainer
+        name: DataPlane.org
+        organization_type: non_profit
+        official_url: https://dataplane.org/
+        contact_email: info@dataplane.org
+        based_in:
+        active_since: '2016'
+        notes: A 501(c)(3) nonprofit organization run by founder John Kristoff. Provides
+          data, analysis, and statistics to increase awareness for a more robust and
+          secure Internet. Operates a distributed sensor network across over 300 nodes
+          on 6 continents.
+      derivation:
+        type: original
+        description: Original signal generated from DataPlane.org's own distributed
+          sensor network. No upstream feeds are combined or republished.
+        source_feeds: []
+      listing_policy:
+        summary: An IPv4 address is listed when DataPlane.org's distributed SSH sensors
+          observe it attempting password-based authentication. The address remains
+          listed for a predefined retention window (approximately 7 days); if the
+          behavior is observed again during that window, the expiration resets. Listing
+          is entirely passive — DataPlane.org does not actively scan targets.
+        criteria:
+        - Observed by a DataPlane.org SSH sensor receiving an unsolicited password-authentication
+          attempt
+        - Address must be routable and have an observable network presence
+        - No minimum threshold of attempts is publicly stated — a single observed
+          attempt qualifies for inclusion
+      unlisting_policy:
+        summary: There is no manual unlisting process. Addresses decay automatically
+          after the retention window expires with no further observed attempts. If
+          the behavior resumes, the address is relisted and the timer resets.
+        criteria:
+        - Automatic expiration after the retention window closes with no renewed activity
+        - No manual removal request mechanism is provided
+      unlist_request:
+        url:
+        email: info@dataplane.org
+        instructions: DataPlane.org does not provide a manual IP removal process.
+          If your address appears in the signal, remediate the underlying issue causing
+          the suspicious activity. Once the behavior is no longer observed, the address
+          will decay from the feed automatically. For questions or concerns, contact
+          info@dataplane.org.
+      update_frequency:
+        frequency: 1h
+        human_readable: Updated hourly; the report covers a rolling 7-day window.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: Passive collection from DataPlane.org's distributed network of
+          unadvertised SSH honeypot sensors. The sensors accept authentication attempts
+          and record source addresses without responding interactively. Over 300 nodes
+          across 65 metropolitan areas on 6 continents provide broad geographic coverage.
+          The FIRST EU 2023 presentation (ev.12) confirms the methodology uses passive
+          packet capture and firewall log-based sensing across diverse hosting providers.
+      scope_and_intent:
+        description: The sshpwauth signal provides situational awareness about SSH
+          brute-force attack sources by recording addresses observed attempting password
+          authentication against DataPlane.org's sensor network.
+        intended_for:
+        - Security analytics and threat intelligence pipelines
+        - Correlating SSH attack activity with network observables
+        - Identifying ASes and hosting providers associated with credential-guessing
+          campaigns
+        - Combining with sshidpw feed for credential-auditing purposes
+        not_intended_for:
+        - Direct use as a firewall deny list without local filtering and whitelisting
+        - Treating individual listings as conclusive evidence of malicious intent
+        - Enforcement actions against listed addresses without additional analysis
+      license: Non-commercial use only; redistribution prohibited without express
+        permission
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Free for non-commercial use. Commercial use requires prior written
+          permission from DataPlane.org. Redistribution is prohibited without express
+          authorization.
+      current_status:
+        state: active
+        description: Maintained as of July 2025; the feed file was observed with a
+          current timestamp and the signals index lists sshpwauth among active feeds.
+          DataPlane.org continues publishing regular updates and newsletters.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: 'Public discussion of this specific feed is sparse. No Reddit
+          threads, GitHub issues, or third-party blog posts discussing dataplane.org
+          sshpwauth were found. The feed is nonetheless well-integrated into security
+          tooling: YETI, IntelMQ, MISP, NERD (CESNET), xlist-database, AbuseHelper,
+          MalTrail, and FireHOL all consume it natively. The only documented parser-level
+          issue was an IntelMQ bug (PR #2488, April 2024) involving pipe characters
+          in AS names, which was promptly fixed. DataPlane.org is cited positively
+          in academic and industry research, and the Q4 2023 newsletter references
+          Akamai and Trend Micro analyses that align with their sensor findings.'
+      sources_consulted:
+      - url: https://dataplane.org/
+        document_date:
+        validation_date: '2026-05-15T00:00:00Z'
+      - url: https://dataplane.org/sshpwauth.txt
+        document_date: '2025-07-24'
+        validation_date: '2026-05-15T00:00:00Z'
+      - url: https://dataplane.org/signals.html
+        document_date: '2022-04-11'
+        validation_date: '2026-05-15T00:00:00Z'
+      - url: https://dataplane.org/analysis/sshpwauth-tac.html
+        document_date: '2022-04-12'
+        validation_date: '2026-05-15T00:00:00Z'
+      - url: https://dataplane.org/about.html
+        document_date: '2024-11-23'
+        validation_date: '2026-05-15T00:00:00Z'
+      - url: https://dataplane.org/contact.html
+        document_date: '2025-07-02'
+        validation_date: '2026-05-15T00:00:00Z'
+      - url: https://api.dataplane.org/
+        document_date:
+        validation_date: '2026-05-15T00:00:00Z'
+      - url: https://dataplane.substack.com/p/dataplaneorg-2023-q4-newsletter
+        document_date: '2024-01-04'
+        validation_date: '2026-05-15T00:00:00Z'
+      - url: https://github.com/certtools/intelmq/pull/2488
+        document_date: '2024-04-04'
+        validation_date: '2026-05-15T00:00:00Z'
+      - url: https://github.com/yeti-platform/yeti
+        document_date:
+        validation_date: '2026-05-15T00:00:00Z'
+      - url: https://nerd.cesnet.cz/nerd/feed/dataplane_org_sshpwauth
+        document_date:
+        validation_date: '2026-05-15T00:00:00Z'
+      - url: https://dataplane.org/jtk/talks/firsteu2023-dataplane.pdf
+        document_date:
+        validation_date: '2026-05-15T00:00:00Z'

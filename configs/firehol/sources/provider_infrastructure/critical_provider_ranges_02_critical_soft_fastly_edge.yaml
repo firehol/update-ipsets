@@ -1,0 +1,161 @@
+sources:
+  critical_soft_fastly_edge:
+    license: Provider-published public IP ranges
+    redistributable: false
+    label: Fastly edge ranges
+    url: https://api.fastly.com/public-ip-list
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: primary
+    info: Fastly-published IPv4 edge ranges. Reference feed, not a threat indicator.
+    maintainer: Fastly
+    maintainer_url: https://api.fastly.com/public-ip-list
+    enabled_by_all: true
+    use: [critical_infrastructure]
+    critical:
+      tier: soft
+      role: cdn_edge
+      source_type: authoritative_provider_api
+      source_quality: A
+      rationale: Fastly edge ranges front software distribution, package registries,
+        media, and major web services; overlap should be reviewed before operational
+        blocking.
+
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T12:19:22Z'
+      official_name: Public IP List
+      official_url: https://www.fastly.com/documentation/reference/api/utils/public-ip-list/
+      short_description: Fastly's authoritative list of egress IP address ranges used
+        by its global CDN edge network, published as a public JSON API for firewall
+        allowlisting.
+      long_description: "Fastly publishes an exhaustive list of all IP address ranges
+        owned and operated by its global CDN edge network. The endpoint returns two
+        arrays: one for IPv4 CIDR blocks and one for IPv6 CIDR blocks. According to
+        the official documentation, the list is designed for operators who need to
+        allow Fastly's traffic in their firewall rules — for example, permitting egress
+        connections from Fastly's edge nodes to an origin server, or extracting real
+        client IPs from X-Forwarded-For headers behind a Fastly proxy.\n\nThe list
+        is fetched via an unauthenticated GET request to api.fastly.com/public-ip-list.
+        Per the documentation, the list is exhaustive and includes all Fastly-owned
+        IP ranges, so any client connections, log streaming reports, and origin connections
+        should use these addresses. Changes to the list are announced in advance as
+        'IP address announcement' postings on the Fastly status page, and operators
+        are advised to subscribe to those notifications rather than relying on a fixed
+        polling interval.\n\nThis feed is categorized as provider infrastructure —
+        it is reference data published by the CDN provider, not a threat intelligence
+        indicator feed. Fastly's own documentation notes that overlap with other blocklists
+        should be reviewed before applying operational blocks, since Fastly-fronted
+        properties (software mirrors, package registries, media delivery, major web
+        services) legitimately originate traffic from these ranges."
+      roles:
+      - role: maintainer
+        name: Fastly
+        organization_type: commercial
+        official_url: https://www.fastly.com
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: Fastly, Inc. is a US-based CDN and edge cloud platform provider. The
+          Public IP List API is published as part of Fastly's public developer utilities.
+      derivation:
+        type: original
+        description: The feed is published directly by Fastly as the authoritative
+          owner of the listed IP ranges. It represents first-party inventory data
+          — the IP address space allocated to and operated by Fastly's own global
+          CDN edge network. No external feeds, third-party sensors, or aggregation
+          pipelines are involved.
+        source_feeds: []
+      listing_policy:
+        summary: Not applicable. This is a reference inventory list, not a threat
+          indicator feed. All IP ranges listed are legitimately owned and operated
+          by Fastly's CDN edge network. There is no malicious-actor scoring, complaint-driven
+          listing, or threat-based criteria.
+        criteria:
+        - IP ranges are included if they are allocated to or operated by Fastly's
+          CDN edge network
+        - There is no threat-score or abuse-report mechanism — the list is an exhaustive
+          inventory of Fastly-owned address space
+      unlisting_policy:
+        summary: Not applicable. Individual IP ranges cannot be submitted for removal
+          from this list, because all listed ranges represent legitimately Fastly-operated
+          infrastructure. Operators who believe a Fastly IP is being incorrectly used
+          in a blocklist context should address the blocklist, not this feed.
+        criteria:
+        - Removal requests are not applicable — the list is an exhaustive inventory
+          of Fastly's own address space
+      unlist_request:
+      update_frequency:
+        frequency:
+        human_readable: No fixed update cadence is published. Changes to the list
+          are announced in advance as 'IP address announcement' postings on the Fastly
+          status page, and operators are advised to subscribe to those notifications.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The feed is a provider-published infrastructure inventory. Fastly
+          assigns IP address ranges to its CDN edge network and publishes the resulting
+          list as a public API. There is no honeypot, sandbox, sensor network, malware
+          analysis, or community reporting involved — the list reflects the provider's
+          own network allocation decisions.
+      scope_and_intent:
+        description: The feed is intended for operators who need to allow Fastly's
+          egress traffic in firewall rules, configure origin-server access controls,
+          or extract real client IPs from CDN-proxied requests.
+        intended_for:
+        - Allowlisting Fastly edge egress IPs in firewall rules
+        - Configuring origin-server access controls for CDN-proxied traffic
+        - Extracting real client IPs from X-Forwarded-For headers behind a Fastly
+          proxy
+        not_intended_for:
+        - Blocking Fastly-fronted services (blocking these ranges would prevent legitimate
+          access to Fastly-powered websites and APIs)
+        - Threat intelligence correlation (the list contains no threat scores or abuse
+          indicators)
+      license: Provider-published public IP ranges — governed by Fastly Terms of Service
+        (no separate open-source license applied)
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms: Under Fastly Terms of Service Section 4.5(l), redistribution is prohibited
+          except when integrated with the subscriber's own offerings that provide
+          additional functionality to end users. Standalone republication as a downloadable
+          dataset is prohibited. Competitive use and reverse engineering of the service
+          are also prohibited.
+      current_status:
+        state: active
+        description: Active. Fastly continues to maintain and serve the Public IP
+          List API. Changes are announced via the Fastly status page. The API endpoint
+          is publicly accessible and returns current IP range data.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: The endpoint is widely adopted in production infrastructure. Published
+          implementations exist in Go, Python, Ruby, Terraform, and Puppet for automated
+          firewall allowlisting. Notable production users include crates.io, rubygems.org,
+          and the Python Package Index, which use the endpoint to configure nginx
+          real-IP extraction behind Fastly proxies. During the June 2021 Fastly outage,
+          operators who automated firewall updates based on this endpoint experienced
+          failures when the endpoint itself became unreachable — a risk profile distinct
+          from static blocklists.
+      sources_consulted:
+      - url: https://api.fastly.com/public-ip-list
+        document_date:
+        validation_date: '2026-05-21T12:00:00Z'
+      - url: https://www.fastly.com/documentation/reference/api/utils/public-ip-list/
+        document_date:
+        validation_date: '2026-05-21T12:00:00Z'
+      - url: https://www.fastly.com/terms
+        document_date: '2025-11-04'
+        validation_date: '2026-05-21T12:00:00Z'
+      - url: https://www.fastly.com/acceptable-use
+        document_date: '2016-06-19'
+        validation_date: '2026-05-21T12:00:00Z'

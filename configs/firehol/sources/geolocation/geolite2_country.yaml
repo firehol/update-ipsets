@@ -1,0 +1,159 @@
+sources:
+  geolite2_country:
+    attribution: This product includes GeoLite Data created by MaxMind, available
+      from https://www.maxmind.com
+    license: GeoLite2 EULA + CC BY-SA 4.0
+    redistributable: true
+    label: MaxMind GeoLite2
+    url: 
+      https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country-CSV&license_key=${MAXMIND_LICENSE_KEY}&suffix=zip
+    frequency: 5040
+    category: geolocation
+    info: '[MaxMind GeoLite2](https://dev.maxmind.com/geoip/geoip2/geolite2/)'
+    maintainer: MaxMind.com
+    maintainer_url: http://www.maxmind.com/
+    attributes:
+      public_url: 
+        https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-Country-CSV&license_key=LICENSE_KEY&suffix=zip
+    hidden: true
+    use: [geoip]
+    format: maxmind_country_csv
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T12:59:42Z'
+      official_name: GeoLite2 Country Database
+      official_url: https://www.maxmind.com/en/geolite-free-ip-geolocation-data
+      short_description: A free database mapping IP address ranges to ISO country
+        codes, distributed by MaxMind as part of the GeoLite2 family.
+      long_description: "GeoLite2 Country is the country-resolution edition of MaxMind's
+        free GeoLite2 family. It maps IPv4 and IPv6 address ranges to ISO country
+        codes, using data drawn from regional internet registry allocations, ISP-supplied
+        assignments, traceroute validation, and proprietary behavioral signals collected
+        by MaxMind.\n\nThis catalog entry consumes the CSV edition, which ships IP
+        ranges and country codes in comma-separated values suitable for SQL import
+        or custom tooling. MaxMind ships the CSV in the same basic format as its paid
+        GeoIP2 CSV edition, with an intentionally blank Anycast field, so that consumers
+        can swap in the commercial product without changing their import schema.\n\
+        \nMaxMind documents country-level geolocation accuracy as exceeding 99% when
+        VPN and proxy traffic is excluded. The maintainer describes the underlying
+        inference as 'part art, part science' and notes ongoing challenges from mobile
+        networks, satellite internet, anonymizers, and consumer privacy services such
+        as iCloud Private Relay. Sibling editions provide finer-grained resolution
+        (state/province and city), at lower accuracy; this entry deliberately covers
+        only the country signal."
+      roles:
+      - role: maintainer
+        name: MaxMind
+        organization_type: commercial
+        official_url: https://www.maxmind.com/
+        contact_email:
+        based_in: United States
+        active_since: '2002'
+        notes: MaxMind Inc., a commercial provider of IP intelligence data. Offers
+          both free GeoLite and paid GeoIP2 databases. The company has maintained
+          GeoLite since 2002, originally releasing it under Creative Commons to support
+          the open source community.
+      derivation:
+        type: original
+        description: "GeoLite2 Country is MaxMind's own compiled geolocation database
+          built from multiple data sources: regional internet registry allocations
+          (RIRs assign IP blocks to ISPs), ISP-provided allocation data, active traceroute
+          validation, and proprietary behavioral signals. The database maps IP network
+          ranges to countries using an inferential process that MaxMind describes
+          as 'part art, part science.'"
+        source_feeds: []
+      listing_policy:
+        summary: GeoLite2 Country is a geolocation database, not a threat-intelligence
+          feed. There is no listing or unlisting policy. Entries represent MaxMind's
+          determination of which country an IP address or network range is associated
+          with, based on regional internet registry allocations and proprietary analysis.
+        criteria: []
+      unlisting_policy:
+        summary: GeoLite2 Country is a geolocation database, not a threat-intelligence
+          feed. There is no listing or unlisting policy. Entries represent MaxMind's
+          determination of which country an IP address or network range is associated
+          with.
+        criteria: []
+      unlist_request:
+      update_frequency:
+        frequency: 84h
+        human_readable: Updated twice weekly, every Tuesday and Friday, per the maintainer's
+          documentation.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: GeoLite2 Country is built through reputation aggregation combining
+          regional internet registry allocations, ISP assignment data, active traceroute
+          validation, and proprietary behavioral signals. Regional internet registries
+          assign large IP blocks to specific ISPs, which typically serve one country.
+          Traceroutes validate country-level locations. Behavioral signals track where
+          networks are actually in use, including signals from consumer privacy providers.
+          MaxMind describes the process as inferential rather than precise.
+      scope_and_intent:
+        description: GeoLite2 Country provides IP-to-country geolocation mapping for
+          use in content customization, web analytics, country-level compliance, and
+          geographic routing decisions.
+        intended_for:
+        - Country-level geolocation for content personalization
+        - Web traffic analytics and geographic insights
+        - Country-level regulatory compliance
+        - Geographic routing and access control decisions
+        not_intended_for:
+        - Identifying specific households, individuals, or street addresses (prohibited
+          by EULA)
+        - Sub-country resolution (state, region, or city) — use a finer-grained geolocation
+          database for that
+        - Real-time tracking of mobile or VPN users
+        - Identifying users behind anonymizers or consumer privacy services
+      license: GeoLite End User License Agreement (EULA) incorporating Creative Commons
+        Attribution-ShareAlike 4.0 International License terms
+      redistribution:
+        allowed: true
+        commercial_use_allowed: false
+        attribution_required: This product includes GeoLite Data created by MaxMind,
+          available from https://www.maxmind.com
+        terms: Redistribution is permitted for internal use and external display with
+          attribution. Selling data or applications without attribution requires a
+          GeoLite Commercial License. Users who share GeoLite data with others must
+          impose the same or substantially similar terms, including the obligation
+          to delete old databases within 30 days of a new release.
+      current_status:
+        state: active
+        description: Actively maintained as of the research date. The GeoLite2 Country
+          and City databases are updated twice weekly, every Tuesday and Friday. MaxMind
+          continues to offer the free tier alongside paid GeoIP2 products.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Country-level accuracy is widely accepted as adequate for the intended
+          use cases; criticism specific to the country edition is limited. Users sometimes
+          report incorrect country assignments for mobile networks, VPN/proxy traffic,
+          satellite-internet ranges, and consumer privacy services such as iCloud
+          Private Relay — categories MaxMind itself flags as inherently hard to geolocate.
+          Operators expecting precise location at the city or state level should not
+          pick the country edition for that purpose.
+        engagement: Community discussion is moderate. The country edition is widely
+          integrated into firewalls, SIEM systems, and analytics platforms, and Reddit
+          threads show ongoing use in pfSense, OPNsense, and Splunk environments.
+          MaxMind responds to user questions on Reddit. Third-party comparison articles
+          frequently recommend GeoLite2 Country as a viable free option for country-level
+          use cases.
+      sources_consulted:
+      - url: https://dev.maxmind.com/geoip/geolite2-free-geolocation-data
+        document_date: '2024-09-12'
+        validation_date: '2026-05-17T12:00:00Z'
+      - url: https://www.maxmind.com/en/geolite-free-ip-geolocation-data
+        document_date:
+        validation_date: '2026-05-17T12:00:00Z'
+      - url: 
+          https://support.maxmind.com/knowledge-base/articles/who-is-covered-by-the-geolite-end-user-license-agreement
+        document_date:
+        validation_date: '2026-05-17T12:00:00Z'
+      - url: 
+          https://support.maxmind.com/knowledge-base/articles/sell-or-display-data-from-geolite-databases-and-web-services
+        document_date:
+        validation_date: '2026-05-17T12:00:00Z'
+      - url: https://www.maxmind.com/en/geoip/ip-geolocation-accuracy
+        document_date:
+        validation_date: '2026-05-17T12:00:00Z'

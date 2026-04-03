@@ -1,0 +1,192 @@
+sources:
+  botscout:
+    license: BotScout Terms of Service — personal/non-commercial only
+    redistributable: true
+    url: http://botscout.com/last_caught_cache.htm
+    frequency: 30
+    history:
+    - 1440
+    - 10080
+    - 43200
+    ipv: ipv4
+    output: ipset
+    processor:
+    - botscout_filter
+    processor_raw: botscout_filter
+    category: messaging_abuse
+    info: '[BotScout](http://botscout.com/) helps prevent automated web scripts, known
+      as bots, from registering on forums, polluting databases, spreading spam, and
+      abusing forms on web sites. They do this by tracking the names, IPs, and email
+      addresses that bots use and logging them as unique signatures for future reference.
+      They also provide a simple yet powerful API that you can use to test forms when
+      they''re submitted on your site. This list is composed of the most recently-caught
+      bots.'
+    maintainer: BotScout.com
+    maintainer_url: http://botscout.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T02:14:23Z'
+      official_name: BotScout
+      official_url: http://botscout.com/
+      short_description: A bot-signature database that tracks usernames, email addresses,
+        and IP addresses used by automated bots, queried via API to block bot registrations
+        and form spam on web sites.
+      long_description: "BotScout maintains a database of bot signatures — combinations
+        of username, email address, and IP address — observed from automated bot activity.
+        The service collects signatures through two mechanisms: honeypot traps deployed
+        across the internet that attract automated bots, and API submissions from
+        websites that integrate BotScout checks into their own forms. When a visitor
+        submits a registration or form on a participating site, the submitted name,
+        email, and IP are checked against the BotScout database via API; a match causes
+        the submission to be blocked.\n\nThe database contained over 10 million unique
+        bot signatures as of May 2026, per the maintainer's homepage counter. The
+        service is free for personal and non-commercial use; commercial and corporate
+        users are subject to rate limits and a paid tier ($8 per month for 5,000 queries
+        per day). The maintainer explicitly permits incorporating data from the 'Last
+        Bots Caught' cached feed into downstream blocklists, scraped no more than
+        once per hour.\n\nPlugins and modules are available for a wide range of forum
+        and CMS platforms including SMF, vBulletin, phpBB, WordPress, Joomla, and
+        Drupal. The Drupal module (version 8.x-2.1, compatible with Drupal 9) has
+        been maintained since March 2011."
+      roles:
+      - role: maintainer
+        name: BotScout.com
+        organization_type: individual
+        official_url: http://botscout.com/
+        contact_email:
+        based_in: Washington, USA
+        active_since:
+        notes: Operated by an individual identified as Mike on the BotScout Drupal
+          module documentation. The service has been in continuous operation since
+          at least 2011, with the Drupal module released in March 2011.
+      derivation:
+        type: original
+        description: "The feed is built from the maintainer's own detection infrastructure:
+          distributed honeypot traps that attract automated bots, supplemented by
+          bot-signature submissions from websites that integrate the BotScout API
+          into their own forms. Participating sites submit observed bot names, emails,
+          and IPs to the central database. The maintainer describes the database as
+          'scrubbed regularly' to deduplicate records. No external IP feeds are consumed;
+          the data originates from first-party detection."
+        source_feeds: []
+      listing_policy:
+        summary: Bots are listed when detected through honeypot traps or when submitted
+          via API by participating websites that integrate BotScout checks into their
+          own forms. The maintainer does not publish specific numerical thresholds
+          or time windows for listing.
+        criteria:
+        - Observed submitting bot-like activity through a honeypot trap
+        - Submitted via API by a participating website that integrated BotScout checks
+          into its own forms
+      unlisting_policy:
+        summary: There is no automated unlisting mechanism. Removal of a bot signature
+          requires submitting a manual request through the contact form. The maintainer
+          states they respond to every email received within 24 hours, but no binding
+          SLA or formal escalation path is documented.
+        criteria:
+        - Manual removal via contact form only — no self-service portal, no automated
+          expiry, no API-based deletion endpoint
+      unlist_request:
+        url:
+        email:
+        instructions: Submit a request through the contact form at http://botscout.com/contact.htm.
+          Before contacting, verify that the IP address, email address, or username
+          is actually recorded in the BotScout database via http://botscout.com/search.htm.
+          The message body must include the word 'eclair' as an anti-spam measure.
+          The maintainer states they respond to every email within 24 hours; check
+          the spam folder if no response is received. There is no documented escalation
+          path if the request is denied.
+      update_frequency:
+        frequency:
+        human_readable: The feed is updated continuously as new bot signatures are
+          detected; the maintainer does not publish a discrete update interval for
+          the cached feed.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods:
+        - user_submission
+        description: BotScout detects bots through two mechanisms. The primary method
+          is a distributed network of honeypot traps — decoy web forms, registration
+          pages, and other attractive targets that collect bot submissions without
+          serving legitimate users. The secondary method is API submissions from websites
+          that integrate BotScout checks into their own forms; when a bot is detected
+          locally, the signature is submitted to the central database. The honeypot
+          method is classified as primary because the maintainer describes it first
+          and uses it as the foundational data source.
+      scope_and_intent:
+        description: 'BotScout is designed to block automated bots from registering
+          on forums, submitting forms, polluting databases, and spreading spam. The
+          service tracks bot signatures across three dimensions: username, email address,
+          and IP address.'
+        intended_for:
+        - Blocking bot registrations on forums and community websites
+        - Filtering bot form submissions on web sites
+        - Checking individual usernames, email addresses, or IP addresses against
+          a known-bot database
+        - Reducing spam account creation on web properties
+        not_intended_for:
+        - Blocking targeted attacks or sophisticated bots that avoid honeypot detection
+        - Real-time network-level blocking at the perimeter (the service provides
+          an API, not an inline blocklist)
+      license: BotScout Terms of Service — limited, revocable, nonexclusive license;
+        personal/non-commercial use only; commercial use subject to rate limits and
+        paid tiers
+      redistribution:
+        allowed: true
+        commercial_use_allowed: false
+        attribution_required:
+        terms: BotScout's general Terms of Service restrict site contents, but the
+          direct 'Last Bots Caught' feed has an explicit carve-out permitting incorporation
+          into downstream feeds/databases when scraped no more than once per hour.
+          Redistribution is allowed for this feed with that limit; commercial resale
+          remains unsupported.
+      current_status:
+        state: active
+        description: The service is actively maintained as of May 2026. The homepage
+          publishes a live counter of unique bot signatures and a most-recently-banned
+          bots list that is refreshed continuously. The Drupal module (version 8.x-2.1)
+          remains under active maintenance with Drupal 9 compatibility. No discontinuation,
+          sunset, or migration notices have been published.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion is sparse. No notable discussions
+          were found on Reddit or general security forums. The service occupies a
+          niche position serving forum and CMS administrators rather than broad security
+          practitioner audiences. A Drupal module (version 8.x-2.1, compatible with
+          Drupal 9) has been maintained since March 2011, indicating sustained interest
+          from the Drupal community. Plugin integrations are documented for SMF, vBulletin,
+          phpBB, Phorum, PunBB, Invision Power Board, FUDForum, Ikonboard, W-Agora,
+          WordPress, Joomla, and Drupal. The maintainer commits to responding to every
+          contact form submission within 24 hours.
+      sources_consulted:
+      - url: http://botscout.com/
+        document_date:
+        validation_date: '2026-05-18T02:00:00Z'
+      - url: http://botscout.com/about.htm
+        document_date:
+        validation_date: '2026-05-18T02:00:00Z'
+      - url: http://botscout.com/api_queries.htm
+        document_date:
+        validation_date: '2026-05-18T02:00:00Z'
+      - url: http://botscout.com/w3c/tos.htm
+        document_date:
+        validation_date: '2026-05-18T02:00:00Z'
+      - url: http://botscout.com/contact.htm
+        document_date:
+        validation_date: '2026-05-18T02:00:00Z'
+      - url: http://botscout.com/corp_users.htm
+        document_date:
+        validation_date: '2026-05-18T02:00:00Z'
+      - url: http://botscout.com/last_caught_cache.htm
+        document_date:
+        validation_date: '2026-05-18T02:00:00Z'
+      - url: https://www.drupal.org/project/botscout
+        document_date: '2024-02-13'
+        validation_date: '2026-05-18T02:00:00Z'
+      - url: https://www.drupal.org/project/botscout/releases
+        document_date: '2024-02-13'
+        validation_date: '2026-05-18T02:00:00Z'

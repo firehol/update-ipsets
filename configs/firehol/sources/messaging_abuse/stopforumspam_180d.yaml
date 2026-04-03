@@ -1,0 +1,256 @@
+sources:
+  stopforumspam_180d:
+    license: CC BY-NC-ND 3.0 (modified)
+    redistributable: true
+    url: http://www.stopforumspam.com/downloads/listed_ip_180.zip
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - unzip
+    processor_raw: unzip_and_extract
+    category: messaging_abuse
+    info: '[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers
+      (last 180 days)'
+    maintainer: StopForumSpam.com
+    maintainer_url: http://www.stopforumspam.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T03:24:20+00:00'
+      official_name: StopForumSpam.com
+      official_url: https://www.stopforumspam.com/
+      short_description: Community-reported forum and blog spam IP addresses with
+        activity in the last 180 days, scored using a Wilson score interval that weights
+        recency and report frequency.
+      long_description: "The 180-day Listed IP feed is the six-month rolling-window
+        slice of the Stop Forum Spam database. It contains every IPv4 address whose
+        last-seen timestamp falls within the preceding 180 calendar days, distributed
+        as a zipped plain-text file at downloads/listed_ip_180.zip with one IP per
+        line. A companion CSV variant appends report frequency and last-seen datetime
+        per entry.\n\nThe database's per-entry confidence score (a Wilson-score-interval
+        percentage combining report frequency and a temporal decay against time-since-last-seen)
+        does not appear in the plain-text file but is exposed via the API for the
+        same underlying IPs. A seven-day grace period shields newly reported IPs before
+        decay begins. Compared with the shorter 1-, 7-, 30-, and 90-day variants this
+        window retains older signal; compared with the 365-day variant it filters
+        out the oldest signal. A separate Toxic tier of CIDR-level permanent-abuse
+        infrastructure (see stopforumspam_toxic) is published in different files and
+        does not participate in this rolling window.\n\nThe feed is designed primarily
+        for secondary filtering during user registration or message submission on
+        forum and blog platforms. Project history, maintainership, and operating model
+        live in the maintainer's roles."
+      roles:
+      - role: maintainer
+        name: Russ
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Site owner and founder. Operates the project in spare time alongside
+          pedigree. Accepts donations to cover server costs.
+      - role: maintainer
+        name: pedigree
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Joined shortly after Russ. Contributed to database development, site
+          performance, and bug fixes. Co-maintains the project.
+      - role: publisher
+        name: dZone
+        organization_type: commercial
+        official_url: https://dzone.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Provides server hosting for the project, per the about page credits
+          section.
+      derivation:
+        type: original
+        description: The feed is built entirely from community submissions — forum
+          and blog owners who encounter spammers file reports through the maintainer's
+          submission API. Each report must include the actual origin IP address (not
+          a proxied intermediate), a verified email address controlled by the registrant,
+          and optionally the spam content as evidence. Reports are stored in the maintainer's
+          database and scored using a Wilson score interval algorithm that factors
+          in report frequency and temporal decay. The feed extracts all IPs whose
+          last-seen timestamp falls within the preceding 180 days. Geographic routing
+          data is enriched with MaxMind GeoLite Country data. No upstream IP feeds
+          are consumed.
+        source_feeds: []
+      listing_policy:
+        summary: An IP qualifies for listing when a human moderator encounters spam
+          on their forum or blog and submits a report through the maintainer's API.
+          The submission must include the actual origin IP address (the direct connection
+          IP, not a reverse-proxy address forwarded by CDN or protection layers),
+          a verified email address that the spammer confirmed during registration,
+          and optionally the spam content itself. The report is stored with a last-seen
+          timestamp. Repeated reports from independent sources increment the frequency
+          counter and raise the confidence score. The maintainer does not disclose
+          minimum thresholds; the scoring algorithm determines visibility.
+        criteria:
+        - 'Human-initiated report: a person physically observing spam on their platform
+          must trigger the submission'
+        - 'Verified email address: the spammer must have confirmed receipt at the
+          submitted address during registration'
+        - 'Actual origin IP: the direct connection IP, not a CDN/proxy forwarder address'
+        - Optional spam content as evidence to strengthen the report
+      unlisting_policy:
+        summary: Entries persist indefinitely unless manually reviewed and removed.
+          The maintainer migrated from an automated removal system to a semi-automated
+          process requiring brief manual investigation. A listed party submits a removal
+          request through the online form; the team cross-references the claim against
+          external databases before acting. Requests from VPN-connected email addresses
+          are automatically discarded. If investigation concludes the original report
+          was filed fairly, the data remains permanently. Legal threats pause the
+          request indefinitely. False spam reports filed against innocent parties
+          result in the reporter's API access being revoked.
+        criteria:
+        - 'Manual review: all removal requests undergo brief investigation before
+          action'
+        - 'VPN requests rejected: requests originating from VPN-connected email addresses
+          are automatically deleted without review'
+        - 'Fair-origin presumption: if the original report was substantiated, the
+          data stays permanently'
+        - "Reporter accountability: filing false spam reports results in revocation
+          of the reporter's SFS API access"
+      unlist_request:
+        url: https://www.stopforumspam.com/removal
+        email:
+        instructions: Submit a removal request through the online form at stopforumspam.com/removal.
+          A confirmation email will be sent to the address associated with the listed
+          entry; clicking the confirmation link completes the submission. VPN-connected
+          email addresses are automatically rejected. Requests are investigated within
+          approximately 24 hours. Legal threats will indefinitely pause the request.
+      update_frequency:
+        frequency: 1d
+        human_readable: Daily updates, per the maintainer's published download schedule
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods: []
+        description: "The feed is built exclusively from user submissions — forum
+          and blog moderators who observe spam file reports through the maintainer's
+          API. Each report requires a human to exercise judgment; automated detection
+          is explicitly disqualified by the maintainer. The confidence score is computed
+          using a Wilson score interval algorithm that weighs report frequency against
+          a temporal decay function: a seven-day grace period shields newly reported
+          IPs, after which each day without a fresh corroborating report adds a decay
+          penalty, lowering the score progressively. This means an IP reported ten
+          times eight months ago but unreported since will score lower than an IP
+          reported twice in the past week."
+      scope_and_intent:
+        description: The feed targets forum and blog operators seeking to filter or
+          flag suspected spammers during user registration or message submission.
+          The maintainer explicitly frames the database as recording confirmed spam
+          incidents, not as a general-purpose IP blacklist.
+        intended_for:
+        - Secondary check during user registration on forums or blogs
+        - Flagging suspicious accounts for manual review
+        - Filtering message submissions from suspected spammers
+        not_intended_for:
+        - Real-time firewall blocking on every page load (doing so constitutes a denial-of-service
+          attack against the API and will result in IP blocking)
+        - Single-IP blocking without consideration of shared-NAT environments — the
+          maintainer warns that one IP can represent hundreds to thousands of legitimate
+          users
+        - Email spam filtering (the database records forum and blog spam, not general
+          email spam)
+      license: Modified Creative Commons BY-NC-ND 3.0 (CC BY-NC-ND 3.0)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit StopForumSpam.com
+        terms: StopForumSpam states a modified CC BY-NC-ND 3.0 license that permits
+          copying and distribution with attribution while prohibiting resale, ownership
+          claims, derivatives, and automated mirroring/scraping. Redistribution is
+          allowed with those restrictions.
+      current_status:
+        state: active
+        description: Active and maintained as of May 2026. Russ and pedigree continue
+          to operate the project. Server hosting is provided by dZone. The 180-day
+          feed zip file is confirmed accessible at the published URL.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Public discussion specific to the 180-day window is sparse; criticism
+          is overwhelmingly framed at the project level rather than per-window file.
+          The maintainer-wide pattern (IP recycling, carrier-grade NAT collateral,
+          cumulative-confidence integration bugs in downstream plugins, whole-domain
+          frequency=255 propagation, username string collisions, and a reactive manual
+          removal process) applies across all rolling-window variants; the full evidence
+          is documented in the main stopforumspam feed's community section.
+        engagement: "Public discussion of the 180-day feed specifically is sparse
+          — community feedback concentrates on the API and the shorter rolling windows
+          rather than this particular file. Across the maintainer's overall portfolio,
+          integrations exist for phpBB, MyBB, Flarum, Discourse, NodeBB, Joomla, Contao,
+          Laravel, and Django, plus community-maintained API client libraries in various
+          languages. The maintainer operates an official forum for community engagement
+          and enforces reporting standards: filing false spam reports results in API
+          access revocation."
+      sources_consulted:
+      - url: https://www.stopforumspam.com/
+        document_date:
+        validation_date: '2026-05-18T03:24:20+00:00'
+      - url: https://www.stopforumspam.com/about
+        document_date:
+        validation_date: '2026-05-18T03:24:20+00:00'
+      - url: https://www.stopforumspam.com/faq
+        document_date:
+        validation_date: '2026-05-18T03:24:20+00:00'
+      - url: https://www.stopforumspam.com/license
+        document_date:
+        validation_date: '2026-05-18T03:24:20+00:00'
+      - url: https://www.stopforumspam.com/removal
+        document_date:
+        validation_date: '2026-05-18T03:24:20+00:00'
+      - url: https://www.stopforumspam.com/downloads
+        document_date:
+        validation_date: '2026-05-18T03:24:20+00:00'
+      - url: https://www.stopforumspam.com/usage
+        document_date:
+        validation_date: '2026-05-18T03:24:20+00:00'
+      - url: https://www.stopforumspam.com/downloads/listed_ip_180.zip
+        document_date:
+        validation_date: '2026-05-18T03:24:20+00:00'
+      - url: https://github.com/stopforumspam
+        document_date:
+        validation_date: '2026-05-18T03:24:20+00:00'
+      - url: https://www.stopforumspam.com/forum/viewtopic.php?id=4968
+        document_date:
+        validation_date: '2026-05-18T03:24:20+00:00'
+      - url: https://www.stopforumspam.com/forum/viewtopic.php?id=5341
+        document_date:
+        validation_date: '2026-05-18T03:24:20+00:00'
+      - url: https://news.ycombinator.com/item?id=4809007
+        document_date:
+        validation_date: '2026-05-18T03:24:20+00:00'
+      - url: 
+          https://xenforo.com/community/threads/whats-the-false-positive-rate-of-stopforumspam.79183/
+        document_date:
+        validation_date: '2026-05-18T03:24:20+00:00'
+      - url: https://github.com/mybb/mybb/issues/2910
+        document_date:
+        validation_date: '2026-05-18T03:24:20+00:00'
+      - url: https://github.com/rmcgirr83/stopforumspam/issues/50
+        document_date:
+        validation_date: '2026-05-18T03:24:20+00:00'
+      - url: https://github.com/FriendsOfFlarum/stopforumspam/issues/17
+        document_date:
+        validation_date: '2026-05-18T03:24:20+00:00'
+      - url: https://au.trustpilot.com/review/stostforumspam.com
+        document_date:
+        validation_date: '2026-05-18T03:24:20+00:00'
+      - url: 
+          https://www.bleepingcomputer.com/forums/t/702623/my-real-name-ip-and-email-have-been-posted-on-stopforumspamcom/
+        document_date:
+        validation_date: '2026-05-18T03:24:20+00:00'
+      - url: https://stopforumspam.com/forum/viewtopic.php?pid=52839
+        document_date:
+        validation_date: '2026-05-18T03:24:20+00:00'
+      - url: https://www.stopforumspam.com/forum/viewtopic.php?id=7877
+        document_date:
+        validation_date: '2026-05-18T03:24:20+00:00'

@@ -1,0 +1,213 @@
+sources:
+  iblocklist_iana_private:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=cslpybexmxyuacbyuvib&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: special_use
+    provenance: secondary_upstream
+    info: IANA Private IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    exclude_from_unmaintained: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T03:20:09Z'
+      official_name: iana-private
+      official_url: https://www.iblocklist.com/list?list=cslpybexmxyuacbyuvib
+      short_description: IANA-designated private and reserved IPv4 address ranges
+        (RFC 1918 and related special-use blocks) for blocking traffic from internal
+        networks that should not appear on the public internet.
+      long_description: "The iana-private list contains IPv4 address ranges designated
+        by IANA for private, reserved, and special-purpose use — principally the RFC
+        1918 private-use blocks along with additional IANA-reserved ranges. These
+        addresses are allocated for use inside isolated private networks and are explicitly
+        not routable on the public internet; any traffic originating from them on
+        the public internet normally indicates a spoofed or misconfigured source.\n\
+        \nPer the maintainer's lists directory, the list is authored by Bluetack,
+        a pseudonym associated with a member of the original PeerGuardian development
+        team who created the Block List Manager tool and the B.I.M.S. spidering system
+        used to generate and maintain the blocklists. The list is distributed through
+        iBlocklist.com (iblocklist, LLC).\n\nThe intended use is blocking inbound
+        connections from private and reserved IP ranges — primarily in peer-to-peer
+        privacy applications to prevent information leaks from internal network addresses.
+        The maintainer warns on the list page that the list can cause connectivity
+        issues on home or corporate networks where these ranges are legitimately used
+        internally. The list is available in P2P, DAT, CIDR, and HOSTS file formats."
+      roles:
+      - role: original_author
+        name: Bluetack
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Pseudonym for a member of the original PeerGuardian development team
+          who created the Block List Manager application and the B.I.M.S. spidering
+          system used to generate and maintain the blocklists. The real identity behind
+          the handle is not publicly documented.
+      - role: publisher
+        name: iBlocklist.com (iblocklist, LLC)
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Distributes the list and manages the subscription platform. Operates
+          the lists directory, download URLs, and support portal. The domain is registered
+          through GoDaddy with WHOIS privacy protection enabled. Across the broader
+          iBlocklist.com service, community reports on Trustpilot and the Netgate
+          forum describe unauthorized auto-renewal charges, unresponsive customer
+          support, and concerns that lists in the catalog have been frozen at outdated
+          snapshots.
+      derivation:
+        type: derivative
+        description: "The list is derived from IANA's official IPv4 Special-Purpose
+          Address Registry, which formally designates address blocks reserved for
+          private use (RFC 1918), multicast, loopback, link-local, and other special-purpose
+          allocations. Rather than active threat detection, the feed applies a policy-assignment
+          approach: any IPv4 address falling within an IANA-designated reserved or
+          special-purpose range is listed. The list does not incorporate threat-intelligence
+          signals, honeypot detections, or community reports."
+        source_feeds: []
+      listing_policy:
+        summary: 'An IP is listed if its address falls within any IANA-designated
+          private-use, reserved, or special-purpose IPv4 range as documented in the
+          IANA IPv4 Special-Purpose Address Registry. The policy is static and reference-based:
+          additions and removals correspond to changes in the official IANA registry,
+          not to threat reports or active detections.'
+        criteria:
+        - The IPv4 address falls within an IANA-designated private-use block (RFC
+          1918 ranges)
+        - The IPv4 address falls within an IANA-designated reserved or special-purpose
+          block (loopback, link-local, shared address space, documentation, benchmarking,
+          or other IANA-reserved ranges)
+      unlisting_policy:
+        summary: Because the list is a static enumeration of IANA-designated address
+          ranges rather than a threat-intelligence feed, individual IP unlisting is
+          not applicable in the conventional sense. An address would cease to be listed
+          only if IANA reclassified its parent range out of the reserved or private-use
+          designation. Manual removal requests for specific IPs within these ranges
+          are not supported by the maintainer.
+        criteria:
+        - IANA reclassifies the parent address range out of the reserved or private-use
+          designation
+        - Manual IP-specific unlisting requests are not supported
+      unlist_request:
+        url: https://www.iblocklist.com/support
+        email:
+        instructions: iBlocklist.com publishes no dedicated IP unlisting channel.
+          Requests may be submitted through the general web contact form at https://www.iblocklist.com/support.
+          No published email address is available. Given the policy-assignment nature
+          of the list, individual IP unlisting requests are unlikely to result in
+          changes to the feed contents.
+      update_frequency:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The feed uses a policy-assignment approach rather than active
+          threat detection. Addresses are listed based on whether they fall within
+          IANA-designated private-use, reserved, or special-purpose IPv4 ranges as
+          documented in the official IANA IPv4 Special-Purpose Address Registry. No
+          honeypots, sensors, sandbox analyses, or community reports contribute to
+          this feed.
+      scope_and_intent:
+        description: The feed is intended to block inbound connections from IPv4 addresses
+          in IANA-designated private and reserved ranges — ranges that should not
+          appear as sources of traffic on the public internet. The primary use case
+          is peer-to-peer privacy applications where internal network addresses might
+          otherwise be exposed.
+        intended_for:
+        - Blocking inbound connections from RFC 1918 private-use addresses in P2P
+          privacy applications
+        - Detecting and blocking traffic from IANA-reserved address ranges that should
+          not originate from the public internet
+        - Identifying potentially spoofed or misconfigured source addresses in inbound
+          traffic
+        not_intended_for:
+        - Environments where legitimate internal network traffic traverses public
+          internet infrastructure — blocking these ranges will cause connectivity
+          disruptions
+        - General-purpose threat-intelligence blocking without accounting for the
+          collateral impact on legitimate internal-range traffic
+        - Production environments where internal services legitimately use RFC 1918
+          addressing and require outbound access to the public internet
+      license: iBlocklist Terms of Service — personal / non-commercial use only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The iBlocklist Terms of Service prohibit use of the materials for any
+          commercial purpose or for any public display (commercial or non-commercial).
+          The license is personal-use only and automatically terminates upon violation.
+          Redistribution — whether commercial or non-commercial — is prohibited under
+          these terms.
+      current_status:
+        state: active
+        description: 'Listed as active on the iBlocklist.com platform and in the Global
+          Cyber Alliance ACT registry (maintenance status: Active; last updated date:
+          Unknown). The iBlocklist.com site remains reachable and the list remains
+          downloadable. Community reports from 2016 onward allege that the underlying
+          Bluetack lists stopped receiving substantive updates years earlier, and
+          the service transitioned to a subscription model for previously free data.
+          The list itself reflects static IANA designations and does not depend on
+          ongoing active curation.'
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Community members on network-administration forums have reported
+          that applying the iana-private list causes connectivity disruptions on networks
+          where RFC 1918 address ranges are legitimately used internally — including
+          home routers, corporate LANs, and VPN configurations. This is an inherent
+          consequence of blocking these ranges in any environment where internal traffic
+          must traverse public internet paths. PeerGuardian-era documentation on the
+          BleepingComputer forum warned specifically about this limitation.
+        engagement: Public community discussion specific to the iana-private list
+          is sparse. No active development forum, GitHub repository, or issue tracker
+          specific to this list was identified during research.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/list?list=cslpybexmxyuacbyuvib
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/subscribe
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/support
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://act.globalcyberalliance.org/index.php/I-Blocklist
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: 
+          https://www.iana.org/assignments/iana-ipv4-special-registry/iana-ipv4-special-registry.xhtml
+        document_date: '2025-10-09'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://en.wikipedia.org/wiki/PeerGuardian
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.bleepingcomputer.com/forums/t/77853/peerguardian-2-users-please-read
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'

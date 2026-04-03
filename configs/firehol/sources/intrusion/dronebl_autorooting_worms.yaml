@@ -1,0 +1,242 @@
+sources:
+  dronebl_autorooting_worms:
+    license: DroneBL community data — software BSD-style (https://dronebl.org)
+    redistributable: true
+    url: artifact://dronebl?parts=autorooting_worms
+    frequency: 0
+    ipv: ipv4
+    output: netset
+    processor:
+    - $CAT_CMD
+    processor_raw: $CAT_CMD
+    category: intrusion
+    info: '[DroneBL.org](https://dronebl.org) IPs of autorooting worms. It includes
+      IPs for which DroneBL responds with 16. These are usually SSH bruteforce attacks.'
+    maintainer: DroneBL.org
+    maintainer_url: https://dronebl.org
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T03:52:33+00:00'
+      official_name: DroneBL
+      official_url: https://dronebl.org
+      short_description: Realtime blacklist of IPs compromised by self-propagating
+        worms that use SSH bruteforce as an infection vector to autonomously spread
+        to new targets.
+      long_description: "DroneBL is a realtime DNS-based blacklist (DNSBL) service
+        that tracks IP addresses involved in automated abusive behavior. Founded in
+        2004, it maintains a database of abusable and compromised machines to help
+        network operators implement effective blackhole routing strategies and predictively
+        block malicious netblocks before abuse occurs.\n\nThe autorooting worms subset
+        (DroneBL type 16) captures hosts that have been compromised by malware exhibiting
+        worm-like self-replicating behavior. Unlike standard SSH bruteforce bots (type
+        13), an autorooting worm autonomously propagates to newly compromised systems
+        without human intervention: upon gaining access, it uploads and executes the
+        same malware on the victim, establishes persistence, joins command-and-control
+        infrastructure, and immediately begins scanning for the next wave of targets.
+        The defining behavioral marker is autonomous lateral movement — the entire
+        infection chain repeats automatically, typically completing in under a few
+        seconds per victim.\n\nPer the maintainer's documentation, type 16 encompasses
+        worms that perform automatic root-level scanning or exploitation attempts.
+        The archetype for this category was the psyb0t worm (first documented by DroneBL
+        in 2009), which targeted routers and DSL modems by harvesting credentials
+        through deep packet inspection, downloading rootkits via wget/ftpget/tftp,
+        and locking out legitimate users by blocking SSH, Telnet, and HTTP ports via
+        iptables. Modern variants such as SSH-Snake (analyzed by Sysdig in 2024) follow
+        the same pattern: a bash script that autonomously harvests SSH credentials
+        from a compromised host and copies itself to newly accessed systems, modifying
+        itself to minimize its footprint.\n\nDroneBL accepts listings through an RPC2
+        XML-based API, which requires a registered RPCKEY. Submissions include the
+        IP address, the threat type (16 for autorooting worms), an optional port,
+        and a brief comment describing the event. The service operates continuously;
+        the homepage activity log shows entries being added and updated around the
+        clock."
+      roles:
+      - role: maintainer
+        name: Alexander Maassen (OUTsider)
+        organization_type: individual
+        official_url: https://dronebl.org
+        contact_email: dronebl@tomaw.net
+        based_in:
+        active_since: '2010'
+        notes: Volunteer maintainer who assumed full operations of DroneBL in May
+          2010 after the original founder William Pitcock (nenolod) discontinued his
+          involvement. Currently leads a volunteer team managing the service, RPC2
+          API, and listing reviews.
+      - role: maintainer
+        name: William Pitcock (nenolod)
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since: '2004'
+        notes: Original founder and primary author of the DroneBL software. Formally
+          discontinued involvement in May 2010, transferring operations to Alexander
+          Maassen.
+      derivation:
+        type: original
+        description: DroneBL builds its listings from a combination of automated sensor
+          detection and community-submitted reports fed through a real-time RPC2 API.
+          IPs are classified by threat type; type 16 (Autorooting worms) specifically
+          captures hosts exhibiting autonomous self-propagating SSH bruteforce behavior.
+          The service operates across 19 threat categories, with submissions arriving
+          continuously. No upstream feeds are consumed — all listings originate from
+          DroneBL's own detection infrastructure and authorized reporters.
+        source_feeds: []
+      listing_policy:
+        summary: 'An IP is listed under type 16 (Autorooting worms) when observed
+          engaging in SSH bruteforce activity combined with autonomous self-propagation:
+          upon successful authentication, the compromised host automatically uploads
+          and executes the same malware on the new victim without human intervention,
+          establishes persistence, joins command-and-control infrastructure, and immediately
+          begins scanning for additional targets. The key differentiator from type
+          13 (standard automated dictionary attacks) is self-replication — the entire
+          infection chain repeats automatically. Submission requires an authorized
+          RPCKEY obtained by contacting the maintainers; listings are reviewed by
+          the supervising reporter before activation.'
+        criteria:
+        - Observed SSH bruteforce attempt activity originating from the candidate
+          IP
+        - 'Autonomous self-propagation: upon successful compromise, the same malware
+          automatically uploads and executes on the new victim without human operator
+          involvement'
+        - 'Immediate lateral scanning: the newly compromised host begins scanning
+          for additional vulnerable targets using its own resources'
+        - 'Persistence establishment: mechanisms created to survive remediation or
+          reboot on the compromised host'
+        - Submission via authenticated RPC2 API with an authorized RPCKEY, including
+          threat type, IP address, optional port, and event comment
+      unlisting_policy:
+        summary: Removal requires fixing the underlying vulnerability that triggered
+          the listing, then submitting a delist request through the DroneBL lookup
+          page (dronebl.org/lookup). The request is routed to whichever authorized
+          reporter holds the RPCKEY that submitted the original listing; only that
+          reporter can approve removal. Processing is handled by volunteers with no
+          guaranteed SLA — the maintainer's FAQ states removal can take time depending
+          on reporter availability. If no resolution arrives within approximately
+          one week, users are directed to the IRC channel (#dronebl on irc.dronebl.org)
+          for follow-up.
+        criteria:
+        - The underlying abuse condition must be remediated before requesting removal
+          — the device must be cleaned and secured
+        - Delist request submitted from the affected IP itself via dronebl.org/lookup
+        - Review and approval by the original reporting party (holder of the RPCKEY
+          that submitted the listing)
+        - No SLA; volunteer-dependent processing timelines
+      unlist_request:
+        url: https://dronebl.org/lookup
+        email:
+        instructions: 'Visit dronebl.org/lookup from the affected device — the page
+          auto-populates the current public IP address. Click search to look up the
+          listing, then follow the on-page instructions to submit a removal request.
+          The request is forwarded to the original reporting party for review. If
+          no resolution arrives within approximately one week, join the IRC channel
+          #dronebl at irc.dronebl.org (or via webchat at webchat.alphachat.net) to
+          inquire about status. Removal is free; beware of third parties charging
+          fees for DroneBL delisting.'
+      update_frequency:
+        frequency:
+        human_readable: Real-time and near-real-time, per the maintainer's documentation.
+          Listings are added and updated continuously via automated RPC2 API submissions
+          throughout the day.
+      detection_classification:
+        primary_method: mixed
+        secondary_methods:
+        - honeypot
+        - user_submission
+        description: DroneBL builds its listings through a combination of automated
+          honeypot and sensor detection and authorized community submissions via a
+          gated RPC2 API. Authorized reporters holding RPCKEYs submit observed abusive
+          IPs programmatically; submissions are reviewed by the reporting party before
+          activation. The service does not rely solely on any single detection method
+          — it combines automated sensing with human-reviewed reports from vetted
+          participants.
+      scope_and_intent:
+        description: DroneBL type 16 specifically targets IPs compromised by autorooting
+          worms — self-propagating malware that uses SSH bruteforce as an infection
+          vector to autonomously spread across networks without human intervention.
+          The broader DroneBL service covers a wider range of abusable IP categories
+          including open proxies, IRC spam drones, DDoS drones, compromised routers,
+          abused VPNs, and automated dictionary attacks.
+        intended_for:
+        - Network operators implementing blackhole routing or ACL-based blocking strategies
+        - IRC network operators filtering connecting clients
+        - Security teams monitoring for signs of compromised infrastructure within
+          their networks
+        - Email and messaging system operators screening inbound connections
+        not_intended_for:
+        - Primary email spam filtering — DroneBL is primarily IRC-focused and not
+          optimized for SMTP abuse lists
+        - Residential end-user blocking — the service is oriented toward network operators
+          and service providers
+        - Guaranteed real-time blocking — removal timelines depend on volunteer reviewer
+          availability with no SLA
+      license: BSD-style (permissive, permissive for commercial and non-commercial
+        use)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit DroneBL.org
+        terms: The DroneBL software and community data may be redistributed in source
+          and binary forms. Commercial and non-commercial use is permitted. Attribution
+          to DroneBL.org is expected. The exact BSD variant text was not accessible
+          to verify the precise attribution and disclaimer requirements.
+      current_status:
+        state: active
+        description: Active. DroneBL is maintained as of May 2026, with continuous
+          real-time updates visible on the homepage activity log. The project has
+          operated continuously since 2004 under volunteer stewardship led by Alexander
+          Maassen since 2010. A significant hardware-driven outage in July 2024 caused
+          approximately 8 days of downtime; the service fully recovered and the maintainers
+          announced plans for a formal disaster recovery protocol.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Community discussion surfaces two recurring concerns. First, removal
+          timelines are volunteer-dependent with no SLA — the maintainer's own FAQ
+          acknowledges removal can take time depending on reporter availability. Second,
+          Carrier-Grade NAT (CG-NAT) causes collateral false-positive listings for
+          cellular users who inherit dynamically reassigned IP addresses that were
+          previously flagged — a systemic issue the maintainer acknowledges on the
+          FAQ ('the IP address you currently use was previously used for bad things')
+          but has not addressed with a technical solution. IPv4/IPv6 detection mismatches
+          on the lookup form have also been reported as a barrier to self-service
+          removal.
+        engagement: Public discussion is sparse. Relevant threads appear intermittently
+          on Reddit (r/seedboxes, r/sysadmin, r/freenode, r/techsupport), LowEndTalk,
+          and WhatIsMyIPAddress forums, primarily from users seeking delist assistance.
+          No official DroneBL administrator responses appear in these threads. The
+          project maintains an active presence on IRC (#dronebl on irc.dronebl.org)
+          as the primary coordination channel. DroneBL is primarily used by IRC networks;
+          broader community adoption outside the IRC operator community is limited.
+      sources_consulted:
+      - url: https://dronebl.org
+        document_date:
+        validation_date: '2026-05-19T00:00:00+00:00'
+      - url: https://dronebl.org/docs/faq
+        document_date:
+        validation_date: '2026-05-19T00:00:00+00:00'
+      - url: https://dronebl.org/docs/rpc2
+        document_date:
+        validation_date: '2026-05-19T00:00:00+00:00'
+      - url: https://dronebl.org/classes
+        document_date:
+        validation_date: '2026-05-19T00:00:00+00:00'
+      - url: https://dronebl.org/breakdown
+        document_date:
+        validation_date: '2026-05-19T00:00:00+00:00'
+      - url: https://dronebl.org/blog
+        document_date:
+        validation_date: '2026-05-19T00:00:00+00:00'
+      - url: https://dronebl.org/lookup
+        document_date:
+        validation_date: '2026-05-19T00:00:00+00:00'
+      - url: https://dronebl.org/docs/opensource
+        document_date: '2007-05-15'
+        validation_date: '2026-05-19T00:00:00+00:00'
+      - url: https://dronebl.org/blog/8
+        document_date:
+        validation_date: '2026-05-19T00:00:00+00:00'
+      - url: https://github.com/dronebl/dronebl.github.io
+        document_date:
+        validation_date: '2026-05-19T00:00:00+00:00'

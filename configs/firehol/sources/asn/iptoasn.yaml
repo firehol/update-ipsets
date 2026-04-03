@@ -1,0 +1,143 @@
+sources:
+  iptoasn:
+    label: iptoasn.com
+    url: https://iptoasn.com/data/ip2asn-v4.tsv.gz
+    frequency: 60
+    category: asn
+    info: '[iptoasn.com](https://iptoasn.com/) — public-domain IP-to-ASN dataset built
+      from BGP routing tables, refreshed hourly. Maintained by Frank Denis.'
+    license: PDDL v1.0 (Public Domain)
+    redistributable: true
+    maintainer: Frank Denis
+    maintainer_url: https://iptoasn.com/
+    hidden: true
+    use: [asn]
+    format: iptoasn_combined_tsv
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T13:06:12Z'
+      official_name: IPtoASN
+      official_url: https://iptoasn.com/
+      short_description: Free IP-to-ASN and country-code mapping database built from
+        BGP routing-table data, updated hourly.
+      long_description: "IPtoASN provides freely downloadable TSV databases mapping
+        IP address ranges to their originating Autonomous System Numbers (ASNs), country
+        codes, and AS descriptions. The data is derived from BGP routing-table collections
+        and refreshed hourly, covering IPv4, IPv6, and a combined all-in-one file.\n\
+        \nEach entry encodes an inclusive IP range (start and end addresses) paired
+        with the origin ASN, ISO country code, and a human-readable AS description
+        such as an organization name. The TSV format uses five tab-separated columns:
+        range_start, range_end, AS_number, country_code, AS_description. Separate
+        files map IPs to country codes alone.\n\nThe public API was retired at the
+        end of 2020 due to infrastructure costs. Users who need programmatic lookups
+        are directed to download the databases and run the self-hosted Rust webservice,
+        which performs efficient binary-search lookups over the sorted ranges. The
+        databases carry no rate limits, making them suitable for high-volume production
+        use."
+      roles:
+      - role: maintainer
+        name: Frank Denis
+        organization_type: individual
+        official_url: https://github.com/jedisct1
+        contact_email:
+        based_in:
+        active_since:
+        notes: Also known online as @jedisct1. Known in the security and networking
+          open-source community for projects including dnscrypt-proxy and libsodium.
+      derivation:
+        type: original
+        description: Derived from public BGP routing-table collectors. MRT/RIB archive
+          files are processed to extract IP-prefix-to-origin-ASN mappings, producing
+          sorted inclusive IP ranges paired with the announcing ASN, country code,
+          and AS description. Both IPv4 and IPv6 are covered.
+        source_feeds: []
+      listing_policy:
+        summary: This is a mapping database, not a blocklist. There are no listing
+          criteria to document — every public IP address with a BGP origin ASN appears
+          in the dataset.
+        criteria:
+        - Any IP address range with a recorded BGP origin ASN is included
+        - Entries reflect the current state of BGP routing tables
+      unlisting_policy:
+        summary: This is a passive BGP routing-table mapping. Entries cannot be removed
+          — they reflect observed routing announcements. An IP range exits the dataset
+          only when it is no longer announced in BGP.
+        criteria:
+        - Entries reflect observed BGP routing announcements and cannot be manually
+          removed
+        - An IP range disappears from the dataset when it is no longer announced in
+          BGP
+      unlist_request:
+      update_frequency:
+        frequency: 1h
+        human_readable: Updated every hour
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The database is produced by processing BGP routing-table archives
+          collected from public route collectors. Each IP prefix is mapped to its
+          origin ASN as observed in BGP routing announcements. This is a policy-assignment
+          classification because the data reflects which AS claims responsibility
+          for each IP prefix through routing advertisements — a declarative routing
+          policy, not honeypot sensor data, malware analysis, or user reports.
+      scope_and_intent:
+        description: Maps IP address ranges to their originating ASN, country code,
+          and organization description as observed in BGP routing tables.
+        intended_for:
+        - Network troubleshooting and diagnostics
+        - Mapping IP addresses to their autonomous systems for security research
+        - Building network topology or transit-relationship analyses
+        - Self-hosted IP-to-ASN lookup services
+        - Enriching logs and telemetry with ASN context
+        not_intended_for:
+        - Blocking or deny-listing based on ASN alone
+        - Geo-location enforcement (country codes reflect RIR registration, not physical
+          location)
+      license: PDDL v1.0 (Public Domain Dedication and License)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: Under PDDL v1.0, the data is placed in the public domain with zero
+          restrictions. Recipients are free to share, create derivative works, and
+          use commercially without any conditions or attribution requirement.
+      current_status:
+        state: active
+        description: Actively maintained as of 2026. Hourly updates continue; the
+          self-hosted webservice receives regular maintenance and feature contributions
+          on GitHub.
+        successor:
+        announcement_date:
+      community:
+        awards: ProjectDiscovery's ASNMap tool describes IPtoASN as a 'legendary'
+          database in its integration blog.
+        criticism:
+        engagement: Public community discussion is sparse. No dedicated Reddit threads,
+          HN discussions, or review pages were found specifically about IPtoASN. The
+          GitHub issue tracker for the companion webservice shows moderate activity
+          with prompt maintainer responses to bug reports and feature requests. Multiple
+          open-source projects — including Varnish Enterprise, CDN Planet, Dataplane.org,
+          and several language-specific libraries — integrate or cite IPtoASN as their
+          primary data source (as of May 2026).
+      sources_consulted:
+      - url: https://iptoasn.com/
+        document_date:
+        validation_date: '2026-05-16T13:00:00Z'
+      - url: https://github.com/jedisct1/iptoasn-webservice
+        document_date:
+        validation_date: '2026-05-16T13:00:00Z'
+      - url: https://opendatacommons.org/licenses/pddl/1-0/
+        document_date:
+        validation_date: '2026-05-16T13:00:00Z'
+      - url: https://github.com/pl-strflt/iptoasn
+        document_date:
+        validation_date: '2026-05-16T13:00:00Z'
+      - url: https://projectdiscovery.io/blog/asnmap
+        document_date:
+        validation_date: '2026-05-16T13:00:00Z'
+      - url: https://github.com/jedisct1/iptoasn-webservice/issues?q=is%3Aissue
+        document_date:
+        validation_date: '2026-05-16T13:00:00Z'
+      - url: https://www.cdnplanet.com/blog/all-new-cdn-finder
+        document_date:
+        validation_date: '2026-05-16T13:00:00Z'

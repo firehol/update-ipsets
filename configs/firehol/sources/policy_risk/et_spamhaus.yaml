@@ -1,0 +1,217 @@
+sources:
+  et_spamhaus:
+    license: BSD-3-Clause (Emerging Threats Open)
+    redistributable: true
+    url: http://rules.emergingthreats.net/fwrules/emerging-PIX-DROP.rules
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - pix_deny_rules
+    processor_raw: pix_deny_rules_to_ipv4
+    category: policy_risk
+    provenance: secondary_upstream
+    info: '[EmergingThreats.net](http://www.emergingthreats.net/) spamhaus blocklist'
+    maintainer: Emerging Threats
+    maintainer_url: http://www.emergingthreats.net/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T05:16:42Z'
+      official_name: Emerging Threats Spamhaus DROP List rules
+      official_url: http://www.emergingthreats.net/
+      short_description: Cisco PIX/ASA-format firewall rules generated from the Spamhaus
+        DROP (Don't Route Or Peer) list, blocking netblocks allocated to or hijacked
+        by professional cybercrime operations.
+      long_description: Emerging Threats publishes this feed as a reimplementation
+        of the Spamhaus DROP list in Cisco PIX/ASA access-list syntax. The Spamhaus
+        DROP list is an advisory "drop all traffic" blocklist maintained by Spamhaus
+        investigators who gather forensic evidence that netblocks are leased or hijacked
+        by professional cybercrime or "bulletproof" hosting operations that ignore
+        or evade abuse reports. Per the Spamhaus policy, entries are limited to netblocks
+        with direct allocations from a Regional Internet Registry (RIR) such as ARIN,
+        RIPE, AFRINIC, APNIC, LACNIC, or KRNIC — the list deliberately excludes IP
+        space under control of legitimate networks. The resulting feed converts Spamhaus
+        DROP CIDR ranges into PIX `access-list ET-drop deny ip [network] [wildcard]`
+        entries suitable for loading directly onto Cisco PIX and ASA firewall devices.
+        In April 2024, Spamhaus consolidated its eDROP (Extended DROP) dataset into
+        the main DROP list, simplifying the coverage to a single dataset. The maintainer
+        describes the feed as suitable for perimeter firewall enforcement; it is not
+        designed for SMTP email security, which relies on separate Spamhaus DNSBL
+        and XBL feeds.
+      roles:
+      - role: maintainer
+        name: Emerging Threats
+        organization_type: commercial
+        official_url: http://www.emergingthreats.net/
+        contact_email: support@emergingthreats.net
+        based_in:
+        active_since: '2003'
+        notes: Operating as Proofpoint ET Intelligence as of the current site branding.
+          The project has been in continuous operation since 2003, with copyright
+          spanning 2003–2026 in the file header.
+      - role: publisher
+        name: Emerging Threats
+        organization_type: commercial
+        official_url: http://rules.emergingthreats.net/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Serves the compiled rules file from rules.emergingthreats.net. The
+          same entity acts as both maintainer and publisher for this feed.
+      derivation:
+        type: reformat
+        description: Emerging Threats reformats the Spamhaus DROP list into Cisco
+          PIX/ASA access-list syntax. Each Spamhaus DROP CIDR range is converted to
+          a PIX `access-list ET-drop deny ip [network] [wildcard] log` entry. The
+          feed does not apply additional scoring or filtering — it is a direct syntactic
+          translation of the Spamhaus DROP dataset into a format loadable by Cisco
+          PIX and ASA devices. The catalog processes the file through pix_deny_rules
+          (converting PIX ACL syntax to CIDR notation) and then outputs the result
+          as a netset. Spamhaus investigators maintain the underlying DROP dataset
+          independently, updating daily to track rogue networks evading detection.
+        source_feeds: []
+      listing_policy:
+        summary: Entries originate from the Spamhaus DROP list, which is maintained
+          by Spamhaus investigators who gather forensic evidence that a netblock is
+          leased or hijacked by professional spam or cybercrime operations. Per Spamhaus
+          policy, a netblock qualifies for DROP only if it has a direct allocation
+          from a Regional Internet Registry (RIR) such as ARIN, RIPE, AFRINIC, APNIC,
+          LACNIC, or KRNIC — netblocks acquired through subleasing from brokers are
+          not eligible for DROP (they were previously tracked in the separate eDROP
+          list, now merged into DROP as of April 2024). Listings are limited to netblocks
+          under control of professional cybercrime or "bulletproof" hosters that ignore
+          or systematically evade abuse reports. The list deliberately excludes IP
+          space under control of legitimate networks, even when those networks host
+          persistent abusers.
+        criteria:
+        - Netblock has a direct allocation from an established RIR or NIR (ARIN, RIPE,
+          AFRINIC, APNIC, LACNIC, or KRNIC)
+        - Netblock is leased or hijacked by professional spam or cybercrime operations
+        - Usage includes malware dissemination, trojan downloaders, botnet controllers,
+          or other malicious activity
+        - Investigators have gathered forensic evidence of malicious use
+        - Network is operated by a "bulletproof" hoster that ignores or evades abuse
+          reports
+      unlisting_policy:
+        summary: An IP range leaves the DROP list automatically when the corresponding
+          Spamhaus Blocklist (SBL) record is removed. Spamhaus maintains the SBL as
+          the authoritative source record; DROP is synchronized to SBL state. Until
+          the SBL record is cleared, the range remains in DROP regardless of subsequent
+          events. Requests for SBL removal are submitted through Spamhaus's public
+          lookup and delisting interface.
+        criteria:
+        - Corresponding Spamhaus Blocklist (SBL) record is removed by Spamhaus investigators
+        - 'Automatic synchronization: once SBL record is deleted, the range exits
+          DROP without separate action'
+      unlist_request:
+        url: https://www.spamhaus.org/pbl/query/
+        email:
+        instructions: Submit a removal request through Spamhaus's public query and
+          delisting interface at check.spamhaus.org. The request targets the underlying
+          SBL record; DROP removal follows automatically once the SBL record is cleared.
+          Emerging Threats does not operate a separate unlisting channel for this
+          feed — the request must be directed to Spamhaus.
+      update_frequency:
+        frequency: 12h
+        human_readable: Emerging Threats recompiles the PIX-format rules file twice
+          daily, per the ETPro Rule Categories documentation.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: Emerging Threats does not independently detect malicious activity
+          for this feed. The feed is a reformat of the Spamhaus DROP dataset, which
+          is built by Spamhaus investigators who conduct forensic analysis of netblocks
+          suspected of professional cybercrime involvement. Spamhaus investigators
+          gather evidence that networks are leased or hijacked by criminal operations,
+          monitor for evasion patterns, and track bulletproof hosters who relocate
+          abusive customers to avoid targeted listings. Emerging Threats translates
+          the resulting Spamhaus DROP CIDR list into Cisco PIX/ASA syntax for direct
+          firewall deployment.
+      scope_and_intent:
+        description: Per the Spamhaus policy, the DROP list is designed for core routers,
+          backbone providers, and firewall ingress/egress filtering. The list is explicitly
+          intended for blocking at the network perimeter — it targets netblocks so
+          consistently associated with professional cybercrime that Spamhaus advises
+          dropping all traffic from them unconditionally.
+        intended_for:
+        - Core router and backbone provider null-routing
+        - Firewall ingress and egress filtering on Cisco PIX/ASA devices
+        - BGP route null-routing for malicious prefixes
+        - DNS resolver blocking at the network perimeter
+        not_intended_for:
+        - SMTP email security — DROP blocks netblocks, not individual SMTP senders;
+          email security relies on Spamhaus DNSBL, XBL, and SBL feeds
+        - Real-time email relay filtering — the DROP list is not designed for per-message
+          reputation scoring
+      license: BSD-3-Clause (Emerging Threats Open)
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required: Credit Emerging Threats
+        terms: Redistributions must retain the copyright notice, conditions, and disclaimer.
+          Neither the Emerging Threats name nor contributor names may be used to endorse
+          or promote products derived from this software without prior written permission.
+      current_status:
+        state: active
+        description: Active. The emerging-PIX-DROP.rules file showed a source update
+          on March 27, 2026 and the maintainer's fwrules directory continues to publish
+          the file. No discontinuation or migration notice has been issued by Emerging
+          Threats for this specific feed.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Because this feed is a syntactic reformat of the Spamhaus DROP
+          list, any inclusion controversy originates upstream at Spamhaus. Community
+          discussions on r/sysadmin, ServerFault, and LowEndTalk have raised concerns
+          that DROP's policy of listing entire RIR-allocated /24 (and larger) blocks
+          can affect customers sharing infrastructure with delinquent neighbors, and
+          that delisting decisions made by Spamhaus investigators are sometimes contested
+          by network operators. The April 2024 eDROP consolidation into DROP caused
+          downstream breakage for tools that expected a separate eDROP file, requiring
+          manual configuration changes by operators of those tools. No criticism specific
+          to Emerging Threats' PIX reformatting of the DROP list (as distinct from
+          the upstream Spamhaus dataset) was documented during research.
+        engagement: Public discussion specific to the ET PIX-format DROP reformat
+          is sparse — most community discourse focuses on the upstream Spamhaus DROP
+          list itself, hosted on r/sysadmin, ServerFault, LowEndTalk, and the Spamhaus
+          community channels. ET staff respond to general rule false-positive reports
+          on the Emerging Threats community forum.
+      sources_consulted:
+      - url: http://www.emergingthreats.net/
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: http://rules.emergingthreats.net/fwrules/emerging-PIX-DROP.rules
+        document_date: '2026-03-27'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.spamhaus.org/blocklists/drop-fair-use-policy/
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.spamhaus.org/blocklists/do-not-route-or-peer/
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://tools.emergingthreats.net/docs/ETPro%20Rule%20Categories.pdf
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: 
+          https://www.spamhaus.org/resource-hub/network-security/spamhaus-drop-and-edrop-to-become-a-single-list/
+        document_date: '2024-04-10'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://rules.emergingthreats.net/open/suricata/rules/drop.rules
+        document_date: '2026-04-01'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: 
+          https://community.emergingthreats.net/t/false-positive-on-google-com-onion-ap-check/3120
+        document_date: '2025-11-27'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.reddit.com/r/sysadmin/comments/1grigpd/
+        document_date: '2024-11-14'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: 
+          https://lowendtalk.com/discussion/193980/spamhaus-refusing-to-delist-false-positives-pompous-rude-attitudes-whats-your-experience
+        document_date: '2024-04-07'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://github.com/wolffcatskyy/crowdsec-blocklist-import/issues/56
+        document_date: '2026-02-26'
+        validation_date: '2026-05-19T00:00:00Z'

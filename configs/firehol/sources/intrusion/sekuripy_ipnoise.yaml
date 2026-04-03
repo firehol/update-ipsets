@@ -1,0 +1,150 @@
+sources:
+  sekuripy_ipnoise:
+    license: public feed
+    redistributable: true
+    url: https://www.sekuripy.hr/blacklist.txt
+    frequency: 1440
+    history:
+    - 1440
+    - 10080
+    - 43200
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[sekuripy.hr ipnoise](https://www.sekuripy.hr/blacklist.txt) SSH authentication-log
+      brute-force offenders observed over the last N days.'
+    maintainer: sekuripy.hr
+    maintainer_url: https://www.sekuripy.hr/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T23:38:45Z'
+      official_name: ipnoise
+      official_url: https://www.sekuripy.hr/blacklist.txt
+      short_description: Daily-updated list of IPv4 addresses observed making SSH
+        authentication-log brute-force attempts, compiled from a passive network sensor
+        operated by SekuriPy.
+      long_description: "This feed lists IPv4 addresses that have been observed making
+        SSH authentication-log brute-force attempts. Entries are sourced from a passive
+        network sensor operated by SekuriPy, a Croatian security consulting firm led
+        by Miroslav Stampar, PhD. The sensor records inbound connection attempts targeting
+        SSH servers and compiles offending IPs into a plain-text list distributed
+        via the project's website.\n\nThe feed is consumed by Maltrail (an open-source
+        malicious traffic detection system also developed by Stampar) as one of approximately
+        70 threat-intelligence sources. Maltrail polls the feed on a daily cycle and
+        integrates it into its unified detection pipeline alongside reputation, heuristic,
+        and static-trail signals.\n\nThe feed contains no timestamps, autonomous system
+        numbers, or geographic annotations — only bare IPv4 addresses, one per line,
+        preceded by a single header comment. There is no stated retention window or
+        decay policy in the feed file itself."
+      roles:
+      - role: maintainer
+        name: Miroslav Stampar, PhD
+        organization_type: individual
+        official_url: https://www.sekuripy.hr/
+        contact_email: contact@sekuripy.hr
+        based_in: Croatia
+        active_since: '2021'
+        notes: Security researcher and penetration tester. Creator of sqlmap and Maltrail.
+          Operates SekuriPy d.o.o. as his professional consultancy. Also serves as
+          Senior Security Engineer at Intel 471.
+      - role: publisher
+        name: SekuriPy d.o.o.
+        organization_type: commercial
+        official_url: https://www.sekuripy.hr/
+        contact_email: contact@sekuripy.hr
+        based_in: Croatia
+        active_since: '2021'
+        notes: Registered as SekuriPy d.o.o. (Mirka Račkog 10, 10360 Sesvete, Zagreb).
+          Hosts the blacklist.txt feed file on its web server.
+      derivation:
+        type: original
+        description: 'First-party detection: a passive network sensor operated by
+          SekuriPy monitors inbound SSH connection attempts and records source IPv4
+          addresses that exhibit brute-force behavior in authentication logs. Compiled
+          into a flat list distributed via sekuripy.hr/blacklist.txt.'
+        source_feeds: []
+      listing_policy:
+        summary: An IPv4 address is listed when a passive SSH sensor operated by SekuriPy
+          observes it making repeated failed authentication attempts against an SSH
+          server. The sensor records inbound connection attempts in auth logs and
+          flags sources exhibiting brute-force patterns — multiple rapid login failures
+          — as offenders.
+        criteria:
+        - Observed making repeated failed SSH authentication attempts
+        - Detected by a passive SSH authentication-log sensor
+        - Source identified by IPv4 address
+      unlisting_policy:
+        summary: No automated unlisting mechanism or documented expiry policy is publicly
+          stated. The feed header references 'last N days', suggesting entries represent
+          recent offenders that may naturally expire as the observation window advances,
+          but no explicit delisting process or timeframe is published.
+        criteria:
+        - Passive expiration implied by 'last N days' window (duration unspecified)
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated approximately once per day
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: 'A passive SSH honeypot sensor monitors inbound connection attempts
+          targeting SSH servers. When a source IP makes repeated failed authentication
+          attempts — a brute-force pattern — it is recorded and added to the blacklist.
+          This is first-party detection: SekuriPy operates the sensor(s) that generate
+          the feed data, rather than aggregating reports submitted by third parties.'
+      scope_and_intent:
+        description: Addresses observed making SSH brute-force authentication attempts,
+          intended for blocking at the network perimeter.
+        intended_for:
+        - Blocking SSH brute-force attackers at network firewalls or endpoints
+        - Enriching SIEM or IDS alerts with known malicious source IPs
+        not_intended_for: []
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: No redistribution restrictions are stated by the direct upstream. The
+          feed is publicly downloadable via unauthenticated HTTP.
+      current_status:
+        state: active
+        description: Feed is live as of this run. The file at sekuripy.hr/blacklist.txt
+          resolves successfully and returns the IPv4 address list. Maltrail continues
+          to poll the feed on its daily cycle (confirmed in Maltrail v0.39.6 and later).
+          No discontinuation announcement has been made by the maintainer.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion about this specific feed is effectively
+          absent. Searches across Reddit, security forums, technical blogs, and GitHub
+          issues found no mentions of sekuripy.hr/blacklist.txt as a standalone resource.
+          The feed is referenced internally within Maltrail (where it is one of approximately
+          70 feeds), but operators do not commonly discuss it outside that context.
+          Sparse public discussion is consistent with a narrow, specialized feed operated
+          by a solo practitioner for use within his own tooling ecosystem.
+      sources_consulted:
+      - url: https://www.sekuripy.hr/
+        document_date:
+        validation_date: '2026-05-16T23:35:00Z'
+      - url: https://www.sekuripy.hr/blacklist.txt
+        document_date:
+        validation_date: '2026-05-16T23:35:00Z'
+      - url: https://github.com/stamparm/ipnoise
+        document_date:
+        validation_date: '2026-05-16T23:36:00Z'
+      - url: https://github.com/sekuripy/sekuripy.github.io
+        document_date:
+        validation_date: '2026-05-16T23:37:00Z'
+      - url: 
+          https://raw.githubusercontent.com/stamparm/maltrail/master/trails/feeds/ipnoise.py
+        document_date:
+        validation_date: '2026-05-16T23:38:00Z'
+      - url: https://github.com/stamparm/maltrail/issues/19044
+        document_date: '2022-01-25'
+        validation_date: '2026-05-16T23:38:00Z'

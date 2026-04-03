@@ -1,0 +1,143 @@
+sources:
+  shadowwhisperer_tunnel:
+    license: Unlicense (Public Domain)
+    redistributable: true
+    url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/Lists/Tunnels
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: anonymizers
+    info: '[ShadowWhisperer/IPs](https://github.com/ShadowWhisperer/IPs) VPN and proxy
+      IPs observed by the maintainer''s honeypots. ~13K entries, hourly refresh.'
+    maintainer: ShadowWhisperer
+    maintainer_url: https://github.com/ShadowWhisperer/IPs
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T11:28:45+00:00'
+      official_name: ShadowWhisperer/IPs — Tunnels
+      official_url: https://github.com/ShadowWhisperer/IPs
+      short_description: Proxy and VPN exit-node IPs observed by the maintainer's
+        honeypot network.
+      long_description: "The Tunnels list collects IP addresses that connected to
+        the maintainer's Cowrie honeypot network from anonymizer endpoints — VPN clients,
+        proxy relays, and similar tunneling services. When such a client reaches a
+        honeypot, its exit-node IP is captured and tagged as a tunnel entry.\n\nEntries
+        are aggregated, reviewed, and published on an hourly cycle. A CSV companion
+        file (`Tunnels.csv`) appends the company name associated with each IP (for
+        example Atlas VPN, Browsec, Air VPN), giving operators additional context
+        for allowlisting decisions when a known commercial provider's egress IP appears
+        in the list."
+      roles:
+      - role: maintainer
+        name: ShadowWhisperer
+        organization_type: individual
+        official_url: https://github.com/ShadowWhisperer
+        contact_email:
+        based_in:
+        active_since: '2021-05-13'
+        notes: Individual researcher operating a distributed Cowrie honeypot network.
+          Also maintains the ShadowWhisperer/BlockLists DNS-blocklist project. Holds
+          an AbuseIPDB contributor badge.
+      derivation:
+        type: original
+        description: Collected from a distributed Cowrie honeypot network operated
+          by the maintainer. The honeypots log inbound connection attempts; IPs observed
+          reaching the honeypots from anonymizer clients are tagged as tunnel exits
+          and published hourly after review.
+        source_feeds: []
+      listing_policy:
+        summary: An IP enters the feed when the maintainer's honeypot network observes
+          a client connecting from an anonymizer endpoint. Logs are accumulated centrally,
+          reviewed, and published hourly. The maintainer applies judgment during review
+          rather than publishing every observed IP unconditionally.
+        criteria:
+        - Observed connecting to a Cowrie honeypot from an anonymizer exit-node IP
+        - Connection originates from a known VPN, proxy, or tunneling service
+        - Reviewed and accepted by the maintainer before publication
+      unlisting_policy:
+        summary: There is no formally documented unlisting procedure. Requests are
+          handled through GitHub issues on a best-effort basis.
+        criteria:
+        - Submit a GitHub issue with the affected IP and justification
+        - Maintainer evaluates and removes if warranted
+      unlist_request:
+        url: https://github.com/ShadowWhisperer/IPs/issues/new
+        email:
+        instructions: File a GitHub issue on the ShadowWhisperer/IPs repository. Include
+          the IP address and a brief explanation of why it should be removed. The
+          maintainer reviews issues and acts on valid requests.
+      update_frequency:
+        frequency: 1h
+        human_readable: Updated approximately every hour.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: Passive observation through Cowrie honeypots. Cowrie is a medium-interaction
+          SSH/Telnet honeypot that logs authentication attempts and shell commands.
+          When a client connects to a Cowrie honeypot from a VPN or proxy exit node,
+          that exit-node IP is captured as a tunnel entry. The method detects anonymizer
+          endpoints by observing the client's egress IP, not by querying VPN provider
+          APIs or scanning.
+      scope_and_intent:
+        description: Identifies IP addresses used as anonymizer exit nodes — VPN and
+          proxy relays observed by the maintainer's honeypot network.
+        intended_for:
+        - Blocking anonymized or abusive connections at network edges
+        - Identifying VPN and proxy egress points in access logs
+        - Correlating anonymizer IPs with user activity records
+        not_intended_for:
+        - Blocking VPN service providers wholesale
+        - Permanent blocking of legitimate VPN users
+        - Attribution of VPN companies to specific abusive activity
+      license: Unlicense (Public Domain)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: Unrestricted. The Unlicense places no conditions on use, redistribution,
+          or attribution. Data may be used for any purpose including commercial use
+          without obligation to credit the maintainer.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026. Hourly updates published
+          to the GitHub repository. Recent issues filed and resolved in 2025–2026.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: No false-positive reports specific to the Tunnels list were found
+          in the maintainer's GitHub issue tracker. Community discussion about this
+          specific feed is sparse.
+        engagement: Sparse public discussion. No Tunnels-specific community channels,
+          forum threads, or third-party reviews were located. Operator-side feedback
+          on this list typically arrives as ad-hoc GitHub issues against the maintainer's
+          repository rather than dedicated discussion.
+      sources_consulted:
+      - url: https://github.com/ShadowWhisperer/IPs
+        document_date:
+        validation_date: '2026-05-16T11:28:00+00:00'
+      - url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/Lists/Tunnels
+        document_date:
+        validation_date: '2026-05-16T11:28:00+00:00'
+      - url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/Lists/Tunnels.csv
+        document_date:
+        validation_date: '2026-05-16T11:28:00+00:00'
+      - url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/LICENSE
+        document_date:
+        validation_date: '2026-05-16T11:28:00+00:00'
+      - url: https://github.com/ShadowWhisperer/IPs/issues
+        document_date:
+        validation_date: '2026-05-16T11:28:00+00:00'
+      - url: https://github.com/ShadowWhisperer/IPs/issues/2
+        document_date: '2022-10-17'
+        validation_date: '2026-05-16T11:28:00+00:00'
+      - url: https://github.com/ShadowWhisperer/IPs/issues/6
+        document_date: '2024-04-13'
+        validation_date: '2026-05-16T11:28:00+00:00'
+      - url: https://github.com/ShadowWhisperer/IPs/tree/master/Lists
+        document_date:
+        validation_date: '2026-05-16T11:28:00+00:00'

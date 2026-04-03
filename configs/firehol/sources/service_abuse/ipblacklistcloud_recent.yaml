@@ -1,0 +1,189 @@
+sources:
+  ipblacklistcloud_recent:
+    license: unknown
+    redistributable: true
+    url: http://www.ip-finder.me/download/
+    frequency: 240
+    history:
+    - 1440
+    - 10080
+    - 43200
+    ipv: ipv4
+    output: ipset
+    processor:
+    - parse_ipblacklistcloud
+    processor_raw: parse_ipblacklistcloud
+    category: service_abuse
+    info: '[IP Blacklist Cloud](http://www.ip-finder.me/) These are the most recent
+      IP addresses that have been blacklisted by websites. IP Blacklist Cloud plugin
+      protects your WordPress based website from spam comments, gives details about
+      login attacks which you don''t even know are happening without this plugin!'
+    maintainer: IP Blacklist Cloud
+    maintainer_url: http://www.ip-finder.me/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T02:17:28Z'
+      official_name: IP Blacklist Cloud
+      official_url:
+      short_description: Crowdsourced IP blacklist aggregating reports from WordPress
+        websites that installed the IP Blacklist Cloud plugin, covering IPs associated
+        with spam comments and brute-force login attempts.
+      long_description: "IP Blacklist Cloud was a crowdsourced IP blacklist built
+        from reports submitted by WordPress websites running the plugin. When a site
+        administrator blocked an IP — whether manually or triggered by a spam comment
+        or failed login attempt — the plugin transmitted the IP along with the site's
+        name and URL to the central ip-finder.me database. Other participating sites
+        could then query the cloud to see how many sites had blocked a given IP and
+        read associated comments explaining why each IP was flagged.\n\nThe feed distributed
+        via this catalog (ipblacklistcloud_recent) represented the most recently reported
+        IPs from that cloud. The plugin itself operated passively: it did not push
+        updates on a fixed schedule but transmitted data to ip-finder.me only when
+        a triggering event occurred on a participating site — blocking an IP, removing
+        a block, or requesting a spam-percentage check. A premium server package was
+        offered separately for operators managing multiple WordPress installations.\n\
+        \nThe WordPress.org plugin listing was closed on 28 September 2022 citing
+        a security issue. The ip-finder.me domain subsequently became unreachable
+        or was repurposed as a generic content site, leaving the feed's upstream infrastructure
+        functionally offline."
+      roles:
+      - role: maintainer
+        name: Adiie9
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Listed as the sole contributor on the WordPress.org plugin page. No
+          additional identifying information was found beyond the username.
+      derivation:
+        type: original
+        description: The feed was compiled from reports submitted directly by WordPress
+          websites running the IP Blacklist Cloud plugin. When a site blocked an IP
+          — triggered by a spam comment, a failed login attempt, or manual administrator
+          action — the plugin transmitted the IP along with the site's name and URL
+          to the ip-finder.me cloud database. The feed distributed via this catalog
+          reflected the most recently reported IPs from that cloud, assembled by the
+          maintainer's own infrastructure. No external IP feeds, commercial threat-intel
+          sources, or third-party APIs were incorporated into the feed.
+        source_feeds: []
+      listing_policy:
+        summary: An IP entered the feed when a participating WordPress site blocked
+          it — either automatically (after a configurable threshold of failed login
+          attempts or upon flagging a spam comment) or through manual administrator
+          action via the plugin's admin panel. The site then transmitted the IP along
+          with its name and URL to the ip-finder.me cloud, where other participants
+          could view the accumulating reports.
+        criteria:
+        - 'Automatic: a configurable threshold of failed login attempts from the same
+          IP within a defined time window'
+        - 'Automatic: a WordPress administrator marking a comment as spam from the
+          dropdown menu'
+        - 'Manual: a site administrator adding an IP via the IP Blacklist → Add IP
+          to Blacklist admin menu'
+      unlisting_policy:
+        summary: A site administrator could remove their own site from an IP's report
+          list by deleting that IP from their local WordPress blacklist via the IP
+          Blacklist → Blacklist admin menu — this action automatically sent a removal
+          request to ip-finder.me. There was no public self-service portal for individuals
+          whose IPs were listed by other sites; the developer directed such users
+          to contact him privately for manual database edits. No automatic expiry
+          or time-based decay was documented.
+        criteria:
+        - Site admin deletes the IP from their local WordPress blacklist — automatically
+          removes the site from the ip-finder.me cloud record for that IP
+        - Individual whose IP was listed by a third party must contact the developer
+          privately for manual database removal (no public procedure published)
+      unlist_request:
+        url:
+        email:
+        instructions: There is no public unlisting portal or automated API. Individuals
+          whose IP was listed by a third-party WordPress site must contact the plugin
+          developer directly via the WordPress.org support forum for manual database
+          removal. Site administrators can remove their own contribution by deleting
+          the IP from their local WordPress blacklist via the plugin's admin menu
+          (IP Blacklist → Blacklist), which automatically sends a removal request
+          to ip-finder.me.
+      update_frequency:
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods: []
+        description: 'IPs enter the feed through voluntary reports submitted by WordPress
+          site administrators who install the plugin. When a site blocks an IP — whether
+          automatically after a threshold of failed login attempts or spam-comment
+          flags, or manually through the admin panel — the plugin transmits the IP
+          and site identity to the ip-finder.me cloud. This is a user-submission model:
+          the detector is the participating site operator, not an automated sensor
+          or honeypot.'
+      scope_and_intent:
+        description: The feed was designed for WordPress site operators who wanted
+          to block IPs associated with spam comments and brute-force login attempts
+          based on reports from a community of participating sites. The intended scope
+          was limited to IPs observed in those two contexts on WordPress installations.
+        intended_for:
+        - Blocking spam comment authors on WordPress sites
+        - Blocking IPs associated with brute-force login attempts on WordPress admin
+          panels
+        not_intended_for:
+        - General-purpose network perimeter blocking outside of WordPress environments
+        - C2, malware, phishing, or non-WordPress threat categories
+      license: unknown
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: Per the GPLv2-or-later license, the plugin and its generated data may
+          be redistributed. The GPL requires that source code be made available under
+          the same terms and that derivative works carry prominent attribution of
+          the original copyright. No additional redistribution restrictions were stated
+          by the maintainer.
+      current_status:
+        state: discontinued
+        description: The IP Blacklist Cloud WordPress plugin was officially closed
+          on WordPress.org on 28 September 2022, citing a security issue. The ip-finder.me
+          domain subsequently became unreachable or was repurposed as a generic content
+          site with no IP Blacklist Cloud functionality. The download URL returns
+          HTTP 404. No successor feed or migration destination has been announced.
+        successor:
+        announcement_date: '2022-09-28'
+      community:
+        awards:
+        criticism: "The plugin accumulated four confirmed security vulnerabilities
+          over its lifetime. Two remain unpatched: an Admin+ SQL Injection (CVE-2022-43462,
+          CVSS 6.8) and an Admin+ Stored Cross-Site Scripting vulnerability (CVE-2022-42462,
+          CVSS 3.4), both published in October 2022 shortly after the plugin's closure.
+          Earlier vulnerabilities (Arbitrary File Disclosure in versions prior to
+          3.43, SQL Injection in versions prior to 3.4) were patched. Users also reported
+          that the ip-finder.me backend went offline intermittently, causing the plugin
+          to display connection errors. The developer did not publish a public unlisting
+          procedure, directing affected individuals to contact him privately instead."
+        engagement: Public community discussion is sparse. The WordPress.org support
+          forum contains a small number of threads, primarily from users reporting
+          accidental self-blocking or backend connectivity outages. The GitHub repository
+          is archived with no stars, no open issues, and no commits since June 2015.
+          No notable third-party recognition, awards, or citations were found.
+      sources_consulted:
+      - url: https://wordpress.org/plugins/ip-blacklist-cloud/
+        document_date: '2022-09-28'
+        validation_date: '2026-05-19'
+      - url: https://github.com/wp-plugins/ip-blacklist-cloud
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://wpscan.com/plugin/ip-blacklist-cloud/
+        document_date: '2020-05-10'
+        validation_date: '2026-05-19'
+      - url: https://nvd.nist.gov/vuln/detail/CVE-2022-42462
+        document_date: '2022-10-24'
+        validation_date: '2026-05-19'
+      - url: https://wordpress.org/support/topic/my-own-ip-has-been-blacklisted/
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://wordpress.org/support/topic/the-www-ip-finder-me-seems-to-be-down/
+        document_date:
+        validation_date: '2026-05-19'
+      - url: http://www.ip-finder.me/
+        document_date:
+        validation_date: '2026-05-19'
+      - url: http://www.ip-finder.me/download/
+        document_date:
+        validation_date: '2026-05-19'

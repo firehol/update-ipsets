@@ -1,0 +1,216 @@
+sources:
+  php_dictionary:
+    license: Project Honey Pot Terms of Use — All Rights Reserved
+    redistributable: false
+    url: http://www.projecthoneypot.org/list_of_ips.php?t=d&rss=1
+    frequency: 60
+    history:
+    - 1440
+    - 10080
+    - 43200
+    ipv: ipv4
+    output: ipset
+    processor:
+    - xml_rss_title
+    processor_raw: parse_php_rss
+    category: service_abuse
+    info: '[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) directory
+      attackers (this list is composed using an RSS feed)'
+    maintainer: ProjectHoneypot.org
+    maintainer_url: http://www.projecthoneypot.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T02:34:11Z'
+      official_name: Dictionary Attacker IPs
+      official_url: https://www.projecthoneypot.org/list_of_ips.php?t=d
+      short_description: Tracks IP addresses observed sending dictionary attacks —
+        automated attempts to guess valid email addresses by probing common usernames
+        — against Project Honey Pot's global network of email honeypots.
+      long_description: "The Dictionary Attacker IPs feed (`t=d`) publishes IPv4 addresses
+        observed conducting dictionary attacks against the Project Honey Pot honeypot
+        network — systematic automated attempts to discover valid email addresses
+        by sending messages to common username patterns (such as info@, admin@, test@)
+        across many domains. This is the only PHP feed that targets username-probing
+        behavior specifically, distinct from the maintainer's sibling Spam Server
+        IPs (`t=s`, confirmed spam delivery to harvested traps) and Comment Spammers
+        (`t=c`, web-form submissions) products.\n\nEach RSS entry carries a threat
+        code classifying the type of activity observed: `SD` indicates an IP exhibiting
+        both suspicious behavior and confirmed dictionary attacking; `SDW` adds comment-spamming
+        behavior; `D` indicates a pure dictionary attacker; `SP` indicates a spam-comment
+        poster. Entries also include the total count of bad events recorded, the first
+        date the IP was observed, and the most recent date.\n\nPer the maintainer's
+        own caveat on the feed page: \"being listed on these pages does not necessarily
+        mean an IP address is owned by a spammer. For example, it may have been hijacked
+        from its true owner.\" The feed distributes via RSS and is sorted by most
+        recent bad event. The maintainer documents a 30-day retention window for this
+        feed — an IP is automatically removed 30 days after its last observed activity,
+        a policy the maintainer states explicitly for this dataset."
+      roles:
+      - role: maintainer
+        name: Unspam Technologies, Inc.
+        organization_type: commercial
+        official_url: https://www.unspam.com/
+        contact_email:
+        based_in: United States (Utah)
+        active_since: '2004'
+        notes: Unspam Technologies operates Project Honey Pot and the HTTP:BL DNS
+          reputation service. The company's mailing address is P.O. Box 57265, Murray,
+          UT 84157-0265.
+      derivation:
+        type: original
+        description: The feed is built entirely from Project Honey Pot's own distributed
+          honeypot network. Participating webmasters embed specially tagged email
+          addresses and web forms on their sites. When bots visit these pages — to
+          harvest addresses or post to forms — the activity is logged with the visitor's
+          IP address and sent to Project Honey Pot's central servers. The Dictionary
+          Attacker feed selects IPs observed conducting dictionary attacks (systematic
+          probing of common email username patterns) and publishes them via RSS, sorted
+          by most recent bad event.
+        source_feeds: []
+      listing_policy:
+        summary: "An IP is listed when Project Honey Pot's honeypot network detects
+          it conducting a dictionary attack — an automated attempt to discover valid
+          email addresses by probing common username patterns across many domains.
+          Each entry carries a threat code reflecting the type of activity: SD indicates
+          suspicious behavior plus confirmed dictionary attacking; SDW adds comment-spamming
+          behavior; D indicates a pure dictionary attacker; SP indicates a spam-comment
+          poster. Entries also record the total count of bad events, the first date
+          observed, and the most recent date."
+        criteria:
+        - Automated visit to a honeypot page embedding a specially tagged email address
+          or web form
+        - 'Activity consistent with dictionary attacking: probing common email username
+          patterns across multiple domains'
+        - IP address captured with timestamp and activity type logged to Project Honey
+          Pot's central database
+      unlisting_policy:
+        summary: IPs are automatically removed 30 days after the last detected bad
+          event, per the maintainer's FAQ. Proactively, IP owners can submit a whitelist
+          request covering the entire /24 subnet of their IP; whitelisted IPs are
+          excluded from listings but immediately delist automatically if any bad activity
+          is subsequently detected from that subnet, triggering a progressive delay
+          penalty on future whitelist submissions.
+        criteria:
+        - Automatic expiry 30 days after the last detected bad event
+        - Manual whitelist request reviewed by the maintainer — covers the requesting
+          IP's /24 subnet
+        - Automatic delisting triggered by any subsequent bad activity from the whitelisted
+          subnet
+      unlist_request:
+        url: https://www.projecthoneypot.org/white_list.php
+        email:
+        instructions: For proactive protection, submit a whitelist request at the
+          whitelist portal — this covers the entire /24 subnet of the requesting IP
+          and takes approximately one hour to propagate. For mistaken listings, submit
+          a mistaken listing report via the contact form at projecthoneypot.org/contact_us.php?ft=Mistaken%20Listing,
+          providing the IP address and reason for believing the listing is erroneous.
+          The maintainer states they will investigate and remove the IP if it was
+          incorrectly listed.
+      update_frequency:
+        frequency:
+        human_readable: The maintainer does not publish a specific update interval
+          for the Dictionary Attacker RSS feed. The HTTP:BL DNS zone file can be rsynced
+          on a regular basis, and IP space monitoring reports are processed several
+          times a day, per the FAQ.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: "Detection is entirely first-party: participating webmasters
+          embed specially tagged email addresses and web forms on their sites. When
+          bots visit these pages — to harvest addresses or post to forms — the activity
+          is logged with the visitor's IP address and sent to Project Honey Pot's
+          central servers. The Dictionary Attacker feed selects IPs observed conducting
+          dictionary attacks against the honeypot email addresses."
+      scope_and_intent:
+        description: The Dictionary Attacker IPs feed tracks IP addresses observed
+          conducting dictionary attacks — automated attempts to discover valid email
+          addresses by probing common username patterns — against Project Honey Pot's
+          distributed honeypot network. The feed is intended for operators wishing
+          to block or challenge visitors originating from IPs with a history of email-address
+          harvesting activity.
+        intended_for:
+        - Blocking or challenging visitors from IPs with a history of email-address
+          harvesting
+        - Enriching email-server access logs with threat intelligence
+        - Feeding web application firewalls or access-control systems
+        not_intended_for:
+        - Certifying an IP as definitively owned by a spammer — the maintainer notes
+          IPs may be listed because they were hijacked from their true owner
+        - Permanent blocking without review — the maintainer advises contacting them
+          for mistaken listings
+      license: Project Honey Pot Terms of Use — All Rights Reserved
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The Terms of Use prohibit reproduction of content without written permission
+          and prohibit resale of Project Honey Pot or Unspam's services. Automated
+          access by non-human visitors (bots, scrapers, crawlers) is restricted and
+          requires compliance with the terms. The feed is publicly accessible via
+          unauthenticated RSS but the ToS governs redistribution — operators should
+          seek written authorization from Unspam before redistributing.
+      current_status:
+        state: active
+        description: Active as of May 2026. The RSS feed returned a successful response
+          with a lastBuildDate of May 18 2026, and the feed page is accessible and
+          displaying current entries.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "The dictionary-attack listing mechanism carries a theoretical
+          adversarial weaponization concern that community discussion has raised:
+          because the trigger is mail delivered to honeypot trap addresses, an attacker
+          who can spoof an SMTP `MAIL FROM` or originate mail from an arbitrary relay
+          could in principle drive a target IP onto the list by sending probe-pattern
+          messages referencing that IP. The maintainer's whitelist process is the
+          documented remedy, but it requires the affected operator to first discover
+          the listing and identify Project Honey Pot as the source. Affected users
+          on community forums have additionally noted that user-agent strings attributed
+          to listed IPs were never installed on the affected devices — a pattern consistent
+          with dynamic IP reuse where a previously-listed address has been reassigned
+          by an ISP."
+        engagement: Public discussion of the Dictionary Attacker IPs feed specifically
+          is sparse. Most third-party PHP coverage on community forums conflates the
+          various PHP feeds and centres on individual removal requests rather than
+          evaluating the dictionary-attacker dataset as a standalone data product.
+          The maintainer's own message board hosts occasional threads on false positives
+          where dictionary-attack listings are discussed in the context of dynamic
+          IP reuse.
+      sources_consulted:
+      - url: http://www.projecthoneypot.org/
+        document_date:
+        validation_date: '2026-05-19T02:00:00Z'
+      - url: http://www.projecthoneypot.org/list_of_ips.php?t=d&rss=1
+        document_date: '2026-05-18'
+        validation_date: '2026-05-19T02:00:00Z'
+      - url: http://www.projecthoneypot.org/terms_of_use.php
+        document_date: '2007-04-15'
+        validation_date: '2026-05-19T02:00:00Z'
+      - url: https://www.projecthoneypot.org/httpbl.php
+        document_date:
+        validation_date: '2026-05-19T02:00:00Z'
+      - url: https://www.projecthoneypot.org/httpbl_api.php
+        document_date:
+        validation_date: '2026-05-19T02:00:00Z'
+      - url: https://www.projecthoneypot.org/white_list.php
+        document_date:
+        validation_date: '2026-05-19T02:00:00Z'
+      - url: https://www.projecthoneypot.org/list_of_ips.php?t=d
+        document_date: '2026-05-18'
+        validation_date: '2026-05-19T02:00:00Z'
+      - url: https://www.projecthoneypot.org/contact_us.php?ft=Mistaken%20Listing
+        document_date:
+        validation_date: '2026-05-19T02:00:00Z'
+      - url: 
+          https://www.reddit.com/r/AskNetsec/comments/308k8a/project_honeypot_has_my_ip_on_its_blacklist_database/
+        document_date: 2015-03
+        validation_date: '2026-05-19T02:00:00Z'
+      - url: 
+          https://community.cloudflare.com/t/my-ip-blocked-due-to-projecthoneypot-how-to-resolve/28285
+        document_date: 2018-08
+        validation_date: '2026-05-19T02:00:00Z'
+      - url: https://www.projecthoneypot.org/board/read.php?f=10&t=435&a=1
+        document_date: 2013-01
+        validation_date: '2026-05-19T02:00:00Z'

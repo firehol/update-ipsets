@@ -1,0 +1,182 @@
+sources:
+  misp_microsoft_office365_ip:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/microsoft-office365-ip/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Office 365
+      IP address ranges. Provider infrastructure reference, not a threat indicator.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T17:24:36Z'
+      official_name: List of known Office 365 IP address ranges
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: A curated reference list of Microsoft Office 365 IP address
+        ranges (CIDR blocks) used to identify legitimate Microsoft infrastructure
+        and reduce false positives during threat-intelligence analysis.
+      long_description: "This warninglist provides a structured reference of the IP
+        address ranges (CIDR blocks) allocated to Microsoft Office 365 services. It
+        is maintained as part of the MISP warninglists project, a collaborative repository
+        of well-known indicators that can be associated with potential false positives
+        during threat-intelligence analysis.\n\nThe list is sourced directly from
+        Microsoft's published Office 365 endpoints documentation. Per Microsoft's
+        stated cadence, endpoint data is updated at the beginning of each month, with
+        new IP addresses and URLs published 30 days in advance of becoming active.
+        The MISP list mirrors these ranges in CIDR format for use with MISP's built-in
+        warninglist matching engine.\n\nWarninglists differ fundamentally from threat-indicator
+        feeds: they are informational references, not blocklists. When an analyst
+        encounters an IP in this list during investigation, MISP displays a warning
+        box alerting that the IP belongs to Microsoft Office 365 infrastructure. This
+        helps analysts suppress false-positive alerts on legitimate Microsoft traffic
+        rather than treating it as malicious activity."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://github.com/MISP
+        contact_email:
+        based_in: Luxembourg
+        active_since: '2016'
+        notes: The MISP Project (Malware Information Sharing Platform) is developed
+          and maintained by CIRCL (Computer Incident Response Center Luxembourg).
+          Alexandre Dulaunoy (@adulau) is credited as a lead maintainer in commit
+          history. The warninglists submodule is hosted under the MISP GitHub organization.
+      - role: publisher
+        name: MISP GitHub Organization
+        organization_type: research_institution
+        official_url: https://github.com/MISP
+        contact_email:
+        based_in: Luxembourg
+        active_since: '2016'
+        notes: Hosts the misp-warninglists repository and serves the list.json files
+          via GitHub Raw (raw.githubusercontent.com). The repository is the canonical
+          distribution channel.
+      derivation:
+        type: derivative
+        description: The list is a derivative extraction from Microsoft's published
+          Office 365 endpoints. The IP address ranges are sourced from Microsoft's
+          REST-based web service and documentation, then converted to CIDR-format
+          JSON for use with MISP's warninglist matching engine. The list.type field
+          is set to 'cidr', enabling CIDR-block matching against ip-src, ip-dst, domain|ip,
+          ip-src|port, and ip-dst|port attribute types in MISP.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added or updated whenever Microsoft publishes new Office
+          365 endpoint IP ranges or retires existing ones. As a reference list mirroring
+          Microsoft's published infrastructure, no independent threat assessment is
+          applied — the list tracks what Microsoft itself declares as its allocated
+          IP space.
+        criteria:
+        - The IP range must appear in Microsoft's published Office 365 endpoints documentation
+          or REST web service
+        - The range must be allocated to Microsoft Office 365 services (Exchange Online,
+          SharePoint Online, Microsoft Teams, or Common Services)
+      unlisting_policy:
+        summary: Entries are removed when Microsoft retires an IP range from its Office
+          365 endpoints. Because the list mirrors Microsoft's published allocations,
+          removal is driven by Microsoft's own changes rather than manual review or
+          decay timers.
+        criteria:
+        - Microsoft retires the IP range from its published Office 365 endpoints
+        - The range is no longer listed in Microsoft's REST endpoint data
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: Synced approximately daily, reflecting Microsoft's monthly
+          endpoint update cycle (new ranges published 30 days before activation, per
+          Microsoft's documentation)
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: "The list is built by extracting IP address ranges from Microsoft's
+          published Office 365 endpoints documentation. This is a policy-assignment
+          classification: the entries represent infrastructure allocations declared
+          by Microsoft itself, not detections of malicious activity. MISP's warninglist
+          matching engine compares incoming attributes against the CIDR list and displays
+          an informational warning box when a match is found."
+      scope_and_intent:
+        description: The list covers all IP address ranges allocated to Microsoft
+          Office 365 services, including Exchange Online, SharePoint Online, Microsoft
+          Teams, and Common Services (both IPv4 and IPv6 CIDR blocks). It is scoped
+          to Microsoft's own O365 infrastructure and does not cover Azure general
+          datacenter ranges, Microsoft 365 non-O365 services, or third-party services.
+        intended_for:
+        - Reducing false positives during threat-intelligence analysis in MISP
+        - Identifying legitimate Microsoft Office 365 traffic in security-monitoring
+          pipelines
+        - Whitelisting Microsoft O365 IP ranges in intrusion-detection systems to
+          suppress benign alerts
+        not_intended_for:
+        - Blocking or blacklisting Microsoft Office 365 infrastructure
+        - Threat-indicator enrichment (the list marks safe infrastructure, not malicious
+          activity)
+        - Azure general-purpose datacenter IP ranges (covered by a separate microsoft-azure
+          warninglist)
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal (Public Domain Dedication) — no rights reserved.
+          The work has been released to the public domain to the fullest extent permitted
+          by law.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026. The latest commit to the
+          repository (May 4, 2026) was a merge of network telescope updates. The list.json
+          version 20260428 indicates regeneration on April 28, 2026. The repository
+          is reachable and the list is served via GitHub Raw.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: 'GitHub issue #40 (open since October 2017) questions whether MISP
+          correctly processes CIDR blocks in the microsoft-office365 list when the
+          type field is not explicitly set; the issue remains unresolved. GitHub issue
+          #299 (June 2025) reported malformed domain entries with leading dots in
+          a related Microsoft warninglist.'
+        engagement: 'The misp-warninglists repository shows regular maintenance activity
+          with commits through May 2026. The microsoft-office365-ip list itself generates
+          modest direct community discussion; the project occupies a specialist niche
+          where the primary engagement channel is GitHub issues rather than broader
+          forums. Community members participate through issue reports (such as malformed
+          domain entries in the related microsoft list, GitHub issue #299 from June
+          2025) and pull-request contributions.'
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/microsoft-office365-ip/list.json
+        document_date: '2026-04-28'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://learn.microsoft.com/en-us/microsoft-365/enterprise/urls-and-ip-address-ranges
+        document_date: '2024-07-31'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/issues/40
+        document_date: '2017-10-31'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/issues/261
+        document_date: '2024-02-08'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/issues/299
+        document_date: '2025-06-09'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/issues/155
+        document_date: '2020-07-20'
+        validation_date: '2026-05-18T00:00:00Z'

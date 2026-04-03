@@ -1,0 +1,163 @@
+sources:
+  shadowwhisperer_scanners:
+    license: Unlicense (public domain)
+    redistributable: true
+    url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/Lists/Scanners
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: scanners
+    info: '[ShadowWhisperer/IPs](https://github.com/ShadowWhisperer/IPs) internet
+      scanner IPs observed by the maintainer''s honeypots. ~32K entries, hourly refresh.'
+    maintainer: ShadowWhisperer
+    maintainer_url: https://github.com/ShadowWhisperer/IPs
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T00:45:09Z'
+      official_name: ShadowWhisperer/IPs — Scanners
+      official_url: https://github.com/ShadowWhisperer/IPs
+      short_description: IPv4 addresses of internet-scanning companies such as Shodan
+        and similar services, identified by the maintainer's honeypot network.
+      long_description: "The Scanners list identifies IPv4 addresses belonging to
+        internet-scanning companies — organisations such as Shodan that systematically
+        map and index internet-connected devices for commercial or research purposes.
+        The list is built from the maintainer's Cowrie honeypot fleet and includes
+        IPs the maintainer attributes to these scanning operators rather than to generic
+        threat actors.\n\nThe maintainer publishes both a plain-text file (`Lists/Scanners`)
+        and a CSV companion (`Lists/Scanners.csv`) with extended per-entry fields,
+        giving operators richer context — useful when distinguishing benign-but-unwanted
+        research scanning from active attack traffic for triage and exception decisions."
+      roles:
+      - role: maintainer
+        name: ShadowWhisperer
+        organization_type: individual
+        official_url: https://github.com/ShadowWhisperer
+        contact_email:
+        based_in:
+        active_since: '2021'
+        notes: Individual researcher operating a distributed honeypot network. Also
+          contributes to AbuseIPDB under user ID 51407. No additional identifying
+          information is publicly stated beyond the GitHub handle.
+      derivation:
+        type: original
+        description: The feed is produced entirely from the maintainer's own honeypot
+          infrastructure. Multiple honeypot instances — originally Cowrie, now a custom
+          honeypot stack — run across geographically distributed locations. Log data
+          is forwarded to a central analysis system, where IPs are parsed, classified
+          by category, and ranked by connection frequency before automatic publication
+          on an hourly cycle. No third-party IP feeds are consumed as inputs.
+        source_feeds: []
+      listing_policy:
+        summary: "An IP is listed when it initiates connections consistent with systematic
+          internet-scanning behaviour — repeated connection attempts or probes targeting
+          services across multiple endpoints — observed by the maintainer's honeypot
+          network. The maintainer classifies observed IPs by connection-count severity
+          bands: Extreme (80 or more connects), High (20–79), Medium (5–19), and Low
+          (fewer than 5). The Scanners list focuses specifically on IPs associated
+          with commercial and research internet-indexing organisations."
+        criteria:
+        - Observed initiating connections from an IP to the maintainer's honeypot
+          infrastructure
+        - Connection count falling within the Extreme, High, Medium, or Low severity
+          band
+        - Attribution to an internet-scanning organisation rather than a generic threat
+          actor
+      unlisting_policy:
+        summary: There is no documented automatic expiry or decay mechanism. IPs are
+          removed manually upon confirmed false-positive reports filed through the
+          project's GitHub issue tracker. The maintainer reviews reported IPs individually
+          and closes issues once resolved.
+        criteria:
+        - Manual false-positive report filed by a third party via GitHub issues
+        - Maintainer acknowledgement that the IP was incorrectly listed
+        - Manual removal from the relevant list file
+      unlist_request:
+        url: https://github.com/ShadowWhisperer/IPs/issues/new
+        email:
+        instructions: File a GitHub issue on the ShadowWhisperer/IPs repository describing
+          the IP address and the reason it is believed to be a false positive. The
+          maintainer reviews and responds to issues individually. There is no separate
+          delisting portal or dedicated email address.
+      update_frequency:
+        frequency: 1h
+        human_readable: Updated every hour, per the maintainer's README.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: The feed is built from the maintainer's own honeypot infrastructure.
+          Multiple honeypot instances — originally Cowrie, now a custom honeypot stack
+          — run across distributed locations and forward connection logs to a central
+          analysis system. Cowrie is a medium-interaction SSH/Telnet honeypot that
+          records brute-force attempts and shell session activity; the expanded stack
+          extends this to additional service types. IPs are classified and ranked
+          by connection frequency before publication.
+      scope_and_intent:
+        description: The Scanners list targets IPs belonging to organisations that
+          systematically scan and index internet-connected devices for commercial
+          or research purposes, such as Shodan and comparable services. The parent
+          project covers eight threat categories in total, but each list is independently
+          scoped.
+        intended_for:
+        - Blocking commercial and research internet-scanning traffic at the network
+          perimeter
+        - Identifying scanning provenance in firewall and SIEM logs
+        - Reducing unwanted indexing of internal services
+        not_intended_for:
+        - Blocking general bot traffic or credential-stuffing attacks (covered by
+          separate lists in the project)
+        - Blocking malware command-and-control infrastructure (separate Threats list)
+      license: Unlicense (public domain)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: No redistribution restrictions are stated. Under the Unlicense, anyone
+          may copy, modify, publish, use, compile, sell, or distribute the software
+          or data for any purpose, commercial or non-commercial, with no conditions.
+      current_status:
+        state: active
+        description: Active. The maintainer continues to update the repository on
+          a regular hourly cycle. Last push to the repository occurred on 2026-05-19.
+          The Lists directory files, including Scanners, show recent modification
+          dates within the current month.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: No false-positive incident or removal dispute specific to the Scanners
+          list was found in the maintainer's issue history. Scanners is a sensitive
+          category because the listed IPs typically belong to identifiable scanning
+          organisations whose traffic some operators tolerate, but the maintainer
+          has not published a documented exception or allowlist process for those
+          scanners.
+        engagement: Public discussion of the Scanners list specifically is sparse.
+          No GitHub Discussions space is active on the maintainer's repository. No
+          third-party dependents are tracked by GitHub's dependency graph. No dedicated
+          community forum, Discord, or mailing list exists for the list. Users seeking
+          removal or clarification interact via ad-hoc GitHub issues.
+      sources_consulted:
+      - url: https://github.com/ShadowWhisperer/IPs
+        document_date:
+        validation_date: '2026-05-19T00:40:00Z'
+      - url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/Lists/Scanners
+        document_date:
+        validation_date: '2026-05-19T00:40:00Z'
+      - url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/LICENSE
+        document_date:
+        validation_date: '2026-05-19T00:40:00Z'
+      - url: https://github.com/ShadowWhisperer/IPs/issues
+        document_date:
+        validation_date: '2026-05-19T00:40:00Z'
+      - url: https://github.com/ShadowWhisperer/IPs/issues/2
+        document_date: '2022-10-17'
+        validation_date: '2026-05-19T00:40:00Z'
+      - url: https://github.com/ShadowWhisperer/IPs/tree/master/Lists
+        document_date:
+        validation_date: '2026-05-19T00:40:00Z'
+      - url: https://github.com/ShadowWhisperer/IPs/network/dependants
+        document_date:
+        validation_date: '2026-05-19T00:40:00Z'

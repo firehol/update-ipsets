@@ -1,0 +1,231 @@
+sources:
+  spamhaus_edrop:
+    attribution: © The Spamhaus Project — https://www.spamhaus.org/
+    license: Spamhaus DROP Fair Use Policy
+    redistributable: true
+    url: http://www.spamhaus.org/drop/edrop.txt
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - remove_comments_semi
+    processor_raw: remove_comments_semi_colon
+    category: policy_risk
+    info: '[Spamhaus.org](http://www.spamhaus.org) EDROP (extended matches that should
+      be used with DROP)'
+    maintainer: Spamhaus.org
+    maintainer_url: http://www.spamhaus.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T13:39:28Z'
+      official_name: Spamhaus Extended DROP List (EDROP)
+      official_url: http://www.spamhaus.org/drop/
+      short_description: Advisory blocklist of suballocated IP netblocks hijacked
+        or leased by professional spam and cyber-crime operations, formatted for firewalls
+        and routing equipment.
+      long_description: "The Spamhaus Extended DROP List (EDROP) was introduced in
+        2012 as a companion to the DROP list, extending coverage to netblocks that
+        are suballocated — portions of RIR-allocated space subdivided and delegated
+        through intermediaries — when those portions are controlled by professional
+        spam or cyber-crime operations. The maintainer describes the listing standard
+        as rigorous forensic investigation: networks enter the list only after dedicated
+        investigators and forensics specialists gather evidence of criminal control,
+        encompassing hijacked netblocks (acquired through domain-expiration fraud,
+        BGP ASN hijacking, or social engineering against RIRs) and leased blocks (rented
+        from IPv4 brokers or bulletproof hosters). Qualifying activity includes malware
+        dissemination, trojan downloaders, botnet command-and-control servers, snowshoe
+        spamming, and ransomware infrastructure.\n\nEffective April 10, 2024, Spamhaus
+        merged EDROP into the unified DROP list. The maintainer cites IPv4 exhaustion
+        as the rationale: with direct RIR allocations no longer possible, most organizations
+        now acquire IP space as subleases from brokers, making the direct/suballocated
+        distinction that motivated EDROP obsolete. The EDROP files remain accessible
+        but are empty; all former EDROP data now resides in the DROP list. Users consuming
+        the EDROP feed should migrate to the DROP feed to maintain equivalent protection.\n\
+        \nPer the maintainer's FAQ, DROP listings are re-evaluated daily. Many factors
+        can trigger changes — contact with involved parties, false-positive notifications,
+        and automatically detected network reassignments. The list is a tiny subset
+        of the Spamhaus Blocklist (SBL) reformatted for network-layer blocking at
+        firewalls and routers rather than DNSBL email filtering."
+      roles:
+      - role: maintainer
+        name: The Spamhaus Project
+        organization_type: non_profit
+        official_url: http://www.spamhaus.org/
+        contact_email:
+        based_in: Andorra
+        active_since: '1998'
+        notes: Founded in London in 1998 by Steve Linford; incorporated as a British
+          not-for-profit Limited Liability Company; now based in Andorra. Operates
+          a distributed network of investigators and forensics specialists who conduct
+          evidence-based investigations into criminal-controlled IP infrastructure.
+      derivation:
+        type: original
+        description: The feed is built from the maintainer's own investigative work.
+          Dedicated investigators and forensics specialists gather evidence of criminal-controlled
+          IP infrastructure through hijacking-methodology research (domain-expiration
+          fraud, BGP ASN hijacking, RIR social engineering), broker-lease monitoring,
+          and bulletproof-hoster tracking. Per the maintainer's FAQ, every network
+          listed in EDROP was also listed in the parent Spamhaus Blocklist (SBL),
+          and a Spamhaus DNSBL lookup returns the same listed-status response regardless
+          of which supplementary list contains the entry. The feed does not derive
+          from other public IP feeds.
+        source_feeds: []
+      listing_policy:
+        summary: A netblock qualifies for the list when the maintainer's investigators
+          and forensics specialists gather evidence that it is controlled by professional
+          spam or cyber-crime operations — meaning the block has been hijacked (acquired
+          through domain-expiration fraud, BGP ASN hijacking, or social engineering
+          against a Regional Internet Registry) or leased from an IPv4 broker or bulletproof
+          hoster — and is actively used for malware dissemination, trojan downloaders,
+          botnet command-and-control, snowshoe spamming, ransomware infrastructure,
+          or similar malicious activity. The maintainer does not list IP space merely
+          because it was legitimately allocated and then reassigned to spammers; the
+          standard requires demonstrated criminal control. Listings are re-evaluated
+          daily.
+        criteria:
+        - The netblock must be demonstrably controlled by professional spam or cyber-crime
+          operations — evidenced through hijacking (domain-expiration fraud, BGP ASN
+          hijacking, RIR social engineering) or lease from a bulletproof hoster or
+          IPv4 broker
+        - The netblock must be actively used for malware dissemination, trojan downloaders,
+          botnet command-and-control, snowshoe spamming, ransomware infrastructure,
+          or comparable malicious activity
+        - The netblock must be a suballocation — a subdivided portion of a RIR-allocated
+          parent block delegated through intermediaries (distinguishing EDROP from
+          DROP, which covers direct RIR allocations)
+        - IP space legitimately allocated by a RIR and subsequently reassigned to
+          spammers is excluded unless criminal control is separately evidenced
+        - Isolated spam incidents without broader criminal infrastructure evidence
+          do not qualify
+      unlisting_policy:
+        summary: Listings are re-evaluated daily. Changes can be triggered by contact
+          with involved parties, false-positive notifications submitted through the
+          Spamhaus removal portal, or automatically detected network reassignments.
+          The maintainer provides a web-based IP and Domain Checker tool for querying
+          listing status and initiating removal requests.
+        criteria:
+        - Daily automated re-evaluation monitors network reassignments and can trigger
+          automatic removal when criminal control ceases
+        - False-positive notifications submitted through the Spamhaus removal portal
+          initiate manual review
+        - Network reassignment detected automatically by the maintainer's systems
+          can trigger removal without manual request
+      unlist_request:
+        url: http://www.spamhaus.org/sbltools/query/
+        email:
+        instructions: Query the listing status of an IP or domain using the Spamhaus
+          IP & Domain Checker at the URL above. If listed, follow the removal request
+          workflow presented on that page. Per the maintainer's contact page, responses
+          are provided during normal European business hours, Monday through Friday,
+          excluding holidays.
+      update_frequency:
+        frequency: 1d
+        human_readable: Listings are re-evaluated daily per the maintainer's FAQ.
+          The maintainer advises that automated downloads must be spaced at least
+          one hour apart, and that once per day is sufficient in most cases.
+      detection_classification:
+        primary_method: mixed
+        secondary_methods: []
+        description: "The feed is built from the maintainer's own investigator-led
+          forensic program. Dedicated investigators and forensics specialists gather
+          evidence of criminal-controlled IP infrastructure through multiple techniques:
+          monitoring for domain-expiration fraud (where criminals purchase abandoned
+          domain names to impersonate the original owner and update RIR records),
+          BGP ASN hijacking detection (where criminals announce IP space under their
+          own Autonomous System Number), social engineering against Regional Internet
+          Registries, broker-lease monitoring, and bulletproof-hoster tracking. This
+          is a human-curated, evidence-based methodology — not automated threat intelligence
+          aggregation, passive DNS, or community reporting."
+      scope_and_intent:
+        description: EDROP was scoped to suballocated netblocks — portions of RIR-allocated
+          IP space subdivided through intermediaries — when controlled by professional
+          spam or cyber-crime operations. The maintainer describes the intended use
+          as network-layer blocking at firewalls and routing equipment, not email
+          filtering. With the April 2024 merger into DROP, the unified list retains
+          this scope while expanding to encompass both direct and suballocated criminal-controlled
+          infrastructure.
+        intended_for:
+        - Firewall and routing equipment to drop all traffic from listed netblocks
+        - Border gateway protocol (BGP) filtering at network edges
+        - Network-access-control lists at routers and switches
+        not_intended_for:
+        - Email filtering (the SBL DNSBL serves that role)
+        - Blocking individual IPs without network-wide perspective (DROP targets netblock-level
+          allocations)
+      license: Spamhaus DROP Fair Use Policy
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required: Credit must be given to The Spamhaus Project, and the
+          date and copy text should remain with the file and data.
+        terms: The DROP lists are open for all to download and use at no fee. The
+          Spamhaus name must not be used in any marketing, promotional, or commercial
+          materials. Attribution to The Spamhaus Project is required, and the date
+          and copy text must remain with the file and data. Spamhaus reserves the
+          right to revoke access at their absolute discretion. The DROP lists are
+          provided on a free-of-charge basis with no liability for losses caused by
+          their use.
+      current_status:
+        state: merged
+        description: 'Merged. Effective April 10, 2024, Spamhaus consolidated EDROP
+          into the unified DROP list. The maintainer cites IPv4 exhaustion as the
+          rationale: with direct RIR allocations no longer possible, most organizations
+          now acquire IP space as subleases from brokers, making the direct/suballocated
+          distinction that originally motivated EDROP obsolete. The EDROP files remain
+          accessible but are empty; all former EDROP data now resides in the DROP
+          list. Users consuming the EDROP feed should migrate to the DROP feed to
+          maintain equivalent protection.'
+        successor:
+          name: Spamhaus DROP
+          url: http://www.spamhaus.org/drop/
+        announcement_date: '2024-03-13'
+      community:
+        awards: The Spamhaus Project (the maintainer) received the ISPA Internet Hero
+          Award in 2003 and the NCFTA Cyber Crime Fighter Award in 2008. These are
+          organization-level awards bestowed on The Spamhaus Project; no EDROP-specific
+          awards have been documented.
+        criticism: No EDROP-specific criticism has been documented in public discussion.
+          EDROP was merged into DROP on April 10, 2024, so operational complaints
+          since that date pertain to the unified DROP list, not EDROP. Community criticism
+          of other Spamhaus products (XBL, SBL email-deliverability friction) is out
+          of scope for EDROP and is not aggregated here.
+        engagement: EDROP-specific public discussion is sparse. Since the April 10,
+          2024 merger into DROP, community engagement now centers on the unified DROP
+          list rather than on EDROP. Operators consuming the EDROP feed are advised
+          by the maintainer to migrate to DROP for equivalent protection.
+      sources_consulted:
+      - url: http://www.spamhaus.org/drop/
+        document_date:
+        validation_date: '2026-05-18T13:35:26Z'
+      - url: http://www.spamhaus.org/organization/
+        document_date:
+        validation_date: '2026-05-18T13:35:26Z'
+      - url: http://www.spamhaus.org/history/
+        document_date:
+        validation_date: '2026-05-18T13:35:26Z'
+      - url: 
+          http://www.spamhaus.org/resource-hub/network-security/spamhaus-drop-and-edrop-to-become-a-single-list/
+        document_date: '2024-03-13'
+        validation_date: '2026-05-18T13:35:26Z'
+      - url: http://www.spamhaus.org/faqs/do-not-route-or-peer-drop/
+        document_date: '2024-04-10'
+        validation_date: '2026-05-18T13:35:26Z'
+      - url: http://www.spamhaus.org/blocklists/drop-fair-use-policy/
+        document_date:
+        validation_date: '2026-05-18T13:35:26Z'
+      - url: http://www.spamhaus.org/
+        document_date:
+        validation_date: '2026-05-18T13:35:26Z'
+      - url: 
+          https://www.reddit.com/r/sysadmin/comments/1grigpd/spamhaus_false_positive_xbl_listings/
+        document_date: '2024-11-14'
+        validation_date: '2026-05-18T13:35:26Z'
+      - url: 
+          https://www.reddit.com/r/selfhosted/comments/1clht05/delisting_my_ip_address_from_spamhaus/
+        document_date: '2024-12-18'
+        validation_date: '2026-05-18T13:35:26Z'
+      - url: 
+          https://www.reddit.com/r/selfhosted/comments/1hhb770/how_to_delist_ip_from_spamhaus/
+        document_date: 2025-01
+        validation_date: '2026-05-18T13:35:26Z'

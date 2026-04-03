@@ -1,0 +1,174 @@
+sources:
+  iblocklist_org_logmein:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=tgbankumtwtrzllndbmb&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: LogMeIn IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T11:17:53Z'
+      official_name: LogMeIn
+      official_url: https://www.iblocklist.com/list.php?list=logmein
+      short_description: A curated list of LogMeIn Inc corporate IP address ranges
+        for blocking remote-access software traffic.
+      long_description: "This feed publishes the known corporate IP address ranges
+        allocated to LogMeIn Inc, the company behind remote-desktop and VPN products
+        including Hamachi, GoToMyPC, and join.me. The list was assembled by the maintainer
+        to allow users of PeerBlock, PeerGuardian, and compatible firewall software
+        to filter traffic associated with LogMeIn infrastructure.\n\nThe feed covers
+        LogMeIn's global footprint — including the Hamachi mesh-VPN address space,
+        legacy hosting ranges, and regional infrastructure blocks. The maintainer
+        describes the feed as applicable to both source and destination traffic filtering.\n\
+        \nPer the maintainer's feed page, the last community interaction acknowledging
+        a feed update was in April 2013. The maintainer does not publish a stated
+        update cadence, a formal changelog, or a roadmap for this feed."
+      roles:
+      - role: maintainer
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: "iblocklist, LLC operates the iBlocklist.com platform, which aggregates
+          and distributes IP blocklists from multiple authors and maintains several
+          feeds under its own authorship. The General Manager is publicly identified
+          by the handle 'fakhir' on the service's community comment system. Service-level
+          community signal across iBlocklist.com (not specific to any single feed):
+          Trustpilot reviews document autorenewal disputes and dismissive support;
+          community sources characterize the broader service as stagnant."
+      - role: publisher
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Hosts and distributes the feed artifact at list.iblocklist.com, manages
+          the subscription system, and processes feed access.
+      derivation:
+        type: original
+        description: The feed is a curated redistribution of LogMeIn Inc's corporate
+          IP address allocations, assembled and maintained by iblocklist, LLC. The
+          maintainer selects and curates the ranges from publicly available registration
+          data and community input rather than operating a detection network. The
+          feed does not consume other IP feeds as inputs; it stands as a focused organizational
+          blocklist. No external APIs or enrichment services are used in the build
+          process.
+        source_feeds: []
+      listing_policy:
+        summary: The maintainer does not publish formal listing criteria for this
+          feed. Additions are driven by the maintainer's own curation of LogMeIn Inc's
+          publicly registered IP address allocations, informed by community submissions.
+          The feed page accepts user comments suggesting additions.
+        criteria:
+        - IP range is allocated to LogMeIn Inc or its subsidiaries, as evidenced in
+          public IP registration records
+        - Range represents infrastructure used by LogMeIn remote-access or VPN products
+          (Hamachi, GoToMyPC, join.me, or successor services)
+      unlisting_policy:
+        summary: The maintainer does not publish a formal unlisting policy or automatic
+          expiry mechanism for this feed. Removals are handled informally through
+          the community comment system on the feed page.
+        criteria:
+        - Submit a comment on the LogMeIn feed page requesting removal of a specific
+          range
+        - Await response from the maintainer — historically the General Manager reviewed
+          and acted on removal requests
+      unlist_request:
+        url: https://www.iblocklist.com/list.php?list=logmein
+        email:
+        instructions: Leave a comment on the LogMeIn feed page at iblocklist.com.
+          Account registration is required. Describe the IP range to be removed and
+          the reason. Per the feed page, the General Manager has historically reviewed
+          and responded to comments, though no documented responses have occurred
+          since April 2013.
+      update_frequency:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The feed is built through policy assignment — the maintainer
+          compiles LogMeIn Inc's publicly registered IP address allocations into a
+          blocklist format. No honeypots, sensors, sandbox environments, or active
+          scanning contribute to this specific feed. Additions are driven by the maintainer's
+          own research into IP registration records and community-submitted range
+          information.
+      scope_and_intent:
+        description: The feed targets IP addresses allocated to LogMeIn Inc and its
+          subsidiary products, enabling users to block or monitor connections to and
+          from LogMeIn infrastructure.
+        intended_for:
+        - Blocking remote-access software traffic (Hamachi, GoToMyPC, join.me) in
+          peer-to-peer file-sharing contexts
+        - Filtering P2P traffic to exclude LogMeIn server ranges
+        - Network security monitoring for connections targeting LogMeIn IPs
+        not_intended_for:
+        - Commercial use — the Terms of Service prohibit any commercial purpose or
+          public display of the materials
+        - Production perimeter security — the feed has not received documented updates
+          since 2013 and the ranges may be stale
+        - Real-time threat intelligence — the feed is a static organizational list,
+          not a detection-output feed
+      license: iBlocklist Terms of Service — personal / non-commercial use only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution is not permitted. The license grant is for personal
+          use only; it does not constitute a transfer of title. Sharing an account
+          outside the immediate household or shared access point (router) is also
+          prohibited. Any commercial use or public display requires written permission
+          from iblocklist, LLC.
+      current_status:
+        state: altered_scope
+        description: The iBlocklist.com website remains online (copyright 2026) and
+          the LogMeIn feed artifact remains accessible, but the feed has not received
+          documented additions since April 2013. The last community interaction on
+          the feed page acknowledging a feed update was April 21, 2013. Community
+          reports indicate the underlying Bluetack sources informing much of the iBlocklist
+          catalog have been inactive for years. No discontinuation announcement has
+          been issued by the maintainer.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: The LogMeIn feed has attracted false-positive reports relating
+          to LogMeIn Hamachi VPN users whose own client software was blocked by the
+          list, and to join.me TurboBridge conferencing ranges that required manual
+          whitelisting. Service-level community signal across iBlocklist.com is recorded
+          in the maintainer role notes.
+        engagement: The LogMeIn feed page hosted intermittent community comments through
+          2013, with the General Manager responding to addition and removal requests;
+          no documented interactions on the page since April 2013. Technical integration
+          questions appear occasionally on OPNsense and SNBForums forums.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/list.php?list=logmein
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/lists.xml
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

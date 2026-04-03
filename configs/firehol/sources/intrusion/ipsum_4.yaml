@@ -1,0 +1,181 @@
+sources:
+  ipsum_4:
+    license: The Unlicense
+    redistributable: true
+    url: https://raw.githubusercontent.com/stamparm/ipsum/master/levels/4.txt
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[IPsum](https://github.com/stamparm/ipsum) threat intelligence feed of
+      IPs appearing on at least 4 blacklists. Based on analysis of 30+ publicly available
+      blacklists updated daily.'
+    maintainer: stamparm
+    maintainer_url: https://github.com/stamparm/ipsum
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T21:18:43Z'
+      official_name: IPsum
+      official_url: https://github.com/stamparm/ipsum
+      short_description: Daily feed of IP addresses that appear on at least 4 public
+        threat-intelligence blacklists, aggregated from 30+ sources with occurrence-count
+        scoring.
+      long_description: "This feed is the `levels/4.txt` slice of the IPsum project
+        — IPs that appear on four or more of the 30+ upstream public blacklists IPsum
+        aggregates. Each IP in the upstream IPsum dataset carries an occurrence count
+        — how many independent lists flagged it — and the level-4 cut keeps only those
+        flagged by at least four distinct sources, providing a stricter confidence
+        floor than the lower-threshold tiers.\n\nIPsum's full output is rebuilt daily
+        by scanning every upstream source and recomputing the occurrence counts; there
+        is no manual curation. Inclusion is purely a function of how many source lists
+        report the IP. The four-source threshold filters out the noisiest single-
+        and double-listing cases while keeping coverage materially broader than the
+        highest-confidence tiers (`ipsum_5` through `ipsum_8`).\n\nOperators willing
+        to accept more noise for higher recall can use lower tiers (`ipsum_2`, `ipsum_3`);
+        operators who want the strictest possible consensus can move to higher tiers."
+      roles:
+      - role: maintainer
+        name: stamparm
+        organization_type: individual
+        official_url: https://github.com/stamparm
+        contact_email: miroslav.stampar@gmail.com
+        based_in:
+        active_since:
+        notes: Individual researcher and open-source developer. Also maintains Maltrail,
+          the parent project from which IPsum is derived.
+      derivation:
+        type: aggregate_merge
+        description: Aggregates IP addresses from 30+ publicly available threat-intelligence
+          feeds, tallies how many sources flag each IP, and publishes ranked outputs
+          daily. IPs appearing on at least 4 source lists populate levels/4.txt. The
+          IPsum README states the 30+ figure but does not enumerate the specific upstream
+          feeds.
+        source_feeds: []
+      listing_policy:
+        summary: 'Inclusion is fully automated: any IP address that appears on 4 or
+          more of the 30+ upstream blacklists in the Maltrail aggregation pipeline
+          enters levels/4.txt. There is no manual review — the occurrence count drives
+          every listing decision.'
+        criteria:
+        - IP appears on at least 4 distinct upstream blacklists in the Maltrail pipeline
+        - Upstream blacklists must be publicly available and programmatically retrievable
+        - No manual override or curator discretion — purely count-based
+      unlisting_policy:
+        summary: There is no automatic expiry or automatic delisting mechanism. IPs
+          leave the feed only when they no longer appear on 4 or more upstream blacklists
+          in the daily scan. For persistent false positives, the maintainer evaluates
+          requests individually and may add IPs to Maltrail's internal whitelist,
+          which prevents them from entering future IPsum builds.
+        criteria:
+        - IP is no longer flagged by at least 4 upstream sources (automatic natural
+          decay)
+        - Maintainer approves a false-positive report and adds the IP to Maltrail's
+          internal whitelist (manual gate)
+      unlist_request:
+        url: https://github.com/stamparm/ipsum/issues/new/choose
+        email: miroslav.stampar@gmail.com
+        instructions: Open a public GitHub issue on the IPsum repository or email
+          the maintainer directly. Include evidence that the IP is legitimate (such
+          as a VirusTotal link showing no malicious activity). The maintainer reviews
+          each case and, if approved, adds the IP to Maltrail's internal whitelist
+          to prevent future inclusion.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated once per day — all upstream blacklists are scanned
+          and occurrence counts recomputed daily.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: 'Reputation aggregation — IPs are collected from 30+ publicly
+          available threat-intelligence blacklists, and each IP is scored by how many
+          independent sources flagged it. The occurrence count is the sole ranking
+          signal. This is a passive, indirect detection method: the feed does not
+          operate its own sensors or honeypots; it mirrors and correlates what upstream
+          feeds already publish.'
+      scope_and_intent:
+        description: IPsum is designed as an edge-blocking feed for operators who
+          want to filter inbound connections from IPs with established malicious reputations
+          across multiple independent sources.
+        intended_for:
+        - Blocking inbound connections from IPs with broad malicious reputation (edge
+          firewall, ipset deployment)
+        - Correlating internal incident data against a multi-source threat feed
+        - Security monitoring and alerting pipelines
+        not_intended_for:
+        - Legal or compliance purposes — the feed makes no guarantees of accuracy
+        - As the sole layer of defense — blocklists complement but do not replace
+          deeper inspection (IDS/IPS, behavioral analysis)
+        - Blocking outbound connections without careful review — the feed tracks inbound
+          malicious sources, not outbound compromised clients
+      license: The Unlicense (public domain dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: The Unlicense imposes no redistribution conditions whatsoever. The
+          work is released into the public domain. Redistribution in any form, for
+          any purpose, with or without modification, is permitted without restriction.
+      current_status:
+        state: active
+        description: Active daily maintenance. The most recent automatic update to
+          levels/4.txt was committed on 2026-05-16. The repository is reachable and
+          the feed is updated on its stated daily schedule.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "Operators have reported false positives across the IPsum project
+          involving legitimate infrastructure: a Google mail relay IP (resolved by
+          whitelisting in June 2025), a Mozilla push notification server (resolved
+          in October 2024), and Bing's web crawler IPs (denied — maintainer noted
+          ipsum aggregates upstream data and cannot unilaterally delist IPs still
+          flagged by upstream sources). The level-4 threshold filters out the noisiest
+          single- and double-listing FPs but does not eliminate the risk. The maintainer
+          responds to well-documented false-positive reports and grants whitelisting
+          when reporters provide supporting evidence such as VirusTotal links. Denials
+          consistently cite the aggregator nature of the feed: IPs remain listed if
+          they are still active on any upstream source."
+        engagement: Public discussion of IPsum is sparse. The GitHub issues section
+          is the primary venue for community interaction; the maintainer responds
+          personally to false-positive reports and delisting requests. No dedicated
+          forum, mailing list, or chat channel is documented. Third-party blog posts,
+          vendor integrations, or academic evaluations of IPsum specifically are rare.
+      sources_consulted:
+      - url: https://github.com/stamparm/ipsum
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/levels/4.txt
+        document_date:
+        validation_date: '2026-05-16'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/LICENSE
+        document_date:
+        validation_date: '2026-05-16'
+      - url: https://github.com/stamparm/ipsum/tree/master/levels
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16'
+      - url: https://github.com/stamparm/maltrail
+        document_date:
+        validation_date: '2026-05-16'
+      - url: https://github.com/stamparm/ipsum/issues/30
+        document_date: '2022-08-01'
+        validation_date: '2026-05-16'
+      - url: https://github.com/stamparm/ipsum/issues/67
+        document_date: '2025-06-01'
+        validation_date: '2026-05-16'
+      - url: https://github.com/stamparm/ipsum/issues/59
+        document_date: '2024-10-01'
+        validation_date: '2026-05-16'
+      - url: https://github.com/stamparm/ipsum/issues/76
+        document_date: '2025-10-01'
+        validation_date: '2026-05-16'
+      - url: https://github.com/stamparm/ipsum/issues/58
+        document_date: '2024-09-01'
+        validation_date: '2026-05-16'
+      - url: https://github.com/stamparm/ipsum/commits/master/levels/4.txt
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16'

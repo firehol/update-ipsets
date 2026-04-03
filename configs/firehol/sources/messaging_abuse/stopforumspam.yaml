@@ -1,0 +1,250 @@
+sources:
+  stopforumspam:
+    license: CC BY-NC-ND 3.0 (modified)
+    redistributable: true
+    url: http://www.stopforumspam.com/downloads/bannedips.zip
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - unzip_csv
+    processor_raw: unzip_and_split_csv
+    category: messaging_abuse
+    info: '[StopForumSpam.com](http://www.stopforumspam.com) Banned IPs used by forum
+      spammers'
+    maintainer: StopForumSpam.com
+    maintainer_url: http://www.stopforumspam.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T04:06:11Z'
+      official_name: Stop Forum Spam
+      official_url: https://stopforumspam.com/
+      short_description: A crowdsourced database of IPs, email addresses, and usernames
+        reported for posting spam content on forums, blogs, and wikis, made available
+        via API and daily downloadable files.
+      long_description: "Stop Forum Spam is a volunteer-operated database that collects
+        reports of spam content posted on forums, blogs, wikis, and other interactive
+        websites. Reports are submitted by participating site operators using an API
+        key, and each submission must include a verified email address, a confirmed
+        origin IP address, and the spammer's username — along with evidence of the
+        spam content itself. Submissions without human-verified evidence are excluded.\n\
+        \nThe database generates a per-entry confidence score reflecting the number
+        of reports and the recency of the most recent sighting. IPs and domains associated
+        with spam-friendly providers that show negligible legitimate traffic are additionally
+        designated as \"toxic\" at the network level — meaning the API returns a positive
+        hit even for IPs not individually listed, because the entire provider range
+        is flagged. The maintainer notes that dynamic and mobile IP assignments change
+        frequently, making stale listings unreliable indicators.\n\nThe downloadable
+        banned-ips feed is generated daily. Separate incremental files cover 1-day,
+        7-day, 30-day, 90-day, 180-day, and 365-day windows. The service has been
+        trusted by over 300,000 forums and blogs worldwide since 2007, per the maintainer's
+        about page."
+      roles:
+      - role: maintainer
+        name: Russ
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since: '2007'
+        notes: Founder and primary operator of StopForumSpam. Maintains the service
+          as a volunteer project. Real name not publicly disclosed.
+      - role: maintainer
+        name: Pedigree
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Co-maintainer who helped develop the database and improve site performance.
+          Real name not publicly disclosed.
+      derivation:
+        type: original
+        description: 'The feed is built entirely from first-party data: crowdsourced
+          spam reports submitted by participating site operators via the StopForumSpam
+          API or web submission form, supplemented by honeypot data from compliant
+          traps. Each submission must include a verified email address, a confirmed
+          origin IP address, and a username — plus evidence of the spam content. Submissions
+          failing email verification or lacking evidence are excluded. The maintainer
+          reports discarding roughly 55% of raw collected data due to validation failures.
+          No upstream IP feeds are consumed.'
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added when a human reporter submits a verified spam incident
+          through the StopForumSpam API or web form. The submission must include the
+          spammer's username, a confirmed origin IP address (not a reverse-proxy address),
+          a verified email address controlled by the spammer, and evidence of spam
+          content. Spam is defined as content intended to promote a product or cause
+          that is clearly unsuitable for the host forum — including promotional links
+          in profiles, posts containing web links, gibberish text with hidden links,
+          and posts advertising services with contact information. Suspicious registrations
+          alone, hacking attempts, and offensive posts without promotional content
+          are explicitly excluded. Entries accumulate a confidence score based on
+          the total number of reports across all participating sites and the recency
+          of the most recent sighting.
+        criteria:
+        - 'Human judgment: a person must decide to report each incident — automated
+          detections alone are insufficient'
+        - 'Verified email: the spammer must have confirmed the email address during
+          registration, proving they control it'
+        - 'Confirmed origin IP: the submitter must provide the true origin IP, not
+          a reverse-proxy address'
+        - 'Spam content as evidence: the reported post or profile must contain promotional
+          or commercial content unsuitable for the forum'
+        - "Network-level toxicity: an IP or domain may be flagged as 'toxic' when
+          its ISP or email provider shows negligible legitimate traffic relative to
+          spam volume"
+      unlisting_policy:
+        summary: Listed parties can request removal through a semi-automated review
+          process at the removal page. Requests enter a non-public review queue and
+          undergo manual investigation cross-referenced against other databases, typically
+          within 24 hours. Submissions without evidence are more likely to be removed
+          than those backed by documented spam content. Domain-level delisting lacks
+          a self-service mechanism — the maintainer acknowledges this gap on the official
+          forum. IPs inherited from previous occupants, emails used by others, and
+          infections that relay spam are cited as common false-positive explanations.
+          Threatened or actual legal action against the service or its upstream providers
+          results in a permanent pause of the removal request.
+        criteria:
+        - 'Manual review: requests are investigated in a queue, not processed automatically'
+        - 'Evidence dependency: submissions with documented spam content are retained;
+          unsubstantiated reports are more likely to be removed'
+        - 'Cross-reference: investigators check other databases and resources during
+          review'
+        - 'No disposable email: requests from throwaway email addresses are not accepted'
+        - 'Legal threat exclusion: any mention of legal action pauses the request
+          indefinitely'
+        - 'Domain delisting gap: no self-service mechanism exists for removing domain-level
+          listings (confirmed on official forum, October 2023)'
+      unlist_request:
+        url: https://stopforumspam.com/removal.php
+        email:
+        instructions: Submit the IP address or email address to be removed through
+          the form at stopforumspam.com/removal.php. A confirmation email will be
+          sent to the requester's address — non-disposable email addresses only. The
+          request enters a review queue and is typically investigated within 24 hours.
+          Submitters who added their own data should use the 'My Spammers' page instead
+          of the removal form. Domain-level removal requests have no dedicated self-service
+          channel; the maintainer acknowledges this gap.
+      update_frequency:
+        frequency: 1d
+        human_readable: The downloadable banned-ips feed is updated once per day,
+          per the maintainer's downloads page. Incremental IP files covering shorter
+          windows (1-day and 7-day) are updated hourly.
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods:
+        - honeypot
+        description: 'The feed is built from user-submitted spam reports: participating
+          site operators submit verified incidents via the API or web form, each requiring
+          a confirmed origin IP, a verified email address, and evidence of spam content.
+          The maintainer also accepts data from honeypot traps, provided human registration
+          is physically impossible at the trap site. Submissions without email verification
+          or without evidence of spam content are rejected. The confidence score per
+          entry reflects the total report count across all participating reporters
+          and the recency of the most recent sighting.'
+      scope_and_intent:
+        description: Stop Forum Spam is designed to help forum, blog, wiki, and interactive
+          website operators block spammers before accounts are created or content
+          is posted. It covers promotional and commercial spam content — links in
+          profiles, posts with web links, gibberish posts with hidden links, and posts
+          advertising services with contact information. It does not cover suspicious
+          registrations alone, hacking attempts, or offensive posts without promotional
+          content.
+        intended_for:
+        - Blocking spam account registrations on forums, blogs, and wikis
+        - Pre-screening new user registrations via API lookup
+        - Filtering spam content during account creation workflows
+        not_intended_for:
+        - Software firewalls or inline network blocking — the maintainer advises against
+          using the API as a firewall
+        - Blocking dynamic or mobile IPs — these change frequently and stale listings
+          are unreliable
+        - Carrier-grade NAT environments — hundreds of users may share a single public
+          IP
+        - Commercial use — the license restricts data use to non-commercial purposes
+      license: CC BY-NC-ND 3.0 (modified)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit StopForumSpam.org
+        terms: StopForumSpam states a modified CC BY-NC-ND 3.0 license that permits
+          copying and distribution with attribution while prohibiting resale, ownership
+          claims, derivatives, and automated mirroring/scraping. Redistribution is
+          allowed with those restrictions.
+      current_status:
+        state: active
+        description: Active and maintained as of May 2026. The service continues to
+          accept submissions, serve API queries, and publish daily downloadable feeds.
+          The official GitHub organization (@stopforumspam) hosts 9 repositories.
+          No discontinuation, merger, or scope-change announcement has been found.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Community discussion documents recurring false-positive scenarios.
+          A documented case involved a legitimate email service being entirely blocklisted
+          as a toxic domain due to abuse by free-tier users, with cascading effects
+          through downstream services that consume the toxic-domain feed. Individual
+          users have reported legitimate email addresses and residential IPs incorrectly
+          listed, with appeal timelines described as unspecified ('takes a while').
+          VPN shared-IP pools trigger collateral blocks affecting all users of popular
+          services when a single user abuses the exit node. Dynamic IP allocations
+          cause persistent bans as ISP-assigned ranges accumulate reports from previous
+          occupants. The official forum confirmed in October 2023 that domain-level
+          delisting lacks a self-service mechanism. StopForumSpam staff have acknowledged
+          specific false-positive cases publicly and directed affected parties to
+          the removal process, though resolution timelines remain opaque.
+        engagement: Public discussion is moderate. The service is referenced positively
+          in forum-operator communities (XenForo, 2021) as effective for reducing
+          bot spam without multiple verification steps. Community plugins exist for
+          Flarum (MIT), phpBB, Laravel, Django, MyBB, and Discourse. The official
+          forum serves as the primary venue for issue escalation. StopForumSpam staff
+          respond publicly on Reddit to specific false-positive reports. Discussion
+          density is concentrated around false-positive incidents rather than general
+          usage.
+      sources_consulted:
+      - url: https://stopforumspam.com/
+        document_date:
+        validation_date: '2026-05-18T04:00:00Z'
+      - url: https://stopforumspam.com/faq.php
+        document_date:
+        validation_date: '2026-05-18T04:00:00Z'
+      - url: https://stopforumspam.com/downloads/
+        document_date:
+        validation_date: '2026-05-18T04:00:00Z'
+      - url: https://stopforumspam.com/license
+        document_date:
+        validation_date: '2026-05-18T04:00:00Z'
+      - url: https://stopforumspam.com/legal
+        document_date:
+        validation_date: '2026-05-18T04:00:00Z'
+      - url: https://stopforumspam.com/removal.php
+        document_date:
+        validation_date: '2026-05-18T04:00:00Z'
+      - url: https://stopforumspam.com/about
+        document_date:
+        validation_date: '2026-05-18T04:00:00Z'
+      - url: https://stopforumspam.com/forum/viewtopic.php?id=3558
+        document_date:
+        validation_date: '2026-05-18T04:00:00Z'
+      - url: https://stopforumspam.com/forum/viewtopic.php?id=5236
+        document_date:
+        validation_date: '2026-05-18T04:00:00Z'
+      - url: https://stopforumspam.com/forum/viewtopic.php?id=9365
+        document_date:
+        validation_date: '2026-05-18T04:00:00Z'
+      - url: https://reddit.com/r/Simplelogin/comments/z9jxqj/
+        document_date:
+        validation_date: '2026-05-18T04:00:00Z'
+      - url: https://reddit.com/r/BOINC/comments/1ki72c8/
+        document_date:
+        validation_date: '2026-05-18T04:00:00Z'
+      - url: 
+          https://xenforo.com/community/threads/stopforumspam-database-useful-or-bothesame.198927
+        document_date:
+        validation_date: '2026-05-18T04:00:00Z'
+      - url: https://github.com/stopforumspam
+        document_date:
+        validation_date: '2026-05-18T04:00:00Z'

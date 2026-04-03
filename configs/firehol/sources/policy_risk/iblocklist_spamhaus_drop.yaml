@@ -1,0 +1,214 @@
+sources:
+  iblocklist_spamhaus_drop:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=zbdlwrqkabxbcppvrnos&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Spamhaus.org DROP (Don't Route Or Peer) list.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T13:24:45Z'
+      official_name: Spamhaus DROP
+      official_url: https://www.iblocklist.com/
+      short_description: Repackaged Spamhaus DROP (Don't Route Or Peer) list distributed
+        in P2P format by iBlocklist.com, a service whose upstream feed has not reflected
+        Spamhaus's active daily updates since at least 2016.
+      long_description: "This feed repackages the Spamhaus DROP (Don't Route Or Peer)
+        list into P2P archive format for use with PeerBlock, PeerGuardian, and compatible
+        clients. The Spamhaus DROP list itself is a small, high-confidence subset
+        of the Spamhaus Blocklist (SBL) targeting netblocks allocated directly to
+        professional spammers and cybercrime operations — netblocks that are rented,
+        leased, or hijacked rather than legitimately assigned to the abuser and subsequently
+        reassigned.\n\nPer the Spamhaus DROP FAQ, networks enter DROP only after Spamhaus
+        investigators and forensics specialists gather evidence of control by cybercrime
+        groups or bulletproof hosters who ignore abuse reports or relocate abusive
+        customers to evade listings. Listings are re-evaluated daily. Removal is automatic:
+        once the corresponding SBL record is deleted, the netblock exits DROP without
+        a separate step.\n\nThe direct upstream distributing this feed — iBlocklist.com
+        — has not reflected Spamhaus's active daily updates in its Spamhaus DROP feed
+        since at least 2016, per community reports corroborated across multiple independent
+        sources. Additionally, CAPTCHA introduced on iBlocklist's download endpoints
+        in early 2022 broke automated consumption by common firewall tools. Operators
+        requiring current Spamhaus DROP data should obtain it directly from spamhaus.org
+        or from aggregators that actively synchronize with the upstream."
+      roles:
+      - role: publisher
+        name: iBlocklist.com
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Distributes the Spamhaus DROP list in P2P archive format. Community
+          reports indicate the service has not reflected upstream Spamhaus updates
+          since at least 2016. No public contact email is displayed on the site. Platform-wide
+          community criticism of iBlocklist (auto-renewal billing, support responsiveness,
+          perceived staleness of redistributed feeds in general) applies at the publisher
+          level.
+      - role: original_author
+        name: Spamhaus Project SLU
+        organization_type: non_profit
+        official_url: https://www.spamhaus.org/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Authors and actively maintains the Spamhaus DROP list with daily updates.
+          Provides the underlying data that iBlocklist.com repackages. Operates the
+          Spamhaus Blocklist (SBL) registry to which DROP listings are tied.
+      derivation:
+        type: partial_mirror
+        description: iBlocklist.com repackages the Spamhaus DROP list into P2P archive
+          format (.gz compressed) for compatibility with PeerBlock, PeerGuardian,
+          and similar P2P-aware firewall clients. The conversion from Spamhaus's native
+          TXT or JSON format to P2P format is the extent of iBlocklist's processing.
+          Community reports indicate that the P2P-format feed has not reflected Spamhaus's
+          active daily updates since at least 2016 — the republished content is stale
+          relative to the upstream source.
+        source_feeds:
+        - identifier: Spamhaus DROP
+          relationship: superset
+          notes: Spamhaus Project SLU actively maintains the DROP list with daily
+            updates. iBlocklist.com's republished P2P-format variant has not tracked
+            these updates since at least 2016, per community reports.
+      listing_policy:
+        summary: Spamhaus DROP lists IPv4 and IPv6 netblocks that are direct allocations
+          from Regional Internet Registries (ARIN, RIPE, APNIC, LACNIC) to professional
+          spam or cybercrime operations. Listing requires evidence gathered by Spamhaus
+          investigators that a network is controlled by a cybercrime group or a bulletproof
+          hoster that ignores abuse reports or relocates abusive customers to evade
+          detection. Hijacked ('zombie') netblocks — allocations reclaimed by squatters
+          through expired registrations, forged letterhead, social engineering, or
+          BGP hijacking — qualify for listing. Reassigned netblocks that later come
+          under abuser control are NOT listed in DROP; only the original allocation
+          to the criminal operation qualifies.
+        criteria:
+        - Direct allocation from a Regional Internet Registry (ARIN, RIPE, APNIC,
+          LACNIC) to a professional spam or cybercrime operation
+        - Evidence of control by a bulletproof hoster that ignores abuse reports
+        - Evidence of relocation of abusive customers to evade targeted listings
+        - Hijacked ('zombie') netblock reclaimed through expired registration, forged
+          documentation, social engineering, or BGP ASN hijacking
+        - Daily re-evaluation of all active listings
+      unlisting_policy:
+        summary: DROP listings are removed automatically when the corresponding Spamhaus
+          Blocklist (SBL) record is deleted. There is no separate manual removal step
+          for DROP — the SBL record and the DROP entry are linked. Spamhaus re-evaluates
+          all active listings daily; listings that no longer meet the criteria are
+          delisted through SBL removal. No public manual unlisting request channel
+          is documented for DROP specifically.
+        criteria:
+        - Automatic removal upon SBL record deletion
+        - Daily re-evaluation leading to natural expiry when criteria no longer met
+        - No separate manual unlisting process documented for DROP entries
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: Spamhaus states the DROP list is updated daily, reflecting
+          the continuous movement of rogue networks. Per the maintainer's FAQ, automated
+          downloads should be spaced at least one hour apart; excessive fetches may
+          result in IP blocking from the Spamhaus website.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: iBlocklist.com does not operate its own detection infrastructure
+          for this feed. The Spamhaus DROP list is produced by Spamhaus Project SLU's
+          investigator-led forensics program. Spamhaus staff gather evidence through
+          abuse report analysis, BGP observation, RIR allocation tracking, and direct
+          contact with involved parties to identify netblocks controlled by professional
+          spammers and cybercrime operations. This is first-party human-curated threat
+          intelligence, not automated detection.
+      scope_and_intent:
+        description: Spamhaus DROP targets operators of firewalls, routers, and network
+          edge devices who want to drop all traffic from netblocks associated with
+          professional spam and cybercrime operations. It is a high-confidence, small-footprint
+          advisory list — not a broad abuse feed.
+        intended_for:
+        - Border firewall and router rule sets dropping known-malicious netblocks
+        - Network-edge ACLs implementing 'drop all traffic' for professionally abused
+          address space
+        - Security operations teams monitoring for connections to bulletproof hosting
+          infrastructure
+        not_intended_for:
+        - Email spam filtering (separate SBL/XBL services handle SMTP abuse)
+        - End-user content filtering or web proxying
+        - Reassigned address space (DROP excludes netblocks that were legitimately
+          allocated and later reallocated to abusers)
+      license: iBlocklist.com Terms of Service — personal/non-commercial use only.
+        No commercial use permitted.
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: iBlocklist.com Terms of Service prohibit commercial use and public
+          display of materials. Redistribution is governed by acceptance of the ToS,
+          which grants a personal-use license only.
+      current_status:
+        state: altered_scope
+        description: iBlocklist.com continues to serve its Spamhaus DROP feed in P2P
+          format, but community reports indicate the republished content has not tracked
+          Spamhaus's active daily updates since at least 2016. CAPTCHA introduced
+          on download endpoints in early 2022 broke automated consumption by common
+          firewall tools. The Spamhaus DROP source data itself remains actively maintained
+          with daily updates (last confirmed May 18, 2026). Operators requiring current
+          DROP data should obtain it directly from spamhaus.org or from actively synchronized
+          aggregators.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Feed-specific community findings document that the iBlocklist-distributed
+          Spamhaus DROP feed has not reflected the upstream's daily updates for years,
+          while file timestamps continue to advance — a divergence that matters acutely
+          for a feed whose value is built on Spamhaus's daily re-evaluation cadence.
+          CAPTCHA introduced on iBlocklist download endpoints in early 2022 broke
+          automated consumption by pfBlockerNG and similar tools, further degrading
+          the redistribution channel. Community members have migrated to direct Spamhaus
+          sources for this data.
+        engagement: Public discussion specific to this redistributed Spamhaus DROP
+          feed is sparse. The Spamhaus DROP source itself generates moderate community
+          discussion in firewall and IDS forums, but that discussion concerns the
+          upstream source and not iBlocklist's repackaging of it. No active issue
+          tracker, blog, or changelog is maintained by iBlocklist.com for this specific
+          feed.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/support
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.spamhaus.org/drop/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.spamhaus.org/faqs/do-not-route-or-peer-drop/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.spamhaus.org/drop/terms/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.spamhaus.org/drop/drop.txt
+        document_date: '2026-05-18'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://forum.netgate.com/topic/169571/iblocklist-downloads-failing
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

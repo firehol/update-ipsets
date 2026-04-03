@@ -1,0 +1,152 @@
+sources:
+  iblocklist_org_punkbuster:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=zvwwndvzulqcltsicwdg&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Punkbuster IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T12:20:32Z'
+      official_name: PunkBuster
+      official_url: https://www.iblocklist.com/list?list=zvwwndvzulqcltsicwdg
+      short_description: IP ranges associated with PunkBuster anti-cheat enforcement
+        infrastructure, published by iBlocklist.com for use with PeerBlock, PeerGuardian,
+        and compatible P2P protection software.
+      long_description: "This feed publishes IP address ranges associated with PunkBuster
+        anti-cheat enforcement infrastructure. PunkBuster is a memory-scanning anti-cheat
+        system developed by Even Balance, Inc., used in multiplayer game servers to
+        detect and ban players running unauthorized software. The IP ranges published
+        by iBlocklist.com represent infrastructure associated with PunkBuster's enforcement
+        operations — primarily the servers and administrative nodes that administer
+        bans and distribute ban lists to game servers.\n\nThe feed is authored and
+        maintained by iBlocklist.com (iblocklist, LLC). It is available as a free
+        list — no paid subscription is required to access it. The feed ships in P2P
+        format (compressed with gzip) and is compatible with PeerBlock, PeerGuardian,
+        iplist, and other P2P privacy software that consumes iBlocklist-format feeds.\n\
+        \nPer the maintainer's Terms of Service, the feed is licensed for personal
+        use only. Commercial deployment, public display, and use in connection with
+        hacking, denial-of-service, spam, or other malicious activities are expressly
+        prohibited. The service is provided as-is with no warranty."
+      roles:
+      - role: maintainer
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: 'Operates the iblocklist.com service, distributing IP blocklists in
+          P2P, DAT, CIDR, and hosts formats for use with PeerBlock, PeerGuardian,
+          and compatible software. Also offers a paid VPN service (PhantomPeer). The
+          service is © 2026 iblocklist, LLC. Service-level community signal across
+          iBlocklist.com (not specific to any single feed): Trustpilot (2.7/5 on six
+          reviews) documents autorenewal disputes, download errors, and unresponsive
+          support; Netgate forum users alleged that some compressed lists have updated
+          timestamps without corresponding data refreshes — these reports concentrate
+          on Bluetack-origin lists.'
+      derivation:
+        type: original
+        description: iBlocklist.com authors and publishes this feed directly. The
+          Punkbuster IP ranges are assembled by iblocklist, LLC from what the maintainer
+          characterizes as PunkBuster anti-cheat enforcement infrastructure. The maintainer
+          does not disclose the specific sources or methods used to identify these
+          IP ranges — it is unclear whether they are derived from active probing,
+          community submissions, public records, or other approaches. The feed is
+          distributed in P2P format alongside dozens of other iBlocklist.com blocklists.
+        source_feeds: []
+      listing_policy:
+        summary: iBlocklist.com does not publish a listing policy for the Punkbuster
+          feed. The maintainer's Terms of Service prohibit use of the service for
+          hacking, DOS attacks, spam, or other malicious activities, but do not describe
+          the criteria by which IPs are selected for inclusion in this specific feed.
+        criteria: []
+      unlisting_policy:
+        summary: iBlocklist.com does not publish an unlisting or delisting policy
+          for the Punkbuster feed. No automatic expiration mechanism, manual removal
+          request channel, or review process is described on the site.
+        criteria: []
+      unlist_request:
+      update_frequency:
+        frequency:
+        human_readable:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: iBlocklist.com curates and publishes the Punkbuster feed as a
+          policy-assignment blocklist. The maintainer selects IP ranges associated
+          with PunkBuster anti-cheat enforcement infrastructure and packages them
+          in iBlocklist format. The specific detection or identification method used
+          to assemble these ranges is not documented — it is unclear whether they
+          are derived from active network observation, public records, community submissions,
+          or other sources.
+      scope_and_intent:
+        description: The feed targets users of P2P privacy software who wish to block
+          connections from PunkBuster anti-cheat enforcement infrastructure. The maintainer's
+          TOS restricts use to personal, non-commercial purposes.
+        intended_for:
+        - Personal use with PeerBlock, PeerGuardian, and compatible P2P protection
+          software to filter PunkBuster enforcement IPs
+        - Non-commercial personal privacy and security workflows
+        not_intended_for:
+        - Commercial deployment or incorporation into commercial products or services
+        - Public display of blocklist contents
+        - Gaming server PunkBuster ban management (handled by Even Balance, Inc. and
+          community services such as PBBans)
+      license: iBlocklist.com Terms of Service — personal use only; commercial use
+        and public display prohibited
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The Terms of Service grant a license for personal use only. Redistribution,
+          commercial use, and public display are prohibited. Account sharing outside
+          the immediate household is also prohibited. The license may be terminated
+          by iblocklist, LLC at any time without notice.
+      current_status:
+        state: active
+        description: The Punkbuster feed appears in iBlocklist.com's current XML catalog
+          (lists.xml, © 2026 iblocklist, LLC). The feed is listed as a free list with
+          no subscription required. The service's main site is operational as of the
+          research date.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: The PunkBuster feed specifically was not implicated in service-level
+          criticism (reports concentrated on Bluetack-origin lists, of which this
+          is not one). Service-level community signal across iBlocklist.com is recorded
+          in the maintainer role notes.
+        engagement: Public community discussion specifically about the PunkBuster
+          feed is sparse. No dedicated issue tracker, discussion forum, or recent
+          community moderation activity was found for this list.
+      sources_consulted:
+      - url: https://www.iblocklist.com/lists.xml
+        document_date:
+        validation_date: '2026-05-18T12:00:00Z'
+      - url: https://www.iblocklist.com/list?list=zvwwndvzulqcltsicwdg
+        document_date:
+        validation_date: '2026-05-18T12:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18T12:00:00Z'
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T12:00:00Z'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-18T12:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-18T12:00:00Z'

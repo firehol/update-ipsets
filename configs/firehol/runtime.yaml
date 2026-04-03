@@ -1,0 +1,90 @@
+runtime:
+  base_dir: ${BASE_DIR-${HOME}/ipsets}
+  config_file: ${CONFIG_FILE-${HOME}/.update-ipsets/config}
+  run_parent_dir: ${RUN_PARENT_DIR-${HOME}/.update-ipsets}
+  cache_dir: ${CACHE_DIR-${HOME}/.update-ipsets/cache}
+  lib_dir: ${LIB_DIR-${HOME}/.update-ipsets/lib}
+  admin_supplied_ipsets: ${ADMIN_SUPPLIED_IPSETS-${FIREHOL_CONFIG_DIR}/ipsets.d}
+  distribution_supplied_ipsets: ${DISTRIBUTION_SUPPLIED_IPSETS-${FIREHOL_SHARE_DIR}/ipsets.d}
+  user_supplied_ipsets: ${USER_SUPPLIED_IPSETS-${HOME}/.update-ipsets/ipsets.d}
+  history_dir: ${HISTORY_DIR-${BASE_DIR}/history}
+  errors_dir: ${ERRORS_DIR-${BASE_DIR}/errors}
+  tmp_dir: ${TMP_DIR-/tmp}
+  ipset_reduce_factor: 20
+  ipset_reduce_entries: 65536
+  web_charts_entries: 500
+  # Published JSON/static artifact cache controls. Raw .ipset/.netset
+  # downloads are streamed separately and do not enter this cache.
+  web_artifact_cache_max_entries: 2048
+  web_artifact_cache_max_bytes: 67108864
+  web_artifact_cache_max_file_bytes: 8388608
+  push_to_git_merged: true
+  max_connect_time: 10
+  user_agent: FireHOL-Update-Ipsets/3.0 (linux-gnu) https://iplists.firehol.org/
+  max_download_time: 300
+  ignore_repeating_download_errors: 10
+  feed_health_single_observation_grace_minutes: 14400
+  feed_health_default_healthy_cadence_minutes: 10080
+  feed_health_default_risky_cadence_minutes: 43200
+  feed_health_archival_threshold_minutes: 86400
+  feed_health_category_thresholds:
+    intrusion:
+      healthy_cadence_minutes: 1440
+      risky_cadence_minutes: 10080
+    malware_infrastructure:
+      healthy_cadence_minutes: 1440
+      risky_cadence_minutes: 10080
+    messaging_abuse:
+      healthy_cadence_minutes: 1440
+      risky_cadence_minutes: 20160
+    service_abuse:
+      healthy_cadence_minutes: 1440
+      risky_cadence_minutes: 20160
+    anonymizers:
+      healthy_cadence_minutes: 1440
+      risky_cadence_minutes: 20160
+    scanners:
+      healthy_cadence_minutes: 1440
+      risky_cadence_minutes: 20160
+    policy_risk:
+      healthy_cadence_minutes: 4320
+      risky_cadence_minutes: 43200
+    provider_infrastructure:
+      healthy_cadence_minutes: 20160
+      risky_cadence_minutes: 129600
+    special_use:
+      healthy_cadence_minutes: 129600
+      risky_cadence_minutes: 525600
+    geolocation:
+      healthy_cadence_minutes: 10080
+      risky_cadence_minutes: 43200
+    asn:
+      healthy_cadence_minutes: 10080
+      risky_cadence_minutes: 43200
+  parallel_dns_queries: 10
+  web_url: https://iplists.firehol.org/ipsets/
+  local_copy_url: https://iplists.firehol.org/files/
+  github_changes_url: https://github.com/firehol/blocklist-ipsets/commits/master/
+  github_setinfo: https://github.com/firehol/blocklist-ipsets/tree/master/
+  web_dir: ${WEB_DIR-}
+  web_dir_for_ipsets: ${WEB_DIR_FOR_IPSETS-}
+  ipsets_apply: true
+  # Daemon resource controls — keep the daemon lightweight.
+  # max_processing_workers: max parallel source-processing goroutines (default 2)
+  max_processing_workers: 2
+  # max_heavy_phase_workers: max parallel heavy-phase goroutines for
+  # metadata/comparison, GeoIP, ASN, and bogon fan-out.
+  # Default auto behavior is min(CPU cores, 8), but never lower than
+  # max_processing_workers.
+  # max_heavy_phase_workers: 8
+  # max_background_workers: max parallel workers used by background-only
+  # daemon work such as entity artifact repair/rebuild. Default 1.
+  max_background_workers: 1
+  # processing_interval_minutes: automatic drain cadence for the
+  # processing queue (default 5)
+  processing_interval_minutes: 5
+  # min_run_interval_seconds: minimum seconds between scheduler runs (default 30)
+  min_run_interval_seconds: 30
+  # skip_comparison_if_no_updates: skip O(N²) pairwise comparisons and
+  # geolocation analysis when no sources were updated (default true)
+  skip_comparison_if_no_updates: true

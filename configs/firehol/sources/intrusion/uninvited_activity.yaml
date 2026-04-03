@@ -1,0 +1,193 @@
+sources:
+  uninvited_activity:
+    license: public feed
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/UninvitedActivity/UninvitedActivity/main/uninvitedActivity-Export.txt
+    frequency: 15
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[UninvitedActivity](https://github.com/UninvitedActivity/UninvitedActivity)
+      long-running log of unauthorised / abusive IPs observed by the curator. ~324K
+      entries.'
+    maintainer: UninvitedActivity
+    maintainer_url: https://github.com/UninvitedActivity/UninvitedActivity
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T22:52:51+00:00'
+      official_name: UninvitedActivity
+      official_url: https://github.com/UninvitedActivity/UninvitedActivity
+      short_description: Auto-updating IPv4 blocklist generated from OPNsense firewall
+        logs of unsolicited inbound traffic on closed ports, organized into five severity
+        tiers by scan type.
+      long_description: "UninvitedActivity is a personal-scale threat-intelligence
+        feed that began in October 2023. The maintainer runs an OPNsense firewall
+        that logs all traffic arriving on ports with no listening service; any such
+        traffic is classified as malicious by definition, since there is no legitimate
+        reason for unsolicited inbound connection attempts to closed ports.\n\nThe
+        system processes these firewall logs through seven shell scripts that parse
+        new entries, deduplicate against a local SQLite database, increment hit counters
+        per IP, and export the resulting IP sets as OPNsense Firewall Alias-compatible
+        text files pushed to GitHub every 15 minutes via cron.\n\nIPs are categorized
+        into five severity tiers. Rule 1 targets mail-server ports (25, 587, 993,
+        995) — directed probes assessed as likely botnet drone activity. Rule 2 covers
+        ports 1024 and below — standard reconnaissance. Rule 3 covers high-to-high
+        port pairs — used sparingly as it can disrupt legitimate services. Rule 4
+        covers high-from-low port pairs — originally flagged as containing false positives
+        from servers that send probe-back packets (such as Google, Amazon, and Facebook
+        responding to browsing clients); the maintainer subsequently filtered these.
+        Rule 5 is a catch-all for any other unsolicited IPv4 traffic. The maintainer
+        uses Rules 1, 2, and 5 for production blocking.\n\nPer the maintainer's June
+        2025 update, Rules 2 through 5 were retroactively pruned to IPs with activity
+        within the preceding 12 months, removing approximately 46,000 stale entries.
+        Rule 1 retains no automatic expiry. The feed is IPv4-only; no IPv6 support
+        is planned."
+      roles:
+      - role: maintainer
+        name: UninvitedActivity
+        organization_type: individual
+        official_url: https://github.com/UninvitedActivity/UninvitedActivity
+        contact_email:
+        based_in:
+        active_since: 2023-10
+        notes: A single individual who describes themselves as a system and network
+          administrator rather than a developer. The project is built entirely with
+          shell scripts, awk, SQLite, rsync-over-ssh, and GitHub Actions. No named
+          organization; the GitHub account handle is the public identity.
+      derivation:
+        type: original
+        description: The feed is original — it is produced from the maintainer's own
+          OPNsense firewall logs. Traffic arriving on any port with no listening service
+          is captured by a dedicated firewall rule, processed through seven shell
+          scripts (awk-based log parsing, SQLite database with hit counters, OPNsense
+          Firewall Alias export), and published to GitHub every 15 minutes. No external
+          IP feeds, commercial APIs, or third-party threat-intelligence sources are
+          consumed in the primary export. The repository does aggregate third-party
+          blocklists (DShield, Spamhaus DROP, PSBL, UCEProtect, Backscatterer) in
+          subdirectories for supplementary reference, but these are not mixed into
+          the primary uninvitedActivity-Export.txt output.
+        source_feeds: []
+      listing_policy:
+        summary: "An IP is listed when it sends any TCP traffic to a port on the maintainer's
+          OPNsense firewall that has no listening service. Listings are tiered by
+          port pair: Rule 1 (mail-server ports 25/587/993/995), Rule 2 (destination
+          port 1024 or below), Rule 3 (high port to high port, 1024 and above to 1024
+          and above), Rule 4 (high port from low port, 1024 and above from 1024 or
+          below), Rule 5 (any other unsolicited IPv4). The combined -Export file merges
+          all five rules."
+        criteria:
+        - Any inbound TCP packet to a closed (non-listening) destination port — by
+          definition, no legitimate traffic can arrive at a port with no service
+        - 'Rule 1: destination port is a mail-server port (25, 587, 993, or 995)'
+        - 'Rule 2: destination port is 1024 or below'
+        - 'Rule 3: destination port and source port are both above 1024'
+        - 'Rule 4: destination port is above 1024 and source port is 1024 or below'
+        - 'Rule 5: any other unsolicited IPv4 traffic not fitting Rules 1–4'
+      unlisting_policy:
+        summary: No formal unlisting process is documented. The maintainer has manually
+          created allowlists (allowHosts.txt, allowNets.txt, allowVerifiedMailServers.txt,
+          unfortunatelyAllowed.txt) for IPs identified as false positives. Requests
+          to unlist specific IPs are handled informally through GitHub issues.
+        criteria:
+        - IPs identified as causing false positives are added to manual allow files
+          (allowHosts.txt, allowNets.txt, unfortunatelyAllowed.txt)
+        - Known false positives documented include Google, Amazon, Cloudflare, Microsoft,
+          and GitHub IPs that occasionally trigger rules
+        - A specific IP required for Chromecast was manually unblocked
+        - VPN authentication source IPs have been manually allow-listed
+      unlist_request:
+        url:
+        email:
+        instructions: 'No formal unlisting channel is documented. The maintainer suggests
+          submitting a GitHub issue for clarification or false-positive reports. Issue
+          #1 demonstrates this pattern — a community member asked about rule 4 false
+          positives via the issue tracker.'
+      update_frequency:
+        frequency: 15m
+        human_readable: Refreshed every 15 minutes, per the maintainer's completed
+          future considerations.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: 'Passive sensor collection via a dedicated OPNsense firewall
+          rule that logs all inbound TCP traffic arriving on ports with no listening
+          service. This is functionally a dark-port honeypot: any connection to a
+          closed port represents unsolicited reconnaissance or attack traffic. The
+          maintainer does not send outbound probes or interact with listed IPs — collection
+          is entirely passive. Hit counters track repeat offenders.'
+      scope_and_intent:
+        description: The feed targets network operators — particularly OPNsense users
+          — who wish to block hosts performing unsolicited port scanning or probing.
+          The maintainer emphasizes that the feed reflects activity observed at a
+          single network vantage point and carries the inherent limitations of single-sensor
+          detection.
+        intended_for:
+        - OPNsense firewall users consuming the blocklists as Firewall Aliases
+        - Network operators blocking unsolicited port scanning and reconnaissance
+        - Identifying internet scanner organizations (Censys, Shodan, Rapid7, CriminalIP,
+          LeakIX, ShadowServer, Palo Alto Networks)
+        not_intended_for:
+        - Production mail-server blocking without reviewing Rule 1 output for false
+          positives among large cloud providers
+        - IPv6 threat intelligence (IPv6 is not supported)
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: No redistribution terms are stated. The file is publicly downloadable
+          from GitHub with no access controls.
+      current_status:
+        state: active
+        description: Active. The project has been continuously maintained since October
+          2023. The maintainer published a retroactive pruning update in June 2025,
+          removing approximately 46,000 stale IPs older than 12 months from Rules
+          2–5. The most recent update notation in the README is dated 2025-06-21.
+          The GitHub repository shows recent activity.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "One community issue (GitHub #1, opened March 2025) raised a substantive
+          question about Rule 4: a practitioner questioned the maintainer's rationale
+          for treating server-to-client probe-back packets as malicious, noting that
+          TCP responses from port 443 to a browsing client's ephemeral port are normal
+          TCP handshake behavior. The maintainer acknowledged the false-positive concern
+          in the README and subsequently filtered Rule 4. The issue remained open
+          and unanswered at time of research. No other public criticism or false-positive
+          reports were found."
+        engagement: Public community engagement is sparse. The GitHub repository has
+          accumulated 152 stars (as of May 2026). One open issue exists (a methodological
+          question, not a formal complaint). No discussions forum is enabled. No Reddit
+          threads, vendor write-ups, or conference citations were found. The maintainer
+          does not publish a blog or mailing list.
+      sources_consulted:
+      - url: https://github.com/UninvitedActivity/UninvitedActivity
+        document_date:
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: 
+          https://raw.githubusercontent.com/UninvitedActivity/UninvitedActivity/main/README.md
+        document_date:
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: https://api.github.com/repos/UninvitedActivity/UninvitedActivity
+        document_date:
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: 
+          https://api.github.com/repos/UninvitedActivity/UninvitedActivity/issues?per_page=100
+        document_date:
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: https://github.com/UninvitedActivity/UninvitedActivity/issues/1
+        document_date: '2025-03-10'
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: 
+          https://raw.githubusercontent.com/UninvitedActivity/UninvitedActivity/main/LICENSE
+        document_date:
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: https://api.github.com/repos/UninvitedActivity/UninvitedActivity/contents
+        document_date:
+        validation_date: '2026-05-17T00:00:00+00:00'

@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Public Feed Enrichment Projection",
+  "description": "Sanitized public projection embedded under sources.<feed>.enrichment in source YAML. Internal audit fields from the full agent output are intentionally absent.",
+  "type": "object",
+  "required": [
+    "enrichment_schema_version",
+    "run_at",
+    "official_name",
+    "official_url",
+    "short_description",
+    "long_description",
+    "roles",
+    "derivation",
+    "listing_policy",
+    "unlisting_policy",
+    "unlist_request",
+    "update_frequency",
+    "detection_classification",
+    "scope_and_intent",
+    "license",
+    "redistribution",
+    "current_status",
+    "community",
+    "sources_consulted"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "enrichment_schema_version": { "const": 2 },
+    "run_at": { "type": "string", "format": "date-time" },
+    "official_name": { "type": ["string", "null"] },
+    "official_url": { "type": ["string", "null"], "format": "uri" },
+    "short_description": { "type": ["string", "null"] },
+    "long_description": { "type": ["string", "null"] },
+    "roles": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/Role" }
+    },
+    "derivation": { "$ref": "#/$defs/Derivation" },
+    "listing_policy": { "$ref": "#/$defs/Policy" },
+    "unlisting_policy": { "$ref": "#/$defs/Policy" },
+    "unlist_request": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "url": { "type": ["string", "null"], "format": "uri" },
+        "email": { "type": ["string", "null"], "format": "email" },
+        "instructions": { "type": ["string", "null"] }
+      }
+    },
+    "update_frequency": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "frequency": {
+          "type": ["string", "null"],
+          "pattern": "^(\\d+[mhdw])$",
+          "description": "Compact form: 'Xm' minutes, 'Xh' hours, 'Xd' days, 'Xw' weeks. There is no month unit; monthly cadence should use '30d'."
+        },
+        "human_readable": { "type": ["string", "null"] }
+      }
+    },
+    "detection_classification": {
+      "type": "object",
+      "required": ["primary_method", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "primary_method": {
+          "type": "string",
+          "enum": [
+            "honeypot",
+            "network_telescope",
+            "active_scanning",
+            "user_submission",
+            "malware_analysis",
+            "reputation_aggregation",
+            "policy_assignment",
+            "commercial_threat_intel",
+            "mixed",
+            "unknown"
+          ]
+        },
+        "secondary_methods": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "honeypot",
+              "network_telescope",
+              "active_scanning",
+              "user_submission",
+              "malware_analysis",
+              "reputation_aggregation",
+              "policy_assignment",
+              "commercial_threat_intel"
+            ]
+          }
+        },
+        "description": { "type": "string" }
+      }
+    },
+    "scope_and_intent": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "description": { "type": ["string", "null"] },
+        "intended_for": { "type": "array", "items": { "type": "string" } },
+        "not_intended_for": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "license": { "type": ["string", "null"] },
+    "redistribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allowed": { "type": ["boolean", "null"] },
+        "commercial_use_allowed": { "type": ["boolean", "null"] },
+        "attribution_required": { "type": ["string", "null"] },
+        "terms": { "type": ["string", "null"] }
+      }
+    },
+    "current_status": {
+      "type": "object",
+      "required": ["state", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": ["active", "discontinued", "merged", "forked", "reformatted", "altered_scope", "unknown"]
+        },
+        "description": { "type": "string" },
+        "successor": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "name": { "type": ["string", "null"] },
+            "url": { "type": ["string", "null"], "format": "uri" }
+          }
+        },
+        "announcement_date": { "type": ["string", "null"], "format": "date" }
+      }
+    },
+    "community": {
+      "type": "object",
+      "required": ["awards", "criticism", "engagement"],
+      "additionalProperties": false,
+      "properties": {
+        "awards": { "type": ["string", "null"] },
+        "criticism": { "type": ["string", "null"] },
+        "engagement": { "type": ["string", "null"] }
+      }
+    },
+    "sources_consulted": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["url"],
+        "additionalProperties": false,
+        "properties": {
+          "url": { "type": "string", "format": "uri" },
+          "document_date": { "type": ["string", "null"], "format": "date" },
+          "validation_date": { "type": ["string", "null"], "format": "date-time" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "Role": {
+      "type": "object",
+      "required": ["role", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["maintainer", "publisher", "aggregator", "source_contributor", "original_author", "successor"]
+        },
+        "name": { "type": "string" },
+        "organization_type": {
+          "type": ["string", "null"],
+          "enum": ["non_profit", "commercial", "research_institution", "government", "individual", "informal_collective", "unknown", null]
+        },
+        "official_url": { "type": ["string", "null"], "format": "uri" },
+        "contact_email": { "type": ["string", "null"], "format": "email" },
+        "based_in": { "type": ["string", "null"] },
+        "active_since": { "type": ["string", "null"] },
+        "notes": { "type": ["string", "null"] }
+      }
+    },
+    "Derivation": {
+      "type": "object",
+      "required": ["type", "description"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["original", "derivative", "extraction", "partial_mirror", "aggregate_merge", "reformat", "fork", "unknown"]
+        },
+        "description": { "type": "string" },
+        "source_feeds": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["identifier"],
+            "additionalProperties": false,
+            "properties": {
+              "identifier": { "type": "string" },
+              "relationship": {
+                "type": ["string", "null"],
+                "enum": ["subset", "superset", "filtered", "enriched", "mirror", "aggregate_component", "fork", null]
+              },
+              "notes": { "type": ["string", "null"] }
+            }
+          }
+        }
+      }
+    },
+    "Policy": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "summary": { "type": "string" },
+        "criteria": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

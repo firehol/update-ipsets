@@ -1,0 +1,150 @@
+sources:
+  shadowwhisperer_bruteforce_extreme:
+    license: The Unlicense (Public Domain)
+    redistributable: true
+    url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/BruteForce/Extreme
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[ShadowWhisperer/IPs](https://github.com/ShadowWhisperer/IPs) extreme-volume
+      brute-force IPs that connected to the maintainer''s honeypots. Bitwire consumes
+      this legacy path; the file still updates from the repository automation.'
+    maintainer: ShadowWhisperer
+    maintainer_url: https://github.com/ShadowWhisperer/IPs
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T23:18:43Z'
+      official_name: BruteForce/Extreme
+      official_url: https://github.com/ShadowWhisperer/IPs/tree/master/BruteForce
+      short_description: IPv4 addresses that connected to the maintainer's honeypots
+        at least 80 times — the highest-severity tier in a four-tier brute-force blocklist
+        series.
+      long_description: "BruteForce/Extreme captures the highest-volume offenders
+        in the maintainer's tiered brute-force ladder — IPs that connected to the
+        Cowrie honeypot fleet at least 80 times. Connections are counted across all
+        honeypot nodes in the deploy; no external reputation data is factored in.
+        The Extreme threshold isolates the most persistent automated attackers within
+        the four-tier BruteForce structure (Extreme 80+, High 20–79, Medium 5–19,
+        Low <5).\n\nBruteForce/Extreme is published as a plain-text file inside the
+        maintainer's older `BruteForce/` directory. The maintainer's README marks
+        this directory as legacy and directs new integrators to the actively maintained
+        `Lists/` folder for ongoing coverage of the same threat class."
+      roles:
+      - role: maintainer
+        name: ShadowWhisperer
+        organization_type: individual
+        official_url: https://github.com/ShadowWhisperer/IPs
+        contact_email:
+        based_in:
+        active_since:
+        notes: Individual researcher running honeypot infrastructure across multiple
+          locations. Holds an AbuseIPDB contributor badge (user ID 51407). Explicitly
+          permits third-party use of the feeds.
+      derivation:
+        type: original
+        description: First-party honeypot detections only. The maintainer runs Cowrie
+          honeypots and a custom honeypot stack with a log analyzer across multiple
+          geographic locations. Connection counts are tallied per source IP; no external
+          threat-intel feeds are merged in. The result is a tiered severity classification
+          (Extreme / High / Medium / Low) based solely on observed connection frequency.
+        source_feeds: []
+      listing_policy:
+        summary: "An IP qualifies for the Extreme tier when it connects to the maintainer's
+          honeypot infrastructure at least 80 times. The broader BruteForce category
+          uses a four-tier ladder: Extreme (80+ connections), High (20–79), Medium
+          (5–19), and Low (<5). Connections are counted across all honeypot nodes
+          in the deploy; no external reputation data is factored in."
+        criteria:
+        - Observed making at least 80 TCP connections to the maintainer's honeypot
+          infrastructure
+        - Connections counted across all honeypot nodes in the deploy (not per-node)
+      unlisting_policy:
+        summary: No formal unlisting process is documented. The maintainer explicitly
+          clears diffs and pull requests, indicating that GitHub workflow submissions
+          are not a supported removal channel. Third parties wishing to request removal
+          of a specific IP would need to reach the maintainer outside standard GitHub
+          mechanisms.
+        criteria:
+        - No documented automatic expiry or TTL-based removal
+        - No documented manual unlisting request process
+      unlist_request:
+      update_frequency:
+        frequency: 1h
+        human_readable: The repository is updated hourly, with periodic compression
+          to manage file size.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: Passive collection via Cowrie honeypots and a custom honeypot
+          stack with a log analyzer, deployed across multiple geographic locations.
+          The analyzer tallies inbound TCP connections per source IP and assigns severity
+          tiers based on connection counts. Cowrie is an open-source medium-interaction
+          SSH/Telnet honeypot that logs authentication attempts and shell command
+          sessions — useful for capturing brute-force attack patterns because attackers
+          repeatedly attempt credential combinations against the same listening port.
+      scope_and_intent:
+        description: Tiered IP blocklist targeting automated credential-guessing attacks.
+          The Extreme tier captures the highest-volume offenders — IPs that made at
+          least 80 connections to the honeypot fleet. Intended for firewall ruleset
+          injection at the network perimeter.
+        intended_for:
+        - Blocking brute-force authentication attackers at network firewalls
+        - Injecting into deny-by-default ACLs at network edges
+        - Supplementing existing fail2ban or crowdsec installations with high-confidence
+          sources
+        not_intended_for:
+        - Application-layer rate limiting (requires session-aware tooling)
+        - As a sole source of threat intelligence (operators should layer with other
+          feeds)
+      license: The Unlicense (Public Domain)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: Under the Unlicense, the feed may be copied, modified, published, used,
+          compiled, sold, or distributed by anyone in any medium with no conditions
+          and no attribution required.
+      current_status:
+        state: altered_scope
+        description: The maintainer's README marks the entire `BruteForce/` directory
+          as legacy and directs integrators to the `Lists/` folder for actively maintained
+          coverage. The BruteForce/Extreme file remains reachable and continues to
+          receive automated commits, but is no longer the maintainer's primary publication
+          path for high-volume brute-force sources.
+        successor:
+          name: Lists/Threats
+          url: https://github.com/ShadowWhisperer/IPs/tree/master/Lists
+        announcement_date:
+      community:
+        awards:
+        criticism: No false-positive reports or removal disputes specific to the BruteForce/Extreme
+          list were found in the issue tracker. Past issues against the parent repository
+          (false positives on the legacy Malware/Hosting file, Censys scanning ranges)
+          concern sibling lists rather than this one. No public service level for
+          removal requests is documented.
+        engagement: Public discussion specific to the BruteForce/Extreme tier is sparse.
+          No dedicated subreddit threads, security forum posts, or vendor write-ups
+          discussing this list were located. The legacy classification of the parent
+          `BruteForce/` directory likely concentrates current operator attention on
+          the actively maintained `Lists/` feeds rather than on this tier.
+      sources_consulted:
+      - url: https://github.com/ShadowWhisperer/IPs/blob/master/README.md
+        document_date:
+        validation_date: '2026-05-16T23:00:00Z'
+      - url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/BruteForce/Extreme
+        document_date: '2026-03-28'
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: https://github.com/ShadowWhisperer/IPs/tree/master/BruteForce
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: https://github.com/ShadowWhisperer/IPs/tree/master/BruteForce/Extreme
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: https://api.github.com/repos/ShadowWhisperer/IPs/issues?per_page=100&state=all
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'

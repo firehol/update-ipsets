@@ -1,0 +1,162 @@
+sources:
+  iblocklist_hijacked:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=usrcshglbiilevmyfhse&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Hijacked IP-Blocks. Contains hijacked IP-Blocks and known IP-Blocks that
+      are used to deliver Spam. This list is a combination of lists with hijacked
+      IP-Blocks. Hijacked IP space are IP blocks that are being used without permission
+      by organizations that have no relation to original organization (or its legal
+      successor) that received the IP block. In essence it's stealing of somebody
+      else's IP resources.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T05:28:46Z'
+      official_name: Bluetack - hijacked
+      official_url: https://www.iblocklist.com/list?list=usrcshglbiilevmyfhse
+      short_description: IP blocks reported as taken over by unauthorized parties
+        and IP addresses associated with spam delivery, originally compiled by Bluetack
+        and redistributed via iBlocklist.com.
+      long_description: The Bluetack-hijacked list targets IP address space reported
+        as having been appropriated by organizations operating without authorization
+        from the original holder to whom the block was allocated. It also incorporates
+        IP addresses associated with spam delivery. The list was originally produced
+        by Bluetack Internet Security Solutions (BISS) as part of a suite of P2P-focused
+        blocklists for privacy applications such as PeerGuardian. iBlocklist.com now
+        serves as the redistribution platform, offering the list in P2P, DAT, and
+        CIDR formats. Per independent analysis, the Bluetack list series has not been
+        actively updated since approximately 2015-2016, and the iBlocklist.com catalog
+        page for this list does not display an update URL, indicating no automated
+        refresh path. Organizations considering this feed should be aware of the risk
+        of stale entries persisting after IP reassignment, which is the primary driver
+        of false positives in any blocklist covering dynamic address space.
+      roles:
+      - role: publisher
+        name: iBlocklist.com
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: iblocklist, LLC operates the iblocklist.com platform, which hosts and
+          distributes this list among others in standardized formats (P2P, DAT, CIDR)
+          for use with PeerGuardian, PeerBlock, pfBlocker, and other compatible software.
+      - role: original_author
+        name: Bluetack
+        organization_type: unknown
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Bluetack Internet Security Solutions (BISS) originally compiled this
+          list as part of a suite of P2P-focused blocklists. The Bluetack list series
+          has not been actively maintained since approximately 2015-2016, per independent
+          analysis.
+      derivation:
+        type: partial_mirror
+        description: The feed is a partial mirror of the Bluetack hijacked IP blocklist,
+          republished by iBlocklist.com in P2P format. The catalog distributes the
+          feed as a gzipped P2P-format file. No automated refresh path is visible
+          for this list on the iBlocklist.com catalog page, and community research
+          indicates the underlying Bluetack data has not been actively updated since
+          approximately 2015-2016.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when it falls within an address block reported as
+          having been appropriated by an organization operating without authorization
+          from the original block holder, or when the IP is associated with spam delivery.
+          No documented methodology for how hijacked blocks are identified or reported
+          was found in publicly available maintainer documentation.
+        criteria:
+        - IP address falls within a block reported as taken over without authorization
+          from the original holder
+        - IP address associated with spam delivery activity
+      unlisting_policy:
+        summary: No unlisting policy is documented by the maintainer for this feed.
+          Given the absence of an active update path, IPs listed in this feed are
+          unlikely to be removed through any automated or manual process.
+        criteria:
+        - No documented auto-decay mechanism
+        - No documented manual review or removal process
+        - No documented unlisting request channel
+      unlist_request:
+      update_frequency:
+      detection_classification:
+        primary_method: unknown
+        secondary_methods: []
+        description: The detection method used to identify hijacked IP blocks is not
+          documented. The list page describes the scope (hijacked IPs and spam-delivery
+          IPs) but provides no information on how IPs are detected, reported, or validated.
+          Based on the list's origin as a P2P-focused blocklist for PeerGuardian,
+          the sourcing likely involved community reports and manually curated submissions,
+          but no authoritative description of the process was found.
+      scope_and_intent:
+        description: The feed targets IP address space reported as having been appropriated
+          without authorization from the original allocation holder, and IP addresses
+          associated with spam delivery. It originated as a privacy-oriented list
+          for P2P users running PeerGuardian-style blockers, designed to shield BitTorrent
+          and other peer-to-peer traffic from surveillance and interference. The maintainer
+          does not explicitly recommend this feed for any specific enterprise security
+          use case.
+        intended_for:
+        - Privacy-focused P2P application shielding (PeerGuardian, PeerBlock, compatible
+          software)
+        not_intended_for: []
+      license: iBlocklist Terms of Service — personal / non-commercial only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The iBlocklist.com Terms of Service restrict use to personal, non-commercial
+          purposes. Commercial use, public display, and account sharing outside one's
+          household are prohibited. The license is non-transferable.
+      current_status:
+        state: discontinued
+        description: The Bluetack hijacked list shows signs of discontinued maintenance.
+          The iBlocklist.com catalog page does not display an update URL for this
+          list, and community research indicates the underlying Bluetack data has
+          not been actively updated since approximately 2015-2016. iBlocklist.com
+          continues to serve the list as a static artifact but has not published any
+          refresh cadence or maintenance announcement for it.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion about the Bluetack-hijacked list specifically
+          is sparse. Integrations into third-party products are not documented for
+          this list.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/list?list=usrcshglbiilevmyfhse
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/tos.php
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.derman.com/blogs/Choosing-IP-Blocking-lists
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://discourse.pi-hole.net/t/how-to-include-list-from-iblocklist-com/18847
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'

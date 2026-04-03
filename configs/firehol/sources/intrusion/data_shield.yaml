@@ -1,0 +1,179 @@
+sources:
+  data_shield:
+    license: GNU GPLv3
+    redistributable: true
+    url: 
+      https://gitlab.com/duggytuxy/Data-Shield-IPv4-Blocklist/-/raw/main/prod_data-shield_ipv4_blocklist.txt
+    frequency: 240
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: primary
+    info: '[duggytuxy/Data-Shield-IPv4-Blocklist](https://gitlab.com/duggytuxy/Data-Shield-IPv4-Blocklist/)
+      full IPv4 blocklist produced by the maintainer''s own HIDS/SIEM sensor network
+      (global probes). ~79K individual IPs, refreshed every ~2 hours.'
+    maintainer: duggytuxy (Laurent Minne)
+    maintainer_url: https://gitlab.com/duggytuxy/Data-Shield-IPv4-Blocklist/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T17:38:34Z'
+      official_name: Data-Shield IPv4 Blocklist Community
+      official_url: https://duggytuxy.github.io/
+      short_description: A curated registry of malicious IPv4 addresses compiled from
+        global HIDS/SIEM sensor probes, refreshed every six hours with approximately
+        94,000 entries and a 15-day retention window.
+      long_description: Data-Shield is an open-source threat-intelligence blocklist
+        developed and operated by a single maintainer. The feed aggregates telemetry
+        from a network of global sensor probes and processes it through a self-hosted
+        Host-based Intrusion Detection System / Security Information and Event Management
+        (HIDS/SIEM) stack. The maintainer applies a behavioral-analysis methodology
+        aimed at catching malicious bot traffic while keeping the false-positive rate
+        below two occurrences per month. Entries older than 15 days expire automatically
+        through a rolling-window mechanism, helping to prevent stale entries from
+        blocking innocent users who have reassigned dynamic IP addresses. The list
+        ships as a plain-text file of one IPv4 address per line, with optional split
+        variants (A/B/C/D segments, roughly 30,000 entries each) for hardware with
+        lower entry-count limits. Distribution mirrors are maintained across GitHub,
+        GitLab, Bitbucket, and Codeberg, with synchronization every six hours. Integration
+        guides cover BunkerWeb, Fortinet, Check Point, Palo Alto Networks, F5 BIG-IP,
+        Stormshield, OPNsense, and Synology NAS. The project aligns with ISO 27001:2022
+        controls and the NIS2 Directive, noting that its WAN-to-LAN scope keeps it
+        outside GDPR scope.
+      roles:
+      - role: maintainer
+        name: Duggy Tuxy
+        organization_type: individual
+        official_url: https://github.com/duggytuxy
+        contact_email:
+        based_in:
+        active_since: '2023'
+        notes: Individual researcher and security practitioner publishing under the
+          handle Duggy Tuxy. Identified as Laurent Minne in the project's copyright
+          notice. Accepts support and sponsorship via Ko-Fi.
+      derivation:
+        type: original
+        description: Original feed built from the maintainer's own global probe network.
+          Telemetry is ingested by a self-hosted HIDS/SIEM stack that applies behavioral-analysis
+          scoring to decide which IPs enter the blocklist. No upstream IP feeds are
+          incorporated.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added based on behavioral analysis performed by the maintainer's
+          HIDS/SIEM stack on global probe telemetry. The system scores observed behaviors
+          — such as port scanning, brute-force attempts, exploit probing, and other
+          patterns consistent with malicious bots — and flags IPs that exceed a threshold.
+          The maintainer targets blocking approximately 95% of malicious bot traffic
+          while keeping the false-positive rate below two occurrences per month.
+        criteria:
+        - Observed scanning, brute-force, or exploit-probing behavior toward the maintainer's
+          global probe network
+        - Behavioral signature matched by the HIDS/SIEM stack's analysis engine
+        - Threshold exceeded in the maintainer's proprietary scoring methodology
+      unlisting_policy:
+        summary: Entries expire automatically after 15 days through a rolling-window
+          mechanism. In addition, the maintainer accepts false-positive reports via
+          GitHub Issues and aims to resolve them within 48 hours.
+        criteria:
+        - Automatic expiry after 15 days in the rolling window
+        - Manual removal upon confirmed false-positive report via GitHub Issues
+      unlist_request:
+        url: https://github.com/duggytuxy/Data-Shield_IPv4_Blocklist/issues/new
+        email:
+        instructions: Open a new GitHub Issue on the project's issue tracker describing
+          the falsely listed IP address and the circumstances under which it was flagged.
+          The maintainer states a target resolution time of 48 hours.
+      update_frequency:
+        frequency: 6h
+        human_readable: Refreshed every six hours, with data synchronized across multiple
+          repository mirrors and CDN endpoints.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods:
+        - user_submission
+        description: The feed draws from a network of global sensor probes that passively
+          observe inbound traffic. Observed behaviors — such as scanning, credential-guessing,
+          and exploit probing — are scored by a self-hosted HIDS/SIEM stack to decide
+          whether an IP is listed. This is a hybrid of passive network observation
+          (probe network acting as a distributed honeypot) and indirect user-submission
+          signal (the probes themselves attract and record attacker behavior).
+      scope_and_intent:
+        description: The feed is designed to block inbound malicious traffic at the
+          network perimeter — firewalls, WAFs, and SIEMs protecting servers, virtual
+          private servers, web applications, content management systems, and exposed
+          infrastructure. It is explicitly scoped to WAN-to-LAN (Internet-to-internal-network)
+          traffic only and must not be applied to outbound or LAN-to-WAN traffic.
+        intended_for:
+        - Inbound firewall blocking at the network perimeter
+        - WAF rule augmentation
+        - SIEM alert enrichment
+        - Blocking malicious bots, scanners, and crawlers targeting public-facing
+          services
+        not_intended_for:
+        - Outbound or LAN-to-WAN traffic filtering
+        - Email gateway filtering (spam, phishing)
+        - DNS-based blocking
+      license: GNU GPLv3
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required: Credit 'Data-Shield IPv4 Blocklist Community' or 'Duggy
+          Tuxy'
+        terms: 'Under GNU GPLv3 terms: the work and any substantial portions of it
+          must be released under the same license when redistributed in modified form,
+          and source code must remain available.'
+      current_status:
+        state: active
+        description: Actively maintained as of 2026. Updates are published every six
+          hours across multiple repository mirrors. The roadmap includes Fail2ban
+          integration (Q1 2026), an API v2 release (Q2 2026), and a SaaS dashboard
+          (Q3 2026).
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Public discussion of Data Shield is sparse. One Reddit thread asked
+          about configuring the feed for WAN-to-LAN firewall rules, but no substantive
+          thread addressing false-positive rates, coverage quality, or operational
+          trade-offs was found. The GitLab issues page shows zero open issues, leaving
+          the community's practical experience with the 48-hour false-positive resolution
+          process unverifiable from public sources.
+        engagement: Public community engagement is limited. One direct reference exists
+          on Reddit (r/UNIFI, November 2025), where a user asked about configuring
+          the list for Unifi hardware. Broader threat-intel discussions on r/OPNsenseFirewall
+          and r/selfhosted reference generic blocklists but do not engage with Data
+          Shield specifically. The maintainer's own GitHub Issues tracker shows no
+          open issues, suggesting either a small user base or effective informal resolution
+          channels.
+      sources_consulted:
+      - url: https://gitlab.com/duggytuxy/Data-Shield-IPv4-Blocklist/
+        document_date:
+        validation_date: '2026-05-16T17:00:00Z'
+      - url: https://gitlab.com/duggytuxy/Data-Shield-IPv4-Blocklist/-/raw/main/README.md
+        document_date:
+        validation_date: '2026-05-16T17:00:00Z'
+      - url: 
+          https://gitlab.com/duggytuxy/Data-Shield-IPv4-Blocklist/-/raw/main/prod_data-shield_ipv4_blocklist.txt
+        document_date:
+        validation_date: '2026-05-16T17:00:00Z'
+      - url: https://gitlab.com/duggytuxy/Data-Shield-IPv4-Blocklist/-/raw/main/LICENSE
+        document_date:
+        validation_date: '2026-05-16T17:00:00Z'
+      - url: https://duggytuxy.github.io/
+        document_date: '2026-01-27'
+        validation_date: '2026-05-16T17:00:00Z'
+      - url: https://github.com/duggytuxy/Data-Shield_IPv4_Blocklist
+        document_date:
+        validation_date: '2026-05-16T17:00:00Z'
+      - url: https://gitlab.com/duggytuxy/Data-Shield-IPv4-Blocklist/-/issues
+        document_date:
+        validation_date: '2026-05-16T17:00:00Z'
+      - url: https://rodneylab.com/firewall-block-lists-compared/
+        document_date:
+        validation_date: '2026-05-16T17:00:00Z'
+      - url: https://www.reddit.com/r/UNIFI/comments/1ody8rw/block_ip_wan_to_lan/
+        document_date: '2025-11-22'
+        validation_date: '2026-05-16T17:00:00Z'

@@ -1,0 +1,171 @@
+sources:
+  misp_modat_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/modat-scanner/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Modat commercial
+      scanner IPs. Informational — not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T22:15:19+00:00'
+      official_name: List of published IP address ranges for Modat Scanner
+      official_url: https://github.com/MISP/misp-warninglists/tree/main/lists/modat-scanner
+      short_description: Published IP address ranges of Modat Magnify, a commercial
+        internet scanning platform operated by Modat B.V., formatted as a MISP warning
+        list for false-positive identification.
+      long_description: "The modat-scanner warning list publishes the IP address ranges
+        that Modat B.V. (The Hague, Netherlands) has officially disclosed for its
+        Modat Magnify internet scanning platform. Modat Magnify performs large-scale
+        scanning of internet-facing infrastructure, applying AI-driven device fingerprinting
+        and behaviour modelling to build a real-time intelligence view of how internet
+        assets change over time.\n\nPer the maintainer's description, this list is
+        informational — it is designed to help analysts recognise Modat's scanning
+        infrastructure when it appears in their data, not to produce a blocklist.
+        A companion list, modat-nt-scanning, covers a partially-overlapping set of
+        Modat ranges identified through CIRCL Network Telescope passive analysis rather
+        than Modat's own publications."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://github.com/MISP/misp-warninglists
+        contact_email:
+        based_in: Luxembourg
+        active_since: '2016'
+        notes: Coordinates the MISP warninglists collection — a repository of over
+          120 warning lists for identifying false positives in MISP events and attributes.
+          Operated by CIRCL (Computer Incident Response Center Luxembourg).
+      - role: source_contributor
+        name: Modat B.V.
+        organization_type: commercial
+        official_url: https://www.modat.io/
+        contact_email: info@modat.io
+        based_in: Netherlands
+        active_since:
+        notes: Commercial company (incorporated under Dutch law, registration 93876106)
+          operating the Modat Magnify internet scanning platform. The published IP
+          ranges of the scanning platform are the source data for this warning list.
+      derivation:
+        type: partial_mirror
+        description: The list consists of IP address ranges that Modat B.V. has officially
+          published as belonging to its Modat Magnify scanning platform. The ranges
+          are contributed to the MISP warninglists repository by community members
+          and formatted to the warning-list JSON schema (name, version, description,
+          matching_attributes, CIDR list). The list is not derived from other IP feeds
+          — it draws from Modat's own public infrastructure disclosures. A companion
+          list, modat-nt-scanning, covers a partially-overlapping set of Modat IP
+          ranges identified through CIRCL Network Telescope passive analysis rather
+          than Modat's own publications.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are IP address ranges that Modat B.V. has officially published
+          as belonging to its Modat Magnify scanning platform. No active threat scoring
+          or behavioural criteria are applied — the list is a direct publication of
+          Modat's known scanning infrastructure.
+        criteria:
+        - IP address range officially disclosed by Modat B.V. as belonging to the
+          Modat Magnify scanning platform
+      unlisting_policy:
+        summary: 'Removal requests follow the general MISP warninglists process: submit
+          a GitHub issue or pull request to the misp-warninglists repository proposing
+          the edit. Individual IP owners who believe their addresses were incorrectly
+          included should contact the MISP Project or Modat directly.'
+        criteria:
+        - Submitter demonstrates the IP range is not Modat scanning infrastructure
+        - Pull request reviewed and merged by a MISP Project maintainer
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/issues/new
+        email:
+        instructions: Open a GitHub issue at https://github.com/MISP/misp-warninglists/issues/new
+          describing the IP range and the reason it should be removed, or submit a
+          pull request directly editing the list.json file with the proposed change.
+      update_frequency:
+        frequency: 1440m
+        human_readable: Updated approximately once per day, per the catalog configuration.
+      detection_classification:
+        primary_method: commercial_threat_intel
+        secondary_methods: []
+        description: The list is compiled from IP address ranges that Modat B.V. has
+          officially published as belonging to its Modat Magnify scanning platform.
+          This is a commercial threat intelligence source — the data originates from
+          a commercial company's own infrastructure disclosures, not from honeypots,
+          network telescopes, active scanning, or community submissions. The list
+          type is 'cidr', meaning each entry is matched as an IP or CIDR block against
+          MISP event attributes tagged with ip-src, ip-dst, domain|ip, ip-src|port,
+          or ip-dst|port.
+      scope_and_intent:
+        description: The list identifies IP address ranges used by Modat Magnify,
+          a commercial internet scanning platform operated by Modat B.V. of The Hague,
+          Netherlands. Analysts encountering these IPs in their event data can use
+          the list to recognise Modat's scanning activity and avoid treating it as
+          malicious.
+        intended_for:
+        - Identifying Modat Magnify scanning infrastructure in MISP events to suppress
+          false-positive threat assessments
+        - Enriching MISP events with contextual warning annotations when Modat IPs
+          appear as indicators
+        not_intended_for:
+        - Inline blocking or deny-listing of Modat IP ranges — the catalog YAML explicitly
+          marks this feed as informational and not suitable for blocking
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal dedicates the work to the public domain without conditions.
+          No attribution is legally required, though crediting MISP and the source
+          list name is customary practice.
+      current_status:
+        state: active
+        description: Active. The list is present and maintained in the MISP warninglists
+          repository, with the version field date-stamped to the most recent edit.
+          Recent maintenance activity has updated both modat-scanner and the companion
+          modat-nt-scanning list.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion specifically about the modat-scanner
+          warninglist is sparse. No open or recently closed GitHub issues referencing
+          modat or modat-scanner were found in the misp-warninglists issue tracker
+          — neither false-positive reports nor removal requests. The companion modat-nt-scanning
+          list has received maintenance contributions from contributor Th4nat0s.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/modat-scanner/list.json
+        document_date: '2026-04-28'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.modat.io/
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.modat.io/about
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://api.github.com/repos/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/tree/main/lists/modat-nt-scanning
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/actions/workflows/nosetests.yml
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'

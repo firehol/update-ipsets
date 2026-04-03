@@ -1,0 +1,154 @@
+sources:
+  dataplane_telnetlogin:
+    license: Dataplane.org - non-commercial use only, redistribution prohibited
+    redistributable: false
+    url: https://dataplane.org/telnetlogin.txt
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - dataplane_column3
+    processor_raw: dataplane_column3
+    category: intrusion
+    info: '[DataPlane.org](https://dataplane.org/) IP addresses seen attempting Telnet
+      logins to remote hosts. Added from the MISP default feed catalog audit.'
+    maintainer: DataPlane.org
+    maintainer_url: https://dataplane.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T17:13:20Z'
+      official_name: TELNET login
+      official_url: https://dataplane.org/jtk/blog/2021/03/telnetlogin/
+      short_description: IPv4 and IPv6 addresses observed attempting Telnet login
+        authentication against DataPlane.org's decoy Telnet sensors worldwide.
+      long_description: "The TELNET login feed tracks source IP addresses that connect
+        to DataPlane.org's decoy Telnet sensors on TCP port 23 and submit login and
+        password credentials. The sensors mimic but do not implement an actual Telnet
+        server service — they passively record the credential attempts without completing
+        authentication.\n\nThe feed is produced by a globally distributed sensor network
+        spanning over 600 nodes across 65 metropolitan areas on 6 continents. Each
+        entry records the source address, its route-origin ASN and AS name, the most
+        recent timestamp within the past seven days, and the signal category.\n\n\
+        Activity recorded in this feed is often associated with malware attempting
+        to spread via weakly protected public Telnet interfaces on embedded systems
+        and consumer electronics. The maintainer cautions that due to the nature of
+        the Telnet protocol it can be very difficult to distinguish potentially malicious
+        clients from benign ones — network scanners and surveying projects may also
+        interact with the sensors and appear in the feed. Like all DataPlane.org signals,
+        this feed is intended for insight and research, not as an automatic block
+        list."
+      roles:
+      - role: maintainer
+        name: DataPlane.org
+        organization_type: non_profit
+        official_url: https://dataplane.org/
+        contact_email:
+        based_in:
+        active_since: '2016'
+        notes: A 501(c)(3) nonprofit organization providing free threat intelligence
+          signals to the network and security communities. Founded by John Kristoff,
+          with technologists Matthew Kemp and Bill Eaheart. Operates over 600 sensor
+          nodes across 65 metropolitan areas on 6 continents. The maintainer's signal
+          portfolio is consumed by downstream threat-intel platforms including MISP
+          (as a default feed), IntelMQ, Recorded Future, Team Cymru, Shadowserver,
+          Maltrail, and others; this list applies across the maintainer's signals,
+          not to this feed in isolation.
+      derivation:
+        type: original
+        description: First-party detection from DataPlane.org's globally distributed
+          Telnet honeypot sensor network. Decoy sensors listen on TCP port 23 and
+          record login and password credentials submitted by connecting clients without
+          completing authentication. Each IP is listed once with its route-origin
+          ASN, AS name, most recent timestamp, and signal category.
+        source_feeds: []
+      listing_policy:
+        summary: An IP address is added to the feed when it connects to a DataPlane.org
+          decoy Telnet sensor on TCP port 23 and submits login and password credentials.
+          The sensor records the attempt but does not complete authentication. Entries
+          carry a most-recent timestamp from the past seven days.
+        criteria:
+        - Connects to a DataPlane.org Telnet honeypot sensor on TCP port 23
+        - Submits a login and/or password credential to the sensor
+        - Most recently observed within the past seven days
+      unlisting_policy:
+        summary: Entries expire automatically after seven days without further activity.
+          For persistent or incorrect listings, DataPlane.org can be contacted directly
+          to request investigation and removal.
+        criteria:
+        - Automatic expiry after seven days without further observed activity
+        - Manual removal available by contacting DataPlane.org directly
+      unlist_request:
+        url:
+        email: info@dataplane.org
+        instructions: Send an email to info@dataplane.org describing the IP address
+          or netblock to be investigated. Brief email exchanges have resolved interference
+          issues promptly. Automatic expiry removes entries after seven days of inactivity
+          if no manual request is made.
+      update_frequency:
+        frequency: 1h
+        human_readable: Updated hourly
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: Decoy Telnet honeypot sensors mimic but do not implement an actual
+          Telnet server service. They listen on TCP port 23 and passively record login
+          and password credentials submitted by connecting clients without completing
+          authentication. The globally distributed sensor network spans over 600 nodes
+          across 65 metropolitan areas on 6 continents.
+      scope_and_intent:
+        description: The feed is intended for research and situational awareness —
+          evidence of scanning and brute-force activity targeting Telnet interfaces
+          on networked devices.
+        intended_for:
+        - Insight and evidence of scanning and brute-force activity targeting public
+          Telnet interfaces
+        - Tracking malware propagation patterns on embedded systems and consumer electronics
+        - Correlating with botnet and Mirai-family campaign activity
+        - Network security research and trend analysis
+        not_intended_for:
+        - Automatic IP blocking or deny-listing
+        - Characterizing intent in isolation without correlation with other signals
+        - Blocking legitimate network scanners or surveying projects that interact
+          with honeypot sensors
+      license: Non-commercial use only, redistribution prohibited without express
+        permission
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Free for non-commercial use only. Commercial use requires prior authorization
+          by contacting info@dataplane.org. Redistribution prohibited without express
+          written permission.
+      current_status:
+        state: active
+        description: Active and maintained as of February 2026. The feed file shows
+          a report period ending 2026-02-13, with entries spanning the full weekly
+          window. DataPlane.org continues to operate and expand its sensor network.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Sparse public discussion of the TELNET login signal specifically.
+          No notable complaints or critical issues for this feed surfaced in community
+          forums; Reddit returned zero relevant mentions. DataPlane.org's broader
+          signal portfolio is integrated into MISP (where it appears as a default
+          feed) and other downstream threat-intel platforms — see the maintainer's
+          roles[].notes for the wider integration footprint.
+      sources_consulted:
+      - url: https://dataplane.org/
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://dataplane.org/signals.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://dataplane.org/telnetlogin.txt
+        document_date: '2026-02-13'
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://dataplane.org/jtk/blog/2021/03/telnetlogin/
+        document_date: 2021-03
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://dataplane.org/about.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'

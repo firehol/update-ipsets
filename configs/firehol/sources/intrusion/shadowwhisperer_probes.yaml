@@ -1,0 +1,165 @@
+sources:
+  shadowwhisperer_probes:
+    license: Unlicense (Public Domain)
+    redistributable: true
+    url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/Lists/Probes
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: primary
+    info: '[ShadowWhisperer/IPs](https://github.com/ShadowWhisperer/IPs) probe IPs
+      that connected to the maintainer''s honeypots 5+ times without completing a
+      full handshake — lighter signal than active threats. ~20K entries, hourly refresh.'
+    maintainer: ShadowWhisperer
+    maintainer_url: https://github.com/ShadowWhisperer/IPs
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T00:05:20Z'
+      official_name: Probes
+      official_url: https://github.com/ShadowWhisperer/IPs
+      short_description: IPv4 addresses observed connecting to the maintainer's honeypots
+        five or more times without completing a full session handshake.
+      long_description: "The Probes list captures reconnaissance activity observed
+        by the maintainer's Cowrie honeypot fleet: IPv4 addresses that made repeated
+        connection attempts — at least five — without ever completing a full protocol
+        handshake. This distinguishes them from IPs that successfully authenticated
+        or established a session, which the maintainer classifies separately under
+        `Lists/Threats`. Probes are the early-stage scanning signal rather than confirmed
+        compromise.\n\nLogs from distributed honeypots are aggregated and the Probes
+        list is regenerated on an hourly cycle. The maintainer publishes both a plain-text
+        IP file (`Lists/Probes`) and a CSV variant (`Lists/Probes.csv`) for operators
+        who want richer per-entry context."
+      roles:
+      - role: maintainer
+        name: ShadowWhisperer
+        organization_type: individual
+        official_url: https://github.com/ShadowWhisperer
+        contact_email:
+        based_in:
+        active_since: 2020-12
+        notes: Operates a distributed honeypot network and maintains the IPs repository.
+          Also maintains a separate DNS blocklists repository (ShadowWhisperer/BlockLists).
+          Contributor standing on AbuseIPDB since December 2020 with over 565,000
+          reported IPs.
+      derivation:
+        type: original
+        description: Original detection from a distributed honeypot network. Logs
+          from Cowrie honeypots and custom honeypot sensors deployed across multiple
+          geographic locations are aggregated to a central analysis system, processed
+          automatically, and published hourly. No upstream IP feeds are consumed.
+        source_feeds: []
+      listing_policy:
+        summary: "An IP is added to the Probes list when it connects to one of the
+          maintainer's honeypots five or more times without completing a full protocol
+          handshake. A full handshake — establishing an authenticated session — is
+          the distinguishing factor: IPs that authenticate successfully or establish
+          a session are classified differently (such as Threats). Purely exploratory
+          connections that never reach that stage qualify as probes."
+        criteria:
+        - Observed connecting to a maintainer-operated honeypot at least five times
+        - Did not complete a full protocol handshake or establish a session
+        - Connection originated from an automated scanner, bot, or scripted client
+          rather than a human user
+      unlisting_policy:
+        summary: The maintainer does not publish a documented unlisting process for
+          the IPs repository. Entries are removed when the automated processing pipeline
+          detects stale or inactive sources, and the repository is periodically compressed
+          to reduce file size. There is no publicly documented channel for third-party
+          removal requests specific to the IPs feed.
+        criteria:
+        - Automatic expiry of stale entries during periodic compression cycles
+        - No documented manual unlisting request channel for the IPs repository
+      unlist_request:
+      update_frequency:
+        frequency: 1h
+        human_readable: Updated every hour.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: Passive collection via Cowrie honeypots and custom honeypot sensors
+          deployed across multiple geographic locations. Cowrie is a medium-interaction
+          SSH and Telnet honeypot that logs authentication attempts and shell interaction
+          without exposing a real system. The maintainer aggregates logs from geographically
+          distributed honeypots to a central analysis system, which processes and
+          classifies traffic. IPs that probe but never authenticate are tagged as
+          Probes; IPs that successfully authenticate enter other categories.
+      scope_and_intent:
+        description: The Probes list captures reconnaissance activity — IPs that scanned
+          the maintainer's honeypots without progressing to a full session. It is
+          intended as a lightweight blocklist for perimeter defense, suitable for
+          dropping early-stage scanning noise before it reaches production services.
+        intended_for:
+        - Dropping reconnaissance traffic at the network perimeter
+        - Reducing noise in auth logs by blocking known scanners before they reach
+          services
+        - Supplements more aggressive threat feeds at the edge
+        not_intended_for:
+        - Blocking confirmed active threats or authenticated intrusions (those belong
+          in the Threats list)
+        - Replacing full threat intelligence feeds for incident response
+        - Legal or forensic attribution — honeypot observations represent automated
+          scanning, not confirmed malicious activity by identified actors
+      license: Unlicense (Public Domain)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: No redistribution restrictions. The Unlicense places no conditions
+          on use, redistribution, or modification. Commercial use is permitted.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026. The repository is updated
+          hourly and the Probes folder was last refreshed on May 15, 2026. The maintainer
+          continues to operate the honeypot network and publish blocklists.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: No false-positive reports or removal disputes specific to the Probes
+          list were found in the maintainer's issue tracker. Operators wishing to
+          remove a flagged probe IP do not have a documented dedicated channel beyond
+          filing an ad-hoc GitHub issue.
+        engagement: Public discussion of the Probes list specifically is sparse. No
+          Reddit threads, forum posts, or third-party blog articles discussing this
+          feed were located. Community signal arrives as ad-hoc GitHub issues against
+          the maintainer's repository rather than as concentrated discussion.
+      sources_consulted:
+      - url: https://github.com/ShadowWhisperer/IPs
+        document_date:
+        validation_date: '2026-05-17T00:05:00Z'
+      - url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/README.md
+        document_date:
+        validation_date: '2026-05-17T00:05:00Z'
+      - url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/LICENSE
+        document_date:
+        validation_date: '2026-05-17T00:05:00Z'
+      - url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/Lists/Probes
+        document_date:
+        validation_date: '2026-05-17T00:05:00Z'
+      - url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/Lists/Probes.csv
+        document_date:
+        validation_date: '2026-05-17T00:05:00Z'
+      - url: https://github.com/ShadowWhisperer/IPs/issues
+        document_date:
+        validation_date: '2026-05-17T00:05:00Z'
+      - url: https://github.com/ShadowWhisperer/BlockLists
+        document_date:
+        validation_date: '2026-05-17T00:05:00Z'
+      - url: https://github.com/AdguardTeam/HostlistsRegistry/issues/202
+        document_date:
+        validation_date: '2026-05-17T00:05:00Z'
+      - url: https://help.nextdns.io/t/60ykkxf/please-add-hagezi-and-shadowwhisperer-list
+        document_date:
+        validation_date: '2026-05-17T00:05:00Z'
+      - url: 
+          https://www.snbforums.com/threads/what-are-some-good-current-block-lists-skynet.87726/page-5
+        document_date:
+        validation_date: '2026-05-17T00:05:00Z'
+      - url: https://www.abuseipdb.com/user/51407
+        document_date:
+        validation_date: '2026-05-17T00:05:00Z'

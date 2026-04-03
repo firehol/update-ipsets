@@ -1,0 +1,167 @@
+sources:
+  iblocklist_isp_comcast:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=rsgyxvuklicibautguia&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Comcast IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T08:51:12Z'
+      official_name: Comcast
+      official_url: https://www.iblocklist.com/list.php?list=comcast
+      short_description: A list of IP address ranges allocated to Comcast, published
+        by iBlocklist.com for use in client-side blocklist applications such as PeerBlock,
+        PeerGuardian, and pfBlocker.
+      long_description: "The Comcast ISP list contains all IP address ranges registered
+        to Comcast Communications and is presented as a policy-risk list for users
+        who wish to block traffic originating from or terminating at Comcast's network
+        infrastructure. Comcast is one of the largest U.S. residential broadband providers,
+        and its address space spans many large CIDR blocks; the list scope therefore
+        covers a wide range of consumer endpoints.\n\nPer the list page, the maintainer
+        explicitly warns that this list is not recommended for Comcast subscribers
+        themselves, advising those who use it against that guidance to do so at their
+        own risk. The list is distributed as a netset (CIDR/ipset format) and is designed
+        for import into client-side firewall and P2P privacy applications rather than
+        network-edge inline blocking.\n\nThe underlying IP ranges are derived from
+        public IP allocation registry data (ARIN/WHOIS records identifying Comcast's
+        registered netblocks). The exact sourcing methodology for ISP-specific lists
+        is not published in detail by the maintainer."
+      roles:
+      - role: maintainer
+        name: iBlocklist.com
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Operated by iblocklist, LLC, a Delaware corporation. Distributes IP
+          blocklists in P2P, DAT, CIDR, and gzip formats for client-side privacy and
+          security applications. Also offers a VPN/proxy service branded PhantomPeer.
+          Across the broader iBlocklist.com service, community discussion from 2016
+          onward has raised concerns about frozen list timestamps and unresponsive
+          support, particularly noting that the Bluetack lists comprising much of
+          the catalog had been dormant for years.
+      derivation:
+        type: original
+        description: The Comcast ISP list is assembled by iBlocklist.com from public
+          IP allocation registry data — primarily ARIN registration records identifying
+          netblocks allocated to Comcast Communications — into a unified blocklist.
+          The exact compilation process for ISP-specific lists is not published in
+          detail by the maintainer. The list is distributed as a daily-updated netset
+          file in gzip-compressed P2P format.
+        source_feeds: []
+      listing_policy:
+        summary: An IP address is listed if it falls within a netblock registered
+          to Comcast Communications in public IP allocation registries (ARIN/WHOIS
+          records).
+        criteria:
+        - IP address falls within a netblock allocated to Comcast Communications in
+          public IP allocation registry records (ARIN)
+      unlisting_policy:
+        summary: No documented automatic expiration or manual unlisting procedure
+          is published by the maintainer. Entries persist while they fall within Comcast's
+          current IP allocation footprint. Subscribers who believe their IP was incorrectly
+          included must submit a request through the web support form.
+        criteria:
+        - No automatic decay or TTL is documented
+        - Manual removal request via web support form is the only stated pathway
+      unlist_request:
+        url: https://www.iblocklist.com/support
+        email:
+        instructions: Submit a message through the web support form at https://www.iblocklist.com/support,
+          providing the requesting email address and a description of the IP address(es)
+          to be removed. No direct email address, automated delisting tool, or documented
+          removal SLA is published.
+      update_frequency:
+        frequency: 1d
+        human_readable: Daily updates, per the maintainer's file metadata
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: 'Entries are assigned to the list based on public IP allocation
+          registry records identifying netblocks registered to Comcast Communications.
+          This is a policy-assignment approach: IPs are listed because they belong
+          to a named organization, not because of individually observed malicious
+          behavior. The list does not rely on honeypot sensors, network telescopes,
+          active scanning, or malware analysis.'
+      scope_and_intent:
+        description: The Comcast ISP list is intended for users who wish to block
+          traffic associated with Comcast's IP address space — commonly employed by
+          peer-to-peer privacy applications to restrict connections from or to Comcast-connected
+          peers, or by security applications targeting Comcast's network range as
+          a policy-risk category.
+        intended_for:
+        - Blocking P2P connections from Comcast subscriber IP addresses
+        - Restricting traffic to/from Comcast's IP allocation in privacy-focused applications
+        - Policy-risk categorization in client-side firewall and blocklist applications
+        not_intended_for:
+        - Comcast subscribers — explicitly warned against by the maintainer
+        - Network-edge inline blocking at scale — the list is designed for client-side
+          applications
+        - Accurate threat-intelligence correlation — the list covers all Comcast IPs
+          regardless of individual reputation
+      license: iBlocklist Terms of Service — personal use only, no commercial use
+        permitted
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution is not addressed explicitly in the Terms of Service.
+          The license grant is limited to personal use, which implies redistribution
+          is not permitted under the stated terms.
+      current_status:
+        state: active
+        description: Listed on iBlocklist.com as of the research date; the Comcast
+          ISP list page is reachable and the list is downloadable. No discontinuation
+          announcement was found on the maintainer site.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: The Comcast ISP list specifically generates false-positive reports
+          when applied naively — the maintainer's own warning on the list page acknowledges
+          this risk, noting the list is not recommended for Comcast subscribers. Users
+          of client-side blocklist applications (pfBlockerNG, PeerBlock) have reported
+          that broad ISP-range lists break legitimate services by blocking large swaths
+          of address space that include benign endpoints.
+        engagement: Public community discussion about this specific feed is minimal.
+          Third-party mirrors and alternative blocklist aggregators are frequently
+          recommended as more actively maintained substitutes.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/list.php?list=comcast
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/support
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://github.com/scriptzteam/IP-BlockList/blob/master/iblocklist_isp_comcast.netset
+        document_date: '2016-12-06'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date: '2016-08-01'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/list.php?list=bt_level1
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

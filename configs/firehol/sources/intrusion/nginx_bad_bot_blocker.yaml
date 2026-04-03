@@ -1,0 +1,214 @@
+sources:
+  nginx_bad_bot_blocker:
+    license: MIT License
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/master/_generator_lists/bad-ip-addresses.list
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[nginx-ultimate-bad-bot-blocker](https://github.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker)
+      generated bad IP address list used by the Nginx Bad Bot blocker project.'
+    maintainer: Mitchell Krog
+    maintainer_url: https://github.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T22:05:47Z'
+      official_name: Nginx Bad Bot Blocker
+      official_url: https://github.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker
+      short_description: A curated Nginx module that blocks malicious bots, scrapers,
+        vulnerability scanners, fake Googlebots, and abusive user-agents at the web
+        server level, using deny-map directives loaded by Nginx on startup.
+      long_description: "The Nginx Bad Bot Blocker is a comprehensive Nginx module
+        that stops unwanted automated traffic from ever reaching web servers. It installs
+        as a set of Nginx map directives — centralized configuration files that Nginx
+        evaluates on every request — blocking known bad bots, scrapers, vulnerability
+        scanners, fake Googlebots, SEO data collectors, clickjacking sites, and other
+        abusive traffic at the server level before it reaches application code.\n\n\
+        The IP feed distributed here (bad-ip-addresses.list) is one component of the
+        blocker package. It contains roughly ten thousand IPv4 addresses associated
+        with confirmed malicious or abusive activity. The broader package also includes
+        deny-lists for user-agent strings, spam referrer domains, and fake Googlebot
+        IP ranges, along with whitelists for known-good crawlers such as Google, Bing,
+        and Cloudflare.\n\nInstallation is via contributed shell scripts (install-ngxblocker,
+        update-ngxblocker). Updates are pulled from GitHub daily — the maintainer
+        estimates three to ten new entries arrive most days. Operators manage false
+        positives through customizable whitelist files that persist across updates.
+        A Fail2Ban jail is included for repeat offenders, enabling firewall-level
+        bans beyond the Nginx layer.\n\nThe project is maintained by Mitchell Krog
+        and accepts community contributions via pull requests on the generator list
+        files. All proposed additions are checked for accuracy before merging."
+      roles:
+      - role: maintainer
+        name: Mitchell Krog
+        organization_type: individual
+        official_url: https://github.com/mitchellkrogza
+        contact_email: mitchellkrog@gmail.com
+        based_in:
+        active_since: '2017'
+        notes: Individual maintainer. Created and maintains the nginx-ultimate-bad-bot-blocker
+          project. Accepts contributions via pull requests and responds to GitHub
+          issues.
+      - role: source_contributor
+        name: Community contributors
+        organization_type: informal_collective
+        official_url:
+        contact_email:
+        based_in:
+        active_since: '2017'
+        notes: Anonymous and pseudonymous contributors who submit pull requests adding
+          bad IPs, user-agents, and referrers. All submissions are reviewed before
+          merging.
+      - role: source_contributor
+        name: Stuart Cardall (itoffshore)
+        organization_type: individual
+        official_url: https://github.com/itoffshore
+        contact_email:
+        based_in:
+        active_since:
+        notes: Contributed the install, update, and setup shell scripts. Maintains
+          the FreeBSD port/package for the blocker.
+      derivation:
+        type: original
+        description: Curated deny-list assembled from community reports and the maintainer's
+          own research. The project maintains fourteen separate generator list files
+          covering IPs, user-agents, referrer domains, fake Googlebots, SEO tools,
+          and WordPress theme detectors. All additions are reviewed before merging;
+          the IP feed is regenerated daily from the master lists.
+        source_feeds: []
+      listing_policy:
+        summary: IPs are added based on association with confirmed malicious or abusive
+          automated activity — including vulnerability scanning, scraping, credential
+          stuffing, fake Googlebots, SEO data harvesters, and other unwanted bot traffic
+          observed by the community and maintainer. Entries are reviewed before merging.
+        criteria:
+        - Association with vulnerability scanning or reconnaissance activity
+        - Confirmed scraping or data harvesting behavior
+        - Credential stuffing or brute-force attempts
+        - Fake Googlebot impersonation
+        - SEO data collection tools (Semalt, BuiltWith, WooRank)
+        - Malware, ransomware, or clickjacking delivery infrastructure
+        - Community-reported abusive automation
+      unlisting_policy:
+        summary: Incorrectly listed IPs can be removed by filing a GitHub issue or
+          submitting a pull request against the generator list file. The maintainer
+          states they respond quickly to problem reports.
+        criteria:
+        - File a GitHub issue reporting the incorrect entry
+        - Submit a pull request removing the IP from bad-ip-addresses.list in the
+          _generator_lists directory
+        - All proposed removals are reviewed before merging
+      unlist_request:
+        url: https://github.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/issues/new
+        email:
+        instructions: File a GitHub issue at the repository's issue tracker describing
+          the incorrectly listed IP address and the reason it should be removed. Alternatively,
+          submit a pull request editing `_generator_lists/bad-ip-addresses.list` to
+          remove the entry directly.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated daily, with new entries typically arriving three to
+          ten times per day during active periods
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods: []
+        description: IPs are collected from community-submitted reports and the maintainer's
+          own investigation of malicious activity. Contributors submit pull requests
+          adding IPs to the generator list files; all submissions are reviewed for
+          accuracy before merging. This is a curated manual process, not automated
+          threat-intel aggregation.
+      scope_and_intent:
+        description: Blocks unwanted automated traffic at the Nginx layer using map
+          directives evaluated on every incoming request. Intended for operators running
+          Nginx as their front-line web server, particularly those receiving automated
+          scanning, scraping, or spoofed-crawler abuse.
+        intended_for:
+        - Edge blocking of malicious bots and scrapers at the Nginx layer
+        - Blocking vulnerability scanners and reconnaissance traffic
+        - Stopping fake Googlebots and SEO data harvesters
+        - Complementing Fail2Ban for layered defense (Nginx + firewall)
+        not_intended_for:
+        - BGP route filtering or network-layer route announcements
+        - DNS-based blocking or RPZ zones
+        - Blocking human visitors — designed exclusively for automated traffic
+        - Replacement for commercial threat-intel feeds covering wide attack types
+      license: MIT License
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit Mitchell Krog / nginx-ultimate-bad-bot-blocker
+          project
+        terms: MIT License permits redistribution in source and binary forms with
+          attribution and the MIT license notice preserved.
+      current_status:
+        state: active
+        description: Actively maintained as of May 16, 2026. Regular daily updates;
+          recent commits and GitHub issues filed within the past week.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: 'The project carries documented false-positive risks that operators
+          should evaluate before deployment. Broad CIDR blocks — including /8 ranges
+          — have been reported as blocking entire ISP allocations and locking out
+          legitimate users silently at the TLS layer (Issue #659, open as of May 2026).
+          A historical issue (Issue #201, closed 2019) revealed that the IP whitelist
+          does not override user-agent blocking rules — these are architecturally
+          separate Nginx map directives, meaning an IP must be added to both the IP
+          deny-list and the user-agent blocklist to be fully exempted. Community reports
+          document the okhttp user-agent triggering blocks for legitimate applications
+          including Plex. The maintainer has addressed some whitelisting limitations
+          in Version 4, but the architecture separation remains a known complexity.'
+        engagement: Moderate GitHub engagement. The maintainer responds to issues
+          and pull requests on the repository. Community discussion on Reddit is sparse
+          — limited to isolated false-positive reports and configuration questions.
+          The project has accumulated several hundred stars and forks on GitHub (as
+          of May 2026), but public community discussion outside the issue tracker
+          is limited.
+      sources_consulted:
+      - url: https://github.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: 
+          https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/master/README.md
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: 
+          https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/master/_generator_lists/bad-ip-addresses.list
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: 
+          https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/master/LICENSE.md
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: 
+          https://github.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/tree/master/_generator_lists
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: 
+          https://raw.githubusercontent.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/master/bots.d/whitelist-ips.conf
+        document_date: '2019-06-28'
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: 
+          https://github.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/issues?q=sort%3Acreated-desc
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: https://github.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/issues/659
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: https://github.com/mitchellkrogza/nginx-ultimate-bad-bot-blocker/issues/201
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: 
+          https://reddit.com/r/nginx/comments/1ffbvd2/problem_with_nginxultimatebadbotblocker/
+        document_date: '2024-09-12'
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: https://reddit.com/r/PleX/comments/1kr0zr7/nginx_bad_bot_flags_new_plex_app/
+        document_date: '2025-05-19'
+        validation_date: '2026-05-16T22:00:00Z'

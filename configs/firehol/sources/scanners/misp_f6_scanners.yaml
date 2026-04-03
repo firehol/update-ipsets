@@ -1,0 +1,208 @@
+sources:
+  misp_f6_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/f6-nt-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) F6 non-threat
+      scanning IPs. Informational — not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T21:13:07Z'
+      official_name: F6 IP Ranges Used for Scanning
+      official_url: https://github.com/MISP/misp-warninglists/tree/main/lists/f6-nt-scanning
+      short_description: A MISP warninglist identifying IP ranges used by F6, a legitimate
+        Attack Surface Management scanner, sourced from CIRCL Luxembourg's darknet
+        telescope analysis.
+      long_description: "The f6-nt-scanning list marks IP addresses and CIDR ranges
+        that CIRCL Luxembourg's network telescope has attributed to F6, an Attack
+        Surface Management (ASM) platform operated by a Russian cybersecurity company
+        that performs daily automated scanning of open internet sources to identify
+        exposed assets, services, and configurations and offers a consent-based active
+        scanning service called ASM TRY. What is distinctive about F6 in CIRCL's -nt-scanning
+        family is its self-attribution mechanism: F6 publishes its current scanning
+        IPs via A-records for the scan.f6.security domain and via reverse-DNS resolution,
+        so CIRCL telescope attributions can be cross-checked against the operator's
+        own published surface.\n\nF6 is explicitly classified as non-threat scanning
+        — IPs appear here because they are associated with a known-safe scanning operator,
+        not because they represent malicious infrastructure. Operators considering
+        this list should also note F6's own exclusion-request channel (abuse_team@f6.ru)
+        as an upstream remedy when their assets are being scanned."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: informal_collective
+        official_url: https://github.com/MISP
+        contact_email:
+        based_in:
+        active_since:
+        notes: The MISP Project develops and maintains the misp-warninglists repository,
+          reviews and merges pull requests, and publishes the collective under CC0.
+          The project is a community-driven effort coordinated through GitHub.
+      - role: original_author
+        name: Thanat0s (Paul Jung)
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Contributor credited with authoring the f6-nt-scanning list and submitting
+          updates through the project's pull request process. Three updates were merged
+          in 2026 (March, April and May), each incorporating the latest CIRCL Network
+          Telescope observations of F6's scanning ranges.
+      derivation:
+        type: original
+        description: The list is produced by CIRCL Luxembourg's Network Telescope
+          program. CIRCL deploys HoneyBot sensors — low-interaction honeypots on embedded
+          hardware — across partner organizations' unused IP address space in Luxembourg
+          and internationally. These sensors passively observe all traffic reaching
+          the dark address space; because no legitimate services run on these IPs,
+          any inbound packet is unsolicited scanning activity. When packets originate
+          from F6's scanning infrastructure, CIRCL extracts the source IP ranges and
+          forwards this data to the MISP warninglists project. Thanat0s (Paul Jung)
+          incorporates the CIRCL analysis into the list.json format and submits updates
+          via pull request. No other IP feeds are consumed; the sole upstream is CIRCL's
+          Network Telescope analysis.
+        source_feeds: []
+      listing_policy:
+        summary: An IP or CIDR range is added to the list when CIRCL's Network Telescope
+          detects packets originating from F6's scanning infrastructure in its darknet
+          telescope. Because the telescope monitors unused ("dark") address space
+          — IPs with no legitimate production services — any inbound packet is by
+          definition unsolicited scanning activity. When the source IP of such packets
+          is traced to F6's published scanning ranges (available via A-records for
+          scan.f6.security or reverse DNS), the range is extracted and incorporated
+          into the warninglist.
+        criteria:
+        - Packet observed originating from F6 scanning infrastructure in CIRCL's darknet
+          telescope (HoneyBot sensor network)
+        - Source IP confirmed as belonging to F6 via reverse DNS lookup (scan.f6.security
+          domain) or published IP list
+        - Range formatted as CIDR notation and incorporated into list.json by the
+          list maintainer
+      unlisting_policy:
+        summary: Because this is an informational warninglist — not a blocklist —
+          there is no formal automated unlisting mechanism. Entries naturally expire
+          when F6 ceases scanning from a given IP range. Organizations wishing to
+          be excluded from F6's own scanning can contact F6 directly; this exclusion
+          propagates to the warninglist indirectly through the next CIRCL telescope
+          observation cycle.
+        criteria:
+        - F6 discontinues scanning from the listed IP range (natural expiry)
+        - Next CIRCL Network Telescope observation cycle fails to detect F6 traffic
+          from the range
+        - Updated list.json published excluding the expired range
+      unlist_request:
+        url:
+        email:
+        instructions: 'There is no dedicated unlisting channel for this specific warninglist.
+          F6 publishes an opt-out procedure at scan.f6.security: resource owners who
+          do not wish to be scanned by F6 can send a request to abuse_team@f6.ru with
+          the domains or IP addresses to be excluded. Once F6 excludes an IP from
+          its own scanning, subsequent CIRCL Network Telescope observations will no
+          longer detect traffic from that range, and the next list update will exclude
+          it. For issues with the warninglist itself, practitioners can file a GitHub
+          issue at github.com/MISP/misp-warninglists/issues.'
+      update_frequency:
+        frequency:
+        human_readable: Updates are driven by CIRCL Network Telescope observation
+          cycles; the maintainer does not state a fixed interval. Three updates were
+          merged in 2026 (March, April, and May), suggesting a roughly monthly cadence
+          when new F6 scanning ranges are observed in the telescope data.
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: "The list is built from CIRCL Luxembourg's Network Telescope
+          program. CIRCL deploys HoneyBot sensors — low-interaction honeypots running
+          on embedded hardware devices — across partner organizations' unused (\"\
+          dark\") IP address space. These sensors passively listen to all traffic
+          reaching the dark address space; because no legitimate services occupy these
+          IPs, any inbound packet is unsolicited scanning activity. When packets trace
+          back to F6's scanning infrastructure, the source IP ranges are extracted
+          and incorporated into the warninglist. This is a network telescope methodology:
+          passive reception of packets from unused address space, not active probing
+          or user submissions."
+      scope_and_intent:
+        description: The list identifies IP ranges associated with F6, a legitimate
+          Attack Surface Management platform that conducts daily automated scanning
+          of open internet sources. The list is generated from CIRCL Luxembourg's
+          passive darknet telescope observations of F6's scanning traffic. Its purpose
+          is to help security analysts recognize F6's scanning as benign infrastructure
+          observation rather than malicious activity, reducing false positive classifications
+          in threat intelligence workflows.
+        intended_for:
+        - Reducing false positives in threat intelligence pipelines when F6 scanning
+          IPs appear in alerts
+        - Contextualizing network traffic alerts involving F6 ASM scanning infrastructure
+        - Enriching MISP events with informational warnings when F6 IPs are encountered
+        not_intended_for:
+        - Inline blocking or automated quarantine of listed IPs
+        - Classifying F6 IPs as malicious or threatening
+        - Replacing dedicated threat intelligence feeds
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal grants the broadest possible redistribution rights,
+          including commercial use, modification, and redistribution in source or
+          binary form, with no attribution requirement. The licensor disclaims all
+          warranties.
+      current_status:
+        state: active
+        description: Actively maintained. Three updates were merged in 2026 (March,
+          April, and May), each incorporating the latest CIRCL Network Telescope observations
+          of F6's scanning ranges. The list is current as of version 26050407 (May
+          4, 2026). No discontinuation or scope-change announcements have been found.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: "The MISP warninglists repository broadly has significant community
+          traction (the broader project has thousands of stars and forks on GitHub).
+          The f6-nt-scanning list itself generates minimal dedicated public discussion;
+          no issues or pull requests specifically addressing this list were found
+          in the repository. No social media discussions reporting false positives
+          caused by this list were identified across Reddit, Twitter/X, or Mastodon.
+          The absence of FP reports is structurally expected: the list's purpose is
+          to identify benign scanning, not to trigger alerts, so matching IPs are
+          recognized as legitimate rather than reported as problems."
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/f6-nt-scanning/list.json
+        document_date: '2026-05-04'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://scan.f6.security/
+        document_date: '2025-04-11'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://circl.lu/services
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://circl.lu/pub/tr-16
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/issues
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://api.github.com/repos/MISP/misp-warninglists/contents/lists/f6-nt-scanning
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

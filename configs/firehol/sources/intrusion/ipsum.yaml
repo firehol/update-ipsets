@@ -1,0 +1,178 @@
+sources:
+  ipsum:
+    license: The Unlicense
+    redistributable: true
+    url: https://raw.githubusercontent.com/stamparm/ipsum/master/levels/1.txt
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[IPsum](https://github.com/stamparm/ipsum) threat intelligence feed of
+      IPs appearing on at least 1 blacklist. Based on analysis of 30+ publicly available
+      blacklists updated daily. This is the full list with the most entries and the
+      highest false positive rate.'
+    maintainer: stamparm
+    maintainer_url: https://github.com/stamparm/ipsum
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-15T21:04:23Z'
+      official_name: IPsum
+      official_url: https://github.com/stamparm/ipsum
+      short_description: Daily-updated threat intelligence feed aggregating IPs from
+        30+ public blacklists, with occurrence-count tiers ranging from highly inclusive
+        to high-confidence.
+      long_description: "This feed is the broadest tier of the IPsum project — the
+        `levels/1.txt` slice, which contains every IP that appears on one or more
+        of the 30+ upstream public blacklists IPsum aggregates. Each IP carries an
+        occurrence count: how many of the upstream blacklists flagged it. Higher counts
+        indicate stronger consensus across sources and lower false-positive risk;
+        at this tier (1+) the list is the most inclusive and therefore carries the
+        highest false-positive rate.\n\nThe feed is rebuilt daily on autopilot from
+        the upstream blacklists, then sorted by occurrence count, highest-first. There
+        is no formal submission portal — IPs enter by appearing on any upstream blacklist.
+        Removal follows the upstream sources: operators who clean an infected host
+        should request delisting from the original blacklists their IP triggered.
+        For higher precision at the cost of coverage, the project also publishes the
+        same data filtered at thresholds 2 through 8 (served by the catalog's `ipsum_2`
+        through `ipsum_8` feeds).\n\nThe project is published under The Unlicense
+        (public domain), permitting unrestricted use and redistribution."
+      roles:
+      - role: maintainer
+        name: stamparm
+        organization_type: individual
+        official_url: https://github.com/stamparm
+        contact_email:
+        based_in:
+        active_since: '2016'
+        notes: Individual researcher and open-source author. Created and actively
+          maintains both IPsum and the companion Maltrail malware-tracking system.
+          Commits to the repository are regular and ongoing.
+      derivation:
+        type: aggregate_merge
+        description: Merges IP addresses from 30+ publicly available security blacklists
+          into a single ranked feed. Each IP carries an occurrence count — how many
+          of the upstream sources flagged it. The list is sorted by count descending.
+          Tiered pre-filtered files in the levels/ directory allow operators to select
+          a minimum threshold.
+        source_feeds: []
+      listing_policy:
+        summary: An IP enters the feed automatically when it appears on any of the
+          30+ upstream blacklists that IPsum monitors. The feed records the occurrence
+          count — how many of those sources flagged the IP. There is no human review
+          gate; inclusion is driven entirely by upstream blacklist activity.
+        criteria:
+        - Appears on one or more of the monitored upstream blacklists
+        - Listed by any contributing upstream source regardless of the reason (scanning,
+          brute-force, malware C2, open proxy, etc.)
+      unlisting_policy:
+        summary: 'There is no dedicated unlisting channel. IPs leave the feed indirectly:
+          once the upstream blacklists that originally flagged an IP remove it, the
+          next daily refresh cycle will drop it from IPsum automatically. The maintainer
+          does not offer a direct removal request form.'
+        criteria:
+        - Removal from all upstream blacklists that originally listed the IP
+        - 'Passive decay: the next daily update cycle reflects the current upstream
+          state'
+      unlist_request:
+        url: https://github.com/stamparm/ipsum/issues/new
+        email:
+        instructions: Submit a GitHub issue describing the IP address and the circumstances.
+          The maintainer has addressed false-positive reports through this channel.
+          For durable removal, also submit delist requests to the upstream blacklists
+          that flagged the IP — IPsum will drop it on the next daily refresh once
+          all upstreams have removed it.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated once per day, every 24 hours.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: "The feed aggregates IP addresses from 30+ upstream public blacklists.
+          Each IP's entry carries an occurrence count — how many of the monitored
+          sources flagged it. Higher counts reflect broader consensus across sources
+          and imply greater confidence. This is a pure reputation-aggregation model:
+          no honeypots, network telescopes, or active scanning are involved in producing
+          IPsum itself."
+      scope_and_intent:
+        description: IPsum is designed for blocking inbound connections from IP addresses
+          that appear on public blacklists. The occurrence-count model lets operators
+          trade off breadth against precision.
+        intended_for:
+        - Blocking inbound malicious traffic at the network perimeter (firewalls,
+          iptables/ipset/nftables)
+        - Enriching SIEM or log-analysis pipelines with threat-reputation context
+        - Auto-banning scanning and brute-force attempts targeting public-facing services
+        not_intended_for:
+        - Blocking outbound connections from your own network (the feed tracks external
+          IPs, not internal policy)
+        - Precision blocking without threshold tuning — the broadest tier (level 1)
+          carries the highest false-positive rate; operators should filter to higher
+          thresholds for production use
+      license: The Unlicense (Public Domain)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: No conditions. The Unlicense places no restrictions on use, modification,
+          or redistribution — commercial or otherwise. Attribution is appreciated
+          but not required.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026. Daily updates continue; recent
+          commits and an updated Wall of Shame were observed on 2026-05-15.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: False positives are the dominant community concern. Well-known
+          legitimate services — Google mail servers, Mozilla push-notification endpoints,
+          Zoom infrastructure, AdGuard DNS resolvers, and audio-device firmware-update
+          destinations — have been incorrectly flagged. The maintainer responds to
+          reports through GitHub issues and closes them when resolved, but there is
+          no formal delisting SLA. Operators who rely on the broadest tier (level
+          1) encounter the highest false-positive rate; the maintainer explicitly
+          advises filtering to higher thresholds to reduce noise.
+        engagement: Discussion is moderate. GitHub issues surface false-positive reports
+          regularly; the maintainer engages and resolves them. Broader community mention
+          on Reddit and security forums is positive in tone — users value the free,
+          easy-to-deploy model — but volume is relatively low, suggesting a niche
+          rather than mass-market audience.
+      sources_consulted:
+      - url: https://github.com/stamparm/ipsum
+        document_date: '2026-05-15'
+        validation_date: '2026-05-15T20:30:00Z'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/LICENSE
+        document_date:
+        validation_date: '2026-05-15T20:30:00Z'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/levels/1.txt
+        document_date:
+        validation_date: '2026-05-15T20:35:00Z'
+      - url: https://github.com/stamparm/maltrail
+        document_date:
+        validation_date: '2026-05-15T20:55:00Z'
+      - url: https://github.com/stamparm/ipsum/issues?q=is%3Aissue+false+positive
+        document_date:
+        validation_date: '2026-05-15T20:50:00Z'
+      - url: https://reddit.com/r/linuxadmin/comments/kw23g3/
+        document_date: '2021-11-01'
+        validation_date: '2026-05-15T20:45:00Z'
+      - url: https://reddit.com/r/cybersecurity/comments/pl6u94/
+        document_date: '2022-09-01'
+        validation_date: '2026-05-15T20:45:00Z'
+      - url: https://reddit.com/r/rode/comments/1qd9ff7/
+        document_date: '2026-01-13'
+        validation_date: '2026-05-15T21:00:00Z'
+      - url: https://github.com/stamparm/ipsum/issues/90
+        document_date: '2026-04-20'
+        validation_date: '2026-05-15T21:00:00Z'
+      - url: https://github.com/stamparm/ipsum/issues/64
+        document_date: '2025-06-12'
+        validation_date: '2026-05-15T21:00:00Z'
+      - url: https://github.com/stamparm/ipsum/issues/63
+        document_date: '2025-04-27'
+        validation_date: '2026-05-15T21:00:00Z'

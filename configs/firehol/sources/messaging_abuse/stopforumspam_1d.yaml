@@ -1,0 +1,235 @@
+sources:
+  stopforumspam_1d:
+    license: CC BY-NC-ND 3.0 (modified)
+    redistributable: true
+    url: http://www.stopforumspam.com/downloads/listed_ip_1.zip
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - unzip
+    processor_raw: unzip_and_extract
+    category: messaging_abuse
+    info: '[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers
+      in the last 24 hours'
+    maintainer: StopForumSpam.com
+    maintainer_url: http://www.stopforumspam.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T03:42:24Z'
+      official_name: Listed IP Addresses (Last 1 Day)
+      official_url: https://www.stopforumspam.com/downloads.php
+      short_description: IPv4 addresses reported by community members as sources of
+        forum, blog, or wiki spam within the preceding 24-hour window.
+      long_description: "The 1-day Listed IP feed is the shortest-window slice of
+        the Stop Forum Spam database. It contains every unique IPv4 address that received
+        at least one community spam report within the preceding 24-hour window, delivered
+        as a Unix newline-delimited text file inside a ZIP archive at downloads/listed_ip_1.zip.\n\
+        \nEntries on Stop Forum Spam carry a frequency count and a last-seen timestamp;
+        entries with no new reports for 90 days expire from the active database. A
+        separate Toxic tier of permanent abuse infrastructure is published in different
+        files and does not participate in this 1-day rolling window. Because every
+        entry here was reported within the last day, this is the most recency-focused
+        of the rolling-window downloads and is intended for operators who want to
+        catch fresh signal at the cost of less corroboration than the longer-window
+        variants.\n\nThe maintainers disclaim accuracy: 'No guarantees are made to
+        any accuracy of any data provided to or by us. You use the data at your own
+        risk.' See the maintainer's roles for project history and operating model."
+      roles:
+      - role: maintainer
+        name: Russ
+        organization_type: individual
+        official_url: https://www.stopforumspam.com/
+        contact_email:
+        based_in:
+        active_since: '2007'
+        notes: Founded the service in 2007 out of frustration with rising forum spam.
+          Describes himself as 'anything but a professional developer.' Real full
+          name deliberately kept private.
+      - role: maintainer
+        name: pedigree
+        organization_type: individual
+        official_url: https://www.stopforumspam.com/
+        contact_email:
+        based_in: New Zealand
+        active_since: '2008'
+        notes: Joined shortly after the site's launch in 2008. Handles database architecture,
+          performance optimization, and bug fixes. Active on the official forum managing
+          user appeals.
+      - role: publisher
+        name: dZone
+        organization_type: commercial
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Provides server hosting for the service on a voluntary basis, per the
+          about page.
+      derivation:
+        type: original
+        description: The feed is built entirely from community-submitted spam reports.
+          Any forum, blog, or wiki administrator can submit a report via the public
+          API (add.php) or through installed plugins, identifying an IP address, email
+          address, or username associated with a spam event. Submitted entries accumulate
+          a frequency count and a last-seen timestamp. Entries without new reports
+          for 90 days expire from the active database. A separate Toxic tier holds
+          entries the maintainers believe represent permanent abuse infrastructure
+          — these are flagged as blacklisted and do not follow the natural decay window.
+          No external IP feeds are consumed.
+        source_feeds: []
+      listing_policy:
+        summary: An IP enters the database when a forum, blog, or wiki administrator
+          submits a spam report through the public API or an installed plugin. The
+          report associates the offending IP address (optionally alongside an email
+          address or username) with a spam event. Each subsequent report for the same
+          IP increments a frequency counter and updates the last-seen timestamp. A
+          separate Toxic tier holds entries the maintainers believe represent permanent
+          abuse infrastructure — these are flagged as blacklisted outright and are
+          excluded from the natural 90-day expiry window.
+        criteria:
+        - A community member (forum/blog/wiki administrator) submits a report identifying
+          an IP as the source of a spam event
+        - Each distinct report increments the IP's frequency count and resets the
+          last-seen timestamp
+        - Entries with no new reports for 90 days expire from the active database
+        - Entries classified as Toxic (permanent abuse infrastructure) are blacklisted
+          immediately and do not expire
+      unlisting_policy:
+        summary: 'IPs leave the active database through two mechanisms: automatic
+          expiry and manual removal. Entries with no new reports for 90 days expire
+          naturally from the database — they no longer appear in the 1-day, 7-day,
+          or other time-windowed files. For immediate removal, the submitter who reported
+          an IP (or the affected party) can request deletion through the official
+          removal form. Entries on the Toxic list require direct intervention by the
+          maintainers to unlist.'
+        criteria:
+        - 'Automatic: no new reports for 90 days causes the entry to expire from the
+          active database'
+        - 'Manual: submission of a removal request via the official removal form revokes
+          the listing'
+        - Toxic-tier entries require maintainer intervention and do not expire automatically
+      unlist_request:
+        url: https://www.stopforumspam.com/remove.php
+        email:
+        instructions: Submit a removal request through the online form at stopforumspam.com/remove.php.
+          The form requires identification of the IP address (or email/username) to
+          be removed. For Toxic-listed entries, direct contact with the maintainers
+          via the official forum is the documented escalation path.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated daily, per the maintainer's downloads page description
+          of the legacy listed IP files.
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods: []
+        description: The feed is built from community-submitted spam reports. Any
+          forum, blog, or wiki administrator can submit a report identifying an IP
+          (alongside optional email address or username) as the source of a spam event.
+          Each report increments a frequency counter and updates a last-seen timestamp.
+          The maintainers additionally curate a Toxic list of entries believed to
+          represent permanent abuse infrastructure, flagged as blacklisted without
+          requiring accumulation of community reports.
+      scope_and_intent:
+        description: The service is scoped specifically to spam and abuse targeting
+          interactive web platforms — forums, blogs, wikis, and similar community-driven
+          websites. It is not designed for general network security, intrusion detection,
+          or email security.
+        intended_for:
+        - Blocking spam account registrations on forums, blogs, wikis, and similar
+          community platforms
+        - Checking new user registrations against community-reported spam indicators
+        - Reducing spam bot signups through IP, email, and username lookups
+        not_intended_for:
+        - General-purpose software firewall (checking every incoming connection is
+          treated as a denial-of-service attack and results in immediate IP blocking,
+          per the legal page)
+        - Network perimeter security or intrusion detection
+        - Email security (separate RBLs and email-focused feeds serve this use case)
+      license: Creative Commons Attribution-NonCommercial-NoDerivatives 3.0 (CC BY-NC-ND
+        3.0)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit StopForumSpam.com required
+        terms: StopForumSpam states a modified CC BY-NC-ND 3.0 license that permits
+          copying and distribution with attribution while prohibiting resale, ownership
+          claims, derivatives, and automated mirroring/scraping. Redistribution is
+          allowed with those restrictions.
+      current_status:
+        state: active
+        description: Active and maintained as of May 2026. Regular daily updates published
+          to the downloads page. The service has operated continuously since its founding
+          in 2007.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "The 24-hour window is the most freshness-sensitive variant, which
+          also means it carries the least corroboration: a single report can place
+          an IP in this file. Community discussion across multiple years documents
+          that operators who block strictly on freshness — for example, treating the
+          1-day file as a deny-list without correlation — experience higher false-positive
+          rates from VPN exit nodes and dynamically-reassigned ISP IPs. The maintainer-wide
+          pattern (database disclaims accuracy, IP recycling and CGNAT cause inherited
+          listings) applies here in the strongest form. Maintainer-level criticism
+          details live in the main stopforumspam feed's community section rather than
+          being duplicated here."
+        engagement: Public discussion of the 1-day variant specifically is sparse;
+          operators tend to discuss SFS at the project level rather than per-window
+          file. The maintainer-wide engagement pattern (active monitoring of Reddit
+          by the official account, pedigree moderating the official forum, plugins
+          for major forum software) applies across all SFS download variants and is
+          documented once in the main stopforumspam feed.
+      sources_consulted:
+      - url: https://www.stopforumspam.com/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.stopforumspam.com/about
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.stopforumspam.com/downloads.php
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.stopforumspam.com/usage
+        document_date: '2016-10-01'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.stopforumspam.com/license
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.stopforumspam.com/legal
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.stopforumspam.com/downloads/listed_ip_1.zip
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://blog.stopforumspam.com/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.stopforumspam.com/forum/viewtopic.php?id=9530
+        document_date: '2024-10-01'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://reddit.com/r/Simplelogin/comments/tmkgzk/blocked_by_nextdns/
+        document_date: '2022-03-24'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://reddit.com/r/VPN/comments/2aani0/pia_ips_are_being_used_by_spammers/
+        document_date: '2014-07-05'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://reddit.com/r/BOINC/comments/1ki72c8/nfs_cannot_create_acct_flagged_by_stopforumspam/
+        document_date: '2025-05-08'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://xenforo.com/community/threads/stopforumspam-database-useful-or-bothersome.198927
+        document_date: '2021-10-06'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://news.ycombinator.com/item?id=30388074
+        document_date: '2022-02-01'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://au.trustpilot.com/review/stopforumspam.com
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://www.phpbb.com/customize/db/extension/phpbb_3.1_stop_forum_spam/support/topic/249637
+        document_date: '2024-12-26'
+        validation_date: '2026-05-18T00:00:00Z'

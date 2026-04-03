@@ -1,0 +1,187 @@
+sources:
+  data_shield_critical:
+    license: GNU GPLv3
+    redistributable: true
+    url: 
+      https://gitlab.com/duggytuxy/Data-Shield-IPv4-Blocklist/-/raw/main/prod_critical_data-shield_ipv4_blocklist.txt
+    frequency: 240
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: primary
+    info: '[duggytuxy/Data-Shield-IPv4-Blocklist](https://gitlab.com/duggytuxy/Data-Shield-IPv4-Blocklist/)
+      critical-tier subset — highest-confidence attacker IPs from the maintainer''s
+      own HIDS/SIEM sensor network. ~87K entries, refreshed every ~2 hours.'
+    maintainer: duggytuxy (Laurent Minne)
+    maintainer_url: https://gitlab.com/duggytuxy/Data-Shield-IPv4-Blocklist/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T17:42:45Z'
+      official_name: Data-Shield IPv4 Blocklist Community
+      official_url: https://duggytuxy.github.io/
+      short_description: A curated registry of malicious IPv4 addresses drawn from
+        a global HIDS/SIEM sensor network, refreshed every six hours with a fifteen-day
+        rolling retention window.
+      long_description: 'Data-Shield is an open-source threat intelligence project
+        developed by Laurent Minne (handle: duggytuxy) that maintains a curated registry
+        of malicious IPv4 addresses. The feed is produced by aggregating telemetry
+        from a globally distributed probe network processed through a self-hosted
+        HIDS/SIEM stack, applying rigorous behavioral analysis to identify hostile
+        actors. The project publishes two production tiers: a Standard tier (~100k
+        IPs) for web applications and VPS, and a Critical Infrastructure tier (~100k
+        IPs, extended with additional split lists) for DMZs, exposed APIs, and other
+        sensitive assets. Entries older than fifteen days expire automatically via
+        a rolling window, keeping the list focused on active threats. The maintainer
+        targets fewer than two false positives per month and encourages operators
+        to deploy in a phased manner — beginning with observation (logging-only) before
+        activation (blocking). The project is licensed under GNU GPLv3 and mirrored
+        across GitHub, GitLab, BitBucket, Codeberg, and delivered via jsDelivr CDN
+        for high availability.'
+      roles:
+      - role: maintainer
+        name: duggytuxy (Laurent Minne)
+        organization_type: individual
+        official_url: https://github.com/duggytuxy
+        contact_email:
+        based_in:
+        active_since: '2023'
+        notes: Individual researcher and open-source developer. Runs the global probe
+          network and self-hosted HIDS/SIEM stack that powers the feed. Also maintains
+          mirrors on GitHub, BitBucket, and Codeberg.
+      derivation:
+        type: original
+        description: 'Original detection feed: telemetry from a globally distributed
+          probe network is collected and processed through a self-hosted HIDS/SIEM
+          stack using rigorous behavioral analysis. No other public IP feeds are consumed.
+          The result is filtered to a fifteen-day rolling window, producing the critical-tier
+          subset from the full corpus.'
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added based on behavioral analysis of network traffic
+          observed by the maintainer's global probe network, processed through a self-hosted
+          HIDS/SIEM stack. An IP qualifies when its observed behavior meets the project's
+          threshold for malicious activity — a bar set to target fewer than two false
+          positives per month across all subscribers. The specific algorithmic criteria
+          are not publicly disclosed.
+        criteria:
+        - Observed malicious network behavior captured by the global probe network
+        - Processed and validated through the self-hosted HIDS/SIEM stack
+        - Meets the maintainer's behavioral-analysis threshold for hostile activity
+      unlisting_policy:
+        summary: "The maintainer does not publish a standing auto-expiry or whitelist
+          mechanism. Removal is handled reactively: false positives are reported through
+          the project's GitHub issue tracker, with a stated goal of resolution within
+          forty-eight hours. Given the fifteen-day rolling window, IPs that cease
+          exhibiting malicious behavior will exit the list passively within that period
+          regardless of manual action."
+        criteria:
+        - Submit a false positive report via the project's GitHub issue tracker
+        - Resolution targeted within forty-eight hours per the maintainer's stated
+          process
+        - Passive expiry via the fifteen-day rolling retention window
+      unlist_request:
+        url: https://github.com/duggytuxy/Data-Shield_IPv4_Blocklist/issues/new
+        email:
+        instructions: Open a new issue on the GitHub mirror repository describing
+          the incorrectly listed IP address and the legitimate service it belongs
+          to. The maintainer targets a response within forty-eight hours.
+      update_frequency:
+        frequency: 6h
+        human_readable: Refreshed every six hours, with entries expiring automatically
+          after a fifteen-day rolling window.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods:
+        - malware_analysis
+        description: 'Telemetry is collected from a globally distributed network of
+          probes that passively observe inbound network traffic. Observed events are
+          correlated and analyzed through a self-hosted Host-based Intrusion Detection
+          System / Security Information and Event Management (HIDS/SIEM) stack. Behavioral
+          analysis — examining patterns such as connection attempt frequency, protocol
+          anomalies, and exploit signatures — determines whether an IP is listed.
+          This is a first-party detection feed: no third-party blocklists are consumed
+          as sources. The maintainer characterizes the outcome as filtering approximately
+          ninety-five percent of malicious bot traffic while targeting fewer than
+          two false positives per month across all subscribers.'
+      scope_and_intent:
+        description: The critical-tier subset is the higher-confidence variant of
+          the Data-Shield feed, designed for protecting the most sensitive network
+          segments. It extends the standard list with additional split-file segments
+          (four parts instead of three) to accommodate hardware with stricter entry-count
+          limits.
+        intended_for:
+        - Inbound traffic blocking at network edges (WAN-to-LAN direction only)
+        - DMZs and demilitarized zones
+        - Exposed infrastructure and APIs
+        - Critical assets requiring elevated confidence
+        - Firewalls, WAFs, SIEMs, OpenCTI, and MISP platforms
+        not_intended_for:
+        - Outbound traffic blocking (LAN-to-WAN)
+        - Environments where any unexpected blocking of legitimate clients is unacceptable
+        - As the sole threat-intelligence source for high-risk environments
+      license: GNU GPLv3
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required: Credit 'Data-Shield IPv4 Blocklist Community' or 'Duggy
+          Tuxy (Laurent Minne)'
+        terms: Redistribution and modification permitted under GNU GPLv3. Derivative
+          works that distribute the list or modified versions must also be released
+          under GPLv3.
+      current_status:
+        state: active
+        description: Active and maintained as of May 2026. Regular six-hour refresh
+          cycles; fourteen production list variants published across GitHub, GitLab,
+          BitBucket, Codeberg, and jsDelivr CDN. The maintainer publishes a roadmap
+          covering Fail2ban integration (Q1 2026), a global threat map (Q2 2026),
+          and API v2 (Q3 2026). No discontinuation or migration notice has been issued.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion is sparse. The project's GitLab instance
+          shows zero open or closed issues; no Reddit threads, forum posts, or third-party
+          blog analyses discussing Data-Shield were found despite targeted searches.
+          The project has a handful of vendor integration tutorials (OPNsense, Fortinet,
+          Palo Alto, et cetera) documented on the maintainer's site, suggesting a
+          small operator base. The absence of public friction is consistent with either
+          a small audience or effective quiet operation — neither interpretation is
+          verifiable from public sources alone.
+      sources_consulted:
+      - url: https://gitlab.com/duggytuxy/Data-Shield-IPv4-Blocklist/
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16T17:30:00Z'
+      - url: https://gitlab.com/duggytuxy/Data-Shield-IPv4-Blocklist/-/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-16T17:30:00Z'
+      - url: https://gitlab.com/duggytuxy/Data-Shield-IPv4-Blocklist/-/blob/main/SECURITY.md
+        document_date:
+        validation_date: '2026-05-16T17:31:00Z'
+      - url: https://gitlab.com/duggytuxy/Data-Shield-IPv4-Blocklist/-/issues
+        document_date:
+        validation_date: '2026-05-16T17:32:00Z'
+      - url: 
+          https://gitlab.com/duggytuxy/Data-Shield-IPv4-Blocklist/-/raw/main/prod_critical_data-shield_ipv4_blocklist.txt
+        document_date:
+        validation_date: '2026-05-16T17:33:00Z'
+      - url: https://duggytuxy.github.io/
+        document_date:
+        validation_date: '2026-05-16T17:36:00Z'
+      - url: https://github.com/duggytuxy/Data-Shield_IPv4_Blocklist
+        document_date:
+        validation_date: '2026-05-16T17:37:00Z'
+      - url: https://gitlab.com/duggytuxy/Data-Shield-IPv4-Blocklist/-/tree/main
+        document_date:
+        validation_date: '2026-05-16T17:38:00Z'
+      - url: https://gitlab.com/duggytuxy/Data-Shield-IPv4-Blocklist/-/blob/main/LICENSE
+        document_date:
+        validation_date: '2026-05-16T17:39:00Z'
+      - url: 
+          https://gitlab.com/duggytuxy/Data-Shield-IPv4-Blocklist/-/blob/main/CODE_OF_CONDUCT.md
+        document_date:
+        validation_date: '2026-05-16T17:39:00Z'

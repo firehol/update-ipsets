@@ -1,0 +1,109 @@
+merges:
+  cleantalk:
+    license: Composite of component feed licenses
+    redistributable: false
+    frequency: 5
+    history:
+    - 1440
+    - 10080
+    - 43200
+    ipv: ipv4
+    output: ipset
+    category: service_abuse
+    info: '[CleanTalk](https://cleantalk.org/) Today''s HTTP Spammers'
+    maintainer: FireHOL
+    maintainer_url: http://iplists.firehol.org/
+    sources:
+    - cleantalk_new
+    - cleantalk_updated
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-27T06:30:35Z'
+      official_name: CleanTalk merge
+      official_url:
+      short_description: Aggregate merge of CleanTalk-based abuse feeds.
+      long_description: "An aggregate merge of CleanTalk's abuse feeds. Reflects the
+        union of all CleanTalk-derived listings the catalog tracks. Component feeds
+        drive all listings; this merge adds no logic of its own.\n\nComponents: cleantalk_new,
+        cleantalk_updated."
+      roles:
+      - role: maintainer
+        name: FireHOL catalog project
+        organization_type: informal_collective
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Maintained by the FireHOL catalog project as a public reference / aggregate.
+          This page is generated deterministically from the catalog YAML; the agent-based
+          enrichment used for third-party feeds does not run on FireHOL-maintained
+          feeds.
+      derivation:
+        type: aggregate_merge
+        description: Additive union of 2 component feed(s). The merge applies no scoring,
+          threshold, or filter beyond the union and the optional subtraction; all
+          listing decisions are inherited from the component feeds. Component feeds
+          are recomposed on each catalog refresh.
+        source_feeds:
+        - identifier: cleantalk_new
+          relationship: aggregate_component
+          notes:
+        - identifier: cleantalk_updated
+          relationship: aggregate_component
+          notes:
+      listing_policy:
+        summary: An IP appears in this merge if it appears in any of the 2 additive
+          component feed(s) listed below. The merge does not add IPs of its own.
+        criteria:
+        - 'IP appears in one or more of the additive component feeds: cleantalk_new,
+          cleantalk_updated.'
+      unlisting_policy:
+        summary: Inherited from the component feeds. The merge does not maintain its
+          own whitelisting or per-entry unlist process. When a component feed removes
+          an IP, the next merge refresh drops the IP unless another component still
+          lists it.
+        criteria:
+        - All component feeds that previously listed the IP have removed it.
+      unlist_request:
+        url:
+        email:
+        instructions: 'This is an aggregate merge of component feeds; the merge does
+          not maintain its own unlist channel. To request that an IP be removed, identify
+          which component feed(s) list it and submit the removal request directly
+          to that maintainer. Component feeds: cleantalk_new, cleantalk_updated.'
+      update_frequency:
+      detection_classification:
+        primary_method: mixed
+        secondary_methods: []
+        description: 'This merge inherits detection methodology from its 2 additive
+          component feed(s). See each component for its specific detection method
+          (honeypot, sandbox, reputation aggregation, etc.). Component feeds: cleantalk_new,
+          cleantalk_updated.'
+      scope_and_intent:
+        description: An aggregate merge of CleanTalk's abuse feeds. Reflects the union
+          of all CleanTalk-derived listings the catalog tracks. Component feeds drive
+          all listings; this merge adds no logic of its own.
+        intended_for:
+        - Anti-spam and forum-abuse blocking
+        not_intended_for: []
+      license: Composite of component feed licenses
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms: One or more additive or subtractive component feeds are marked non-redistributable
+          in the catalog. Raw redistribution of this merge is disabled conservatively;
+          component-feed license terms continue to apply.
+      current_status:
+        state: active
+        description: Maintained by FireHOL as a public catalog merge. Recomposed automatically
+          on each catalog refresh from the live state of the component feeds. Component
+          feeds that go offline or are archived are dropped from the merge by the
+          catalog engine.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement:
+      sources_consulted: []

@@ -1,0 +1,192 @@
+sources:
+  dataplane_smtpdata:
+    license: Dataplane.org - non-commercial use only, redistribution prohibited
+    redistributable: false
+    url: https://dataplane.org/smtpdata.txt
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - dataplane_column3
+    processor_raw: dataplane_column3
+    category: messaging_abuse
+    info: '[DataPlane.org](https://dataplane.org/) IP addresses seen sending SMTP
+      DATA commands to remote hosts. Added from the MISP default feed catalog audit.'
+    maintainer: DataPlane.org
+    maintainer_url: https://dataplane.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T02:14:20+00:00'
+      official_name: SMTP data
+      official_url: https://dataplane.org/signals.html
+      short_description: IP addresses observed sending SMTP DATA commands to Dataplane.org's
+        passive honeypot sensors, with autonomous system attribution and last-seen
+        timestamps.
+      long_description: "The SMTP data signal identifies IPv4 addresses observed sending
+        SMTP DATA commands to Dataplane.org's passive honeypot sensors. The sensors
+        listen on TCP port 25 without advertising MX records or accepting legitimate
+        email delivery, using a modified Postfix smtp-sink daemon that logs client
+        source address, source port, and server destination for each inbound connection.
+        When a client progresses to the DATA phase — signaling intent to deliver email
+        content — its address is entered into the smtpdata feed.\n\nPer the maintainer's
+        blog post, the feed is part of a globally distributed sensor network that
+        numbered over 600 nodes across 65 metropolitan areas on 6 continents as of
+        late 2025, generating more than 27 million SMTP-related events per quarter.
+        Each feed entry carries the originating autonomous system number, AS name,
+        IP address, last-seen timestamp (UTC), and the fixed category label 'smtpdata.'
+        Entries are drawn from a 7-day rolling observation window.\n\nThe maintainer
+        explicitly advises that the signals are not block lists and should not be
+        used as such; they represent observed anomalous behavior and do not imply
+        malicious intent for any individual entry, particularly given NAT, address
+        spoofing, and research surveying activity."
+      roles:
+      - role: maintainer
+        name: DataPlane.org NFP
+        organization_type: non_profit
+        official_url: https://dataplane.org/
+        contact_email: info@dataplane.org
+        based_in: Chicago, IL, USA
+        active_since: '2016'
+        notes: A charitable 501(c)(3) nonprofit organization (EIN 88-2177476) founded
+          by John Kristoff. Operates a globally distributed sensor network monitoring
+          unsolicited Internet application communications. Per the about page, the
+          team consists of John Kristoff, Matthew Kemp, and Bill Eaheart. The about
+          page lists a wide range of downstream consumers of the maintainer's signals,
+          including Abuse Helper, Arctic Security, Collective Intelligence Framework,
+          CUJO AI, IntelMQ, Maltrail, MISP, Recorded Future, Shadowserver, Team Cymru,
+          and ThreatSTOP — this applies across the maintainer's portfolio rather than
+          this feed in isolation.
+      derivation:
+        type: original
+        description: The feed is produced from Dataplane.org's own globally distributed
+          passive sensor network. Sensors listen on TCP port 25 using a modified Postfix
+          smtp-sink daemon (patches maintained in the dataplane-smtp GitHub repository)
+          that logs client source address, source port, and server destination upon
+          each inbound connection. When a client reaches the DATA phase of the SMTP
+          transaction, its address enters the smtpdata feed. No external IP feeds
+          are consumed; the signal is first-party observational data. The feed file
+          is enriched with MaxMind GeoLite2 autonomous system data (ASN, AS name)
+          at generation time. A REST API at api.dataplane.org exposes a 7-day rolling
+          query window at 10 requests per minute.
+        source_feeds: []
+      listing_policy:
+        summary: An IP address is listed when Dataplane.org's passive honeypot sensors
+          observe it sending an SMTP DATA command — the protocol phase that precedes
+          transmission of message content. The sensors are dedicated, unadvertised
+          IP addresses with no MX records; they do not accept legitimate email delivery.
+          An IP that only sends a HELO/EHLO greeting without progressing to DATA is
+          listed in the separate smtpgreet feed instead.
+        criteria:
+        - Observed sending an SMTP DATA command to a Dataplane.org passive sensor
+          listening on TCP port 25
+        - Sensor IP addresses are dedicated exclusively to sensing and are not advertised
+          in DNS via MX records
+      unlisting_policy:
+        summary: Entries are not manually removed. Listings decay automatically when
+          no further SMTP DATA activity is observed from that IP address within the
+          7-day rolling observation window. After 7 days without a repeat detection,
+          the IP exits the feed. There is no manual unlisting request process.
+        criteria:
+        - Automatic decay after 7 consecutive days without observed SMTP DATA activity
+          from the listed IP
+        - No manual unlisting channel is offered by the maintainer
+      unlist_request:
+      update_frequency:
+        frequency: 1h
+        human_readable: Updated hourly, per the maintainer's signals index page.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: Passive honeypot detection. Dataplane.org deploys dedicated,
+          unadvertised sensor systems across a globally distributed network (over
+          600 nodes across 65 metropolitan areas on 6 continents as of late 2025).
+          Each sensor listens on TCP port 25 without advertising MX records or accepting
+          legitimate email delivery. A modified Postfix smtp-sink daemon logs client
+          source address, source port, and server destination for each inbound connection.
+          When a client progresses to the DATA phase — indicating intent to transmit
+          message content — its IP address is entered into the smtpdata feed. The
+          sensors are assigned IP addresses dedicated solely to sensing purposes to
+          minimize false positives from accidentally ensnaring legitimate mail infrastructure.
+      scope_and_intent:
+        description: The smtpdata signal identifies IP addresses exhibiting SMTP DATA-phase
+          behavior — clients that progressed beyond greeting to indicate intent to
+          deliver email content. The maintainer characterizes this as a research and
+          situational-awareness signal, not a block list.
+        intended_for:
+        - Identifying SMTP scanners and brute-force actors
+        - Security research and anomaly detection
+        - Correlating SMTP client behavior across Dataplane.org's other signals (smtpgreet,
+          SSH, Telnet, SIP)
+        not_intended_for:
+        - Inline blocking or deny-listing at network perimeter
+        - Determining malicious or benign intent for any individual IP address
+        - Real-time incident response (feeds are hourly, not continuous)
+      license: Non-commercial use only. Redistribution in whole or in part prohibited
+        without express written permission of DataPlane.org.
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution in whole or in part without express written permission
+          of DataPlane.org is expressly prohibited. Non-commercial use is permitted;
+          commercial use requires contacting info@dataplane.org for authorization.
+      current_status:
+        state: active
+        description: Active. Maintained as a core Dataplane.org signal, updated hourly.
+          The signals index page lists smtpdata among 19 active signals. Infrastructure
+          continues to expand — the 2025 Year in Review documents new sinkholes, sensor
+          systems, and three new NTP signals launched in 2025.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: The maintainer's SMTP feeds blog post acknowledges that legitimate
+          mail transfer agents behind shared NAT gateways or with dynamically reassigned
+          IP addresses may appear in this feed, and that random DNS names may inadvertently
+          resolve to sensor IP addresses — accidentally or as part of an attack. Dedicated
+          sensing-only IP addresses are described as the mitigation. No sustained
+          public criticism specific to smtpdata was found in community discussion
+          venues.
+        engagement: Public discussion of the smtpdata signal specifically is sparse
+          across general forums. The maintainer presents the broader Dataplane.org
+          work at industry conferences (FIRST EU 2023, NANOG 93 in February 2025)
+          and publishes a quarterly Substack newsletter.
+      sources_consulted:
+      - url: https://dataplane.org/
+        document_date:
+        validation_date: '2026-05-18T02:00:00+00:00'
+      - url: https://dataplane.org/smtpdata.txt
+        document_date:
+        validation_date: '2026-05-18T02:00:00+00:00'
+      - url: https://dataplane.org/signals.html
+        document_date:
+        validation_date: '2026-05-18T02:00:00+00:00'
+      - url: https://dataplane.org/about.html
+        document_date:
+        validation_date: '2026-05-18T02:00:00+00:00'
+      - url: https://dataplane.org/jtk/blog/2021/01/smtp-feeds/
+        document_date: '2021-01-01'
+        validation_date: '2026-05-18T02:00:00+00:00'
+      - url: https://dataplane.org/jtk/talks/firsteu2023-dataplane.pdf
+        document_date: '2023-01-01'
+        validation_date: '2026-05-18T02:00:00+00:00'
+      - url: 
+          https://storage.googleapis.com/site-media-prod/meetings/NANOG93/5387/20250204_Kristoff_Smtp_Distributed_Monitoring_v1.pdf
+        document_date: '2025-02-04'
+        validation_date: '2026-05-18T02:00:00+00:00'
+      - url: https://dataplane.substack.com/p/dataplaneorg-2025-year-in-review
+        document_date: '2025-12-31'
+        validation_date: '2026-05-18T02:00:00+00:00'
+      - url: https://api.dataplane.org/
+        document_date:
+        validation_date: '2026-05-18T02:00:00+00:00'
+      - url: https://github.com/dataplane/dataplane-smtp
+        document_date:
+        validation_date: '2026-05-18T02:00:00+00:00'
+      - url: https://github.com/dataplane
+        document_date:
+        validation_date: '2026-05-18T02:00:00+00:00'
+      - url: https://dataplane.org/statistics/smtpdata.html
+        document_date:
+        validation_date: '2026-05-18T02:00:00+00:00'

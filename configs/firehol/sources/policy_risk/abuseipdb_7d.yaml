@@ -1,0 +1,233 @@
+sources:
+  abuseipdb_7d:
+    license: AbuseIPDB Terms of Service — see https://www.abuseipdb.com/legal
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/borestad/blocklist-abuseipdb/main/abuseipdb-s100-7d.ipv4
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: policy_risk
+    provenance: secondary_upstream
+    info: '[AbuseIPDB](https://www.abuseipdb.com/) aggregated blocklist of IPs with
+      ~100% abuse confidence score, reported in the last 7 days. Aggregated by [borestad](https://github.com/borestad/blocklist-abuseipdb).'
+    maintainer: borestad
+    maintainer_url: https://github.com/borestad/blocklist-abuseipdb
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T04:29:14Z'
+      official_name: AbuseIPDB Blocklist
+      official_url: https://github.com/borestad/blocklist-abuseipdb
+      short_description: Aggregated blocklist of IPs reported to AbuseIPDB with near-100%
+        abuse confidence scores within a rolling 7-day window, enriched with country,
+        ASN, and ISP metadata.
+      long_description: "The borestad/blocklist-abuseipdb project aggregates IP addresses
+        reported to AbuseIPDB with near-maximum abuse confidence scores and repackages
+        them as downloadable blocklists in multiple time-window variants (1, 3, 7,
+        14, 30, 60, 90, 120, 180, 365 days, and all-time). The project draws from
+        AbuseIPDB's public API using their free-tier plan supplemented by additional
+        publicly available sources, and decorates each IP with country code, autonomous
+        system number, and ISP name sourced from ipinfo.io. A self-hosted honeypot
+        contributes additional detections targeting roughly 90% confidence offenders,
+        and a heuristic detector flags aggressive /24 subnet patterns for a separate
+        'Hall of Shame' list.\n\nPer the maintainer's disclaimer, the recommended
+        usage window is 30 days or less to reduce false positives. The all-time list
+        is explicitly warned against for operational use and is exposed solely for
+        statistical purposes. The maintainer also notes that IPv6 blocking is of limited
+        effectiveness due to SLAAC privacy extensions, which allow operating systems
+        to rotate interface identifiers over time.\n\nThe AbuseIPDB platform underpinning
+        this feed operates on community-driven IP abuse reports. Any AbuseIPDB user
+        can submit a report identifying an IP as associated with malicious activity;
+        the abuse confidence score is recalculated daily using a logarithmic formula
+        weighing distinct reports and applying time-decay. A hard minimum floor of
+        25% prevents single-report outliers from dominating listings. AbuseIPDB does
+        not publish a formal automatic delisting mechanism; IPs persist until their
+        recalculated score falls below the threshold."
+      roles:
+      - role: maintainer
+        name: Johan Borestad
+        organization_type: individual
+        official_url: https://github.com/borestad
+        contact_email: johan@borestad.com
+        based_in:
+        active_since:
+        notes: Individual developer maintaining the aggregation pipeline and blocklist
+          generation. Operates the project as a personal utility, drawing from AbuseIPDB's
+          free API tier and supplementary sources.
+      - role: source_contributor
+        name: AbuseIPDB
+        organization_type: commercial
+        official_url: https://www.abuseipdb.com
+        contact_email:
+        based_in: United States
+        active_since: '2012'
+        notes: The underlying data source. AbuseIPDB operates a community-driven IP
+          abuse reporting platform; the borestad blocklist aggregates IPs from AbuseIPDB's
+          API with near-maximum confidence scores. Per borestad's README, data is
+          used 'with permission.'
+      derivation:
+        type: aggregate_merge
+        description: The feed is produced by querying the AbuseIPDB API for IPs with
+          near-maximum abuse confidence scores within a 7-day reporting window, supplemented
+          by detections from the maintainer's own self-hosted honeypot network and
+          heuristic analysis of aggressive /24 subnet patterns. Additional publicly
+          available sources are merged to expand coverage. Each IP is enriched with
+          country code, autonomous system number, and ISP name via ipinfo.io. The
+          resulting set is formatted as plain-text IP-address entries with metadata
+          annotations.
+        source_feeds: []
+      listing_policy:
+        summary: An IP enters the blocklist when it accumulates AbuseIPDB community
+          abuse reports sufficient to produce a near-100% abuse confidence score within
+          the selected time window. The underlying AbuseIPDB scoring formula uses
+          a logarithmic base derived from the count of distinct reporting users, applies
+          daily time-decay to report weights, and enforces a hard minimum floor of
+          25% to prevent single-report dominance. The borestad feed additionally applies
+          a honeypot-derived overlay targeting roughly 90%+ confidence offenders and
+          a /24 subnet heuristic that flags entire subnets exhibiting coordinated
+          aggressive behavior.
+        criteria:
+        - Accumulated community abuse reports on AbuseIPDB producing a near-100% abuse
+          confidence score within the 7-day reporting window
+        - Detections from the maintainer's own self-hosted honeypot infrastructure
+        - Heuristic identification of coordinated aggressive behavior across a /24
+          subnet
+      unlisting_policy:
+        summary: There is no automatic expiry or manual unlisting mechanism within
+          the borestad blocklist itself. Listings persist as long as the underlying
+          AbuseIPDB abuse confidence score remains above the near-100% threshold for
+          the selected time window. AbuseIPDB applies daily time-decay to report weights,
+          so an IP with no new reports will gradually lose score over time until it
+          drops below the threshold and exits naturally. For contested listings, AbuseIPDB
+          offers a built-in Takedown Request feature accessible from each IP's page;
+          community reports indicate response times vary significantly, with some
+          cases receiving no reply after multiple weeks.
+        criteria:
+        - 'Natural score decay: AbuseIPDB recalculates confidence scores daily, applying
+          time-decay to older reports — IPs with no new reports eventually fall below
+          the threshold and exit'
+        - "Manual Takedown Request: AbuseIPDB's built-in feature (accessible from
+          each IP's page) allows registered users to request removal of specific listings;
+          outcome is at AbuseIPDB's discretion"
+        - 'No borestad-level unlisting channel: the borestad GitHub repository does
+          not offer a dedicated unlisting pathway — requests for individual IPs must
+          be directed to AbuseIPDB'
+      unlist_request:
+        url: https://www.abuseipdb.com/controlled
+        email:
+        instructions: Submit a Takedown Request directly through AbuseIPDB's web interface
+          — the feature is accessible from each reported IP's page on abuseipdb.com.
+          The borestad blocklist does not maintain a separate unlisting channel; IPs
+          must be disputed at the source on AbuseIPDB. Note that response times for
+          Takedown Requests vary, and action is at AbuseIPDB's sole discretion per
+          their stated policy.
+      update_frequency:
+        frequency: 1h
+        human_readable: Updated multiple times per day, per the maintainer's README.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods:
+        - honeypot
+        - user_submission
+        description: "The primary method is reputation aggregation from AbuseIPDB:
+          IPs accumulate community abuse reports, and those reaching near-maximum
+          confidence scores enter the feed. Secondary inputs include the maintainer's
+          own self-hosted honeypot (targeting roughly 90%+ confidence offenders) and
+          a /24 subnet heuristic that detects coordinated aggressive behavior across
+          subnet blocks. The underlying AbuseIPDB platform classifies this as user_submission
+          at its foundation, but the borestad feed's contribution is the aggregation
+          and enrichment layer."
+      scope_and_intent:
+        description: The feed is intended for inline blocking of IPs demonstrating
+          active abusive behavior detected by community reports and honeypot sensors.
+          The maintainer explicitly recommends restricting use to the 30-day-or-less
+          time-window variants to balance coverage against false-positive risk.
+        intended_for:
+        - Blocking scanning and reconnaissance activity
+        - Blocking brute-force authentication attempts
+        - Enriching security logging and alerting pipelines with reputational context
+        not_intended_for:
+        - Long-duration blocking (lists exceeding 30 days — false-positive accumulation
+          risk)
+        - Statistical analysis requiring the all-time list (the s100-all variant is
+          explicitly warned against for operational use)
+        - IPv6 blocking (limited effectiveness due to SLAAC privacy extensions)
+      license: AbuseIPDB Terms of Service
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required: Credit AbuseIPDB (per the maintainer's attribution request)
+        terms: The direct upstream (borestad's GitHub repository) has no LICENSE file
+          and is publicly downloadable via unauthenticated HTTP GET, defaulting to
+          publicly available status with no stated redistribution restrictions. The
+          maintainer requests attribution to AbuseIPDB in the README. Operators should
+          be aware that AbuseIPDB's own Terms of Service prohibit scraping and resale
+          of their data, creating an upstream-of-upstream tension with borestad's
+          open republication.
+      current_status:
+        state: active
+        description: Active as of May 2026. The borestad GitHub repository shows regular
+          commits, the blocklist file was last updated on 2026-05-18, and the maintainer
+          responds to GitHub issues including false-positive reports and unlisting
+          requests.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Community reports document false-positive incidents involving high-profile
+          infrastructure. Google SMTP subnets were listed and blocked legitimate outbound
+          mail (resolved via GitHub issue, January 2026). Microsoft's OpenAI crawler
+          IP range appeared despite a 0% confidence whitelist on AbuseIPDB, revealing
+          a bug in borestad's exclusion logic (resolved April 2026). SemRush site-audit
+          IPs and Apple infrastructure IPs were also reported as false positives.
+          Broader community discussion on Reddit and security forums notes that AbuseIPDB's
+          Takedown Request process can be slow, with documented cases of no response
+          after three weeks and redirection back to the self-service form. Tuta formally
+          criticized AbuseIPDB for relying on unverified third-party reports that
+          caused legitimate users to be blocked. Trustpilot reviews of abuseipdb.com
+          show low satisfaction scores. The maintainer has addressed each reported
+          false positive individually through the GitHub issue tracker, but the underlying
+          AbuseIPDB platform lacks a robust formal delisting mechanism.
+        engagement: Public discussion is moderate. The borestad GitHub issue tracker
+          has 17 closed issues spanning April 2023 to May 2026, including 2 false-positive
+          bug reports, 9 individual unlisting requests, and feature/integration questions.
+          The maintainer responds and resolves issues consistently — all 17 were closed,
+          with 16 marked 'completed' and 1 'not planned.' Reddit communities (r/pfBlockerNG,
+          r/mikrotik) actively discuss the feed, recommending the 30-day-or-less variants
+          for operational use. The borestad project is integrated into pfBlockerNG/pfSense
+          workflows and mentioned in AlienVault OTX pulses. No formal bounty program,
+          sponsor button, or paid support channel was found.
+      sources_consulted:
+      - url: https://github.com/borestad/blocklist-abuseipdb
+        document_date: '2026-05-18'
+        validation_date: '2026-05-18'
+      - url: https://www.abuseipdb.com/legal
+        document_date:
+        validation_date: '2026-05-18'
+      - url: 
+          https://raw.githubusercontent.com/borestad/blocklist-abuseipdb/main/abuseipdb-s100-7d.ipv4
+        document_date: '2026-05-18'
+        validation_date: '2026-05-18'
+      - url: https://www.abuseipdb.com/faq
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://docs.abuseipdb.com/
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.abuseipdb.com/contact
+        document_date:
+        validation_date: '2026-05-18'
+      - url: 
+          https://reddit.com/r/pfBlockerNG/comments/1qusas1/abuseipdb_blocklist_feed_to_pfblockerng/
+        document_date: '2025-02-01'
+        validation_date: '2026-05-18'
+      - url: https://github.com/borestad/blocklist-abuseipdb/issues
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://raw.githubusercontent.com/borestad/blocklist-abuseipdb/main/package.json
+        document_date:
+        validation_date: '2026-05-18'

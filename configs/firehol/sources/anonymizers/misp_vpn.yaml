@@ -1,0 +1,174 @@
+sources:
+  misp_vpn:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/vpn-ipv4/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: anonymizers
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) aggregated
+      IP ranges belonging to common VPN providers and commercial datacenter VPN exits.
+      Largest MISP IP list by a wide margin (~41K CIDR entries). Listed under anonymizers
+      because VPN exit IPs are an anonymization mechanism, not threat indicators per
+      se.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T11:17:04Z'
+      official_name: Specialized list of vpn-ipv4 addresses belonging to common VPN
+        providers and datacenters
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: CIDR-formatted IP ranges belonging to commercial VPN providers
+        and datacenter exit nodes, formatted as a MISP warninglist for marking potential
+        false positives in threat-intelligence workflows.
+      long_description: "The vpn-ipv4 warninglist covers IP ranges belonging to commercial
+        VPN providers and datacenter exit nodes. It is generated automatically by
+        pulling from X4BNet's aggregated VPN provider dataset, which maps known VPN
+        netblocks and autonomous system numbers (ASNs) owned by VPN and datacenter
+        operators. The resulting list uses CIDR notation and matches against source
+        IP, destination IP, domain-IP pairs, and port-attributed variants in MISP
+        events.\n\nIt is intended for use as a contextual filter: when an analyst
+        sees an alert involving an IP on this list, the appropriate action is to recognize
+        it as a VPN exit node or datacenter relay rather than act on it as a novel
+        threat. The earlier upstream (ejrv/VPNs) was abandoned; X4BNet replicated
+        the effort and the MISP generator was migrated to pull from X4BNet's data."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://github.com/MISP
+        contact_email:
+        based_in:
+        active_since: '2016'
+        notes: 'Hosts and curates the entire MISP warninglists corpus. Accepts community
+          contributions via GitHub pull requests. Primary maintainer credited in changelog:
+          Alexandre Dulaunoy.'
+      - role: source_contributor
+        name: X4BNet
+        organization_type: individual
+        official_url: https://github.com/X4BNet/lists_vpn
+        contact_email:
+        based_in:
+        active_since: '2024'
+        notes: Aggregates and publishes the VPN provider netblock and ASN dataset
+          that feeds the MISP vpn-ipv4 generator. Updated automatically via GitHub
+          Actions CI. Inspired by the now-defunct ejrv/VPNs list.
+      derivation:
+        type: derivative
+        description: Pulls the VPN provider netblock dataset from X4BNet's aggregated
+          list (known VPN netblocks and ASNs owned by VPN and datacenter operators),
+          reformats it as a MISP warninglist JSON file with CIDR-type matching and
+          MISP-standard matching_attributes.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are included by virtue of belonging to VPN provider or datacenter
+          ASN allocations tracked by X4BNet. The MISP maintainer does not curate individual
+          IPs; the list is regenerated periodically by pulling the current X4BNet
+          dataset, meaning the inclusion set is determined by X4BNet's ASN tracking.
+        criteria:
+        - IP range belongs to an ASN operated by a known commercial VPN provider
+        - IP range belongs to a datacenter operator that offers VPN exit services
+        - Range is present in the X4BNet aggregated VPN provider dataset
+      unlisting_policy:
+        summary: No formal standing unlist channel is documented. Community members
+          can submit a GitHub pull request to remove specific entries, or file a GitHub
+          issue to request changes.
+        criteria:
+        - Submit a GitHub pull request removing the specific CIDR entry from the list
+        - File a GitHub issue on the misp-warninglists repository requesting removal
+          of a specific entry
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/issues/new
+        email:
+        instructions: Open a GitHub issue on the MISP warninglists repository describing
+          the IP range to be removed and the reason it does not belong on a VPN provider
+          list. Alternatively, submit a pull request directly editing the list.json
+          file to remove the entry.
+      update_frequency:
+        frequency:
+        human_readable: Regenerated reactively when the upstream X4BNet dataset changes;
+          no fixed schedule is published.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The list is not built from attack telemetry or honeypot observations.
+          Instead, it is assembled by curating which IP ranges belong to commercial
+          VPN providers and datacenter operators — a classification decision made
+          by the upstream X4BNet project based on ASN registration data. MISP regenerates
+          the list by pulling X4BNet's current output, effectively adopting X4BNet's
+          policy assignments as its own.
+      scope_and_intent:
+        description: Flags VPN provider and datacenter exit-node IPs as known infrastructure
+          that may trigger false-positive alerts in threat-intelligence workflows.
+          Intended as a contextual filter for analysts reviewing MISP events, not
+          as a standalone threat indicator.
+        intended_for:
+        - Marking VPN exit node IPs as potential false positives in MISP event analysis
+        - Filtering VPN datacenter IPs from automated threat-correlation pipelines
+        - Enriching IP observables with context about anonymizing infrastructure
+        not_intended_for:
+        - Blocking VPN provider IPs at the network perimeter (this is a false-positive
+          marker, not a threat-feed)
+        - Treating listed IPs as inherently malicious (they represent legitimate VPN
+          services)
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal (Public Domain Dedication) — no conditions imposed.
+          The licensor dedicates any copyright and related rights in the work worldwide
+          to the public domain.
+      current_status:
+        state: active
+        description: Listed and maintained as of April 28, 2026 (version 20260428).
+          Updates are applied reactively when the upstream X4BNet dataset changes.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: One substantive operator report filed in the project changelog
+          noted that the VPN list had grown stale relative to its original upstream,
+          which had not been refreshed in over 24 months. The report acknowledged
+          that X4BNet had replicated the effort for IPv4 and praised the existence
+          of generation tooling, while flagging uncertainty about data quality given
+          reliance on ASN-based sourcing and noting a gap in IPv6 coverage. The maintainer
+          subsequently migrated the generator to pull from X4BNet, addressing the
+          staleness concern.
+        engagement: Public discussion specific to the vpn-ipv4 list is sparse. No
+          dedicated GitHub issues labeled vpn were found in the repository. Broader
+          MISP community discussion on Reddit and in security forums does not surface
+          operational experience with this specific list. Maintenance activity is
+          visible through changelog entries and pull requests rather than issue-trackers.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/vpn-ipv4/list.json
+        document_date: '2026-04-28'
+        validation_date: '2026-05-16T10:30:00Z'
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-16T10:25:00Z'
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/tools/generate-vpn.py
+        document_date:
+        validation_date: '2026-05-16T10:26:00Z'
+      - url: https://www.misp-project.org/Changelog-misp-warninglists.txt
+        document_date:
+        validation_date: '2026-05-16T11:00:00Z'
+      - url: https://www.circl.lu/doc/misp/warninglists/
+        document_date: '2024-10-02'
+        validation_date: '2026-05-16T11:05:00Z'
+      - url: https://github.com/X4BNet/lists_vpn
+        document_date:
+        validation_date: '2026-05-16T10:45:00Z'
+      - url: https://github.com/MISP/misp-warninglists/issues?q=is%3Aissue+vpn
+        document_date:
+        validation_date: '2026-05-16T11:08:00Z'

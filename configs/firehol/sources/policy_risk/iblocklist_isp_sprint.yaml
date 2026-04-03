@@ -1,0 +1,135 @@
+sources:
+  iblocklist_isp_sprint:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=hngtqrhhuadlceqxbrob&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Sprint IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T08:42:15Z'
+      official_name: Sprint ISP
+      official_url: https://www.iblocklist.com/
+      short_description: IP addresses allocated to Sprint Corporation, formatted for
+        peer-to-peer blocklist clients.
+      long_description: This feed distributes IP address space registered to Sprint
+        Corporation for use with peer-to-peer blocklist clients. It is published by
+        iBlocklist.com, a service dedicated to distributing Internet IP address lists
+        in standard formats including P2P, DAT, CIDR, and hosts. The feed is delivered
+        as a gzipped P2P-format file. Accessing the download URL requires passing
+        a human-verification challenge in the browser; automated HTTP requests receive
+        a gate page rather than the list data. Notably, the Sprint ISP list does not
+        appear in the current publicly listed catalog on iBlocklist.com's lists directory
+        page, suggesting it may be maintained privately or retired from the public
+        offering.
+      roles:
+      - role: maintainer
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: iblocklist, LLC operates the iBlocklist.com platform for distributing
+          Internet IP address lists. The company also operates PhantomPeer, a VPN
+          and proxy service. Across the broader iBlocklist.com service, community
+          reports describe staleness concerns and limited support responsiveness for
+          many lists in the catalog.
+      derivation:
+        type: derivative
+        description: The feed converts Sprint Corporation's allocated IP address space
+          into P2P blocklist format. The catalog YAML classifies this as secondary_upstream
+          provenance, indicating iBlocklist.com acts as a re-publisher rather than
+          an original detector. No upstream feed names are listed in the available
+          documentation.
+        source_feeds: []
+      listing_policy:
+        summary: IP addresses are listed based on their registration to Sprint Corporation's
+          allocated network space. No written listing criteria were found on the maintainer's
+          site.
+        criteria:
+        - IP address falls within Sprint Corporation's allocated IP address blocks
+      unlisting_policy:
+        summary: No unlisting policy or automatic expiration mechanism was documented
+          by the maintainer for this feed.
+        criteria: []
+      unlist_request:
+        url: https://www.iblocklist.com/support
+        email:
+        instructions: Requests can be submitted via the support page at https://www.iblocklist.com/support.
+          No dedicated unblock request form or email address was identified for this
+          specific feed.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated daily, per the catalog configuration.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: "Addresses are listed based on their registration to Sprint Corporation's
+          network allocation, as determined by regional Internet registry records.
+          This is a policy-assignment feed: IPs are categorized by their registered
+          organizational assignment rather than by observed malicious activity."
+      scope_and_intent:
+        description: The feed targets users of peer-to-peer blocklist clients who
+          wish to filter traffic associated with Sprint Corporation's IP infrastructure.
+        intended_for:
+        - P2P network operators filtering ISP-level policy blocks
+        not_intended_for:
+        - General-purpose threat intelligence (no malware or abuse context)
+        - Real-time threat detection or incident response
+      license: iBlocklist Terms of Service — personal / non-commercial only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The Terms of Service grants a personal-use license only. Redistribution,
+          whether commercial or non-commercial, is not permitted. Account sharing
+          outside one's household is also restricted.
+      current_status:
+        state: unknown
+        description: The iBlocklist.com service (iblocklist, LLC) is actively maintained
+          as of 2026. However, the Sprint ISP list does not appear in the publicly
+          listed catalog on the iBlocklist.com lists directory page, and the feed
+          download URL returns a human-verification gate rather than list data. No
+          discontinuation notice was found. Whether the list has been withdrawn from
+          public distribution, migrated to a private tier, or is temporarily hidden
+          behind the gate cannot be determined from available evidence.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion about the Sprint ISP feed specifically
+          is sparse. iBlocklist.com generally has a narrow community footprint — no
+          active GitHub presence, no documented bug tracker, and limited third-party
+          blog or forum coverage. Integration into peer-to-peer client configurations
+          is the primary known use context.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T08:40:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-18T08:41:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18T08:41:00Z'
+      - url: 
+          http://list.iblocklist.com/?list=hngtqrhhuadlceqxbrob&fileformat=p2p&archiveformat=gz
+        document_date:
+        validation_date: '2026-05-18T08:40:00Z'
+      - url: 
+          https://web.archive.org/web/20260220184553/http://list.iblocklist.com/?list=hngtqrhhuadlceqxbrob
+        document_date: '2026-02-20'
+        validation_date: '2026-05-18T08:42:00Z'

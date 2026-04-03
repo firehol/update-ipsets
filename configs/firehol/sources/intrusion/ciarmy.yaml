@@ -1,0 +1,209 @@
+sources:
+  ciarmy:
+    license: public feed
+    redistributable: true
+    url: http://cinsscore.com/list/ci-badguys.txt
+    frequency: 180
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[CIArmy.com](http://ciarmy.com/) IPs with poor Rogue Packet score that
+      have not yet been identified as malicious by the community'
+    maintainer: Collective Intelligence Network Security
+    maintainer_url: http://ciarmy.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T20:47:19Z'
+      official_name: CINS Army List
+      official_url: https://ciarmy.com/
+      short_description: A subset of the CINS IP reputation system containing IPv4
+        addresses with poor Rogue Packet scores that have not yet been flagged by
+        other community blocklists.
+      long_description: "The CINS Army List is a freely distributed IP blocklist produced
+        by Collective Intelligence Network Security (CINS), a reputation-scoring system
+        operated by Sentinel IPS (now Nomic Networks, based in Dallas, Texas). The
+        system deploys a globally distributed network of Sentinel IPS intrusion-prevention
+        sensors that continuously collect attack data; this data feeds a central scoring
+        engine assigning each flagged IP a composite reputation score based on WHOIS
+        information, country of origin, the nature and frequency of observed attacks,
+        and the breadth of targets attacked across the sensor network.\n\nIPs qualify
+        for the CINS Army List by meeting one of two criteria: the IP's recent Rogue
+        Packet score factor falls below the acceptable threshold, or the IP has triggered
+        a minimum number of trusted alerts across multiple Sentinel sensors. The list
+        is intentionally scoped to exclude IPs already catalogued by other community
+        reputation lists — its purpose is to surface novel threats not yet caught
+        elsewhere. As of September 2017, the algorithm was adjusted and the list was
+        capped at approximately 15,000 IP addresses.\n\nThe feed is distributed as
+        a plain-text file (one IPv4 address per line, no header comments or metadata)
+        from cinsscore.com and through the Emerging Threats Open Source Community
+        ruleset. Full CINS reputation scores are available only to paying Sentinel
+        IPS customers; the public CINS Army List provides the binary output (listed
+        or not listed) without per-IP scoring granularity."
+      roles:
+      - role: maintainer
+        name: Collective Intelligence Network Security / Sentinel IPS
+        organization_type: commercial
+        official_url: https://ciarmy.com/
+        contact_email: cins@sentinelips.com
+        based_in: Dallas, Texas, USA
+        active_since: '2011'
+        notes: Launched as a Sentinel IPS initiative in March 2011 (development began
+          in 2004 under a US government contract). The company rebranded from Sentinel
+          IPS to Nomic Networks in January 2023. Operates the globally distributed
+          Sentinel IPS sensor network powering the CINS scoring system. Full CINS
+          reputation scores are restricted to paying customers; the CINS Army List
+          is the publicly available subset.
+      derivation:
+        type: derivative
+        description: The CINS Army List is a curated subset of the full CINS Active
+          Threat Intelligence ruleset produced by Sentinel IPS's own sensor network.
+          Sentinel IPS sensors deployed worldwide generate continuous attack data;
+          this feeds a central scoring engine computing a composite CINS Score per
+          IP incorporating WHOIS data, geographic origin, attack nature, frequency,
+          and breadth. The CINS Army List extracts IPs whose Rogue Packet score factor
+          falls below threshold or that trigger a minimum count of trusted alerts
+          across multiple sensors. The list is further filtered to exclude IPs already
+          catalogued by other community reputation lists. No external IP feeds are
+          consumed; the feed is wholly derived from Sentinel IPS first-party sensor
+          data. Distributed both directly and through the Emerging Threats Open Source
+          Community ruleset.
+        source_feeds: []
+      listing_policy:
+        summary: 'An IP is listed when it meets one of two conditions: its recent
+          Rogue Packet score factor falls below the acceptable threshold, or it has
+          triggered a minimum number of trusted alerts across a minimum number of
+          Sentinel IPS sensors deployed worldwide. The Rogue Packet score factor evaluates
+          recent malicious or suspicious packet activity attributed to an IP address.
+          The CINS scoring engine incorporates WHOIS information, country of origin,
+          attack nature and frequency, and breadth of targets attacked. The list is
+          further scoped to exclude IPs already identified as malicious by other community
+          reputation lists, targeting novel threats not yet catalogued elsewhere.'
+        criteria:
+        - The IP's recent Rogue Packet score factor is classified as very poor
+        - The IP has triggered a minimum number of trusted alerts across a minimum
+          number of Sentinel IPS sensors deployed worldwide
+      unlisting_policy:
+        summary: The maintainer states that false positives are rare. Removal is handled
+          by direct email contact. No automated delisting mechanism, self-service
+          portal, or documented SLA is published. The process is informal — the maintainer
+          asks affected parties to email and commits to work with them to resolve
+          the issue.
+        criteria:
+        - Removal is initiated by the affected party contacting the maintainer via
+          email
+        - No automatic expiry or time-based decay mechanism is described for the public
+          CINS Army List
+      unlist_request:
+        url:
+        email: cins@sentinelips.com
+        instructions: Email cins@sentinelips.com to report a false positive. No online
+          form, ticket system, or automated lookup tool is published for the public
+          CINS Army List. Response is handled case-by-case.
+      update_frequency:
+        frequency:
+        human_readable: The maintainer describes the CINS system as continuously gathering
+          attack data and continuously feeding reputation-based rulesets back to the
+          Sentinel network, but does not state a specific update interval for the
+          CINS Army List text file.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods:
+        - reputation_aggregation
+        description: The feed is built from Sentinel IPS's own globally distributed
+          intrusion-prevention sensor network (Sentinel IPS units deployed worldwide),
+          functioning as a network of honeypot-like detection nodes. When a Sentinel
+          device drops a rogue packet, the source IP is flagged. Aggregated alert
+          data from across the sensor network feeds the CINS scoring engine, computing
+          a composite reputation score per IP incorporating WHOIS data, country of
+          origin, attack nature, frequency, and breadth of targets attacked. The secondary
+          method is the maintainer's own internal reputation aggregation across the
+          sensor fleet — the CINS Score is a cross-sensor consensus signal.
+      scope_and_intent:
+        description: The CINS Army List is designed as a complement to, not a replacement
+          for, other community IP reputation lists. The maintainer explicitly scopes
+          the list to IPs that have poor Rogue Packet scores but have not yet been
+          catalogued by other community blocklists — targeting novel threats that
+          emerge before other feeds have identified them.
+        intended_for:
+        - Blocking scanning and hostile IPs at the network perimeter
+        - Supplements other community blocklists by surfacing novel threats not yet
+          listed elsewhere
+        not_intended_for:
+        - Standalone sole-blocklist use — the maintainer explicitly positions the
+          feed as a supplement to other community efforts
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: The maintainer states the list can be used 'in any way you see fit'
+          with no formal redistribution restrictions published. No attribution requirement
+          is stated. The Emerging Threats distribution layer carries a dual BSD/GPL
+          license for ET Open rules, but the ci-badguys component's classification
+          within that framework is legally unresolved per ET staff — operators redistributing
+          through Emerging Threats should consult Proofpoint/Emerging Threats for
+          the applicable terms.
+      current_status:
+        state: active
+        description: The CINS Army List is maintained and distributed. The feed file
+          at cinsscore.com/list/ci-badguys.txt is publicly available. The maintainer's
+          sites (ciarmy.com and cinsscore.com) are reachable and discuss the feed
+          as ongoing. The most recent publicly documented algorithm change was in
+          September 2017, when the list was capped at approximately 15,000 IPs. No
+          discontinuation, merger, or sunset announcement has been found. Sentinel
+          IPS rebranded to Nomic Networks in January 2023; the CINS-branded properties
+          continue to operate under the original branding.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion about the CINS Army List is sparse.
+          Reddit threads referencing the feed consist primarily of users asking for
+          explanations of fired CINS alerts on their home networks (often legitimate
+          traffic misclassified as scanning); no threads were found discussing false-positive
+          complaints, unlisting experiences, or removal frustrations. The maintainer
+          acknowledges false positives are rare and handles removals privately via
+          email. The feed is distributed through Emerging Threats and integrated into
+          consumer security products (Ubiquiti, pfSense, Synology), indicating indirect
+          consumer exposure, but direct public discourse is limited. The Nomic Networks
+          10-year anniversary post (December 2021) cites approximately 20,000 daily
+          users across 100+ countries, suggesting a substantive installed base with
+          little public troubleshooting activity.
+      sources_consulted:
+      - url: https://ciarmy.com/
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: http://cinsscore.com/list/ci-badguys.txt
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://cinsscore.com/
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://nomicnetworks.com/references/
+        document_date: '2018-10-09'
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://community.emergingthreats.net/t/frequently-asked-questions/56
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://community.emergingthreats.net/t/licensing-of-third-party-rules/2396
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.darkreading.com/perimeter/sentinel-ips-launches-ci-army-
+        document_date: '2011-03-07'
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: 
+          https://nomicnetworks.com/blog/the-cins-army-sharing-cyber-threat-intelligence-for-10-years
+        document_date: '2021-12-17'
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://nomicnetworks.com/blog/sentinel-ips-is-now-nomic-networks
+        document_date: '2023-01-03'
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: 
+          https://www.reddit.com/r/Ubiquiti/comments/1qjbtni/et_cins_active_threat_intelligence_poor/
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'

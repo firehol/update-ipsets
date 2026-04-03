@@ -1,0 +1,289 @@
+sources:
+  spamhaus_drop:
+    attribution: © The Spamhaus Project — https://www.spamhaus.org/
+    license: Spamhaus DROP Fair Use Policy
+    redistributable: true
+    url: http://www.spamhaus.org/drop/drop.txt
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - remove_comments_semi
+    processor_raw: remove_comments_semi_colon
+    category: policy_risk
+    info: '[Spamhaus.org](http://www.spamhaus.org) DROP list (according to their site
+      this list should be dropped at tier-1 ISPs globally)'
+    maintainer: Spamhaus.org
+    maintainer_url: http://www.spamhaus.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T13:56:02Z'
+      official_name: Don't Route Or Peer (DROP)
+      official_url: https://www.spamhaus.org/drop/
+      short_description: An advisory blocklist of entire IP net-blocks allocated to
+        or hijacked by professional spam and cyber-crime operations, maintained by
+        The Spamhaus Project.
+      long_description: The Spamhaus DROP (Don't Route Or Peer) list is an advisory
+        blocklist of entire IP address ranges that have been allocated to, leased
+        to, or hijacked by professional spam or cyber-crime operations. Per the maintainer's
+        description, DROP is a subset of the Spamhaus Blocklist (SBL) — networks enter
+        DROP only after Spamhaus investigators and forensics specialists have gathered
+        evidence connecting the net-block to professional spam operations, botnet
+        controllers, malware disseminators, or "bulletproof" hosters that ignore or
+        evade abuse reports. Each entry in the DROP file is a CIDR net-block paired
+        with an SBL reference identifier; removing the SBL record automatically clears
+        the DROP listing. The maintainer states that IP address space under the control
+        of any legitimate network will never be listed, and that false positives are
+        minimized by the high-confidence nature of the evidence required for listing.
+        DROP is designed for use by tier-1 and backbone providers in firewalls and
+        routing equipment, and is also available as a BGP feed announced via a dedicated
+        autonomous system number, allowing networks to null-route listed prefixes
+        directly at the routing layer. The maintainer describes the list as changing
+        on a daily basis as rogue networks shift allocations to avoid detection.
+      roles:
+      - role: maintainer
+        name: The Spamhaus Project
+        organization_type: non_profit
+        official_url: https://www.spamhaus.org/
+        contact_email:
+        based_in: Andorra
+        active_since: '1998'
+        notes: Per the organization page, The Spamhaus Project is an international
+          nonprofit organized as "The Spamhaus Project SLU," a not-for-profit company
+          limited by guarantee registered in Andorra la Vella, Principality of Andorra
+          (company registration number 18159). Founded in 1998 (originally in London).
+          Operated by CEO Steve Linford and a staff of 38 investigators, forensics
+          specialists, and network engineers located in 10 nations. Maintains over
+          80 public DNSBL servers across 18 countries, protecting an estimated 3.1
+          billion mailboxes as of early 2024.
+      - role: publisher
+        name: The Spamhaus Project
+        organization_type: non_profit
+        official_url: https://www.spamhaus.org/
+        contact_email:
+        based_in: Andorra
+        active_since: '1998'
+        notes: Publishes the DROP data file directly from www.spamhaus.org. Also distributes
+          via Spamhaus Technology for commercial subscribers seeking higher-frequency
+          feeds and additional datasets.
+      derivation:
+        type: original
+        description: The DROP list is produced by The Spamhaus Project's own investigative
+          team. Networks are inserted only after Spamhaus investigators and forensics
+          specialists gather evidence that a net-block is controlled by professional
+          spam or cyber-crime operations. The maintainer does not describe consuming
+          other IP feeds as inputs. DROP is a subset of the Spamhaus Blocklist (SBL);
+          each DROP entry corresponds to an SBL record, and removal of the SBL record
+          automatically clears the DROP listing. The maintainer additionally offers
+          a BGP feed announced via a dedicated autonomous system number for networks
+          wishing to null-route listed prefixes at the routing layer.
+        source_feeds: []
+      listing_policy:
+        summary: Networks are inserted in DROP only after Spamhaus investigators and
+          forensics specialists gather evidence that the net-block is controlled by
+          professional spam or cyber-crime operations — specifically, entities that
+          lease or hijack address space for distributing malware, trojan downloaders,
+          botnet controllers, or other malicious activity. Bulletproof hosters that
+          ignore abuse reports or relocate abusive customers to evade targeted listings
+          are also qualifying sources. The maintainer restricts listings to IP address
+          space allocated directly by a Regional Internet Registry (RIR) such as ARIN,
+          RIPE, AFRINIC, APNIC, LACNIC, or KRNIC, or to direct RIR allocations — meaning
+          IP space under the control of any legitimate network is excluded even if
+          previously misused. Each listing is linked to an SBL record that documents
+          the evidentiary basis.
+        criteria:
+        - Net-block is allocated directly by a Regional Internet Registry (ARIN, RIPE,
+          AFRINIC, APNIC, LACNIC, or KRNIC) or is a direct RIR allocation
+        - Investigators have gathered evidence that the block is leased or hijacked
+          by professional spam or cyber-crime operations
+        - Activity includes distribution of malware, trojan downloaders, botnet controllers,
+          or similar malicious payloads
+        - Bulletproof hosters that ignore abuse reports or relocate abusive customers
+          to evade listings qualify as qualifying sources
+        - Legitimate network address space is never listed, even if temporarily abused
+      unlisting_policy:
+        summary: DROP entries are removed automatically when the corresponding Spamhaus
+          Blocklist (SBL) record is deleted. There is no separate DROP-specific unlisting
+          process. To delist a net-block from DROP, the party must first resolve the
+          underlying issue and obtain removal of the SBL record through the SBL delisting
+          procedure. The maintainer directs all removal requests through the IP &
+          Domain Checker portal at check.spamhaus.org.
+        criteria:
+        - The SBL record corresponding to the DROP entry is removed
+        - Once the SBL record is deleted, the DROP listing clears automatically and
+          immediately
+        - Removal requests are submitted through the IP & Domain Checker at check.spamhaus.org
+      unlist_request:
+        url: https://check.spamhaus.org/
+        email:
+        instructions: Submit the IP address or net-block through the IP & Domain Checker
+          at check.spamhaus.org and follow the guided removal instructions. Per the
+          contact page, this is the only path to resolution for blocklist removal.
+          There is no separate DROP-specific removal form — the SBL record must be
+          resolved first, after which the DROP listing clears automatically.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated daily, per the maintainer's DROP page
+      detection_classification:
+        primary_method: mixed
+        secondary_methods: []
+        description: The maintainer builds the DROP list through first-party forensic
+          investigation conducted by its own team of investigators and forensics specialists.
+          Investigators gather evidence that a net-block is controlled by professional
+          spam or cyber-crime operations before inserting it. The process does not
+          rely solely on automated sensor feeds, honeypots, or community reports —
+          it is an investigator-driven methodology combining deliberate evidence collection,
+          abuse report processing, and coordination with law enforcement and registry
+          contacts. The team of 38 investigators, forensics specialists, and network
+          engineers spans 10 nations.
+      scope_and_intent:
+        description: DROP is designed as a high-confidence, advisory blocklist targeting
+          entire net-blocks allocated to or hijacked by professional spam and cyber-crime
+          operations. The maintainer positions it as a protective layer for tier-1
+          and backbone providers deploying at the network edge — firewalls, routing
+          equipment, and border gateway routers — to filter all traffic from listed
+          net-blocks before it enters the network.
+        intended_for:
+        - Tier-1 and backbone network providers implementing DROP in core routers
+          and firewalls
+        - Network operators filtering routing paths for malicious net-blocks via BGP
+          peering
+        - Perimeter defense on firewalls and network gateways
+        - Protection from spam campaigns, ransomware encryption, DNS-hijacking, exploitation
+          attempts, authentication attacks, harvesting, and DDoS attacks originating
+          on rogue net-blocks
+        not_intended_for:
+        - End-user mail server DNSBL lookups alone — DROP is a routing-layer advisory,
+          not optimized for SMTP-content filtering
+        - Commercial products without crediting Spamhaus Project in the product and
+          retaining the date and copyright notice with the data
+      license: Spamhaus DROP Fair Use Policy
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required: Credit must be given to Spamhaus Project, and the date
+          and copyright notice must remain with the file and data when used in a product
+        terms: Free to use subject to the Fair Use Policy terms. The copyright and
+          database right in the DROP Lists is retained by The Spamhaus Project. The
+          Spamhaus name and any reference to Spamhaus data may not be used in marketing,
+          promotional, or any other commercial materials. The right to use the DROP
+          Lists may be revoked for breach of these terms.
+      current_status:
+        state: active
+        description: Active. The Spamhaus Project continues to maintain and distribute
+          the DROP list. The maintainer's published cadence is daily updates, and
+          the live drop.txt file is reachable at the canonical URL.
+        successor:
+        announcement_date:
+      community:
+        awards: The Spamhaus Project received the ISPA Internet Hero of 2003 award
+          from the Internet Service Providers' Association (UK) for educating people
+          about spam and urging legislative action against it, and the NCFTA Cyber
+          Crime Fighter Award in 2008 from the National Cyber Forensics and Training
+          Alliance. These are organization-level awards bestowed on The Spamhaus Project;
+          no DROP-specific awards have been documented.
+        criticism: Organizations that acquire IPv4 address space sometimes inherit
+          DROP listings from prior owners whose allocations were added before the
+          transfer — the parent block listing creates cascading reputation problems
+          even when the acquirer's specific subnet is clean. This is a structural
+          consequence of DROP's net-block granularity rather than a false-positive
+          listing error.
+        engagement: 'Spamhaus DROP is cited across academic security research, appearing
+          in peer-reviewed publications including PAM 2021 (Li et al., Clairvoyance:
+          Inferring Blocklist Use on the Internet, which identified DROP as the most
+          popular blocklist measured), IMC 2022 (Oliver et al., Stop, DROP, and ROA
+          — analysis of 712 DROP prefixes over three years), and MDPI Future Internet
+          2025 (Rotuna et al., citing DROP as a preventive IP-range blocklist). DROP
+          is natively integrated by Graylog as the Spamhaus (E)DROP Data Adapter,
+          by OpenCTI via the Filigran XTM Hub Spamhaus DROP List Connector, and is
+          documented as a how-to in OPNsense firewall configuration. Brander Group
+          published a 2024 vendor analysis specifically of the DROP lists for IP-hijacking
+          defense.'
+      sources_consulted:
+      - url: https://www.spamhaus.org/drop/
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.spamhaus.org/organization/
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.spamhaus.org/blocklists/drop-fair-use-policy/
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.spamhaus.org/drop/drop.txt
+        document_date: '2026-05-18'
+        validation_date: '2026-05-18'
+      - url: https://www.spamhaus.org/contact/
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.spamhaus.org/blocklists/do-not-route-or-peer/
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.spamhaus.org/history
+        document_date:
+        validation_date: '2026-05-18'
+      - url: 
+          https://www.theregister.com/offbeat/2004/02/20/spamhaus-crowned-internet-heroes-of-2003/962603
+        document_date: '2004-02-20'
+        validation_date: '2026-05-18'
+      - url: https://cseweb.ucsd.edu/~savage/papers/PAM21.pdf
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://dl.acm.org/doi/10.1145/3517745.3561454
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.spamhaus.org/affiliates
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.spamhaus.org/events
+        document_date:
+        validation_date: '2026-05-18'
+      - url: 
+          https://go2docs.graylog.org/current/making_sense_of_your_log_data/spamhaus__e_drop_data_adapter.htm
+        document_date:
+        validation_date: '2026-05-18'
+      - url: 
+          https://hub.filigran.io/cybersecurity-solutions/opencti-integrations/spamhaus-drop-list
+        document_date: '2025-07-16'
+        validation_date: '2026-05-18'
+      - url: https://docs.opnsense.org/manual/how-tos/drop.html
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://halon.io/blog/halon-spamhaus-email-security-partnership
+        document_date: '2017-05-22'
+        validation_date: '2026-05-18'
+      - url: 
+          https://www.spamhaus.com/resource-center/spamhaus-and-mdaemon-technologies-announce-partnership
+        document_date:
+        validation_date: '2026-05-18'
+      - url: 
+          https://www.spamhaus.com/resource-center/press-release-amazon-web-services-and-spamhaus-collaborate
+        document_date: '2025-07-02'
+        validation_date: '2026-05-18'
+      - url: https://apwg.org/sponsor-solutions/spamhaus-technology-ltd
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.m3aawg.org/our-partners
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.virusbulletin.com/virusbulletin/2010/05/vbspam-comparative-review
+        document_date: '2010-05-01'
+        validation_date: '2026-05-18'
+      - url: 
+          https://brandergroup.net/2024/07/spamhaus-drop-dont-route-or-peer-lists-solution-for-ip-address-hijacking
+        document_date: '2024-07-17'
+        validation_date: '2026-05-18'
+      - url: https://www.mdpi.com/1999-5903/17/10/478
+        document_date: '2025-10-18'
+        validation_date: '2026-05-18'
+      - url: https://www.reddit.com/r/networking/comments/5ywlq9/purchased_ipv4_woes/
+        document_date: '2017-03-11'
+        validation_date: '2026-05-18'
+      - url: 
+          https://reddit.com/r/selfhosted/comments/1frcwr8/selfhosted_email_battle_was_won/
+        document_date: '2024-09-28'
+        validation_date: '2026-05-18'
+      - url: 
+          https://reddit.com/r/emaildeliverability/comments/1ssgki5/not_all_email_blocklists_are_worth_worrying_about/
+        document_date: '2024-12-20'
+        validation_date: '2026-05-18'

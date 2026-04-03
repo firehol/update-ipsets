@@ -1,0 +1,188 @@
+sources:
+  critical_soft_atlassian_cloud:
+    license: Provider-published public IP ranges
+    redistributable: false
+    label: Atlassian Cloud ranges
+    url: https://ip-ranges.atlassian.com/
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - json_path:
+        path: "$.items[*].cidr"
+    - filter_all4
+    processor_raw: json_path
+    category: provider_infrastructure
+    provenance: primary
+    info: Atlassian-published cloud IPv4 ranges for Jira, Confluence, Bitbucket, and
+      related services. Reference feed, not a threat indicator.
+    maintainer: Atlassian
+    maintainer_url: https://ip-ranges.atlassian.com/
+    enabled_by_all: true
+    use: [critical_infrastructure]
+    critical:
+      tier: soft
+      role: saas_productivity_devops
+      source_type: authoritative_provider_json
+      source_quality: A
+      rationale: Atlassian Cloud hosts issue tracking, documentation, and developer
+        collaboration for many teams; overlap should be reviewed before blocking.
+
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T08:51:00Z'
+      official_name: Atlassian IP Ranges
+      official_url: https://ip-ranges.atlassian.com/
+      short_description: Authoritative IP ranges — egress and ingress — for Atlassian
+        Cloud products including Jira, Confluence, Bitbucket, Trello, Forge, and related
+        services, published as a machine-readable JSON feed.
+      long_description: "Atlassian publishes the IP address ranges allocated to its
+        cloud products as a publicly accessible machine-readable JSON feed. The ranges
+        cover both egress traffic (connections initiated by Atlassian Cloud toward
+        customer infrastructure — for webhooks, application links, outbound email,
+        and repository operations) and ingress traffic (connections from browsers,
+        scripts, and API clients reaching Atlassian services).\n\nThe feed spans all
+        Atlassian Cloud products and services including Jira, Confluence, Bitbucket,
+        Trello, Forge, Rovo, Migration Assistants, Atlassian Government Cloud, Jira
+        Service Management, Jira Align, and Jira Product Discovery. Ranges are tagged
+        by product, region, traffic direction (ingress or egress), and security perimeter
+        (commercial or FedRAMP Moderate). Two parent netblocks are Atlassian-registered
+        (provider-independent) address space fully owned and controlled by Atlassian,
+        supplemented by additional AWS-allocated ranges. Atlassian migrated away from
+        shared AWS IP space to its own provider-independent netblocks, completing
+        the transition in 2024.\n\nThe primary intended use is firewall and proxy
+        allowlisting: administrators configure incoming accept rules for Atlassian
+        egress ranges so Atlassian Cloud can reach self-hosted integrations, and outgoing
+        accept rules for Atlassian ingress ranges so users can reach Atlassian services
+        through restrictive networks. The feed is explicitly a reference resource
+        for infrastructure configuration, not a threat indicator list."
+      roles:
+      - role: maintainer
+        name: Atlassian
+        organization_type: commercial
+        official_url: https://www.atlassian.com
+        contact_email:
+        based_in: Australia
+        active_since:
+        notes: Atlassian Pty Ltd, a publicly traded Australian software company, develops
+          and operates the Atlassian Cloud suite. The IP ranges feed is maintained
+          as part of Atlassian's cloud infrastructure documentation.
+      derivation:
+        type: original
+        description: The feed is produced by Atlassian from its own cloud infrastructure
+          allocations. Atlassian controls two provider-independent netblocks and supplements
+          them with additional AWS-allocated ranges dedicated exclusively to Atlassian
+          accounts. The JSON endpoint aggregates all ranges across products, regions,
+          traffic directions, and security perimeters into a single machine-readable
+          resource. No external IP feeds are consumed.
+        source_feeds: []
+      listing_policy:
+        summary: Entries represent IP address space allocated to Atlassian Cloud products
+          and services. An IP is listed when Atlassian provisions it for egress proxies,
+          ingress endpoints, government cloud perimeters, or specialized functions
+          (outbound email via SendGrid, Rovo web crawler) within Atlassian's cloud
+          infrastructure. Listings are added when Atlassian deploys new AWS regions,
+          activates new egress proxies, or expands its edge network.
+        criteria:
+        - IP space allocated to Atlassian Cloud egress proxies connecting to customer
+          infrastructure
+        - IP space allocated to Atlassian Cloud ingress endpoints for browser, API,
+          and SSH access
+        - IP space allocated to Atlassian Government Cloud perimeters (FedRAMP Moderate)
+        - IP space used for Atlassian outbound transactional email (SendGrid-managed
+          senders)
+        - IP space used for Atlassian Rovo web crawler operations
+      unlisting_policy:
+        summary: IP ranges are removed when Atlassian retires the associated infrastructure.
+          Historical ranges that have been decommissioned are removed from the active
+          feed; Atlassian announces retirements via blog post ahead of the change
+          and notifies subscribers through the AWS SNS topic.
+        criteria:
+        - 'Infrastructure retirement: Atlassian decommissions egress proxies or ingress
+          endpoints using a given range'
+        - 'Migration completion: Atlassian migrates traffic from legacy AWS-shared
+          ranges to Atlassian-owned netblocks, retiring the former'
+      unlist_request:
+        url:
+        email:
+        instructions: Because this is a reference feed of Atlassian's own infrastructure
+          — not a threat indicator list — there is no unlisting mechanism for third
+          parties. Requests concerning unexpected IP addresses originating from Atlassian
+          infrastructure should be directed to Atlassian Support via a support ticket,
+          as documented in the official FAQ.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated daily; the maintainer advises programmatically refreshing
+          the allowlist on a regular schedule, per the official support documentation
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The feed consists of IP address space officially assigned to
+          Atlassian Cloud infrastructure. Entries are not threat indicators detected
+          through scanning, honeypots, or user reports — they are infrastructure allocations
+          published by Atlassian as the authoritative owner of the address space.
+          An IP qualifies for inclusion when Atlassian provisions it within its cloud
+          network.
+      scope_and_intent:
+        description: The feed is published to enable enterprise administrators to
+          configure firewall allowlists and IP-based access policies for interactions
+          with Atlassian Cloud. It covers the full address space used across Atlassian's
+          global cloud delivery, including all AWS regions where Atlassian hosts its
+          products.
+        intended_for:
+        - Firewall allowlisting for egress connections from Atlassian Cloud to self-hosted
+          integrations
+        - Proxy and network device allowlisting for ingress connections to Atlassian
+          Cloud services
+        - IP-based access policy configuration for Jira, Confluence, Bitbucket, and
+          related Atlassian products
+        - Security policy enforcement distinguishing Atlassian Cloud traffic from
+          untrusted sources
+        not_intended_for:
+        - Blocking or denying Atlassian Cloud traffic — the ranges represent Atlassian's
+          own infrastructure and should be permitted, not blocked
+        - Threat indicator correlation — this is a reference feed of authorized infrastructure,
+          not a list of malicious sources
+        - Geographic restriction bypass — the ranges span multiple AWS regions globally
+          and do not correspond to specific countries
+      license: Public, no stated license
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms: The catalog YAML for this feed classifies the data as non-redistributable.
+          Atlassian has not published an explicit redistribution license, and the
+          feed is not labeled as open data. Third-party vendors and community projects
+          do redistribute the ranges in practice (documented in research), but no
+          formal permission is granted.
+      current_status:
+        state: active
+        description: Active and maintained. Atlassian publishes the IP ranges feed
+          at ip-ranges.atlassian.com and maintains corresponding support documentation
+          (last updated April 3, 2025). Changes are announced via blog post and notified
+          through an AWS SNS topic (arn:aws:sns:us-east-1:745490931007:atlassian-public-ip-changes).
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion of this feed is sparse. The feed is a reference
+          resource rather than a threat indicator list, which limits the scope for
+          community debate. Third-party vendors (Adaptavist ScriptRunner, Codefortynine,
+          Refined) reference the IP ranges in their integration documentation. Atlassian's
+          official support forum addresses individual connectivity issues through
+          support tickets rather than public threads.
+      sources_consulted:
+      - url: https://ip-ranges.atlassian.com/
+        document_date:
+        validation_date: '2026-05-21T08:51:00Z'
+      - url: 
+          https://support.atlassian.com/organization-administration/docs/ip-addresses-and-domains-for-atlassian-cloud-products/
+        document_date: '2025-04-03'
+        validation_date: '2026-05-21T08:51:00Z'
+      - url: https://ip-ranges.atlassian.com/tool.html
+        document_date:
+        validation_date: '2026-05-21T08:51:00Z'
+      - url: https://www.atlassian.com/blog/bitbucket/new-ip-addresses-for-bitbucket-cloud
+        document_date:
+        validation_date: '2026-05-21T08:51:00Z'

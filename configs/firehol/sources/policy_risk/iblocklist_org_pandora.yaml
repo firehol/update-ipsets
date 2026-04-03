@@ -1,0 +1,146 @@
+sources:
+  iblocklist_org_pandora:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    url: 
+      http://list.iblocklist.com/?list=aevzidimyvwybzkletsg&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Pandora IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T12:11:54Z'
+      official_name: Pandora
+      official_url: https://www.iblocklist.com/list?list=aevzidimyvwybzkletsg
+      short_description: A curated list of IP address ranges associated with the Pandora
+        internet radio service, published by iBlocklist.com.
+      long_description: "The Pandora list is a curated IP blocklist covering address
+        ranges associated with the Pandora internet radio service, published by iBlocklist.com
+        as part of their catalog of peer-to-peer blocking lists.\n\niBlocklist.com
+        distributes IP blocklists in standardized formats — P2P, DAT, CIDR, and HOSTS
+        — for use with peer-blocking software such as PeerBlock, PeerGuardian, and
+        pfBlocker. The Pandora list is made available in P2P format at no charge;
+        however, the iBlocklist.com download endpoint presents a security gate requiring
+        account registration before serving the file, which affects automated pull
+        workflows.\n\nPer the maintainer's list page, the feed carries no published
+        methodology, update cadence, or inclusion criteria. The sourcing approach
+        for iBlocklist.com's own-authored lists is not documented on the site."
+      roles:
+      - role: maintainer
+        name: iBlocklist.com
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: "Operated by iblocklist, LLC, incorporated in the United States. Publishes
+          and distributes the Pandora list among a catalog of dozens of third-party
+          and proprietary blocklists. Service-level community signal across iBlocklist.com
+          (not specific to any single feed): PFSENSE forum users reported level2/level3
+          lists incorrectly blocking Google address ranges; Netgate forum users described
+          some proprietary lists as 'horribly out of date' citing RFC1918 inclusions
+          and dangerously large subnets; Trustpilot reviews document autorenewal disputes
+          and dismissive support."
+      derivation:
+        type: original
+        description: The Pandora list is an iBlocklist.com-first-party feed. The maintainer
+          does not disclose what detection or research methodology produces the list,
+          nor whether entries are sourced fromvolunteer reports, active scanning,
+          honeypot logging, or other approaches. The list is distributed in P2P format
+          alongside iBlocklist.com's broader catalog of third-party feeds.
+        source_feeds: []
+      listing_policy:
+        summary: The maintainer does not publish any listing criteria, inclusion thresholds,
+          or review process for the Pandora list. No documentation describes what
+          qualifies an IP address for inclusion, what evidence is required, or who
+          approves additions.
+        criteria: []
+      unlisting_policy:
+        summary: The maintainer does not publish any unlisting criteria, automatic
+          expiration policy, or manual removal process for the Pandora list. No documentation
+          describes how IPs leave the list, whether listings decay over time, or how
+          a third party can request removal.
+        criteria: []
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: The catalog YAML states an update frequency of once per day,
+          per the maintainer's configuration.
+      detection_classification:
+        primary_method: unknown
+        secondary_methods: []
+        description: The maintainer does not document how IPs are identified or added
+          to the Pandora list. No detection method is stated on the list page, the
+          lists directory, the about page, or the TOS. It is not known whether entries
+          are produced throughvolunteer reports, active probing of Pandora's infrastructure,
+          passive observation of connections, or some other approach.
+      scope_and_intent:
+        description: The Pandora list targets IP address ranges associated with the
+          Pandora internet radio service. The maintainer's stated purpose is implicit
+          in the list name and description — blocking connections to or from Pandora's
+          infrastructure. No explicit use-case recommendation or caution is published
+          on the list page.
+        intended_for:
+        - Blocking connections to or from Pandora IP infrastructure
+        not_intended_for: []
+      license: iBlocklist.com Terms of Service — personal / non-commercial only
+      redistribution:
+        allowed:
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The iBlocklist.com Terms of Service grant permission for personal use
+          only. Commercial use and public display are prohibited. The license is not
+          a transfer of title. Account sharing is restricted to members of the same
+          household. No explicit redistribution right is stated.
+      current_status:
+        state: unknown
+        description: The iBlocklist.com website is reachable and the Pandora list
+          page is accessible. The maintainer has not published any announcement regarding
+          the continuation or discontinuation of this list.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: No Pandora-list-specific false-positive incident was found in public
+          discussion. Service-level community signal across iBlocklist.com is recorded
+          in the maintainer role notes.
+        engagement: Public community discussion about the Pandora list specifically
+          is sparse. No GitHub issue tracker, Discord, or dedicated forum for the
+          Pandora list was identified.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/list?list=aevzidimyvwybzkletsg
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/subscribe
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://forum.netgate.com/t/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date: '2016-08-01'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.reddit.com/r/PFSENSE/comments/5v4w0j/what_blacklists_do_people_use/
+        document_date: '2017-02-27'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://torrentfreak.com/bittorrent-blocklists-are-even-less-effective-than-pirate-site-blocking-181231/
+        document_date: '2018-12-31'
+        validation_date: '2026-05-18T00:00:00Z'

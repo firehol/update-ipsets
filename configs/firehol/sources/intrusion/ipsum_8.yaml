@@ -1,0 +1,163 @@
+sources:
+  ipsum_8:
+    license: The Unlicense
+    redistributable: true
+    url: https://raw.githubusercontent.com/stamparm/ipsum/master/levels/8.txt
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[IPsum](https://github.com/stamparm/ipsum) threat intelligence feed of
+      IPs appearing on at least 8 blacklists. Based on analysis of 30+ publicly available
+      blacklists updated daily. This is the most conservative level with the highest
+      confidence and fewest entries.'
+    maintainer: stamparm
+    maintainer_url: https://github.com/stamparm/ipsum
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T21:34:39Z'
+      official_name: IPsum
+      official_url: https://github.com/stamparm/ipsum
+      short_description: Daily-updated threat intelligence feed aggregating IPs appearing
+        on eight or more public blacklists, drawn from over thirty publicly available
+        sources.
+      long_description: "This feed is the `levels/8.txt` slice of the IPsum project
+        — the most conservative tier, containing only IPs that appear on eight or
+        more of the 30+ upstream public blacklists IPsum aggregates. The eight-source
+        consensus threshold is the strictest cut the project publishes, intended for
+        operators who want maximum confidence and can accept very narrow coverage
+        in exchange.\n\nIPsum tallies how many of its upstream blacklists list a given
+        IP and emits one file per integer threshold; this feed publishes the level-8
+        cut. The full feed is rebuilt daily from the aggregated sources and sorted
+        by occurrence count, highest first. Because an IP must be flagged by at least
+        eight independent sources to appear here, the list typically surfaces long-running,
+        broadly-known malicious infrastructure rather than transient single-source
+        listings. Operators who want broader coverage can use `ipsum_2` through `ipsum_7`."
+      roles:
+      - role: maintainer
+        name: stamparm
+        organization_type: individual
+        official_url: https://github.com/stamparm
+        contact_email:
+        based_in:
+        active_since: '2016-01-27'
+        notes: Also maintains Maltrail, a related malicious-traffic detection system.
+          Sole contributor to the IPsum project.
+      derivation:
+        type: aggregate_merge
+        description: Aggregates IP addresses from more than thirty publicly available
+          threat-intelligence and blacklist feeds. Each source is queried daily, and
+          IPs are ranked by how many source lists they appear on. The levels/8.txt
+          file exposes only those IPs appearing on eight or more source lists.
+        source_feeds: []
+      listing_policy:
+        summary: An IP qualifies for inclusion in levels/8.txt when it appears on
+          eight or more of the aggregated source blacklists. Inclusion is automated
+          based on occurrence count across the daily scan of more than thirty public
+          sources.
+        criteria:
+        - Appears on eight or more aggregated source blacklists in a single daily
+          scan
+        - Automated inclusion based on cross-list occurrence count
+      unlisting_policy:
+        summary: IPs are removed automatically when they fall below the eight-list
+          threshold in a subsequent daily scan. Legitimately listed IPs that have
+          been remediated may be whitelisted upon verified false-positive report to
+          the maintainer.
+        criteria:
+        - Dropping below the eight-source occurrence threshold in a daily scan
+        - Verified false-positive report resulting in manual whitelist addition
+      unlist_request:
+        url: https://github.com/stamparm/ipsum/issues/new
+        email:
+        instructions: Open a GitHub issue on the project repository describing the
+          IP address and the reason it should be removed. The maintainer has responded
+          to removal requests within the same day when the claim was verifiable.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated once per day, every 24 hours
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: Reputation aggregation from more than thirty publicly available
+          threat-intelligence and blacklist feeds. Each IP receives a score equal
+          to the number of source lists it appears on; higher scores indicate stronger
+          cross-source consensus. The levels/8.txt file extracts IPs scoring eight
+          or higher.
+      scope_and_intent:
+        description: Edge firewall blocking of inbound connections from IPs with strong
+          cross-source threat consensus. Intended as a first-layer defensive blocklist
+          for network gateways and host-based firewalls.
+        intended_for:
+        - Inbound connection blocking at network edge firewalls
+        - Host-based firewall deny-listing via ipset or equivalent
+        - Supplementing IDS/IPS with an additional blocking layer
+        not_intended_for:
+        - Single-user workstations (high false-positive risk from legitimate remote
+          services)
+        - Email filtering or SPF/DKIM validation
+        - DNS-based blocking (not a domain list)
+      license: The Unlicense
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: The Unlicense places no restrictions on redistribution, modification,
+          or commercial use. The data is released into the public domain.
+      current_status:
+        state: active
+        description: Actively maintained with daily automated updates. Most recent
+          commit recorded 2026-05-16.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Most documented false-positive reports across the IPsum project
+          have involved lower-threshold tiers — IPs flagged by only a handful of upstream
+          sources that turned out to be legitimate (major platforms, search-engine
+          crawlers, reserved ranges). At the level-8 threshold an IP must be flagged
+          by eight or more independent sources, which materially reduces but does
+          not eliminate false-positive risk. Technical interruptions (updates broken,
+          encoding issues) have been reported on the project as a whole and resolved
+          historically.
+        engagement: Active GitHub issue tracker with documented same-day responsiveness
+          from the maintainer on verified false-positive reports and removal requests.
+          The IPsum project is referenced positively in r/cybersecurity and r/selfhosted
+          communities as a free threat-intelligence source for firewall blocking,
+          cited alongside established feeds such as Spamhaus and GreyNoise. Community
+          members have contributed working ipset integration scripts for Ubuntu and
+          OPNsense deployments. Discussion spans Reddit, sysadmin forums, and Check
+          Point environments.
+      sources_consulted:
+      - url: https://github.com/stamparm/ipsum
+        document_date: '2026-05-15'
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/README.md
+        document_date:
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/levels/8.txt
+        document_date:
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/LICENSE
+        document_date:
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: https://api.github.com/repos/stamparm/ipsum/commits?per_page=5
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: https://github.com/stamparm/ipsum/issues/17
+        document_date: '2021-02-26'
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: https://github.com/stamparm/ipsum/issues/88
+        document_date: '2026-03-26'
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: https://github.com/stamparm/ipsum/issues/64
+        document_date: '2025-06-12'
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: https://github.com/stamparm/ipsum/issues
+        document_date:
+        validation_date: '2026-05-16T21:00:00Z'

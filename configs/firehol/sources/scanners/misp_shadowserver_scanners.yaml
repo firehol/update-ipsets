@@ -1,0 +1,227 @@
+sources:
+  misp_shadowserver_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/shadowserver-nt-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Shadowserver
+      Foundation research scanning IPs. Informational — not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T23:52:40Z'
+      official_name: Shadowserver IP Ranges Used for Scanning
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: A MISP warning list of CIDR ranges associated with Shadowserver
+        Foundation coordinated scanning infrastructure, sourced from CIRCL Network
+        Telescope passive darknet analysis.
+      long_description: "This list is part of the MISP warninglists collection, a
+        set of over 100 indicator lists maintained by the MISP Project to flag well-known
+        infrastructure that may produce false positives in threat intelligence workflows.
+        The list identifies CIDR ranges from which Shadowserver Foundation coordinates
+        its internet-wide scanning operations.\n\nThe ranges are extracted from CIRCL
+        (Computer Incident Response Center Luxembourg) Network Telescope passive darknet
+        analysis. A network telescope monitors a segment of routed but unused IP address
+        space; any traffic arriving there is by definition unsolicited and typically
+        represents scanning, backscatter from DDoS attacks, or worm propagation. By
+        correlating observed traffic with BGP autonomous system data and reverse DNS
+        records, CIRCL identifies address blocks definitively allocated to Shadowserver's
+        coordinated scanning network.\n\nThe list is formatted as CIDR blocks and
+        matched using the 'cidr' matching type in MISP, meaning incoming IPs are tested
+        against these ranges. Per the maintainer's description, the list is informational
+        — it flags IPs associated with legitimate, authorised security research rather
+        than malicious activity. The maintainer explicitly marks it as not intended
+        for use as a blocklist."
+      roles:
+      - role: maintainer
+        name: MISP Project / CIRCL
+        organization_type: research_institution
+        official_url: https://www.misp-project.org/
+        contact_email: info@misp-project.org
+        based_in: Luxembourg
+        active_since: '2016'
+        notes: CIRCL (Computer Incident Response Center Luxembourg) leads the MISP
+          Project and provides training, hosting, and professional services. The warninglists
+          repository is hosted under the MISP GitHub organisation.
+      - role: source_contributor
+        name: Paul Jung (Thanat0s)
+        organization_type: individual
+        official_url: https://github.com/Th4nat0s
+        contact_email:
+        based_in:
+        active_since: '2025'
+        notes: Primary author of the shadowserver-nt-scanning list. All visible commits
+          since the list's creation in December 2025 are authored and committed by
+          this contributor.
+      - role: source_contributor
+        name: CIRCL (Computer Incident Response Center Luxembourg)
+        organization_type: research_institution
+        official_url: https://www.circl.lu/
+        contact_email: info@circl.lu
+        based_in: Luxembourg
+        active_since:
+        notes: Operates the Network Telescope and HoneyBot sensor infrastructure from
+          which the scanner CIDR ranges are extracted. Provides the underlying darknet
+          analysis that identifies Shadowserver's allocated address blocks.
+      - role: source_contributor
+        name: Shadowserver Foundation
+        organization_type: non_profit
+        official_url: https://www.shadowserver.org/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Coordinates the internet-wide scanning network whose IP allocations
+          are identified by CIRCL's telescope analysis and published in this list.
+      derivation:
+        type: extraction
+        description: The list is produced by extracting CIDR ranges from CIRCL Network
+          Telescope passive darknet observations. CIRCL monitors a darknet address
+          space (/18) and HoneyBot partner sensors; traffic arriving at these addresses
+          is processed through Suricata protocol parsers into ClickHouse for analysis.
+          Source IPs are correlated with BGP autonomous system data and reverse DNS
+          records to identify address blocks definitively allocated to Shadowserver
+          Foundation's coordinated scanning network. The resulting CIDR ranges are
+          formatted as a MISP warninglist JSON file and published in the misp-warninglists
+          repository. A second Shadowserver-related list in the repository ('shadowserver')
+          uses BGP heuristic lookup as a broader but less precise sourcing method.
+        source_feeds: []
+      listing_policy:
+        summary: An IP range is listed when CIRCL's Network Telescope analysis confirms
+          the address block is allocated to and actively used by Shadowserver Foundation's
+          coordinated scanning infrastructure. Confirmation uses reverse DNS (PTR)
+          lookups, volumetric scanning analysis, temporal pattern tracking, and BGP
+          autonomous system correlation. The list is maintained as a warninglist —
+          entries represent known-good scanning infrastructure, not malicious indicators.
+        criteria:
+        - Observed scanning traffic originating from the address block at CIRCL's
+          darknet or HoneyBot sensors
+        - Address block correlates to Shadowserver Foundation's allocated AS space
+          via BGP data
+        - Reverse DNS records resolve to hostnames consistent with Shadowserver scanning
+          infrastructure
+        - Volumetric and temporal scanning patterns match Shadowserver's characteristic
+          fingerprint
+      unlisting_policy:
+        summary: No formal written unlisting policy is documented in the repository.
+          Requests to modify or remove entries are handled through GitHub issues or
+          pull requests on the misp-warninglists repository, following the project's
+          open-source contribution model.
+        criteria:
+        - Submit a GitHub issue or pull request to the misp-warninglists repository
+          with evidence that the address block is no longer allocated to Shadowserver
+          scanning infrastructure
+        - Provide supporting evidence such as updated BGP allocation data or reverse
+          DNS records showing the block has been reassigned
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/issues/new
+        email:
+        instructions: Open a GitHub issue at https://github.com/MISP/misp-warninglists/issues/new
+          choosing 'Bug report' or 'Feature request', describe the IP range in question,
+          and provide evidence that the block is no longer associated with Shadowserver
+          scanning infrastructure (such as updated BGP data or current reverse DNS
+          records). Alternatively, submit a pull request directly with the corrected
+          list.json.
+      update_frequency:
+        frequency: 30d
+        human_readable: Approximately monthly, per the maintainer's observed commit
+          pattern
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods:
+        - honeypot
+        description: The list is built from CIRCL's Network Telescope passive darknet
+          monitoring. A network telescope observes traffic arriving at a segment of
+          routed but unused IP address space — by definition, all observed traffic
+          is unsolicited and indicative of scanning or malicious activity. CIRCL supplements
+          this with HoneyBot distributed sensors deployed at partner premises, which
+          operate in either passive blackhole mode (packet capture only) or active
+          honeypot mode (establishing connections to log banner data). Raw packets
+          are processed through Suricata protocol parsers into ClickHouse for analytical
+          querying. Source IPs are attributed to autonomous systems via BGP data and
+          identified as Shadowserver infrastructure through reverse DNS records and
+          volumetric scanning fingerprints.
+      scope_and_intent:
+        description: The list identifies CIDR ranges associated with Shadowserver
+          Foundation's coordinated scanning network, as confirmed by CIRCL Network
+          Telescope passive analysis. It is part of a family of scanner-range warning
+          lists in the MISP warninglists collection that collectively cover Alphastrike,
+          Bufferover, Censys, Cybergreen, Intrinsec, Rapid7, Shodan, Stretchoid, and
+          other known research scanning organisations.
+        intended_for:
+        - Marking IPs in MISP events as informational warnings when they originate
+          from authorised security research infrastructure
+        - Reducing analyst fatigue by distinguishing legitimate scanning from genuine
+          malicious activity
+        - Correlating with other MISP events and attributes to contextualise alert
+          priority
+        not_intended_for:
+        - Blocking or deny-listing — the IPs represent authorised, non-malicious scanning
+          infrastructure
+        - Inline enforcement at network perimeter devices
+        - Attribution of maliciousness — presence on this list indicates a known scanner,
+          not a threat actor
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: No redistribution restrictions are stated. CC0 1.0 places the content
+          in the public domain with no conditions.
+      current_status:
+        state: active
+        description: Actively maintained. The list received its most recent update
+          on 4 May 2026, with monthly refresh cycles observed since the list's creation
+          in December 2025. All updates are authored by Paul Jung (Thanat0s) via pull
+          requests to the misp-warninglists repository.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion specific to this list is sparse. Broader MISP
+          warninglists community engagement occurs via GitHub issues and pull requests
+          on the repository, with Gitter as the primary synchronous discussion channel.
+          The repository has accumulated 615 stars and 190 forks on GitHub (as of
+          research time in 2026). Several open issues relate to false-positive handling
+          across the warninglists collection generally, including a long-running issue
+          (opened 2018) about categorisation conflicts between legitimate platforms
+          and security vendor lists. No notable criticism directed specifically at
+          the shadowserver-nt-scanning list was found.
+      sources_consulted:
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T23:52:40Z'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-18T23:52:40Z'
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/shadowserver-nt-scanning/list.json
+        document_date: '2026-05-04'
+        validation_date: '2026-05-18T23:52:40Z'
+      - url: https://www.misp-project.org/
+        document_date:
+        validation_date: '2026-05-18T23:52:40Z'
+      - url: 
+          https://github.com/MISP/misp-warninglists/commits/main/lists/shadowserver-nt-scanning
+        document_date: '2026-05-04'
+        validation_date: '2026-05-18T23:52:40Z'
+      - url: 
+          https://d4-project.org/2025/11/27/Learning-from-Large-Scale-IPv4-blackhole-behavioral-analysis-of-SNMP-traffic.html
+        document_date: '2025-11-27'
+        validation_date: '2026-05-18T23:52:40Z'
+      - url: https://circl.lu/assets/files/honeybotclient.pdf
+        document_date:
+        validation_date: '2026-05-18T23:52:40Z'
+      - url: https://github.com/MISP/misp-warninglists/issues
+        document_date:
+        validation_date: '2026-05-18T23:52:40Z'

@@ -1,0 +1,206 @@
+sources:
+  dronebl_ddos_drones:
+    license: DroneBL community data — software BSD-style (https://dronebl.org)
+    redistributable: true
+    url: artifact://dronebl?parts=ddos_drones
+    frequency: 0
+    ipv: ipv4
+    output: netset
+    processor:
+    - $CAT_CMD
+    processor_raw: $CAT_CMD
+    category: intrusion
+    info: '[DroneBL.org](https://dronebl.org) IPs of DDoS drones. It includes IPs
+      for which DroneBL responds with 7.'
+    maintainer: DroneBL.org
+    maintainer_url: https://dronebl.org
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T03:52:27Z'
+      official_name: DroneBL
+      official_url: https://dronebl.org
+      short_description: A realtime DNS-based blacklist identifying IP addresses of
+        machines enrolled in DDoS botnets, servicable via DNSBL lookup for integration
+        into IRC daemons, mail systems, and network access controls.
+      long_description: "DroneBL is a distributed, realtime DNS-based blacklist (DNSBL)
+        service that tracks IP addresses of machines exhibiting abusive behavior.
+        The project was initiated in 2004 with the stated goal of helping to assess
+        risk on at-risk netblocks and stopping current abuse by integrating into IRC
+        server software, mail daemons, and other platforms.\n\nThe feed categorized
+        as 'ddos_drones' exposes entries classified under response code 7 — IPs identified
+        as having participated in Distributed Denial-of-Service attacks, typically
+        compromised devices recruited into botnets. DroneBL organizes its threat taxonomy
+        across twenty classification codes ranging from IRC spam drones (code 3) and
+        open proxies (codes 8–10) to autorooting worms (code 16) and abused VPN services
+        (code 19). Entries are reported through multiple channels: BOPM/HOPM IRC services
+        modules, RPC2 API submissions, and direct script-based reporting.\n\nPer the
+        maintainer's FAQ, listings represent IPs previously used for abusive activity
+        — often a predecessor's infection rather than the current holder's action.
+        Removal requests are processed manually by volunteer reviewers after petition
+        through the lookup interface. The maintainer states the service is free for
+        both commercial and non-commercial use."
+      roles:
+      - role: original_author
+        name: William Pitcock
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since: '2004'
+        notes: Primary author of the DroneBL software, per the maintainer's documentation.
+      - role: original_author
+        name: Steve Church
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since: '2004'
+        notes: Co-author of the DroneBL software, per the maintainer's documentation.
+      - role: maintainer
+        name: DroneBL Volunteer Team
+        organization_type: informal_collective
+        official_url: https://dronebl.org
+        contact_email: dronebl@tomaw.net
+        based_in:
+        active_since: '2004'
+        notes: The current maintainer team, reachable at dronebl@tomaw.net or via
+          IRC at irc.dronebl.org/#dronebl. The maintainer states the service is maintained
+          by a team of volunteers and other contributors.
+      derivation:
+        type: original
+        description: 'DroneBL is a first-party detection system. IPs enter the database
+          through three reporting channels: BOPM/HOPM IRC services modules performing
+          automated scanning, RPC2 API submissions from authorized reporters, and
+          standalone client scripts (dronebl-submit.sh, dronereport, DroneBLClient.py,
+          irssi dronelist.pl). The maintainer does not describe consuming other IP
+          feeds as inputs. The DNSBL zone dnsbl.dronebl.org distributes data in rbldnsd-compatible
+          format.'
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed under code 7 (DDoS drone) when it is identified as
+          having participated in a Distributed Denial-of-Service attack, typically
+          as a compromised node enrolled in a botnet. Reports are submitted through
+          BOPM/HOPM IRC services modules, the RPC2 API (authorized keys), or standalone
+          reporting scripts. The maintainer does not publish a minimum-detection-count
+          threshold or a specific botnet-family association requirement for this category.
+        criteria:
+        - The IP was used in a DDoS attack, identified through automated scanning
+          (BOPM/HOPM), RPC2 API reports, or direct script submissions
+        - Reports must originate from an authenticated or registered source (BOPM
+          dnsbl_from format, RPC2 key, or approved script)
+        - Private IP ranges, Tor exit nodes, and already-whitelisted addresses are
+          rejected at submission time
+      unlisting_policy:
+        summary: Manual petition through the DroneBL lookup interface. After submitting
+          a removal request from the affected IP (or an authenticated petition), volunteer
+          reviewers evaluate the request. Listings do not expire automatically — per
+          the FAQ, some IPs are cleared by periodic rechecks but not all receive rechecks.
+          If a listing persists beyond approximately one week without resolution,
+          the maintainer advises joining their IRC channel for assistance.
+        criteria:
+        - Submit the removal request from the listed IP itself, or authenticate the
+          petition through the lookup interface
+        - Volunteer reviewers evaluate the petition and act on it — no automated expiry
+          guarantees are stated
+        - If unresolved within roughly one week, the maintainer directs users to their
+          IRC channel for manual intervention
+      unlist_request:
+        url: https://dronebl.org/lookup_branded
+        email:
+        instructions: Visit the DroneBL lookup page and search for the listed IP address.
+          Submit the removal request from the affected device itself (the system populates
+          the search field with the requesting IP). After submission, volunteer reviewers
+          process the request — patience is advised. If the listing is not resolved
+          within approximately one week, join the DroneBL IRC channel at irc.dronebl.org/#dronebl
+          for manual follow-up.
+      update_frequency:
+      detection_classification:
+        primary_method: mixed
+        secondary_methods: []
+        description: Detection for code 7 (DDoS drone) draws on multiple channels.
+          Primary contributors are BOPM/HOPM IRC services modules, which perform automated
+          scanning of connecting clients for signs of proxy enrollment or botnet participation.
+          Secondary contributions come through RPC2 API submissions from authorized
+          reporters and standalone scripts. The maintainer does not describe a single
+          unified detection algorithm — the classification reflects the collective
+          output of these distributed reporting mechanisms.
+      scope_and_intent:
+        description: DroneBL targets IPs engaged in automated abusive behavior across
+          a broad threat spectrum. The ddos_drones subset isolates code 7 entries
+          — IPs identified as participants in Distributed Denial-of-Service attacks.
+        intended_for:
+        - Blocking DDoS drone IPs at IRC daemon level via BOPM/HOPM K-lines
+        - Filtering at mail relay and MTA level to reject connections from listed
+          IPs
+        - Network access control and routing decisions to drop traffic from listed
+          sources
+        - IDS and firewall integration for threat-aware packet filtering
+        not_intended_for:
+        - Permanent IP blacklisting without periodic review — listings represent past
+          abuse, not necessarily current compromise
+        - Punitive action against current IP holders who inherited a previously-abused
+          address
+      license: Free for commercial and non-commercial use (no formal license stated)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: Free for both commercial and non-commercial use, per the maintainer's
+          documentation. No redistribution restrictions are stated beyond the free-use
+          grant.
+      current_status:
+        state: active
+        description: Active and maintained as of 2026. The DroneBL service continues
+          to accept submissions and process removal requests. The copyright span on
+          the documentation reads 2004–2026, and the maintainer's lookup page, documentation,
+          and RPC2 API remain operational. The volunteer team is reachable at dronebl@tomaw.net
+          and via IRC at irc.dronebl.org/#dronebl.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public practitioner discussion of DroneBL is sparse. One Reddit
+          thread from December 2025 documented a Google Workspace dynamic IP being
+          listed, with community responses attributing this to misuse of shared cloud
+          infrastructure for bulk email rather than a DroneBL reliability failure.
+          DroneBL is not condemned in the way UCEPROTECT-level blocklists are discussed.
+          Integration tooling (BOPM, HOPM, checkdnsbl.sh) remains maintained on GitHub,
+          indicating continued operational use in IRC and network-operator environments.
+      sources_consulted:
+      - url: https://dronebl.org
+        document_date:
+        validation_date: '2026-05-19T03:52:27Z'
+      - url: https://dronebl.org/docs/what
+        document_date:
+        validation_date: '2026-05-19T03:52:27Z'
+      - url: https://dronebl.org/docs/howtouse
+        document_date:
+        validation_date: '2026-05-19T03:52:27Z'
+      - url: https://dronebl.org/docs/faq
+        document_date:
+        validation_date: '2026-05-19T03:52:27Z'
+      - url: https://dronebl.org/classes
+        document_date:
+        validation_date: '2026-05-19T03:52:27Z'
+      - url: https://dronebl.org/breakdown
+        document_date:
+        validation_date: '2026-05-19T03:52:27Z'
+      - url: https://dronebl.org/lookup_branded
+        document_date:
+        validation_date: '2026-05-19T03:52:27Z'
+      - url: https://github.com/pld-linux/bopm
+        document_date:
+        validation_date: '2026-05-19T03:52:27Z'
+      - url: https://github.com/ircd-hybrid/hopm
+        document_date:
+        validation_date: '2026-05-19T03:52:27Z'
+      - url: https://github.com/acidvegas/proxytools/blob/master/dronebl/checkdnsbl.sh
+        document_date:
+        validation_date: '2026-05-19T03:52:27Z'
+      - url: https://reddit.com/r/sysadmin/comments/1hpmzli/
+        document_date: '2025-12-28'
+        validation_date: '2026-05-19T03:52:27Z'
+      - url: https://mxtoolbox.com/problem/blacklist/drone-bl
+        document_date:
+        validation_date: '2026-05-19T03:52:27Z'

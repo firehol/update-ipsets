@@ -1,0 +1,270 @@
+sources:
+  critical_soft_microsoft365:
+    license: Microsoft API Terms of Use (no dedicated Microsoft 365 endpoint data
+      license)
+    redistributable: false
+    label: Microsoft 365 service ranges
+    url: 
+      https://endpoints.office.com/endpoints/worldwide?clientrequestid=11111111-1111-4111-8111-111111111111
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - json_path:
+        path: "$[*].ips[*]"
+    - filter_all4
+    processor_raw: json_path
+    category: provider_infrastructure
+    provenance: primary
+    info: Microsoft-published worldwide Microsoft 365 IPv4 endpoint ranges. Reference
+      feed, not a threat indicator.
+    maintainer: Microsoft
+    maintainer_url: 
+      https://learn.microsoft.com/microsoft-365/enterprise/microsoft-365-ip-web-service
+    enabled_by_all: true
+    use: [critical_infrastructure]
+    critical:
+      tier: soft
+      role: saas_productivity
+      source_type: authoritative_provider_api
+      source_quality: A
+      rationale: Microsoft 365 is email, identity, collaboration, and productivity
+        infrastructure for many organizations; overlap should be reviewed before blocking.
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T13:09:37Z'
+      official_name: Microsoft 365 IP Address and URL Web Service
+      official_url: 
+        https://learn.microsoft.com/microsoft-365/enterprise/microsoft-365-ip-web-service
+      short_description: Microsoft-published IPv4 and IPv6 address ranges for Microsoft
+        365 services (Exchange Online, SharePoint Online, Microsoft Teams, and common
+        dependencies), delivered as a REST web service with monthly updates and 30-day
+        advance notice for new entries.
+      long_description: "Microsoft publishes a REST-based web service that returns
+        all IPv4 and IPv6 address ranges and FQDNs required for Microsoft 365 connectivity.
+        The data covers four service areas: Exchange Online, SharePoint Online, Microsoft
+        Teams (formerly Skype for Business Online), and a set of common dependencies
+        shared across all workloads. Four service instances are available: Worldwide
+        (including Government Community Cloud), China operated by 21Vianet, US Government
+        DoD, and US Government GCC High. The REST API exposes three methods: a version
+        check (/version), a full endpoint list (/endpoints/{instance}), and an incremental
+        changes feed (/changes/{instance}/{version}). Responses are available in JSON,
+        CSV, and RSS formats.\n\nEach endpoint set includes an immutable ID, service
+        area, array of FQDN wildcards, array of IP ranges in CIDR notation, TCP/UDP
+        port specifications, a category designation, an ExpressRoute flag, and a required-flag.
+        The three category designations — Optimize, Allow, and Default — guide perimeter
+        firewall configuration. Optimize endpoints carry a small number of latency-critical
+        IPs that must bypass proxies, SSL inspection, and network hairpins via direct
+        Internet egress. Allow endpoints require SSL inspection bypass and proxy authentication
+        exemption but tolerate more routing flexibility. Default endpoints are dynamic
+        and can be routed through standard corporate Internet egress; notably, Default-category
+        endpoint sets do not include published IP addresses because those ranges change
+        frequently.\n\nMicrosoft updates the endpoint data at the beginning of each
+        month. New IP addresses and URLs are published to the web service 30 days
+        before they are activated, giving administrators time to update firewall rules
+        and proxy bypass lists. Mid-month updates occur for support escalations, security
+        incidents, or urgent operational requirements. The service is rate-limited;
+        clients receiving HTTP 429 should wait one hour or generate a new ClientRequestId
+        GUID. Microsoft recommends checking the version endpoint no more than once
+        per hour and caches responses for one hour.\n\nThe feed is a reference feed
+        for perimeter firewall and proxy configuration — it is not a threat indicator
+        feed. Microsoft explicitly advises against blocking these ranges; the data
+        exists to help security teams allow legitimate Microsoft 365 traffic that
+        might otherwise be caught by overly broad deny rules."
+      roles:
+      - role: maintainer
+        name: Microsoft
+        organization_type: commercial
+        official_url: https://www.microsoft.com
+        contact_email:
+        based_in: United States
+        active_since: '2018'
+        notes: Microsoft operates the REST web service at endpoints.office.com and
+          publishes the endpoint data as part of its Microsoft 365 product documentation.
+          The service replaced a prior XML download program that was retired on October
+          2, 2018. The data is tied to Microsoft 365 licensing agreements with customers.
+      derivation:
+        type: original
+        description: The feed is produced directly by Microsoft and reflects the authoritative
+          IP address allocations assigned to Microsoft 365 services. It is not derived
+          from other public IP feeds. The data originates from Microsoft's own network
+          infrastructure registrations and is published via the REST API at endpoints.office.com.
+          No external threat feeds, honeypots, sandboxes, or community reports contribute
+          to this dataset.
+        source_feeds: []
+      listing_policy:
+        summary: This is a provider infrastructure reference feed, not a threat indicator
+          feed. Microsoft publishes IP ranges and FQDNs required for Microsoft 365
+          services to function normally. Entries represent legitimate Microsoft network
+          infrastructure — they are listed because Microsoft operates services at
+          those addresses, not because they are associated with malicious activity.
+          There is no community submission or third-party reporting mechanism; Microsoft
+          unilaterally determines what is published based on its own service topology.
+        criteria:
+        - 'Microsoft-operated service endpoints: IPs and FQDNs allocated to Microsoft
+          365 workloads (Exchange Online, SharePoint Online, Microsoft Teams, and
+          common dependencies)'
+        - 'Published 30 days before activation: new entries are published in advance
+          to allow administrators time to update firewall rules'
+        - "Required vs. optional designation: each endpoint set carries a 'required'
+          flag indicating whether connectivity is mandatory for Microsoft 365 to function"
+        - 'ExpressRoute flag: endpoints that can be routed over Azure ExpressRoute
+          are marked accordingly'
+      unlisting_policy:
+        summary: As a provider infrastructure reference feed, the concept of unlisting
+          does not apply in the threat-feed sense. Microsoft removes IP ranges from
+          the published data when the underlying service topology changes — for example,
+          when a formerly used IP range is decommissioned and no longer carries Microsoft
+          365 traffic. There is no manual delisting request channel for third parties
+          because the data is not a blocklist. Administrators who believe a Microsoft
+          IP is incorrectly included should submit a support request through their
+          Microsoft 365 tenant.
+        criteria:
+        - 'Service decommissioning: IP ranges no longer carrying Microsoft 365 traffic
+          are removed from the published dataset'
+        - 'Mid-month updates: Microsoft may update the data during the month for support
+          escalations, security incidents, or operational requirements'
+        - 'No third-party delisting mechanism: the feed is not a blocklist and has
+          no community-driven removal process'
+      unlist_request:
+      update_frequency:
+        frequency: 30d
+        human_readable: Updated at the beginning of each calendar month, per the Microsoft
+          Learn documentation. New IP addresses and URLs are published 30 days before
+          activation. Mid-month updates occur for support escalations, security incidents,
+          or urgent operational requirements.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The feed classifies IP addresses and FQDNs by administrative
+          policy assignment rather than by threat detection. Microsoft assigns each
+          endpoint set a category (Optimize, Allow, or Default) that reflects the
+          connectivity requirements for that endpoint — specifically, how the endpoint
+          should be handled at the network perimeter. An 'ExpressRoute' flag indicates
+          whether the endpoint can be routed over Azure ExpressRoute. A 'required'
+          flag indicates whether connectivity to that endpoint is mandatory for Microsoft
+          365 to function. These designations are Microsoft's own network architecture
+          decisions, not verdicts about maliciousness. The feed is a reference feed
+          for perimeter firewall and proxy configuration.
+      scope_and_intent:
+        description: Microsoft publishes this data to help network administrators
+          configure perimeter security devices (firewalls, proxies, SSL inspection
+          appliances) to allow legitimate Microsoft 365 traffic. The feed is a reference
+          feed for network connectivity, not a threat indicator feed. Microsoft explicitly
+          advises that blocking these ranges may impair Microsoft 365 functionality.
+        intended_for:
+        - 'Perimeter firewall allowlisting: adding Microsoft 365 endpoint IPs and
+          FQDNs to firewall allow rules'
+        - 'Proxy bypass configuration: exempting Optimize and Allow category endpoints
+          from SSL inspection and proxy authentication'
+        - 'PAC file generation: embedding endpoint FQDNs in proxy auto-configuration
+          files deployed to client machines'
+        - 'Automated configuration: consuming the JSON or CSV feed via PowerShell
+          or Python scripts to keep network device configurations current'
+        - 'Azure Firewall integration: using Microsoft 365 service tags and FQDN tags
+          in Azure Firewall Policy rules'
+        not_intended_for:
+        - 'Threat blocking: the feed is not a blocklist and should not be used to
+          construct deny rules against Microsoft infrastructure'
+        - 'Geographic filtering: Microsoft uses AnyCast routing, and the same IP range
+          may originate from multiple countries simultaneously'
+        - 'Individual file-level access control in SharePoint or OneDrive: IP-based
+          restrictions are enforced at the site or tenant level only'
+        - 'Substituting for Conditional Access Named Locations: ISP-reported IPs in
+          Named Locations may differ from actual client IPs, especially through VPNs'
+      license: Microsoft API Terms of Use (no dedicated Microsoft 365 endpoint data
+        license)
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution, resale, and sublicensing of data obtained through Microsoft
+          APIs are prohibited by the Microsoft API Terms of Use. No dedicated open-data
+          license is stated for the Microsoft 365 endpoint data.
+      current_status:
+        state: active
+        description: Active. The Microsoft 365 IP Address and URL Web Service remains
+          in operation as of the most recent documentation update (April 30, 2026
+          per the enterprise URLs page). Microsoft publishes monthly updates and maintains
+          the REST API at endpoints.office.com. No discontinuation or migration notice
+          has been issued.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Administrators in high-security or air-gapped environments report
+          that Microsoft's official endpoint tool covers only Microsoft 365 workloads,
+          leaving Entra, Azure, Defender, Intune, Windows 365, and other Microsoft
+          services requiring separate manual aggregation across dozens of documentation
+          pages — a process described as taking hours per environment. Geo-location-based
+          filtering is documented to fail with Microsoft 365 endpoints because Microsoft
+          uses AnyCast routing, causing the same IP range to advertise from multiple
+          countries simultaneously; administrators relying on geo-databases report
+          incorrect risk scores in Entra Conditional Access and unexpected blocks.
+          When third-party threat feeds incorrectly list Microsoft-owned IPs, the
+          resulting false-positive security alerts affect entire organizations and
+          resolution timelines can extend weeks. Microsoft 365 Defender has experienced
+          documented incidents where faulty malware signatures quarantined benign
+          email attachments globally, requiring Microsoft to push emergency signature
+          corrections.
+        engagement: "Public discussion is concentrated in professional sysadmin and
+          Entra forums. Community engagement focuses on operational workarounds for
+          endpoint management complexity, false-positive blocking scenarios, and the
+          limitations of IP-based Conditional Access Named Locations when client traffic
+          traverses VPNs. Notable community pain points include: the inability to
+          bulk-import IPs into Microsoft 365 anti-spam connection filter policies
+          (each IP must be entered individually with an Enter keystroke), the failure
+          of Named Locations to correctly identify client IPs when modern-authenticating
+          Outlook clients report a different perceived IP than browser-based auth,
+          and the lack of a single Microsoft tool covering the full endpoint surface
+          across Microsoft 365, Entra, Azure, Defender, and Intune. Community solutions
+          commonly favor FQDN-based allowlisting over IP-based filtering, supplemented
+          by subscription to Microsoft's RSS changefeeds or the JSON API for automated
+          firewall synchronization."
+      sources_consulted:
+      - url: 
+          https://learn.microsoft.com/en-us/microsoft-365/enterprise/microsoft-365-ip-web-service
+        document_date: '2025-01-08'
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: 
+          https://learn.microsoft.com/en-us/microsoft-365/enterprise/urls-and-ip-address-ranges
+        document_date: '2026-04-30'
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: https://learn.microsoft.com/en-us/legal/microsoft-apis/terms-of-use
+        document_date: '2025-10-01'
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: 
+          https://techcommunity.microsoft.com/t5/office-365-blog/announcing-office-365-endpoint-categories-and-office-365-ip/ba-p/177638
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: https://learn.microsoft.com/en-us/azure/firewall/protect-office-365
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: 
+          https://www.reddit.com/r/sysadmin/comments/1akjfhf/how_to_deal_with_microsoft_365_urls_and_ip/
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: 
+          https://www.reddit.com/r/sysadmin/comments/58nzzm/apparently_one_of_microsofts_ip_addresses_got
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: 
+          https://www.reddit.com/r/sysadmin/comments/1f1o0qk/office_365_malware_false_positive_in_quarantine/
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: 
+          https://www.reddit.com/r/entra/comments/1ghga9f/conditional_access_policy_blocking_vpn_users/
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: 
+          https://www.reddit.com/r/sysadmin/comments/1jrb8wp/how_are_you_handling_knowing_which_microsoft/
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: 
+          https://www.reddit.com/r/sysadmin/comments/1niil81/365_support_for_false_positive/
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: 
+          https://raw.githubusercontent.com/MicrosoftDocs/microsoft-365-docs/public/LICENSE
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'

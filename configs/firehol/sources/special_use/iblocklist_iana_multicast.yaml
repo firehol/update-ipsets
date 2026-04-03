@@ -1,0 +1,172 @@
+sources:
+  iblocklist_iana_multicast:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=pwqnlynprfgtjbgqoizj&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: special_use
+    provenance: secondary_upstream
+    info: IANA Multicast IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    exclude_from_unmaintained: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T03:17:14Z'
+      official_name: iana-multicast
+      official_url: https://www.iblocklist.com/list?list=pwqnlynprfgtjbgqoizj
+      short_description: A curated compilation of IANA-assigned IPv4 multicast address
+        ranges (Class D), intended for filtering reserved multicast traffic in peer-to-peer
+        applications.
+      long_description: "The iana-multicast list is a curated blocklist of IPv4 multicast
+        address ranges maintained by Bluetack and distributed through iBlocklist.com.
+        It covers the IANA-managed IPv4 Class D multicast address space, compiling
+        assigned blocks including the Local Network Control Block, Source-Specific
+        Multicast Block, GLOP Block, and Organization-Local Scope, among others. Large
+        portions of this space are reserved per RFC 5771 and should not appear in
+        routable traffic on public networks.\n\nBluetack originally compiled this
+        list as part of a broader suite of P2P privacy blocklists for use with PeerGuardian,
+        PeerBlock, and similar client-side filtering tools. The list is distributed
+        in P2P (.p2p.gz) and CIDR (netset) formats. The underlying multicast address
+        designations are maintained by IANA; the Bluetack-curated feed itself does
+        not publish a stated update frequency.\n\nThe feed is served behind a human-verification
+        gate on iBlocklist.com, requiring account registration for automated downloads."
+      roles:
+      - role: original_author
+        name: Bluetack
+        organization_type: informal_collective
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Bluetack is a community-driven collective that compiled and maintained
+          the original P2P privacy blocklist suite distributed through iBlocklist.com.
+          The group produced multiple tiered blocklists including level1, level2,
+          level3, and technically-focused lists such as iana-reserved, iana-private,
+          and iana-multicast.
+      - role: publisher
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: iblocklist, LLC operates the iBlocklist.com subscription platform,
+          distributing the Bluetack blocklist suite and its own curated feeds. The
+          company also operates the PhantomPeer VPN service. The service copyright
+          reads '© 2026 iblocklist, LLC' on all pages.
+      derivation:
+        type: extraction
+        description: The feed extracts IPv4 multicast address ranges from the IANA
+          IPv4 Multicast Address Space registry. The IANA registry defines the multicast
+          address space as the IPv4 Class D range and records assigned and reserved
+          blocks therein. Bluetack curates these ranges into a downloadable blocklist
+          formatted for P2P client integration. The feed does not incorporate data
+          from other IP feeds; it derives solely from the IANA registry.
+        source_feeds: []
+      listing_policy:
+        summary: Entries correspond to IPv4 address ranges assigned or reserved within
+          the IANA IPv4 Multicast Address Space registry. The IANA registry classifies
+          each block as Assigned (in use for a specific protocol or application),
+          Reserved (set aside for future allocation), or DIS Transient (designated
+          for transitional use). Any block appearing in the IANA registry qualifies
+          for inclusion.
+        criteria:
+        - IPv4 address falls within the Class D multicast space
+        - Range is recorded in the IANA IPv4 Multicast Address Space registry as Assigned,
+          Reserved, or DIS Transient
+      unlisting_policy:
+        summary: No unlisting or decay policy is documented by Bluetack or iBlocklist.com
+          for this feed. Because the feed is derived from the IANA registry — a stable,
+          authoritative assignment table — removals would theoretically follow IANA
+          reassignments or corrections to the registry. However, neither the maintainer
+          nor the publisher publishes a specific mechanism, timeline, or contact process
+          for requesting removals from this specific list.
+        criteria: []
+      unlist_request:
+        url: https://www.iblocklist.com/support
+        email:
+        instructions: iBlocklist.com provides a generic support contact form at https://www.iblocklist.com/support
+          for user inquiries. No dedicated unlisting request pathway, email address,
+          or step-by-step instructions are published specifically for the iana-multicast
+          feed. Requests submitted through the general support form are handled at
+          the company's discretion.
+      update_frequency:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: 'The feed is built by policy assignment: entries are drawn directly
+          from the IANA IPv4 Multicast Address Space registry, an authoritative assignment
+          table maintained by the Internet Assigned Numbers Authority. Rather than
+          detecting malicious activity, the list encodes a technical policy — that
+          addresses within the Class D multicast range should not appear in routable
+          public traffic. This is a static, registry-derived blocklist, not a dynamic
+          threat-intelligence feed.'
+      scope_and_intent:
+        description: The feed is scoped to the IPv4 Class D multicast address space
+          managed by IANA. Its intended use is filtering reserved multicast addresses
+          from peer-to-peer network traffic to reduce noise and prevent misconfigured
+          or anomalous multicast-sourced connections. The feed is part of the Bluetack
+          P2P privacy blocklist suite, originally developed for PeerGuardian and PeerBlock
+          users seeking to avoid monitoring entities in file-sharing networks.
+        intended_for:
+        - Filtering reserved multicast addresses in P2P client applications
+        - Reducing multicast-sourced noise in network monitoring
+        - Preventing anomalous multicast traffic in enterprise LAN segments
+        not_intended_for:
+        - General-purpose perimeter firewall blocking (multicast addresses are not
+          routed on the public internet)
+        - Threat intelligence correlation for malicious IP activity
+        - Real-time abuse reporting or incident response
+      license: iBlocklist Terms of Service — personal / non-commercial only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The iBlocklist.com Terms of Service restrict use to personal, non-commercial
+          purposes. Downloading materials for redistribution — whether free or commercial
+          — is prohibited. Account sharing outside one's household is also restricted.
+      current_status:
+        state: active
+        description: Listed as active on iBlocklist.com (iblocklist, LLC) as of May
+          2026. The service maintains a current copyright footer ('© 2026 iblocklist,
+          LLC'), an operational website, and 41 available feeds. The iana-multicast
+          feed remains listed in the catalog. No discontinuation or migration notice
+          has been issued for this feed.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion focused on the iana-multicast feed
+          specifically is essentially nonexistent. No dedicated issue tracker, changelog,
+          or community forum for this specific feed was identified.
+      sources_consulted:
+      - url: https://www.iana.org/assignments/multicast-addresses/multicast-addresses.xhtml
+        document_date: '2026-03-10'
+        validation_date: '2026-05-19'
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://www.iblocklist.com/support
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://gist.github.com/johntyree/3331662
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://www.iblocklist.com/list.php?list=bt_level1
+        document_date:
+        validation_date: '2026-05-19'

@@ -1,0 +1,120 @@
+sources:
+  proxylists:
+    license: public feed
+    redistributable: true
+    url: http://www.proxylists.net/proxylists.xml
+    frequency: 60
+    history:
+    - 1440
+    - 10080
+    - 43200
+    ipv: ipv4
+    output: ipset
+    processor:
+    - xml_rss_proxy
+    processor_raw: parse_rss_proxy
+    category: anonymizers
+    info: '[proxylists.net](http://www.proxylists.net/) open proxies (this list is
+      composed using an RSS feed)'
+    maintainer: ProxyLists.net
+    maintainer_url: http://www.proxylists.net/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T10:54:08Z'
+      official_name: ProxyLists.Net
+      official_url: http://www.proxylists.net/
+      short_description: Aggregated open proxy list sourced from RSS feeds covering
+        multiple countries and proxy types.
+      long_description: 'ProxyLists.Net was a curated aggregator of open proxy servers,
+        collecting entries from RSS feeds contributed by various sources and organizing
+        them by country and protocol type. The feed was designed to provide privacy-enabling
+        infrastructure by surfacing publicly advertised proxy endpoints. The service
+        operated with a stated hourly refresh cycle (TTL: 60 minutes). As of the last
+        observed feed update in March 2021, the project had not issued any public
+        discontinuation notice, though the maintainer site has since been compromised
+        and the feed data has grown stale.'
+      roles:
+      - role: maintainer
+        name: ProxyLists.net
+        organization_type: unknown
+        official_url: http://www.proxylists.net/
+        contact_email: support@proxylists.net
+        based_in:
+        active_since:
+        notes: Contact address support@proxylists.net was present in the RSS feed
+          header. The maintainer's physical location or legal identity was not publicly
+          stated.
+      derivation:
+        type: aggregate_merge
+        description: Collected open proxy entries from multiple upstream RSS feeds
+          contributed by anonymous or third-party sources, aggregated by country and
+          proxy type, and republished as a single unified RSS feed.
+        source_feeds: []
+      listing_policy:
+        summary: Entries were accepted from any upstream RSS feed that submitted open
+          proxy data, with no stated filtering or vetting criteria documented.
+        criteria:
+        - Submitted via upstream RSS feed
+        - Advertised as an open proxy endpoint
+      unlisting_policy:
+        summary: No unlisting procedure was publicly documented by the maintainer.
+        criteria: []
+      unlist_request:
+      update_frequency:
+        frequency: 1h
+        human_readable: Stated refresh interval of 60 minutes (1 hour)
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: Passive aggregation of open proxy entries harvested from upstream
+          RSS feeds. Proxies were listed automatically upon appearing in submitted
+          feeds, with no active scanning or honeypot-based validation performed by
+          the project itself.
+      scope_and_intent:
+        description: ProxyLists.Net aggregated open proxy endpoints for privacy-enhancing
+          purposes, targeting users seeking to obscure their network origin.
+        intended_for:
+        - Privacy and anonymity applications
+        - Circumventing geo-restrictions via proxy relay
+        not_intended_for:
+        - Production network security (open proxies carry high risk of tampering)
+        - Any application requiring trusted or vetted infrastructure
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms:
+      current_status:
+        state: discontinued
+        description: The maintainer site at www.proxylists.net has been compromised
+          and now serves unrelated content. The RSS feed has not been updated since
+          March 12, 2021 — over five years ago. No successor feed or migration notice
+          was found. The project appears abandoned.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Free proxy list services broadly face well-documented reliability
+          challenges — entries frequently become unresponsive or are repurposed for
+          traffic interception. ProxyLists.Net specifically accumulated no notable
+          public complaint history, though this may reflect its narrow userbase rather
+          than absence of problems.
+        engagement: Public discussion of ProxyLists.Net is essentially absent. No
+          Reddit threads, security-blog writeups, or forum posts referencing the project
+          were found. The project's community footprint was minimal even during its
+          active period.
+      sources_consulted:
+      - url: http://www.proxylists.net/
+        document_date:
+        validation_date: '2026-05-16T10:54:08Z'
+      - url: http://www.proxylists.net/proxylists.xml
+        document_date: '2021-03-12'
+        validation_date: '2026-05-16T10:54:08Z'
+      - url: https://web.archive.org/web/*/http://www.proxylists.net/
+        document_date:
+        validation_date: '2026-05-16T10:54:08Z'
+      - url: https://www.reddit.com/search/?q=proxylists.net
+        document_date:
+        validation_date: '2026-05-16T10:54:08Z'

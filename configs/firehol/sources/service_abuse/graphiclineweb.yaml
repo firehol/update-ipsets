@@ -1,0 +1,164 @@
+sources:
+  graphiclineweb:
+    license: public feed
+    redistributable: true
+    url: https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - parse_graphiclineweb
+    processor_raw: parse_graphiclineweb
+    category: service_abuse
+    info: '[GraphiclineWeb](https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/)
+      The IP’s, Hosts and Domains listed in this table are banned universally from
+      accessing websites controlled by the maintainer. Some form of bad activity has
+      been seen from the addresses listed. Bad activity includes: unwanted spiders,
+      rule breakers, comment spammers, trackback spammers, spambots, hacker bots,
+      registration bots and other scripting attackers, harvesters, nuisance spiders,
+      spy bots and organizations spying on websites for commercial reasons.'
+    maintainer: GraphiclineWeb
+    maintainer_url: https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T02:38:07Z'
+      official_name: GraphiclineWeb IP Blacklist
+      official_url: https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/
+      short_description: A personal IP blocklist maintained by an individual blogger,
+        covering web-based abuse including comment spammers, scraping bots, brute-force
+        attackers, and exploit-scanning activity observed on the maintainer's own
+        websites.
+      long_description: "GraphiclineWeb is a personal IP blocklist maintained by an
+        individual website operator based in Aston Bay, Eastern Cape, South Africa.
+        The feed records IPv4 addresses, hostnames, and domains associated with abusive
+        or unwanted activity observed on the maintainer's own websites and client
+        sites.\n\nThe maintainer describes the scope as encompassing comment spammers,
+        dictionary and brute-force login attackers, PHP shell exploit attempts, Timthumb
+        exploit probes, web injection attacks, wp-admin scanners, spam harvesters,
+        faked Googlebot user agents, commercial content scrapers, and other scripted
+        or nuisance bots. Listings are added manually as the maintainer encounters
+        the activity in server logs.\n\nThe WordPress page was published in November
+        2012 and last substantively modified in January 2015. The source file carried
+        a last-modification timestamp of June 2018, after which the upstream data
+        has remained unchanged. No formal discontinuation notice has ever been issued
+        by the maintainer."
+      roles:
+      - role: maintainer
+        name: GraphiclineWeb
+        organization_type: individual
+        official_url: https://graphiclineweb.wordpress.com/
+        contact_email:
+        based_in: South Africa
+        active_since: '2012'
+        notes: An individual website operator who maintains the blocklist from observations
+          on their own websites and client sites. The maintainer writes in first person
+          on their blog and relocated their home and business to Aston Bay in the
+          Eastern Cape province of South Africa.
+      derivation:
+        type: original
+        description: The feed is built from the maintainer's own first-party observations
+          of traffic hitting their web servers and client websites. IPs are added
+          manually as the maintainer encounters abusive activity in server logs. No
+          external feeds, threat intelligence APIs, or third-party sources are involved
+          in the listing decisions.
+        source_feeds: []
+      listing_policy:
+        summary: IPs are added manually when the maintainer observes abusive or unwanted
+          activity in server logs. The trigger categories include comment spamming,
+          dictionary and brute-force login attacks, PHP shell and Timthumb exploit
+          attempts, web injection attacks, wp-admin scanning, spam harvesting, faked
+          Googlebot user agents, commercial content scraping, and other scripted nuisance
+          bot behaviour.
+        criteria:
+        - Manual identification by the maintainer from server log inspection
+        - 'Activity types include: comment spam, dictionary/brute-force login attacks,
+          PHP shell exploits, Timthumb exploits, web injection, wp-admin scanning,
+          spam harvesting, fake Googlebot user agent, commercial scraping, and other
+          scripted bots'
+      unlisting_policy:
+        summary: No automatic expiration or scheduled decay mechanism is described.
+          No manual review cycle is documented. The maintainer's published page has
+          remained substantively unchanged since January 2015, indicating no unlisting
+          requests have been processed during that period.
+        criteria:
+        - No automatic expiration or decay described
+        - No documented manual review or periodic re-evaluation process
+        - No observed list edits since the maintainer's last substantive update in
+          January 2015
+      unlist_request:
+        url: https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/
+        email:
+        instructions: No formal unlisting process is documented. The only available
+          channel is the maintainer's WordPress blog page. Visitors wishing to request
+          removal must reach out through the blog directly — no dedicated email address,
+          contact form, or automated portal is provided.
+      update_frequency:
+        frequency: 1d
+        human_readable: Daily updates were the original intent recorded by aggregators
+          tracking the feed, but the maintainer's page has not been substantively
+          updated since January 2015
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods: []
+        description: 'Listings are added manually by the maintainer upon encountering
+          abusive activity in server logs. This is a first-party manual curation model:
+          the maintainer inspects incoming traffic to their own websites and client
+          sites, identifies undesirable patterns, and adds the corresponding IPs to
+          the blocklist. No honeypots, sandboxes, sensor networks, or automated detection
+          systems are involved.'
+      scope_and_intent:
+        description: The feed is intended for operators who wish to block abusive
+          web traffic directed at their own web properties, particularly WordPress-hosted
+          sites. It covers automated abuse originating from bots and scripts rather
+          than compromised infrastructure or malware-driven attacks.
+        intended_for:
+        - Blocking abusive web crawlers and scrapers targeting individual and small-scale
+          web properties
+        - Protecting WordPress and similar CMS installations from automated exploitation
+          attempts
+        not_intended_for:
+        - Enterprise-grade threat intelligence or C2 blocking
+        - Network-layer DDoS mitigation
+        - Fraud prevention or account-takeover protection
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: No redistribution terms are stated by the direct upstream. The feed
+          is freely accessible and has been republished by third-party aggregators
+          without any documented restriction.
+      current_status:
+        state: discontinued
+        description: The maintainer's WordPress page was last substantively modified
+          in January 2015 and has received no further updates. The upstream source
+          file carried a last-modification timestamp of June 2018, after which the
+          data has remained unchanged. No formal discontinuation notice has ever been
+          issued by the maintainer, but the evidence of abandonment is unambiguous.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion of this feed is sparse. No notable third-party
+          documentation, integration writeups, or community discussions were found
+          beyond mechanical inclusion in third-party aggregator pipelines. The feed
+          has not been cited in any academic papers, security vendor publications,
+          or industry discussions. Its adoption footprint outside of aggregator pipelines
+          is not documented.
+      sources_consulted:
+      - url: https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/
+        document_date: '2015-01-30'
+        validation_date: '2026-05-19'
+      - url: https://graphiclineweb.wordpress.com/
+        document_date: '2014-06-28'
+        validation_date: '2026-05-19'
+      - url: 
+          https://web.archive.org/web/2018/https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/
+        document_date: '2018-06-07'
+        validation_date: '2026-05-19'
+      - url: 
+          https://web.archive.org/web/2026/https://graphiclineweb.wordpress.com/tech-notes/ip-blacklist/
+        document_date: '2026-03-30'
+        validation_date: '2026-05-19'

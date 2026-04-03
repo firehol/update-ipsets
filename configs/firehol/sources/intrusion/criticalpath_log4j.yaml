@@ -1,0 +1,211 @@
+sources:
+  criticalpath_log4j:
+    license: MIT License
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/CriticalPathSecurity/Public-Intelligence-Feeds/master/log4j.txt
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[CriticalPathSecurity/Public-Intelligence-Feeds](https://github.com/CriticalPathSecurity/Public-Intelligence-Feeds)
+      Log4j-related attacker IP feed.'
+    maintainer: Critical Path Security
+    maintainer_url: https://github.com/CriticalPathSecurity/Public-Intelligence-Feeds
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T17:11:42Z'
+      official_name: Log4j IP Feed
+      official_url: https://github.com/CriticalPathSecurity/Public-Intelligence-Feeds
+      short_description: IPv4 addresses observed conducting or facilitating Log4Shell
+        (CVE-2021-44228) exploitation attempts, compiled from multiple public and
+        proprietary threat intelligence sources.
+      long_description: "This feed tracks IPv4 addresses observed attempting to exploit
+        or scan for CVE-2021-44228, the critical Log4j remote code execution vulnerability
+        disclosed in December 2021 and known as Log4Shell. Critical Path Security
+        assembled this feed in response to the disclosure, working with cybersecurity
+        partners to combine public threat intelligence with their own sensor observations.\n\
+        \nThe feed aggregates IPs from nine documented public sources — including
+        Abuse.CH, AlienVault Open Threat Exchange, Binary Defense, SANS Internet Storm
+        Center, Emerging Threats, and others — along with IPs observed by Critical
+        Path Security's own Threat Intelligence Network. Entries are formatted as
+        plain text, one IPv4 address per line, with no header metadata.\n\nThe maintainer
+        removes verified false positives upon request through GitHub Issues. No automated
+        expiry or time-decay mechanism is applied; entries persist until manually
+        removed."
+      roles:
+      - role: maintainer
+        name: Critical Path Security
+        organization_type: commercial
+        official_url: https://www.criticalpathsecurity.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: A managed security services provider offering Zeek-based threat intelligence.
+          Participant of the COVID-19 CTI League; long-standing member of the Zeek
+          community. Operates the free Public-Intelligence-Feeds GitHub repository
+          alongside a commercial subscription tier (Illuminate feed).
+      derivation:
+        type: aggregate_merge
+        description: Aggregates IPv4 addresses from nine documented public threat
+          intelligence feeds and Critical Path Security's own sensor observations.
+          Sources include Abuse.CH Blacklist, Abuse.CH ThreatFox, AlienVault Open
+          Threat Exchange, Binary Defense, CobaltStrike IP feeds, Emerging Threats
+          Compromised IPs, Georgia Tech Research Institute, and SANS Internet Storm
+          Center. CPS supplements these with IPs observed by their own Threat Intelligence
+          Network. The resulting set is deduplicated and written as plain text, one
+          IP per line.
+        source_feeds:
+        - identifier: Abuse.CH Blacklist (sslbl.abuse.ch)
+          relationship: aggregate_component
+          notes:
+        - identifier: Abuse.CH ThreatFox
+          relationship: aggregate_component
+          notes:
+        - identifier: AlienVault Open Threat Exchange
+          relationship: aggregate_component
+          notes:
+        - identifier: Binary Defense Banlist
+          relationship: aggregate_component
+          notes:
+        - identifier: CobaltStrike IP feeds (ThreatView)
+          relationship: aggregate_component
+          notes:
+        - identifier: Emerging Threats Compromised IPs
+          relationship: aggregate_component
+          notes:
+        - identifier: Georgia Tech Research Institute (GTRI)
+          relationship: aggregate_component
+          notes:
+        - identifier: SANS Internet Storm Center
+          relationship: aggregate_component
+          notes:
+        - identifier: Critical Path Security Threat Intelligence Network
+          relationship: aggregate_component
+          notes:
+      listing_policy:
+        summary: IPs are listed when observed conducting or facilitating Log4Shell
+          (CVE-2021-44228) exploitation — including active exploit attempts, JNDI
+          callback infrastructure, and scanning for vulnerable endpoints. The maintainer
+          does not publish explicit confidence thresholds; inclusion is based on correlation
+          across multiple sources and CPS sensor observations. No time-based expiry
+          or automatic decay is applied.
+        criteria:
+        - Observed conducting Log4j exploitation attempts against vulnerable endpoints
+        - Hosting JNDI callback infrastructure used in Log4Shell attacks
+        - Scanning for CVE-2021-44228 vulnerable servers
+        - Present in one or more upstream public threat intelligence feeds that track
+          Log4j activity
+      unlisting_policy:
+        summary: Verified false positives are removed upon request through GitHub
+          Issues. The maintainer reviews submitted evidence (such as proof that an
+          IP belongs to a legitimate service) and closes the issue after addressing
+          it. No automated removal mechanism, time-based expiry, or published SLA
+          exists.
+        criteria:
+        - IP belongs to a verified legitimate service with no malicious activity
+        - IP is a private or reserved address (RFC 1918, RFC 5735, RFC 6598) incorrectly
+          included
+        - IP is a cloud provider or CDN address misattributed as malicious
+      unlist_request:
+        url: https://github.com/CriticalPathSecurity/Public-Intelligence-Feeds/issues/new
+        email:
+        instructions: Open a new GitHub Issue on the repository. Title it descriptively
+          (e.g., 'Legitimate IP listed in log4j.txt') and include the IP address and
+          evidence that it is non-malicious, such as proof of ownership or a letter
+          from the hosting provider confirming the service is legitimate.
+      update_frequency:
+        frequency:
+        human_readable: Updated as often as possible; the repository is actively maintained
+          with regular commits.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods:
+        - honeypot
+        description: The feed is produced by aggregating IP reputations across multiple
+          public threat intelligence sources together with IPs observed by Critical
+          Path Security's own Threat Intelligence Network during the Log4Shell response.
+          Per the maintainer, the primary input is multi-source reputation aggregation
+          — IPs that appear across the nine documented upstream feeds or are flagged
+          for Log4j-related activity by their own sensors. No single detection technique
+          is dominant; the feed is a merged output combining upstream feed inclusion
+          with first-party sensor observations.
+      scope_and_intent:
+        description: Detecting and blocking network traffic associated with active
+          Log4Shell (CVE-2021-44228) exploitation. Intended for ingestion by firewalls,
+          IDS/IPS systems, Zeek deployments, and SIEM pipelines to identify compromised
+          hosts, scanning activity, and attack infrastructure.
+        intended_for:
+        - Firewall deny-listing at network boundaries
+        - IDS/IPS signature generation
+        - Zeek Intel framework ingestion
+        - SIEM threat enrichment
+        - Identifying hosts that have been scanned or compromised via Log4j
+        not_intended_for:
+        - Precise attribution of maliciousness to individual IPs without local validation
+          — the maintainer notes recurring false positives from shared hosting infrastructure
+          and cloud providers in the GitHub Issues history
+        - Long-term blocking without periodic review — no time-decay is applied and
+          older entries may represent abandoned infrastructure
+      license: MIT License
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit Critical Path Security
+        terms: Under the MIT License, redistribution in source or binary form is permitted
+          with attribution and retention of the copyright notice. No additional restrictions
+          are imposed.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026. The repository received commits
+          through mid-May 2026, and GitHub Issues are reviewed regularly (most recently
+          December 2025). The feed is served from the canonical GitHub repository.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Historical false positive reports were filed through GitHub Issues
+          during the early weeks of the Log4Shell disclosure (December 2021), including
+          invalid IP addresses, private/reserved address ranges, and planted false
+          entries. These were addressed rapidly — most within the same day. Similar
+          isolated false positive reports continued sporadically through 2024–2025
+          involving cloud provider IPs and legitimate websites. The maintainer responded
+          and resolved each case.
+        engagement: Public community discussion of this specific feed is sparse. No
+          Reddit posts, security blog write-ups, or vendor comparisons were found
+          that discuss Critical Path Security's Log4j feed by name. One oblique reference
+          on Reddit's r/AskNetsec recommended the broader CPS Zeek feeds repository
+          as a free threat intel resource without qualitative commentary. The maintainer
+          engages primarily through GitHub Issues, where they have addressed 13 of
+          14 reported issues dating back to December 2021.
+      sources_consulted:
+      - url: https://github.com/CriticalPathSecurity/Public-Intelligence-Feeds
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16T17:00:00Z'
+      - url: 
+          https://raw.githubusercontent.com/CriticalPathSecurity/Public-Intelligence-Feeds/master/README.md
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16T17:00:00Z'
+      - url: 
+          https://raw.githubusercontent.com/CriticalPathSecurity/Public-Intelligence-Feeds/master/log4j.txt
+        document_date:
+        validation_date: '2026-05-16T17:00:00Z'
+      - url: 
+          https://www.criticalpathsecurity.com/the-log4shell-vulnerability-how-we-are-protecting-you/
+        document_date:
+        validation_date: '2026-05-16T17:00:00Z'
+      - url: https://github.com/CriticalPathSecurity/Public-Intelligence-Feeds/issues
+        document_date:
+        validation_date: '2026-05-16T17:00:00Z'
+      - url: 
+          https://www.criticalpathsecurity.com/services/managed-zeek-ids/zeek-intelligence-network/
+        document_date:
+        validation_date: '2026-05-16T17:00:00Z'
+      - url: 
+          https://www.reddit.com/r/AskNetsec/comments/wtwz7a/does_anybody_have_all_free_threat_intelligence/
+        document_date:
+        validation_date: '2026-05-16T17:00:00Z'

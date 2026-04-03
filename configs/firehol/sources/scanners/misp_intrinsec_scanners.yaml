@@ -1,0 +1,183 @@
+sources:
+  misp_intrinsec_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/intrinsec-nt-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Intrinsec
+      non-threat scanning IPs. Informational — not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T21:45:53+00:00'
+      official_name: Intrinsec IP Ranges Used for Scanning
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: A MISP warning list of IP ranges associated with Intrinsec's
+        non-threat scanning infrastructure, sourced from CIRCL Luxembourg's network
+        telescope analysis, for informational correlation only — not for blocking.
+      long_description: "Per the list.json description field, the IP ranges in this
+        list are associated with Intrinsec, a French cybersecurity company founded
+        in 1995 that conducts systematic IPv4 port-scanning of publicly accessible
+        servers as part of the security services it provides to its customers; Intrinsec's
+        own abuse page (abuse.intrinsec.com) documents the scanning programme and
+        offers an opt-out email (abuse@intrinsec.com). The list is one of several
+        CIRCL -nt-scanning warninglists that each pin a specific consulting or research-driven
+        scanner; Intrinsec is distinguished by being a longstanding French security-services
+        firm rather than a US/UK commercial scan-as-a-service vendor like Censys,
+        Shodan, or Onyphe.\n\nAs a warning list it carries no threat score or malice
+        classification — its sole purpose is to contextualize otherwise ambiguous
+        detections so that Intrinsec's research probes can be recognised rather than
+        treated as hostile."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: informal_collective
+        official_url: https://github.com/MISP
+        contact_email:
+        based_in: Luxembourg
+        active_since: '2016'
+        notes: The MISP Project develops and maintains the MISP threat intelligence
+          platform and its companion warninglists repository. The project is centered
+          at CIRCL Luxembourg.
+      - role: source_contributor
+        name: CIRCL Luxembourg
+        organization_type: government
+        official_url: https://www.circl.lu
+        contact_email:
+        based_in: Luxembourg
+        active_since:
+        notes: CIRCL (Computer Incident Response Center Luxembourg) operates the network
+          telescope from which the Intrinsec scanning ranges are identified. Paul
+          Jung (Thanat0s) at CIRCL maintains this specific list.
+      derivation:
+        type: original
+        description: The list is produced from CIRCL Luxembourg's network telescope
+          analysis. A network telescope monitors routed but unused IP address space;
+          any traffic reaching these addresses is inherently anomalous and enables
+          identification of scanning sources. Paul Jung (Thanat0s) at CIRCL reviews
+          the telescope data, identifies IP ranges associated with Intrinsec's scanning
+          activity, and formats them as a MISP warning list. No other IP feeds are
+          consumed in producing this list.
+        source_feeds: []
+      listing_policy:
+        summary: An IP range qualifies for inclusion when CIRCL's network telescope
+          analysis identifies it as address space from which Intrinsec conducts its
+          internet scanning activity. There is no public scoring threshold or minimum
+          detection count stated — inclusion is driven by analyst determination from
+          telescope data rather than a quantitative rule.
+        criteria:
+        - Identified in CIRCL Luxembourg's network telescope as originating Intrinsec
+          scanning traffic
+        - Associated with Intrinsec's documented scanning methodology (systematic
+          IPv4 port scanning of publicly accessible servers)
+      unlisting_policy:
+        summary: No explicit unlisting policy is documented for this specific list.
+          Updates occur through periodic CIRCL network telescope refresh analyses,
+          which implicitly replace outdated ranges with current ones. There is no
+          stated automatic expiry window.
+        criteria:
+        - Periodic CIRCL network telescope refresh analysis supersedes previously
+          listed ranges
+        - No manual delisting request channel is publicly documented for this list
+      unlist_request:
+        url:
+        email:
+        instructions: No dedicated unlisting request channel is documented for this
+          specific list. For concerns about Intrinsec's scanning ranges appearing
+          in MISP events, operators may submit a pull request to the MISP/misp-warninglists
+          repository following the standard contribution process, or contact CIRCL
+          Luxembourg directly. Intrinsec also publishes an opt-out contact at abuse@intrinsec.com
+          for network administrators wishing to exclude their IP ranges from scanning
+          activity.
+      update_frequency:
+        frequency:
+        human_readable: Updates occur on an irregular schedule driven by CIRCL network
+          telescope refresh analyses. Based on commit history, updates have occurred
+          approximately monthly to bi-monthly, with the most recent in April 2026
+          and the preceding in March 2026.
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: The list is built from CIRCL Luxembourg's network telescope —
+          a darknet that monitors routed but unused IP address space. Because no legitimate
+          services run on these addresses, any inbound traffic reaching them is inherently
+          anomalous. Traffic observed at the telescope originating from Intrinsec's
+          scanning infrastructure identifies the associated IP ranges. This is passive
+          observation, not active probing.
+      scope_and_intent:
+        description: The list identifies IP address space associated with Intrinsec's
+          legitimate, non-threatening internet scanning activity. It is part of the
+          MISP warninglists framework, which is designed to reduce false positive
+          noise in threat intelligence analysis by contextualizing well-known benign
+          sources.
+        intended_for:
+        - Correlating MISP events where an IP is detected against a known legitimate
+          scanning source
+        - Reducing false positive rates in automated threat intelligence pipelines
+        - Analyst awareness when reviewing events containing Intrinsec-associated
+          IPs
+        not_intended_for:
+        - Inline blocking or denial of network traffic
+        - Automated enforcement actions triggered solely by presence in this list
+        - Threat classification — the list carries no malice scoring
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 carries no conditions — the work is dedicated to the public
+          domain. No attribution is legally required, though crediting the MISP Project
+          and CIRCL Luxembourg is customary practice in the threat intelligence community.
+      current_status:
+        state: active
+        description: Active. The list is maintained with regular updates driven by
+          CIRCL network telescope refresh analyses. The most recent update was committed
+          on April 9, 2026 by Paul Jung (Thanat0s) at CIRCL.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion specifically about the intrinsec-nt-scanning
+          list is sparse. The MISP warninglists project as a whole is broadly integrated
+          across the threat intelligence ecosystem — adopted by MISP instances worldwide,
+          consumed by SIEM and SOAR platforms, and referenced in security operations
+          workflows. The list itself is a niche component within that framework, focused
+          on a single scanning operator. One pull request (#330, March 2026) by the
+          maintainer updated the list, confirming active maintenance. No separate
+          issue tracker, forum, or mailing list discussion was found dedicated to
+          this specific list.
+      sources_consulted:
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/intrinsec-nt-scanning/list.json
+        document_date: '2026-04-09'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: 
+          https://api.github.com/repos/MISP/misp-warninglists/commits?path=lists/intrinsec-nt-scanning&per_page=10
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.circl.lu
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://abuse.intrinsec.com/
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/pull/330
+        document_date: '2026-03-13'
+        validation_date: '2026-05-18T00:00:00+00:00'

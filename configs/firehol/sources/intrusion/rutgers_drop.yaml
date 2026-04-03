@@ -1,0 +1,173 @@
+sources:
+  rutgers_drop:
+    license: public feed
+    redistributable: true
+    url: https://report.cs.rutgers.edu/DROP/attackers
+    frequency: 5
+    history:
+    - 1440
+    - 10080
+    - 43200
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[Rutgers CS DROP list](https://report.cs.rutgers.edu/DROP/) attackers observed
+      by the Rutgers University Computer Science department honeypot sensor network.
+      The list is rewritten every few minutes from live sensor telemetry.'
+    maintainer: Rutgers University Computer Science
+    maintainer_url: https://report.cs.rutgers.edu/DROP/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T22:41:41Z'
+      official_name: Rutgers CS DROP
+      official_url: https://report.cs.rutgers.edu/DROP/
+      short_description: IPv4 addresses observed attacking Rutgers University Computer
+        Science department servers, aggregated from the department's own honeypot
+        sensor network and third-party threat feeds.
+      long_description: "The Rutgers CS DROP feed publishes IPv4 addresses observed
+        attacking servers in the Rutgers University Computer Science department, maintained
+        by the Laboratory for Computer Science Research (LCSR). The feed draws from
+        two distinct detection channels: the department's own honeypot sensor network
+        deployed across teaching servers, research workstations, and development machines
+        in the CS lab environment, and third-party threat feeds including badips.com
+        and blocklist.de. The resulting attacker IP list is regenerated every five
+        minutes from live sensor telemetry and published as a plain-text file with
+        one IP per line.\n\nGeographic attribution in the supplementary attackcountries
+        file uses IP2Location LITE data. The MRTG statistics dashboard confirms the
+        feed also powers a central firewall protecting all LCSR machines and services
+        — the feed thus serves both internal defensive operations and community sharing.\n\
+        \nThe system does not publish a written methodology document, README, or policy
+        page. No formal unlisting procedure is stated, and no contact address for
+        IP removal requests is published on the site."
+      roles:
+      - role: maintainer
+        name: Rutgers Laboratory for Computer Science Research (LCSR)
+        organization_type: research_institution
+        official_url: https://www.cs.rutgers.edu/
+        contact_email:
+        based_in: New Jersey, USA
+        active_since:
+        notes: The LCSR group operates the honeypot sensor network across CS department
+          teaching, research, and development machines, and publishes the DROP feed
+          for community use alongside internal defensive operations.
+      derivation:
+        type: aggregate_merge
+        description: 'The feed aggregates from two detection channels: the Rutgers
+          LCSR honeypot sensor network (deployed across CS department lab machines,
+          detecting direct attack traffic targeting those servers) and third-party
+          threat feeds (badips.com and blocklist.de). Detections are tallied per IP,
+          and the consolidated list is rebuilt every five minutes from live sensor
+          telemetry. Geolocation data in the supplementary attackcountries file is
+          derived from IP2Location LITE.'
+        source_feeds:
+        - identifier: badips.com
+          relationship: aggregate_component
+          notes: Contributes attacker IPs from the badips.com community feed, tagged
+            as 'known attacker' in downstream integrations.
+        - identifier: blocklist.de
+          relationship: aggregate_component
+          notes: Contributes attacker IPs from the blocklist.de all-reporters feed,
+            tagged as 'known attacker' in downstream integrations.
+      listing_policy:
+        summary: An IP qualifies for the feed when it has been observed generating
+          sufficient attack activity against Rutgers CS department servers. The threshold
+          is enforced at 300 observed attacks per IP — IPs with fewer than 300 detected
+          attacks are excluded from the geographic summary view. Entries are added
+          continuously as attacks accumulate and removed when the count decays below
+          the threshold.
+        criteria:
+        - Observed generating attack traffic targeting Rutgers CS department honeypot
+          sensor servers
+        - Reaching or exceeding 300 detected attacks (IPs below this threshold are
+          excluded from the geographic summary)
+      unlisting_policy:
+        summary: No formal unlisting policy or procedure is published on the site.
+          The feed operates on automatic decay — IPs are dropped when their attack
+          count falls below the 300-attack threshold, and the list is rebuilt every
+          five minutes from live telemetry.
+        criteria:
+        - 'Automatic decay: attack count drops below 300 observed attacks'
+        - Continuous rebuild every five minutes removes IPs no longer meeting the
+          threshold
+      unlist_request:
+      update_frequency:
+        frequency: 5m
+        human_readable: Regenerated every 5 minutes from live sensor telemetry, per
+          the maintainer's synchronization script.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods:
+        - reputation_aggregation
+        description: The feed is built primarily from the Rutgers LCSR honeypot sensor
+          network — a collection of decoy servers deployed across CS department teaching,
+          research, and development machines that log incoming attack connections.
+          Secondary contributions come from third-party reputation feeds (badips.com
+          and blocklist.de). Each IP in the honeypot channel accumulates an attack
+          count; IPs reaching 300 observed attacks qualify for the main list.
+      scope_and_intent:
+        description: The feed is intended for blocking attacker IP addresses observed
+          targeting Rutgers CS department servers. The MRTG statistics page confirms
+          the feed also powers a central firewall protecting all LCSR machines and
+          services.
+        intended_for:
+        - Inline firewall blocking of observed attacker IPv4 addresses
+        - Network intrusion detection enrichment
+        not_intended_for: []
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms:
+      current_status:
+        state: active
+        description: Active. The feed is maintained and updated regularly — the Apache
+          directory listing shows files last modified on 2026-05-16, and the MRTG
+          statistics page shows live attack telemetry as of 2026-05-17. The central
+          firewall implementation was announced in June 2023.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: The feed is integrated into Maltrail (official sensor module,
+          trails/feeds/rutgers.py) and the xsec-ip-database Go library (FetchFromRutgers
+          function). No public issue tracker, discussion forum, or bug-report channel
+          is maintained by the project. Community discussion on Reddit, security forums,
+          and developer communities is sparse — no notable threads were found during
+          research.
+      sources_consulted:
+      - url: https://report.cs.rutgers.edu/DROP/
+        document_date: '2026-05-16'
+        validation_date: '2026-05-17T22:30:00Z'
+      - url: https://report.cs.rutgers.edu/DROP/attackers
+        document_date:
+        validation_date: '2026-05-17T22:30:00Z'
+      - url: https://report.cs.rutgers.edu/DROP/attackipcounts
+        document_date:
+        validation_date: '2026-05-17T22:30:00Z'
+      - url: https://report.cs.rutgers.edu/DROP/machinescount
+        document_date: '2026-05-17'
+        validation_date: '2026-05-17T22:30:00Z'
+      - url: https://report.cs.rutgers.edu/DROP/cacheIt
+        document_date:
+        validation_date: '2026-05-17T22:30:00Z'
+      - url: https://report.cs.rutgers.edu/DROP/attackcountries
+        document_date: '2026-05-17'
+        validation_date: '2026-05-17T22:30:00Z'
+      - url: https://report.cs.rutgers.edu/mrtg/drop/dropstat.cgi
+        document_date: '2026-05-17'
+        validation_date: '2026-05-17T22:30:00Z'
+      - url: https://github.com/stamparm/maltrail/blob/master/trails/feeds/rutgers.py
+        document_date:
+        validation_date: '2026-05-17T22:30:00Z'
+      - url: https://github.com/stamparm/maltrail/blob/master/trails/feeds/badips.py
+        document_date:
+        validation_date: '2026-05-17T22:30:00Z'
+      - url: https://github.com/stamparm/maltrail/blob/master/trails/feeds/blocklist.py
+        document_date:
+        validation_date: '2026-05-17T22:30:00Z'

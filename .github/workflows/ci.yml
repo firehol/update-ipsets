@@ -1,0 +1,135 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '25'
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Prepare embedded UI
+        run: make ui-static
+
+      - name: Build
+        run: make build
+
+      - name: Test
+        run: make test
+
+      - name: Test UI
+        run: make ui-test
+
+      - name: Install UI browser test runtime
+        run: pnpm --dir ui exec playwright install --with-deps chromium
+
+      - name: Browser smoke UI
+        run: make ui-e2e
+
+      - name: Lint UI
+        run: pnpm --dir ui lint
+
+      - name: Build UI
+        run: pnpm --dir ui build
+
+      - name: Check UI bundle budget
+        run: pnpm --dir ui bundle-budget
+
+      - name: Test nested tools
+        run: make test-tools
+
+      - name: Race detector
+        run: make race
+
+      - name: Strict shuffled tests
+        run: make test-strict
+
+      - name: Fuzz seed replay
+        run: make fuzz-replay
+
+      - name: Vet
+        run: make lint
+
+      - name: Govulncheck
+        run: make vulncheck
+
+      - name: Staticcheck
+        run: make staticcheck
+
+      - name: golangci-lint
+        run: make golangci-lint
+
+      - name: Cross-compile
+        run: make cross
+
+      - name: Verify static binaries
+        run: |
+          file update-ipsets-linux-amd64 | grep -q "statically linked"
+          file update-ipsets-linux-arm64 | grep -q "statically linked"
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '25'
+
+      - name: Enable pnpm
+        run: corepack enable
+
+      - name: Prepare embedded UI
+        run: make ui-static
+
+      - name: Run tests with coverage
+        run: make coverage
+
+      - name: Check coverage threshold
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
+          echo "Coverage: ${COVERAGE}%"
+          if (( $(echo "$COVERAGE < 50" | bc -l) )); then
+            echo "Coverage below 50% threshold"
+            exit 1
+          fi
+
+      - name: Run nested tool tests with coverage
+        run: make coverage-tools
+
+      - name: Check nested tool coverage threshold
+        run: |
+          COVERAGE=$(cd tools/dronebl2ipsets && go tool cover -func=coverage.out | grep total | awk '{print $3}' | tr -d '%')
+          echo "Nested tool coverage: ${COVERAGE}%"
+          if (( $(echo "$COVERAGE < 50" | bc -l) )); then
+            echo "Nested tool coverage below 50% threshold"
+            exit 1
+          fi

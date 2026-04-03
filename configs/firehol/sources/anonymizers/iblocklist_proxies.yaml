@@ -1,0 +1,206 @@
+sources:
+  iblocklist_proxies:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=xoebmbyexwuiogmbyprb&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist_proxy
+    processor_raw: p2p_gz_proxy
+    category: anonymizers
+    provenance: secondary_upstream
+    info: Open Proxies IPs list (without TOR)
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T16:39:46+00:00'
+      official_name: I-Blocklist
+      official_url: https://www.iblocklist.com/
+      short_description: A subscription-based IP blocklist aggregating open proxy
+        and anonymizer entries from third-party authors, formatted for PeerBlock,
+        PeerGuardian, and compatible firewall tools.
+      long_description: "I-Blocklist is a subscription-based IP blocklist distribution
+        service operated by iblocklist, LLC. The service aggregates and redistributes
+        IP blocklists authored by third-party contributors — including Bluetack, Squidblacklist,
+        Spamhaus, and several smaller projects — in standard formats compatible with
+        PeerBlock, PeerGuardian, pfBlockerNG, and other firewall tools.\n\nThe proxy
+        feed specifically collects Tor exit node IPs and other open proxy server addresses
+        contributed by the Bluetack author. The Bluetack project originally compiled
+        blocklists for BitTorrent-focused privacy applications and later transitioned
+        to I-Blocklist for continued distribution. I-Blocklist does not operate its
+        own detection infrastructure; it repackages and serves feeds authored by others.\n\
+        \nAccess requires a paid annual subscription. The Terms of Service grant permission
+        for personal use only and expressly prohibit commercial use, public display,
+        account sharing outside a household, and use for hacking, denial-of-service,
+        or spam activities. The license terminates automatically upon violation."
+      roles:
+      - role: maintainer
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Operates the I-Blocklist distribution platform and manages the subscription
+          service. Does not author the proxy list itself — that is produced by Bluetack.
+          Community criticism of the broader iBlocklist service (billing practices,
+          support responsiveness, freshness of redistributed feeds in general) applies
+          at the platform level rather than to this specific proxy feed.
+      - role: source_contributor
+        name: Bluetack
+        organization_type: informal_collective
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: The original author of the proxy blocklist. The Bluetack project (bluetack.co.uk)
+          is no longer independently maintained; the list is now distributed exclusively
+          through I-Blocklist. Community reports indicate the Bluetack lists have
+          not been actively updated for years.
+      derivation:
+        type: aggregate_merge
+        description: I-Blocklist aggregates IP blocklists from multiple third-party
+          authors and redistributes them in standardized formats. The proxy feed draws
+          from the Bluetack 'proxy' list (covering Tor exit nodes and open proxies)
+          and optionally the Squidblacklist 'proxies' list. I-Blocklist does not operate
+          its own detection infrastructure — it repackages feeds authored by others.
+          The service offers lists in P2P, DAT, CIDR, and hosts file formats, compressed
+          with gzip, zip, or 7-zip archives. The specific detection methodology used
+          by the upstream authors to identify proxy IPs is not documented on I-Blocklist's
+          site.
+        source_feeds:
+        - identifier: Bluetack proxy
+          relationship: aggregate_component
+          notes: "Primary source for the proxy feed. Author description: 'Contains
+            Tor and other open proxies.' Community reports indicate this list has
+            not been actively updated for years."
+        - identifier: Squidblacklist proxies
+          relationship: aggregate_component
+          notes: "Secondary proxy source. Author description: 'Http proxies users
+            may attempt to use to bypass your filters.' Community reports note Squidblacklist
+            distributions on I-Blocklist are older and truncated compared to the upstream
+            at squidblacklist.org."
+      listing_policy:
+        summary: I-Blocklist does not document a listing policy for the proxy feed.
+          Entries originate with the upstream authors (Bluetack, Squidblacklist),
+          and I-Blocklist does not describe how those authors add or vet IPs. The
+          Bluetack proxy list author description states only that the list 'contains
+          Tor and other open proxies,' with no further methodology published.
+        criteria: []
+      unlisting_policy:
+        summary: I-Blocklist does not publish an unlisting or removal request procedure.
+          The support page contains no removal form, contact address, or instructions
+          for IP owners. Each upstream author manages their own list independently,
+          and no removal process is documented for any of the feeds.
+        criteria: []
+      unlist_request:
+      update_frequency:
+      detection_classification:
+        primary_method: unknown
+        secondary_methods: []
+        description: I-Blocklist does not document the detection methodology used
+          to populate the proxy feed. The upstream author (Bluetack) likewise does
+          not publish its specific detection process on I-Blocklist's site. General
+          industry practices for identifying open proxy servers documented in academic
+          literature include port scanning to verify reported proxies are listening,
+          analysis of HTTP forwarding headers (X-Forwarded-For, Via) to classify anonymity
+          levels, querying public proxy aggregation lists, and correlation with DNS
+          and geo-IP data. It is not known which of these techniques Bluetack employed.
+      scope_and_intent:
+        description: The proxy feed is intended to block anonymizer traffic — specifically
+          Tor exit nodes and open proxy servers — for privacy-conscious users of PeerBlock,
+          PeerGuardian, and compatible firewall applications.
+        intended_for:
+        - Personal privacy and anonymity enforcement when torrenting or engaging in
+          other activities where IP exposure is a concern
+        - Desktop-level IP blocking via PeerBlock or PeerGuardian on Windows and macOS
+        - Network-level blocking via pfBlockerNG and similar firewall packages
+        not_intended_for:
+        - Commercial use or public display of the data
+        - Enterprise perimeter security or threat intelligence workflows
+        - Automated ingestion pipelines requiring machine-readable licensing
+        - Blocking hacking, denial-of-service, or spam activity (expressly prohibited
+          by TOS)
+      license: Personal use only, non-commercial — I-Blocklist Terms of Service
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The Terms of Service grant a personal-use license only. Redistribution,
+          commercial use, and public display are expressly prohibited. Account sharing
+          outside a household is also prohibited. The license terminates automatically
+          upon any violation.
+      current_status:
+        state: active
+        description: The I-Blocklist website is reachable and the subscription service
+          is accepting sign-ups. The lists directory page shows a copyright date of
+          2026, indicating ongoing maintenance of the site itself. However, community
+          reports since 2016 allege that the underlying Bluetack lists have not been
+          actively updated for years, and that I-Blocklist has distributed stale versions
+          of upstream feeds while updating file timestamps to give the appearance
+          of currency.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "Feed-specific community reports describe false-positive incidents
+          tied to this proxy list: users on PeerBlock and pfBlockerNG forums have
+          reported that legitimate services — including FedEx tracking portals, Battle.net
+          gaming infrastructure, and Amazon services — were blocked by the proxy/Tor
+          entries. A subscriber report from Germany documented receiving a copyright-enforcement
+          (Hadopi) warning letter while using this proxy list as anti-monitoring protection,
+          raising questions about the feed's effectiveness for its stated anti-surveillance
+          purpose. Community members also note that the Squidblacklist proxy data
+          distributed by I-Blocklist appears significantly older and shorter than
+          the version still served by squidblacklist.org."
+        engagement: Public discussion of this specific proxy feed appears in PeerBlock,
+          PeerGuardian, and pfBlockerNG operator forums, where users compare it against
+          alternative anti-surveillance lists. Discussion is intermittent rather than
+          sustained, and frequent recommendation in those threads is to source proxy
+          data directly from upstream maintainers (Tor Project relay descriptors,
+          squidblacklist.org) rather than through this redistribution.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: https://www.iblocklist.com/lists
+        document_date: '2026'
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: https://www.iblocklist.com/list?list=xoebmbyexwuiogmbyprb
+        document_date:
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: https://www.iblocklist.com/support
+        document_date:
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date: '2016-08-17'
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: 
+          https://www.reddit.com/r/PFSENSE/comments/4k2ncg/pfblockerng_dnsbl_iblocklist_issues/
+        document_date: '2016-05-19'
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: 
+          https://www.reddit.com/r/pfBlockerNG/comments/x99o81/bogon_filtering_how_should_this_be_done/
+        document_date: '2022-09-08'
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: 
+          https://www.reddit.com/r/starcraft/comments/ioekg/ask_starcreddit_how_do_you_run_peerblockutorrent/
+        document_date: '2011-06-29'
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: https://www.reddit.com/r/germany/comments/dq2vdm/i_did_an_big_big_nono/
+        document_date: '2019-11-01'
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: https://www.giac.org/paper/gsec/6541/tracking-malware-public-proxy-lists/112078
+        document_date:
+        validation_date: '2026-05-17T00:00:00+00:00'

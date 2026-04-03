@@ -1,0 +1,198 @@
+sources:
+  blocklist_de:
+    license: public feed
+    redistributable: true
+    url: http://lists.blocklist.de/lists/all.txt
+    frequency: 15
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[Blocklist.de](https://www.blocklist.de/) IPs that have been detected by
+      fail2ban in the last 48 hours'
+    maintainer: Blocklist.de
+    maintainer_url: https://www.blocklist.de/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-15T20:57:17Z'
+      official_name: blocklist.de
+      official_url: https://www.blocklist.de/
+      short_description: A free abuse-reporting service that aggregates attack detections
+        from fail2ban and DenyHosts installations worldwide, resolves the responsible
+        ISP abuse contact, and forwards a formatted abuse report — helping operators
+        get malicious hosts shut down at the source.
+      long_description: "blocklist.de collects attack reports submitted via fail2ban,
+        DenyHosts, or direct email in X-ARF (Extended Abuse Reporting Format). For
+        each attacking IP, the service resolves the abuse contact using WHOIS records,
+        the RIPE-Abuse-Finder, and the abusix.com contact database, then forwards
+        a formatted abuse report to the ISP's abuse department so they can notify
+        their customer or take action.\n\nOperators can register a free account to
+        submit reports from their own servers, create per-server whitelists, and pause
+        reports for up to seven days while remediating an incident. Registered reporters
+        contribute to a shared feed: IPs that attacked any of the service's ~2,710
+        registered servers within the last 48 hours appear in the export lists unless
+        already delisted. The service excludes IPs listed on dnswl.org and spamhauswhitelist.org,
+        and excludes known Tor exit nodes, to reduce false positives.\n\nThe service
+        covers a wide range of attack types: SSH, postfix/exim/mail, FTP, IMAP/POP3,
+        SASL, Apache (RFI, SQL injection, DDoS), VoIP/SIP, IRC bots, reg bots, and
+        WordPress/Joomla brute-force logins. An official fail2ban action configuration
+        is maintained in the fail2ban project, enabling seamless integration. blocklist.de
+        does not block connections directly — downstream operators configure their
+        MTA, firewall, or IDS to act on the feed."
+      roles:
+      - role: maintainer
+        name: Martin Schiftan
+        organization_type: individual
+        official_url: https://www.blocklist.de/
+        contact_email: webmaster@blocklist.de
+        based_in:
+        active_since: '2007'
+        notes: Operates blocklist.de as a freelance fraud and abuse specialist. Copyright
+          held personally; no corporate entity identified.
+      derivation:
+        type: original
+        description: "blocklist.de is an original feed: IPs enter the export lists
+          when they attack any of the service's registered fail2ban/DenyHosts reporters,
+          and expire after 48 hours unless the attack is repeated. The service enriches
+          each IP with resolved abuse contacts before forwarding reports."
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when it targets any of blocklist.de's registered
+          fail2ban or DenyHosts reporters and triggers a filter match. Supported attack
+          types span SSH, mail (postfix/exim/smtp), FTP, IMAP/POP3, SASL, Apache (RFI,
+          SQL injection, DDoS, bad bots), VoIP/SIP, IRC bots, reg bots, and web application
+          brute-force logins. IPs are automatically excluded if they appear on dnswl.org
+          or spamhauswhitelist.org, or if they are known Tor exit nodes.
+        criteria:
+        - IP must have attacked a registered blocklist.de reporter (fail2ban or DenyHosts
+          installation) and matched a filter
+        - Attack must fall within a supported attack type (SSH, mail, FTP, IMAP/POP3,
+          SASL, Apache variants, SIP/VoIP, IRC bots, reg bots, web brute force, etc.)
+        - IP is not on dnswl.org or spamhauswhitelist.org allowlists
+        - IP is not a known Tor exit node
+      unlisting_policy:
+        summary: IPs expire naturally after 48 hours from the last observed attack.
+          Registered users can also request immediate delisting via the web interface
+          or by emailing the service.
+        criteria:
+        - Automatic expiry after 48 hours with no repeat attack
+        - Manual delist request via the web interface (delist link) or by email to
+          webmaster@blocklist.de
+        - Users can pause reports for a specific IP for 7 days while remediating
+      unlist_request:
+        url:
+        email: webmaster@blocklist.de
+        instructions: Send an email to webmaster@blocklist.de requesting removal of
+          the IP address, or use the delist link referenced in the export lists. Registered
+          users can also pause reports for up to 7 days via the web interface while
+          remediating.
+      update_frequency:
+        frequency: 30m
+        human_readable: Export lists regenerated every 30 minutes; IPs that attacked
+          within the last 48 hours are continuously eligible for inclusion until they
+          expire
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods:
+        - honeypot
+        description: "blocklist.de operates as a coordinated sensor network: IPs are
+          submitted by the service's registered reporters (fail2ban and DenyHosts
+          installations) when those sensors detect an attack. The service acts as
+          a central collection and relay hub rather than running its own honeypots,
+          though the distributed fail2ban sensors function similarly to honeypots
+          in that they observe hostile traffic directed at real services. No active
+          scanning or commercial threat-intel feeds are used as sources."
+      scope_and_intent:
+        description: blocklist.de is designed to improve internet security by ensuring
+          that attacking hosts are reported to their ISPs for remediation. It is not
+          a spam-focused service.
+        intended_for:
+        - Blocking or alerting on inbound connections from known attackers at the
+          network perimeter
+        - Automated abuse reporting to ISP abuse departments via X-ARF format
+        - Enriching fail2ban with external reputation data
+        - Correlating attack activity across multiple reporters
+        not_intended_for:
+        - Email spam filtering (the service explicitly excludes spam from its scope)
+        - Guaranteed blocking without local review (high-volume feed requires rate
+          limiting at the consumer side)
+      license: public feed
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: The direct upstream is publicly downloadable with no stated restrictions.
+          No license grants or denies redistribution. Operators redistributing the
+          data do so at their own discretion given the absence of stated terms.
+      current_status:
+        state: active
+        description: Maintained. The service continues to accept registrations, process
+          reports, and serve export lists. The site copyright notice extends into
+          the current operational period.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: One isolated reliability complaint was filed on Reddit in June
+          2022, describing the feed as 'extremely flakey,' with no responses recorded
+          and no follow-up found. No other substantive complaints about false positives,
+          data quality, or service availability were identified across multiple years
+          of community discussion.
+        engagement: Public discussion is sparse. blocklist.de appears primarily in
+          operational integration posts (Synology, OPNsense, pfBlockerNG, Python scripting)
+          rather than in review or debate threads. The strongest community signal
+          is a 2019 Reddit post with 187 upvotes confirming the service correctly
+          detected a botnet infection and triggered an ISP notification — the most
+          credible real-world validation found. The service is routinely co-listed
+          alongside Spamhaus DROP and AbuseIPDB in firewall configurations, suggesting
+          practitioner acceptance without controversy.
+      sources_consulted:
+      - url: https://www.blocklist.de/
+        document_date:
+        validation_date: '2026-05-15T20:00:00Z'
+      - url: http://lists.blocklist.de/lists/all.txt
+        document_date:
+        validation_date: '2026-05-15T20:00:00Z'
+      - url: https://www.blocklist.de/en/faq.html
+        document_date:
+        validation_date: '2026-05-15T20:00:00Z'
+      - url: https://www.blocklist.de/en/terms.html
+        document_date:
+        validation_date: '2026-05-15T20:00:00Z'
+      - url: https://www.blocklist.de/en/license.html
+        document_date:
+        validation_date: '2026-05-15T20:00:00Z'
+      - url: https://www.blocklist.de/en/api.html
+        document_date:
+        validation_date: '2026-05-15T20:00:00Z'
+      - url: 
+          https://github.com/fail2ban/fail2ban/blob/master/config/action.d/blocklist_de.conf
+        document_date:
+        validation_date: '2026-05-15T20:00:00Z'
+      - url: https://www.reddit.com/r/pihole/comments/csegav/
+        document_date: '2019-08-19'
+        validation_date: '2026-05-15T20:00:00Z'
+      - url: https://www.reddit.com/r/pfBlockerNG/comments/v679p4/feed_issue_blocklistde/
+        document_date: '2022-06-06'
+        validation_date: '2026-05-15T20:00:00Z'
+      - url: https://www.reddit.com/r/selfhosted/comments/1pbijys/
+        document_date: '2024-12-01'
+        validation_date: '2026-05-15T20:00:00Z'
+      - url: https://www.reddit.com/r/synology/comments/1px9fqs/
+        document_date: '2024-10-28'
+        validation_date: '2026-05-15T20:00:00Z'
+      - url: https://www.reddit.com/r/opnsense/comments/13hfl9v/
+        document_date: '2023-05-14'
+        validation_date: '2026-05-15T20:00:00Z'
+      - url: https://www.reddit.com/r/sysadmin/comments/zv5cx/
+        document_date: '2012-09-14'
+        validation_date: '2026-05-15T20:00:00Z'
+      - url: https://www.blocklist.de/en/lists.html
+        document_date:
+        validation_date: '2026-05-15T20:00:00Z'
+      - url: https://www.blocklist.de/en/download.html
+        document_date:
+        validation_date: '2026-05-15T20:00:00Z'

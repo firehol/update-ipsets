@@ -1,0 +1,170 @@
+sources:
+  misp_zscaler:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/zscaler/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Zscaler
+      hub IP ranges (https://config.zscaler.com/). Cloud-proxy infrastructure, not
+      for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T18:36:28Z'
+      official_name: List of known Zscaler IP address ranges
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: Zscaler cloud-proxy egress IP address ranges, sourced from
+        Zscaler's public API, for marking known-good proxy traffic as non-malicious
+        in threat intelligence workflows.
+      long_description: "The zscaler warninglist publishes the IP address ranges allocated
+        to Zscaler cloud-proxy infrastructure. Zscaler operates a fleet of cloud-based
+        secure web gateway (SWG) and CASB nodes that proxy outbound internet traffic
+        for enterprise customers. Because Zscaler terminates connections on behalf
+        of its customers, the source IP visible to external services is a Zscaler
+        egress IP rather than the customer's own IP — these egress IPs therefore appear
+        frequently in threat intelligence feeds and IOC blocklists, not because the
+        traffic is malicious but because Zscaler is carrying it.\n\nThe list is generated
+        by an automated script (tools/generate-zscaler.py) that downloads Zscaler's
+        hub prefix list from its public JSON API endpoint (config.zscaler.com/api/zscaler.net/hubs/cidr/json/recommended)
+        and consolidates overlapping networks into CIDR ranges. PR #312 (November
+        2025) switched the source from Zscaler's 'required' list to the 'recommended'
+        list to capture the full Zscaler IP block — some IPs present in the recommended
+        list were absent from the required list. The output covers both IPv4 and IPv6
+        ranges and matches on ip-src, ip-dst, domain|ip, ip-src|port, and ip-dst|port
+        attribute types in MISP. The list is informational: when a Zscaler egress
+        IP appears in a threat-intelligence correlation, the warninglist signals a
+        known cloud-proxy egress rather than a compromise indicator."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://github.com/MISP/misp-warninglists
+        contact_email:
+        based_in:
+        active_since: '2014'
+        notes: The MISP Project develops and maintains the MISP threat intelligence
+          platform and its associated warninglists, correlation tools, and taxonomies.
+          Warninglists are contributed and updated via GitHub pull requests.
+      derivation:
+        type: derivative
+        description: The list is produced by an automated Python script (generate-zscaler.py)
+          that downloads the current hub prefix inventory from Zscaler's public JSON
+          API endpoint at config.zscaler.com. The script iterates over the hubPrefixes
+          array in the API response and passes the raw prefixes to a network-consolidation
+          function, which merges overlapping or adjacent CIDR ranges into optimally
+          reduced blocks. The resulting consolidated list is written as the warninglist's
+          list field in list.json. No other IP feeds are consumed; the sole upstream
+          is Zscaler's own published hub IP inventory.
+        source_feeds: []
+      listing_policy:
+        summary: An IP address is listed if it falls within a CIDR range published
+          by Zscaler in its public hub IP inventory. The maintainer does not manually
+          curate individual IPs; inclusion is determined entirely by Zscaler's own
+          published allocation. As Zscaler expands its cloud infrastructure, newly
+          announced hub prefixes enter the list automatically when the generator script
+          re-runs against the updated API response.
+        criteria:
+        - The IP falls within a CIDR range published in Zscaler's public hub-prefix
+          inventory at config.zscaler.com/api/zscaler.net/hubs/cidr/json/recommended
+        - The IP is a Zscaler-managed egress address for cloud-proxy (ZIA) or other
+          Zscaler services
+      unlisting_policy:
+        summary: There is no manual unlisting mechanism. Because the list mirrors
+          Zscaler's own published allocations, an IP leaves the list only when Zscaler
+          retires that hub prefix from its public inventory and the generator script
+          re-runs against the updated API response. The maintainer does not accept
+          individual IP removal requests for this list.
+        criteria:
+        - Zscaler retires the hub prefix from its public hub IP inventory
+        - The generator script re-runs and the retired prefix is absent from the updated
+          API response
+      unlist_request:
+      update_frequency:
+        frequency:
+        human_readable: The maintainer does not publish a specific update cadence
+          for this list. Updates are driven by changes in Zscaler's published hub
+          IP inventory rather than a fixed schedule.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: This feed is not a detection feed in the conventional sense —
+          it does not identify malicious activity. Instead, it classifies IP address
+          ranges as belonging to Zscaler cloud-proxy infrastructure, a known category
+          of benign but easily misidentified traffic sources. The classification is
+          derived from Zscaler's own published hub IP inventory, which Zscaler maintains
+          as part of its public service documentation. The list maps a known-service
+          category to a set of IP ranges.
+      scope_and_intent:
+        description: The list marks IP address ranges used by Zscaler cloud-proxy
+          (Internet Isolation / ZIA) infrastructure as known-good, to prevent false
+          positive alerts when these IPs appear in threat intelligence correlations.
+          It is not intended for inline blocking.
+        intended_for:
+        - Marking Zscaler egress IPs as non-malicious in MISP event and attribute
+          warnings
+        - Filtering Zscaler IPs from IOC-based alerting to reduce analyst fatigue
+        - Attributing observed scanning or brute-force traffic to cloud-proxy infrastructure
+          rather than treating it as targeted threat
+        not_intended_for:
+        - Inline blocking or firewall deny-listing of Zscaler IP ranges
+        - Classifying Zscaler IPs as malicious or hostile
+        - Enforcement-oriented security controls
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal Public Domain Dedication imposes no restrictions
+          on use or redistribution. No attribution is required.
+      current_status:
+        state: active
+        description: "Active. The list is maintained in the misp-warninglists repository;
+          PR #312 was merged in November 2025 updating the generator to use Zscaler's
+          'recommended' list. The repository is reachable and the list.json is current
+          as of version 20260428."
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: "Public discussion specific to the Zscaler warninglist is sparse.
+          General community awareness of MISP warninglists as a category is evident
+          in security practitioner forums, where cloud-proxy IPs are discussed as
+          a known source of false positive alerts in threat intelligence pipelines.
+          GitHub PR #312 (November 2025) represents the most substantive recent community
+          interaction — a contributor identified that the 'required' Zscaler list
+          omitted IPs present in the 'recommended' list and submitted a fix, which
+          the maintainer merged within five days. Broader discussion of Zscaler egress
+          IPs as false-positive generators appears in unrelated security forums and
+          subreddit threads, indicating operational relevance of the underlying problem
+          the list addresses."
+      sources_consulted:
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/zscaler/list.json
+        document_date: '2026-04-28'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/tools/generate-zscaler.py
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/pull/312
+        document_date: '2025-11-23'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://config.zscaler.com/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/tree/main/lists/zscaler
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

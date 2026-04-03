@@ -1,0 +1,247 @@
+sources:
+  greensnow:
+    redistributable: false
+    license: Reproduction or republication prohibited (https://greensnow.co)
+    url: http://blocklist.greensnow.co/greensnow.txt
+    frequency: 30
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[GreenSnow](https://greensnow.co/) is a team harvesting a large number
+      of IPs from different computers located around the world. GreenSnow is comparable
+      with SpamHaus.org for attacks of any kind except for spam. Their list is updated
+      automatically and you can withdraw at any time your IP address if it has been
+      listed. Attacks / bruteforce that are monitored are: Scan Port, FTP, POP3, mod_security,
+      IMAP, SMTP, SSH, cPanel, etc.'
+    maintainer: GreenSnow.co
+    maintainer_url: https://greensnow.co/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T22:08:53Z'
+      official_name: GreenSnow
+      official_url: https://greensnow.co/
+      short_description: A publicly downloadable blocklist of IPv4 addresses associated
+        with non-spam attack types such as brute-force login attempts, port scanning,
+        and infrastructure enumeration, maintained by PlanetHoster and cybersecurity
+        partners.
+      long_description: "GreenSnow is a publicly downloadable IP blocklist that aggregates
+        IPv4 addresses observed generating non-spam attack traffic against servers
+        worldwide. The maintainer describes the project as a collaborative effort
+        between PlanetHoster and unnamed cybersecurity partners, drawing on blockage
+        reports from a globally distributed network of servers to identify attacking
+        hosts.\n\nPer the maintainer's FAQ, an IP is listed when it generates attacks
+        across multiple servers simultaneously — the listing decision weighs the number
+        of distinct attack events, the number of different servers reporting those
+        events, the diversity of attack types observed from that IP, and the geographic
+        origin of the address. The maintainer states the project aims to minimise
+        false positives by requiring this multi-server corroboration before adding
+        an entry.\n\nMonitored attack categories include TCP connection anomalies,
+        FTP and SFTP login attempts, POP3 and IMAP authentication failures, SMTP relay
+        abuse, SSH brute-force attempts, cPanel and WHM credential stuffing, ModSecurity-triggered
+        SQL injection and XSS payloads, WordPress and Joomla administrative interface
+        probing, and various flood and connection-limit violations. The maintainer
+        does not cover spam-related abuse, positioning the feed as complementary to
+        spam-focused lists such as Spamhaus.\n\nThe feed file is a plain-text list
+        with one IPv4 address per line and no header metadata. Entries are individual
+        addresses only; no CIDR ranges or autonomous system numbers are included."
+      roles:
+      - role: maintainer
+        name: GreenSnow.co
+        organization_type: informal_collective
+        official_url: https://greensnow.co/
+        contact_email:
+        based_in:
+        active_since: '2013'
+        notes: GreenSnow describes itself as a team of computer security specialists
+          collaborating with PlanetHoster. No individual team member names are publicly
+          disclosed on the project website. The copyright notice on the site reads
+          'Copyright © 2013–2026 GreenSnow.co'.
+      - role: publisher
+        name: PlanetHoster
+        organization_type: commercial
+        official_url: https://www.planethoster.com/
+        contact_email:
+        based_in: Canada (Quebec)
+        active_since:
+        notes: PlanetHoster is the hosting provider and organisational sponsor of
+          GreenSnow. The contact page states 'GreenSnow is proudly working with and
+          hosted by PlanetHoster.' PlanetHoster's knowledge base explicitly attributes
+          GreenSnow's creation to PlanetHoster and its cybersecurity partners.
+      derivation:
+        type: original
+        description: "The feed is built from blockage reports generated across a globally
+          distributed network of servers operated by PlanetHoster and its unnamed
+          cybersecurity partners. Per the maintainer's FAQ, the listing algorithm
+          evaluates each candidate IP across four dimensions: the total number of
+          attack events observed from that address, the number of distinct servers
+          that reported those events, the diversity of attack types attributed to
+          the IP, and the geographic origin of the address space. An IP is listed
+          only when multiple servers corroborate the attacking behaviour — the maintainer
+          describes this as a deliberate design to reduce false positives. The feed
+          does not incorporate other public IP feeds as inputs; it is a first-party
+          detection system drawing exclusively on the partners' server infrastructure."
+        source_feeds: []
+      listing_policy:
+        summary: "An IP address enters the blocklist when multiple servers in the
+          PlanetHoster partner network independently report observing attacking behaviour
+          from that address. The maintainer's listing algorithm weights four signals:
+          the total count of attack events, the count of distinct reporting servers,
+          the diversity of attack types observed, and the geographic origin of the
+          IP address space. Single-server detections or isolated events from a single
+          source are insufficient to trigger a listing — the maintainer describes
+          this multi-server corroboration requirement as the primary mechanism for
+          limiting false positives."
+        criteria:
+        - The IP generates attack events observed by multiple distinct servers in
+          the partner network
+        - The number of distinct servers reporting the IP exceeds the listing threshold
+        - The diversity of attack types from the IP meets the minimum variety threshold
+        - The geographic origin of the IP address space is evaluated as part of the
+          scoring
+      unlisting_policy:
+        summary: Entries are removed when the listed IP no longer generates blockages
+          across the partner server network. The maintainer does not publish a fixed
+          retention window or automatic expiry schedule; removal is driven by the
+          absence of corroborating reports rather than a time-based decay rule.
+        criteria:
+        - The IP ceases generating attack events reported by multiple servers in the
+          partner network
+        - No further blockage reports are received from the network for the listed
+          IP
+      unlist_request:
+        url:
+        email:
+        instructions: 'To request removal of a listed IP, submit a request through
+          the contact form at https://greensnow.co/contact.php. Per the PlanetHoster
+          Knowledge Base, the recommended process is: (1) look up the IP address on
+          an external IP lookup tool such as ns-lookup.io; (2) log in at greensnow.co
+          to check whether the IP is currently listed; (3) if listed, consult the
+          attack history displayed for that IP; (4) submit the unlock request via
+          the form and confirm the request by clicking the link in the confirmation
+          email sent by the system; (5) once confirmed, the IP is scheduled for removal,
+          which the maintainer states will take effect within a few hours. For general
+          enquiries, feedback, or participation offers, the maintainer directs users
+          to the same contact form.'
+      update_frequency:
+        frequency:
+        human_readable: The maintainer states the list is updated automatically, without
+          specifying a fixed interval. The homepage displays a last-update timestamp
+          indicating updates occur multiple times per day.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods:
+        - network_telescope
+        description: "The feed classifies IPs based on aggregated blockage reports
+          from a globally distributed server network operated by PlanetHoster and
+          its cybersecurity partners. When multiple servers independently report observing
+          attacking behaviour from the same IP address, that IP accumulates a reputation
+          score across four weighted dimensions: total attack-event count, number
+          of distinct reporting servers, diversity of attack types, and geographic
+          origin of the address space. This is a reputation-aggregation model — the
+          listing decision is driven by the volume and diversity of corroborating
+          reports rather than by a single detection event or isolated sensor observation.
+          The secondary classification 'network_telescope' reflects the distributed,
+          passively-monitoring nature of the server network: the partners' servers
+          observe inbound attack traffic directed at their infrastructure, analogous
+          to a darknet or telescope sensor collecting unsolicited inbound probes."
+      scope_and_intent:
+        description: GreenSnow is intended as a blocklist for non-spam attack vectors
+          targeting web servers and internet-facing services. The maintainer positions
+          the project as complementary to spam-focused lists such as Spamhaus, covering
+          the attack categories that spam-oriented feeds typically do not address.
+        intended_for:
+        - Blocking non-spam attack traffic at the network perimeter — brute-force
+          login attempts (SSH, cPanel, SMTP, IMAP, POP3), infrastructure port scanning,
+          FTP and SFTP authentication abuse, ModSecurity-triggered payload attacks
+          (SQL injection, XSS), WordPress and Joomla administrative interface probing,
+          and connection-limit or flood violations
+        - Layer-3/Layer-4 firewall enforcement in conjunction with ConfigServer Security
+          & Firewall (csf/lfd), pfBlockerNG, BanIP, CrowdSec, FortiSIEM, and similar
+          perimeter security platforms
+        - Complementary use alongside spam-focused blocklists such as Spamhaus DROP
+          and EDrop, to cover non-spam attack vectors those feeds do not address
+        not_intended_for:
+        - Spam filtering or spam-source blocking — the maintainer explicitly excludes
+          spam-related abuse from the feed's scope
+        - Single-vector security decisions without correlation to other threat intelligence
+          sources
+        - Production use without testing in a staging environment, given the risk
+          of false positives on shared or dynamically allocated IP address space
+      license: Reproduction or Republication Strictly Prohibited
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms: Reproduction or republication is strictly prohibited. The maintainer
+          does not grant permission to redistribute, mirror, repackage, or resell
+          the feed contents. Any redistribution would require explicit written authorisation
+          from GreenSnow.co, which the maintainer does not indicate is available.
+      current_status:
+        state: active
+        description: Active and maintained as of May 2026. The homepage displayed
+          a last-update timestamp of 23:45 on 17 May 2026 during research. The maintainer
+          has not issued any discontinuation, merger, or scope-change notices. The
+          copyright notice on all pages reads 'Copyright © 2013–2026 GreenSnow.co',
+          extending through the current year.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: A documented false-positive case was found on Microsoft Q&A where
+          a reporter noted that a known Microsoft Azure IP range remained listed on
+          GreenSnow after being reported to the maintainer, with the reporter seeking
+          Microsoft's advice on the matter. Beyond this single incident, no sustained
+          pattern of unresolved complaints was identified in public sources. The maintainer's
+          FAQ acknowledges that IPs may be listed due to misconfiguration on the client's
+          side rather than malicious activity from the IP holder, implicitly recognising
+          the false-positive risk inherent in dynamic IP allocation.
+        engagement: Public community discussion is sparse. The feed is integrated
+          into at least fourteen named open-source security tools and platforms —
+          including Maltrail, UPPERSAFE Open Source Firewall, ExaBGP, SpiderFoot OSINT,
+          QRadar Threat Intelligence Import, FortiSIEM, and CrowdSec — indicating
+          meaningful adoption within the operational security tooling ecosystem. Direct
+          user reviews or testimonials are not publicly available in significant quantity;
+          the sole relevant Trustpilot entry found pertains to an unrelated billing
+          dispute with a similarly named UK company and is not attributable to the
+          blocklist service. On Reddit, GreenSnow is referenced in passing as a blocklist
+          option within BanIP and pfBlockerNG configurations without accompanying
+          commentary on accuracy or responsiveness.
+      sources_consulted:
+      - url: https://greensnow.co/
+        document_date:
+        validation_date: '2026-05-17T22:00:00Z'
+      - url: https://greensnow.co/faq
+        document_date:
+        validation_date: '2026-05-17T22:00:00Z'
+      - url: 
+          https://kb.planethoster.com/en/guide/control-panel/planethoster-s-tools/greensnow
+        document_date:
+        validation_date: '2026-05-17T22:00:00Z'
+      - url: http://blocklist.greensnow.co/greensnow.txt
+        document_date:
+        validation_date: '2026-05-17T22:00:00Z'
+      - url: https://greensnow.co/contact.php
+        document_date:
+        validation_date: '2026-05-17T22:00:00Z'
+      - url: 
+          https://learn.microsoft.com/en-us/answers/questions/2289290/msn-com-host-reported-as-abuse
+        document_date:
+        validation_date: '2026-05-17T22:00:00Z'
+      - url: https://github.com/dev2lead/uppersafe-osfw/blob/main/feeds/greensnow.py
+        document_date:
+        validation_date: '2026-05-17T22:00:00Z'
+      - url: https://github.com/stamparm/maltrail/blob/master/trails/feeds/greensnow.py
+        document_date:
+        validation_date: '2026-05-17T22:00:00Z'
+      - url: 
+          https://docs.fortinet.com/document/fortisiem/7.5.1/user-guide/129233/working-with-greensnow-threat-feed
+        document_date:
+        validation_date: '2026-05-17T22:00:00Z'
+      - url: 
+          https://blog.avis-planethoster.com/non-classe/greensnow-configserver-security-firewall-blocklists-3699
+        document_date: '2014-05-30'
+        validation_date: '2026-05-17T22:00:00Z'

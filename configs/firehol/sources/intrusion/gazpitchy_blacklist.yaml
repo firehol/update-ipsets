@@ -1,0 +1,228 @@
+sources:
+  gazpitchy_blacklist:
+    license: public feed
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/gazpitchy92/ip-blocklist/main/list/blacklist.txt
+    frequency: 720
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[gazpitchy92/ip-blocklist](https://github.com/gazpitchy92/ip-blocklist)
+      community-maintained blacklist of attacker IPs, ~308K individual entries.'
+    maintainer: gazpitchy92
+    maintainer_url: https://github.com/gazpitchy92/ip-blocklist
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T18:55:06+00:00'
+      official_name: IP Blocklists
+      official_url: https://github.com/gazpitchy92/ip-blocklist
+      short_description: Community-maintained blacklist aggregating over 50 public
+        threat-intel feeds into a single list of roughly 305,000 attacker IPs, updated
+        twice daily.
+      long_description: "This feed is a community-maintained aggregation of over 50
+        public threat-intelligence feeds, producing a single unified blocklist of
+        roughly 305,000 individual IP addresses and nearly 2,000 CIDR ranges. The
+        maintainer, identified on GitHub as gazpitchy92, has operated personal blocklist
+        tooling for several years and published the project publicly in mid-2025.\n\
+        \nThe aggregated sources span botnets, brute-force trackers, scanner feeds,
+        spam lists, and malware command-and-control sinks — drawing from providers
+        including Spamhaus DROP, Emerging Threats, Feodo Tracker, Blocklist.de, SANS
+        ISC, Project Honeypot, and many others listed in the README. The maintainer
+        also contributes detections from a local intrusion-prevention system and honeypot.\n\
+        \nThe README notes a design goal of avoiding interference with privacy tools
+        such as VPNs and Tor. An accompanying iptables automation script (iptables.sh)
+        is provided, which downloads the list and loads it into ipset in batches of
+        20,000 entries.\n\nNo license file is present in the repository. No formal
+        unlisting or takedown mechanism is documented."
+      roles:
+      - role: maintainer
+        name: gazpitchy92
+        organization_type: individual
+        official_url: https://github.com/gazpitchy92
+        contact_email:
+        based_in:
+        active_since:
+        notes: Individual researcher publishing personal blocklist tooling developed
+          over several years. Active on Reddit (username gazpitchy) with karma concentrated
+          in KDE, Linux, and AdGuard communities.
+      derivation:
+        type: aggregate_merge
+        description: Aggregates over 50 public threat-intel feeds into a single unified
+          blocklist. Sources include DShield, Spamhaus DROP, Emerging Threats (Known,
+          Brute Force, Compromised IPs, Firewall Rules), Feodo Tracker, Botvrij, CINS
+          Bad Guys, AlienVault Reputation, Blocklist.de, SANS ISC, Project Honeypot,
+          HoneyDB, AbuseIPDB, CrowdSec SSH Brute Force, and numerous others listed
+          in the README (the full upstream list is recorded in assistant_reasoning).
+          The maintainer also supplements with detections from a local intrusion-prevention
+          system and honeypot. Entries are merged without additional scoring or weighting
+          — any IP appearing in any sourced feed is included.
+        source_feeds:
+        - identifier: DShield
+          relationship: aggregate_component
+        - identifier: Emerging Threats - Known
+          relationship: aggregate_component
+        - identifier: Emerging Threats - Brute Force
+          relationship: aggregate_component
+        - identifier: Ipsum Threat List
+          relationship: aggregate_component
+        - identifier: CI Army
+          relationship: aggregate_component
+        - identifier: Malc0de
+          relationship: aggregate_component
+        - identifier: BotScout
+          relationship: aggregate_component
+        - identifier: CINS Bad Guys
+          relationship: aggregate_component
+        - identifier: AlienVault Reputation
+          relationship: aggregate_component
+        - identifier: Hancitor IPs
+          relationship: aggregate_component
+        - identifier: ShadowWhisperer - Scanners / BruteForce / Hackers / Malware
+            Hosting
+          relationship: aggregate_component
+        - identifier: Binary Defense
+          relationship: aggregate_component
+        - identifier: BruteforceBlocker
+          relationship: aggregate_component
+        - identifier: Cruzit Web Attacks
+          relationship: aggregate_component
+        - identifier: GreenSnow
+          relationship: aggregate_component
+        - identifier: Feodo Tracker
+          relationship: aggregate_component
+        - identifier: Botvrij
+          relationship: aggregate_component
+        - identifier: Spamhaus DROP
+          relationship: aggregate_component
+        - identifier: Interserver
+          relationship: aggregate_component
+        - identifier: Emerging Threats - Compromised IPs
+          relationship: aggregate_component
+        - identifier: Emerging Threats - FW Rules
+          relationship: aggregate_component
+        - identifier: VXVault
+          relationship: aggregate_component
+        - identifier: CleanTalk (7d)
+          relationship: aggregate_component
+        - identifier: CrowdSec SSH Brute Force
+          relationship: aggregate_component
+        - identifier: TRCERT Malware
+          relationship: aggregate_component
+        - identifier: Project Honeypot
+          relationship: aggregate_component
+        - identifier: Blocklist.de
+          relationship: aggregate_component
+        - identifier: SANS ISC Blocklist
+          relationship: aggregate_component
+        - identifier: Shodan.io scanners
+          relationship: aggregate_component
+        - identifier: Lupovis.io Threat List
+          relationship: aggregate_component
+        - identifier: AbuseIPDB blacklist
+          relationship: aggregate_component
+        - identifier: HoneyDB.io bad hosts
+          relationship: aggregate_component
+      listing_policy:
+        summary: IPs are added automatically when they appear in any of the 50+ aggregated
+          upstream feeds, supplemented by the maintainer's own local intrusion-prevention
+          system and honeypot detections. There is no stated minimum threshold, scoring,
+          or manual review step — inclusion in any sourced feed results in inclusion
+          here.
+        criteria:
+        - Appears in any of the 50+ aggregated public threat-intel feeds
+        - Detected by the maintainer's local intrusion-prevention system or honeypot
+      unlisting_policy:
+        summary: No unlisting mechanism is documented. The repository provides no
+          issue tracker, pull-request process, or contact channel for requesting IP
+          removal. Removal of an IP would require the affected party to somehow reach
+          the maintainer informally.
+        criteria: []
+      unlist_request:
+      update_frequency:
+        frequency: 12h
+        human_readable: Updated approximately twice per day via automated scheduled
+          commits
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods:
+        - honeypot
+        description: The feed is primarily built by aggregating reputation data from
+          over 50 public threat-intel sources — each contributing IPs flagged by their
+          own detection pipelines (honeypots, malware sandboxes, user submissions,
+          network telescopes, and other methods). The maintainer also supplements
+          with detections from a personal local honeypot and intrusion-prevention
+          system. Because the upstream feeds use diverse detection methods, the aggregate
+          reflects a mix of signals rather than a single method.
+      scope_and_intent:
+        description: A broad-spectrum blocklist targeting network-based threats including
+          botnets, scanners, brute-force attempters, and malware command-and-control
+          infrastructure. The maintainer designs for edge firewall deployment and
+          explicitly aims to minimize collateral damage to privacy-respecting services.
+        intended_for:
+        - Edge firewall or gateway blocking (via iptables/ipset)
+        - Network-level malware and attacker blocking
+        - AdGuard Home, AdGuard, uBlock Origin, and compatible DNS-based blockers
+        not_intended_for:
+        - Fine-grained application-layer filtering where false positives are costly
+        - Environments where VPN exit-node accessibility must be preserved for legitimate
+          users
+        - Single-server deployments unwilling to maintain custom allowlists
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: The direct upstream (GitHub raw URL) is publicly downloadable with
+          no stated redistribution restriction. Operators redistributing should independently
+          verify compliance with the licenses of the underlying aggregated feeds.
+      current_status:
+        state: active
+        description: 'Actively maintained with automated twice-daily updates. Most
+          recent commit: 2026-05-16. The maintainer announced the project publicly
+          in July 2025 and continues to push regular updates.'
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Community feedback has surfaced a pattern of overblocking of legitimate
+          services. A Reddit user reported that the list breaks Netflix on iOS, the
+          AliExpress app, Shopify sites, the Bethesda Store, and OneDrive — requiring
+          manual allowlist creation to restore access. This is consistent with the
+          maintainer's own acknowledgment that the list is broad-spectrum and may
+          affect privacy tools. No formal false-positive reporting channel exists;
+          the lack of a GitHub Issues interface means complaints surface only informally
+          on Reddit.
+        engagement: Public discussion is sparse. The project was announced simultaneously
+          on r/AdGuardHome, r/Adguard, and r/Adblock in late July 2025, gathering
+          modest attention (scores of 2–15). One substantive question about processing
+          methodology went unanswered by the maintainer. No GitHub Issues or Discussions
+          are enabled on the repository. Community participation is limited to the
+          initial announcement wave with little subsequent dialogue.
+      sources_consulted:
+      - url: https://github.com/gazpitchy92/ip-blocklist
+        document_date:
+        validation_date: '2026-05-16T18:00:00+00:00'
+      - url: https://raw.githubusercontent.com/gazpitchy92/ip-blocklist/main/readme.md
+        document_date:
+        validation_date: '2026-05-16T18:00:00+00:00'
+      - url: 
+          https://raw.githubusercontent.com/gazpitchy92/ip-blocklist/main/list/blacklist.txt
+        document_date:
+        validation_date: '2026-05-16T18:00:00+00:00'
+      - url: https://github.com/gazpitchy92/ip-blocklist/commits/main
+        document_date:
+        validation_date: '2026-05-16T18:00:00+00:00'
+      - url: https://www.reddit.com/r/AdGuardHome/comments/1m8afnp/
+        document_date: '2025-07-24'
+        validation_date: '2026-05-16T18:00:00+00:00'
+      - url: https://www.reddit.com/r/Adguard/comments/1m8ag2t/
+        document_date: '2025-07-24'
+        validation_date: '2026-05-16T18:00:00+00:00'
+      - url: https://www.reddit.com/r/Adblock/comments/1m8af2q/
+        document_date: '2025-07-24'
+        validation_date: '2026-05-16T18:00:00+00:00'

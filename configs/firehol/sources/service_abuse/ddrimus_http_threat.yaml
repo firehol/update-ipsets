@@ -1,0 +1,158 @@
+sources:
+  ddrimus_http_threat:
+    license: MIT License
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/ddrimus/http-threat-blocklist/main/blocklist.txt
+    frequency: 240
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: service_abuse
+    info: '[ddrimus/http-threat-blocklist](https://github.com/ddrimus/http-threat-blocklist)
+      small curated list of HTTP attacker IPs, rebuilt daily.'
+    maintainer: ddrimus
+    maintainer_url: https://github.com/ddrimus/http-threat-blocklist
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T01:52:43Z'
+      official_name: HTTP Threat Blocklist
+      official_url: https://github.com/ddrimus/http-threat-blocklist
+      short_description: A daily-updated blocklist of IPv4 and IPv6 addresses involved
+        in malicious HTTP attacks that penetrated the maintainer's own layered defenses
+        (Cloudflare, CrowdSec, and IP rate limits).
+      long_description: "The HTTP Threat Blocklist is a personal project by the developer
+        known as ddrimus, created in June 2025. The feed records IP addresses (IPv4
+        and IPv6) that reached the maintainer's own web server after passing through
+        multiple upstream security layers — Cloudflare, CrowdSec, and IP rate limits
+        — and subsequently exhibited malicious HTTP behavior such as probing, exploit
+        attempts, bad user agents, or bot-like crawling. The maintainer additionally
+        blocks entire countries (China and Russia) at the perimeter, so any IP reaching
+        this stage is considered to have cleared higher barriers.\n\nThe blocklist
+        is regenerated daily and distributed as a plain-text file with one IP per
+        line. The README publishes live statistics including total report count, unique
+        source count, and a breakdown of detected attack patterns (HTTP probing, CVE
+        probing, WordPress scanning, credential stuffing, and specific CVEs including
+        CVE-2017-9841 and CVE-2022-41082).\n\nThe maintainer explicitly warns that
+        the blocklist is generated from automated detection and may contain false
+        positives, advising operators to review entries before deploying to production
+        environments and to combine blocking with rate limiting and log monitoring."
+      roles:
+      - role: maintainer
+        name: ddrimus
+        organization_type: individual
+        official_url: https://github.com/ddrimus
+        contact_email:
+        based_in:
+        active_since: '2025-06-23'
+        notes: Individual developer operating this as a personal project. The GitHub
+          account has ID 92426158. No additional identifying information (real name,
+          employer, location) is publicly stated.
+      derivation:
+        type: original
+        description: The feed is built exclusively from the maintainer's own web server
+          infrastructure. Traffic passes through Cloudflare (CDN/WAF layer), CrowdSec
+          (collaborative security engine providing IP reputation and rate limiting),
+          and IP-level rate limits before reaching the origin server. Any IP that
+          clears all three layers and exhibits malicious HTTP behavior is added to
+          the blocklist. The maintainer also applies country-level blocks for China
+          and Russia at the perimeter. No other public IP feeds are consumed as inputs.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when it reaches the maintainer's origin server after
+          clearing Cloudflare, CrowdSec, and IP rate-limit layers, and subsequently
+          exhibits behavior classified as a malicious HTTP attack. Specific behaviors
+          triggering listing include HTTP probing, bad user agent strings, admin-interface
+          probing, sensitive-file scanning, WordPress scanning, non-static asset crawling,
+          backdoor attempt signatures, and CVE-probing patterns (CVE-2017-9841, CVE-2022-41082,
+          CVE-2018-20062, CVE-2021-26086, CVE-2019-18935).
+        criteria:
+        - Traffic must have passed through Cloudflare, CrowdSec, and IP rate limits
+          (meaning it evaded higher-layer WAF and reputation checks)
+        - Behavior at the origin server must match a defined malicious HTTP pattern
+          (probing, exploit attempt, bad UA, crawler fingerprint, CVE signature)
+      unlisting_policy:
+        summary: There is no automatic expiration or decay mechanism. IPs remain on
+          the list until manually removed. Removal is requested by opening a GitHub
+          issue on the repository with relevant information about the blocked IP,
+          or by submitting a pull request suggesting the IP's removal.
+        criteria:
+        - Manual review via GitHub issue — the maintainer states they will review
+          the case and respond
+        - Pull-request suggestion — community members can propose removals directly
+      unlist_request:
+        url: https://github.com/ddrimus/http-threat-blocklist/issues/new
+        email:
+        instructions: Open a GitHub issue on the repository at https://github.com/ddrimus/http-threat-blocklist/issues/new,
+          providing all relevant information about the blocked IP. Alternatively,
+          submit a pull request proposing the IP's removal from the blocklist file.
+      update_frequency:
+        frequency: 1d
+        human_readable: Regenerated daily, per the maintainer's README description
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods:
+        - user_submission
+        description: "The maintainer's own production web server functions as a detection
+          sensor. Unlike a dedicated honeypot designed solely to attract attackers,
+          this is a live server protected by Cloudflare, CrowdSec, and IP rate limits
+          — meaning the listed IPs represent traffic aggressive enough to penetrate
+          those upstream layers. The detection is effectively reactive: IPs are listed
+          retroactively once they exhibit malicious behavior at the origin. Secondary
+          classification as 'user_submission' reflects the maintainer's stated openness
+          to community reports via GitHub issues and pull requests informing additions
+          or removals."
+      scope_and_intent:
+        description: The feed targets HTTP-based threats directed at web servers.
+          The maintainer explicitly scopes the feed to IPs exhibiting probing, exploit
+          attempts, and bot-like behavior after bypassing upstream WAF and rate-limiting
+          layers.
+        intended_for:
+        - Edge blocking of HTTP-attacker IPs on web servers
+        - Supplementing existing WAF and rate-limiting layers
+        - Security monitoring and log correlation
+        not_intended_for:
+        - Production deployment without prior review — the maintainer explicitly warns
+          against this
+        - Standalone use without complementary rate limiting and log monitoring
+        - Blocking non-HTTP attack vectors
+      license: MIT License
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit 'HTTP Threat Blocklist' or 'ddrimus'
+        terms: Under the MIT License, redistribution in source or binary form is permitted
+          with attribution. The MIT license imposes no practical restrictions beyond
+          preserving the copyright notice.
+      current_status:
+        state: active
+        description: Active. The repository was updated on 2026-05-18 with a new daily
+          blocklist generation. The maintainer's own documentation shows regular daily
+          commits as recently as May 2026.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion is absent. The repository has accumulated
+          5 stars on GitHub (as of May 2026), with zero open issues and zero pull
+          requests. No Reddit discussions, third-party blog posts, or independent
+          reviews were found despite targeted searches. The maintainer welcomes community
+          input via GitHub issues and pull requests, but uptake has been minimal.
+      sources_consulted:
+      - url: https://github.com/ddrimus/http-threat-blocklist
+        document_date: '2026-05-18'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://raw.githubusercontent.com/ddrimus/http-threat-blocklist/main/README.md
+        document_date: '2026-05-18'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://raw.githubusercontent.com/ddrimus/http-threat-blocklist/main/LICENSE
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://raw.githubusercontent.com/ddrimus/http-threat-blocklist/main/blocklist.txt
+        document_date: '2026-05-18'
+        validation_date: '2026-05-18T00:00:00Z'

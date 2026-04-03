@@ -1,0 +1,173 @@
+sources:
+  provider_context_gcp_cloud:
+    license: Creative Commons Attribution 4.0 International
+    redistributable: true
+    label: Google Cloud provider context
+    url: https://www.gstatic.com/ipranges/cloud.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: primary
+    info: Google Cloud-published IPv4 ranges. Provider context feed, not a threat
+      indicator and not a critical-infrastructure warning source.
+    maintainer: Google Cloud
+    maintainer_url: 
+      https://cloud.google.com/vpc/docs/configure-private-google-access#ip-addr-defaults
+    enabled_by_all: true
+    use: [provider_context]
+    attributes:
+      context_role: cloud_customer_hosting
+      context_source_type: authoritative_provider_json
+      context_source_quality: A
+      context_rationale: Google Cloud ranges include provider services and customer
+        workloads; overlap is policy-dependent and needs local operational context.
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T14:16:34Z'
+      official_name: Google Cloud IP Addresses
+      official_url: 
+        https://cloud.google.com/vpc/docs/configure-private-google-access#ip-addr-defaults
+      short_description: Google Cloud's published list of customer-usable external
+        IP address ranges allocated to GCP resources across global and regional zones.
+      long_description: "Google Cloud publishes a structured JSON feed listing every
+        external IP address range that customers can allocate to their Google Cloud
+        resources. Each entry records the CIDR prefix (IPv4 or IPv6), a service field
+        set to \"Google Cloud\", and a scope field identifying the GCP region or zone
+        — such as us-central1, europe-west1, or global — to which the range is assigned.
+        The feed is served from Google's gstatic.com CDN at https://www.gstatic.com/ipranges/cloud.json.\n\
+        \nGoogle publishes a companion feed, goog.json, containing all IP addresses
+        owned by Google's autonomous system (AS15169). The relationship between the
+        two feeds is additive: goog.json is a superset that includes cloud.json plus
+        Google's internal infrastructure ranges. Practitioners who need to isolate
+        Google-owned service endpoints from customer GCP workloads subtract cloud.json
+        from goog.json.\n\nPer Google's documentation, the ranges are allocated dynamically
+        and change frequently. Google provides a Python script to automate daily synchronization
+        and advises against treating the ranges as static. The feed carries a syncToken
+        and creationTime stamp for change-detection. It is not a threat-intelligence
+        feed; it is authoritative provider-context data for network policy construction."
+      roles:
+      - role: maintainer
+        name: Google LLC
+        organization_type: commercial
+        official_url: https://about.google/
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: Google LLC, a subsidiary of Alphabet Inc., publishes and maintains
+          this feed as part of the Google Cloud Platform's public networking documentation.
+          The feed is served from Google's gstatic.com static-content infrastructure.
+      derivation:
+        type: original
+        description: The feed is an original publication produced by Google Cloud's
+          infrastructure-planning and networking teams. It is not derived from any
+          external threat-intelligence source. Each entry records a CIDR prefix allocated
+          by Google to a Google Cloud customer resource in a named region or zone.
+          The feed is accompanied by a companion goog.json feed listing Google's broader
+          IP estate; the relationship between the two is documented but they are independently
+          maintained JSON files sharing the same syncToken timestamp.
+        source_feeds: []
+      listing_policy:
+      unlisting_policy:
+      unlist_request:
+      update_frequency:
+        frequency:
+        human_readable: Updated frequently; no fixed schedule is publicly documented.
+          Per the maintainer's documentation, IP ranges are allocated dynamically
+          and change often. Google recommends automating daily synchronization.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The feed records IP address ranges allocated by Google to customer-provisioned
+          Google Cloud resources. Each entry represents a CIDR block assigned through
+          Google's internal IP allocation system when a customer creates an external
+          IP resource in a given region. The feed is not produced by threat detection,
+          honeypots, or user reports — it is a direct export of Google's infrastructure
+          allocation database.
+      scope_and_intent:
+        description: The feed identifies IP address space that Google Cloud has allocated
+          to customer-deployable external resources. It is intended as provider-context
+          data for network-policy authors building allowlists, firewall rules, or
+          routing tables that need to distinguish GCP customer workloads from Google's
+          own service infrastructure.
+        intended_for:
+        - Building allowlists that include GCP customer-hosted workloads
+        - Distinguishing GCP customer IP ranges from Google-owned service endpoints
+          (by subtracting from goog.json)
+        - Configuring firewall rules or routing policies that reference GCP external
+          IP ranges
+        - Generating dynamic firewall rules via automation scripts that poll cloud.json
+        not_intended_for:
+        - Threat indicator enrichment or abuse-score computation
+        - Blocking or alerting on suspected malicious traffic originating from GCP
+        - Identifying Google-owned service endpoints (use goog.json for that)
+      license: Creative Commons Attribution 4.0 International
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit Google and link to the original source URL(s).
+          Portions of this page are reproduced from work created and shared by Google
+          and used according to terms described in the Creative Commons 4.0 Attribution
+          License.
+        terms: Redistribution is permitted under Creative Commons Attribution 4.0
+          International (CC BY 4.0). Commercial and non-commercial use are allowed.
+          Derivative works are permitted provided attribution is given with a link
+          to the original source. Google trademarks and brand features are excluded
+          from reuse without separate approval.
+      current_status:
+        state: active
+        description: Active and maintained. The feed was last synchronized on 2026-05-21T01:04:47
+          UTC (per the JSON creationTime field). Google publishes and updates these
+          ranges frequently as IP allocations change. The feed is served from a stable
+          Google CDN endpoint.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: The feed is widely consumed by the network-automation community.
+          At least two active GitHub repositories — rezmoss/cloud-provider-ip-addresses
+          (daily sync) and lord-alfred/ipranges (4-hourly sync) — automate ingestion
+          of this feed as part of multi-provider IP range aggregation pipelines. Google's
+          own official Python tooling for IP range management is available in the
+          GoogleCloudPlatform/networking-tools-python repository. No controversy,
+          disputes, or complaints specific to this feed were identified in community
+          discussions; the feed carries no abuse or threat data and therefore generates
+          no false-positive incidents.
+      sources_consulted:
+      - url: https://www.gstatic.com/ipranges/cloud.json
+        document_date: '2026-05-21'
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: https://www.gstatic.com/ipranges/goog.json
+        document_date: '2026-05-21'
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: 
+          https://cloud.google.com/vpc/docs/configure-private-google-access#ip-addr-defaults
+        document_date:
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: 
+          https://knowledge.workspace.google.com/admin/security/obtain-google-ip-address-ranges
+        document_date: '2026-05-20'
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: https://docs.cloud.google.com/compute/docs/faq#googlecloudlexternalranges
+        document_date:
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: https://support.google.com/a/answer/10026322
+        document_date:
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: https://developers.google.com/site-policies
+        document_date:
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: 
+          https://github.com/GoogleCloudPlatform/networking-tools-python/tree/main/tools/cidr
+        document_date:
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: https://github.com/rezmoss/cloud-provider-ip-addresses
+        document_date:
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: https://github.com/lord-alfred/ipranges
+        document_date:
+        validation_date: '2026-05-21T14:00:00Z'

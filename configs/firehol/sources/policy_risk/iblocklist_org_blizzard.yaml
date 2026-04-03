@@ -1,0 +1,173 @@
+sources:
+  iblocklist_org_blizzard:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=ercbntshuthyykfkmhxc&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Blizzard IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T10:41:19+00:00'
+      official_name: Blizzard
+      official_url: https://www.iblocklist.com/list.php?list=blizzard
+      short_description: IP addresses registered to Blizzard Entertainment and other
+        infrastructure IPs required for Blizzard game connectivity, formatted for
+        use with PeerBlock, PeerGuardian, and compatible firewall applications.
+      long_description: "The Blizzard feed compiles IP address ranges registered to
+        Blizzard Entertainment and supplemental infrastructure IPs required for Blizzard
+        game titles including World of Warcraft, StarCraft II, Diablo, and Overwatch.
+        The feed's stated purpose is identification of Blizzard infrastructure so
+        that users running broad anti-infringement blocklists can selectively exclude
+        Blizzard IPs and maintain uninterrupted game connectivity.\n\nThe feed is
+        published as a free (non-subscription) list per the iBlocklist XML feed metadata.
+        The maintainer does not publish an explicit update cadence, methodology, or
+        inclusion criteria for this specific feed."
+      roles:
+      - role: maintainer
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in: New Rochelle, New York, United States
+        active_since: '2010'
+        notes: 'iblocklist, LLC distributes IP blocklists in P2P, DAT, CIDR, and hosts
+          formats, compatible with PeerBlock, PeerGuardian, iplist, Vuze, uTorrent,
+          Tixati, and pfBlocker. The company also owns PeerBlock. The earliest archived
+          online presence dates to January 2, 2010 per Wayback Machine records. The
+          company does not publish a founding date or named founders on its website.
+          Service-level community signal across iBlocklist.com (not specific to any
+          single feed): Trustpilot reviews and the Netgate forum thread document autorenewal
+          disputes, unresponsive support, and reports that Bluetack-origin lists carry
+          stale content with refreshed timestamps.'
+      derivation:
+        type: original
+        description: The feed is compiled and maintained by iblocklist, LLC. The maintainer
+          does not publicly describe the sourcing methodology for this specific feed
+          — it is not stated whether IPs are identified through passive observation
+          of Blizzard game traffic, manual research, user submissions, or other means.
+          The feed is published as a standalone original list; no upstream IP feeds
+          are named as inputs.
+        source_feeds: []
+      listing_policy:
+        summary: The maintainer does not publish a written listing policy for this
+          specific feed. The feed description states it contains IPs registered to
+          Blizzard Entertainment and IPs required for Blizzard game connectivity.
+          No criteria, thresholds, or review process are described in the maintainer's
+          public documentation.
+        criteria:
+        - IP addresses registered to Blizzard Entertainment as game publisher
+        - Additional IP addresses required for Blizzard game titles to function (connectivity,
+          authentication, matchmaking)
+      unlisting_policy:
+        summary: The maintainer does not publish a written unlisting policy or removal
+          procedure for this specific feed. No automatic expiry, manual review process,
+          or removal request channel is described in the maintainer's public documentation.
+        criteria: []
+      unlist_request:
+      update_frequency:
+      detection_classification:
+        primary_method: unknown
+        secondary_methods: []
+        description: The maintainer does not disclose the detection or compilation
+          methodology for this feed. It is not stated whether IPs are identified through
+          passive traffic observation, manual research, user submissions, or other
+          means.
+      scope_and_intent:
+        description: The feed identifies IP addresses associated with Blizzard Entertainment
+          game infrastructure. The maintainer's stated purpose is informational —
+          to allow users to identify and optionally exclude Blizzard IPs from broader
+          blocklists, preserving game connectivity when running anti-infringement
+          or general-peer blocklists through PeerBlock, PeerGuardian, or compatible
+          applications.
+        intended_for:
+        - Identifying Blizzard Entertainment IP ranges for informational or allowlist
+          purposes
+        - Excluding Blizzard IPs from broad anti-infringement blocklists to maintain
+          game connectivity
+        - Privacy-conscious P2P users running PeerBlock or PeerGuardian who wish to
+          prevent accidental blocking of Blizzard game servers
+        not_intended_for:
+        - Blocking Blizzard game servers — the feed is oriented toward identification
+          and selective exclusion, not blocking
+        - Commercial use of the data — prohibited by the Terms of Service
+      license: iBlocklist Terms of Service — personal / non-commercial use only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The Terms of Service prohibit use for any commercial purpose or for
+          any public display (commercial or non-commercial). Redistribution in commercial
+          contexts and public display of the data are expressly forbidden.
+      current_status:
+        state: active
+        description: The feed remains listed on iblocklist.com as of the research
+          date. The maintainer's website is reachable and the feed is listed in the
+          public lists directory. No discontinuation announcement has been published.
+          Community reports from 2016–2024 alleging stale list data and poor customer
+          service relate to the broader service quality, not a formal lifecycle change;
+          the GCA Cyber Alliance catalog records the maintenance status as Active
+          with last updated date Unknown.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: No targeted complaints about the Blizzard feed's accuracy or currency
+          were found in public discussion. Community discussion focused on the broader
+          iBlocklist.com service rather than this specific feed; see the maintainer
+          role notes for the service-level signal.
+        engagement: Public community discussion about the Blizzard feed specifically
+          is sparse. A single user comment on the iBlocklist Blizzard list page (November
+          2013) noted a missing IP for StarCraft II updates. No dedicated issue tracker,
+          bug tracker, or public RFC process exists for this list.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.iblocklist.com/list.php?list=blizzard
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.iblocklist.com/lists.xml
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.iblocklist.com/support.php
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://en.wikipedia.org/wiki/PeerBlock
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.reddit.com/r/pfBlockerNG/comments/g90m06/
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.zoominfo.com/c/iblocklist-llc/346119530
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: 
+          https://web.archive.org/cdx/search/cdx?url=www.iblocklist.com&from=20100101&to=20101231&output=json
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://act.globalcyberalliance.org/index.php/I-Blocklist
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'

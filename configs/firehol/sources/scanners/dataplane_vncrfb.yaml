@@ -1,0 +1,211 @@
+sources:
+  dataplane_vncrfb:
+    license: Dataplane.org — non-commercial use only, redistribution prohibited
+    redistributable: false
+    url: https://dataplane.org/vncrfb.txt
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - dataplane_column3
+    processor_raw: dataplane_column3
+    category: scanners
+    info: '[DataPlane.org](https://dataplane.org/) IP addresses that have been seen
+      initiating a VNC remote frame buffer (RFB) session to a remote host. This report
+      lists hosts that are suspicious of more than just port scanning. These hosts
+      may be VNC server cataloging or conducting various forms of remote access abuse.'
+    maintainer: DataPlane.org
+    maintainer_url: https://dataplane.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T19:11:38Z'
+      official_name: VNC RFB Signal
+      official_url: https://dataplane.org/statistics/vncrfb.html
+      short_description: IPv4 addresses observed initiating unsolicited VNC Remote
+        Frame Buffer (RFB) sessions, indicative of VNC server cataloguing or remote-access
+        probing.
+      long_description: "The VNC RFB Signal from DataPlane.org records IPv4 addresses
+        that have been observed initiating unsolicited VNC Remote Frame Buffer sessions
+        — the protocol used by VNC remote-access software. Per the maintainer's VNC
+        threat-analysis page, VNC authentication relies on a weak DES-based challenge-response
+        mechanism with eight-character passwords, making brute-force attacks feasible.
+        Hosts listed in this signal are flagged as exhibiting behaviour consistent
+        with VNC server cataloguing or remote-access probing rather than generic port
+        scanning.\n\nThe signal is produced by DataPlane.org's globally distributed
+        sensor network. According to their published materials, the network comprises
+        over 300 sensor nodes across more than 100 /8 address blocks, spread across
+        approximately 65 metropolitan areas on 6 continents, hosted across roughly
+        100 different providers. Sensors employ passive packet-capture and firewall-log
+        listening techniques via custom VNC application listener modules written in
+        Perl and Python, logging to syslog with a minimal daemon footprint. Entry
+        data is enriched with Autonomous System Number (ASN) information using the
+        PyASN IP-to-ASN mapping service; each IP is listed once even when MOAS (Multiple
+        Origin AS) announcements cover the prefix.\n\nThe feed is published as a pipe-delimited
+        text file with columns for source ASN, AS name, IP address, last-seen timestamp
+        (UTC), and category tag. The maintainer explicitly states that Signals are
+        not block lists and advises against deriving malicious or benign intent for
+        individual entries given NATs, address spoofing, and research activity. The
+        report is informational, provided on an as-is basis with no expressed warranty."
+      roles:
+      - role: maintainer
+        name: John Kristoff
+        organization_type: non_profit
+        official_url: https://dataplane.org/jtk/
+        contact_email: info@dataplane.org
+        based_in: United States
+        active_since: '2016'
+        notes: Founder of DataPlane.org. His doctoral research on BGP, DNS, IPv6,
+          and RPKI formed the basis for the organisation's sensor network and signal
+          catalogue.
+      - role: maintainer
+        name: Matthew Kemp
+        organization_type: non_profit
+        official_url:
+        contact_email: info@dataplane.org
+        based_in:
+        active_since:
+        notes: Technologist and leader with experience across various IT functions,
+          focused on building systems and teams to meet technical and business needs.
+      - role: maintainer
+        name: Bill Eaheart
+        organization_type: non_profit
+        official_url:
+        contact_email: info@dataplane.org
+        based_in:
+        active_since:
+        notes: Infrastructure architect guided by a collaborative approach for designing
+          and delivering solutions with optimum security.
+      - role: publisher
+        name: DataPlane.org NFP
+        organization_type: non_profit
+        official_url: https://dataplane.org/
+        contact_email: info@dataplane.org
+        based_in: United States
+        active_since: '2016'
+        notes: "Registered 501(c)(3) charitable organisation (EIN: 882177476), based
+          in Chicago, IL. Motto: 'For operators, by operators.'"
+      derivation:
+        type: original
+        description: The VNC RFB Signal is an original feed produced by DataPlane.org's
+          own globally distributed sensor network. Sensors employ passive packet-capture
+          and firewall-log listening via custom VNC application listener modules written
+          in Perl and Python, logging to syslog with a minimal daemon footprint. Raw
+          connection observations are enriched with ASN data using the PyASN IP-address-to-ASN
+          mapping service. Each IP is listed once even when MOAS announcements cover
+          the prefix. No upstream IP feeds are consumed.
+        source_feeds: []
+      listing_policy:
+        summary: An IPv4 address is listed when DataPlane.org's distributed sensor
+          network observes it initiating an unsolicited VNC Remote Frame Buffer session
+          — meaning the source sent a VNC protocol handshake or negotiation attempt
+          to a monitored receiver, rather than merely sending a TCP SYN to port 5900
+          or 5800. The maintainer's VNC threat-analysis page characterises this as
+          behaviour consistent with VNC server cataloguing or remote-access probing,
+          distinct from generic port scanning.
+        criteria:
+        - The source IP initiates a VNC RFB protocol session (handshake or negotiation)
+          toward a sensor
+        - Activity is observed by DataPlane.org's distributed passive sensor network
+        - The IP is listed once regardless of how many distinct sensors or attempts
+          observed it, or how many MOAS routes cover its prefix
+      unlisting_policy:
+        summary: 'There is no manual unlisting or delist-request process. Listings
+          decay automatically: once the listed activity from the IP address ceases
+          and the underlying issue is resolved, the entry ages out of subsequent signal
+          publications. The maintainer advises operators to fix the root cause on
+          their own systems rather than submitting removal requests.'
+        criteria:
+        - The offending activity from the IP address must stop completely
+        - The fix must hold — resumed activity will cause re-listing
+        - No manual delist request form or queue exists; decay is passive and automatic
+      unlist_request:
+        url:
+        email:
+        instructions: DataPlane.org does not operate a manual delist or unlisting
+          request process. Per the maintainer's contact page, the recommended course
+          of action is to ensure that devices on the reported IP address are operating
+          correctly. Once the problematic activity ceases and stays ceased, the IP
+          address will decay off the signal automatically. There is no submission
+          form, queue, or appeal mechanism. General enquiries can be directed to info@dataplane.org.
+      update_frequency:
+        frequency: 1w
+        human_readable: New signal reports are published weekly, per the maintainer's
+          feed file header.
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: The signal is built from passive network telescope observation.
+          DataPlane.org operates a globally distributed sensor network — described
+          on their homepage as over 300 nodes across 65 metropolitan areas on 6 continents
+          — that listens for incoming VNC RFB session initiations using custom VNC
+          application listener modules written in Perl and Python. Sensors log to
+          syslog with a minimal daemon footprint. Unlike active honeypots that simulate
+          services to elicit responses, these are passive listeners that observe genuine
+          unsolicited connection attempts arriving at instrumented network vantage
+          points. Detected IPs are enriched with ASN data via the PyASN IP-to-ASN
+          mapping service.
+      scope_and_intent:
+        description: The signal is intended to raise awareness of VNC remote-access
+          probing activity on the public Internet. Per the maintainer's VNC threat-analysis
+          page, VNC's weak DES-based challenge-response authentication makes brute-force
+          attacks tractable, and the protocol offers no confidentiality protection
+          for session data, enabling offline password cracking. The signal helps network
+          operators identify hosts performing VNC server cataloguing or remote-access
+          abuse.
+        intended_for:
+        - Identifying VNC scanning and remote-access probing activity
+        - Security research and anomaly detection
+        - Awareness for network operators whose infrastructure may be targeted
+        not_intended_for:
+        - Inline blocking or deny-listing at network perimeter devices
+        - Deriving malicious or benign intent for individual entries given NATs, address
+          spoofing, and research activity
+        - Commercial use without express permission from DataPlane.org
+      license: Non-commercial use only; redistribution prohibited without express
+        written permission.
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution without express written permission from DataPlane.org
+          is prohibited. Commercial use requires prior authorisation by contacting
+          info@dataplane.org. Non-commercial use is permitted.
+      current_status:
+        state: active
+        description: Active. The feed was published as recently as September 2025,
+          and the maintainer's site, statistics page, and analysis page remain accessible
+          and operational.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion about the vncrfb feed specifically
+          is sparse. The feed is listed as a default MISP feed, and integration into
+          IntelMQ has been requested in a GitHub issue (opened 2017, still open as
+          of May 2026) with a community-contributed configuration example. No dedicated
+          Reddit threads, forum discussions, or documented false-positive incidents
+          specific to this feed were found during research.
+      sources_consulted:
+      - url: https://dataplane.org/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/vncrfb.txt
+        document_date: '2025-09-10'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/about.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/contact.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/analysis/vnc-tac.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/statistics/vncrfb.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/certtools/intelmq/issues/941
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

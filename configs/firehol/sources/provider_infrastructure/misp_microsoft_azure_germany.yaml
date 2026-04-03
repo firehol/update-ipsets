@@ -1,0 +1,189 @@
+sources:
+  misp_microsoft_azure_germany:
+    license: CC0 1.0 (MISP warninglists)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/microsoft-azure-germany/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Microsoft
+      Azure Germany datacenter IP ranges. Provider infrastructure reference, not a
+      threat indicator.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T06:36:34+00:00'
+      official_name: Microsoft Azure Germany
+      official_url: 
+        https://github.com/MISP/misp-warninglists/blob/main/lists/microsoft-azure-germany/list.json
+      short_description: CIDR ranges for Microsoft Azure Germany sovereign cloud datacenters,
+        published as a MISP warninglist to flag known-good provider infrastructure
+        and reduce false positives in threat intelligence workflows.
+      long_description: "This warninglist publishes the IP address ranges allocated
+        to the former Microsoft Azure Germany sovereign cloud regions, originally
+        operated as a partnership between Microsoft and T-Systems (Deutsche Telekom)
+        in Frankfurt and Magdeburg. The list is formatted as CIDR notation and is
+        compatible with MISP's ip-src, ip-dst, domain|ip, ip-src|port, and ip-dst|port
+        attribute types.\n\nThe MISP warninglists project is an open-source collection
+        of well-known indicators that can be associated with false positives, errors,
+        or mistakes — not malicious activity. Warninglists are integrated into MISP
+        to display an informational or warning box at the event and attribute levels
+        whenever a matching indicator is detected, helping analysts distinguish legitimate
+        infrastructure from suspicious traffic. The project is maintained by the MISP
+        community with contributions reviewed via GitHub pull requests.\n\nPer the
+        maintainer's documentation, the list was last updated on December 3, 2024.
+        The underlying Azure Germany sovereign cloud service was officially closed
+        by Microsoft on October 29, 2021, with customer migrations to standard Azure
+        Germany regions (Germany West Central and Germany North) completed by that
+        date. The list therefore represents historical infrastructure reference data
+        rather than active cloud allocation."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://www.misp-project.org/
+        contact_email: info@misp-project.org
+        based_in: Luxembourg
+        active_since: '2011'
+        notes: The MISP Project develops and maintains the open-source MISP Threat
+          Sharing platform and its associated warninglists repository. Development
+          is led by Andras Iklody (Iglocska) employed by CIRCL, with Alexandre Dulaunoy
+          (adulau) as co-founder and key contributor. The project is a community-driven
+          effort with contributions reviewed via GitHub pull requests.
+      - role: publisher
+        name: CIRCL
+        organization_type: research_institution
+        official_url: https://www.circl.lu/
+        contact_email:
+        based_in: Luxembourg
+        active_since: '2011'
+        notes: CIRCL (Computer Incident Response Center Luxembourg) is the Luxembourg
+          national CERT for the private sector and leads development of the MISP platform.
+          CIRCL hosts the MISP Project infrastructure and employs the lead MISP developer.
+      derivation:
+        type: extraction
+        description: The list is an extraction of IP CIDR ranges from Microsoft's
+          official Azure Germany datacenter allocation data. The maintainer compiles
+          the ranges into the MISP warninglist JSON format with standardized metadata
+          (name, description, type, version, matching_attributes). No third-party
+          feeds are consumed; the list is a direct representation of provider infrastructure
+          data formatted for MISP compatibility.
+        source_feeds: []
+      listing_policy:
+        summary: "Entries are the IP CIDR ranges assigned to Microsoft Azure Germany
+          datacenters, compiled from Microsoft's official allocation data. As a warninglist
+          (rather than a blocklist), the policy is inclusive: any confirmed Azure
+          Germany allocation is listed to mark it as known-good infrastructure, not
+          as a threat indicator."
+        criteria:
+        - IP range confirmed as allocated to Microsoft Azure Germany sovereign cloud
+          infrastructure
+        - Range sourced from Microsoft's official Azure Germany IP allocation data
+      unlisting_policy:
+        summary: The MISP warninglists project does not publish a specific unlisting
+          policy for individual lists. Removal or modification of entries follows
+          the GitHub pull-request contribution workflow, where community submissions
+          are reviewed by MISP core maintainers before merging.
+        criteria:
+        - IP range no longer allocated to Azure Germany infrastructure (service decommissioned
+          October 2021)
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/issues/new
+        email:
+        instructions: Submit a GitHub Issue on the MISP warninglists repository describing
+          the requested change, or open a Pull Request with the modified list.json
+          following the project's contribution guidelines.
+      update_frequency:
+        frequency:
+        human_readable: Update cadence is not publicly stated by the maintainer. The
+          list was last updated on December 3, 2024.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: "This is a policy-assignment list: it marks known-good provider
+          infrastructure (Microsoft Azure Germany datacenter IP ranges) so that security
+          analysts can recognize and suppress false positives. Entries are not generated
+          by threat detection sensors or user reports — they are a curated enumeration
+          of legitimate cloud provider address space, sourced from Microsoft's official
+          allocation data."
+      scope_and_intent:
+        description: 'The list identifies IP address ranges belonging to the former
+          Microsoft Azure Germany sovereign cloud datacenters. Its intended use is
+          as a false-positive suppressor in threat intelligence platforms: when an
+          analyst encounters traffic from these ranges, the warninglist flags the
+          source as a known cloud provider rather than treating it as unidentified
+          or suspicious infrastructure.'
+        intended_for:
+        - False-positive suppression in MISP and SIEM platforms correlating IP indicators
+        - Whitelisting known-good provider egress in firewall and IDS configurations
+        - Enriching IP observables with provider-context metadata
+        not_intended_for:
+        - Blocking or blacklisting — entries represent legitimate cloud provider infrastructure,
+          not malicious activity
+        - Real-time threat detection — the list is a static reference, not a dynamic
+          threat feed
+      license: CC0 1.0 Universal (CC0 1.0) — Public Domain Dedication
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal grants the broadest possible redistribution rights,
+          equivalent to public domain. No attribution is legally required, though
+          crediting the MISP Project is customary practice in the security community.
+      current_status:
+        state: active
+        description: 'The list remains in the MISP warninglists repository with no
+          formal deprecation flag. The latest commit was authored by adulau on December
+          3, 2024. The maintainer has not issued a deprecation or sunset notice. Note:
+          the underlying Microsoft Azure Germany sovereign cloud service was officially
+          closed on October 29, 2021, and all customer migrations were completed by
+          that date. The list therefore represents historical infrastructure reference
+          data.'
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion specifically about the microsoft-azure-germany
+          warninglist is sparse. No GitHub issues, Reddit threads, or third-party
+          blog posts were found discussing this list directly. The maintainer has
+          continued routine version bumps to this list despite the upstream Azure
+          Germany sovereign cloud being decommissioned in 2021, without any public
+          discussion documenting that decision.
+      sources_consulted:
+      - url: 
+          https://github.com/MISP/misp-warninglists/blob/main/lists/microsoft-azure-germany/list.json
+        document_date: '2024-12-03'
+        validation_date: '2026-05-19T06:30:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-19T06:30:00+00:00'
+      - url: 
+          https://github.com/MISP/misp-warninglists/tree/main/lists/microsoft-azure-germany
+        document_date: '2024-12-03'
+        validation_date: '2026-05-19T06:30:00+00:00'
+      - url: https://www.misp-project.org/who/
+        document_date:
+        validation_date: '2026-05-19T06:30:00+00:00'
+      - url: https://www.misp-project.org/contributing/
+        document_date:
+        validation_date: '2026-05-19T06:30:00+00:00'
+      - url: https://www.circl.lu/doc/misp/warninglists/
+        document_date:
+        validation_date: '2026-05-19T06:30:00+00:00'
+      - url: 
+          https://news.microsoft.com/europe/2020/09/30/our-commitment-to-delivering-the-microsoft-cloud-in-germany/
+        document_date: '2020-09-30'
+        validation_date: '2026-05-19T06:30:00+00:00'
+      - url: 
+          https://learn.microsoft.com/en-us/previous-versions/azure/germany/germany-migration-main
+        document_date:
+        validation_date: '2026-05-19T06:30:00+00:00'

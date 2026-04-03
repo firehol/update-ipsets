@@ -1,0 +1,199 @@
+sources:
+  iblocklist_bogons:
+    label: iBlocklist bogons
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=gihxqmhyunbxhbmgqrla&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: special_use
+    provenance: secondary_upstream
+    info: iBlocklist unallocated address space list. Kept as an iBlocklist feed, but
+      not used as a bogon reference provider because the upstream is not maintained
+      reliably.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T02:53:44Z'
+      official_name: bogon
+      official_url: https://www.iblocklist.com/list?list=gihxqmhyunbxhbmgqrla
+      short_description: A list of unallocated and reserved IP address space — ranges
+        that IANA has not yet delegated to any Regional Internet Registry — authored
+        by Bluetack and distributed via iBlocklist.
+      long_description: The bogon list distributed by iBlocklist tracks IP address
+        space that has not yet been allocated or delegated by IANA to any Regional
+        Internet Registry (RIR). Such unallocated space is called a "bogon" — informally
+        defined as an IP packet claiming to originate from address space that is reserved
+        but not yet officially assigned. The list also incorporates RFC-defined reserved
+        ranges including private networks (RFC 1918), loopback, link-local, and documentation
+        prefixes. Per the maintainer's list page, the list is authored by Bluetack
+        and distributed via the iBlocklist platform in PeerGuardian (P2P), DAT, and
+        CIDR formats. The list is intended for filtering at network borders to block
+        traffic from source addresses that should never appear in public internet
+        routing tables. However, multiple independent community sources dating from
+        2016 onward document that the underlying Bluetack bogon list has not been
+        actively updated for years, with timestamps advancing while actual content
+        remains frozen. Subscribers paying the annual fee have reported receiving
+        no meaningful updates in exchange for their subscription.
+      roles:
+      - role: maintainer
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: iblocklist, LLC operates the distribution platform and billing for
+          this feed. The underlying list data is originally authored by Bluetack.
+          Platform-wide community criticism of iBlocklist (continuing subscription
+          billing after the underlying lists stopped meaningful updates, support responsiveness)
+          applies at the maintainer level.
+      - role: original_author
+        name: Bluetack
+        organization_type: unknown
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Bluetack is credited as the author of the bogon list data, per the
+          iBlocklist list page. Community sources indicate the Bluetack bogon list
+          went dormant around 2015.
+      derivation:
+        type: partial_mirror
+        description: The bogon list is authored by Bluetack and redistributed via
+          the iBlocklist platform — iBlocklist is the direct upstream this catalog
+          fetches from, but does not generate the listing data itself. The underlying
+          list is built by tracking IANA's IPv4 and IPv6 /8 block allocations to Regional
+          Internet Registries, removing allocated ranges as they are assigned, and
+          incorporating RFC-defined reserved address spaces (private networks, loopback,
+          link-local, documentation prefixes, and carrier-grade NAT ranges). Distribution
+          formats include PeerGuardian (P2P), DAT, and CIDR. The catalog downloads
+          the P2P-format compressed archive directly from the iBlocklist distribution
+          URL.
+        source_feeds: []
+      listing_policy:
+        summary: An IP address is listed when it falls within address space that IANA
+          has not yet allocated to any Regional Internet Registry (RIR), or when it
+          falls within an RFC-defined reserved range. Unlike reputation-based blacklists,
+          there is no subjective scoring — an address is either officially unallocated
+          or it is not.
+        criteria:
+        - Address space not yet allocated by IANA to any RIR (APNIC, ARIN, RIPE NCC,
+          LACNIC, AFRINIC)
+        - RFC-defined reserved address ranges (private networks, loopback, link-local,
+          documentation, carrier-grade NAT)
+      unlisting_policy:
+        summary: An IP address is removed from the list when IANA officially allocates
+          the previously unallocated block containing that address to a Regional Internet
+          Registry, which then assigns it to an ISP or end-user organization. Reserved
+          RFC ranges are retained indefinitely as they are never allocated.
+        criteria:
+        - IANA allocates the containing /8 block to a RIR
+        - The RIR assigns the block to an ISP or end-user organization
+      unlist_request:
+        url:
+        email:
+        instructions: iBlocklist does not publish a public unlisting request channel
+          for the bogon list. Given that the underlying Bluetack bogon list is reported
+          as dormant, an operator seeking relief from a false-positive listing would
+          need to pursue resolution through the original list maintainer (Bluetack),
+          whose current status is unknown.
+      update_frequency:
+        frequency:
+        human_readable: Not publicly stated by the maintainer. Community reports indicate
+          the underlying Bluetack bogon list has not been meaningfully updated since
+          approximately 2015, despite the iBlocklist distribution timestamps continuing
+          to advance.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: 'The list uses a policy-assignment methodology: IPs are included
+          or excluded based on authoritative IANA allocation status and RFC-defined
+          reservation classifications, not on reputation scoring, honeypot detections,
+          or user reports. An address is listed if it resides in unallocated address
+          space or an RFC-reserved range, and unlisted when IANA officially allocates
+          the containing block.'
+      scope_and_intent:
+        description: The list is scoped to IP address space that should not appear
+          in public internet routing — unallocated blocks and RFC-reserved ranges.
+          It is intended for border-gateway and firewall filtering to block traffic
+          from spoofed or otherwise illegitimate source addresses.
+        intended_for:
+        - Border gateway and firewall ACL enforcement
+        - Blocking traffic from unallocated or reserved source addresses
+        - Reducing noise from spoofed-source traffic in security logs
+        not_intended_for:
+        - Reputation-based threat intelligence (the list does not track malicious
+          activity)
+        - Email or web application security (unallocated-space filtering is irrelevant
+          to application-layer threats)
+      license: iBlocklist Terms of Service — personal use only; commercial use prohibited;
+        no redistribution without prior written permission
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution of iBlocklist data is prohibited without prior written
+          permission from iblocklist, LLC. Automated access is restricted to no more
+          than once every 24 hours. Commercial use of any iBlocklist data is expressly
+          prohibited under the Terms of Service.
+      current_status:
+        state: discontinued
+        description: The iBlocklist bogon list is considered discontinued by the community.
+          The underlying Bluetack bogon list went dormant approximately in 2015, with
+          community sources confirming that list content froze while distribution
+          timestamps continued to advance — giving a false appearance of freshness.
+          The CombinedPrivacyBlockLists project formally declared all iBlockList sources
+          abandoned. The iBlocklist.com platform itself remains online and continues
+          charging subscription renewals, but does not deliver updated list content.
+          Operators are advised to source bogon data from actively maintained alternatives
+          such as Team Cymru's bogon reference service.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "Feed-specific criticism is that bogon data is the worst possible
+          class of list to leave unmaintained: IANA continues to delegate previously-unallocated
+          /8 space to Regional Internet Registries, who then assign those ranges to
+          ISPs and end users. A stale bogon list therefore actively blocks legitimate,
+          recently-allocated public address space. Community members on IPFire forums
+          and the CombinedPrivacyBlockLists project specifically called out the iBlocklist
+          bogon list as no longer fit for purpose, recommending Team Cymru's actively-maintained
+          bogon reference service as the replacement for this use case."
+        engagement: Public community discussion of this specific bogon redistribution
+          is concentrated on firewall and bogon-filtering forums (pfSense, OPNsense,
+          IPFire). The CombinedPrivacyBlockLists project on GitHub explicitly recommends
+          migrating away from this iBlocklist bogon list to Team Cymru's bogon reference
+          service, which publishes ongoing updates as IANA allocations change.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-19T02:53:44Z'
+      - url: https://www.iblocklist.com/list?list=gihxqmhyunbxhbmgqrla
+        document_date:
+        validation_date: '2026-05-19T02:53:44Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-19T02:53:44Z'
+      - url: https://www.iblocklist.com/developer
+        document_date:
+        validation_date: '2026-05-19T02:53:44Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-19T02:53:44Z'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-19T02:53:44Z'
+      - url: https://github.com/bongochong/CombinedPrivacyBlockLists
+        document_date:
+        validation_date: '2026-05-19T02:53:44Z'
+      - url: https://community.ipfire.org/t/bogons-not-dropped-w-ip-address-blocklists/13102
+        document_date:
+        validation_date: '2026-05-19T02:53:44Z'

@@ -1,0 +1,160 @@
+sources:
+  iblocklist_edu:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=imlmncgrkbnacgcwfjvh&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: IPs used by Educational Institutions.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T05:23:10Z'
+      official_name: edu
+      official_url: https://www.iblocklist.com/list.php?list=imlmncgrkbnacgcwfjvh
+      short_description: IPv4 address ranges allocated to colleges, universities,
+        and K-12 schools, originally maintained by Bluetack and distributed via iBlocklist.com.
+      long_description: "This feed distributes IPv4 address ranges allocated to colleges,
+        universities, and K-12 schools. It was originally authored by Bluetack (The
+        Blocklist Group, TBG) and is distributed through iBlocklist.com's hosted list
+        catalog.\n\nThe feed is delivered as a Gzip-compressed P2P-format file, compatible
+        with PeerBlock, PeerGuardian, and pfBlocker-based firewalls. The list is one
+        of several TBG blocklists designed primarily for users of peer-to-peer file
+        sharing applications who wish to filter traffic from institutional networks
+        associated with anti-P2P monitoring or enforcement activity.\n\nPer the TBG
+        FAQ, the individual raw lists — including the educational institutions list
+        — are not currently being actively updated and should be used for supplemental
+        protection only. The combined IP-Filter bundles that incorporate this list
+        are updated several times a week. The iBlocklist.com Terms of Service explicitly
+        state that no commitment is made to update the materials. Community reporting
+        from network administration forums indicates the underlying raw lists have
+        remained largely unchanged since approximately 2016."
+      roles:
+      - role: maintainer
+        name: Bluetack
+        organization_type: informal_collective
+        official_url: http://tbg.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Bluetack (also known as The Blocklist Group, TBG) authored the original
+          educational institutions IP list. The collective produced a suite of blocklists
+          for P2P applications during the 2005–2012 era.
+      - role: publisher
+        name: iBlocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: iBlocklist, LLC operates the distribution platform and website. The
+          company offers a subscription service ($9.99/year) and distributes the Bluetack
+          edu list among dozens of other blocklists in standard formats (P2P, DAT,
+          CIDR).
+      derivation:
+        type: partial_mirror
+        description: This feed is a partial mirror of the Bluetack 'edu' list, republished
+          through iBlocklist.com's distribution infrastructure. The catalog downloads
+          the list in Gzip-compressed P2P format and converts it to netset format
+          for downstream consumption. The feed overlaps heavily with other Bluetack-hosted
+          lists (99% co-occurrence with Bluetack level1, 98% with Bluetack spyware,
+          96% with Bluetack ads), reflecting shared scope among TBG's institutional
+          and advertising-category lists.
+        source_feeds: []
+      listing_policy:
+        summary: IP address ranges are listed when allocated to colleges, universities,
+          or K-12 schools. No documented inclusion criteria, data source, or submission
+          process was found in any accessible source. The TBG FAQ does not describe
+          how institutional ranges are identified or submitted.
+        criteria:
+        - IP address ranges allocated to colleges and universities
+        - IP address ranges allocated to K-12 schools
+      unlisting_policy:
+        summary: No unlisting or removal request procedure is documented. Across all
+          accessible pages — iBlocklist.com homepage, lists directory, support page,
+          Terms of Service, TBG FAQ, and individual list pages — no mention was found
+          of any mechanism to request removal of an IP address from any list. No removal
+          request form, contact email, or appeal process exists.
+        criteria: []
+      unlist_request:
+      update_frequency:
+        frequency:
+        human_readable: The individual raw lists are not currently being updated,
+          per the TBG FAQ. The combined IP-Filter bundles incorporating this list
+          are updated several times a week. The iBlocklist.com Terms of Service explicitly
+          disclaims any commitment to update the materials.
+      detection_classification:
+        primary_method: unknown
+        secondary_methods: []
+        description: No documented detection methodology exists. The TBG FAQ and iBlocklist.com
+          pages describe the list's scope but do not explain how institutional IP
+          ranges are identified or assembled. The implied approach — based on the
+          surrounding context of the TBG blocklist ecosystem — suggests manual assembly
+          from regional Internet registry (RIR) allocations and published institutional
+          IP registrations, possibly supplemented by user-submitted reports of anti-P2P
+          activity. However, no explicit confirmation of this methodology was found
+          in any accessible source.
+      scope_and_intent:
+        description: The feed targets IP address ranges allocated to educational institutions
+          — colleges, universities, and K-12 schools — for use in P2P client blocklists.
+          The TBG blocklist ecosystem was designed primarily for peer-to-peer file
+          sharing users who wish to filter connections from institutional networks
+          associated with anti-P2P monitoring or enforcement activity.
+        intended_for:
+        - Filtering P2P client connections from institutional IP ranges
+        - Supplemental protection in P2P applications (PeerBlock, PeerGuardian)
+        not_intended_for:
+        - Production network security — the raw lists are not actively maintained
+        - Commercial use — prohibited by Terms of Service
+      license: iBlocklist Terms of Service — personal / non-commercial use only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution is not addressed in the Terms of Service. The license
+          grant is limited to personal use; public display (commercial or non-commercial)
+          is prohibited. No explicit redistribution permission is granted.
+      current_status:
+        state: active
+        description: The iBlocklist.com website remains operational as of the research
+          date, distributing the Bluetack edu list. However, per the TBG FAQ, the
+          individual raw lists are not currently being updated and should be used
+          for supplemental protection only. The iBlocklist.com Terms of Service disclaims
+          any commitment to update the materials. Community reporting from network
+          administration forums indicates the underlying raw lists have remained largely
+          unchanged since approximately 2016.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion specific to the Bluetack edu list
+          is sparse. Extensive searches across Reddit and professional network administration
+          forums yielded no substantive threads discussing this specific list. The
+          iBlocklist.com website offers no public issue tracker or community discussion
+          board for the blocklists it distributes.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/list.php?list=imlmncgrkbnacgcwfjvh
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: http://tbg.iblocklist.com/pages/faq.html
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'

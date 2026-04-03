@@ -1,0 +1,206 @@
+sources:
+  romainmarcoux_malicious:
+    license: MIT License
+    redistributable: true
+    url: https://raw.githubusercontent.com/romainmarcoux/malicious-ip/main/full-40k.txt
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[romainmarcoux/malicious-ip](https://github.com/romainmarcoux/malicious-ip)
+      aggregated 40K-entry blocklist for FortiGate / pfSense external threat feed
+      consumers. Rebuilt daily from multiple upstream sources.'
+    maintainer: Romain Marcoux
+    maintainer_url: https://github.com/romainmarcoux/malicious-ip
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T22:44:22Z'
+      official_name: malicious-ip
+      official_url: https://github.com/romainmarcoux/malicious-ip
+      short_description: Multi-source aggregator of malicious IPs ranked by cross-feed
+        consensus, pre-formatted for firewall ingestion on FortiGate, pfSense, OPNsense,
+        Palo Alto, and Linux ipset.
+      long_description: "A daily-rebuilt aggregation of malicious IP addresses sourced
+        from 16 public threat intelligence feeds, maintained by Romain Marcoux (Sekio),
+        a French freelance cybersecurity expert. The project launched in September
+        2023 and serves operators seeking firewall-ready blocklists for inbound threat
+        blocking.\n\nEach IP is scored by how many upstream feeds report it; IPs appearing
+        in six or more sources comprise the highest-confidence tier (~8% of the list),
+        while IPs reported by a single source dominate (~61%). This ranking helps
+        operators select file variants matched to their hardware capacity — from the
+        40,000-entry `full-40k.txt` for constrained devices up to the 131,072-entry
+        `full-aa.txt` for capable appliances.\n\nThe project ships pre-configured
+        snippets for FortiGate (External Connectors), pfSense (pfBlocker-NG), OPNsense
+        (API), Palo Alto Networks, Check Point, Sophos, and Linux ipset. Google Bot
+        and Bing Bot IPs are automatically excluded to reduce false positives against
+        legitimate crawlers.\n\nThe MIT license permits unrestricted use, modification,
+        and redistribution with attribution."
+      roles:
+      - role: maintainer
+        name: Romain Marcoux (Sekio)
+        organization_type: individual
+        official_url: https://github.com/romainmarcoux
+        contact_email:
+        based_in: France
+        active_since: '2023'
+        notes: 'Freelance cybersecurity expert offering firewall integration, audit,
+          and migration services. Maintains several related projects: malicious-domains,
+          malicious-hash, and malicious-outgoing-ip.'
+      derivation:
+        type: aggregate_merge
+        description: Rebuilds hourly by aggregating IPs from 16 public threat intelligence
+          feeds, deduplicating entries, and ranking by source-overlap count. IPs appearing
+          in more upstream feeds receive higher priority in the output ordering.
+        source_feeds:
+        - identifier: AbuseIPDB
+          relationship: aggregate_component
+          notes: Collaborative blocklist; 120-day retention
+        - identifier: AlienVault OSSEC FakeLabs
+          relationship: aggregate_component
+          notes: SSH Brute-Force Honeypot
+        - identifier: AlienVault Georgs
+          relationship: aggregate_component
+          notes: RDP/SSH/VNC intrusion and Trojan requests
+        - identifier: AlienVault SSH Brute-Force
+          relationship: aggregate_component
+          notes: SSH Brute-Force Honeypot
+        - identifier: BinaryDefense
+          relationship: aggregate_component
+          notes: IP Block List
+        - identifier: blocklist.de
+          relationship: aggregate_component
+          notes: Collaborative blocklist with 6k sensors
+        - identifier: CINS Score
+          relationship: aggregate_component
+          notes: IP Block List
+        - identifier: Emerging Threats (Proofpoint)
+          relationship: aggregate_component
+          notes: IP Block List
+        - identifier: GreenSnow
+          relationship: aggregate_component
+          notes: IP Block List
+        - identifier: ISC SANS
+          relationship: aggregate_component
+          notes: Collaborative blocklist with 500k sensors; false positives removed
+        - identifier: NXDomain.no
+          relationship: aggregate_component
+          notes: Brute-force feed
+        - identifier: Project Honey Pot
+          relationship: aggregate_component
+          notes: Collaborative blocklist
+        - identifier: Sekio (customer-submitted)
+          relationship: aggregate_component
+          notes: Malicious IPs shared by the maintainer's clients
+        - identifier: Snort.org / Cisco Talos
+          relationship: aggregate_component
+          notes: IP Block List
+        - identifier: stamparm / IPSUM
+          relationship: aggregate_component
+          notes: Aggregated malicious IPs
+        - identifier: malicious-ip (private honeypots)
+          relationship: aggregate_component
+          notes: Private honeypots operated by the maintainer
+      listing_policy:
+        summary: IPs enter the feed automatically when they appear in any of the 16
+          upstream threat intelligence sources. There is no independent human review
+          step; the feed trusts the upstream sources' listing decisions.
+        criteria:
+        - Presence in at least one upstream feed (AbuseIPDB, AlienVault honeypots,
+          BinaryDefense, blocklist.de, CINS Score, Emerging Threats, GreenSnow, ISC
+          SANS, NXDomain.no, Project Honey Pot, Sekio customer-submissions, Snort.org/Talos,
+          stamparm/IPSUM, or private honeypots)
+      unlisting_policy:
+        summary: Operators submit whitelist requests via GitHub Issues or the maintainer's
+          LinkedIn. Google Bot, Bing Bot, and Cloudflare IP ranges are automatically
+          excluded from all published files.
+        criteria:
+        - Submit via GitHub Issue or LinkedIn message to Romain Marcoux
+        - 'Automatic exclusion: Google Bot IPs, Bing Bot IPs, Cloudflare IP ranges'
+      unlist_request:
+        url: https://github.com/romainmarcoux/malicious-ip/issues/new
+        email:
+        instructions: Open a new GitHub Issue on the repository or send a LinkedIn
+          message to Romain Marcoux describing the IP address and reason for the whitelist
+          request.
+      update_frequency:
+        frequency: 1h
+        human_readable: Updated every hour
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods:
+        - honeypot
+        description: The feed aggregates detection signals from 16 upstream threat
+          intelligence sources — primarily collaborative blocklists and honeypot networks
+          — and ranks IPs by how many sources report them. Higher source overlap indicates
+          stronger consensus that an IP is malicious.
+      scope_and_intent:
+        description: Designed exclusively for inbound blocking — stopping malicious
+          traffic originating from the wide-area network (WAN) toward local area networks
+          (DMZ). The maintainer explicitly advises against using this feed for outbound
+          blocking scenarios, which are served by a separate project.
+        intended_for:
+        - Perimeter firewall inbound blocking (FortiGate, Palo Alto, pfSense, OPNsense,
+          Check Point, Sophos)
+        - Blocking scanners, bruteforce attempts, and intrusion attempts from external
+          sources
+        - Complement to built-in firewall threat databases (e.g., FortiGate ISDB)
+        not_intended_for:
+        - Outbound blocking (see malicious-outgoing-ip project instead)
+        - Blocking internal-to-internal traffic
+      license: MIT License
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit Romain MARCOUX / malicious-ip project
+        terms: MIT License grants unlimited redistribution rights with attribution
+          and copyright notice preservation.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026 with hourly updates. Recent
+          commits added nxdomain.no as a source (January 2026) and country-specific
+          files (August 2024). GitHub releases show ongoing development.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "Past false positive reports involved legitimate services being
+          inadvertently blocked: Cloudflare infrastructure (June 2024), a Russian
+          ISP IP misclassified as Spotify-related (November 2024), a Google Cloud
+          IP flagged as false positive (November 2024), and Semrush crawler IP ranges
+          incorrectly listed (May-September 2025). All reported instances were addressed
+          and resolved by the maintainer within days. Hardware compatibility concerns
+          arose regarding FortiGate's 300K entry limit and Palo Alto model-specific
+          caps, leading to the introduction of segmented file variants."
+        engagement: Sparse public discussion outside the GitHub repository. The project
+          is mentioned in the r/fortinet subreddit (January 2025) and listed in the
+          Sniffnet wiki as a recommended IP blacklist source. Community presence is
+          otherwise limited to occasional recommendations in firewall-focused forums
+          and the maintainer's LinkedIn posts. GitHub Issues show responsive engagement
+          on whitelist requests and bug reports, with 18 of 19 issues closed. One
+          open feature request (adding Spamhaus DROP) awaits maintainer response since
+          May 2025.
+      sources_consulted:
+      - url: https://github.com/romainmarcoux/malicious-ip
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16T22:30:00Z'
+      - url: https://raw.githubusercontent.com/romainmarcoux/malicious-ip/main/README.md
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16T22:30:00Z'
+      - url: https://raw.githubusercontent.com/romainmarcoux/malicious-ip/main/LICENSE
+        document_date: '2025'
+        validation_date: '2026-05-16T22:31:00Z'
+      - url: https://github.com/romainmarcoux/malicious-ip/issues
+        document_date:
+        validation_date: '2026-05-16T22:32:00Z'
+      - url: 
+          https://www.reddit.com/r/fortinet/comments/1hydgj2/threat_feeds_inspired_by_pihole/
+        document_date: '2025-01-10'
+        validation_date: '2026-05-16T22:33:00Z'
+      - url: https://raw.githubusercontent.com/romainmarcoux/malicious-ip/main/full-40k.txt
+        document_date:
+        validation_date: '2026-05-16T22:30:00Z'

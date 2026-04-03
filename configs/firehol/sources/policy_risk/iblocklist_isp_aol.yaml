@@ -1,0 +1,160 @@
+sources:
+  iblocklist_isp_aol:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=toboaiysofkflwgrttmb&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: AOL IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T05:46:38+00:00'
+      official_name: AOL
+      official_url: https://www.iblocklist.com/lists
+      short_description: A blocklist containing IP address ranges allocated to America
+        Online (AOL), published by iBlocklist.com as part of a suite of ISP-specific
+        blocklists.
+      long_description: iBlocklist.com is a commercial IP blocklist distribution service
+        operated by iblocklist, LLC, distributing lists in standard formats including
+        P2P, DAT, and CIDR for use with privacy and firewall software such as PeerBlock,
+        PeerGuardian, iplist, Vuze, and pfBlocker. The AOL ISP blocklist contains
+        all IP address ranges allocated to America Online (AOL) as an ISP. Per the
+        maintainer's own description embedded in the lists catalog, the feed is explicitly
+        not recommended for users who are themselves AOL subscribers — blocking one's
+        own ISP's IP ranges can disrupt connectivity. The service offers the feed
+        alongside similar ISP-specific blocklists covering other major American ISPs
+        including AT&T, Comcast, Verizon, Charter, and Sprint. The service operates
+        on a subscription model; the Terms of Service grant a license for personal
+        use only, expressly prohibiting commercial use and public display of the materials.
+      roles:
+      - role: maintainer
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Operates the iBlocklist.com IP blocklist distribution service. The
+          company's Terms of Service (Section 5) states that iblocklist, LLC does
+          not make any commitment to update the materials. The site carries a copyright
+          of 2026, indicating ongoing maintenance of the website infrastructure.
+      derivation:
+        type: original
+        description: The AOL ISP blocklist is published by iBlocklist.com (author
+          'I-Blocklist' per the maintainer's machine-readable lists.xml), enumerating
+          IP address ranges allocated to America Online (AOL) as an ISP. The maintainer
+          does not publicly document the specific sourcing methodology for this particular
+          ISP list; the implied basis is regional Internet registry (RIR) allocation
+          records for AOL netblocks. The iBlocklist.com catalog as a whole also redistributes
+          lists from third-party authors (Bluetack, Squidblacklist, Spamhaus, and
+          others), but the AOL ISP feed itself is labeled an I-Blocklist-authored
+          entry rather than a mirror of a third party's curation.
+        source_feeds: []
+      listing_policy:
+        summary: The AOL ISP blocklist contains all IP address ranges allocated to
+          America Online (AOL) as an Internet Service Provider, as tracked by regional
+          Internet registry (RIR) allocation records. The maintainer does not publicly
+          document the specific criteria or data sources used to compile this list
+          beyond the description 'all AOL ISP IPs.'
+        criteria:
+        - IP address ranges allocated to AOL by regional Internet registries
+      unlisting_policy:
+        summary: The maintainer does not publish a documented unlisting or delisting
+          policy for any feed on the platform. The Terms of Service do not address
+          IP removal requests, and no dedicated removal form, email address, or self-service
+          portal was found on the publicly accessible portions of the website.
+        criteria: []
+      unlist_request:
+        url:
+        email:
+        instructions: The maintainer does not publish a dedicated IP removal request
+          channel. The only publicly stated contact option is the general support
+          page at https://www.iblocklist.com/support, which loads content via JavaScript
+          and was not extractable during research. No removal form, email address,
+          or FAQ addressing delisting was found on the accessible portions of the
+          website. Community reports indicate that support requests have historically
+          gone unanswered.
+      update_frequency:
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: The feed is produced by aggregating and redistributing third-party
+          blocklists in standardized formats. iBlocklist.com does not publicly document
+          a proprietary detection or sensing methodology; the service's value proposition
+          is format conversion and redistribution compatibility, not primary threat
+          detection. The AOL ISP blocklist is compiled from regional Internet registry
+          allocation records identifying IP ranges assigned to AOL as an ISP.
+      scope_and_intent:
+        description: The feed is intended for operators who wish to block or monitor
+          traffic originating from AOL ISP IP address ranges. The maintainer explicitly
+          advises against use by AOL subscribers themselves, as blocking one's own
+          ISP's IP space can disrupt connectivity.
+        intended_for:
+        - blocking or monitoring traffic associated with AOL ISP IP ranges
+        - integration with privacy software (PeerBlock, PeerGuardian) and firewall
+          tools (pfBlocker)
+        not_intended_for:
+        - AOL ISP subscribers blocking their own ISP's IP ranges
+      license: iBlocklist Terms of Service — personal / non-commercial only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The Terms of Service grant a license for personal use only. Redistribution
+          in any form — commercial or non-commercial, public or private — is prohibited
+          without express written permission from iblocklist, LLC. Account sharing
+          is restricted to immediate family members or a shared access point (router).
+          Violation results in automatic license termination.
+      current_status:
+        state: active
+        description: The iBlocklist.com website displays a copyright of 2026 and continues
+          to serve the AOL ISP blocklist via its lists.xml catalog, indicating the
+          website infrastructure is maintained. However, the maintainer's Terms of
+          Service (Section 5) explicitly state that iblocklist, LLC does not make
+          any commitment to update the materials, and community reports document instances
+          where list timestamps were updated without corresponding content changes.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion specific to the AOL ISP blocklist is sparse.
+          No dedicated Reddit discussion about this feed was found. Compatible software
+          integrations are documented for PeerBlock, PeerGuardian, iplist, Vuze, Transmission,
+          uTorrent, Tixati, and pfBlocker. The list is not integrated into major open-source
+          security projects or SIEM platforms as a named feed source.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-19T00:00:00+00:00'
+      - url: https://www.iblocklist.com/lists.xml
+        document_date:
+        validation_date: '2026-05-19T00:00:00+00:00'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-19T00:00:00+00:00'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-19T00:00:00+00:00'
+      - url: https://www.iblocklist.com/support
+        document_date:
+        validation_date: '2026-05-19T00:00:00+00:00'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-19T00:00:00+00:00'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-19T00:00:00+00:00'
+      - url: https://review.easycounter.com/iblocklist.com-reviews
+        document_date:
+        validation_date: '2026-05-19T00:00:00+00:00'

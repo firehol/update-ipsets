@@ -1,0 +1,151 @@
+sources:
+  shadowwhisperer_hackers:
+    license: The Unlicense (Public Domain)
+    redistributable: true
+    url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/Lists/Threats
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[ShadowWhisperer/IPs](https://github.com/ShadowWhisperer/IPs) active threats
+      observed by the maintainer''s honeypots — exploit attempts, compromised systems,
+      malware droppers. ~6.5K entries, hourly refresh.'
+    maintainer: ShadowWhisperer
+    maintainer_url: https://github.com/ShadowWhisperer/IPs
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T00:01:54Z'
+      official_name: Threats
+      official_url: https://github.com/ShadowWhisperer/IPs
+      short_description: IP blocklist of active threats — exploit attempts, compromised
+        systems, and malware droppers — detected by Cowrie honeypots distributed across
+        multiple geographic locations.
+      long_description: "The Threats list aggregates honeypot detections of IPv4 addresses
+        conducting active attack behaviour — exploit attempts, botnet participation
+        (with Mirai and Outlaw/MDRFCKR cryptominer activity called out by the maintainer),
+        credential stuffing, and other compromise activity. Detections are processed
+        automatically and republished on an hourly cycle.\n\nThe list is published
+        in two formats: a plain-text IP file (`Lists/Threats`) and a CSV variant (`Lists/Threats.csv`)
+        that adds per-entry detail columns — category, detail, note, tags, first-seen,
+        last-seen — giving operators richer context for triage decisions than the
+        bare-address format alone."
+      roles:
+      - role: maintainer
+        name: ShadowWhisperer
+        organization_type: individual
+        official_url: https://github.com/ShadowWhisperer
+        contact_email:
+        based_in:
+        active_since: '2021'
+        notes: Solo maintainer. Runs the honeypot infrastructure, curates the Malware
+          list, and manages automated hourly uploads. Also contributes to AbuseIPDB
+          (user ID 51407).
+      derivation:
+        type: original
+        description: Original honeypot feed. Detections are collected from Cowrie
+          SSH/Telnet honeypots running across multiple geographic locations. Logs
+          are aggregated to a central system, examined, and automatically published
+          hourly. No upstream IP feeds are consumed.
+        source_feeds: []
+      listing_policy:
+        summary: 'IPs are listed automatically when honeypot sensors observe them
+          conducting attack behaviour. Severity is tiered by connection count: Extreme
+          (80 or more connections), High (20–79), Medium (5–19), Low (fewer than 5).
+          The Malware category receives manual review; the Threats list is generated
+          automatically from honeypot observations.'
+        criteria:
+        - Observed conducting exploit attempts, botnet activity, credential stuffing,
+          or other compromise behaviour against honeypot sensors
+        - Connection count determines severity tier (Extreme 80+, High 20–79, Medium
+          5–19, Low <5)
+      unlisting_policy:
+        summary: No formal unlisting policy or automated decay mechanism is documented.
+          Entries carry first-seen and last-seen timestamps in the CSV variant, suggesting
+          temporal tracking, but no stated TTL or automatic expiry is published.
+        criteria:
+        - No documented automatic expiry period
+        - No stated manual removal request process
+      unlist_request:
+      update_frequency:
+        frequency: 1h
+        human_readable: Updated every hour — logs are processed and automatically
+          uploaded to the repository on an hourly cycle.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: Cowrie SSH/Telnet honeypots deployed across multiple geographic
+          locations passively observe inbound connections. Any IP connecting to a
+          honeypot sensor is logged; IPs exhibiting attack behaviour (brute-force
+          attempts, exploit probes, malware callbacks) are flagged for inclusion.
+          Cowrie is a well-established medium-interaction honeypot that logs authentication
+          attempts and shell commands, allowing classification of attacker intent
+          and tooling.
+      scope_and_intent:
+        description: The Threats list is intended for operators who want to block
+          IPs observed conducting active attack behaviour — exploit attempts, botnet
+          participation, credential stuffing, and malware distribution — at the network
+          perimeter.
+        intended_for:
+        - Network-edge blocking (firewalls, iptables, nftables)
+        - Dropping inbound connections from known malicious sources
+        - Enriching SIEM or SOC pipelines with honeypot-derived threat context
+        not_intended_for:
+        - Permanent blocking of shared or NAT'ed IP ranges (collateral damage risk
+          for innocent users on the same gateway)
+        - As the sole threat-intelligence source (operators should cross-reference
+          with other feeds)
+      license: The Unlicense (Public Domain)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: The Unlicense places no restrictions on redistribution or reuse. Data
+          may be copied, modified, sold, or distributed for any purpose without attribution
+          or notice.
+      current_status:
+        state: active
+        description: Active. Last push to the repository was on 29 March 2026. The
+          Lists/Threats file was updated on 16 May 2026. Hourly automated uploads
+          continue.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: No false-positive reports or removal disputes specific to the Threats
+          list were found in the maintainer's issue tracker. No formal removal or
+          dispute process for this list is documented, so affected operators do not
+          have a clear appeal path beyond filing an ad-hoc GitHub issue.
+        engagement: Public community discussion of the Threats list specifically is
+          sparse. No Reddit threads, security forum posts, or third-party blog articles
+          discussing this feed were located. GitHub Issues on the maintainer's repository
+          show no open items concerning this list.
+      sources_consulted:
+      - url: https://github.com/ShadowWhisperer/IPs
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/Lists/Threats
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://api.github.com/repos/ShadowWhisperer/IPs/contents/Lists/Threats
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/Lists/Threats.csv
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://github.com/ShadowWhisperer/IPs/blob/master/LICENSE
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://github.com/notracking/hosts-blocklists/issues/541
+        document_date: '2021-03-31'
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://github.com/AdguardTeam/HostlistsRegistry/issues/202
+        document_date: '2023-04-09'
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: 
+          https://www.reddit.com/r/AskNetsec/comments/308k8a/project_honeypot_has_my_ip_on_its_blacklist/
+        document_date: '2015-04-08'
+        validation_date: '2026-05-17T00:00:00Z'

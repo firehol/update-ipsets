@@ -1,0 +1,189 @@
+sources:
+  provider_context_digitalocean_geofeed:
+    license: Provider-published RFC 8805 geofeed
+    redistributable: false
+    label: DigitalOcean provider context
+    url: https://www.digitalocean.com/geo/google.csv
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: primary
+    info: DigitalOcean-published RFC 8805 geofeed IPv4 ranges. Provider context feed,
+      not a threat indicator and not a critical-infrastructure warning source.
+    maintainer: DigitalOcean
+    maintainer_url: https://www.digitalocean.com/geo/google.csv
+    enabled_by_all: true
+    use: [provider_context]
+    attributes:
+      context_role: cloud_customer_hosting
+      context_source_type: authoritative_geofeed_csv
+      context_source_quality: B
+      context_rationale: DigitalOcean ranges are customer-hosting infrastructure;
+        overlap is useful as collateral-risk context, not as a critical warning.
+
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T14:01:28Z'
+      official_name: DigitalOcean Self-Published Geofeed
+      official_url: https://www.digitalocean.com/geo/google.csv
+      short_description: IPv4 prefixes allocated to DigitalOcean, self-published in
+        the RFC 8805 geofeed format with geographic location annotations (country,
+        region, city, postal code).
+      long_description: DigitalOcean self-publishes its IPv4 address allocations as
+        a CSV file in the RFC 8805 geofeed format. Each entry maps one CIDR prefix
+        DigitalOcean operates to a country code, subdivision, city, and postal code,
+        identifying the data centre region where the prefix is routed. The file is
+        named google.csv because the RFC 8805 format was pioneered by Google's engineering
+        team in 2013 and later standardized as RFC 8805 — the filename refers to the
+        format origin, not to the data inside, which is DigitalOcean's own infrastructure.
+        DigitalOcean staff and a DigitalOcean ideas/feedback page point operators
+        to this URL when they ask for a list of DigitalOcean IP CIDRs. The companion
+        GitHub repository (google/self-published-geo) containing the RFC 8805 specification
+        and a reference validator was archived in October 2022, but that affects only
+        the format specification — DigitalOcean continues to maintain its own CSV.
+        No update cadence is publicly stated by the maintainer.
+      roles:
+      - role: maintainer
+        name: DigitalOcean
+        organization_type: commercial
+        official_url: https://www.digitalocean.com
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: DigitalOcean publishes the CSV at digitalocean.com/geo/google.csv listing
+          its own allocated IPv4 prefixes annotated with geographic location data.
+          Staff replies in the DigitalOcean community forum and an entry on the DigitalOcean
+          ideas/feedback portal treat the file as DigitalOcean's canonical list of
+          IP CIDRs. The filename references the RFC 8805 format (authored by Google
+          engineers) rather than the data inside.
+      - role: original_author
+        name: Google Engineering Team
+        organization_type: commercial
+        official_url: https://github.com/google/self-published-geo
+        contact_email:
+        based_in: United States
+        active_since: '2013'
+        notes: Authored the RFC 8805 self-published geofeed format. Four of the five
+          RFC 8805 authors are Google employees. The format originator role applies
+          to the file structure (CSV columns, semantics, allowed values) — it does
+          not imply Google maintains the prefix list inside this particular CSV.
+      derivation:
+        type: original
+        description: 'DigitalOcean self-reports the geographic location of its own
+          allocated IPv4 address space. Entries follow RFC 8805 format: Prefix, Country
+          (ISO 3166-1 alpha-2), Region (ISO 3166-2 subdivision code), City, and PostalCode.
+          No third-party feeds, threat intelligence sources, or external APIs are
+          involved.'
+        source_feeds: []
+      listing_policy:
+        summary: Entries represent DigitalOcean's own allocated IPv4 address blocks
+          annotated with the geographic location of the data centre region routing
+          each prefix. A prefix is listed when DigitalOcean holds a regional internet
+          registry (RIR) allocation or announces it under its autonomous system, and
+          the entry records the city and postal code corresponding to the prefix's
+          serving location. There is no third-party reporting or community submission
+          mechanism.
+        criteria:
+        - DigitalOcean holds or announces the IPv4 prefix from one of its data centre
+          regions
+        - The prefix is operated by DigitalOcean infrastructure
+        - The geographic annotation reflects the data centre region the prefix is
+          routed to, not the location of any individual customer workload
+      unlisting_policy:
+        summary: No public unlisting mechanism is documented. When DigitalOcean stops
+          operating an IPv4 prefix (allocation returned to the regional registry,
+          or no longer announced), the corresponding entry would presumably be removed
+          from subsequent releases of the CSV. No manual delist request channel is
+          offered.
+        criteria:
+        - Allocation is returned to or reclaimed by the regional internet registry
+        - Prefix is no longer announced by DigitalOcean's autonomous system
+      unlist_request:
+      update_frequency:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: 'The feed is a policy-assignment dataset: DigitalOcean annotates
+          its own announced IPv4 prefixes with the geographic location of the data
+          centre region routing each prefix. This is not threat detection — it is
+          geographic context for infrastructure the prefix owner controls. There are
+          no honeypots, sensors, malware analysis pipelines, or community reports
+          involved.'
+      scope_and_intent:
+        description: Enables accurate IP geolocation for systems consuming DigitalOcean's
+          allocated address space, without reliance on third-party estimation or crowd-sourced
+          databases. Intended for network operators, geofeed consumers, and services
+          that need precise geographic context for IP addresses within DigitalOcean's
+          infrastructure.
+        intended_for:
+        - IP geolocation for DigitalOcean's allocated address space
+        - Network routing and latency optimization
+        - Compliance and regulatory geolocation requirements
+        - Augmenting third-party MaxMind/IPinfo-style geolocation databases with authoritative
+          first-party data
+        not_intended_for:
+        - Threat detection or security blocking
+        - Abuse complaint processing
+        - Any form of security alerting or incident response
+      license: No stated license. The CSV file at digitalocean.com/geo/google.csv
+        contains no embedded license declaration or comment header. The RFC 8805 specification
+        text is governed by BCP 78 / IETF Trust Legal Provisions (applies to the RFC
+        document itself, not the CSV data). The companion Google repository (google/self-published-geo)
+        is CC-BY-4.0 (applies to the specification and validator code, not the live
+        CSV data). No license governs the CSV data file directly.
+      redistribution:
+        allowed:
+        commercial_use_allowed:
+        attribution_required:
+        terms: No redistribution terms are stated in or associated with the CSV file.
+          The geofeed ecosystem conventionally relies on attribution when reusing
+          data, and the companion repository is CC-BY-4.0, but neither term applies
+          directly to the CSV data file at digitalocean.com/geo/google.csv. The catalog
+          marks redistributable=false, reflecting the absence of any permissive redistribution
+          grant.
+      current_status:
+        state: active
+        description: Active and maintained. The CSV file at digitalocean.com/geo/google.csv
+          was confirmed valid by DigitalOcean staff in a July 3, 2024 community reply.
+          DigitalOcean continues to publish and update the file. The companion specification
+          repository (google/self-published-geo) was archived in October 2022, but
+          that archive contains the RFC 8805 specification document and validator
+          code — not the live CSV data, which remains current.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion is sparse. The primary community venue is DigitalOcean's
+          own community forum, where the feed URL is referenced in a handful of support
+          threads (most recently July 2024) asking whether the file is current or
+          seeking specific CIDR coverage. No standalone GitHub issues, Reddit threads,
+          or third-party blog posts discussing the feed as a product were found. The
+          companion RFC 8805 repository has 14 stars and 5 forks on GitHub (as of
+          October 2022, when it was archived) — minimal community traction, consistent
+          with a specialized infrastructure format rather than a broadly consumed
+          threat feed.
+      sources_consulted:
+      - url: https://datatracker.ietf.org/doc/html/rfc8805
+        document_date: '2020-08-01'
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: https://github.com/google/self-published-geo
+        document_date: '2022-10-27'
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: https://raw.githubusercontent.com/google/self-published-geo/master/LICENSE
+        document_date:
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: 
+          https://www.digitalocean.com/community/questions/public-ip-list-used-by-do-datacenter
+        document_date: '2024-07-03'
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: https://ipregistry.co/blog/geofeeds
+        document_date:
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: https://ideas.digitalocean.com/documentation/p/list-of-digital-ocean-ips-cidrs
+        document_date: '2023-08-29'
+        validation_date: '2026-05-21T14:00:00Z'

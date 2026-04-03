@@ -1,0 +1,194 @@
+sources:
+  misp_alphastrike_scanners:
+    license: CC0 1.0 (MISP warninglists)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/alphastrike-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Alpha Strike
+      Labs scanning infrastructure ranges. Informational - not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T20:12:35Z'
+      official_name: Alpha Strike Labs IP Ranges Used for Scanning
+      official_url: https://github.com/MISP/misp-warninglists/tree/main/lists/alphastrike-scanning
+      short_description: A MISP warning list identifying Alpha Strike Labs GmbH (AS208843)
+        internet-wide scanning infrastructure, allowing analysts to recognize and
+        suppress false-positive alerts from legitimate security research probes.
+      long_description: This warning list marks the IP address ranges that Alpha Strike
+        Labs GmbH (AS208843) publicly registers and operates for its commercial internet-wide
+        security research scanning, distinct from the sibling alphastrike-research-nt-scanning
+        list, which captures probes that CIRCL Luxembourg's network telescope has
+        passively observed. Alpha Strike Labs is a German cyber intelligence company
+        founded in 2017 and headquartered in Berlin; it operates a decentralized cyber
+        reconnaissance system capable of scanning the global internet across more
+        than 80 protocols. The company is classified as BENIGN by GreyNoise and collaborates
+        with the Shadowserver Foundation, having shared Log4j vulnerability scanning
+        data with them for distribution to national CSIRTs. This list is explicitly
+        informational — it is not intended for use as a blocklist.
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://github.com/MISP
+        contact_email: misp@circl.lu
+        based_in: Luxembourg
+        active_since: '2016'
+        notes: The MISP Project (Centre d'Education et de Recherche sur la Cybersecurite
+          — CIRCL) maintains the misp-warninglists repository, including this Alpha
+          Strike Labs scanning infrastructure list. Primary maintainer credited as
+          adulau (Alexandre Dulaunoy).
+      - role: source_contributor
+        name: Alpha Strike Labs GmbH
+        organization_type: commercial
+        official_url: https://www.alphastrike.io
+        contact_email: office@alphastrike.io
+        based_in: Germany
+        active_since: '2017'
+        notes: Alpha Strike Labs GmbH (AS208843) operates the scanning infrastructure
+          whose IP ranges are tracked in this warning list. Founded 2017, headquartered
+          in Berlin-Adlershof. CEO and co-founder is Johannes Klick. GreyNoise classifies
+          the organization as BENIGN. Collaborates with Shadowserver Foundation.
+      derivation:
+        type: original
+        description: The list is compiled and maintained by the MISP Project based
+          on Alpha Strike Labs' publicly registered scanning prefixes under AS208843.
+          It is formatted as CIDR-type matching entries compatible with MISP's warning
+          list system, supporting matching against ip-src, ip-dst, domain|ip, ip-dst|port,
+          and ip-src|port attribute types. The MISP Project does not consume other
+          IP feeds as inputs for this specific list; it derives the entries from Alpha
+          Strike Labs' publicly registered autonomous system and network prefix data,
+          which is the distinction from the sibling alphastrike-research-nt-scanning
+          list that uses CIRCL network telescope observations.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added when Alpha Strike Labs GmbH (AS208843) registers
+          new network prefixes allocated to its scanning infrastructure, or when existing
+          prefixes are updated. The list tracks the organization's registered CIDR
+          blocks used for internet-wide scanning, identified through analysis of the
+          autonomous system's routing registrations.
+        criteria:
+        - IP range is registered to Alpha Strike Labs GmbH under AS208843
+        - Range is used for or associated with the organization's internet-wide scanning
+          infrastructure
+        - Range is confirmed through public routing registry data (BGP prefix records)
+      unlisting_policy:
+        summary: Ranges are removed when Alpha Strike Labs no longer uses them for
+          scanning, when the organization disbands or discontinues its scanning program,
+          or when the autonomous system AS208843 is deregistered. Updates follow the
+          MISP Project's periodic Network Telescope review cycle, evidenced by a commit
+          on May 4, 2026 updating the alphastrike-research-nt-scanning sibling list.
+        criteria:
+        - Alpha Strike Labs ceases operations or dissolves
+        - AS208843 autonomous system is deregistered or reassigned to another entity
+        - Registered prefixes are no longer used for scanning activity
+        - Periodic MISP Network Telescope review identifies range as inactive or reassigned
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/issues/new
+        email:
+        instructions: Submit a GitHub issue on the MISP/misp-warninglists repository
+          requesting removal or correction of a specific range. Alternatively, contact
+          the MISP Project via email at misp@circl.lu. For issues affecting Alpha
+          Strike Labs specifically, contact Alpha Strike Labs directly at office@alphastrike.io.
+      update_frequency:
+        frequency:
+        human_readable: Updates occur opportunistically when Alpha Strike Labs registers
+          new prefixes or during periodic Network Telescope reviews by the MISP Project;
+          no fixed cadence is publicly committed to.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: "This is a policy-assignment list: it marks known-benign scanning
+          infrastructure so that security analysts using MISP can recognize Alpha
+          Strike Labs' probes as legitimate research activity rather than hostile
+          scanning. The list does not involve active probing, honeypots, or malware
+          analysis — it is a curated reference list identifying the registered IP
+          ranges of a known security research organization. Alpha Strike Labs itself
+          conducts active internet-wide scanning across more than 80 protocols using
+          its own scanning infrastructure, but this warning list only catalogs its
+          known IP ranges for false-positive suppression."
+      scope_and_intent:
+        description: This warning list identifies Alpha Strike Labs GmbH's registered
+          scanning infrastructure IP ranges so that MISP users can recognize the organization's
+          probes as legitimate security research rather than malicious activity. It
+          is informational only.
+        intended_for:
+        - Suppressing false-positive alerts triggered by Alpha Strike Labs scanning
+          probes in MISP-powered security operations
+        - Enriching MISP events with context when Alpha Strike Labs IP ranges appear
+          in threat intelligence data
+        - Security analysts investigating scanning activity who wish to attribute
+          it to a known-benign research organization
+        not_intended_for:
+        - Inline blocking or deny-listing of Alpha Strike Labs IP ranges at the network
+          perimeter
+        - Generating blocking rules for firewalls or intrusion prevention systems
+        - Identifying malicious activity — the list marks known-benign infrastructure,
+          not threats
+      license: CC0 1.0 Universal (CC0 1.0) — Public Domain Dedication
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal Public Domain Dedication places the content in the
+          public domain with no restrictions. No attribution is legally required,
+          though crediting the MISP Project is customary practice in the security
+          community.
+      current_status:
+        state: active
+        description: "Actively maintained. The most recent commit to the alphastrike-scanning
+          list was on November 25, 2025 ('fix: [alphastrike] updated' by adulau).
+          The broader MISP Network Telescope review cycle produced a commit on May
+          4, 2026 touching the related alphastrike-research-nt-scanning list, demonstrating
+          ongoing attention to Alpha Strike Labs infrastructure tracking. The MISP
+          warninglists repository is active with regular contributions."
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion specifically about this alphastrike-scanning
+          warning list is sparse. No open GitHub issues tagged 'alphastrike' were
+          found on the MISP/misp-warninglists repository (Evidence ID 6). Broader
+          community discussion confirms MISP warninglists are widely reused by security
+          operations teams as false-positive suppression tools, and that the MISP
+          ecosystem (including the misp-feedback standalone tool) extends the warning
+          list functionality beyond the core MISP platform. The MISP warninglists
+          project overall receives consistent community engagement through issue submissions
+          for new lists, broken generator scripts, and format corrections.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/alphastrike-scanning/list.json
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/tree/main/lists/alphastrike-scanning
+        document_date: '2025-11-25'
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.alphastrike.io/about
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/issues?q=alphastrike
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/commit/13c085b
+        document_date: '2026-05-04'
+        validation_date: '2026-05-18'
+      - url: https://ipinfo.io/AS208843
+        document_date:
+        validation_date: '2026-05-18'

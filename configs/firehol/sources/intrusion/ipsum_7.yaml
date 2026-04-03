@@ -1,0 +1,168 @@
+sources:
+  ipsum_7:
+    license: The Unlicense
+    redistributable: true
+    url: https://raw.githubusercontent.com/stamparm/ipsum/master/levels/7.txt
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[IPsum](https://github.com/stamparm/ipsum) threat intelligence feed of
+      IPs appearing on at least 7 blacklists. Based on analysis of 30+ publicly available
+      blacklists updated daily.'
+    maintainer: stamparm
+    maintainer_url: https://github.com/stamparm/ipsum
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T21:20:13Z'
+      official_name: IPsum
+      official_url: https://github.com/stamparm/ipsum
+      short_description: Daily threat-intelligence feed aggregating 30+ public blacklists
+        into ranked IP lists filtered by how many sources flag each address.
+      long_description: "This feed is the `levels/7.txt` slice of the IPsum project
+        — IPs that appear on seven or more of the 30+ upstream public blacklists IPsum
+        aggregates. The seven-source consensus threshold yields a tight, high-confidence
+        list aimed at operators who want very few false positives at the cost of recall.\n\
+        \nIPsum tallies how many of its upstream blacklists list a given IP and emits
+        one file per integer threshold; this feed publishes the level-7 cut. The full
+        feed is rebuilt daily and sorted by occurrence count, highest first, so operators
+        can choose a confidence threshold that fits their risk tolerance. At this
+        near-top tier, an IP must be flagged by at least seven independent sources
+        to appear here.\n\nThe feed is licensed under The Unlicense (public domain)
+        and intended for automated ingestion by firewalls, ipsets, SIEMs, and security
+        automation platforms. Fortinet documents a FortiSOAR connector for enterprise
+        integration. Operators who want broader coverage can use `ipsum_2` through
+        `ipsum_6`; the only stricter tier is `ipsum_8`."
+      roles:
+      - role: maintainer
+        name: stamparm
+        organization_type: individual
+        official_url: https://github.com/stamparm
+        contact_email:
+        based_in:
+        active_since:
+        notes: Individual developer maintaining IPsum alongside the related Maltrail
+          project. Both projects are open-source and publicly documented on GitHub.
+      derivation:
+        type: aggregate_merge
+        description: Aggregates output from 30+ publicly available threat-intelligence
+          blacklists. On a daily automated cycle, all source lists are fetched, parsed,
+          and deduplicated. Each resulting IP carries an occurrence count — the number
+          of source lists that flagged it. The combined set is sorted by occurrence
+          count and written to the master ipsum.txt file. Pre-filtered slices at each
+          integer threshold (levels/3.txt through levels/8.txt) are generated simultaneously.
+        source_feeds: []
+      listing_policy:
+        summary: Inclusion is automatic and algorithmic. Any IPv4 address that appears
+          in at least one contributing source blacklist receives an occurrence count
+          equal to the number of sources that flagged it. The feed retains all IPs
+          regardless of count; pre-filtered levels files select a minimum threshold.
+          No human review step is applied.
+        criteria:
+        - Appears in at least one contributing public blacklist (automatic, no submission
+          process)
+      unlisting_policy:
+        summary: No manual unlisting channel is documented. Because the feed aggregates
+          passive sources, removals from contributing blacklists propagate automatically
+          on the next daily cycle when the IP falls below the selected threshold.
+        criteria:
+        - 'Automatic decay: falling below the minimum occurrence threshold removes
+          the IP from a given levels file on the next daily rebuild'
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated daily — all source lists are fetched and reprocessed
+          every 24 hours and the results are committed to the repository.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: 'Reputation aggregation: the feed consolidates IPs from 30+ public
+          blacklists and ranks each by how many sources flagged it. The occurrence
+          count functions as a confidence proxy — IPs appearing on more source lists
+          carry lower false-positive risk. No active scanning, honeypot sensors, or
+          malware analysis contributes directly to this feed.'
+      scope_and_intent:
+        description: Intended for automated blocking and enrichment at network edges.
+          The maintainer positions the feed as a pragmatic middle ground between bare
+          blocklists and enterprise threat intelligence platforms.
+        intended_for:
+        - Edge firewall blocking (iptables/ipset, OPNsense, pfBlockerNG, FortiGate)
+        - SIEM enrichment — adding reputation context to security events
+        - Threat hunting — identifying known-bad source IPs in network traffic
+        - Automated ban lists at configurable confidence thresholds
+        not_intended_for:
+        - Real-time blocking — updates are daily, not continuous
+        - Domain, URL, or file-hash intelligence — IP addresses only
+        - Threat actor attribution — no actor or malware family labeling
+        - IPv6 traffic — the feed contains only IPv4 addresses
+      license: The Unlicense
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: No redistribution restrictions are stated. The Unlicense imposes no
+          conditions — redistribution in any form for any purpose, commercial or non-commercial,
+          is permitted without attribution.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026. Daily automated pushes to
+          the repository. Recent commits observed within hours of the research date.
+          README shows a Wall of Shame dated 2026-05-16.
+        successor:
+        announcement_date:
+      community:
+        awards: Fortinet documents a production-grade FortiSOAR connector for the
+          IPsum feed — a named third-party integration published by Fortinet itself.
+        criticism: No sustained criticism pattern was found in public forums. The
+          feed's daily-only cadence and IPv4-only scope are noted as limitations by
+          third-party comparison writers, but these are documented characteristics
+          rather than complaints. Some operators in firewall forums express preference
+          for Spamhaus or OpenDBL lists for WAN ingress blocking, suggesting IPsum
+          is considered complementary rather than a primary stand-alone source.
+        engagement: Public discussion is sparse relative to larger feeds. One Reddit
+          thread (January 2024) referenced IPsum as a firewall alias option, and one
+          older thread (June 2020) mentioned the related Maltrail project. The IPsum
+          project is also cited in third-party threat-intelligence comparison guides
+          as a practical free-tier option for IP reputation enrichment. No dedicated
+          issue threads, forks, or community debates about the feed were found. Sparse
+          discussion is consistent with a focused, automated tool used programmatically
+          rather than debated socially.
+      sources_consulted:
+      - url: https://github.com/stamparm/ipsum
+        document_date:
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/README.md
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/LICENSE
+        document_date:
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/levels/7.txt
+        document_date:
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: https://api.github.com/repos/stamparm/ipsum/contents/levels
+        document_date:
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: 
+          https://www.reddit.com/r/opnsense/comments/18wr8v4/firewall_alias_url_table_threat_intel_feed_for/
+        document_date: '2024-01-02'
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: 
+          https://www.reddit.com/r/pfBlockerNG/comments/hebmtt/another_feed_to_consider_mailtrail/
+        document_date: '2020-06-23'
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: 
+          https://docs.fortinet.com/document/fortisoar/1.0.0/ipsum-threat-intelligence-feed/908/
+        document_date:
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: https://www.libhunt.com/compare-ipsum-vs-blocklist-ipsets
+        document_date:
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: https://thehgtech.com/guides/threat-intelligence-feeds-comparison.html
+        document_date:
+        validation_date: '2026-05-16T21:00:00Z'

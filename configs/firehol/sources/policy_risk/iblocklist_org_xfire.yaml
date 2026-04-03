@@ -1,0 +1,181 @@
+sources:
+  iblocklist_org_xfire:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=ppqqnyihmcrryraaqsjo&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: XFire IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T12:55:23Z'
+      official_name: Xfire
+      official_url: https://www.iblocklist.com/list?list=ppqqnyihmcrryraaqsjo
+      short_description: IPv4 subnets registered to the XFire gaming communication
+        platform, used historically to whitelist legitimate game-client traffic in
+        P2P environments.
+      long_description: "The Xfire list published by iBlocklist.com contains IPv4
+        subnets allocated to the XFire VoIP and instant-messaging client for online
+        gamers. XFire was a peer-to-peer gaming communication tool that allowed players
+        to chat, track sessions, and coordinate during multiplayer games. It was acquired
+        by Logitech in 2011 and its social services were shut down by AOL in June
+        2015.\n\nPer the maintainer's product page, the list covers IPs registered
+        to the XFire platform and other IPs needed for gaming applications. The list
+        was delivered in P2P-format (DAT/p2p archive), historically used by PeerGuardian
+        and PeerBlock users to selectively allow XFire traffic while blocking unknown
+        or hostile peers in torrent clients.\n\niBlocklist.com's own product page
+        marks this list as deprecated: 'This list has been deprecated. It should no
+        longer be used.' The underlying XFire platform itself has been offline since
+        June 2015, meaning no new IPs have been issued against this namespace in over
+        a decade."
+      roles:
+      - role: maintainer
+        name: iBlocklist.com
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: 'iBlocklist.com is a commercial IP blocklist subscription service operated
+          by iblocklist, LLC. The service distributes curated IP feeds in P2P, DAT,
+          and CIDR formats. The Xfire list is one of many organization-targeted feeds
+          in their catalog. Service-level community signal across iBlocklist.com (not
+          specific to any single feed): Netgate forum users reported that some compressed-file
+          headers carried current dates while underlying content remained frozen at
+          earlier states; some subscribers reported ongoing credit-card charges for
+          a service perceived as no longer delivering updates.'
+      - role: publisher
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: The legal entity identified in the Terms of Service as the service
+          provider. The copyright notice on the site reads '© 2026 iblocklist, LLC'.
+      derivation:
+        type: original
+        description: The Xfire list is a first-party feed compiled by iBlocklist.com
+          from IP allocations registered to the XFire gaming platform. The maintainer
+          did not document an aggregation methodology; the list represents IPs known
+          to belong to one specific application's infrastructure rather than detections
+          from a sensor network or community reports. No upstream IP feeds contribute
+          to this list.
+        source_feeds: []
+      listing_policy:
+        summary: IPs are listed based on registration records identifying them as
+          allocated to the XFire gaming communication platform and related gaming
+          infrastructure. The maintainer does not publish a formal criteria document;
+          the list reflects known address-space assignments for a specific application's
+          servers and relays.
+        criteria:
+        - IP addresses registered to the XFire gaming platform's server and relay
+          infrastructure
+        - IP addresses needed for gaming-application traffic, per the maintainer's
+          product-page description
+      unlisting_policy:
+        summary: The maintainer does not publish a documented unlisting policy for
+          this feed. Given that the XFire platform itself has been offline since June
+          2015 and the feed is marked deprecated on the maintainer's site, no active
+          maintenance or delisting process is occurring.
+        criteria:
+        - No formal delisting mechanism is documented by the maintainer for this feed
+      unlist_request:
+        url:
+        email:
+        instructions: The maintainer does not publish a dedicated unlisting channel
+          for this feed. The site's general support page redirects to a VPN service
+          upsell rather than offering a contact form or ticketing system. Given the
+          feed is marked deprecated, no unlisting workflow is applicable.
+      update_frequency:
+        frequency: 1d
+        human_readable: Daily updates, per the maintainer's stated update frequency
+          for this feed.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: "The feed consists of IP addresses assigned to a specific application's
+          registered address space. Entries are not generated by honeypot detections,
+          sandbox executions, or community reports — they are address blocks known
+          to be allocated to the XFire gaming platform's infrastructure. This is a
+          policy-assignment classification: IPs qualify for inclusion by virtue of
+          their registered ownership, not by behavioral detection."
+      scope_and_intent:
+        description: The feed covers IPv4 subnets allocated to the XFire gaming VoIP
+          and instant-messaging platform. Its historical intended use was to allow
+          XFire traffic in P2P clients (such as BitTorrent applications managed by
+          PeerGuardian or PeerBlock) while blocking unknown or hostile peers — effectively
+          a permissive allowlist for one specific gaming service. The feed is now
+          deprecated and the XFire platform itself has been offline since June 2015.
+        intended_for:
+        - Selective whitelisting of XFire gaming-platform traffic in P2P environments
+        - Network gateway filtering to permit outbound access to XFire servers
+        not_intended_for:
+        - General-purpose threat blocking — the list covers only one gaming platform's
+          address space and offers no protection against malware, scanner, or botnet
+          traffic
+        - Active deployment — the feed is deprecated and no longer maintained
+      license: iBlocklist Terms of Service — personal / non-commercial use only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution is not permitted under the iBlocklist Terms of Service.
+          The ToS restricts use to personal use and prohibits any commercial purpose
+          or public display of the materials. Account sharing outside one's household
+          is also prohibited.
+      current_status:
+        state: discontinued
+        description: "Deprecated. iBlocklist.com's own product page for this feed
+          marks it: 'This list has been deprecated. It should no longer be used.'
+          The underlying XFire platform itself was shut down by AOL in June 2015.
+          No successor feed has been announced by the maintainer."
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: No specific FP incidents were found for the Xfire feed itself given
+          its narrow scope and the platform's long-defunct status. Service-level community
+          signal across iBlocklist.com is recorded in the maintainer role notes.
+        engagement: Public discussion referencing the Xfire feed is sparse. The feed's
+          narrow scope — covering a single gaming platform's address space — limits
+          its relevance to a specialized subset of P2P-user communities. Community
+          discussion peaks correlate with the XFire platform's shutdown in 2015 and
+          periodic nostalgic references thereafter. No dedicated issue tracker, bug
+          tracker, or active community channel specific to the Xfire feed was found.
+      sources_consulted:
+      - url: https://www.iblocklist.com/list?list=ppqqnyihmcrryraaqsjo
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://wiki.archiveteam.org/index.php/Xfire
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.reddit.com/r/PFSENSE/comments/5v4w0j/what_blacklists_do_people_use/
+        document_date: '2016-02-20'
+        validation_date: '2026-05-18'
+      - url: 
+          https://www.reddit.com/r/pcmasterrace/comments/1ns98un/sigh_sometimes_i_go_to_the_internet_archive_just/
+        document_date: '2025-01-26'
+        validation_date: '2026-05-18'

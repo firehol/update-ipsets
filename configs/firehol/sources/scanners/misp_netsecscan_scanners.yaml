@@ -1,0 +1,207 @@
+sources:
+  misp_netsecscan_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/netsecscan-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) NetSecScan
+      scanner IP ranges. Informational - not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T22:42:18+00:00'
+      official_name: NetSecScan IP-Ranges, pot. used for Scanning
+      official_url: https://github.com/MISP/misp-warninglists/tree/main/lists/netsecscan-scanning
+      short_description: A MISP warninglist of CIDR ranges belonging to NetSecScan.net,
+        an academic internet-wide scanning research service, used to flag known scanner
+        infrastructure as non-malicious in threat intelligence workflows.
+      long_description: "The netsecscan-scanning warninglist tracks IP address ranges
+        used by NetSecScan.net, a network scanning service operated from the Netherlands
+        (AS202425 / FiberXpress BV). NetSecScan.net describes itself as a non-malicious
+        academic research scanning node that surveys publicly reachable services across
+        the entire IPv4 address space, with particular interest in identifying reflectors
+        abusable for DDoS attacks.\n\nMISP warninglists are collections of well-known,
+        non-malicious indicators that MISP displays as informational or warning boxes
+        when an analyst encounters a matching indicator in an event or attribute.
+        Their purpose is to reduce false-positive investigations — alerting analysts
+        that an observed activity originates from a recognized benign source rather
+        than warranting further incident response. The netsecscan-scanning list specifically
+        carries the 'cidr' type, meaning it matches against ip-src and ip-dst attribute
+        fields in MISP events.\n\nPer the MISP warninglists README, warning lists
+        are licensed under CC0 1.0 Universal (Public Domain Dedication). Individual
+        authors may request alternative licensing for their specific lists via pull
+        request. The list was contributed by CIRCL.lu researcher Paul Jung (Thanat0s)
+        and merged into the repository in December 2025. The maintainer frames this
+        list as informational context for analysts rather than as a blocklist for
+        inline enforcement."
+      roles:
+      - role: maintainer
+        name: Alexandre Dulaunoy
+        organization_type: research_institution
+        official_url: https://github.com/adulau
+        contact_email:
+        based_in: Luxembourg
+        active_since:
+        notes: Core maintainer of the MISP/misp-warninglists repository. Merges all
+          contributions and manages the release cycle. Based at CIRCL (Computer Incident
+          Response Center Luxembourg).
+      - role: source_contributor
+        name: Paul Jung (Thanat0s)
+        organization_type: research_institution
+        official_url: https://github.com/Thanat0s
+        contact_email:
+        based_in: Luxembourg
+        active_since: '2025'
+        notes: 'Contributor at CIRCL.lu who authored and maintains the netsecscan-scanning
+          list. Added the list via PR #317 in December 2025 and has continued maintaining
+          it with monthly Network Telescope updates through May 2026.'
+      - role: publisher
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://github.com/MISP
+        contact_email: info@misp-project.org
+        based_in: Luxembourg
+        active_since:
+        notes: The parent open-source project that hosts the misp-warninglists repository.
+          Financially and resource-supported by CIRCL. Governed by an open-source
+          model with community-driven roadmaps.
+      derivation:
+        type: extraction
+        description: The list extracts CIDR ranges corresponding to NetSecScan.net's
+          active scanning infrastructure. The IP ranges are identified from the service's
+          own published presence — NetSecScan.net operates scanning nodes within AS202425
+          (FiberXpress BV, Netherlands). The list does not consume other IP feeds;
+          it maps one identified scanning organization's infrastructure into MISP's
+          warninglist format. A companion list, netsecscan-nt-scanning, carries the
+          same ranges additionally annotated with provenance from CIRCL's Network
+          Telescope observations.
+        source_feeds: []
+      listing_policy:
+        summary: An IP range is added to the netsecscan-scanning warninglist when
+          it is confirmed as belonging to NetSecScan.net's active scanning infrastructure.
+          The contributor (CIRCL.lu) identifies these ranges through analysis of the
+          scanning service's observed activity, including Network Telescope observations.
+          There is no automated threshold — each addition is a deliberate editorial
+          decision by the contributor.
+        criteria:
+        - Confirmed ownership of the IP range by NetSecScan.net scanning infrastructure
+        - Observed scanning behavior consistent with NetSecScan.net methodology
+        - Editorial review by the contributor before submission as a pull request
+      unlisting_policy:
+        summary: There is no formally documented auto-decay or automatic unlisting
+          mechanism for this warninglist. Given the list's purpose as a static reference
+          of known scanner infrastructure, removals are expected to be infrequent
+          and handled manually through the standard GitHub pull-request process. NetSecScan.net
+          itself offers an opt-out channel — networks wishing to exclude their ranges
+          from NetSecScan.net's future scans may email the address published on netsecscan.net.
+        criteria:
+        - Manual pull request to the MISP/misp-warninglists repository for removals
+        - Networks may request exclusion directly from NetSecScan.net scanning via
+          email to the service
+      unlist_request:
+        url:
+        email:
+        instructions: "Unlisting requests for IPs in this warninglist should be directed
+          to the MISP/misp-warninglists repository via a GitHub issue or pull request,
+          following the standard contribution workflow. Networks seeking to exclude
+          their ranges from NetSecScan.net's own scanning (which would subsequently
+          result in removal from this list) may email the address published on netsecscan.net:
+          research [at] netsecscan [dot] net."
+      update_frequency:
+      detection_classification:
+        primary_method: mixed
+        secondary_methods: []
+        description: The list is built by mapping NetSecScan.net's known scanning
+          infrastructure — a combination of the contributor's own analysis of the
+          scanning service's published presence and cross-reference with CIRCL's Network
+          Telescope observations. This is neither pure honeypot (the IPs are not honey
+          traps), nor active scanning (the list does not actively probe targets),
+          nor user-submission (IPs are not reported by victims). It is a curated reference
+          list assembled from identified scanning organization infrastructure, combining
+          manual research with passive telescope data. Secondary methods are not explicitly
+          documented.
+      scope_and_intent:
+        description: The netsecscan-scanning warninglist identifies IP ranges used
+          by NetSecScan.net, a self-identified academic internet-wide scanning research
+          service. Its sole purpose within MISP is to inform analysts that observed
+          scanning activity originates from this known benign source, preventing wasted
+          investigation time on false-positive alerts.
+        intended_for:
+        - Flagging NetSecScan.net scanning activity as informational in MISP threat
+          intelligence events
+        - Reducing false-positive investigations triggered by inbound scanning alerts
+        - Context enrichment when NetSecScan.net IPs appear in security event data
+        not_intended_for:
+        - Inline blocking or deny-listing at network perimeter devices
+        - Automated enforcement actions against the listed IPs
+        - Identifying malicious activity — the listed IPs are explicitly non-malicious
+          by design
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal carries no use restrictions. Redistribution in any
+          form — commercial or non-commercial, modified or unmodified — is permitted
+          without attribution or notice requirements.
+      current_status:
+        state: active
+        description: 'Actively maintained. The list was added in December 2025 via
+          PR #317 and has received maintenance updates through May 2026, with the
+          most recent commit by contributor Paul Jung (Thanat0s) on 2026-05-04.'
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: "The MISP/misp-warninglists repository has accumulated 625 stars
+          and 190 forks on GitHub (as of May 2026). GitHub Discussions are not enabled;
+          community interaction occurs through GitHub Issues and the MISP community
+          forums. Issue #285 ('Known scanner list to add as a warninglists', opened
+          September 2024) predates the netsecscan lists and may have prompted their
+          addition. The netsecscan-scanning list itself generates minimal isolated
+          public discussion — no open issues specifically reference it. The broader
+          MISP warninglists repository has approximately 47 open issues and 3 releases.
+          The misp-feedback project (a Rust-based warninglist query engine) embeds
+          MISP warninglists as a submodule, providing ecosystem integration. Public
+          discussion about this specific list is sparse, which is consistent with
+          its narrow informational purpose."
+      sources_consulted:
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date: '2026-01-01'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/netsecscan-scanning/list.json
+        document_date: '2025-10-29'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/tree/main/lists/netsecscan-scanning
+        document_date: '2025-10-29'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://netsecscan.net
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.misp-project.org
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/pull/317
+        document_date: '2025-12-11'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/pulse
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/issues/285
+        document_date: '2024-09-11'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/discussions
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'

@@ -1,0 +1,150 @@
+sources:
+  sslproxies:
+    license: Didsoft Ltd — proprietary, free tier (https://www.sslproxies.org/)
+    redistributable: true
+    url: http://www.sslproxies.org/
+    frequency: 10
+    history:
+    - 1440
+    - 10080
+    - 43200
+    ipv: ipv4
+    output: ipset
+    processor:
+    - extract_ipv4
+    processor_raw: extract_ipv4_from_any_file
+    category: anonymizers
+    info: '[SSLProxies.org](http://www.sslproxies.org/) open SSL proxies'
+    maintainer: Didsoft Ltd
+    maintainer_url: https://www.didsoft.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T12:18:11Z'
+      official_name: SSL Proxy List
+      official_url: http://www.sslproxies.org/
+      short_description: A free, publicly scraped list of SSL/HTTPS-capable proxy
+        servers updated every 30 minutes, operated by DidSoft Ltd as a companion to
+        their commercial proxy offerings.
+      long_description: "SSLProxies.org publishes a free list of SSL/HTTPS-capable
+        proxy servers — public open proxies the maintainer has discovered on the internet
+        and verified to forward HTTPS traffic. It is positioned for operators who
+        need anonymous routing without paying for private proxies.\n\nThe proxies
+        are collected from public sources across the internet and tested for HTTPS
+        support. During each update cycle, new working proxies are added and dead
+        or non-working proxies are removed. Working proxies remain on the list until
+        they stop responding.\n\nThe free tier is positioned as a complement to the
+        maintainer's paid proxy offerings: the site pitches premium plans for users
+        who need exclusive, faster, or more reliable proxies. The free proxies listed
+        here are datacenter-origin public proxies — not residential — and the maintainer
+        explicitly notes they are unsuitable for Google, Instagram, or Craigslist,
+        which actively block public proxy ranges.\n\nIntended use cases center on
+        SEO tools, traffic bots, and batch scraping operations where operators need
+        many IP addresses and use each briefly. The maintainer acknowledges the free
+        proxies are \"unstable and usually slow\" compared to private alternatives
+        charging $1 or more per month, and that the same proxies are served to all
+        other users of the list (no exclusivity)."
+      roles:
+      - role: maintainer
+        name: DidSoft Ltd
+        organization_type: commercial
+        official_url: https://www.didsoft.com/
+        contact_email: support@didsoft.com
+        based_in: Hong Kong
+        active_since: '2005'
+        notes: Operates multiple proxy-related brands including Free-Proxy-List.net,
+          My IP Hide, Elite Proxy Switcher, and Socks Proxy Checker. Governed by Hong
+          Kong law per their Terms of Service.
+      derivation:
+        type: original
+        description: Collects public proxy endpoints from across the internet and
+          tests each for HTTPS/SSL protocol support. New working proxies are added
+          during each update cycle; dead or non-working proxies are removed automatically.
+          The resulting list is served as-is without scoring or weighting.
+        source_feeds: []
+      listing_policy:
+        summary: Proxies are added automatically when they respond to connectivity
+          checks during the update cycle. There is no manual submission channel; the
+          maintainer collects public proxy endpoints from across the internet and
+          includes those that pass HTTPS protocol testing.
+        criteria:
+        - Respond to outbound connectivity checks during the update cycle
+        - Support HTTPS/SSL protocol (capable of forwarding secure-site traffic)
+      unlisting_policy:
+        summary: Non-responsive or dead proxies are removed automatically during the
+          next update cycle. There is no manual unlisting request channel; the maintainer
+          relies on automated health checks to prune stale entries.
+        criteria:
+        - Fail to respond during a scheduled update check
+      unlist_request:
+      update_frequency:
+        frequency: 30m
+        human_readable: Updated every 30 minutes; new working proxies are added and
+          dead proxies are removed during each cycle.
+      detection_classification:
+        primary_method: mixed
+        secondary_methods: []
+        description: Combines automated scanning of public internet space for responsive
+          proxy endpoints with passive collection — proxies are discovered from public
+          sources and validated through connectivity checks. No honeypot, user-submission,
+          or malware-analysis components are described.
+      scope_and_intent:
+        description: Designed for operators who need many IP addresses for short-duration
+          tasks and can tolerate instability. Positioned as a free complement to paid
+          private proxy services.
+        intended_for:
+        - SEO and traffic automation tools
+        - Batch web scraping operations
+        - Anonymous routing for low-stakes browsing
+        not_intended_for:
+        - Accessing Google, Instagram, or Craigslist (blocked by those services)
+        - Mission-critical or production workloads requiring reliability guarantees
+        - Residential-proxy-dependent use cases
+      license: Didsoft Ltd — proprietary, free tier (https://www.sslproxies.org/)
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: No redistribution terms are published on sslproxies.org. The direct
+          upstream is publicly accessible via unauthenticated HTTP GET.
+      current_status:
+        state: active
+        description: Active and operational as of mid-May 2026. The site serves live
+          proxy tables with recent check timestamps, and DidSoft Ltd continues to
+          operate and develop proxy-related products.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Users in web-scraping communities have reported that proxies from
+          this feed are frequently blocked or banned during active use, particularly
+          when targeting sites with anti-bot protections. The maintainer acknowledges
+          on their own FAQ that free public proxies are inherently unstable and shared
+          across all users, which aligns with the reported experience. No formal complaint-resolution
+          channel exists beyond automatic health-check pruning.
+        engagement: Public community discussion is sparse. The feed is referenced
+          neutrally in developer code examples and scraping scripts, but generates
+          little independent commentary. No issue tracker, forum, or feedback channel
+          dedicated to this specific feed was found.
+      sources_consulted:
+      - url: http://www.sslproxies.org/
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16T12:10:00Z'
+      - url: http://www.sslproxies.org/faq.html
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16T12:12:00Z'
+      - url: https://www.didsoft.com/
+        document_date:
+        validation_date: '2026-05-16T12:08:00Z'
+      - url: https://www.didsoft.com/terms.html
+        document_date:
+        validation_date: '2026-05-16T12:09:00Z'
+      - url: https://www.didsoft.com/privacy.html
+        document_date:
+        validation_date: '2026-05-16T12:09:00Z'
+      - url: https://www.didsoft.com/contact.html
+        document_date:
+        validation_date: '2026-05-16T12:09:00Z'
+      - url: https://reddit.com/r/webscraping/comments/ly2zs5/where_buy_10_proxies/
+        document_date: '2021-04-04'
+        validation_date: '2026-05-16T12:07:00Z'

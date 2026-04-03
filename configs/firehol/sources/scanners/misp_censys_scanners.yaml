@@ -1,0 +1,168 @@
+sources:
+  misp_censys_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/censys-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Censys scanning
+      IP ranges. Informational - not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T20:32:51Z'
+      official_name: Censys IP Ranges Used for Scanning
+      official_url: https://github.com/MISP/misp-warninglists/tree/main/lists/censys-scanning
+      short_description: Static list of IP ranges used by Censys internet scanning
+        infrastructure, enabling analysts to identify and exclude legitimate security
+        research traffic from threat intelligence analysis.
+      long_description: "The censys-scanning warning list catalogues the IP address
+        space that Censys has publicly disclosed in its own opt-out documentation
+        as scanning infrastructure for its commercial internet survey service. What
+        makes this list distinctive among the MISP scanner-related warninglists is
+        its sourcing model: it mirrors Censys' self-published ranges (subnets under
+        Censys-operated ASNs such as AS398722, AS398705, and AS398324, including both
+        IPv4 /24 blocks and IPv6 prefixes) rather than being derived from CIRCL passive
+        telescope observation. Updates therefore follow Censys' own infrastructure
+        disclosures rather than a darknet-observation cycle.\n\nPer the maintainer's
+        documentation, the list is designed to alert analysts when network indicators
+        match known Censys scanning infrastructure so security operations teams can
+        distinguish Censys' legitimate measurement research from malicious activity."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: informal_collective
+        official_url: https://www.misp-project.org
+        contact_email: info@misp-project.org
+        based_in:
+        active_since: '2016'
+        notes: The MISP Project develops and maintains open source threat intelligence
+          tooling and standards. Alexandre Dulaunoy (@adulau) serves as primary maintainer,
+          with contributions from a small team of volunteers including Paul Jung (@Th4nat0s)
+          who maintains network telescope scanner lists.
+      - role: source_contributor
+        name: Censys
+        organization_type: commercial
+        official_url: https://censys.io
+        contact_email: censys-abuse@censys.com
+        based_in: United States
+        active_since:
+        notes: Censys publishes the IP ranges used for their internet scanning infrastructure.
+          The MISP warninglist aggregates these publicly disclosed ranges as a known-good
+          indicator list.
+      derivation:
+        type: original
+        description: The warning list aggregates IP ranges published by Censys in
+          their official opt-out documentation. These ranges represent the subnets
+          and autonomous system numbers (AS398722, AS398705, AS398324) that Censys
+          uses for internet scanning activities. The list is manually curated and
+          updated when Censys modifies their scanning infrastructure, with version
+          increments tracking changes.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added when Censys publicly discloses IP address space
+          used for their internet scanning infrastructure. The list maintains CIDR
+          ranges corresponding to Censys scanning subnets and ASNs as officially documented
+          by Censys.
+        criteria:
+        - IP range must be officially documented by Censys as scanning infrastructure
+        - Range corresponds to Censys-operated subnets or ASNs (AS398722, AS398705,
+          AS398324)
+        - Both IPv4 /24 blocks and IPv6 prefix blocks are included per Censys disclosures
+      unlisting_policy:
+        summary: As an informational warning list rather than a blocklist, removals
+          occur when Censys retires specific scanning infrastructure. Version increments
+          track changes to the scanning infrastructure. There is no automated decay
+          mechanism.
+        criteria:
+        - IP range retired from Censys scanning infrastructure
+        - Censys consolidates scanning to different subnet allocations
+      unlist_request:
+        url:
+        email:
+        instructions: This is an informational warning list, not a blocking feed.
+          Removal requests are not applicable in the traditional sense. Organizations
+          seeking to exclude their own IPs from Censys scanning should follow Censys'
+          opt-out process at support.censys.io, which involves configuring firewalls
+          to drop traffic from Censys subnets. Changes to the warning list itself
+          are managed through GitHub pull requests to the MISP/misp-warninglists repository.
+      update_frequency:
+        frequency:
+        human_readable: Ad hoc updates when Censys modifies scanning infrastructure;
+          the maintainer does not publish a fixed update schedule
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: Known-good scanner identification. The list classifies IP ranges
+          as legitimate internet measurement infrastructure operated by Censys, a
+          commercial security research service. Entries are not indicative of malicious
+          activity but rather identify authorized scanning traffic to enable analyst
+          context during threat intelligence analysis.
+      scope_and_intent:
+        description: The warning list identifies IP infrastructure used by Censys
+          for legitimate internet scanning and measurement research.
+        intended_for:
+        - False positive reduction in threat intelligence analysis
+        - Identifying legitimate security research scanning traffic
+        - Enriching analyst context during incident investigation
+        - Whitelisting known-good scanner infrastructure in SIEM and detection platforms
+        not_intended_for:
+        - Inline blocking or firewall enforcement
+        - Automatic IP blocking based solely on list match
+        - Indicating malicious activity
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal public domain dedication places no restrictions on
+          use, redistribution, or modification. Credit to MISP Project is customary
+          but not legally required.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026; the latest commit merged
+          Network Telescope updates in May 2026, and the censys-scanning list received
+          updates in August 2025
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: The censys-scanning list specifically receives sparse direct community
+          discussion, consistent with its specialized role as an analyst context tool
+          rather than a broadly consumed blocklist. Community engagement around it
+          flows through the repository's GitHub Issues and Pull Requests rather than
+          dedicated forums.
+      sources_consulted:
+      - url: https://github.com/MISP/misp-warninglists
+        document_date: '2026-05-08'
+        validation_date: '2026-05-18'
+      - url: https://raw.githubusercontent.com/MISP/misp-warninglists/main/README.md
+        document_date:
+        validation_date: '2026-05-18'
+      - url: 
+          https://github.com/MISP/misp-warninglists/blob/main/lists/censys-scanning/list.json
+        document_date: '2025-08-23'
+        validation_date: '2026-05-18'
+      - url: 
+          https://support.censys.io/hc/en-us/articles/360043177092-Opt-Out-of-Data-Collection
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP
+        document_date: '2025-12-03'
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/commits/main/lists/censys-scanning
+        document_date: '2025-08-23'
+        validation_date: '2026-05-18'
+      - url: https://raw.githubusercontent.com/MISP/misp-warninglists/main/schema.json
+        document_date:
+        validation_date: '2026-05-18'

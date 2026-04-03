@@ -1,0 +1,174 @@
+sources:
+  sblam:
+    license: public feed
+    redistributable: true
+    url: http://sblam.com/blacklist.txt
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: messaging_abuse
+    info: '[sblam.com](http://sblam.com) IPs used by web form spammers, during the
+      last month'
+    maintainer: sblam.com
+    maintainer_url: http://sblam.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T03:10:39Z'
+      official_name: Sblam!
+      official_url: http://sblam.com/en.html
+      short_description: IPv4 addresses observed sending spam through HTTP web forms
+        (blog comments, forums, guestbooks), published as a plain-text list by the
+        Sblam! anti-spam service.
+      long_description: 'The Sblam! IP blacklist publishes IPv4 addresses observed
+        sending spam through HTTP web forms such as blog comments, forum posts, and
+        guestbook entries. The list is produced by the Sblam! anti-spam service, created
+        by developer kornelski and in operation since 2007. The service analyzes submitted
+        posts using a combination of techniques: an auto-learning Bayesian classifier
+        trained on millions of words, phrases, links, and IP addresses; checks against
+        external blacklists including Project Honeypot and LinkSleeve; dynamic IP
+        analysis accounting for DHCP-assigned and public proxy addresses; and Unicode
+        text semantics resistant to character-substitution tricks. Submitted posts
+        are stored and analyzed centrally; aggregated data including spammy links
+        and the IP blacklist may be published. Integration is via a PHP library installed
+        on the subscribing website, which relays form data to the central Sblam! server
+        for scoring. The service returns a numeric verdict ranging from -2 (certain
+        non-spam) to 2 (certain spam), allowing the site operator to block, moderate,
+        or allow the post. The maintainer states accuracy is typically 99.8%. The
+        feed file is a plain-text list of IPv4 addresses, one per line, sorted ascending.
+        The service is free to use even on commercial websites. The open-source PHP
+        library is published on GitHub under LGPL. The service has been running with
+        little downtime since 2007, though the GitHub repository was archived in October
+        2019 and the Polish homepage carries a notice that the service will be shut
+        down and is no longer actively supported.'
+      roles:
+      - role: maintainer
+        name: kornelski
+        organization_type: individual
+        official_url: https://github.com/kornelski
+        contact_email: sblam@sblam.com
+        based_in: Poland
+        active_since: '2007'
+        notes: Individual developer; also maintains the Sblam! anti-spam web service.
+          The open-source PHP library is published on GitHub under LGPL. The GitHub
+          repository was archived in October 2019; the service itself continues to
+          operate.
+      derivation:
+        type: original
+        description: The feed is produced directly by the Sblam! anti-spam service's
+          own detection infrastructure. IPs are collected from form submissions made
+          by websites running the Sblam! PHP library—posts are relayed to the central
+          Sblam! server for analysis, and IPs associated with spam-classified submissions
+          are incorporated into the blacklist. The service also cross-checks senders
+          against Project Honeypot and LinkSleeve external blacklists, taking into
+          account dynamic IPs and public proxies. No other public IP feeds are consumed
+          as inputs; the feed is a first-party product of the service's own operational
+          data.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when the Sblam! service classifies a submitted HTTP
+          web form post as spam. The service scores incoming posts using a multi-technique
+          Bayesian classifier trained on millions of words, phrases, links, and IP
+          addresses, supplemented by checks against Project Honeypot and LinkSleeve
+          external blacklists, with dynamic IP and public proxy analysis. An IP associated
+          with a post scored as spam (return value greater than 0) is eligible for
+          inclusion in the published blacklist.
+        criteria:
+        - The IP submitted a web form post that the Sblam! service classified as spam
+          (numeric verdict > 0)
+        - The submitter's IP was among the signals evaluated by the Bayesian classifier
+          and external blacklist checks
+        - Dynamic IPs and public proxy exit nodes are tracked and eligible for listing
+      unlisting_policy:
+        summary: No formal public unlisting policy or automatic expiry mechanism is
+          documented by the maintainer. IPs appear to remain on the list until the
+          next regeneration cycle. The maintainer does not publish a removal request
+          channel, timeline, or criteria for manual delisting.
+        criteria:
+        - No automatic expiry window is stated
+        - No manual delisting request URL or email is publicly documented
+        - Removal process is not described on the maintainer's site
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: Regenerated approximately once per day, per the catalog's
+          configured frequency of 1440 minutes
+      detection_classification:
+        primary_method: mixed
+        secondary_methods:
+        - reputation_aggregation
+        description: 'The feed is produced by a hybrid detection system combining
+          two methods. First, user submission: websites running the Sblam! PHP library
+          relay form post data to the central Sblam! server, which scores each submission;
+          IPs associated with spam-classified posts contribute to the blacklist. Second,
+          reputation aggregation: the service cross-checks sender IPs against Project
+          Honeypot and LinkSleeve external blacklists, factoring in dynamic IP assignments
+          and public proxy usage. The combined signals feed an auto-learning Bayesian
+          classifier trained on millions of words, phrases, links, and IP addresses.'
+      scope_and_intent:
+        description: The Sblam! IP blacklist covers IPv4 addresses observed sending
+          spam through HTTP web forms—blog comments, forum posts, and guestbook entries.
+          It does not cover email-borne spam. The service is intended for sites that
+          display submitted content publicly on the internet and should not be used
+          for private correspondence. Sites receiving fewer than 10,000 posts per
+          day can use the service without arrangement; larger volumes require direct
+          contact with the maintainer.
+        intended_for:
+        - Blocking HTTP web form / comment spam on publicly accessible websites
+        - Blog comment filtering
+        - Forum and guestbook spam blocking
+        - Sites displaying user-submitted content publicly
+        not_intended_for:
+        - Email spam filtering
+        - Private correspondence
+        - Real-time inline network blocking at scale
+        - High-volume sites exceeding 10,000 posts per day (unless arranged)
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: Free to use and redistribute, including on commercial websites, per
+          the maintainer's license statement on the English page. No redistribution
+          restrictions are stated on the blacklist file itself.
+      current_status:
+        state: altered_scope
+        description: The Sblam! service continues to regenerate the IP blacklist (last
+          observed generation May 2026), but the project has entered a reduced-activity
+          state. The open-source PHP library on GitHub was archived in October 2019
+          with its last code commit in March 2017. The maintainer has posted a notice
+          on the Polish homepage stating that the service will be shut down and is
+          no longer actively supported.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion of the Sblam! IP blacklist is sparse.
+          No discussions were found on Reddit or Hacker News referencing the project
+          specifically. The open-source PHP library has modest traction on GitHub
+          with 39 stars and 8 forks (as of May 2026), and was archived in October
+          2019. The project appears to operate quietly within its niche user base
+          without generating notable public discourse.
+      sources_consulted:
+      - url: http://sblam.com/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://sblam.com/en.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://sblam.com/blacklist.txt
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://sblam.com/faq.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://sblam.com/sblam.atom
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/kornelski/Sblam
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

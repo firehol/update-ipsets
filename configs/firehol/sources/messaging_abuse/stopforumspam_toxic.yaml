@@ -1,0 +1,259 @@
+sources:
+  stopforumspam_toxic:
+    license: CC BY-NC-ND 3.0 (modified)
+    redistributable: true
+    url: http://www.stopforumspam.com/downloads/toxic_ip_cidr.txt
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: messaging_abuse
+    info: '[StopForumSpam.com](http://www.stopforumspam.com) Networks that have large
+      amounts of spambots and are flagged as toxic. Toxic IP ranges are infrequently
+      changed.'
+    maintainer: StopForumSpam.com
+    maintainer_url: http://www.stopforumspam.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T04:15:35Z'
+      official_name: StopForumSpam Toxic IP Ranges
+      official_url: http://www.stopforumspam.com/downloads
+      short_description: CIDR ranges allocated to networks that have generated large
+        volumes of spambot abuse on forums and blogs, compiled from community reports
+        and honeypot detections.
+      long_description: "StopForumSpam Toxic IP Ranges tracks entire CIDR blocks allocated
+        to networks that have generated sustained, high-volume spam abuse on forums
+        and blogs. Unlike the standard time-bounded IP export files, the toxic feed
+        captures network ranges — not individual addresses — that have been persistently
+        abused, regardless of when the abuse occurred. Per the maintainer's FAQ, the
+        database records actual incidents of spam content arriving on live sites;
+        it does not record hacking attempts, suspicious registrations, or offensive-but-non-spam
+        content. Listings originate from two channels: community reports submitted
+        via the API (requiring username, email, IP address, and an API key) and honeypot
+        traps set up to capture automated spam. Each entry carries a statistically
+        calculated confidence score — expressed as a percentage — reflecting the last-seen
+        date and cumulative report frequency. When an IP accumulates sufficient reports,
+        its frequency value reaches 255 and it is flagged as blacklisted; IPs sharing
+        a blacklisted network range are also included in the toxic feed. The maintainer
+        explicitly notes that the service is not a firewall and does not make blocking
+        decisions on the operator's behalf — it provides the data and the operator
+        chooses how to act on it."
+      roles:
+      - role: maintainer
+        name: Russ
+        organization_type: individual
+        official_url: http://www.stopforumspam.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Per the about page, Russ founded the project and maintains it in his
+          spare time as a 'for the love of it' effort.
+      - role: maintainer
+        name: pedigree
+        organization_type: individual
+        official_url: http://www.stopforumspam.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Per the about page, pedigree joined shortly after launch and contributes
+          to the database, site speed, and bug fixes.
+      - role: publisher
+        name: dZone
+        organization_type: commercial
+        official_url: https://dzone.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Credited on the about page as the hosting provider for the StopForumSpam
+          server.
+      derivation:
+        type: original
+        description: "The feed is assembled from two first-party detection channels:
+          community-submitted spam reports via the API (requiring an API key, username,
+          email, IP address, and optional evidence) and honeypot traps set up to capture
+          automated spam. Reports are aggregated per IP address; when an IP crosses
+          the confidence threshold its frequency value reaches 255 and it is flagged
+          as blacklisted. The toxic feed additionally propagates to cover the entire
+          CIDR block of any blacklisted IP — meaning any IP sharing a network allocation
+          with a confirmed abuser inherits a toxic listing. The feed is rebuilt daily
+          but its content changes infrequently, per the maintainer's description."
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed as toxic when it shares a CIDR block allocation with
+          an IP that has accumulated sufficient spam reports to trigger a blacklisted
+          status (frequency value of 255). Community reports must describe actual
+          spam content — promotional or commercial content posted inappropriately
+          on a forum or blog — submitted by a human who exercises judgment. Suspicious
+          registrations, hacking attempts, and offensive-but-non-spam posts do not
+          qualify for submission. The confidence score is a statistical percentage
+          factoring in report frequency and last-seen recency; as it rises, the IP
+          eventually crosses the threshold to blacklisted status.
+        criteria:
+        - The IP shares a CIDR block allocation with an IP that has reached blacklisted
+          status (frequency = 255)
+        - The originating IP accumulated spam reports through community submissions
+          or honeypot detections
+        - Reports describe actual spam content — promotional or commercial content
+          inappropriate for the target forum or blog
+        - Human judgment is exercised in each submission; automated detection alone
+          does not qualify
+        - The IP's confidence score (percentage combining frequency and recency) crossed
+          the blacklisted threshold
+      unlisting_policy:
+        summary: Removal requests are submitted via the online form at stopforumspam.com/removal.
+          Each request is placed in a non-public review queue and investigated in
+          arrival order; the process takes up to 24 hours. Requests are cross-referenced
+          against other available databases to verify the removal claim. If investigation
+          confirms the data was entered fairly, the entry remains permanently. VPN-hosted
+          requests are automatically deleted without action. Requests containing threats
+          of legal action are permanently paused and added to the public threats list.
+          The outcome — accepted or denied — is communicated silently with no email
+          notification. Self-submitters can remove their own entries directly from
+          the My Spammers panel without going through the review process.
+        criteria:
+        - Submitter uses the official removal form and provides the IP address or
+          email address listed
+        - Network administrators must use a company or official email address (disposable
+          services excluded)
+        - Requests are cross-referenced against other databases to verify the claim
+        - VPN-hosted removal requests are automatically deleted without action
+        - Entries proven to be fairly reported remain permanently; no appeal is available
+        - Self-submitters can delete their own entries via the My Spammers panel
+      unlist_request:
+        url: http://www.stopforumspam.com/removal
+        email:
+        instructions: Complete the removal request form at stopforumspam.com/removal,
+          providing the IP address or email address to be reviewed. Network administrators
+          must use a company or official email address. All removal requests must
+          be submitted in English. Self-submitters should use the My Spammers panel
+          at stopforumspam.com/myspammers instead of the removal form.
+      update_frequency:
+        frequency: 1d
+        human_readable: Rebuilt daily, per the maintainer's downloads page. The underlying
+          toxic range content changes infrequently — the file is regenerated each
+          day but often remains unchanged across extended periods.
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods:
+        - honeypot
+        description: 'Listings originate from two channels: user-submitted spam reports
+          via the API (requiring an API key, username, email, IP address, and optional
+          evidence of spam content) and honeypot traps that capture automated spam
+          postings. Human judgment is required in each report — automated detection
+          alone does not qualify an entry. Reports are aggregated per IP; as the confidence
+          score (a percentage combining report frequency and last-seen recency) rises,
+          the IP eventually crosses the blacklisted threshold (frequency = 255). At
+          that point, the entire CIDR block containing the offending IP is propagated
+          into the toxic feed.'
+      scope_and_intent:
+        description: The feed is intended for forum, blog, and wiki operators who
+          want to proactively screen new registrations and postings. The maintainer
+          characterizes the service as informational — it provides data and the operator
+          decides how to act on it. The feed is not a black-box firewall; the maintainer
+          explicitly advises against using the API as a software firewall (querying
+          on every page load, which would constitute a denial-of-service risk against
+          the service itself).
+        intended_for:
+        - Pre-screening new user registrations on forums, blogs, and wikis
+        - Secondary validation layer alongside other spam-prevention measures
+        - Scoring and threshold-based decisions (using the confidence percentage)
+        not_intended_for:
+        - Querying the API on every page load (described as a denial-of-service risk
+          to the service)
+        - Automated blocking without human-configured thresholds
+        - Hacking attempt or credential-stuffing defense (these are outside the spam-content
+          scope)
+      license: CC BY-NC-ND 3.0 (modified)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit StopForumSpam.com
+        terms: StopForumSpam states a modified CC BY-NC-ND 3.0 license that permits
+          copying and distribution with attribution while prohibiting resale, ownership
+          claims, derivatives, and automated mirroring/scraping. Redistribution is
+          allowed with those restrictions.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026. The feed is rebuilt daily
+          and the downloads page remains accessible. Russ and pedigree continue to
+          operate the service in their spare time.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "Community discussion documents a recurring false-positive pattern:
+          entire network ranges are flagged as toxic when a single abuser occupies
+          part of the CIDR block, affecting legitimate co-located services. The most
+          discussed case involved an email aliasing platform whose free tier attracted
+          abusers, causing the entire domain to be classified as toxic — leaving affected
+          users unable to register on third-party forums. Developers of integration
+          plugins have acknowledged this dynamic, with some disabling IP-based checks
+          entirely and relying solely on email and domain signals. The maintainer's
+          own documentation acknowledges that being listed does not imply the subject
+          is a spammer — shared infrastructure, inherited IP assignments, and malware
+          infections are cited as innocent explanations. Removal is available via
+          the form but is a silent process with no confirmation email."
+        engagement: Public discussion of the toxic CIDR feed specifically is sparse
+          — most ecosystem integrations consume the API or the per-IP rolling-window
+          files rather than the toxic CIDR list. The maintainer operates a public
+          forum for support questions. No formal SLA or paid support exists. Cross-portfolio
+          integration context lives in the maintainer's roles.
+      sources_consulted:
+      - url: http://www.stopforumspam.com/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://www.stopforumspam.com/about
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://www.stopforumspam.com/usage
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://www.stopforumspam.com/downloads/toxic_ip_cidr.txt
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://www.stopforumspam.com/faq
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://www.stopforumspam.com/removal
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://www.stopforumspam.com/forum/viewtopic.php?id=3978
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://www.stopforumspam.com/legal
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://www.stopforumspam.com/downloads
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://www.stopforumspam.com/forum/viewtopic.php?id=3558
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/singerscreations/discourse-stopforumspam
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/FriendsOfFlarum/anti-spam
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/nickurt/laravel-stopforumspam
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://reddit.com/r/Simplelogin/comments/z9jxqj/
+        document_date: '2022-12-01'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://reddit.com/r/pfBlockerNG/comments/ijhkll/
+        document_date: '2020-09-01'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://meta.discourse.org/t/stop-forum-spam-plugin/121037
+        document_date: '2019-06-01'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.bleepingcomputer.com/forums/t/702623/
+        document_date: '2019-08-01'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://xenforo.com/community/threads/whats-the-false-positive-rate-of-stopforumspam.79183
+        document_date: '2014-07-01'
+        validation_date: '2026-05-18T00:00:00Z'

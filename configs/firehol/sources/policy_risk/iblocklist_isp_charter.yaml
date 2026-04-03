@@ -1,0 +1,133 @@
+sources:
+  iblocklist_isp_charter:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=htnzojgossawhpkbulqw&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Charter IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T08:37:16Z'
+      official_name: Charter
+      official_url: https://www.iblocklist.com/list.php?list=htnzojgossawhpkbulqw
+      short_description: A blocklist containing all IP address ranges allocated to
+        Charter Communications (Spectrum), maintained by iBlocklist.com for P2P privacy
+        use cases.
+      long_description: Published by iBlocklist.com (iblocklist, LLC) as part of their
+        Anti-Infringement category. Per the maintainer, the list contains all Charter
+        Communications IP ranges—the broadband provider formerly Time Warner Cable
+        and Roadrunner ISP. The maintainer explicitly warns the list is not recommended
+        for Charter subscribers. Distributed in P2P format gzip-compressed, freely
+        accessible without subscription. Per TBG FAQ, combined IP-Filter lists are
+        updated several times a week, though individual ISP feeds may not receive
+        independent updates.
+      roles:
+      - role: maintainer
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Distributes IP blocklists in P2P, DAT, and CIDR formats. Technical
+          support not provided per ToS. Across the broader iBlocklist.com service,
+          community complaints (2015–2020) describe individual feeds appearing frozen
+          at outdated snapshots and update gaps for some lists.
+      derivation:
+        type: original
+        description: Compiled by iBlocklist from their own research, drawing on Charter
+          Communications' registered IP allocation records. The maintainer states
+          the list contains 'all Charter ISP IPs' without disclosing exact compilation
+          methods for this specific feed.
+        source_feeds: []
+      listing_policy:
+        summary: IP addresses are listed based on association with Charter Communications
+          ISP. Per the maintainer, the list contains all Charter ISP IP ranges.
+        criteria:
+        - IP addresses allocated to Charter Communications
+        - Road Runner ISP IP ranges (post-Time Warner Cable acquisition)
+      unlisting_policy:
+        summary: No explicit unlisting policy was found in maintainer documentation.
+          The TBG FAQ does not describe an IP removal or delisting mechanism for individual
+          ISP feeds.
+        criteria: []
+      unlist_request:
+      update_frequency:
+        frequency:
+        human_readable: Not explicitly stated for this individual feed. Per TBG FAQ,
+          combined IP-Filter lists are updated several times a week, though individual
+          ISP feeds may not receive independent updates.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: "Entries are assigned to the list based on organizational allocation:
+          IPs registered to Charter Communications. The maintainer states the list
+          contains 'all Charter ISP IPs' without disclosing additional detection mechanisms;
+          no behavioral or community-submission methodology is documented for this
+          specific feed."
+      scope_and_intent:
+        description: Targets users seeking to block anti-peer-to-peer monitoring from
+          Charter Communications ISP. The maintainer explicitly advises against use
+          by Charter subscribers.
+        intended_for:
+        - Peer-to-peer privacy applications
+        - Blocking anti-piracy monitoring from Charter ISP
+        - Firewall blocking for non-Charter users concerned about ISP-level monitoring
+        not_intended_for:
+        - Users who are subscribers of Charter Communications ISP
+        - Commercial deployments requiring reliable ISP connectivity
+        - Situations where blocking legitimate Charter services is unacceptable
+      license: iBlocklist Terms of Service — personal / non-commercial only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: iBlocklist ToS prohibits commercial use, public display, and account
+          sharing outside immediate household. Redistribution for commercial purposes
+          or public display violates the ToS.
+      current_status:
+        state: active
+        description: Listed on iBlocklist.com with functional download URL. Per TBG
+          FAQ, combined IP-Filter lists are updated several times a week, though individual
+          ISP feeds may not receive independent updates. Maintainer continues distributing
+          the feed in P2P format.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion specific to the Charter list is sparse.
+          Reddit and Netgate forum threads from 2015–2020 document user complaints
+          about false positives and service reliability across the iBlocklist catalog
+          more broadly. No active community forum, blog, or regular update announcements
+          found on iBlocklist.com. Technical support not provided per ToS.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/list.php?list=htnzojgossawhpkbulqw
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/tos.php
+        document_date:
+        validation_date: '2026-05-18'
+      - url: http://tbg.iblocklist.com/pages/faq.html
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.reddit.com/r/pfBlockerNG/comments/g90m06/
+        document_date: 2020-04
+        validation_date: '2026-05-18'
+      - url: https://forum.netgate.com/topic/104235/
+        document_date:
+        validation_date: '2026-05-18'

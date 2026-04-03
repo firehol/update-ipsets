@@ -1,0 +1,183 @@
+sources:
+  iblocklist_rangetest:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=plkehquoahljmyxjixpu&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Suspicious IPs that are under investigation.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T13:16:15Z'
+      official_name: Bluetack - rangetest
+      official_url: https://www.iblocklist.com/list?list=plkehquoahljmyxjixpu
+      short_description: A precautionary IP watchlist containing addresses flagged
+        as suspicious and under active investigation, before they receive confirmed
+        malicious classification.
+      long_description: "The rangetest list is a pre-confirmatory IP watchlist produced
+        by Bluetack and distributed through iBlocklist.com. It contains IP addresses
+        that have displayed suspicious or anomalous behavior — such as scanning activity,
+        unusual connection attempts, or association with known threat infrastructure
+        — but have not yet accumulated sufficient evidence for placement in a confirmed
+        threat category. Entries may be promoted to confirmed threat lists (such as
+        level1, spyware, or badpeers) as investigation proceeds, or removed if cleared
+        of suspicion.\n\nThe list is distributed in multiple formats (p2p, dat, cidr,
+        hosts) and is made available through iBlocklist.com's subscription service.
+        The maintainer, iblocklist, LLC, describes the service as providing IP address
+        lists for firewall and security applications. The list shows high correlation
+        with other Bluetack blocklists — particularly level1 (97%), spyware (92%),
+        and ads (89%) — indicating that rangetest IPs frequently originate from the
+        same investigative pipeline feeding confirmed threat lists.\n\nNeither Bluetack
+        nor iBlocklist.com publishes the number of IP ranges in this list, an update
+        frequency schedule, or a documented detection methodology. The list is presented
+        as one of 41 blocklists available through the iBlocklist.com platform, alongside
+        lists from other authors including Squidblacklist, Spamhaus DROP, and CINS
+        Army."
+      roles:
+      - role: publisher
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since: '2008'
+        notes: Distributes the rangetest list alongside dozens of other blocklists
+          from multiple authors. Also offers a companion PhantomPeer VPN service through
+          an annual subscription model. Platform-wide community criticism of iBlocklist
+          (auto-renewal billing, support responsiveness, perceived freshness of redistributed
+          feeds in general) applies at the publisher level rather than being specific
+          to this rangetest list.
+      - role: original_author
+        name: Bluetack
+        organization_type: unknown
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Original author of the rangetest list. Credited as the author on the
+          iBlocklist.com list page. The Bluetack project overall has been reported
+          as inactive by the community since approximately 2016.
+      derivation:
+        type: partial_mirror
+        description: iBlocklist.com repackages and distributes the Bluetack rangetest
+          list alongside 40 other blocklists from multiple authors (Squidblacklist,
+          Spamhaus, CINSscore, malc0de, and others). The rangetest list is one of
+          several Bluetack-authored lists redistributed through the iBlocklist.com
+          platform. The maintainer does not describe any additional processing, scoring,
+          or deduplication applied to this specific list beyond format conversion
+          (p2p, dat, cidr, hosts) and compression (gz, zip, 7z).
+        source_feeds: []
+      listing_policy:
+        summary: The maintainer does not publish a listing policy for the rangetest
+          list. The list is described as containing IP addresses flagged as suspicious
+          and under active investigation — meaning entries represent pre-confirmatory
+          observations rather than confirmed threats. No criteria, thresholds, or
+          evidence types are documented.
+        criteria:
+        - IP exhibits suspicious or anomalous behavior (nature of the behavior is
+          not specified)
+        - IP is under active investigation (duration and process are not specified)
+      unlisting_policy:
+        summary: The maintainer does not publish an unlisting policy for the rangetest
+          list. No criteria, timelines, or mechanisms for removing entries are documented.
+          Given the list's stated purpose as a pre-confirmatory watchlist, removals
+          presumably occur when investigation clears an IP of suspicion, but the process
+          is not described.
+        criteria:
+        - Investigation clears the IP of suspicion (process unspecified)
+      unlist_request:
+      update_frequency:
+      detection_classification:
+        primary_method: unknown
+        secondary_methods: []
+        description: Neither Bluetack nor iBlocklist.com publishes a detection methodology
+          for the rangetest list. The list is described as containing IPs 'under investigation,'
+          implying some form of behavioral observation or anomaly detection, but no
+          technique — honeypot, telescope, sandbox, user submission, passive DNS —
+          is named or described.
+      scope_and_intent:
+        description: The rangetest list is positioned as a precautionary watchlist
+          — IPs listed here have been flagged for suspicious behavior but have not
+          received confirmed malicious classification. It is intended as an early-detection
+          layer that feeds into or correlates with confirmed threat lists.
+        intended_for:
+        - Enhanced perimeter monitoring alongside confirmed threat lists
+        - Threat hunting and forensic correlation
+        - BitTorrent/P2P client peer filtering
+        not_intended_for:
+        - Production perimeter blocking as a sole threat intelligence source (IPs
+          are unconfirmed)
+        - Commercial security operations without supplementary confirmed-threat feeds
+      license: iBlocklist.com Terms of Service — personal use only, non-commercial
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution is not addressed in the TOS. The license grant is limited
+          to personal use, which implies redistribution is not permitted. No explicit
+          redistribution permission is granted.
+      current_status:
+        state: active
+        description: The iBlocklist.com website is reachable and the rangetest list
+          is accessible via the subscription interface. The domain registration is
+          current through January 2027. However, the community has raised sustained
+          concerns about list maintenance currency since approximately 2016, with
+          allegations that list content is frozen while file timestamps are updated
+          to appear current.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "Feed-specific criticism centers on the watchlist semantics: because
+          the rangetest list explicitly contains IPs 'under investigation' rather
+          than confirmed threats, the absence of a documented investigation timeline,
+          evidence threshold, or transition path to confirmed-threat lists makes it
+          difficult for operators to judge what blocking on this list actually means.
+          The list shows high overlap with other Bluetack confirmed-threat lists,
+          which suggests either that the investigation pipeline routinely promotes
+          entries or that the watchlist function has effectively merged with the confirmed
+          lists — neither of which is documented by the maintainer."
+        engagement: Public community discussion about the rangetest list specifically
+          is sparse. No GitHub repository, bug tracker, or public issue queue was
+          found for this list. Where it appears in deployment guides, it is typically
+          referenced alongside the other Bluetack lists rather than evaluated on its
+          own merits.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/list?list=plkehquoahljmyxjixpu
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/subscribe
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-18'
+      - url: 
+          https://malwaretips.com/threads/the-pay-i-blocklist-subscriptions-are-no-longer-updated-true.87878/
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.scamadviser.com/check-website/iblocklist.com
+        document_date:
+        validation_date: '2026-05-18'

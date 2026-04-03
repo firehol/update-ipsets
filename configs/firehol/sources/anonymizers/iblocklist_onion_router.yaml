@@ -1,0 +1,163 @@
+sources:
+  iblocklist_onion_router:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=togdoptykrlolpddwbvz&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: anonymizers
+    provenance: secondary_upstream
+    info: The Onion Router IP addresses.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T18:56:56Z'
+      official_name: The Onion Router
+      official_url: https://www.iblocklist.com/list.php?list=tor
+      short_description: A blocklist of Tor network exit node IP addresses, published
+        by iBlocklist.com for use with PeerBlock, PeerGuardian, and compatible firewall
+        tools.
+      long_description: "iBlocklist.com is a service dedicated to distributing IP
+        address blocklists in standard formats (P2P, DAT, CIDR, and hosts file). The
+        Onion Router feed targets IP addresses associated with Tor network exit relays
+        — the public-facing nodes that forward traffic from the Tor anonymity network
+        to the destination on the open internet.\n\nThe maintainer does not publicly
+        document the specific upstream source or collection methodology for this feed.
+        The Tor Project publishes relay descriptor data including exit node addresses
+        through its Onionoo API, which is publicly accessible; iblocklist.com may
+        derive this feed from that upstream. The maintainer's Terms of Service explicitly
+        states they make no commitment to update the materials.\n\nThe feed is distributed
+        as compressed P2P-format archive, compatible with peer-to-peer blocklist clients,
+        and optionally in CIDR/netset format for direct firewall ingestion. The intended
+        use case is blocking Tor exit node connections for privacy enforcement, P2P
+        anti-infringement screening, or network security hardening."
+      roles:
+      - role: maintainer
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: Delaware-registered commercial entity. The support page (evidence ID
+          5) directs inquiries to a third-party VPN service (PhantomPeer) rather than
+          providing direct contact channels. Community discussion of the broader iBlocklist
+          service documents portfolio-wide concerns about list freshness, unresponsive
+          support, and billing practices; those concerns relate to the platform as
+          a whole rather than this specific Tor exit-node feed.
+      derivation:
+        type: derivative
+        description: The maintainer does not publicly document the specific upstream
+          source or build process for this feed. The logical upstream is the Tor Project's
+          publicly available relay descriptor data, published through the Onionoo
+          API, which includes a dedicated exit_addresses field for each relay. The
+          feed aggregates exit node addresses from the live Tor network and repackages
+          them in P2P, DAT, CIDR, and hosts file formats for distribution.
+        source_feeds: []
+      listing_policy:
+        summary: The maintainer does not document listing criteria for this feed.
+          The implicit scope is Tor network exit relay IP addresses as published in
+          the Tor network's relay descriptors.
+        criteria: []
+      unlisting_policy:
+        summary: The maintainer does not document an unlisting or delisting policy
+          for this feed. Listings persist until the feed is rebuilt; no automatic
+          expiry window is stated.
+        criteria: []
+      unlist_request:
+        url:
+        email:
+        instructions: The maintainer does not provide a documented unlisting channel.
+          The support page redirects to a third-party VPN advertisement with no functional
+          contact form or email address. Operators seeking removal of a Tor exit node
+          IP should consult the specific blocklist operator if the IP is also listed
+          elsewhere, as iblocklist.com has no identifiable delisting process.
+      update_frequency:
+        frequency:
+        human_readable: The maintainer's Terms of Service states that iblocklist,
+          LLC does not make any commitment to update the materials. No update cadence
+          is stated for this feed.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: The feed aggregates IP addresses from Tor network relay descriptor
+          data published by the Tor Project. Each Tor relay that accepts exit traffic
+          publishes descriptor records including its exit_addresses — the IP addresses
+          it uses or has used as an exit relay. The maintainer collects and repackages
+          these addresses into blocklist format. The Tor Project's Onionoo API provides
+          this data with fields including exit_addresses (addresses the relay has
+          ever used as an exit relay) and last_seen (timestamp of last observed activity).
+      scope_and_intent:
+        description: The feed targets IP addresses associated with Tor network exit
+          relays for use in blocking unwanted Tor exit node connections.
+        intended_for:
+        - Blocking Tor exit node connections at the network perimeter
+        - Privacy enforcement (preventing Tor-based access to restricted services)
+        - P2P anti-infringement screening
+        - Firewall ingestion via compatible blocklist clients (PeerBlock, PeerGuardian,
+          pfBlocker)
+        not_intended_for:
+        - Attributing specific activity to individual Tor users
+        - Identifying non-exit Tor relays (bridge, guard, or middle relays are not
+          exit nodes)
+        - Real-time or near-real-time Tor network state awareness
+      license: iBlocklist Terms of Service — personal / non-commercial use only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The ToS permits downloading and using the materials for personal use
+          only. Commercial use of any kind is prohibited. Account sharing outside
+          the household or router is prohibited. The materials are provided as is
+          with no warranty.
+      current_status:
+        state: active
+        description: The iblocklist.com website remains online as of 2026, with the
+          copyright notice extending to 2026. The feed's list page is accessible and
+          the download URL responds. However, community discussion documents that
+          the underlying blocklist data has been reported as stale, with lists frozen
+          at historical snapshots and support non-responsive to inquiries.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion of this Tor exit-node feed specifically is sparse.
+          No dedicated forum threads, issue trackers, or comparison reviews focused
+          on this feed were found; users seeking Tor exit-node data typically reference
+          the Tor Project's own published relay descriptors rather than this redistribution.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.iblocklist.com/lists.php
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.iblocklist.com/list.php?list=tor
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.iblocklist.com/support
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.iblocklist.com/list.php?list=xoebmbyexwuiogmbyprb
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://metrics.torproject.org/onionoo.html
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://malwaretips.com/threads/free-alternative-to-i-blocklist.56482/
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'

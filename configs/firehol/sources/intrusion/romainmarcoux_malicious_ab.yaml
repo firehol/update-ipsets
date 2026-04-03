@@ -1,0 +1,224 @@
+sources:
+  romainmarcoux_malicious_ab:
+    license: MIT License
+    redistributable: true
+    url: https://raw.githubusercontent.com/romainmarcoux/malicious-ip/main/full-ab.txt
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[romainmarcoux/malicious-ip](https://github.com/romainmarcoux/malicious-ip)
+      full inbound malicious-IP chunk `full-ab.txt`, continuing the hourly FortiGate/pfSense-sized
+      split list after `full-aa.txt`.'
+    maintainer: Romain Marcoux
+    maintainer_url: https://github.com/romainmarcoux/malicious-ip
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T22:07:02Z'
+      official_name: malicious-ip — full-ab.txt (second chunk)
+      official_url: https://github.com/romainmarcoux/malicious-ip
+      short_description: Hourly-updated aggregation of malicious inbound IP addresses
+        sourced from 15 threat-intelligence feeds, ranked by cross-source confidence
+        and split into firewall-sized chunks for edge-blocking devices.
+      long_description: "This feed serves full-ab.txt, the second 131,072-entry chunk
+        of the maintainer's cross-source-frequency-ordered inbound malicious-IP split.
+        Where full-aa.txt holds the IPs with the strongest cross-source agreement,
+        full-ab.txt continues the ordered list at progressively lower agreement levels:
+        it is intended for operators whose firewall capacity exceeds the top chunk
+        and who want to extend coverage beyond highest-consensus entries while accepting
+        somewhat higher false-positive risk than the top chunk carries.\n\nThe underlying
+        project collects reports from sixteen public threat-intelligence sources —
+        including AbuseIPDB, AlienVault OTX, BinaryDefense, blocklist.de, CINS Score,
+        Emerging Threats (Proofpoint), GreenSnow, SANS Internet Storm Center, Project
+        Honey Pot, Snort.org (Cisco Talos), and stamparm/ipsum — and ranks each IP
+        by how many sources report it. Google Bot, Bing Bot, Cloudflare egress, and
+        French mobile-operator ranges are excluded before publication. Output is intended
+        for inbound (WAN-to-LAN/DMZ) blocking only; the maintainer publishes a separate
+        repository (malicious-outgoing-ip) for outbound use cases. Files are formatted
+        for FortiGate, Palo Alto, Check Point, Sophos, pfSense, OPNsense, and Linux
+        ipset."
+      roles:
+      - role: maintainer
+        name: Romain Marcoux
+        organization_type: individual
+        official_url: https://github.com/romainmarcoux
+        contact_email:
+        based_in: Normandy, France
+        active_since: '2023'
+        notes: Freelance cybersecurity consultant (trading as Sekio). Holds Fortinet
+          NSE7 and FCSS certifications. Maintains several open-source security projects
+          on GitHub. Community contact via LinkedIn. Across the project (not chunk-specific),
+          reported false positives have involved legitimate services such as Cloudflare,
+          Semrush, and Let's Encrypt, which were addressed via whitelist additions.
+      derivation:
+        type: aggregate_merge
+        description: Aggregates and merges IP reports from 15 public threat-intelligence
+          sources, ranking each IP by the number of sources reporting it. Higher source-count
+          IPs appear earlier in the file sequence. The top 131,072 IPs occupy full-aa.txt;
+          subsequent 131,072-address chunks follow alphabetically (full-ab.txt, full-ac.txt,
+          …). Automatic exclusions remove Google Bot and Bing Bot ranges.
+        source_feeds:
+        - identifier: AbuseIPDB collaborative blocklist (120-day window)
+          relationship: aggregate_component
+          notes:
+        - identifier: AlienVault OTX Pulses — FakeLabs SSH brute-force honeypot (30-day)
+          relationship: aggregate_component
+          notes:
+        - identifier: AlienVault OTX Pulses — Georgs RDP/SSH/VNC intrusion (30-day)
+          relationship: aggregate_component
+          notes:
+        - identifier: AlienVault OTX Pulses — SSH Brute-Force (30-day)
+          relationship: aggregate_component
+          notes:
+        - identifier: BinaryDefense IP Block List (30-day)
+          relationship: aggregate_component
+          notes:
+        - identifier: blocklist.de collaborative blocklist — 6000 sensors (30-day)
+          relationship: aggregate_component
+          notes:
+        - identifier: CINS Score IP Block List (30-day)
+          relationship: aggregate_component
+          notes:
+        - identifier: Emerging Threats IP Block List — Proofpoint (30-day)
+          relationship: aggregate_component
+          notes:
+        - identifier: GreenSnow IP Block List (30-day)
+          relationship: aggregate_component
+          notes:
+        - identifier: SANS Internet Storm Center — 500000 sensors (20-day, false positives
+            pre-removed)
+          relationship: aggregate_component
+          notes:
+        - identifier: Malicious-ip private honeypots and other sources (30-day)
+          relationship: aggregate_component
+          notes:
+        - identifier: nxdomain.no brute-force blocklist (30-day)
+          relationship: aggregate_component
+          notes:
+        - identifier: Project Honey Pot collaborative blocklist (30-day)
+          relationship: aggregate_component
+          notes:
+        - identifier: Sekio customer-submitted malicious IPs (30-day)
+          relationship: aggregate_component
+          notes:
+        - identifier: Snort.org IP Block List — Cisco Talos (30-day)
+          relationship: aggregate_component
+          notes:
+        - identifier: stamparm/ipsum open-source aggregator (30-day)
+          relationship: aggregate_component
+          notes:
+      listing_policy:
+        summary: An IP enters the aggregation when it appears in at least one of the
+          15 upstream threat-intelligence sources. Once listed, IPs are retained until
+          they fall out of their source's reporting window (typically 20 to 120 days
+          depending on the source). IPs are ranked by how many sources report them;
+          higher cross-source overlap indicates stronger confidence.
+        criteria:
+        - Appears in at least one contributing threat-intelligence source (AbuseIPDB,
+          AlienVault OTX, BinaryDefense, blocklist.de, CINS Score, Emerging Threats,
+          GreenSnow, SANS ISC, Project Honey Pot, Snort.org/Talos, stamparm/ipsum,
+          or Sekio customer telemetry)
+        - Remains within the contributing source's reporting retention window (20
+          to 120 days depending on source)
+        - Not excluded by the maintainer's automated whitelist (Google Bot, Bing Bot,
+          Cloudflare egress ranges, French mobile operators)
+      unlisting_policy:
+        summary: Removal is handled reactively. The maintainer monitors community
+          reports submitted via LinkedIn and processes whitelist requests for legitimate
+          services that are incorrectly flagged. Automated exclusions permanently
+          remove Google Bot and Bing Bot. French mobile-operator IP ranges are also
+          whitelisted.
+        criteria:
+        - Submit a report via the maintainer's LinkedIn profile identifying the falsely-listed
+          IP and the legitimate use case
+        - 'Automated: Google Bot and Bing Bot IP ranges are permanently excluded'
+        - 'Automated: French mobile-operator IP ranges are permanently excluded'
+      unlist_request:
+        url:
+        email:
+        instructions: Submit a direct message to the maintainer via LinkedIn (linkedin.com/in/romainmarcoux).
+          Include the affected IP address and a brief description of the legitimate
+          service being blocked. The maintainer has demonstrated same-day response
+          on prior occasions.
+      update_frequency:
+        frequency: 1h
+        human_readable: Updated every hour
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods:
+        - honeypot
+        description: The feed is produced by merging reports from 15 established threat-intelligence
+          sources — including honeypot networks (AlienVault OTX SSH/RDP honeypots,
+          Project Honey Pot, GreenSnow), collaborative blocklists with sensor networks
+          (blocklist.de with 6000 sensors, SANS ISC with 500000 sensors), and commercial
+          feeds (BinaryDefense, CINS Score, Emerging Threats/Proofpoint, Snort.org/Cisco
+          Talos). Each contributing source applies its own detection methodology;
+          the aggregation applies cross-source ranking to weight confidence.
+      scope_and_intent:
+        description: Designed exclusively for blocking inbound malicious traffic at
+          the network perimeter — specifically scanners, brute-force attempts, and
+          other hostile probes directed at WAN-facing services. Must NOT be applied
+          to outbound traffic directions.
+        intended_for:
+        - Edge firewall inbound blocking (WAN > LAN/DMZ) on Fortinet FortiGate, Palo
+          Alto Networks, Check Point, Sophos, pfSense, OPNsense, and Linux with ipset
+        - WAF-layer inbound blocking
+        - Servers running Linux with ipset for inbound blackholing
+        not_intended_for:
+        - LAN > WAN outbound blocking (the maintainer maintains a separate project,
+          malicious-outgoing-ip, for that use case)
+        - Blocking legitimate crawlers (Google Bot, Bing Bot are auto-excluded, but
+          operators should verify coverage for other legitimate automated traffic)
+      license: MIT License
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit Romain MARCOUX / malicious-ip project
+        terms: MIT License permits redistribution in source and binary forms, with
+          attribution, including commercial use. The copyright notice and permission
+          notice must be included in all copies or substantial portions of the Software.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026. Hourly updates continue;
+          the maintainer publishes release notes tracking source changes and responds
+          to community false-positive reports via LinkedIn and GitHub issues.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: The full-ab.txt chunk contains entries ranked below the top-confidence
+          tier. Operators selecting this chunk in addition to full-aa.txt accept proportionally
+          higher false-positive risk than the top chunk carries, because lower cross-source
+          agreement means more entries flagged by only one or two upstream sources.
+          No criticism specific to this chunk was found in public channels.
+        engagement: No community discussion was found that singles out this chunk;
+          operator feedback in the project's GitHub issue tracker is filed against
+          the project as a whole rather than against any specific chunk file. LinkedIn
+          is the maintainer's primary direct-contact channel.
+      sources_consulted:
+      - url: https://github.com/romainmarcoux/malicious-ip
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: https://raw.githubusercontent.com/romainmarcoux/malicious-ip/main/README.md
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: https://raw.githubusercontent.com/romainmarcoux/malicious-ip/main/LICENSE
+        document_date: '2025-01-01'
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: https://raw.githubusercontent.com/romainmarcoux/malicious-ip/main/full-ab.txt
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: https://github.com/romainmarcoux/malicious-ip/issues?q=is%3Aissue
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: https://sekio.fr/
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: https://cefcys.fr/membres-cefcys/romain-marcoux
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'

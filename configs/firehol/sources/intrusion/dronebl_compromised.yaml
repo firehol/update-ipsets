@@ -1,0 +1,202 @@
+sources:
+  dronebl_compromised:
+    license: DroneBL community data — software BSD-style (https://dronebl.org)
+    redistributable: true
+    url: artifact://dronebl?parts=compromised
+    frequency: 0
+    ipv: ipv4
+    output: netset
+    processor:
+    - $CAT_CMD
+    processor_raw: $CAT_CMD
+    category: intrusion
+    info: '[DroneBL.org](https://dronebl.org) IPs of compromised routers / gateways.
+      It includes IPs for which DroneBL responds with 15 (BOPM detected).'
+    maintainer: DroneBL.org
+    maintainer_url: https://dronebl.org
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T18:03:48+00:00'
+      official_name: DroneBL
+      official_url: https://dronebl.org
+      short_description: Realtime blacklist of IPs belonging to compromised network
+        routers and gateways, detected by probing IRC networks for open proxy behaviour.
+      long_description: "This feed exposes DroneBL's class 15 entries — IP addresses
+        the maintainer flags as compromised network routers or gateways: consumer-grade
+        routers, SOHO gateways, and MikroTik appliances that have been breached and
+        had hidden proxy services activated (HTTP proxy, SOCKS proxy, PPTP/L2TP/SSTP
+        VPN servers), turning them into anonymous relay points. The maintainer's blog
+        has documented patterns of exploited MikroTik devices stemming from firmware
+        vulnerabilities and exposed management interfaces.\n\nDetection for class
+        15 relies on BOPM (Blitzed Open Proxy Monitor) and HOPM (Hybrid Open Proxy
+        Monitor) — IRC services modules that probe connecting clients for the proxy
+        services exposed by the compromised router. When BOPM confirms an open relay,
+        it reports the IP to DroneBL via an authenticated RPC2 call with the class
+        code.\n\nPer the maintainer's FAQ, class-15 listings do not auto-expire; removal
+        requires a request via the lookup page and approval from the reporting volunteer
+        or scanner operator. Because the listing is tied to the IP rather than the
+        device, dynamic IP reassignments by ISPs can cause previously clean IPs to
+        inherit a class-15 listing from a prior occupant. The maintainer's published
+        remediation guidance for class 15 specifically calls for firmware upgrade,
+        disabling unauthorized proxy services, credential rotation, and restricting
+        management access to the LAN side."
+      roles:
+      - role: maintainer
+        name: The DroneBL Team
+        organization_type: informal_collective
+        official_url: https://dronebl.org
+        contact_email: dronebl@tomaW.net
+        based_in:
+        active_since: '2004'
+        notes: 'A volunteer collective maintaining the DNSBL service, RPC infrastructure,
+          and lookup portal. The original software was written by William Pitcock
+          and Steve Church; the service is now maintained by a team of contributors.
+          Reach them by email or on IRC at irc.dronebl.org channel #dronebl.'
+      derivation:
+        type: extraction
+        description: This feed is an extraction from DroneBL's combined DNSBL zone,
+          retaining IPs classified under class 15 (Compromised router / gateway).
+          Source detections in DroneBL flow from BOPM (Blitzed Open Proxy Monitor)
+          and HOPM (Hybrid Open Proxy Monitor) IRC services modules and from contributors
+          with RPC keys submitting via XML-RPC2. The extraction filters the maintainer's
+          own zone to class 15 entries; no third-party IP feeds are involved.
+        source_feeds: []
+      listing_policy:
+        summary: 'An IP is listed under class 15 when DroneBL determines it belongs
+          to a network router or gateway device that has been breached and is being
+          abused as a relay. Detection occurs through BOPM: daemons on IRC networks
+          probe connecting clients for open proxy indicators such as activated HTTP
+          proxy, SOCKS proxy, PPTP, L2TP, or SSTP services. Confirmed detections are
+          submitted to DroneBL by the reporting operator. The listing is tied to the
+          IP address — not the device — so dynamic IP reassignments by ISPs can cause
+          previously clean IPs to inherit a listing from a prior occupant.'
+        criteria:
+        - The IP resolves to a network routing or gateway device (not a general-purpose
+          host)
+        - The device exhibits open proxy behaviour detectable by BOPM probe (activated
+          HTTP/SOCKS/VPN proxy services accessible from WAN)
+        - A network operator submits the confirmed compromise via DroneBL's RPC interface
+          or BOPM automated report
+      unlisting_policy:
+        summary: Removal is manual only. The listed party must first resolve the underlying
+          security issue — patch the firmware, disable unauthorized proxy services,
+          rotate credentials, and apply management-interface hardening. Once remediated,
+          they submit a removal request through the DroneBL lookup interface. DroneBL
+          forwards the request to the original reporter for verification. If the reporter
+          confirms the issue is resolved, the IP is delisted. Processing is by volunteers;
+          DroneBL advises waiting roughly a week before following up via IRC if not
+          acted upon.
+        criteria:
+        - The root cause must be fully resolved before requesting removal — the compromised
+          router must be patched, reconfigured, and verified clean
+        - A removal request must be submitted through dronebl.org/lookup for the specific
+          IP and incident
+        - The original reporter must confirm resolution before DroneBL removes the
+          entry
+        - Frivolous repeat requests may flag the submitter's contact information
+      unlist_request:
+        url: https://dronebl.org/lookup
+        email: dronebl@tomaW.net
+        instructions: 'Visit the DroneBL lookup page, enter the affected IP address,
+          review the listing details, and follow the on-screen instructions to submit
+          a removal request. The request is routed to the original reporter for verification.
+          If the IP is not delisted within approximately one week, join the #dronebl
+          channel on irc.dronebl.org (or use the AlphaChat web IRC client) to follow
+          up with the volunteer team.'
+      update_frequency:
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods:
+        - user_submission
+        description: BOPM (Blitzed Open Proxy Monitor) and HOPM (Hybrid Open Proxy
+          Monitor) deployed on IRC networks probe every connecting client for open-proxy
+          behaviour on common ports (SOCKS 1080, HTTP 8080/3128/6588, WinGate 23,
+          and others). Detections of router-class hosts (HTTP proxy, SOCKS proxy,
+          PPTP/L2TP/SSTP VPN) are reported to DroneBL via RPC2 with class code 15.
+          The IRC service acceptance loop is the sensor surface — every connecting
+          client is tested by virtue of connecting. Secondary submissions come from
+          network operators who manually report confirmed router compromises via DroneBL's
+          RPC2 interface.
+      scope_and_intent:
+        description: DroneBL is designed for operators of interactive network services
+          — primarily IRC networks, mail servers, and shells — who want to block clients
+          connecting from IPs involved in automated abuse. The class 15 subset targets
+          network infrastructure devices acting as anonymous relay proxies.
+        intended_for:
+        - IRC networks blocking connecting clients from compromised router IPs
+        - Mail servers applying differentiated blocking policies based on threat class
+        - Shell providers and tildes screening tenant connections
+        - Network operators performing post-incident forensics
+        not_intended_for:
+        - Broad blocking of all DroneBL entries — each class corresponds to a distinct
+          threat type and warrants independent policy decisions
+        - Automatic removal without verification — DroneBL does not honour requests
+          where the root cause is unresolved
+        - Permanent IP-based reputation without periodic review — operators are expected
+          to refresh their local copies
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: The direct upstream (FireHOL's compiled artifact) is publicly downloadable
+          with no stated restriction. DroneBL's own data-sharing page carries a copyright
+          notice but no explicit redistribution prohibition; the software is BSD-style.
+          Operators redistributing further should note that DroneBL routes delisting
+          requests to original reporters — downstream redistributions should preserve
+          the incident ID to enable proper routing.
+      current_status:
+        state: active
+        description: Maintained as of 2026. The DroneBL website is reachable, the
+          lookup portal is functional, and the volunteer team is reachable by email
+          and on IRC. The homepage displays recent listing activity. No discontinuation
+          or migration notice has been published.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "Class-15-specific community discussion centres on the MikroTik
+          compromise wave the maintainer's own blog also addresses: residential and
+          small-business operators discovering their routers were enrolled as anonymous
+          proxies after firmware vulnerabilities or exposed management interfaces
+          were exploited. The hardware-replacement-or-reflash burden falls on the
+          listed party, and the IP-tied listing model means a remediated device may
+          still inherit a listing if the same WAN IP is reused."
+        engagement: "Class-15-specific discussion appears mostly in MikroTik operator
+          forums and Reddit threads triggered by the router compromise pattern. No
+          dedicated community channel for class 15 exists beyond DroneBL's general
+          #dronebl IRC channel."
+      sources_consulted:
+      - url: https://dronebl.org
+        document_date:
+        validation_date: '2026-05-16T18:00:00+00:00'
+      - url: https://dronebl.org/classes
+        document_date:
+        validation_date: '2026-05-16T18:00:00+00:00'
+      - url: https://dronebl.org/docs/faq
+        document_date:
+        validation_date: '2026-05-16T18:00:00+00:00'
+      - url: https://dronebl.org/lookup
+        document_date:
+        validation_date: '2026-05-16T18:00:00+00:00'
+      - url: https://dronebl.org/blog/40
+        document_date:
+        validation_date: '2026-05-16T18:00:00+00:00'
+      - url: https://dronebl.org/docs/howtouse
+        document_date:
+        validation_date: '2026-05-16T18:00:00+00:00'
+      - url: https://dronebl.org/docs/data-sharing
+        document_date:
+        validation_date: '2026-05-16T18:00:00+00:00'
+      - url: https://github.com/blitzed-org/bopm/blob/master/bopm.conf.sample
+        document_date:
+        validation_date: '2026-05-16T18:00:00+00:00'
+      - url: https://www.reddit.com/r/techsupport/
+        document_date:
+        validation_date: '2026-05-16T18:00:00+00:00'
+      - url: https://www.reddit.com/r/freenode/
+        document_date:
+        validation_date: '2026-05-16T18:00:00+00:00'
+      - url: https://www.reddit.com/r/sysadmin/
+        document_date:
+        validation_date: '2026-05-16T18:00:00+00:00'

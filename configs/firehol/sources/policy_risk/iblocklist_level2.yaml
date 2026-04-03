@@ -1,0 +1,189 @@
+sources:
+  iblocklist_level2:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=gyisgnzbhppbvsphucsw&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Level 2 (for use in p2p). General corporate ranges. Ranges used by labs
+      or researchers. Proxies.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T06:17:52Z'
+      official_name: level2
+      official_url: https://www.iblocklist.com/list.php?list=gyisgnzbhppbvsphucsw
+      short_description: A republished subset of the retired Bluetack level2 blocklist,
+        covering corporate network ranges, research institution prefixes, and open
+        proxy addresses, served via the iblocklist.com subscription platform.
+      long_description: The level2 list is a republished component of the Bluetack
+        blocklist suite, originally compiled by the now-defunct bluetack.co.uk project.
+        According to the list description published on iblocklist.com, it covers general
+        corporate network ranges, IP prefixes allocated to research institutions and
+        laboratories, and addresses associated with open proxy servers. The Bluetack
+        project switched to a paid-only model in February 2014 and its website went
+        fully offline by September 2015; community reports from 2016 confirm the underlying
+        lists had not been updated for years prior to that point. I-Blocklist (iblocklist,
+        LLC) continues to distribute the level2 list in its original P2P-compatible
+        format alongside dozens of other republished blocklists, but the list itself
+        has not been refreshed since the original Bluetack project ceased operations.
+        The service is offered as a paid annual subscription at $9.99 per year, with
+        access to all available lists under a personal-use-only license. The Terms
+        of Service explicitly states that iblocklist, LLC makes no commitment to update
+        the materials.
+      roles:
+      - role: original_author
+        name: Bluetack
+        organization_type: unknown
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: The original author of the level2 blocklist. The Bluetack project (bluetack.co.uk)
+          switched to a paid-only model in February 2014 and the website went fully
+          offline by September 2015. Community reports from 2016 confirm the lists
+          had not been updated for years prior to that point. The project is considered
+          defunct.
+      - role: publisher
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Operates the iblocklist.com platform, which repackages and distributes
+          the level2 list alongside dozens of other blocklists. Accepts subscriptions
+          at $9.99/year. The Terms of Service grants personal-use-only permission
+          and explicitly disclaims any commitment to update the materials.
+      derivation:
+        type: partial_mirror
+        description: I-Blocklist repackages and distributes the Bluetack level2 list
+          in P2P (.p2p), DAT, and CIDR formats. The list was originally compiled by
+          the Bluetack project from community reports, honeypot observations, and
+          user submissions targeting organizations engaged in P2P monitoring. Since
+          the Bluetack project ceased operations circa 2014–2015, the list has not
+          been refreshed. I-Blocklist does not supplement the Bluetack lists with
+          additional sourcing or deduplication.
+        source_feeds: []
+      listing_policy:
+        summary: 'The level2 list covers three categories of IP space: general corporate
+          network ranges belonging to organizations that are not primary anti-P2P
+          actors; IP prefixes allocated to research institutions and laboratory environments;
+          and addresses associated with open proxy servers. No formal written listing
+          criteria or submission process is published by the maintainer.'
+        criteria:
+        - Corporate network ranges belonging to organizations that are not primary
+          anti-P2P actors
+        - IP prefixes allocated to research institutions and laboratory environments
+        - Addresses associated with open proxy servers
+      unlisting_policy:
+        summary: No unlisting policy, submission process, or removal procedure is
+          published by the maintainer. The iblocklist.com support page redirects to
+          a PhantomPeer VPN service page rather than providing a contact channel for
+          IP removal requests.
+        criteria: []
+      unlist_request:
+      update_frequency:
+        frequency:
+        human_readable: 'No update cadence is committed to. Per the Terms of Service:
+          iblocklist, LLC does not, however, make any commitment to update the materials.'
+      detection_classification:
+        primary_method: mixed
+        secondary_methods: []
+        description: The original Bluetack level2 list was compiled using multiple
+          detection approaches, including community-reported IP submissions and honeypot-style
+          observation of connections from known corporate and institutional ranges.
+          No single primary method is designated by the maintainer. Since the Bluetack
+          project ceased operations circa 2014–2015, no active detection has been
+          conducted on this list.
+      scope_and_intent:
+        description: The level2 list is intended for users of P2P file-sharing applications
+          who wish to block incoming connections from corporate network ranges, research
+          institution prefixes, and open proxy servers. It sits below the Bluetack
+          Primary Threats list in severity tier, covering organizations that do not
+          qualify as primary anti-P2P actors. The iblocklist.com Terms of Service
+          prohibit use of the service for hacking, denial-of-service attacks, spam,
+          or other malicious activities.
+        intended_for:
+        - P2P file-sharing applications (PeerBlock, PeerGuardian, qBittorrent, Vuze,
+          uTorrent, Tixati, Transmission)
+        - pfBlocker and similar firewall-based IP blocklist tools
+        - Blocking corporate and institutional network ranges in P2P contexts
+        not_intended_for:
+        - Hacking, denial-of-service attacks, or offensive security use
+        - Spam or other malicious activities
+        - Commercial use or public display of the data
+      license: iBlocklist Terms of Service — personal use only, no commercial use
+        permitted
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The Terms of Service grants permission for personal use only. Redistribution,
+          commercial use, and public display (commercial or non-commercial) are expressly
+          prohibited. Account sharing outside the immediate household is also prohibited.
+          The license terminates automatically upon violation and may be terminated
+          by iblocklist, LLC at any time without refund.
+      current_status:
+        state: altered_scope
+        description: The iblocklist.com platform remains online and accepts subscriptions
+          as of the research date. However, the Bluetack level2 list — the underlying
+          data source — has not been updated since the Bluetack project ceased operations
+          circa 2014–2015. Community reports from 2016 confirm the list was already
+          stale at that time. The Terms of Service explicitly disclaims any commitment
+          to update the materials. The engine has not observed a content update for
+          this feed.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Community forum discussions from 2016 describe the Bluetack-authored
+          lists, including level2, as having been frozen for years. The GitHub Gist
+          community archive of Bluetack lists was shut down by its author in July
+          2021, noting the lists had languished unmaintained for a long time. These
+          reports apply to the Bluetack source from which this list is derived.
+        engagement: Public discussion specific to the level2 list is sparse. Historical
+          forum threads (2016) on Netgate and Transmission BT communities discuss
+          the Bluetack maintenance deficiency. No recent technical discussions about
+          the level2 list specifically were found.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/list.php?list=gyisgnzbhppbvsphucsw
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/subscribe
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date: '2016-08-17'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://forum.transmissionbt.com/viewtopic.php?t=15652
+        document_date: '2014-02-09'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://gist.github.com/johntyree/3331662
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date: '2025-12-16'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: 
+          https://reddit.com/r/PFSENSE/comments/4l5htw/pfblockerng_dnsbl_iblocklist_issues/
+        document_date: '2016-05-19'
+        validation_date: '2026-05-19T00:00:00Z'

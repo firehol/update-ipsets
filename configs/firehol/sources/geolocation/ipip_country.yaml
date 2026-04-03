@@ -1,0 +1,140 @@
+sources:
+  ipip_country:
+    license: IPIP.net User Agreement (proprietary)
+    redistributable: false
+    label: IPIP.net
+    url: https://cdn.ipip.net/17mon/country.zip
+    frequency: 1440
+    category: geolocation
+    info: '[ipip.net](http://ipip.net)'
+    maintainer: ipip.net
+    maintainer_url: http://ipip.net
+    hidden: true
+    use: [geoip]
+    format: ipip_country_zip
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T19:13:07Z'
+      official_name: IPIP.net
+      official_url: https://www.ipip.net
+      short_description: A free IP-to-country geolocation lookup table mapping IPv4
+        prefixes to country names, offered as the trial tier of a commercial IP intelligence
+        service.
+      long_description: IPIP.net (Beijing Tiantexin Technology Co., Ltd.) operates
+        a commercial IP geolocation service dating to 2013. The country.zip feed is
+        the trial tier of their offline database product, providing a plain-text mapping
+        of IPv4 address prefixes to country names in tab-separated format. Per the
+        maintainer's published methodology, the underlying data is derived from BGP/ASN
+        analysis combined with data from telecommunications carriers and network service
+        providers, supplemented by the operator's own network monitoring infrastructure.
+        The trial version covers country-level accuracy internationally; paid tiers
+        extend to city-level granularity within China and add carrier, latitude/longitude,
+        and timezone fields. The maintainer states data is processed at a scale exceeding
+        4,000 GB per day. The trial version is explicitly labelled '禁止用于商业用途' (prohibited
+        for formal commercial purposes) on the product page. The feed covers IPv4
+        only; IPv6 geolocation is available only in paid product tiers.
+      roles:
+      - role: maintainer
+        name: IPIP.net
+        organization_type: commercial
+        official_url: https://www.ipip.net
+        contact_email: sales@ipip.net
+        based_in: China
+        active_since: '2013'
+        notes: Beijing Tiantexin Technology Co., Ltd. (北京天特信科技有限公司). Operates a suite
+          of commercial IP intelligence products including geolocation, BGP/ASN, IDC,
+          and proxy-risk databases. The company also publishes traceroute tools (BestTrace)
+          across desktop and mobile platforms.
+      derivation:
+        type: original
+        description: "The feed is built from the maintainer's own infrastructure:
+          BGP/ASN routing data analyzed in partnership with telecommunications carriers
+          and network service providers, supplemented by the operator's own globally
+          distributed network monitoring points (described as over 1,200 probes).
+          The raw data is processed daily and packaged into the country-level text
+          format for the trial tier. No upstream IP feeds are consumed; the data originates
+          from first-party collection."
+        source_feeds: []
+      listing_policy:
+      unlisting_policy:
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: Daily updates, per the catalog YAML frequency field (1440
+          minutes)
+      detection_classification:
+        primary_method: mixed
+        secondary_methods: []
+        description: The maintainer describes a mixed sourcing approach combining
+          BGP/ASN routing analysis conducted in cooperation with telecommunications
+          carriers and network service providers, supplemented by the operator's own
+          globally distributed network monitoring infrastructure (described as over
+          1,200 probes). This is not a honeypot, malware-analysis, or user-submission
+          feed — it is a geolocation database produced through active network measurement
+          and carrier data partnerships.
+      scope_and_intent:
+        description: The feed is the trial tier of IPIP.net's commercial IP geolocation
+          database, providing country-level mapping of IPv4 address prefixes. It is
+          intended as a no-cost entry point for evaluation and non-commercial use.
+          The paid product tiers extend to city-level accuracy within China, add latitude/longitude
+          coordinates, carrier identification, timezone data, and IPv6 coverage.
+        intended_for:
+        - IP geolocation lookup (country-level)
+        - Non-commercial evaluation and testing
+        not_intended_for:
+        - Commercial products or services
+        - City-level or higher-precision geolocation
+        - IPv6 address mapping
+      license: IPIP.net User Agreement (proprietary)
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution, transfer, sale, licensing, rental, or any form of commercial
+          use requires prior written consent from IPIP. The trial version is additionally
+          restricted from formal commercial purposes altogether.
+      current_status:
+        state: active
+        description: The ipip.net service is maintained and the website is operational
+          as of the research date. The trial country.zip remains publicly accessible
+          at the CDN URL. The trial database on the product page shows a last-update
+          timestamp of July 2019, which may indicate slower update cadence for the
+          free tier; the paid service maintains daily updates.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion is sparse. The feed is referenced
+          in a moderate number of third-party GitHub repositories implementing parsers
+          for the 17mon/ipip format, particularly in Chinese developer communities.
+          Netdata integrates the dataset via its netflow-plugin, converting it to
+          MaxMind MMDB format for flow enrichment. The maintainer does not operate
+          a public issue tracker or community forum for the free trial tier specifically.
+          No notable controversy, sustained complaint pattern, or third-party award
+          documentation was identified.
+      sources_consulted:
+      - url: https://www.ipip.net
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.ipip.net/product/client.html
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.ipip.net/product/ip.html
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.ipip.net/user_agreement.html
+        document_date: '2021-04-13'
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.ipip.net/api.html
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://cdn.ipip.net/17mon/country.zip
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://github.com/Max-Sum/17mon-mmdb
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://netdata.cloud/documentation/netflow-plugin/ipip-country-database/
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'

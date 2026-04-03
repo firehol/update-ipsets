@@ -1,0 +1,207 @@
+sources:
+  cleantalk_updated:
+    hidden: true
+    license: CleanTalk License Agreement (proprietary)
+    redistributable: false
+    url: https://cleantalk.org/blacklists/updated_today
+    frequency: 15
+    history:
+    - 1440
+    - 10080
+    - 43200
+    ipv: ipv4
+    output: ipset
+    processor:
+    - parse_cleantalk
+    processor_raw: parse_cleantalk
+    category: service_abuse
+    info: '[CleanTalk](https://cleantalk.org/) Recurring HTTP Spammers'
+    maintainer: CleanTalk
+    maintainer_url: https://cleantalk.org/
+    accept_empty: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T01:15:13Z'
+      official_name: CleanTalk Block Lists
+      official_url: https://cleantalk.org/blacklists/updated_today
+      short_description: Rolling 24-hour snapshot of IP addresses and email addresses
+        newly added or updated in CleanTalk's spam database, drawn from real-time
+        spam activity observed across their monitored website network.
+      long_description: "The Updated Today feed presents a rolling 24-hour window
+        of IP addresses and email addresses from CleanTalk's Block Lists database
+        whose status changed within that period — either newly added or with updated
+        activity records. Unlike the Submitted Today view, which exposes only the
+        day's newly added entries, this view also surfaces records previously listed
+        whose activity was reconfirmed within the window.\n\nListings are generated
+        automatically when an IP or email address accumulates spam activity across
+        multiple websites running CleanTalk plugins or API integrations, reaching
+        an undisclosed critical threshold. The maintainer states the service assigns
+        each record a frequency score (range 0–9999) representing the number of distinct
+        websites that have reported spam activity from that source, and that records
+        inactive for 14 days are automatically removed from active blacklists, though
+        historical data is retained.\n\nThe feed is a publicly browsable view of a
+        subset of CleanTalk's full spam database. Access to the complete offline database
+        for automated ingestion requires a separate paid Block Lists API license.
+        CleanTalk explicitly states that detailed data collection mechanisms cannot
+        be disclosed."
+      roles:
+      - role: maintainer
+        name: CleanTalk Inc.
+        organization_type: commercial
+        official_url: https://cleantalk.org/
+        contact_email: support@cleantalk.org
+        based_in: Lincolnshire, Illinois, USA
+        active_since: '2012'
+        notes: Commercial SaaS anti-spam service. Co-founded by Denis Shagimuratov
+          (CEO) and Alex Bezborodov (CMO). Operates a cloud-hosted spam protection
+          platform drawing from more than 320,000 monitored websites. The company
+          publishes CMS plugins and language-specific SDKs (PHP, Python, Ruby, C#,
+          Perl) under open-source licenses, while the core blacklist database is a
+          paid commercial product.
+      derivation:
+        type: original
+        description: The feed is produced from CleanTalk's own monitoring infrastructure.
+          The service collects spam activity reports in real time from more than 320,000
+          websites running CleanTalk plugins or integrating with the CleanTalk API.
+          When a site's administrator marks a registration or comment as spam or approves
+          it through manual moderation, that feedback is recorded. Cross-site correlation
+          determines whether an IP or email reaches the blacklisting threshold. The
+          'updated_today' feed extracts the subset of records whose status changed
+          within the preceding 24-hour window. No upstream IP feeds are consumed.
+        source_feeds: []
+      listing_policy:
+        summary: An IP address or email address is blacklisted automatically when
+          its spam activity frequency score reaches a critical threshold across multiple
+          websites within the CleanTalk network. The frequency score (range 0–9999)
+          counts how many distinct websites have reported spam activity from that
+          source. The threshold itself is not publicly disclosed.
+        criteria:
+        - Spam activity detected from an IP or email address across multiple websites
+          in the CleanTalk monitoring network
+        - Cumulative frequency score reaching a critical (undisclosed) threshold
+        - Activity originating from the same source observed across geographically
+          or administratively diverse sites simultaneously
+      unlisting_policy:
+        summary: Entries that show no spam activity for 14 consecutive days are automatically
+          removed from active blacklists, though historical records are preserved.
+          Separately, when a site's administrator approves a previously blocked submission
+          through manual moderation, that positive feedback is recorded and the corresponding
+          record is immediately removed from the blacklist.
+        criteria:
+        - 'Automatic: no spam activity reported for 14 days — record removed from
+          active lists, history retained'
+        - 'Positive feedback: administrator approves previously blocked submission
+          through manual moderation — record immediately delisted'
+        - "Negative feedback: administrator marks a submission as spam — IP and email
+          added to the site's personal blacklist"
+      unlist_request:
+        url: https://cleantalk.org/my/support/open
+        email: support@cleantalk.org
+        instructions: Submit a support ticket through the CleanTalk Anti-Spam Control
+          Panel. Log in at https://cleantalk.org/my, select the affected website under
+          Settings, open the Logs view, and mark the relevant entry as 'Not SPAM'
+          to generate positive feedback that removes the record from the blacklist.
+          For persistent false positives or systemic issues, contact support directly
+          via the support portal or email. CleanTalk's help article on false positives
+          advises enabling the JavaScript library and clearing site caches as initial
+          troubleshooting steps before escalating to support.
+      update_frequency:
+        frequency: 1h
+        human_readable: The underlying database is updated once per hour, per the
+          maintainer's pricing page. The 'updated_today' feed presents a rolling 24-hour
+          window of records that changed within that window.
+      detection_classification:
+        primary_method: mixed
+        secondary_methods:
+        - honeypot
+        - user_submission
+        - reputation_aggregation
+        description: 'The feed combines three detection approaches. First, CleanTalk
+          plugins act as passive sensors: when installed on a website, they observe
+          form submissions and report spam-relevant behavior without presenting a
+          deliberate honeypot. Second, website administrators contribute explicit
+          feedback by marking submissions as spam or approving them through manual
+          moderation — this positive and negative feedback loop directly influences
+          blacklist status. Third, CleanTalk aggregates spam activity reports across
+          its entire monitored network to compute a frequency score per IP and email
+          address, ranking sources by cross-site prevalence. The combination of passive
+          observation and active user reporting constitutes a mixed methodology.'
+      scope_and_intent:
+        description: CleanTalk's blacklist database is designed to track IP addresses
+          and email addresses associated with automated spam activity targeting web
+          forms — comment spam, registration spam, contact form spam, and similar
+          automated bot submissions. The service is optimized for website-level spam
+          prevention, not network-perimeter blocking or threat-intelligence workflows.
+        intended_for:
+        - Blocking automated spam submissions on web forms (comments, registrations,
+          contact forms, checkout forms)
+        - Protecting content management systems (WordPress, Joomla, Drupal, phpBB,
+          and other CMS platforms) from bot registrations
+        - Filtering fraudulent e-commerce transactions driven by disposable email
+          addresses
+        not_intended_for:
+        - Network perimeter blocking or firewall rules at the infrastructure level
+        - General-purpose threat intelligence or C2 tracking
+        - Blocking HTTP traffic broadly — the feed targets form-submission bots, not
+          volumetric attackers
+      license: CleanTalk License Agreement (proprietary)
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution, resale, and automated scraping of CleanTalk data are
+          prohibited without prior written consent from CleanTalk Inc. The license
+          is explicitly non-transferable. Commercial use requires a separate paid
+          license agreement.
+      current_status:
+        state: active
+        description: The Updated Today feed URL remains accessible and is maintained
+          as part of CleanTalk's Block Lists product. The maintainer continues to
+          publish hourly database updates and operate the paid Block Lists API. No
+          discontinuation, merger, or scope-change announcement was found.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Community discussion of CleanTalk's underlying block list documents
+          recurring false-positive concerns relevant to records exposed in this view.
+          VPN users have been disproportionately affected, as CleanTalk's cross-site
+          frequency scoring can flag entire VPN subnets when any single exit-node
+          IP generates spam reports. CleanTalk's own help documentation acknowledges
+          that VPN IP addresses frequently appear on its block lists due to shared
+          subnet associations, and lists incorrect form-parameter collection and caching
+          conflicts as leading causes of false positives. The maintainer provides
+          troubleshooting guidance and directs persistent cases to support.
+        engagement: Public discussion specific to the Updated Today view is sparse;
+          most community discussion concerns the broader CleanTalk block list product
+          and the maintainer's anti-spam plugins, and is captured at the maintainer
+          level. The maintainer publishes a public IP/email lookup interface and a
+          browser extension that query the block list database.
+      sources_consulted:
+      - url: https://cleantalk.org/
+        document_date:
+        validation_date: '2026-05-19T01:00:00Z'
+      - url: https://cleantalk.org/blacklists/
+        document_date:
+        validation_date: '2026-05-19T01:00:00Z'
+      - url: https://cleantalk.org/publicoffer
+        document_date:
+        validation_date: '2026-05-19T01:00:00Z'
+      - url: https://cleantalk.org/blacklists/updated_today
+        document_date: '2026-01-25'
+        validation_date: '2026-05-19T01:00:00Z'
+      - url: https://cleantalk.org/faq
+        document_date:
+        validation_date: '2026-05-19T01:00:00Z'
+      - url: https://cleantalk.org/price-database-api
+        document_date:
+        validation_date: '2026-05-19T01:00:00Z'
+      - url: https://cleantalk.org/help/false-positives
+        document_date:
+        validation_date: '2026-05-19T01:00:00Z'
+      - url: https://cleantalk.org/help/blacklist-usage
+        document_date:
+        validation_date: '2026-05-19T01:00:00Z'
+      - url: https://github.com/CleanTalk
+        document_date:
+        validation_date: '2026-05-19T01:00:00Z'

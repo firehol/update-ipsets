@@ -1,0 +1,180 @@
+sources:
+  dataplane_smtpgreet:
+    license: Dataplane.org - non-commercial use only, redistribution prohibited
+    redistributable: false
+    url: https://dataplane.org/smtpgreet.txt
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - dataplane_column3
+    processor_raw: dataplane_column3
+    category: messaging_abuse
+    info: '[DataPlane.org](https://dataplane.org/) IP addresses seen greeting SMTP
+      servers on remote hosts. Added from the MISP default feed catalog audit.'
+    maintainer: DataPlane.org
+    maintainer_url: https://dataplane.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T02:34:36Z'
+      official_name: smtpgreet
+      official_url: https://dataplane.org/signals.html
+      short_description: Passive sensor network identifying IPv4 addresses that send
+        unsolicited SMTP HELO or EHLO greeting commands, annotated with originating
+        ASN and last-seen timestamps.
+      long_description: "The smtpgreet signal is produced by DataPlane.org's globally
+        distributed passive SMTP sensor network. Sensors listen on TCP port 25 and
+        passively observe incoming SMTP sessions — they are neither advertised nor
+        intended for actual email delivery. An IP is added to the feed when a connecting
+        client sends an unsolicited HELO or EHLO command. Per the maintainer's blog,
+        many Internet surveying and fingerprinting projects exhibit this behavior,
+        meaning the feed captures a broad range of scanning activity beyond outright
+        malicious senders. The maintainer explicitly notes that legitimate mail clients
+        can occasionally appear in the feed if they mistakenly connect to a sensor
+        believing it to be a legitimate mail server.\n\nEach entry is a pipe-delimited
+        record containing the originating autonomous system number (ASN), AS name,
+        IPv4 address, last-seen timestamp in UTC, and the category tag 'smtpgreet'.
+        Entries are deduplicated per IP address even when multiple origin AS announcements
+        cover the prefix. The maintainer uses PyASN for IP-to-ASN mapping. The signal
+        is informational — not a blocklist — and the maintainer warns against deriving
+        malicious or benign intent from individual entries given NAT, address spoofing,
+        and surveying research activity.\n\nDataPlane.org is a 501(c)(3) nonprofit
+        organization operating what it describes as over 300 sensor nodes across 65
+        metropolitan areas on 6 continents. The smtpgreet signal is one of several
+        SMTP-related signals; the companion smtpdata signal additionally tracks clients
+        that reach the DATA command phase, indicating potential email delivery intent."
+      roles:
+      - role: maintainer
+        name: DataPlane.org
+        organization_type: non_profit
+        official_url: https://dataplane.org/
+        contact_email: info@dataplane.org
+        based_in:
+        active_since:
+        notes: A 501(c)(3) nonprofit organization described as 'for operators, by
+          operators' — provides free network and security signals to the Internet
+          community. Operates the distributed sensor infrastructure producing this
+          feed. Primary contact is info@dataplane.org.
+      - role: original_author
+        name: John Kristoff
+        organization_type: non_profit
+        official_url: https://github.com/jtkristoff
+        contact_email:
+        based_in:
+        active_since:
+        notes: "@jtkristoff on GitHub — credited author of the SMTP feeds blog post
+          and primary maintainer across all DataPlane.org GitHub repositories. Invited
+          community feedback on the feed's introduction in January 2021."
+      derivation:
+        type: original
+        description: "First-party passive sensor detection: DataPlane.org's distributed
+          SMTP sensor network listens on TCP port 25 and passively observes inbound
+          connections. Any connecting client that sends an unsolicited HELO or EHLO
+          command is recorded with its IPv4 address, originating ASN (mapped via PyASN),
+          and a UTC timestamp. Entries are deduplicated per IP address. No external
+          IP feeds are consumed; the signal is produced entirely from the maintainer's
+          own sensor infrastructure."
+        source_feeds: []
+      listing_policy:
+        summary: An IPv4 address is added to the feed when it connects to a DataPlane.org
+          SMTP sensor on TCP port 25 and sends an unsolicited HELO or EHLO SMTP greeting
+          command. The sensor is a passive observer — it does not participate in the
+          SMTP transaction beyond accepting the connection. No threshold, scoring,
+          or manual review is involved; a single unsolicited greeting event is sufficient
+          for listing.
+        criteria:
+        - Connecting to a DataPlane.org SMTP sensor on TCP port 25
+        - Sending an unsolicited HELO or EHLO command (the sensor does not solicit
+          this command)
+      unlisting_policy:
+        summary: 'There is no manual unlisting process. Listings decay automatically:
+          once the device at the listed IP address no longer exhibits the triggering
+          behavior (connecting to sensors and sending unsolicited SMTP greetings),
+          the IP address will not appear in subsequent report periods and will fall
+          off the rolling 7-day window.'
+        criteria:
+        - 'Automatic decay: the IP stops generating unsolicited SMTP greeting events'
+        - 'Rolling 7-day window: entries older than 7 days without a renewed detection
+          are not carried forward'
+      unlist_request:
+        url:
+        email: info@dataplane.org
+        instructions: No formal unlisting channel exists. Per the maintainer's contact
+          page FAQ, the recommended step is to resolve the underlying issue causing
+          the device to send unsolicited SMTP greetings; once the behavior stops,
+          the IP decays naturally from the signal. For inquiries, the maintainer accepts
+          contact at info@dataplane.org.
+      update_frequency:
+        frequency: 1h
+        human_readable: Updated hourly, per the maintainer's signals index page.
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: 'Passive network telescope detection: dedicated SMTP sensor systems
+          listen on TCP port 25 and silently accept inbound connections without participating
+          in the SMTP transaction. The sensor records the source IPv4 address of any
+          client that sends an unsolicited HELO or EHLO command before the sensor
+          has sent any banner or response. This is a pure passive observation — no
+          credentials are exchanged, no mail is accepted, and no probes are sent.
+          The trigger event (unsolicited greeting) is observable without any interaction
+          beyond accepting the initial TCP handshake.'
+      scope_and_intent:
+        description: The smtpgreet signal captures SMTP greeting behavior — clients
+          that send unsolicited HELO or EHLO commands to mail servers. The maintainer
+          intends this as an informational signal for network operators and security
+          researchers to observe trends in SMTP scanning and fingerprinting activity.
+          It is explicitly not designed or marketed as a blocklist.
+        intended_for:
+        - Observing trends in SMTP scanning and fingerprinting activity
+        - Correlating SMTP greeting sources with other network telemetry
+        - Security research and anomaly detection
+        not_intended_for:
+        - Automated ingress blocking of listed IP addresses
+        - Determining malicious intent for an individual entry
+        - Production email filtering without human review
+      license: Non-commercial use only, redistribution prohibited (per the smtpgreet
+        feed file header and DataPlane.org terms)
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution in whole or in part without the express written permission
+          of DataPlane.org is expressly prohibited. Commercial use requires contacting
+          info@dataplane.org to negotiate terms.
+      current_status:
+        state: active
+        description: Active signal. Updated hourly per the maintainer's signals index.
+          The latest report period visible in the feed file spans 2026-05-11 to 2026-05-18,
+          consistent with ongoing publication.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion of the smtpgreet feed is sparse. Multi-platform
+          searches across Reddit, GitHub, Twitter/X, and Mastodon.social returned
+          no substantive threads, issues, or commentary specific to this feed. DataPlane.org's
+          GitHub organization (10 repositories, primary maintainer @jtkristoff) shows
+          light maintenance activity focused on tooling rather than the signal feeds
+          themselves. The maintainer invited community feedback upon the feed's launch
+          in January 2021 but no sustained public dialogue is visible in indexed channels.
+      sources_consulted:
+      - url: https://dataplane.org/
+        document_date:
+        validation_date: '2026-05-18T02:00:00Z'
+      - url: https://dataplane.org/smtpgreet.txt
+        document_date:
+        validation_date: '2026-05-18T02:00:00Z'
+      - url: https://dataplane.org/jtk/blog/2021/01/smtp-feeds/
+        document_date: 2021-01
+        validation_date: '2026-05-18T02:00:00Z'
+      - url: https://dataplane.org/signals.html
+        document_date:
+        validation_date: '2026-05-18T02:00:00Z'
+      - url: https://dataplane.org/contact.html
+        document_date:
+        validation_date: '2026-05-18T02:00:00Z'
+      - url: https://github.com/Dataplane
+        document_date:
+        validation_date: '2026-05-18T02:00:00Z'

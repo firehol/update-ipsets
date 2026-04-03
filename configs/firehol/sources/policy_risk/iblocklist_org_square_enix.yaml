@@ -1,0 +1,148 @@
+sources:
+  iblocklist_org_square_enix:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=odyaqontcydnodrlyina&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Square Enix IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T12:42:02Z'
+      official_name: Square Enix
+      official_url: https://www.iblocklist.com/list.php?list=squareenix
+      short_description: IP subnets associated with Square Enix game-publisher infrastructure,
+        maintained by iBlocklist.com for use with PeerBlock, PeerGuardian, and compatible
+        firewall tools.
+      long_description: "This feed is published by iBlocklist.com and covers IP address
+        space registered to Square Enix Co., Ltd. and Square Enix Limited, the Japanese
+        game publisher known for titles including Final Fantasy XI, Final Fantasy
+        XIV, and Dragon Quest. The list is distributed in P2P (.p2p.gz), DAT (.dat.zip),
+        CIDR (.cidr.7z), and hosts formats, and is designed for use with PeerBlock,
+        PeerGuardian, iplist, Vuze, uTorrent, Tixati, and pfBlocker software.\n\n\
+        Per the maintainer's list-page description, the feed aims to cover IPs used
+        by Square Enix game servers and related infrastructure. The list contains
+        two IPv4 subnets corresponding to Square Enix's registered autonomous systems.\n\
+        \nThe feed is made available by iBlocklist.com as a free community list, with
+        premium subscription tiers offering additional lists and formats. The service
+        is operated by iblocklist, LLC."
+      roles:
+      - role: maintainer
+        name: I-Blocklist
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since: '2008'
+        notes: Operates the iBlocklist.com IP blocklist distribution service. Publishes
+          organizational, governmental, and category-based lists in P2P, DAT, CIDR,
+          and hosts formats for use with PeerBlock, PeerGuardian, and compatible firewall
+          software. The service is operated by iblocklist, LLC.
+      derivation:
+        type: original
+        description: The feed is compiled and maintained by iBlocklist.com from IP
+          address space registered to Square Enix Co., Ltd. and Square Enix Limited.
+          The maintainer does not disclose the specific sourcing methodology — it
+          is not described as derived from external threat feeds, honeypots, or community
+          reports. The list is presented as a curated organizational blocklist covering
+          the publisher's own registered IP infrastructure.
+        source_feeds: []
+      listing_policy:
+        summary: IPs are listed when they are registered to Square Enix Co., Ltd.
+          or Square Enix Limited, the game's publisher, or when they are identified
+          as infrastructure needed for Square Enix game-server connectivity. The maintainer
+          does not publish formal criteria or a scoring scheme; the policy is implied
+          by the list's stated scope.
+        criteria:
+        - IP address space registered to Square Enix Co., Ltd. (AS23784)
+        - IP address space registered to Square Enix Limited (AS41415)
+        - Additional IPs identified as needed for Square Enix game-server connectivity
+      unlisting_policy:
+        summary: The maintainer does not publish an explicit unlisting policy or delisting
+          procedure for this feed. No automatic expiration, decay window, or manual
+          review process is described on the list page or in the Terms of Service.
+        criteria:
+        - No published unlisting policy found
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated every 1 day, per the maintainer's documented update
+          schedule
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The feed is built by identifying IP address space registered
+          to Square Enix's corporate entities and game-server infrastructure. This
+          is a policy-assignment approach — IPs are listed based on organizational
+          affiliation rather than observed malicious activity, honeypot detections,
+          or community reports. The maintainer does not describe sandbox analysis,
+          passive DNS monitoring, or threat-intelligence correlation in the context
+          of this feed.
+      scope_and_intent:
+        description: The feed covers IP address space used by Square Enix game servers
+          and related infrastructure, intended for users who wish to allow or block
+          connections to Square Enix online game services.
+        intended_for:
+        - Blocking or allowing connections to Square Enix online game services (Final
+          Fantasy XI, Final Fantasy XIV, Dragon Quest)
+        - P2P privacy applications (PeerBlock, PeerGuardian) where Square Enix server
+          IPs are a concern
+        not_intended_for:
+        - General-purpose threat intelligence — the feed covers only Square Enix infrastructure,
+          not broad threat categories
+        - Commercial use, per the Terms of Service
+      license: iBlocklist Terms of Service — personal / non-commercial use only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The Terms of Service grant a personal-use license only. Redistribution,
+          commercial use, and public display are prohibited. The license is non-transferable
+          and may be terminated automatically upon violation.
+      current_status:
+        state: active
+        description: Listed as actively maintained as of the research date. The iBlocklist.com
+          service remains operational and the Square Enix list is accessible via the
+          documented URL. The Global Cyber Alliance ACT database classifies the service
+          as active. The maintainer's documented update frequency for this feed is
+          daily.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion specifically about the iBlocklist.com
+          Square Enix feed is sparse. No Reddit threads, forum posts, or issue trackers
+          addressing this particular feed were found. General iBlocklist.com service
+          discussion exists on security forums dating to 2018, with mixed reviews
+          on billing practices and service responsiveness. The list page itself notes
+          'No comments for this list in the last 365 days.'
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/list.php?list=squareenix
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/lists.xml
+        document_date:
+        validation_date: '2026-05-18'
+      - url: http://grimore.org/assets/databases/blocklist-ipsets
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://act.globalcyberalliance.org/index.php/I-Blocklist
+        document_date:
+        validation_date: '2026-05-18'

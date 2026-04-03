@@ -1,0 +1,169 @@
+sources:
+  dbip_country:
+    attribution: IP Geolocation by DB-IP (https://db-ip.com)
+    license: CC BY 4.0
+    redistributable: true
+    label: DB-IP
+    url: https://download.db-ip.com/free/dbip-country-lite-{YYYY}-{MM}.csv.gz
+    frequency: 43200
+    category: geolocation
+    info: '[DB-IP.com](https://db-ip.com/)'
+    maintainer: DB-IP.com
+    maintainer_url: https://db-ip.com/
+    hidden: true
+    use: [geoip]
+    format: dbip_country_csv
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T13:14:43Z'
+      official_name: DB-IP Lite (IP to Country Lite)
+      official_url: https://db-ip.com/
+      short_description: Free IP-to-country geolocation database mapping IPv4 and
+        IPv6 addresses to countries, updated monthly and licensed under Creative Commons
+        Attribution 4.0.
+      long_description: "DB-IP Lite is the free tier of DB-IP's IP address geolocation
+        database, offering country-level mapping for the entire IPv4 and IPv6 address
+        space. The database uses standard ISO 3166-1 alpha-2 country codes (including
+        XK for Kosovo and ZZ for addresses with no assignable location such as private
+        or multicast ranges).\n\nThe Lite edition is updated monthly, typically on
+        the first of each month, with complete replacement files rather than differential
+        updates. Data is available in both CSV and MMDB formats for broad compatibility
+        with existing tooling.\n\nAs a subset of DB-IP's commercial database, the
+        Lite edition carries reduced coverage and accuracy compared to paid editions.
+        DB-IP notes that accuracy varies by ISP, ranging from street-level for some
+        fixed-line providers to country-level in rare cases, and that mobile/cellular
+        connections generally have lower accuracy due to dynamic IP allocation. The
+        maintainer encourages testing specific addresses using the live query form
+        on their website."
+      roles:
+      - role: maintainer
+        name: DB-IP.com
+        organization_type: commercial
+        official_url: https://db-ip.com/
+        contact_email:
+        based_in: France
+        active_since: '2010'
+        notes: Operated by Eris Networks S.A.S., a French company headquartered in
+          Perros-Guirec, Brittany. Founded in 2010, DB-IP has grown to cover more
+          than 46 million IPv4 and IPv6 address blocks across 215,000+ cities worldwide.
+      derivation:
+        type: original
+        description: First-party IP geolocation database built from multiple proprietary
+          data sources including Regional Internet Registry (RIR) WHOIS records monitored
+          continuously, ISP-published geofeeds following IETF draft standards, manual
+          user reports submitted through the address search result page, and batch
+          updates sent directly by large ISPs. The database grows by hundreds of thousands
+          of records monthly.
+        source_feeds: []
+      listing_policy:
+        summary: IP-to-country assignments are determined through automated monitoring
+          of RIR WHOIS records, validated against ISP-published geofeeds, and supplemented
+          by user reports. Location data is refreshed approximately twice daily in
+          the underlying system, with tens of thousands of records updated every day.
+        criteria:
+        - Automated detection of WHOIS record changes at RIR registries (RIPE, ARIN,
+          APNIC, AFRINIC, LACNIC)
+        - ISP-submitted geofeeds following IETF self-published geofeed draft standard
+        - Manual user reports submitted via the address search result page
+        - Batch updates provided directly by large ISPs with large address blocks
+      unlisting_policy:
+        summary: Incorrect geolocation assignments can be corrected through user submission
+          or direct ISP notification. Users can report wrong location data via the
+          report link on any address search result page. Large ISPs can send batch
+          updates through the support contact form.
+        criteria:
+        - Submit correction via the report link on the address search result page
+        - Publish a geofeed for ISPs with large-scale corrections
+        - Contact support directly for batch updates
+      unlist_request:
+        url:
+        email:
+        instructions: Users can click the report link on any address search result
+          page on the DB-IP website to submit a correction for a specific IP address.
+          ISPs managing large or complex address blocks can publish a geofeed following
+          the IETF draft standard, or contact the support team directly for batch
+          updates.
+      update_frequency:
+        frequency: 30d
+        human_readable: Updated monthly, typically on the first of each month. The
+          monthly release replaces the previous file entirely rather than applying
+          differential patches.
+      detection_classification:
+        primary_method: mixed
+        secondary_methods: []
+        description: 'Combines multiple detection approaches: continuous automated
+          monitoring of WHOIS records published by Regional Internet Registries (RIRs
+          including RIPE, ARIN, APNIC, AFRINIC, and LACNIC), acceptance of ISP-published
+          geofeeds following the IETF self-published geofeed draft standard, user-reported
+          corrections through the address search interface, and direct batch submissions
+          from large ISPs. This hybrid approach draws on registry data, crowdsourced
+          input, and network operator disclosure rather than relying on a single sensor
+          type.'
+      scope_and_intent:
+        description: Intended for IP-to-country geolocation lookups in applications,
+          firewalls, SIEM systems, ad targeting, analytics, and content localization.
+          Country-level accuracy is appropriate for these use cases.
+        intended_for:
+        - Basic IP geolocation for country identification
+        - Firewall and network security rule building
+        - Content localization and region-based routing
+        - Ad targeting and web analytics
+        - SIEM and threat intelligence pipelines
+        not_intended_for:
+        - Fine-grained location determination (city or street level) — use the commercial
+          IP to Location edition instead
+        - Critical decisions requiring high accuracy — IP geolocation is inherently
+          approximate
+        - Mobile/cellular IP addresses — accuracy is significantly lower for dynamic
+          allocations
+        - Standalone fraud prevention decisions — cross-reference with additional
+          signals
+      license: Creative Commons Attribution 4.0 International (CC BY 4.0)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: 'Attribution credit or hyperlink to DB-IP.com required.
+          For web applications displaying results, a link back to DB-IP.com must be
+          included using the provided HTML snippet: IP Geolocation by DB-IP'
+        terms: Free to use and redistribute for any purpose, including commercial
+          use, provided attribution is given. The CC BY 4.0 license permits remixing,
+          transforming, and building upon the material.
+      current_status:
+        state: active
+        description: Actively maintained with regular monthly updates. DB-IP has operated
+          continuously since 2010 and continues to grow its database, adding hundreds
+          of thousands of records monthly.
+        successor:
+        announcement_date:
+      community:
+        awards: Referenced in peer-reviewed academic research including BalkanCom
+          2023, where DB-IP demonstrated the lowest mean distance discrepancy among
+          four major geolocation databases tested.
+        criticism: Community discussion about DB-IP is less frequent than for competitors
+          like MaxMind, limiting comparative signal. Some practitioners note that
+          all IP geolocation databases share inherent accuracy ceilings, and cross-provider
+          discrepancies for the same IP addresses are normal rather than indicative
+          of specific database faults.
+        engagement: Public discussion is relatively sparse compared to MaxMind, concentrated
+          primarily in specialist security and networking communities rather than
+          broad sysadmin forums. DB-IP appears as a credible alternative in multi-database
+          comparison threads.
+      sources_consulted:
+      - url: https://db-ip.com/
+        document_date: 2026-05
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://download.db-ip.com/free/
+        document_date: 2026-05
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://db-ip.com/db/
+        document_date: 2026-05
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://db-ip.com/faq.php
+        document_date: 2026-05
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://db-ip.com/about
+        document_date: 2026-05
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://ayasinnur.com/wp-content/uploads/BalkanCom2023.pdf
+        document_date: '2023'
+        validation_date: '2026-05-16T00:00:00Z'

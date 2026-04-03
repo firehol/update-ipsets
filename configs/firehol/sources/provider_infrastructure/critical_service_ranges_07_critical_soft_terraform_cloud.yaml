@@ -1,0 +1,195 @@
+sources:
+  critical_soft_terraform_cloud:
+    license: HashiCorp Website Terms of Service (no dedicated HCP Terraform IP ranges
+      license)
+    redistributable: false
+    label: HCP Terraform ranges
+    url: https://app.terraform.io/api/meta/ip-ranges
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - json_paths:
+        paths: "$.api[*],$.notifications[*],$.sentinel[*],$.vcs[*]"
+    - filter_all4
+    processor_raw: json_paths
+    category: provider_infrastructure
+    provenance: primary
+    info: HashiCorp-published HCP Terraform IPv4 ranges. Reference feed, not a threat
+      indicator.
+    maintainer: HashiCorp
+    maintainer_url: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/ip-ranges
+    enabled_by_all: true
+    use: [critical_infrastructure]
+    critical:
+      tier: soft
+      role: saas_control_plane
+      source_type: authoritative_provider_api
+      source_quality: A
+      rationale: HCP Terraform can control infrastructure changes and policy checks;
+        overlap should be reviewed because blocking can interrupt deployment control
+        planes.
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T14:49:06Z'
+      official_name: IP Ranges API
+      official_url: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/ip-ranges
+      short_description: HashiCorp-published CIDR ranges for HCP Terraform's inbound
+        API interface, outbound notifications, VCS connections, and Sentinel policy
+        callbacks.
+      long_description: "HCP Terraform publishes a public API endpoint returning four
+        sets of CIDR blocks covering its control-plane infrastructure. The **api**
+        category lists the IPs that HCP Terraform's inbound API interface uses for
+        connections initiated FROM the platform TO the user's environment. The **notifications**,
+        **sentinel**, and **vcs** categories list the source IPs from which HCP Terraform
+        initiates outbound connections — respectively for webhook notifications to
+        external systems, callbacks to legacy Sentinel policy engines, and connections
+        to linked version-control providers. Per the HashiCorp developer documentation,
+        the three outbound categories have historically returned identical IP sets,
+        though the API publishes each independently and the categories are not guaranteed
+        to remain in sync.\n\nThe feed deliberately excludes the IPs of HCP Terraform's
+        ephemeral hosted build workers used for remote-execution-mode workspaces and
+        stacks. These workers run in dynamic container environments with changing
+        source addresses, and HashiCorp does not publish static ranges for them —
+        the documented mitigation is to deploy self-hosted Terraform Cloud Agents
+        on infrastructure with predictable egress IPs. Additionally, the IP Ranges
+        API does not enable Terraform runs against local resources via CLI-driven
+        workflows.\n\nHashiCorp states that IP range changes are published at least
+        24 hours before implementation under normal circumstances, and recommends
+        polling the endpoint every 24 hours. Changes may not be pre-published during
+        emergency failover events. The published ranges across categories may overlap;
+        HashiCorp recommends combining allowlists rather than treating categories
+        as mutually exclusive."
+      roles:
+      - role: maintainer
+        name: HashiCorp (IBM)
+        organization_type: commercial
+        official_url: https://www.hashicorp.com
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: HashiCorp, a subsidiary of International Business Machines Corporation
+          (IBM), publishes and maintains the IP Ranges API as part of the HCP Terraform
+          managed service.
+      derivation:
+        type: original
+        description: The feed is generated directly from HCP Terraform's own infrastructure
+          inventory. HashiCorp assembles the CIDR blocks from the platform's operational
+          routing tables and publishes them as a structured JSON endpoint at app.terraform.io/api/meta/ip-ranges.
+          No third-party feeds, threat-intelligence sources, or external aggregation
+          contribute to this data.
+        source_feeds: []
+      listing_policy:
+        summary: Not a threat indicator feed. Entries represent HashiCorp-operated
+          infrastructure CIDRs allocated to HCP Terraform's control-plane services.
+          Additions and removals are driven by HashiCorp's own capacity planning and
+          operational changes, not by reports of malicious activity.
+        criteria:
+        - HashiCorp-operated infrastructure CIDRs allocated to HCP Terraform's control-plane
+          services (inbound API, outbound notifications, Sentinel callbacks, VCS connections)
+        - Changes driven by HashiCorp's internal capacity planning and operational
+          events
+        - No third-party abuse reporting mechanism applies
+      unlisting_policy:
+        summary: Entries are removed when HashiCorp decommissions or renumbers the
+          associated infrastructure. There is no public mechanism for requesting removal
+          of an IP from this feed, as the IPs are HashiCorp's own operational ranges.
+        criteria:
+        - HashiCorp-initiated decommissioning or renumbering of HCP Terraform infrastructure
+        - No third-party delisting requests are applicable
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: HashiCorp recommends polling the endpoint every 24 hours;
+          changes are pre-published at least 24 hours in advance under normal circumstances
+      detection_classification:
+        primary_method: unknown
+        secondary_methods: []
+        description: This is not a threat-detection feed. The IP Ranges API is an
+          authoritative infrastructure disclosure by HashiCorp, reflecting the company's
+          own operational network allocations. No honeypot sensors, malware analysis,
+          user reports, or third-party threat intelligence contribute to this data.
+      scope_and_intent:
+        description: HCP Terraform publishes these IP ranges primarily to enable enterprise
+          security teams to configure inbound allowlists on network-access-controlled
+          resources such as private cloud endpoints, secret managers, and database
+          firewalls. The feed is a network-administrator aid, not a threat indicator
+          list.
+        intended_for:
+        - Whitelisting HCP Terraform's outbound connections at network-access-controlled
+          resources (e.g., Azure Key Vault firewalls, private cloud endpoints)
+        - Configuring inbound IP Allowlists at the HCP Terraform organization or agent-pool
+          level
+        - Documenting HCP Terraform's control-plane IP footprint for security auditing
+        not_intended_for:
+        - Blocking or flagging traffic as malicious — the IPs are HashiCorp's own
+          operational infrastructure, not indicators of attacker activity
+        - Identifying compromised or abused infrastructure — presence on this list
+          does not indicate malice
+        - Enabling Terraform runs against local resources via CLI-driven workflows
+        - Covering ephemeral build workers in remote execution mode — these IPs are
+          intentionally excluded
+      license: HashiCorp Website Terms of Service (no dedicated HCP Terraform IP ranges
+        license)
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms: HashiCorp publishes the HCP Terraform IP Ranges API for operational
+          allowlist use, but does not state a dedicated data redistribution license.
+          HashiCorp Website Terms of Service restrict copying, distribution, transmission,
+          broadcasting, selling, or other unauthorized use.
+      current_status:
+        state: active
+        description: Active and maintained. HashiCorp continues to publish and update
+          the IP Ranges API as part of the HCP Terraform managed service. The IP Allowlists
+          feature reached general availability in April 2026, indicating ongoing investment
+          in the platform's network-administration capabilities.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Enterprise practitioners have raised concerns about the inability
+          to whitelist HCP Terraform's outbound source IPs at network-access-controlled
+          resources such as Azure Key Vault firewalls and private cloud endpoints,
+          because the IP Ranges API does not publish the IPs of ephemeral hosted build
+          workers. HashiCorp staff have acknowledged this limitation on the official
+          Discuss forum, directing affected users to self-hosted Terraform Cloud Agents
+          as the supported path for static-egress scenarios. The April 2026 introduction
+          of IP Allowlists partially addresses inbound access control but does not
+          resolve the outbound source-IP gap for hosted-runner workloads.
+        engagement: Discussion is concentrated in HashiCorp's official support channels
+          and the Terraform subreddit. The official Discuss forum thread on source
+          IP whitelisting has seen sustained practitioner engagement. HashiCorp staff
+          respond publicly to technical questions about the IP Ranges API. The tfe_ip_ranges
+          data source in the official Terraform provider (over 76,000 downloads as
+          of May 2026) indicates organic adoption among Terraform practitioners managing
+          IP-restricted cloud environments.
+      sources_consulted:
+      - url: https://developer.hashicorp.com/terraform/cloud-docs/api-docs/ip-ranges
+        document_date:
+        validation_date: '2026-05-21T14:38:00Z'
+      - url: https://app.terraform.io/api/meta/ip-ranges
+        document_date:
+        validation_date: '2026-05-21T14:38:00Z'
+      - url: 
+          https://developer.hashicorp.com/terraform/cloud-docs/architectural-details/ip-ranges
+        document_date:
+        validation_date: '2026-05-21T14:40:00Z'
+      - url: https://www.hashicorp.com/en/license-faq
+        document_date:
+        validation_date: '2026-05-21T14:39:00Z'
+      - url: 
+          https://discuss.hashicorp.com/t/source-ip-addresses-networks-whitelisting-api-range-does-not-work/21889
+        document_date:
+        validation_date: '2026-05-21T14:39:00Z'
+      - url: https://www.hashicorp.com/en/blog/hcp-terraform-adds-ip-allow-lists
+        document_date:
+        validation_date: '2026-05-21T14:39:00Z'
+      - url: 
+          https://registry.terraform.io/providers/hashicorp/tfe/latest/docs/data-sources/ip_ranges
+        document_date:
+        validation_date: '2026-05-21T14:39:00Z'
+      - url: https://www.hashicorp.com/en/terms-of-service
+        document_date: 2018-03
+        validation_date: '2026-05-25'

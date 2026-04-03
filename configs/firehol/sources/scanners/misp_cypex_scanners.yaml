@@ -1,0 +1,196 @@
+sources:
+  misp_cypex_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/cypex-nt-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Cypex non-threat
+      scanning IPs. Informational — not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T21:17:47Z'
+      official_name: Cypex IP Ranges Used for Scanning
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: A MISP warning list tracking IP addresses associated with
+        Cypex internet scanning infrastructure, sourced from CIRCL passive darknet
+        monitoring, for informational identification rather than blocking.
+      long_description: "The cypex-nt-scanning warning list identifies IP addresses
+        used by Cypex, a proactive cyber threat intelligence platform that conducts
+        application-layer internet scanning to collect banners, TLS certificates,
+        and protocol metadata. What is distinctive about Cypex among scanners catalogued
+        in CIRCL's -nt-scanning family is its attribution signature: Cypex publishes
+        a transparent opt-out policy at cypex.ai and uses reverse-DNS records pointing
+        to scan.cypex.ai for every scanning node, so CIRCL's pipeline can match telescope
+        observations against that PTR pattern directly.\n\nThe list is generated from
+        CIRCL's Network Telescope passive darknet monitoring programme — observed
+        scan source IPs that resolve to scan.cypex.ai are extracted and packaged here.
+        The file is informational only and is not intended for inline enforcement;
+        it lets analysts deprioritise or dismiss alerts that turn out to be Cypex
+        platform probes rather than hostile reconnaissance."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: non_profit
+        official_url: https://www.misp-project.org/
+        contact_email:
+        based_in: Luxembourg
+        active_since: '2016'
+        notes: The MISP Project develops the open source MISP threat intelligence
+          platform and maintains the warninglists repository. Alexandre Dulaunoy is
+          the primary committer merging community contributions. CIRCL (Computer Incident
+          Response Center Luxembourg) provides institutional support and training.
+      - role: source_contributor
+        name: CIRCL
+        organization_type: research_institution
+        official_url: https://www.circl.lu/
+        contact_email:
+        based_in: Luxembourg
+        active_since:
+        notes: CIRCL operates the Network Telescope darknet infrastructure from which
+          the Cypex scanning IP ranges are extracted for inclusion in this warning
+          list.
+      derivation:
+        type: extraction
+        description: The list is produced by extracting IP addresses observed scanning
+          CIRCL's Network Telescope darknet block and classifying them as belonging
+          to Cypex scanning infrastructure. CIRCL operates a passive /18 darknet address
+          block that captures all unsolicited inbound traffic; reverse DNS and BGP
+          correlation are used to identify and attribute scanner sources. The resulting
+          Cypex-attributed IPs are formatted as individual /32 CIDR entries and published
+          as a MISP warning list in JSON format with CIDR-type matching against ip-src,
+          ip-dst, domain|ip, ip-dst|port, and ip-src|port attributes. No other IP
+          feeds are consumed; the sole upstream is CIRCL's own darknet observation
+          programme.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when CIRCL's Network Telescope darknet monitoring
+          detects unsolicited scanning traffic originating from an IP address subsequently
+          attributed to Cypex scanning infrastructure via reverse DNS resolution (pointing
+          to scan.cypex.ai) and BGP autonomous system correlation. Listings correspond
+          to active Cypex scanning nodes in Amazon Web Services regions.
+        criteria:
+        - Observed initiating unsolicited scanning traffic against CIRCL's darknet
+          address block
+        - Reverse DNS resolving to scan.cypex.ai or equivalent Cypex attribution marker
+        - BGP correlation confirming Cypex-operated autonomous system or cloud region
+        - IP is an active Cypex scanning node (removed when no longer active)
+      unlisting_policy:
+        summary: IPs are removed from the list when they are no longer observed conducting
+          Cypex scanning activity in CIRCL's Network Telescope data, or when Cypex
+          retires the scanning node. The list is republished on a monthly cycle as
+          part of the broader Network Telescope scanner batch update, incorporating
+          additions and removals based on the latest darknet observation period.
+        criteria:
+        - No longer observed scanning CIRCL's darknet block in the current observation
+          period
+        - Cypex has retired or rotated the scanning node
+        - Monthly batch reconciliation of active scanning nodes
+      unlist_request:
+        url:
+        email: security@cypex.ai
+        instructions: Organisations receiving Cypex scan traffic may contact Cypex
+          directly at security@cypex.ai or office@cypex.ai to request addition to
+          Cypex's global exclusion list, preventing future scanning of their infrastructure.
+          This is the opt-out channel for Cypex scanning activity generally; it does
+          not remove an IP from the MISP warning list, but prevents future Cypex scans
+          of the requesting organisation's assets.
+      update_frequency:
+        frequency: 30d
+        human_readable: Updated on a monthly cycle as part of the broader Network
+          Telescope scanner batch update, per the maintainer's merged pull request
+          schedule
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: The list is built from CIRCL's Network Telescope passive darknet
+          monitoring programme. A Network Telescope is a large block of unallocated
+          IP address space that receives no legitimate traffic; all incoming packets
+          are therefore inherently suspicious. CIRCL monitors a /18 darknet block,
+          capturing full packet payloads in 5-minute PCAP intervals. Source IPs exhibiting
+          scanning behaviour against this darknet are attributed via reverse DNS (PTR
+          records resolving to scan.cypex.ai) and BGP autonomous system correlation.
+          This is a purely passive technique — no packets are sent in reply, avoiding
+          any interaction with the scanner. The methodology is distinct from honeypots,
+          which simulate services to engage attackers.
+      scope_and_intent:
+        description: The list identifies IPs associated with Cypex scanning infrastructure
+          to support false-positive identification in threat intelligence workflows.
+          It is informational in nature and not intended for use as a blocklist or
+          for inline enforcement.
+        intended_for:
+        - False-positive identification in SIEM, SOAR, and threat intelligence platforms
+        - Analyst enrichment to contextualise observed Cypex scanning events
+        - Alert suppression or deprioritisation of known-legitimate scanning activity
+        not_intended_for:
+        - Inline blocking or deny-listing
+        - Firewall enforcement based solely on appearance in this list
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal public domain dedication imposes no conditions on
+          reuse, redistribution, or commercial use. The data may be freely reproduced,
+          modified, and repurposed without attribution or restriction.
+      current_status:
+        state: active
+        description: 'Actively maintained with regular monthly updates. The most recent
+          update was merged in May 2026 (PR #335). The list is current as of the April
+          2026 Network Telescope observation period.'
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion about this specific list is sparse.
+          Cypex is recognised as a benign scanner in CrowdSec's taxonomy alongside
+          other established scanning services. A small number of administrator reports
+          describe Cypex scan traffic triggering botnet detection filters, illustrating
+          the false-positive scenario this list is designed to address. The broader
+          MISP warninglists project has been in active development since 2016 with
+          monthly maintenance cadence and moderate community contribution through
+          pull requests.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/cypex-nt-scanning/list.json
+        document_date: '2026-04-09'
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.misp-project.org/
+        document_date: '2026-04-29'
+        validation_date: '2026-05-18'
+      - url: https://www.circl.lu/doc/misp/warninglists/
+        document_date: '2024-10-02'
+        validation_date: '2026-05-18'
+      - url: https://cypex.ai/scanning/
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/pull/330
+        document_date: '2026-03-13'
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/pull/332
+        document_date: '2026-04-09'
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/pull/335
+        document_date: '2026-05-04'
+        validation_date: '2026-05-18'
+      - url: 
+          https://d4-project.org/2025/11/27/Learning-from-Large-Scale-IPv4-blackhole-behavioral-analysis-of-SNMP-traffic.html
+        document_date: '2025-11-27'
+        validation_date: '2026-05-18'
+      - url: https://reddit.com/r/sonicwall/comments/1n1gf7b/botnet_attacks_ai_driven/
+        document_date:
+        validation_date: '2026-05-18'

@@ -1,0 +1,160 @@
+sources:
+  dataplane_sipinvitation:
+    license: Dataplane.org — non-commercial use only, redistribution prohibited
+    redistributable: false
+    url: https://dataplane.org/sipinvitation.txt
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - dataplane_column3
+    processor_raw: dataplane_column3
+    category: service_abuse
+    info: '[DataPlane.org](https://dataplane.org/) IP addresses that have been seen
+      initiating a SIP INVITE operation to a remote host. This report lists hosts
+      that are suspicious of more than just port scanning.  These hosts may be SIP
+      client cataloging or conducting various forms of telephony abuse.'
+    maintainer: DataPlane.org
+    maintainer_url: https://dataplane.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T01:37:32Z'
+      official_name: SIP invitation
+      official_url: https://dataplane.org/signals/sipinvitation.txt
+      short_description: IPv4 addresses observed sending SIP INVITE operations, flagging
+        hosts engaged in telephony service enumeration or abuse.
+      long_description: "The SIP invitation signal is published by DataPlane.org,
+        a 501(c)(3) nonprofit organization that collects and shares network telemetry
+        for the operator community. The feed tracks IPv4 addresses observed sending
+        SIP INVITE messages — the Session Initiation Protocol operation used to establish
+        VoIP calls — toward instrumented targets.\n\nPer the maintainer's description,
+        the signal is designed to surface hosts engaging in behavior that goes beyond
+        opportunistic port scanning: the listed IPs may be cataloging SIP endpoints,
+        probing for open proxies, or conducting toll fraud, eavesdropping, or other
+        telephony-focused abuse. The feed is built from DataPlane.org's own distributed
+        sensor network, described on their home page as spanning over 300 nodes across
+        65 metropolitan areas on 6 continents. Source IP addresses are mapped to their
+        originating autonomous system using the PyASN IP-to-ASN mapping service.\n\
+        \nEach entry is reported once per IP even when multiple origin AS (MOAS) announcements
+        exist for the covering prefix. The report uses a 7-day rolling observation
+        window. The maintainer explicitly states this is an informational report,
+        not a block list, and advises against using it as a deny-list: attributing
+        malicious or benign intent to individual IPs is unreliable given NAT, address
+        spoofing, and legitimate surveying research activity."
+      roles:
+      - role: maintainer
+        name: DataPlane.org
+        organization_type: non_profit
+        official_url: https://dataplane.org/
+        contact_email: info@dataplane.org
+        based_in: United States
+        active_since: '2014'
+        notes: A 501(c)(3) nonprofit organization providing free network signals,
+          analysis, and statistics to the Internet operations and security communities.
+          Operated by a small team including John Kristoff (Principal Analyst at NETSCOUT
+          ATLAS ASERT), Matthew Kemp, and Bill Eaheart. Funded by donations; commercial
+          use inquiries directed to info@dataplane.org.
+      derivation:
+        type: original
+        description: The feed is produced from DataPlane.org's own distributed sensor
+          network. Sensors passively observe traffic destined for instrumented targets
+          and record source IP addresses that send SIP INVITE operations. Source IPs
+          are mapped to their originating autonomous system using the PyASN IP-address-to-ASN
+          mapping service. Each IP is listed once per feed generation cycle, even
+          when multiple origin AS (MOAS) announcements exist for the covering prefix.
+          No upstream IP feeds are consumed.
+        source_feeds: []
+      listing_policy:
+        summary: An IPv4 address is listed when DataPlane.org's sensors observe it
+          sending a SIP INVITE operation toward an instrumented target. The INVITE
+          is the SIP operation that initiates a session (such as a VoIP call); observing
+          it directed at the maintainer's sensors indicates the source host is probing
+          or cataloguing SIP endpoints on the public Internet. The feed does not apply
+          a severity score or threshold multiplier — any observed SIP INVITE from
+          a sensor target qualifies the source for inclusion.
+        criteria:
+        - Observed sending a SIP INVITE operation toward a DataPlane.org instrumented
+          target
+        - Attribution to the originating autonomous system via BGP route data (PyASN)
+      unlisting_policy:
+        summary: 'There is no manual unlisting process. Listings decay automatically:
+          once the listed device resolves its behavioral issue and is no longer observed
+          sending SIP INVITE operations, the IP address ages off the signal. The maintainer
+          does not specify the exact decay interval; the feed file displays a 7-day
+          rolling observation window, suggesting entries older than approximately
+          one week with no renewed activity are dropped.'
+        criteria:
+        - 'Automatic decay: activity cessation observed by sensors'
+        - No manual delisting request channel is offered
+      unlist_request:
+        url:
+        email: info@dataplane.org
+        instructions: No dedicated unlisting form or ticketing system exists. Per
+          the maintainer's contact page, the recommended path is to remediate the
+          device causing the SIP INVITE activity and wait for automatic decay as the
+          sensors stop observing the behavior. For questions or concerns, the maintainer
+          can be reached at info@dataplane.org.
+      update_frequency:
+        frequency: 1h
+        human_readable: Updated hourly, per the maintainer's signals overview page.
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: "Passive network telescope monitoring: DataPlane.org's distributed
+          sensor network receives and observes SIP INVITE traffic directed at instrumented
+          targets. Source IP addresses are recorded when the INVITE operation is detected.
+          No active probes are sent; no user submissions are used. The PyASN service
+          maps each observed source IP to its originating autonomous system number
+          and name for inclusion in the report."
+      scope_and_intent:
+        description: The feed is intended for operators and analysts studying SIP-focused
+          reconnaissance and telephony abuse patterns. It provides contextual enrichment
+          by pairing each listed IP with its originating AS information.
+        intended_for:
+        - Analyzing SIP scanner and telephony abuse campaign patterns
+        - Enriching threat intelligence with AS-path context for listed IPs
+        - Correlating SIP INVITE activity across observation windows
+        not_intended_for:
+        - Automated ingress blocking or firewall deny-listing
+        - Attributing malicious intent to individual IPs without additional investigation
+      license: Non-commercial use only. Redistribution prohibited without express
+        permission.
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms: Redistribution in whole or in part without the express written permission
+          of DataPlane.org is expressly prohibited. Non-commercial use is permitted;
+          commercial use requires prior authorization via info@dataplane.org.
+      current_status:
+        state: active
+        description: Active. Published and updated hourly from https://dataplane.org/signals/sipinvitation.txt.
+          Part of DataPlane.org's ongoing signal portfolio.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion referencing this specific feed is
+          sparse. The feed is consumed by threat intelligence platforms including
+          IntelMQ, Yeti, and abusehelper (as of May 2026), which parse its pipe-delimited
+          format and classify entries as brute-force or telephony-scanner events.
+          No notable public false-positive incidents or complaints were identified
+          in research.
+      sources_consulted:
+      - url: https://dataplane.org/signals.html
+        document_date:
+        validation_date: '2026-05-19T01:37:32Z'
+      - url: https://dataplane.org/signals/sipinvitation.txt
+        document_date:
+        validation_date: '2026-05-19T01:37:32Z'
+      - url: https://dataplane.org/
+        document_date:
+        validation_date: '2026-05-19T01:37:32Z'
+      - url: https://dataplane.org/contact.html
+        document_date:
+        validation_date: '2026-05-19T01:37:32Z'
+      - url: https://github.com/dataplane/data
+        document_date:
+        validation_date: '2026-05-19T01:37:32Z'

@@ -1,0 +1,229 @@
+sources:
+  misp_cyberresilience_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/cyberresilience-nt-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) CyberResilience
+      non-threat scanning IPs. Informational — not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T07:01:02Z'
+      official_name: Cyberresilience IP Ranges Used for Scanning
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: A MISP warninglist of IP addresses associated with Cyberresilience
+        scanning infrastructure, sourced from CIRCL Network Telescope passive darknet
+        monitoring, for informational flagging of non-malicious scanning activity
+        in threat intelligence workflows.
+      long_description: "The cyberresilience-nt-scanning warning list flags IP addresses
+        associated with Cyberresilience scanning infrastructure — legitimate, authorized
+        network assessment activity — to prevent false attribution as malicious in
+        MISP and compatible threat intelligence platforms.\n\nThe list is maintained
+        by the MISP warninglists project and sourced from CIRCL (Computer Incident
+        Response Center Luxembourg) Network Telescope analysis. CIRCL operates passive
+        darknet monitoring on unused (darkspace) IP address blocks, observing unsolicited
+        inbound traffic including scanning probes. Per CIRCL's documentation, the
+        darknet captures traffic from multiple origin types: attackers conducting
+        reconnaissance, backscatter from spoofed denial-of-service attacks, self-replicating
+        code residuals, and misconfigured devices. The Cyberresilience list extracts
+        the specific IP addresses observed as sources of authorized scanning activity
+        from this baseline.\n\nThe list uses CIDR-type matching and applies to five
+        MISP attribute types: ip-src, ip-dst, domain|ip, ip-dst|port, and ip-src|port.
+        When an analyst loads an event containing one of these attributes and the
+        IDS flag is set, MISP displays an informational warning box — the list does
+        not block, quarantine, or modify events. The list is designed to be toggled
+        on or off per instance, allowing organizations to adjust sensitivity to scanning
+        infrastructure based on their own operational context.\n\nThe list is one
+        of several Network Telescope–derived scanner warning lists hosted in the MISP
+        warninglists repository; each is updated independently as CIRCL's observed
+        scanning infrastructure changes. The maintainer (Th4nat0s / Paul Jung, affiliated
+        with CIRCL) submits batch updates approximately monthly, incrementing the
+        version field in each affected list."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: informal_collective
+        official_url: https://github.com/MISP
+        contact_email: info@misp-project.org
+        based_in:
+        active_since: '2016'
+        notes: The MISP Project operates the misp-warninglists repository where this
+          list is hosted and distributed. Alexandre Dulaunoy (adulau) merges contributions.
+          The collective also publishes the companion PyMISPWarningLists Python interface
+          and the misp-feedback standalone tool.
+      - role: source_contributor
+        name: Paul Jung (Th4nat0s)
+        organization_type: research_institution
+        official_url: https://github.com/Th4nat0s
+        contact_email:
+        based_in: Luxembourg
+        active_since:
+        notes: Per the MISP contributors page and changelog, Paul Jung (GitHub handle
+          Th4nat0s) is credited as a contributor to the MISP warninglists project
+          and serves as the maintainer of the cyberresilience-nt-scanning list. He
+          is affiliated with CIRCL (Computer Incident Response Center Luxembourg)
+          and submits periodic Network Telescope batch updates to the repository.
+      - role: source_contributor
+        name: CIRCL
+        organization_type: research_institution
+        official_url: https://www.circl.lu
+        contact_email: info@circl.lu
+        based_in: Luxembourg
+        active_since: '2012'
+        notes: CIRCL (Computer Incident Response Center Luxembourg) operates the Network
+          Telescope darknet monitoring infrastructure that generates the scanning
+          IP observations feeding this list. CIRCL has monitored darkspace since March
+          2012 and contributes data to multiple nt-scanning warning lists in the repository.
+      derivation:
+        type: original
+        description: The list is produced by extracting IP addresses observed as sources
+          of authorized scanning activity from CIRCL's passive darknet (Network Telescope)
+          monitoring infrastructure. CIRCL monitors routable-but-unused IP address
+          space using honeybot sensors and tcpdump-based packet capture, recording
+          unsolicited inbound traffic. When scanning activity is attributed to recognized
+          Cyberresilience scanning infrastructure rather than malicious probing, those
+          source IPs are compiled into this list. The maintainer (Th4nat0s, affiliated
+          with CIRCL) submits batch updates to the repository approximately monthly,
+          incrementing the version field in the list.json. The list is one of several
+          nt-scanning warning lists in the repository that share the same sourcing
+          methodology but track different scanning operators.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when CIRCL's Network Telescope darknet monitoring
+          observes it as a source of authorized Cyberresilience scanning activity
+          — that is, the traffic is positively attributed to legitimate network assessment
+          infrastructure rather than malicious probing. The maintainer evaluates darknet
+          observations and compiles confirmed scanning source IPs into the list.
+        criteria:
+        - Observed as a source of scanning traffic in CIRCL Network Telescope darknet
+          monitoring
+        - Positively attributed to Cyberresilience scanning infrastructure (legitimate,
+          authorized assessment)
+        - Not attributable to malicious activity
+      unlisting_policy:
+        summary: IPs are removed when they are no longer observed as active Cyberresilience
+          scanning sources in CIRCL Network Telescope monitoring, or when the maintainer
+          determines they should no longer be attributed to authorized scanning activity.
+          The list is regenerated periodically with updated IP sets; entries not observed
+          in the current analysis window are omitted from the next version.
+        criteria:
+        - No longer observed as active Cyberresilience scanning source in CIRCL Network
+          Telescope analysis
+        - Reclassified as attributable to non-scanning activity
+      unlist_request:
+      update_frequency:
+        frequency: 1440m
+        human_readable: Approximately monthly, per the maintainer's observed update
+          cadence
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: The list is built from CIRCL's passive darknet (Network Telescope)
+          monitoring infrastructure. CIRCL monitors routable-but-unused IP address
+          space — traffic reaching this darkspace is unsolicited and unidirectional
+          by definition. Sensors capture full packet payloads using tcpdump and custom
+          Netbeacon tooling, organizing captures by sensor ID and date. The maintainer
+          analyzes this traffic to identify scanning sources, then extracts IPs positively
+          attributed to authorized Cyberresilience scanning activity. This is pure
+          passive collection — no active probes are sent.
+      scope_and_intent:
+        description: The list is intended to contextualize threat intelligence by
+          flagging IPs associated with authorized Cyberresilience scanning infrastructure,
+          reducing false-positive attributions of malicious activity in MISP and compatible
+          platforms.
+        intended_for:
+        - SOC analysts contextualizing alerts when Cyberresilience scanning IPs appear
+          in events
+        - Threat intelligence analysts filtering false positives from scanning reconnaissance
+          observations
+        - MISP users enabling warninglist enrichment to display informational warnings
+          for scanning-related attributes
+        not_intended_for:
+        - Inline blocking or automatic quarantine of listed IPs
+        - Hard attribution of malicious activity — the list explicitly marks non-malicious
+          infrastructure
+        - Security enforcement outside of MISP-compatible platforms without adaptation
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal (Public Domain Dedication) — no conditions imposed.
+          The licensor has dedicated this work to the public domain to the fullest
+          extent permitted by law.
+      current_status:
+        state: active
+        description: 'Actively maintained. The most recent update (PR #335, merged
+          May 4, 2026 by adulau) added the current version of the list. The maintainer
+          (Th4nat0s) has submitted Network Telescope batch updates in February, March,
+          April, and May 2026, indicating regular ongoing maintenance.'
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion specifically about the cyberresilience-nt-scanning
+          list is sparse. GitHub Discussions are disabled for the parent repository;
+          no community forum or mailing-list discussion was found for this specific
+          list. The list's contributor (Th4nat0s / Paul Jung) submits routine monthly
+          batch updates through the maintainer's pull-request workflow without external
+          commentary.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/cyberresilience-nt-scanning/list.json
+        document_date: '2026-05-04'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.circl.lu/doc/misp/warninglists/
+        document_date: '2024-10-02'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/pull/335
+        document_date: '2026-05-04'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/issues/330
+        document_date: '2026-03-13'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://api.github.com/repos/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: 
+          https://github.com/MISP/misp-warninglists/tree/main/lists/cyberresilience-nt-scanning
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.circl.lu/projects/
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.circl.lu/assets/files/circl-blackhole-honeynetworkshop2014.pdf
+        document_date: '2014-01-01'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://docs.panther.com/enrichment/misp
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://github.com/Th4nat0s
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.misp-project.org/contributors
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.misp-project.org/Changelog-misp-warninglists.txt
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/discussions
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/find/main
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'

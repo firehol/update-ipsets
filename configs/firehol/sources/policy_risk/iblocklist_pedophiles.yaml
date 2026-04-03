@@ -1,0 +1,180 @@
+sources:
+  iblocklist_pedophiles:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=dufcxgnbjsdwmwctgfuj&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: IP ranges of people who we have found to be sharing child pornography in
+      the p2p community.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T13:11:58Z'
+      official_name: Pedophiles
+      official_url: https://www.iblocklist.com/list?list=dufcxgnbjsdwmwctgfuj
+      short_description: A subscription-based IP blocklist targeting peer-to-peer
+        network addresses associated with child sexual abuse material sharing, authored
+        by iBlocklist.com.
+      long_description: "The Pedophiles list is one of a small set of proprietary
+        blocklists authored and distributed by iBlocklist.com, a commercial IP blocklist
+        subscription service operated by iblocklist, LLC. The list targets IP address
+        ranges that the maintainer associates with peers sharing child sexual abuse
+        material on peer-to-peer networks.\n\nPer the maintainer's description, entries
+        represent 'IP ranges of people who we have found to be sharing child pornography
+        in the p2p community.' Beyond this single sentence, no public documentation
+        describes the detection methodology, evidence standards, IP-range scoping
+        principles, validation process, or review procedures. No information is published
+        about false positive handling, delisting criteria, or update cadence for this
+        specific list.\n\nThe service distributes lists in P2P, DAT, CIDR, and HOSTS
+        formats, compatible with PeerBlock, PeerGuardian, iplist, Vuze, uTorrent,
+        Tixati, and pfBlocker. The broader iBlocklist catalog includes blocklists
+        from multiple third-party authors, with the Pedophiles list being among those
+        authored directly by I-Blocklist.\n\nAccess to the service is subscription-gated,
+        with no free tier or public sample. The terms of service prohibit redistribution
+        without prior written permission and restrict automated downloading to no
+        more than once per 24 hours."
+      roles:
+      - role: maintainer
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: The legal entity operating the iBlocklist.com service. No individual
+          maintainer names are disclosed; the service is presented as a company-operated
+          platform. Platform-wide community criticism of iBlocklist (billing practices,
+          support responsiveness) applies at the maintainer level rather than being
+          specific to this Pedophiles list.
+      derivation:
+        type: original
+        description: The Pedophiles list is authored directly by iBlocklist.com (iblocklist,
+          LLC) as one of five proprietary lists. The maintainer does not disclose
+          the data sources, detection methods, or upstream inputs used to build this
+          list. No public methodology document, FAQ, or technical description explains
+          how IP addresses are identified, scoped to ranges, validated, or updated.
+          The list is distributed in P2P, DAT, CIDR, and HOSTS formats.
+        source_feeds: []
+      listing_policy:
+        summary: "The maintainer does not publish a listing policy for this feed.
+          The only public statement is: 'IP ranges of people who we have found to
+          be sharing child pornography in the p2p community.' No criteria, thresholds,
+          evidence standards, or scoping principles are documented. No distinction
+          is made between individual IP addresses and CIDR ranges, between first-party
+          detections and third-party reports, or between temporary and persistent
+          associations."
+        criteria: []
+      unlisting_policy:
+        summary: The maintainer does not publish an unlisting or delisting policy
+          for this feed. No automatic expiration window, manual review process, or
+          appeal mechanism is documented on the website. The subscription page contains
+          no information about removal requests.
+        criteria: []
+      unlist_request:
+      update_frequency:
+      detection_classification:
+        primary_method: unknown
+        secondary_methods: []
+        description: The maintainer does not publish a detection methodology for this
+          list. The only public statement is that entries represent 'IP ranges of
+          people who we have found to be sharing child pornography in the p2p community.'
+          No technical detail is provided about how IPs are identified, what evidence
+          triggers inclusion, or whether the approach involves active probing, passive
+          observation, tracker queries, community reports, or other methods. Academic
+          research on comparable P2P monitoring systems describes multiple possible
+          approaches (active BitTorrent handshake probing, tracker-based peer enumeration,
+          honeypot nodes, filename-based SVM classification, media hash filtering),
+          but none of these are attributed to iBlocklist by the maintainer. The term
+          'IP in the swarm' appears in community discussion as a label for the methodology
+          iBlocklist is believed to use, but the maintainer does not confirm or deny
+          this attribution.
+      scope_and_intent:
+        description: "The Pedophiles list targets IP address ranges associated with
+          peers sharing child sexual abuse material on peer-to-peer networks. The
+          maintainer's stated intent is privacy-focused: blocking monitoring or surveillance
+          activity by anti-P2P organizations from reaching the user's client. The
+          list is distributed alongside other P2P-focused blocklists (Anti-Infringement,
+          Government, P2P Allow, Spammers) as part of a suite designed for use with
+          PeerBlock, PeerGuardian, and similar peer-to-peer privacy tools."
+        intended_for:
+        - Privacy-conscious P2P users wishing to block anti-piracy monitoring organizations
+        - Individuals seeking to prevent connection attempts from IP ranges associated
+          with child sexual abuse material sharing investigations
+        not_intended_for:
+        - Network perimeter blocking for enterprise security (the list is scoped to
+          P2P monitoring addresses, not general threat intelligence)
+        - Automated ingestion pipelines (automated downloads restricted to once per
+          24 hours per developer terms)
+      license: Personal / Non-Commercial Only (iBlocklist Terms of Service)
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution (including private or internal redistribution) is prohibited
+          without prior written permission from iblocklist, LLC. Commercial use of
+          any materials is prohibited. The license is personal use only and does not
+          constitute a transfer of title.
+      current_status:
+        state: active
+        description: The iBlocklist.com website is reachable and accepting subscriptions.
+          The Pedophiles list remains listed in the catalog. However, no update timestamps
+          are displayed on any list page, and the maintainer does not publish a refresh
+          schedule. The maintainer has not issued any discontinuation announcement
+          for this specific list.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "Feed-specific criticism centers on the detection-methodology question:
+          community members have noted that the 'IP in the swarm' technique — the
+          methodology widely believed to underlie this Pedophiles list — has been
+          challenged in public discussion as producing broad false positives, on the
+          grounds that observing a peer in a BitTorrent swarm is not equivalent to
+          confirming that peer is sharing the indexed material. Courts in some jurisdictions
+          have ruled against IP-in-the-swarm evidence as the sole basis for legal
+          action. The maintainer has not publicly confirmed the methodology nor responded
+          to these criticisms, and no documented evidence standard, range-scoping
+          rationale, or human-review process is available for operators to evaluate
+          listing quality."
+        engagement: Public discussion specifically about this Pedophiles list is sparse.
+          The list does not publish a changelog, release notes, or update history;
+          the most substantive technical commentary in community venues concerns the
+          IP-in-the-swarm methodology debate rather than this specific list's operations.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/list?list=dufcxgnbjsdwmwctgfuj
+        document_date: '2026'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/developer
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/subscribe
+        document_date: '2025'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date: 2016-08
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://groups.google.com/g/qubes-users/c/j7hiQvE6Bao
+        document_date: 2016-05
+        validation_date: '2026-05-18T00:00:00Z'

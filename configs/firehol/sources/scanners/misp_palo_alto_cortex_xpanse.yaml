@@ -1,0 +1,177 @@
+sources:
+  misp_palo_alto_cortex_xpanse:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/palo-alto-networks-cortex-xpanse/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Palo Alto
+      Networks Cortex Xpanse scanning IP address ranges. Informational - not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T23:04:40+00:00'
+      official_name: List of known IP address ranges for Palo Alto Networks Cortex
+        Xpanse
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: A MISP warning list recording the IP address ranges used
+        by Palo Alto Networks Cortex Xpanse for authorized internet scanning, so that
+        defenders can recognise this traffic and suppress resulting false positive
+        alerts.
+      long_description: "The palo-alto-networks-cortex-xpanse warninglist records
+        the IP address ranges that Palo Alto Networks uses for Cortex Xpanse, an outside-in
+        attack surface management product that continuously scans the global internet
+        to discover and monitor customers' internet-facing assets.\n\nWhen these IPs
+        appear in security logs or threat intelligence feeds, they represent legitimate,
+        authorised scanning activity — not malicious intrusion. Palo Alto explicitly
+        states the scanning is CFAA-compliant and advises operators to mark the ranges
+        as non-malicious in their systems. The list is formatted as CIDR blocks and
+        integrates into MISP to display an informational or warning box at the event
+        and attribute level whenever matching indicators are detected; it is equally
+        usable as an informational reference outside MISP."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: informal_collective
+        official_url: https://github.com/MISP
+        contact_email:
+        based_in:
+        active_since: '2016'
+        notes: The MISP Project is a collaborative open-source effort. Copyright is
+          jointly held by multiple contributors including Christophe Vandeplas, CIRCL
+          (Computer Incident Response Center Luxembourg), NATO NCIRC, and individual
+          contributors. The project is governed under AGPLv3 with an interlocked licence
+          structure preventing any single entity from changing the licence model.
+      - role: source_contributor
+        name: darses
+        organization_type: individual
+        official_url: https://github.com/darses
+        contact_email:
+        based_in:
+        active_since:
+        notes: 'Contributor who proposed and authored the palo-alto-networks-cortex-xpanse
+          list via pull request #328, merged by maintainer adulau.'
+      derivation:
+        type: original
+        description: The list is assembled by the contributor from Palo Alto Networks'
+          publicly published scanning activity disclosure. The contributor transcribes
+          the IP ranges Palo Alto lists as their authorised scanning infrastructure
+          into the MISP warninglist JSON format. No other IP feeds are consumed; no
+          scoring or voting algorithm is applied.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when it appears in Palo Alto Networks' publicly documented
+          list of IP address ranges used for Cortex Xpanse authorised internet scanning.
+          These ranges are allocated to Cortex Xpanse for the purpose of continuously
+          probing customers' external attack surfaces.
+        criteria:
+        - The IP or CIDR range must appear in Palo Alto Networks' publicly published
+          scanning activity disclosure
+        - The range must be allocated to Cortex Xpanse for authorised attack surface
+          scanning
+        - The scanning activity is CFAA-compliant per Palo Alto's disclosure
+      unlisting_policy:
+        summary: There is no documented removal process specific to this list. Removal
+          occurs implicitly when Palo Alto Networks updates its published scanning
+          ranges — the list is regenerated from the current published disclosure.
+          No manual delisting request channel is documented within the MISP warninglists
+          project for this list.
+        criteria:
+        - 'Implicit: Palo Alto removes or replaces a range from its published scanning
+          disclosure'
+        - 'Manual: a contributor submits a pull request to update the list when Palo
+          Alto changes its published ranges'
+      unlist_request:
+        url:
+        email: scaninfo@paloaltonetworks.com
+        instructions: For issues arising from Cortex Xpanse scanning IPs appearing
+          in security alerts, Palo Alto advises marking the ranges as non-malicious
+          in your system or configuring your firewall to drop traffic from these ranges.
+          For abuse reports believed to be associated with Cortex Xpanse scans, contact
+          scaninfo@paloaltonetworks.com. There is no documented MISP-specific unlisting
+          process for this warning list.
+      update_frequency:
+        frequency:
+        human_readable: Updates are driven by changes to Palo Alto Networks' published
+          scanning ranges rather than a fixed schedule; the list was added in February
+          2026 and updated once subsequently.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The list classifies IPs by organisational policy assignment rather
+          than by threat detection. The IPs are listed because Palo Alto Networks
+          has publicly declared them as their authorised scanning infrastructure —
+          they are non-malicious by policy declaration. This differs from feeds that
+          detect malicious activity through honeypots, sandboxes, or user reports;
+          the classification rests on Palo Alto's own attestation rather than observed
+          behaviour.
+      scope_and_intent:
+        description: The list identifies IPs belonging to Palo Alto Networks Cortex
+          Xpanse's authorised scanning infrastructure, enabling defenders to recognise
+          this traffic and suppress resulting false positive alerts.
+        intended_for:
+        - Suppressing false positive alerts when Cortex Xpanse scanning IPs appear
+          in security logs or threat intelligence feeds
+        - Marking known-benign scanning infrastructure in MISP events and attributes
+        - Informing security analysts that logged traffic from these ranges represents
+          authorised attack surface assessment, not malicious intrusion
+        not_intended_for:
+        - Blocking or denying traffic from these IP ranges — the list explicitly warns
+          against this use
+        - Indicating malicious activity — IPs on this list are non-malicious by Palo
+          Alto's own policy declaration
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 carries no conditions; the data is placed in the public domain
+          with no attribution requirement. The MISP warninglists README notes that
+          if a specific author wants a different license for their list, a pull request
+          can be requested — no such variation applies to this list.
+      current_status:
+        state: active
+        description: 'Active. The list was added to the MISP warninglists repository
+          in February 2026 via pull request #328 and updated once shortly thereafter.
+          The project repository shows regular maintenance activity.'
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion specifically about this list is sparse. The
+          pull request adding the list (#328) was opened and merged without recorded
+          controversy. Broader MISP warninglists community activity centres on script
+          maintenance and generator fixes for other lists; no issues or discussions
+          specifically addressing the Cortex Xpanse list were found in the repository's
+          recent issue tracker.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/palo-alto-networks-cortex-xpanse/list.json
+        document_date: '2026-02-08'
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://docs-cortex.paloaltonetworks.com/r/1/Cortex-Xpanse/Scanning-activity
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/pull/328
+        document_date: '2026-02-08'
+        validation_date: '2026-05-18'
+      - url: 
+          https://github.com/MISP/misp-warninglists/commits/main/lists/palo-alto-networks-cortex-xpanse
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/MISP
+        document_date:
+        validation_date: '2026-05-18'

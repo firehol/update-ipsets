@@ -1,0 +1,160 @@
+sources:
+  ip2proxy_px1lite:
+    attribution: This site uses the IP2Proxy LITE database from IP2Location.com
+    license: IP2Location Master License Agreement (IP2Proxy LITE)
+    redistributable: false
+    url: http://www.ip2location.com/download/?token=${IP2LOCATION_API_KEY}&file=PX1LITE
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - ip2location_ip2proxy_px1lite
+    processor_raw: ip2location_ip2proxy_px1lite
+    category: anonymizers
+    info: '[IP2Location.com](https://lite.ip2location.com/database/px1-ip-country)
+      IP2Proxy LITE IP-COUNTRY Database contains IP addresses which are used as public
+      proxies. The LITE edition is a free version of database that is limited to public
+      proxies IP address.'
+    maintainer: IP2Location.com
+    maintainer_url: https://lite.ip2location.com/database/px1-ip-country
+    attributes:
+      public_url: http://www.ip2location.com/download/?token=APIKEY&file=PX1LITE
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T10:45:10Z'
+      official_name: IP2Proxy LITE IP-COUNTRY Database (PX1LITE)
+      official_url: https://lite.ip2location.com/database/px1-ip-country
+      short_description: A free database identifying open public proxy (PUB) IP addresses
+        with country-level geolocation, covering IPv4 and IPv6 ranges.
+      long_description: "The IP2Proxy LITE IP-COUNTRY Database (PX1LITE) is a free,
+        attribution-required database published by IP2Location.com that maps open
+        public proxy (PUB) IP addresses to their country of registration. Each record
+        spans an IP range (from/to) paired with an ISO 3166 country code and country
+        name. The database covers all public IPv4 and IPv6 address space and is available
+        in CSV, CIDR, and binary (BIN) formats.\n\nThe LITE edition is limited to
+        detecting only open public proxies. Commercial editions extend coverage to
+        VPNs, Tor exit nodes, web proxies, data-center hosting ranges, search engine
+        robots, residential proxies, consumer privacy networks, and enterprise private
+        networks — and offer daily updates rather than the LITE edition's bi-weekly
+        refresh cycle.\n\nAnonymous proxies are commonly associated with credential
+        stuffing, forum spam, and credit card fraud. The maintainer notes that a large
+        share of anonymous proxy users engage in such activity, making this feed useful
+        for fraud detection, risk scoring, and access control at the network perimeter."
+      roles:
+      - role: maintainer
+        name: IP2Location.com
+        organization_type: commercial
+        official_url: https://www.ip2location.com
+        contact_email: ip@ip2location.com
+        based_in: Malaysia
+        active_since: '2011'
+        notes: Hexasoft Development Sdn. Bhd. operates the IP2Location.com platform
+          and publishes the IP2Proxy database family. Established in Penang, Malaysia.
+      derivation:
+        type: original
+        description: IP2Location maintains a proprietary detection infrastructure
+          that identifies actively-used open public proxies. Detected IP ranges are
+          compiled into the PX1LITE database and published for download. The generation
+          method combines passive observation with active probing to identify proxy
+          behavior signatures.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when IP2Location's detection infrastructure identifies
+          it as an active open public proxy (PUB) — a server that forwards requests
+          on behalf of clients and exposes the original client IP. The database maps
+          the IP range to its registered country.
+        criteria:
+        - IP address must be actively serving as an open public proxy (PUB) — a relay
+          that makes outbound connections on behalf of third parties
+        - Proxy must be reachable and responding to detection probes
+        - IP range is mapped to ISO 3166 country code and name based on registration
+          data
+      unlisting_policy:
+        summary: The LITE edition is a static download database with no automated
+          unlisting mechanism. IPs are removed when the next scheduled database revision
+          drops them from the active-proxies set. No manual delisting portal is offered
+          for the free edition.
+        criteria:
+        - IPs no longer functioning as open public proxies are dropped in the next
+          revision cycle
+        - Bi-weekly regeneration (LITE) means removals propagate within approximately
+          two weeks
+      unlist_request:
+      update_frequency:
+        frequency: 336h
+        human_readable: Updated approximately every two weeks (bi-weekly)
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods:
+        - active_scanning
+        description: IP2Location operates a proprietary detection infrastructure combining
+          honeypot sensors and active probing to identify IP addresses exhibiting
+          open proxy behavior — servers that accept and forward inbound connections
+          on behalf of clients. Detected IPs are compiled into the database. The exact
+          sensor placement and probe methodology are not publicly documented.
+      scope_and_intent:
+        description: The PX1LITE database is designed to identify open public proxy
+          (PUB) IP addresses and map them to their registered country. It is intended
+          as a building block for fraud detection, risk scoring, and access-control
+          systems.
+        intended_for:
+        - Detecting open public proxy connections in web applications or APIs
+        - Fraud detection pipelines flagging anomalous geolocation or proxy-adjacent
+          traffic
+        - Network perimeter controls blocking known anonymizer egress points
+        - Security logging enrichments correlating IP activity with country context
+        not_intended_for:
+        - Real-time VPN, Tor exit node, or residential proxy detection (requires commercial
+          IP2Proxy edition)
+        - Blocking decisions as the sole signal — false negatives on newer proxies
+          are expected due to bi-weekly updates
+        - Legal or compliance determinations — the database is observational, not
+          evidentiary
+      license: IP2Location Master License Agreement (IP2Proxy LITE)
+      redistribution:
+        allowed: false
+        commercial_use_allowed: true
+        attribution_required: Credit IP2Location.com or Hexasoft Development Sdn.
+          Bhd. in the product or service using the data, e.g., [Your product] uses
+          the IP2Proxy LITE database for IP geolocation.
+        terms: Free for personal or commercial use with attribution, but public storage,
+          transfer, publication, distribution, display, or sublicensing requires a
+          redistribution license.
+      current_status:
+        state: active
+        description: Actively maintained. The product page is reachable, the download
+          mechanism functions with an API token, and the maintainer publishes versioned
+          releases on a bi-weekly cadence.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Community signal for IP2Proxy PX1LITE specifically is sparse. The
+          most notable concern raised in public discussion is the bi-weekly update
+          lag for the LITE edition — a Reddit comment characterized legacy database-download
+          solutions as having a week-old database that is useless. A WebHostingTalk
+          user noted encountering several incorrect classifications but judged this
+          unavoidable in any similar database. No systematic false-positive or false-negative
+          rates are publicly published by the maintainer.
+        engagement: Public discussion involving IP2Proxy PX1LITE specifically is limited.
+          Independent comparative studies rarely include IP2Proxy; notably, GoSecure's
+          2024 proxy-detection accuracy study tested five services but did not include
+          IP2Proxy. A WebHostingTalk testimonial described IP2Proxy as relatively
+          cheap and accurate versus expensive alternatives.
+      sources_consulted:
+      - url: https://lite.ip2location.com/database/px1-ip-country
+        document_date: '2026-03-29'
+        validation_date: '2026-05-16'
+      - url: https://www.ip2location.com/ip2proxy
+        document_date:
+        validation_date: '2026-05-16'
+      - url: https://www.ip2location.com/terms
+        document_date:
+        validation_date: '2026-05-16'
+      - url: https://www.webhostingtalk.com/showthread.php?t=1901355
+        document_date:
+        validation_date: '2026-05-16'
+      - url: 
+          https://gosecure.ai/blog/2024/08/20/the-challenges-of-proxy-detection-addressing-database-aging-and-accuracy-issues
+        document_date: '2024-08-20'
+        validation_date: '2026-05-16'

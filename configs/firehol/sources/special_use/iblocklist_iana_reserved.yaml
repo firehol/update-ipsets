@@ -1,0 +1,186 @@
+sources:
+  iblocklist_iana_reserved:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=bcoepfyewziejvcqyhqo&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: special_use
+    provenance: secondary_upstream
+    info: IANA Reserved IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    exclude_from_unmaintained: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T03:27:40Z'
+      official_name: Bluetack - iana-reserved
+      official_url: https://www.iblocklist.com/list?list=bcoepfyewziejvcqyhqo
+      short_description: A list of IPv4 address ranges reserved by IANA for special-purpose
+        and protocol-specific functions, such as loopback, link-local autoconfiguration,
+        and documentation prefixes.
+      long_description: This feed lists IPv4 address ranges that IANA has reserved
+        for special-purpose and protocol-specific functions — address space that should
+        not appear in ordinary public internet routing. These include the loopback
+        prefix, link-local autoconfiguration addresses, documentation prefixes used
+        in literature and examples, benchmarking prefixes, shared address space, and
+        other reserved blocks defined in RFC 6890. The feed is authored by Bluetack,
+        a blocklist project that originated in the early 2000s as part of the PeerGuardian
+        firewall ecosystem, and is now distributed through iBlocklist.com. The maintainer's
+        own list page does not describe an update cadence or last-modified date for
+        this specific feed. The feed URL returns a human-check gate requiring CAPTCHA
+        verification before any automated download, which prevents programmatic access
+        without an interactive browser session.
+      roles:
+      - role: maintainer
+        name: Bluetack
+        organization_type: informal_collective
+        official_url:
+        contact_email:
+        based_in:
+        active_since: '2002'
+        notes: The Bluetack blocklist project originated as the block-list management
+          component of PeerGuardian, a firewall application for P2P privacy. The name
+          derives from a username of a PeerGuardian development team member who owned
+          the peerguardian.net domain and created the Block List Manager. The project
+          produced dozens of categorized IP blocklists including level1, level2, level3,
+          and multiple IANA-category lists. Community development ceased by the mid-2010s;
+          the lists were acquired and are now distributed through iBlocklist.com.
+      - role: publisher
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: iblocklist, LLC is the commercial entity that acquired the Bluetack
+          blocklist collection and distributes it through iblocklist.com. The company's
+          Terms of Service restrict use to personal, non-commercial purposes only.
+          The support page offers only a generic web form; no direct email address
+          is published for unlisting requests. Across the broader iBlocklist.com service,
+          community reports on Trustpilot and the Netgate forum describe unauthorized
+          auto-renewal charges, unresponsive customer support, and lists in the catalog
+          frozen at outdated snapshots.
+      derivation:
+        type: partial_mirror
+        description: The feed is a subset of the Bluetack blocklist collection, extracted
+          and republished in P2P format by iblocklist.com. The Bluetack suite originally
+          comprised dozens of categorized IP blocklists assembled through a combination
+          of community reporting and automated WHOIS crawling. The IANA-reserved list
+          targets address space designated by IANA as reserved for special-purpose
+          functions per RFC 6890. The iblocklist.com individual list page shows an
+          empty 'Update URL' field, indicating no externally referenceable update
+          mechanism for this specific feed. The feed is distributed in P2P (.p2p.gz),
+          DAT, CIDR, and hosts formats.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added based on whether an IPv4 address range falls within
+          the IANA Special-Purpose Address Registry — address blocks reserved by IANA
+          for protocol-specific functions that should not be used in ordinary public
+          internet routing. The maintainer does not publish the specific criteria
+          or thresholds used to populate this list.
+        criteria:
+        - IPv4 address falls within an IANA-designated special-purpose or reserved
+          address block per RFC 6890
+      unlisting_policy:
+        summary: The maintainer does not publish an unlisting policy or removal process
+          for this feed on iblocklist.com. No removal request channel, criteria, or
+          automatic expiry mechanism is described on the individual list page or the
+          site's general support documentation.
+        criteria: []
+      unlist_request:
+      update_frequency:
+        frequency:
+        human_readable: The maintainer does not state an update cadence for this specific
+          feed. The individual list page shows an empty 'Update URL' field, and no
+          update frequency is published on the iblocklist.com lists directory or the
+          individual list page.
+      detection_classification:
+        primary_method: policy_assignment
+        description: The feed consists of IPv4 address ranges that appear in the IANA
+          Special-Purpose Address Registry, as documented in RFC 6890. Rather than
+          detecting malicious activity, entries are determined by reference to an
+          established address registry — ranges that IANA has officially reserved
+          for protocol-specific functions such as loopback, link-local autoconfiguration,
+          documentation, and benchmarking. These ranges are not ordinarily routable
+          on the public internet, and the rationale for listing them is to prevent
+          connections to non-existent or misconfigured address space.
+        secondary_methods: []
+      scope_and_intent:
+        description: The feed targets IPv4 address space that IANA has reserved for
+          special-purpose and protocol-specific functions. These ranges are not intended
+          for ordinary host-to-host communication on the public internet. The original
+          use case, from the Bluetack/PeerGuardian era, was to prevent connections
+          to non-routable address space that anti-piracy enforcement organizations
+          could use to monitor or identify P2P users.
+        intended_for:
+        - Blocking connections to non-routable or reserved address space in firewall
+          and P2P client applications
+        - Preventing accidental tunnel or VPN leakage to reserved prefixes
+        - Network hygiene in privacy-oriented applications
+        not_intended_for:
+        - General-purpose threat intelligence (the listed ranges are not hostile actors)
+        - Inline blocking at high-throughput network edges (the ranges are protocol-reserved,
+          not malicious)
+      license: iBlocklist Terms of Service — personal / non-commercial only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The iBlocklist.com Terms of Service grant a personal-use-only license.
+          Redistribution, whether commercial or non-commercial, is not permitted under
+          the license grant. The license expressly prohibits any public display and
+          any commercial use.
+      current_status:
+        state: unknown
+        description: The iBlocklist.com website is technically operational as of May
+          2026, displaying a copyright notice for iblocklist, LLC and accepting subscriptions.
+          However, the feed URL returns a human-check security gate requiring CAPTCHA
+          verification, preventing automated content retrieval, and the catalog engine
+          has never observed an update from this URL. The Global Cyber Alliance ACT
+          portal entry for I-Blocklist lists the maintenance status as Active but
+          marks the Last Updated Date as Unknown. Community discussion across multiple
+          independent sources dating to 2016 describes iblocklist.com's blocklists
+          as frozen at a distant past date. No explicit discontinuation announcement
+          has been issued by the maintainer.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion about this specific feed is sparse. The iblocklist.com
+          website offers only a generic web-form contact for support inquiries; no
+          direct email address, issue tracker, or community forum is published for
+          this feed. The feed's individual list page shows an empty Update URL field
+          and no changelog or update notes.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/list?list=bcoepfyewziejvcqyhqo
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://act.globalcyberalliance.org/index.php/I-Blocklist
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date: '2016-08-17'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://en.wikipedia.org/wiki/PeerGuardian
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iana.org/assignments/iana-ipv4-special-registry
+        document_date: '2025-10-09'
+        validation_date: '2026-05-19T00:00:00Z'

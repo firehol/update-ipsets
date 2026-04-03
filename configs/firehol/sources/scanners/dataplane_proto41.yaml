@@ -1,0 +1,172 @@
+sources:
+  dataplane_proto41:
+    license: Dataplane.org - non-commercial use only, redistribution prohibited
+    redistributable: false
+    url: https://dataplane.org/proto41.txt
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - dataplane_column3
+    processor_raw: dataplane_column3
+    category: scanners
+    info: '[DataPlane.org](https://dataplane.org/) IP addresses seen using IP protocol
+      41 toward remote hosts. Added from the MISP default feed catalog audit.'
+    maintainer: DataPlane.org
+    maintainer_url: https://dataplane.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T19:00:04Z'
+      official_name: IP protocol 41
+      official_url: https://dataplane.org/signals.html
+      short_description: IPv4 addresses observed acting as open IPv6-over-IPv4 tunnel
+        relays (IP protocol 41), produced by active Internet surveying.
+      long_description: "The proto41 feed identifies IPv4 addresses that have been
+        observed acting as open IPv6-over-IPv4 tunnel relays. IP protocol 41 (defined
+        in RFC 2473) is an encapsulation protocol that wraps an entire IPv6 packet
+        inside an IPv4 packet, enabling legacy IPv6 transition mechanisms such as
+        6to4 and 6in4 tunnels. Any host that receives a protocol 41 packet and forwards
+        it — either by routing the decapsulated IPv6 packet natively, or by sending
+        it to the IANA-reserved 6to4 anycast gateway (the 6TO4-RELAY-ANYCAST address
+        per RFC 7526) — qualifies for inclusion.\n\nPer the maintainer's blog post,
+        this feed is produced by active network surveying rather than passive sensors.
+        The experiment probes the full IPv4 address space slowly and randomly, typically
+        requiring a few weeks to complete one full scan cycle. Addresses are retained
+        while they continue to be observed relaying protocol 41 traffic; once no activity
+        is detected for approximately seven days, they decay off automatically.\n\n\
+        The feed file format includes ASN, AS name, IP address, first-seen timestamp,
+        and last-seen timestamp per entry. IP-to-ASN mapping uses pyasn with daily
+        RouteViews MRT dumps and RIPE's ASN-to-AS-name mapping file. The maintainer
+        notes the feed is informational — not a blocklist — and advises operators
+        to ensure devices on their networks are behaving as expected."
+      roles:
+      - role: maintainer
+        name: DataPlane.org NFP
+        organization_type: non_profit
+        official_url: https://dataplane.org/
+        contact_email: info@dataplane.org
+        based_in: Chicago, IL, USA
+        active_since: '2016'
+        notes: A 501(c)(3) nonprofit organization (EIN 882177476) operating distributed
+          Internet sensors. Run by founders John Kristoff, Matthew Kemp, and Bill
+          Eaheart. Sensors are deployed across over 300 nodes in 65 metropolitan areas
+          on 6 continents. The maintainer's about page lists dozens of downstream
+          organizational users of the broader signal portfolio (MISP, Shadowserver,
+          IntelMQ, Maltrail, CIP Framework, and others); this applies across the maintainer's
+          feeds, not to proto41 in isolation.
+      derivation:
+        type: original
+        description: The feed is produced by the maintainer's own active network surveying
+          infrastructure. The experiment probes the full public IPv4 address space
+          with IP protocol 41 (IPv6-over-IPv4) probe packets on a slow, random, continuous
+          cycle, typically requiring a few weeks to complete one full sweep. Entries
+          are enriched with ASN data using pyasn fed by daily RouteViews MRT dumps
+          and RIPE's ASN-to-AS-name mapping file. No upstream IP feeds are consumed.
+        source_feeds: []
+      listing_policy:
+        summary: An IPv4 address is listed when it receives an IP protocol 41 (IPv6-over-IPv4)
+          probe packet and forwards it — either by routing the decapsulated IPv6 packet
+          natively, or by sending it to the IANA-reserved 6to4 anycast gateway (the
+          6TO4-RELAY-ANYCAST address per RFC 7526). Listings persist for as long as
+          the address continues to respond to protocol 41 probes during ongoing scan
+          cycles.
+        criteria:
+        - Receives an IP protocol 41 probe packet sent by DataPlane.org's active surveyor
+        - Removes the outer IPv4 header and forwards the inner IPv6 packet natively
+          to its intended IPv6 destination, OR routes it to the IANA-reserved 6to4
+          anycast gateway (per RFC 7526)
+        - Continues to be observed relaying protocol 41 traffic during repeat scan
+          passes
+      unlisting_policy:
+        summary: There is no manual unlisting process. Listings decay automatically
+          when the address is not observed relaying protocol 41 traffic for approximately
+          seven days. Because the active survey cycle repeats continuously, an address
+          that remains an open relay will be rediscovered and its listing refreshed.
+        criteria:
+        - Approximately seven days of no observed protocol 41 relay activity causes
+          the address to fall out of the rolling reporting window
+        - No manual removal or appeal process is documented
+      unlist_request:
+        url:
+        email:
+        instructions: DataPlane.org does not operate a manual unlisting or takedown
+          process. The maintainer's published guidance is to resolve the underlying
+          open-relay condition on the device; once the address ceases responding to
+          protocol 41 probes, it will decay off the feed automatically within approximately
+          seven days. Operators may contact info@dataplane.org for general inquiries,
+          but no dedicated removal channel or SLA is offered.
+      update_frequency:
+        frequency: 1h
+        human_readable: Hourly, per the maintainer's signals index page.
+      detection_classification:
+        primary_method: active_scanning
+        secondary_methods: []
+        description: "Active network surveying: the maintainer sends IPv6-over-IPv4
+          (IP protocol 41) probe packets to targets across the full public IPv4 address
+          space on a slow, random, continuous cycle. Unlike the organization's other
+          signals which rely on passive sensors, the proto41 feed is produced by outbound
+          probing. An address qualifies for listing when it receives a protocol 41
+          packet and forwards it — either by native IPv6 routing or by sending it
+          to the IANA-reserved 6to4 anycast gateway (per RFC 7526)."
+      scope_and_intent:
+        description: The feed identifies open IPv6-over-IPv4 tunnel relays — IPv4
+          addresses that will forward encapsulated IPv6 traffic, enabling potential
+          abuse as bounce points or firewall-evasion vectors. The maintainer publishes
+          it as an informational signal for network operators to assess risk on their
+          address space.
+        intended_for:
+        - Identifying open IPv6 tunnel relays in one's own address space
+        - Security research and anomaly detection
+        - Network hygiene and asset inventory
+        not_intended_for:
+        - Inline blocking or deny-listing without further analysis
+        - Automated blocking without human review
+      license: Non-commercial use only
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms: Redistribution in whole or in part without the express written permission
+          of DataPlane.org is expressly prohibited. Commercial use requires contacting
+          info@dataplane.org for a licensing agreement.
+      current_status:
+        state: active
+        description: Active and maintained as of May 2026. The feed file was observed
+          updating weekly with a current report period ending 2026-05-18. DataPlane.org
+          NFP continues to operate its distributed sensor network and publish signals
+          hourly.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public Reddit and sysadmin discussion focuses primarily on protocol
+          41 firewall-configuration questions rather than the proto41 feed itself.
+          Sparse direct discussion of the DataPlane.org proto41 feed was found; engagement
+          appears primarily institutional rather than individual-user driven. The
+          academic research underpinning the feed was presented at the Passive and
+          Active Measurement (PAM) Conference 2021. Maintainer-wide downstream-adoption
+          context lives in roles[].notes.
+      sources_consulted:
+      - url: https://dataplane.org/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/signals.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/about.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/proto41.txt
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/jtk/blog/2020/12/prot41-feed/
+        document_date: 2020-12
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/contact.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/dnsrd.txt
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

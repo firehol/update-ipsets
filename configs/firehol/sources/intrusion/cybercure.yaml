@@ -1,0 +1,170 @@
+sources:
+  cybercure:
+    license: public feed
+    redistributable: true
+    url: http://api.cybercure.ai/feed/get_ips
+    frequency: 360
+    ipv: ipv4
+    output: ipset
+    processor:
+    - extract_ipv4
+    processor_raw: extract_ipv4_from_any_file
+    category: intrusion
+    info: '[CyberCure](https://www.cybercure.ai/) threat intelligence feed of IPs
+      identified as malicious from real-time infection monitoring sensors.'
+    maintainer: CyberCure
+    maintainer_url: https://www.cybercure.ai/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T20:51:00Z'
+      official_name: CyberCure
+      official_url: https://www.cybercure.ai/
+      short_description: Free threat intelligence feed of IP addresses identified
+        as malicious through real-time infection monitoring sensors, maintained by
+        Nucleon Cyber.
+      long_description: "CyberCure was established to share cyber threat intelligence
+        with small and medium networks as well as home users, and is now operated
+        by Nucleon Cyber. The platform collects indicators of compromise from a globally
+        distributed network of honeypots and honeynets — simulated services deployed
+        across the internet that attract and safely record attacker behavior without
+        hosting real vulnerable systems. Commercial vendors running additional honeypot
+        and honeynet infrastructure also contribute data to the platform.\n\nRaw sensor
+        data is transferred to a central cloud analytics system branded the \"Brain\"\
+        , which applies machine learning and correlation algorithms to analyze, cross-reference,
+        and verify detected threats autonomously before surfacing them as indicators.
+        The maintainer describes this approach as designed to produce a low false-positive
+        rate.\n\nThe free CyberCure feed is updated every six hours. A commercial
+        Premium tier with ten-minute update intervals is also available. The feed
+        is accessible via a REST API at api.cybercure.ai without requiring authentication,
+        returning IP addresses in plain text, JSON, or CSV format depending on the
+        endpoint. Documentation is available at docs.cybercure.ai, though that domain
+        was inaccessible during this research run."
+      roles:
+      - role: maintainer
+        name: Nucleon Cyber
+        organization_type: commercial
+        official_url: https://www.nucleoncyber.com
+        contact_email: info@nucleon.sh
+        based_in: Israel
+        active_since:
+        notes: Parent company operating the CyberCure platform. Also operates the
+          government-facing ICCIN network and the commercial AGTI (Adversary-Generated
+          Threat Intelligence) platform. Roy Heller serves as Chief Operating Officer.
+      derivation:
+        type: original
+        description: The feed is built from the maintainer's own globally distributed
+          honeypot and honeynet sensor network (branded AGTI — Adversary-Generated
+          Threat Intelligence), supplemented by data contributed by commercial vendors.
+          Raw sensor data is ingested into the Brain cloud analytics platform, which
+          applies machine learning and correlation algorithms to verify and rank threats
+          before surfacing them as indicators. No third-party IP feeds are consumed
+          as inputs.
+        source_feeds: []
+      listing_policy:
+        summary: IPs are listed when the maintainer's honeypot and sensor network
+          detects them engaging in malicious activity — scanning, exploiting, or attacking
+          instrumented infrastructure in real time. The maintainer does not publish
+          specific scoring thresholds or minimum detection counts required for listing.
+        criteria:
+        - Detected conducting malicious activity against the maintainer's honeypot
+          or sensor infrastructure
+        - Activity consistent with scanning, exploitation, or attack behavior targeting
+          networked systems
+        - Verified by the Brain cloud analytics platform before surfacing as an indicator
+      unlisting_policy:
+        summary: No unlisting policy is publicly documented. The maintainer does not
+          publish criteria for automatic expiry, manual removal, or time-based decay
+          of listings.
+        criteria: []
+      unlist_request:
+      update_frequency:
+        frequency: 6h
+        human_readable: Updated every six hours, per the maintainer's about page.
+          A commercial Premium tier with ten-minute update intervals is also available.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: The feed is built from honeypot and honeynet sensors — simulated
+          network services instrumented to attract and safely record attacker behavior
+          without hosting real vulnerable systems. Attacker interactions with these
+          decoy services are analyzed by the Brain cloud analytics platform, which
+          applies machine learning to verify threats before surfacing them as indicators.
+          The maintainer additionally receives contributed data from commercial vendors
+          running their own honeypot and honeynet infrastructure.
+      scope_and_intent:
+        description: CyberCure is positioned for network defenders at small and medium
+          organizations and home users who need actionable threat intelligence without
+          commercial procurement overhead. The platform aims to enable proactive blocking
+          of threats before breaches occur by integrating indicators into existing
+          security tools.
+        intended_for:
+        - SOC analysts seeking incoming malicious connection indicators
+        - Network security engineers configuring edge blocking rules
+        - Small and medium organizations without dedicated threat intelligence teams
+        not_intended_for: []
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: No redistribution terms are stated. The feed is publicly accessible
+          without authentication and no license is declared.
+      current_status:
+        state: active
+        description: The CyberCure platform and website remain operational as of this
+          research run. The maintainer's live dashboard at cybercure.ai displays real-time
+          telemetry statistics. However, the API endpoint at api.cybercure.ai returned
+          a non-structured plain-text response during this research, and third-party
+          feed tracking tools have marked all three CyberCure feed endpoints as offline.
+          The engine's health classification separately monitors upstream availability.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Listed in the community-curated awesome-threat-intelligence GitHub
+          repository as a recommended free threat intelligence source. Integrated
+          into multiple open-source security tools including the Harpoon CLI, InQuest
+          Omnibus threat intelligence platform, and a MISP feed converter. No independent
+          customer reviews, testimonials, or documented case studies were found on
+          major review platforms (G2, Gartner Peer Insights, Trustpilot, Reddit) as
+          of this research run. Public community discussion is sparse.
+      sources_consulted:
+      - url: https://www.cybercure.ai/
+        document_date:
+        validation_date: '2026-05-17T20:30:00Z'
+      - url: https://www.cybercure.ai/about
+        document_date:
+        validation_date: '2026-05-17T20:32:00Z'
+      - url: https://www.cybercure.ai/resources
+        document_date:
+        validation_date: '2026-05-17T20:40:00Z'
+      - url: 
+          https://thesiliconreview.com/magazine/profile/the-strategic-cyber-threat-intelligence-nucleon-empowers-your-cybersecurity-tools-and-start-blocking-threats-before-they-become-breaches
+        document_date:
+        validation_date: '2026-05-17T20:34:00Z'
+      - url: https://github.com/hslatman/awesome-threat-intelligence
+        document_date:
+        validation_date: '2026-05-17T20:35:00Z'
+      - url: https://raw.githubusercontent.com/Te-k/harpoon/main/harpoon/lib/cybercure.py
+        document_date: '2018-09-02'
+        validation_date: '2026-05-17T20:41:00Z'
+      - url: 
+          https://raw.githubusercontent.com/InQuest/omnibus/master/lib/modules/cybercure.py
+        document_date:
+        validation_date: '2026-05-17T20:42:00Z'
+      - url: 
+          https://github.com/Bert-JanP/Open-Source-Threat-Intel-Feeds/blob/main/ThreatIntelFeeds.csv
+        document_date:
+        validation_date: '2026-05-17T20:39:00Z'
+      - url: 
+          https://github.com/goodlandsecurity/misp_integrations/tree/master/cybercure_to_misp
+        document_date:
+        validation_date: '2026-05-17T20:38:00Z'
+      - url: http://api.cybercure.ai/feed/get_ips
+        document_date:
+        validation_date: '2026-05-17T20:39:00Z'
+      - url: https://docs.cybercure.ai/
+        document_date:
+        validation_date: '2026-05-17T20:36:00Z'

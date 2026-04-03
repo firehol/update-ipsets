@@ -1,0 +1,187 @@
+sources:
+  misp_github:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/github/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) GitHub IP
+      address ranges from GitHub meta data. Provider infrastructure reference, not
+      a threat indicator.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T15:23:26Z'
+      official_name: List of known GitHub IP ranges (https://api.github.com/meta)
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: A curated warning list of GitHub's IP address ranges, sourced
+        from GitHub's public meta API, enabling MISP users to identify GitHub infrastructure
+        in their indicators and suppress false-positive threat assessments.
+      long_description: "The github warninglist captures the IP address ranges allocated
+        to GitHub's infrastructure, as published by GitHub at their public meta API
+        endpoint (api.github.com/meta). It is formatted as a MISP warninglist with
+        CIDR-matching semantics; each entry is compared against source and destination
+        IP attributes in MISP events, and a match displays an informational box identifying
+        the indicator as known provider space rather than a potentially malicious
+        source.\n\nThe list was originally contributed by John Berkers (March 2025)
+        and is updated by Alexandre Dulaunoy when GitHub's meta API publishes changes.
+        It is positioned as a provider infrastructure reference, not a threat indicator
+        — its role is to help analysts distinguish legitimate GitHub-platform traffic
+        (webhooks, Actions runners, Codespaces, Pages, API endpoints) from suspicious
+        activity."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://github.com/MISP
+        contact_email:
+        based_in: Luxembourg
+        active_since: '2012'
+        notes: The MISP Project is a threat intelligence platform and standards effort
+          led by CIRCL (Computer Incident Response Center Luxembourg). The project
+          maintains the misp-warninglists repository and coordinates contributions
+          via GitHub pull requests.
+      - role: original_author
+        name: John Berkers
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since: '2025'
+        notes: John Berkers contributed the initial github IP warning list in March
+          2025 with the commit introducing both IPv4 and IPv6 address ranges.
+      - role: source_contributor
+        name: Alexandre Dulaunoy
+        organization_type: research_institution
+        official_url:
+        contact_email:
+        based_in: Luxembourg
+        active_since:
+        notes: Alexandre Dulaunoy has made all subsequent update commits to the github
+          warning list, syncing the ranges from GitHub's meta API on a roughly bi-weekly
+          cadence since the list's creation.
+      derivation:
+        type: extraction
+        description: The list is produced by fetching the public JSON response from
+          GitHub's meta API endpoint (https://api.github.com/meta), extracting the
+          IP address ranges from each service-category key (hooks, web, api, git,
+          actions, codespaces, copilot, and others), and encoding them as individual
+          CIDR entries in a MISP warning list JSON file. The resulting file uses CIDR-matching
+          semantics so that MISP compares incoming IP attributes against the ranges.
+          No additional scoring, weighting, or correlation with other feeds is applied
+          — the list is a direct representation of GitHub's self-declared infrastructure.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added or removed by submitting a pull request to the
+          misp-warninglists repository. The maintainer reviews proposed changes and
+          merges them upon acceptance. Because the list mirrors GitHub's self-published
+          IP allocations, the effective listing policy is governed by GitHub's own
+          allocation decisions — any change to GitHub's infrastructure IP ranges would
+          be reflected in the next sync update.
+        criteria:
+        - The IP range must be published by GitHub at their public meta API endpoint
+        - Changes are introduced via GitHub pull request and reviewed by the maintainer
+        - The list covers all service categories GitHub exposes in their meta API
+          response (hooks, web, api, git, actions, codespaces, copilot, packages,
+          pages, importer, and github_enterprise_importer)
+      unlisting_policy:
+        summary: Removal of an IP range from the list follows the same pull-request
+          process as additions. Because the list is a direct reflection of GitHub's
+          published infrastructure, removing a range that remains in GitHub's meta
+          API would represent a deliberate deviation from the source data.
+        criteria:
+        - Proposed removals are submitted as a pull request to the misp-warninglists
+          repository
+        - The maintainer reviews and merges accepted removals
+        - Removing a range that GitHub still publishes at their meta API represents
+          a conscious editorial choice to exclude it
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/issues/new
+        email:
+        instructions: Submit a GitHub issue or pull request to the misp-warninglists
+          repository describing the IP range to be removed and the rationale. Alternatively,
+          fork the repository, edit the lists/github/list.json file, and submit a
+          pull request with the proposed change.
+      update_frequency:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: 'The list is not a threat-detection feed. It consists of IP address
+          ranges that GitHub has publicly declared as belonging to its own infrastructure.
+          Entries are added to the list by policy — because GitHub publishes them
+          at their meta API endpoint — rather than by detecting malicious activity,
+          observing attacks, or receiving user reports. The list functions as a suppression
+          or contextualisation reference: when an analyst encounters an IP that appears
+          in this list, the expected interpretation is that the IP belongs to GitHub
+          rather than representing a hostile actor.'
+      scope_and_intent:
+        description: 'The list covers all IPv4 and IPv6 CIDR ranges that GitHub declares
+          at their public meta API endpoint, encompassing every service category GitHub
+          exposes: webhook delivery endpoints, web interface, REST API, Git operations,
+          GitHub Actions runners, Codespaces, Copilot, Packages registry, Pages hosting,
+          GitHub Enterprise Importer, and the importer service.'
+        intended_for:
+        - Suppressing false-positive threat scores on GitHub infrastructure IPs in
+          MISP events
+        - Contextualising IP indicators during threat intelligence triage
+        - Filtering GitHub IPs from automated detection pipelines that rely on MISP
+          attributes
+        not_intended_for:
+        - Blocking or blacklisting GitHub IP ranges at the network perimeter
+        - Assessing the maliciousness of an IP based solely on its presence in the
+          list
+        - Detecting or attributing cyber threat activity
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal grants unlimited rights to use, copy, modify, distribute,
+          and reproduce the work without conditions. No attribution is legally required,
+          though crediting the MISP Project is customary practice in the threat intelligence
+          community.
+      current_status:
+        state: active
+        description: Actively maintained. The latest commit to the github warning
+          list was made by Alexandre Dulaunoy on 28 April 2026, updating the list
+          to version 20260428. The maintainer has issued 14 update commits since the
+          list's creation in March 2025, on a roughly bi-weekly cadence.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: The misp-warninglists repository has accumulated approximately
+          625 stars and 190 forks on GitHub (as of May 2026). The project is integrated
+          into the MISP core platform, the PyMISPWarningLists Python library, and
+          third-party tools including Polarity IO. Public community discussion specific
+          to the github warning list is sparse; no dedicated GitHub issues or Reddit
+          threads referencing the list by name were found. The broader MISP community
+          discusses warning lists primarily in the context of MISP's own issue tracker
+          and working group channels rather than in public forums.
+      sources_consulted:
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18'
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/github/list.json
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://api.github.com/meta
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.circl.lu/doc/misp/warninglists/
+        document_date: '2024-10-02'
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/tree/main/lists/github
+        document_date:
+        validation_date: '2026-05-18'

@@ -1,0 +1,214 @@
+sources:
+  cleantalk_new:
+    hidden: true
+    license: CleanTalk License Agreement (proprietary)
+    redistributable: false
+    url: https://cleantalk.org/blacklists/submited_today
+    frequency: 15
+    history:
+    - 1440
+    - 10080
+    - 43200
+    ipv: ipv4
+    output: ipset
+    processor:
+    - parse_cleantalk
+    processor_raw: parse_cleantalk
+    category: service_abuse
+    info: '[CleanTalk](https://cleantalk.org/) Recent HTTP Spammers'
+    maintainer: CleanTalk
+    maintainer_url: https://cleantalk.org/
+    accept_empty: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T01:17:59Z'
+      official_name: CleanTalk Block Lists
+      official_url: https://cleantalk.org/blacklists
+      short_description: Daily subset of IPs and email addresses flagged for spam
+        activity by CleanTalk's distributed feedback network, drawn from over 1,200
+        connected websites.
+      long_description: The Submitted Today feed exposes records that were newly added
+        on the current day to CleanTalk's Block Lists database. According to the maintainer's
+        documentation, entries are added automatically when three or more negative
+        feedback events — account deletions or removed messages — are recorded from
+        distinct websites running CleanTalk plugins or API integrations for the same
+        IP or email address. Conversely, if a blocked entry is manually approved through
+        the automoderation queue, positive feedback removes it from the list. The
+        maintainer states the underlying network spans more than 1,200 connected websites,
+        and that new spammers are usually recorded within one to two hours of first
+        detection. CleanTalk explicitly notes that the full data-collection methodology
+        is proprietary and not publicly disclosed beyond the feedback-algorithm description.
+      roles:
+      - role: maintainer
+        name: CleanTalk Inc.
+        organization_type: commercial
+        official_url: https://cleantalk.org/
+        contact_email: support@cleantalk.org
+        based_in: United States (Nevada)
+        active_since:
+        notes: CleanTalk Inc. is a Nevada-registered commercial entity (EIN 98-1197400)
+          operating the CleanTalk anti-spam SaaS platform. The company is headquartered
+          in Lincolnshire, Illinois, with a registered office in Carson City, Nevada.
+          Governing law is the State of Nevada, USA. The founding year is not publicly
+          stated.
+      derivation:
+        type: original
+        description: "The feed is produced by CleanTalk's own anti-spam cloud infrastructure.
+          IPs and email addresses enter the database through a feedback-weighted algorithm:
+          when three or more distinct websites running CleanTalk plugins or API integrations
+          independently report negative activity (deleted accounts or removed messages)
+          for the same source, the entry is automatically added to the blacklist.
+          Positive feedback — manually approving an auto-denied submission — reverses
+          the listing. The network comprises more than 1,200 connected websites contributing
+          moderation decisions in real time. The SpamFireWall pre-filter stage checks
+          incoming HTTP requests against a database of identified spam bot IPs before
+          the visitor reaches the application layer. The offline database distributes
+          tiered snapshots in CSV and IPSet formats, updated every hour."
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added automatically when three or more distinct websites
+          in CleanTalk's connected network independently report negative activity
+          — specifically, deleting a user account after approving a registration,
+          or removing a message that was initially auto-approved — for the same IP
+          address or email address. The threshold of three ensures cross-validation
+          from multiple independent sources before a listing is issued.
+        criteria:
+        - At least three negative feedback events (account deletions or removed messages)
+          from distinct connected websites for the same IP or email address
+        - Feedback must originate from websites running CleanTalk plugins or API integrations
+        - Listings take effect within one to two hours of the third qualifying feedback
+          event
+      unlisting_policy:
+        summary: Entries are removed automatically when positive feedback is recorded
+          — meaning a submission that CleanTalk's automoderator initially blocked
+          is later manually approved by a site administrator. For self-service removal,
+          the record holder can initiate deletion through the public blacklist page;
+          the deletion executes after a three-day waiting period if no new spam activity
+          is registered for that entry during the interval.
+        criteria:
+        - 'Positive feedback: an automoderator-blocked submission manually approved
+          by a site administrator'
+        - 'Self-service deletion via the public blacklist page: deletion executes
+          three days after initiation if no new spam reports arrive during the waiting
+          period'
+        - 'Support escalation: private ticket for disputed or stalled removals'
+      unlist_request:
+        url: https://cleantalk.org/blacklists
+        email:
+        instructions: Navigate to cleantalk.org/blacklists and search for the IP address
+          or email address. Click the **Tools** menu and select **Delete the record**.
+          The deletion executes after a three-day waiting period if no new spam activity
+          is reported for that entry during the interval. If the self-service deletion
+          does not succeed, open a private support ticket at cleantalk.org/my/support/open.
+      update_frequency:
+        frequency: 1h
+        human_readable: The offline database is updated every hour, per the maintainer's
+          block lists page.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods:
+        - honeypot
+        - user_submission
+        description: The feed is built from a reputation-aggregation system driven
+          by cross-site manual moderation feedback. When three or more distinct websites
+          independently report negative activity for the same IP or email, the entry
+          is automatically listed. Secondary detection mechanisms include honeypot
+          fields embedded in forms (hidden CSS fields that automated bots fill but
+          human visitors cannot perceive) and direct user submissions via the public
+          abuse-reporting form at cleantalk.org/blacklists/report-ip.
+      scope_and_intent:
+        description: CleanTalk Block Lists is intended for filtering spam across website
+          entry points — form submissions, user registrations, comments, contact messages,
+          orders, bookings, and surveys — and for identifying subscribers with spam-associated
+          email addresses in existing mailing lists.
+        intended_for:
+        - Filtering spam in website forms, registrations, comments, contact messages,
+          orders, bookings, and surveys
+        - Identifying spam-associated email addresses in subscriber mailing lists
+        - Reducing payment card fraud and chargebacks by blocking known fraudulent
+          IPs at checkout
+        - Integration with firewalls and automation tools via IPSet-format downloads
+        not_intended_for: []
+      license: CleanTalk License Agreement (proprietary)
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms: Redistribution to third parties is prohibited without prior written
+          consent of the Copyright Holder. The license is non-transferable.
+      current_status:
+        state: active
+        description: Active and maintained. The offline database is updated every
+          hour. The WordPress plugin repository shows regular commits through May
+          2026. CleanTalk continues to publish block list data, respond to support
+          tickets, and release plugin updates.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Community discussion of the underlying CleanTalk block list documents
+          recurring false-positive concerns affecting both newly added and existing
+          records. A Reddit user in August 2025 described an escalating false-positive
+          rate earlier that year, with IPs being blocked based on a single historical
+          report and emails from the user's own form incorrectly flagged, and noted
+          the absence of tunable sensitivity thresholds. CleanTalk's own help documentation
+          acknowledges false positives stemming from non-standard form implementations,
+          third-party plugin interference, VPN IP overlap, and email input errors,
+          with resolution procedures documented. The maintainer has responded publicly
+          to false-positive reports, attributing some instances to third-party plugin
+          updates altering form behavior.
+        engagement: The Submitted Today feed page exposes a public abuse-reporting
+          form at cleantalk.org/blacklists/report-ip, allowing community members to
+          submit IPs and email addresses for inclusion. Top contributors of feedback
+          to the block list database are credited on the block lists page. Public
+          discussion specific to this daily-additions view is sparse; most community
+          discussion is about the broader CleanTalk block list product and is captured
+          at the maintainer level.
+      sources_consulted:
+      - url: https://cleantalk.org/
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://cleantalk.org/blacklists
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://cleantalk.org/blacklists/submited_today
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://cleantalk.org/help/faq
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://cleantalk.org/help/deletion-from-public-page
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://cleantalk.org/help/false-positives
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://cleantalk.org/help/blacklists-api
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://cleantalk.org/price-database-api
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://cleantalk.org/blacklists/report-ip
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://github.com/CleanTalk/wordpress-antispam
+        document_date:
+        validation_date: '2026-05-19'
+      - url: 
+          https://www.reddit.com/r/Wordpress/comments/1n7jpni/cleantalk_started_giving_too_many_false_positives/
+        document_date: '2025-08-04'
+        validation_date: '2026-05-19'
+      - url: 
+          https://www.wordfence.com/blog/2024/11/200000-wordpress-sites-affected-by-unauthenticated-critical-vulnerabilities-in-anti-spam-by-cleantalk-wordpress-plugin
+        document_date: '2024-11-14'
+        validation_date: '2026-05-19'
+      - url: https://wordpress.org/support/topic/legitimate-users-being-blocked-from-form
+        document_date: 2024-04
+        validation_date: '2026-05-19'
+      - url: https://wordpress.org/support/topic/too-many-problems-to-be-of-use
+        document_date: 2024-01
+        validation_date: '2026-05-19'
+      - url: https://xenforo.com/community/resources/antispam-by-cleantalk.5804/reviews
+        document_date:
+        validation_date: '2026-05-19'

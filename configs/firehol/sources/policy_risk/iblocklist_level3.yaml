@@ -1,0 +1,193 @@
+sources:
+  iblocklist_level3:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=uwnukjqktoggdknzrhgh&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Level 3 (for use in p2p). Many portal-type websites. ISP ranges that may
+      be dodgy for some reason. Ranges that belong to an individual, but which have
+      not been determined to be used by a particular company. Ranges for things that
+      are unusual in some way. The L3 list is aka the paranoid list.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T09:47:33Z'
+      official_name: level3
+      official_url: https://www.iblocklist.com/list?list=uwnukjqktoggdknzrhgh
+      short_description: A policy-based IP blocklist targeting ISP ranges classified
+        as suspicious, anomalous, or belonging to unidentified individuals — commonly
+        referred to as the 'paranoid list' for P2P networks.
+      long_description: "The level3 list is a policy-assignment blocklist originally
+        compiled by Bluetack and distributed through iblocklist.com's subscription
+        service. Per the official description, it targets ISP address ranges that
+        exhibit anomalous characteristics — including portal-type websites, ranges
+        of unclear ownership, and addresses associated with unidentified individuals
+        or unusual network behaviour. It is colloquially known among P2P network operators
+        as 'the paranoid list' given its broad, risk-averse scope.\n\nThe feed is
+        distributed in PeerGuardian/P2P blocklist format (.p2p), along with DAT, CIDR,
+        and HOSTS formats. Compatible software includes PeerBlock, PeerGuardian, iplist,
+        Vuze, Transmission, uTorrent, Tixati, and pfBlocker. The service is operated
+        by iblocklist, LLC, trading as I-BlockList."
+      roles:
+      - role: maintainer
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Operates the iblocklist.com subscription platform that repackages and
+          distributes the Bluetack blocklists, including level3. Trading as I-BlockList.
+          Platform-wide community criticism of iBlocklist (billing practices, support
+          responsiveness, perceived staleness of redistributed feeds in general) applies
+          at the maintainer level rather than being specific to this level3 list.
+      - role: original_author
+        name: Bluetack
+        organization_type: unknown
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: The original author credited on the level3 list. The Bluetack blocklist
+          collection predates the iblocklist.com distribution platform.
+      derivation:
+        type: partial_mirror
+        description: The level3 list originates from Bluetack's original compilation
+          of policy-classified ISP ranges. iblocklist.com acts as the repackaging
+          distributor, serving the list in multiple formats (P2P/DAT/CIDR/HOSTS) to
+          subscribers. The list is not generated from active detection sensors or
+          honeypots — it reflects categorical policy assignments made by Bluetack's
+          curators.
+        source_feeds: []
+      listing_policy:
+        summary: "Entries are assigned to level3 based on Bluetack's categorical policy
+          criteria: ISP address ranges exhibiting anomalous characteristics including
+          portal-type websites, ranges of unclear or unidentified ownership, and addresses
+          associated with individual subscribers rather than corporate entities. The
+          scope is intentionally broad — targeting any range deemed 'unusual in some
+          way' — which gives the list its 'paranoid list' nickname among P2P network
+          operators."
+        criteria:
+        - ISP ranges assessed as suspicious or anomalous by Bluetack curators
+        - Ranges belonging to unidentified individuals (ownership not attributed to
+          a named company)
+        - Portal-type websites and ranges of unclear purpose
+        - Any address range judged unusual in isolation from criminal-activity evidence
+      unlisting_policy:
+        summary: No unlisting mechanism is documented on iblocklist.com. The support
+          page returned no actionable content, and neither the Level3 list page nor
+          the ToS describes a process for requesting removals. Subscribers wishing
+          to contest a listing must contact iblocklist.com support with no guarantee
+          of response.
+        criteria:
+        - No documented manual unlisting process
+        - No published automatic expiration or decay policy for this feed
+      unlist_request:
+        url:
+        email:
+        instructions: No unlisting channel is publicly documented. The iblocklist.com
+          support page (https://www.iblocklist.com/support) does not describe a removal
+          request process. Third parties seeking removal of their IPs from the level3
+          list have no documented pathway through iblocklist.com.
+      update_frequency:
+        frequency:
+        human_readable:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: 'The level3 list is built through categorical policy assignment
+          — Bluetack curators classify ISP address ranges based on perceived anomalous
+          characteristics rather than confirmed malicious activity. Entries reflect
+          curator judgment about network character (suspicious portals, unidentified
+          ownership, unusual routing) rather than incident-driven detection from honeypots,
+          sandboxes, or malware analysis. This is a policy-risk list: it flags ranges
+          that pose elevated risk by nature of their characteristics, not by demonstrated
+          hostile use.'
+      scope_and_intent:
+        description: The level3 list targets ISP address ranges assessed as anomalous
+          or suspicious by Bluetack curators, with broad scope encompassing portal-type
+          websites, unidentified ownership ranges, and any address deemed unusual.
+          Its intentionally wide coverage has earned it the nickname 'the paranoid
+          list' in P2P network communities.
+        intended_for:
+        - P2P network operators seeking broad outbound-blocking coverage
+        - Desktop firewall applications (PeerGuardian, PeerBlock, iplist)
+        - Risk-averse network perimeter filtering
+        not_intended_for:
+        - Precision incident-response workflows requiring confirmed malicious activity
+        - Automated commercial threat-intelligence pipelines
+        - Environments where high false-positive rates are unacceptable
+      license: iBlocklist Terms of Service — personal / non-commercial only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The iBlocklist.com Terms of Service prohibit redistribution and public
+          display of the downloaded materials. The license is personal-use only and
+          terminates automatically upon violation. Redistribution — including incorporation
+          into other blocklist catalogs or commercial products — is not permitted
+          under these terms.
+      current_status:
+        state: unknown
+        description: The iblocklist.com website remains operational as of the research
+          date (copyright extends to 2026), subscriptions are accepted, and the Level3
+          list URL is reachable. However, community reports across multiple independent
+          sources — dating from 2016 forum posts through 2024–2025 Trustpilot reviews
+          — consistently allege that the underlying Bluetack blocklist content has
+          not been actively updated for years, with frozen entries despite nominally
+          current file timestamps. No official announcement addressing these allegations
+          has been issued by iblocklist, LLC. The disconnect between an operational
+          payment infrastructure and alleged stagnant content leaves the maintenance
+          status genuinely indeterminate from publicly available evidence.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "Feed-specific community concerns: one community member reported
+          that the level3 list contained a malformed CIDR notation that caused network
+          disruption when interpreted by packet-filtering software — a feed-quality
+          issue distinct from broader platform complaints. More generally, the 'paranoid
+          list' framing is itself a maintainer-acknowledged caveat: by design, the
+          list flags ranges based on curator judgment rather than confirmed malicious
+          behavior, so operators consuming it for anything beyond P2P privacy enforcement
+          should expect a high false-positive rate."
+        engagement: Public discussion specifically about the level3 list is concentrated
+          in PeerGuardian/P2P-privacy communities where its broad scope is acknowledged.
+          Third-party alternatives (community-maintained Bluetack mirrors on GitHub)
+          are sometimes recommended for users wanting a similar policy scope under
+          active maintenance.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T09:47:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-18T09:47:00Z'
+      - url: https://www.iblocklist.com/list?list=uwnukjqktoggdknzrhgh
+        document_date:
+        validation_date: '2026-05-18T09:47:00Z'
+      - url: https://www.iblocklist.com/subscribe
+        document_date:
+        validation_date: '2026-05-18T09:47:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18T09:47:00Z'
+      - url: https://www.iblocklist.com/support
+        document_date:
+        validation_date: '2026-05-18T09:47:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-18T09:47:00Z'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-18T09:47:00Z'

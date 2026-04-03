@@ -1,0 +1,189 @@
+sources:
+  maxmind_proxy_fraud:
+    license: MaxMind GeoIP End User License Agreement
+    redistributable: false
+    url: https://www.maxmind.com/en/high-risk-ip-sample-list
+    frequency: 240
+    ipv: ipv4
+    output: ipset
+    processor:
+    - parse_maxmind_proxy_fraud
+    processor_raw: parse_maxmind_proxy_fraud
+    category: anonymizers
+    info: '[MaxMind.com](https://www.maxmind.com/en/high-risk-ip-sample-list) sample
+      list of high-risk IP addresses.'
+    maintainer: MaxMind.com
+    maintainer_url: https://www.maxmind.com/en/high-risk-ip-sample-list
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T10:57:15Z'
+      official_name: Sample list of high risk IP addresses
+      official_url: https://www.maxmind.com/en/high-risk-ip-sample-list
+      short_description: A curated sample of IP addresses flagged by MaxMind's minFraud
+        network for associations with anonymizing services, bot activity, or fraud-linked
+        behavioral patterns.
+      long_description: "This feed is a free sample published by MaxMind, Inc. as
+        a preview of their commercial minFraud IP risk intelligence. The IPs listed
+        are drawn from MaxMind's minFraud network, which aggregates transaction data
+        from more than 7,000 businesses worldwide — processing over three billion
+        transactions annually. When a fraudulent transaction is observed at any participating
+        merchant, the associated IP address receives an elevated risk score that propagates
+        across the entire network.\n\nThe sample list is updated twice monthly. MaxMind
+        explicitly notes that it represents only a tiny fraction of the IPs flagged
+        by the minFraud service, and that risk can vary by context — the same IP may
+        appear low-risk in one scenario and high-risk in another. For production fraud
+        prevention, MaxMind offers the minFraud Score API (real-time risk scoring
+        powered by machine learning) and the GeoIP Anonymous IP database (daily updates).\n\
+        \nThe feed is intended for testing and research purposes. Operators planning
+        to use IP-based fraud signals in production should evaluate MaxMind's commercial
+        offerings rather than relying on this static sample."
+      roles:
+      - role: maintainer
+        name: MaxMind, Inc.
+        organization_type: commercial
+        official_url: https://www.maxmind.com
+        contact_email: support@maxmind.com
+        based_in: United States
+        active_since: '2002'
+        notes: MaxMind is a commercial provider of IP intelligence and fraud prevention
+          services. The high-risk IP sample list is published as a free preview of
+          their commercial minFraud and GeoIP Anonymous IP offerings.
+      derivation:
+        type: original
+        description: Derived from MaxMind's minFraud network, which aggregates transaction
+          data from more than 7,000 participating businesses processing over three
+          billion transactions annually. IPs receive elevated risk scores when associated
+          with fraudulent transactions or fraud-linked behavioral patterns observed
+          across the network. The sample list extracts a small cross-section of flagged
+          addresses, updated biweekly.
+        source_feeds: []
+      listing_policy:
+        summary: IPs enter the sample list when associated with risk signals observed
+          across the minFraud network — a consortium of more than 7,000 merchants
+          processing over three billion annual transactions. Signals include anonymizing
+          services (VPNs, proxies, TOR exit nodes), bot activity, and behavioral patterns
+          correlated with fraudulent transactions. The same IP may score differently
+          depending on transaction context.
+        criteria:
+        - Association with anonymizing services such as VPNs, proxies, or TOR exit
+          nodes observed across the minFraud network
+        - Bot activity or automated behavior patterns linked to fraud
+        - Behavioral patterns (e.g., velocity anomalies across email addresses, billing
+          postal codes, or credit card issuer IDs) learned as higher-risk through
+          machine learning analysis of billions of transactions
+        - Elevated IP risk score resulting from any combination of the above signals
+      unlisting_policy:
+        summary: The sample list is a static preview and does not offer a public mechanism
+          for individual IP removal requests. For IPs believed to be incorrectly flagged
+          in MaxMind's commercial services, contact MaxMind support for investigation.
+        criteria:
+        - "Incorrect flagging: submit a support request to MaxMind's data review team
+          for investigation"
+        - Legitimately flagged IPs (actual anonymizers, fraud-associated addresses)
+          are not eligible for removal from the sample list
+      unlist_request:
+        url:
+        email: support@maxmind.com
+        instructions: Contact MaxMind support at support@maxmind.com if you believe
+          an IP is incorrectly flagged as an anonymizer in their commercial services.
+          Provide the IP address and transaction context. Do not ask the affected
+          customer to contact MaxMind directly. There is no public unlisting mechanism
+          for the sample list itself.
+      update_frequency:
+        frequency: 14d
+        human_readable: Updated twice monthly — approximately every two weeks.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods:
+        - malware_analysis
+        description: Reputation aggregation from MaxMind's minFraud network — a consortium
+          of more than 7,000 merchants processing over three billion transactions
+          annually. When a fraudulent transaction is observed at any participating
+          merchant, the associated IP address receives an elevated risk score propagated
+          across the entire network. Behavioral patterns (velocity anomalies, device
+          traits, email/billing correlations) are analyzed using machine learning
+          to identify fraud-linked signatures beyond known bad actors. Bot activity
+          and anonymizer association are detected through network-level pattern analysis.
+      scope_and_intent:
+        description: MaxMind publishes this sample list as a preview of their commercial
+          minFraud IP risk intelligence. The stated purpose is testing and research
+          — demonstrating which IP addresses carry elevated risk scores in the minFraud
+          network.
+        intended_for:
+        - Testing and research involving IP-based fraud signals
+        - Evaluating MaxMind's IP risk intelligence capabilities before purchasing
+          commercial services
+        - Understanding the types of anonymizer and fraud-associated IPs detected
+          by the minFraud network
+        not_intended_for:
+        - Production fraud prevention decisions (use the minFraud Score API instead)
+        - Geolocation or content targeting (use the GeoIP Anonymous database instead)
+        - Standalone blocking decisions — the sample represents a tiny fraction of
+          flagged IPs and risk varies by context
+        - FCRA-regulated decisions — MaxMind explicitly disclaims consumer reporting
+          agency status
+      license: MaxMind GeoIP End User License Agreement
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required: Copyright notices must not be removed or obscured
+        terms: The MaxMind GeoIP End User License Agreement permits use for Internal
+          Restricted Business Purposes only. GeoIP Databases may not be redistributed,
+          sublicensed, sold, or used to build derivative databases without MaxMind's
+          prior written consent. Web Services may be sublicensed to customers under
+          specific conditions. Commercial or redistribution licenses require contacting
+          enterprise@maxmind.com.
+      current_status:
+        state: active
+        description: Active. Maintained as of May 2026 with regular twice-monthly
+          updates published to the MaxMind website.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Public criticism specifically about this sample list is limited.
+          Community feedback notes that, as a static twice-monthly snapshot of a tiny
+          fraction of minFraud-flagged addresses, the sample is too small and too
+          stale to drive blocking decisions on its own — operators looking to act
+          on MaxMind IP signals are pushed toward the commercial minFraud Score API
+          or GeoIP Anonymous IP database.
+        engagement: Public community discussion about this specific sample list is
+          sparse. Most threads referencing MaxMind IP risk are about the commercial
+          minFraud and Anonymous IP services rather than this free sample. MaxMind's
+          support team handles incorrect-flagging reports via support@maxmind.com
+          rather than through public discussion of the sample list.
+      sources_consulted:
+      - url: https://www.maxmind.com/en/high-risk-ip-sample-list
+        document_date:
+        validation_date: '2026-05-16'
+      - url: https://www.maxmind.com/en/site-license-overview
+        document_date:
+        validation_date: '2026-05-16'
+      - url: https://www.maxmind.com/en/end-user-license-agreement
+        document_date:
+        validation_date: '2026-05-16'
+      - url: 
+          https://support.maxmind.com/knowledge-base/articles/anonymizer-and-proxy-data-maxmind
+        document_date:
+        validation_date: '2026-05-16'
+      - url: https://support.maxmind.com/knowledge-base/articles/the-minfraud-network-maxmind
+        document_date:
+        validation_date: '2026-05-16'
+      - url: https://www.maxmind.com/en/solutions/proxy-vpn-fraud-detection
+        document_date:
+        validation_date: '2026-05-16'
+      - url: https://dev.maxmind.com/minfraud/release-notes/2024/
+        document_date:
+        validation_date: '2026-05-16'
+      - url: https://dev.maxmind.com/minfraud/release-notes/2025/
+        document_date:
+        validation_date: '2026-05-16'
+      - url: 
+          https://lowendtalk.com/discussion/27589/maxmind-has-deemed-your-order-to-be-potentially-high-risk-and-therefore-it-has-been-held-for-manual
+        document_date:
+        validation_date: '2026-05-16'
+      - url: 
+          https://www.reddit.com/r/AskNetsec/comments/18izjq9/ip_reputation_scoring_database/
+        document_date:
+        validation_date: '2026-05-16'

@@ -1,0 +1,197 @@
+sources:
+  misp_skipa_scanners:
+    license: CC0 1.0 (MISP warninglists)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/skipa-nt-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Skipa scanner
+      ranges extracted from CIRCL network telescope analysis. Informational - not
+      for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T00:31:12Z'
+      official_name: Skipa IP Ranges Used for Scanning
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: A MISP warninglist identifying IP ranges used by the Skipa
+        scanner, extracted from CIRCL passive darknet observation of unsolicited scanning
+        traffic targeting unused address space.
+      long_description: "The Skipa IP Ranges Used for Scanning warninglist is maintained
+        within the MISP warninglists project and records IP ranges associated with
+        the Skipa scanner, a known Internet scanning tool. The ranges are extracted
+        from analysis conducted by CIRCL (Computer Incident Response Center Luxembourg)
+        using their network telescope — a segment of routed but unused IP address
+        space that receives no legitimate inbound traffic. Any packet arriving at
+        this darknet is inherently suspicious, as regular users or services should
+        not send packets to unassigned addresses. By observing which source IPs send
+        unsolicited probes to this address space, CIRCL identifies active scanners
+        and publishes their ranges as a MISP warninglist.\n\nThe list is formatted
+        as CIDR blocks compatible with MISP's matching_attributes system, covering
+        ip-src, ip-dst, domain|ip, ip-dst|port, and ip-src|port attribute types. As
+        a MISP warninglist, its intended role is informational — alerting analysts
+        when an indicator matches a known scanner source so the analyst can assess
+        relevance rather than act on it as a definitive malicious indicator."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: non_profit
+        official_url: https://github.com/MISP/misp-warninglists
+        contact_email:
+        based_in: Luxembourg
+        active_since: '2017'
+        notes: The MISP Project maintains the warninglists repository and coordinates
+          contributions via GitHub pull requests. Individual warninglists within the
+          repository may originate from external sources (such as CIRCL for this list).
+      - role: source_contributor
+        name: CIRCL Luxembourg
+        organization_type: research_institution
+        official_url: https://www.circl.lu
+        contact_email:
+        based_in: Luxembourg
+        active_since:
+        notes: CIRCL (Computer Incident Response Center Luxembourg) operates the network
+          telescope from which the Skipa scanner IP ranges are extracted. CIRCL also
+          contributes active and passive scanning data used across multiple MISP warninglists.
+      derivation:
+        type: extraction
+        description: The Skipa scanner IP ranges are identified through CIRCL's network
+          telescope — a passive darknet consisting of a portion of routed but unused
+          IP address space (/18 block). Because no legitimate services operate on
+          this address space, any inbound packet is inherently suspicious and represents
+          unsolicited scanning activity. CIRCL logs the source IPs of these probes
+          and analyzes patterns to classify scanning tools. When the Skipa scanner
+          is identified as a recurring source of probing traffic, its associated IP
+          ranges are extracted and published as a MISP warninglist entry. The list
+          is formatted as CIDR blocks and contributed to the MISP warninglists repository.
+          No other IP feeds are consumed in producing this list.
+        source_feeds: []
+      listing_policy:
+        summary: An IP range qualifies for the Skipa scanner warninglist when CIRCL's
+          network telescope observes it sending unsolicited probes to unused darknet
+          address space and the scanning signature is identified as consistent with
+          the Skipa scanner tool. The determination is made through CIRCL's analytical
+          process; the specific classification criteria (packet signatures, port preferences,
+          behavioral patterns) are not publicly documented beyond the network telescope
+          methodology.
+        criteria:
+        - Observed sending unsolicited packets to CIRCL's darknet address space
+        - Identified as belonging to the Skipa scanner through pattern analysis
+        - Confirmed as a scanner-range (not a victim host) through source attribution
+      unlisting_policy:
+        summary: The MISP warninglists project does not publish a documented auto-decay
+          or scheduled review policy for individual lists. Removal of an entry from
+          the Skipa scanner warninglist occurs through community contribution — a
+          pull request updating or removing the CIDR range filed against the misp-warninglists
+          repository. There is no publicly stated automatic expiration window for
+          this specific list.
+        criteria:
+        - CIRCL determines the IP range is no longer associated with Skipa scanner
+          activity
+        - Community contributor submits a pull request to update or remove the entry
+        - Pull request reviewed and merged by MISP Project maintainers
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/pulls
+        email:
+        instructions: To request removal or correction of an IP range in the Skipa
+          scanner warninglist, submit a GitHub pull request against the misp-warninglists
+          repository. Fork the repository, modify or remove the entry in lists/skipa-nt-scanning/list.json,
+          increment the version field, and open a pull request describing the change.
+          There is no separate unlisting form or dedicated email address for this
+          specific list.
+      update_frequency:
+        frequency:
+        human_readable: The maintainer does not publish a stated update cadence for
+          this specific list. Updates occur on an ad-hoc basis when CIRCL's analysis
+          identifies changes in the Skipa scanner's IP ranges or when a community
+          contributor submits a correction.
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: "The Skipa scanner IP ranges are detected through CIRCL's network
+          telescope — a passive darknet. A network telescope (also called a darknet
+          or blackhole) is a block of routed but unused IP address space. Because
+          no legitimate services operate on these addresses, any inbound packet is
+          unsolicited and represents either automated scanning or anomalous traffic.
+          CIRCL logs the source IP of each probe and uses analytical methods to classify
+          the scanning tool. When activity is attributed to the Skipa scanner, the
+          associated IP ranges are extracted and published. This is a passive detection
+          method: no packets are sent to the suspected scanner; the scanner sends
+          packets to CIRCL's address space unsolicited."
+      scope_and_intent:
+        description: The Skipa IP Ranges Used for Scanning warninglist identifies
+          IP addresses and ranges associated with the Skipa scanner tool. Its purpose
+          within MISP is to alert analysts when an indicator matches a known scanning
+          source, so the analyst can contextualize the hit rather than treat it as
+          definitively malicious. The list is informational, not punitive.
+        intended_for:
+        - Alerting analysts when an indicator matches a known scanner source in MISP
+          events
+        - Reducing false positives when investigating scanning-related alerts
+        - Attributing observed scanning activity to the Skipa scanner tool
+        not_intended_for:
+        - Inline blocking or deny-listing at the network perimeter
+        - Automated enforcement actions based solely on warninglist match
+        - Determining maliciousness of an asset — a scanner hit does not imply compromise
+      license: CC0 1.0 Universal (CC0 1.0) — Public Domain Dedication
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal Public Domain Dedication places this work in the
+          public domain. No rights reserved. The maintainer notes that authors wishing
+          a different license for their specific list may request a pull request to
+          change it.
+      current_status:
+        state: active
+        description: Active. The Skipa scanner warninglist is present in the misp-warninglists
+          repository and is refreshed through periodic CIRCL Network Telescope update
+          PRs.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion specifically about the Skipa scanner
+          warninglist is sparse. No Reddit posts, GitHub issues, or forum threads
+          referencing 'Skipa' as a MISP warninglist entry were found despite targeted
+          searching across multiple platforms. Broader community discussion about
+          MISP warninglists generally reflects the project's established role as a
+          false-positive reduction aid — practitioners discuss warninglists as informational
+          tools and note that source quality determines effectiveness.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/skipa-nt-scanning/list.json
+        document_date: '2026-03-13'
+        validation_date: '2026-05-19'
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://www.circl.lu/doc/misp/warninglists/
+        document_date: '2024-10-02'
+        validation_date: '2026-05-19'
+      - url: https://www.circl.lu/projects/scanning/
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://github.com/MISP/misp-warninglists/tree/main/lists/skipa-nt-scanning
+        document_date: '2026-03-13'
+        validation_date: '2026-05-19'
+      - url: https://www.reddit.com/r/threatintel/comments/1fljbxz/misp/
+        document_date: '2024-09-20'
+        validation_date: '2026-05-19'
+      - url: 
+          https://www.reddit.com/r/blueteamsec/comments/azcvc2/mispwarninglists_warning_lists_to_inform_users_of/
+        document_date: '2019-03-09'
+        validation_date: '2026-05-19'
+      - url: https://pretalx.com/bsidesluxembourg-2026/talk/APBPPQ
+        document_date:
+        validation_date: '2026-05-19'

@@ -1,0 +1,108 @@
+merges:
+  critical_soft_akamai_edge_secondary:
+    license: CC0 1.0 (MISP warninglists)
+    redistributable: true
+    label: Akamai edge ranges (secondary)
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    category: provider_infrastructure
+    provenance: secondary_merge
+    info: MISP warninglists Akamai ranges. Secondary reference feed because no equivalent
+      official Akamai edge range feed is currently available.
+    maintainer: FireHOL
+    maintainer_url: http://iplists.firehol.org/
+    sources:
+    - misp_akamai
+    use: [critical_infrastructure]
+    critical:
+      tier: soft
+      role: cdn_edge
+      source_type: secondary
+      source_quality: D
+      rationale: Akamai fronts software distribution, commerce, media, and major SaaS
+        properties, but this range source is secondary and broad; overlap should trigger
+        review, not automatic rejection.
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-27T06:30:35Z'
+      official_name: Critical Soft Akamai Edge Secondary
+      official_url:
+      short_description: MISP warninglists Akamai ranges. Secondary reference feed
+        because no equivalent official Akamai edge range feed is currently available.
+      long_description: "MISP warninglists Akamai ranges. Secondary reference feed
+        because no equivalent official Akamai edge range feed is currently available.\n\
+        \nComponents: misp_akamai."
+      roles:
+      - role: maintainer
+        name: FireHOL catalog project
+        organization_type: informal_collective
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Maintained by the FireHOL catalog project as a public reference / aggregate.
+          This page is generated deterministically from the catalog YAML; the agent-based
+          enrichment used for third-party feeds does not run on FireHOL-maintained
+          feeds.
+      derivation:
+        type: aggregate_merge
+        description: Additive union of 1 component feed(s). The merge applies no scoring,
+          threshold, or filter beyond the union and the optional subtraction; all
+          listing decisions are inherited from the component feeds. Component feeds
+          are recomposed on each catalog refresh.
+        source_feeds:
+        - identifier: misp_akamai
+          relationship: aggregate_component
+          notes:
+      listing_policy:
+        summary: An IP appears in this merge if it appears in any of the 1 additive
+          component feed(s) listed below. The merge does not add IPs of its own.
+        criteria:
+        - 'IP appears in one or more of the additive component feeds: misp_akamai.'
+      unlisting_policy:
+        summary: Inherited from the component feeds. The merge does not maintain its
+          own whitelisting or per-entry unlist process. When a component feed removes
+          an IP, the next merge refresh drops the IP unless another component still
+          lists it.
+        criteria:
+        - All component feeds that previously listed the IP have removed it.
+      unlist_request:
+        url:
+        email:
+        instructions: 'This is an aggregate merge of component feeds; the merge does
+          not maintain its own unlist channel. To request that an IP be removed, identify
+          which component feed(s) list it and submit the removal request directly
+          to that maintainer. Component feeds: misp_akamai.'
+      update_frequency:
+      detection_classification:
+        primary_method: mixed
+        secondary_methods: []
+        description: 'This merge inherits detection methodology from its 1 additive
+          component feed(s). See each component for its specific detection method
+          (honeypot, sandbox, reputation aggregation, etc.). Component feeds: misp_akamai.'
+      scope_and_intent:
+        description: MISP warninglists Akamai ranges. Secondary reference feed because
+          no equivalent official Akamai edge range feed is currently available.
+        intended_for: []
+        not_intended_for: []
+      license: CC0 1.0 (MISP warninglists)
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: Component-feed license terms continue to apply; users should consult
+          each component's license before commercial or redistribution use.
+      current_status:
+        state: active
+        description: Maintained by FireHOL as a public catalog merge. Recomposed automatically
+          on each catalog refresh from the live state of the component feeds. Component
+          feeds that go offline or are archived are dropped from the merge by the
+          catalog engine.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement:
+      sources_consulted: []

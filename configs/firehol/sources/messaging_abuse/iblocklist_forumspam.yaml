@@ -1,0 +1,201 @@
+sources:
+  iblocklist_forumspam:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=ficutxiwawokxlcyoeye&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: messaging_abuse
+    provenance: secondary_upstream
+    info: Forum spam.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T02:39:41Z'
+      official_name: forumspam
+      official_url: https://www.iblocklist.com/list?list=ficutxiwawokxlcyoeye
+      short_description: A blocklist of IP addresses associated with forum and comment
+        spam, originally compiled by the Bluetack community and redistributed by iBlocklist.com.
+      long_description: "The forumspam blocklist targets IP addresses linked to automated
+        and manual forum and comment spam — content posted on discussion boards, wikis,
+        and blogs without genuine contribution. The list was originally created by
+        Bluetack Internet Security Solutions, a UK-based community project active
+        from approximately 2003, which developed IP blocklists primarily to protect
+        peer-to-peer users from anti-piracy surveillance organizations.\n\nBluetack
+        went offline in September 2015, cancelling PayPal processing and leaving its
+        blocklists frozen at that point in time. Since then, iBlocklist.com has continued
+        to redistribute the Bluetack lists in stable formats compatible with PeerBlock,
+        PeerGuardian, pfBlocker, and similar applications. Community analysis documents
+        that the underlying Bluetack data has not been meaningfully updated since
+        approximately 2016; timestamps embedded in distributed files are refreshed
+        without corresponding content changes.\n\nPer the iBlocklist.com Terms of
+        Service, the service is provided by iblocklist, LLC and grants permission
+        for personal use only. Commercial deployment and public display of the data
+        are expressly prohibited. The list pages prominently advertise the PhantomPeer
+        VPN service, which is the same operating entity's commercial product."
+      roles:
+      - role: publisher
+        name: iBlocklist.com
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: Distributes IP blocklists in P2P, DAT, and CIDR formats for use with
+          PeerBlock, PeerGuardian, pfBlocker, and similar applications. Operates as
+          iblocklist, LLC per the Terms of Service. Also operates the PhantomPeer
+          VPN service under the same parent entity. Platform-wide community criticism
+          of iBlocklist (auto-renewal billing, support responsiveness, perceived staleness
+          of redistributed feeds in general) applies at the publisher level rather
+          than being specific to this forumspam list.
+      - role: original_author
+        name: Bluetack Internet Security Solutions
+        organization_type: informal_collective
+        official_url:
+        contact_email:
+        based_in: United Kingdom
+        active_since: '2003'
+        notes: UK-based community project that created IP blocklists beginning around
+          2003, primarily to protect peer-to-peer users from anti-piracy organizations.
+          Developed the Block List Manager, B.I.M.S spidering system, Protowall, and
+          Hosts File Manager. Went offline in September 2015; the blocklists have
+          not been updated since. The lists remain available through redistribution
+          by iBlocklist.com.
+      derivation:
+        type: partial_mirror
+        description: iBlocklist.com redistributes the Bluetack forumspam list in stable
+          file formats (P2P, DAT, CIDR, gzip-compressed). The list contains IP addresses
+          associated with forum and comment spam as reported by community members
+          during Bluetack's active period (2003–2015). No active curation, scoring,
+          or enrichment is applied to the redistributed data. iBlocklist.com does
+          not document any supplementary inputs, sensor network, or API integration
+          for this specific list.
+        source_feeds:
+        - identifier: Bluetack forumspam
+          relationship: superset
+          notes: The original Bluetack forumspam list, frozen since approximately
+            2015. iBlocklist.com redistributes a subset of this list in various export
+            formats.
+      listing_policy:
+        summary: During Bluetack's active period, IPs were added to the forumspam
+          list based on community reports submitted by users who encountered spamming
+          activity. Moderators reviewed submissions and incorporated confirmed entries
+          into the blocklist. This process is no longer active; the list has not been
+          updated since Bluetack went offline in 2015.
+        criteria:
+        - Community-reported forum or comment spam incidents submitted by users
+        - Moderator review and approval before incorporation
+        - No automated scoring, honeypot, or sensor-network detection is documented
+          for this list
+      unlisting_policy:
+        summary: No unlisting or delist process is documented for the Bluetack forumspam
+          list. As a redistribution aggregator, iBlocklist.com does not curate the
+          list contents and has no mechanism to remove individual IPs. Requests would
+          need to be directed to the original list author, who is no longer active.
+        criteria:
+        - No automated expiry or decay mechanism is documented
+        - No manual delist request channel is published by iBlocklist.com
+        - No appeal or review process exists for entries on this list
+      unlist_request:
+      update_frequency:
+        frequency: 720h
+        human_readable: Nominal update interval of approximately 30 days per the catalog
+          configuration, though community evidence indicates the underlying data has
+          not been meaningfully refreshed since approximately 2016.
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods: []
+        description: During Bluetack's active period, IPs were added based on community
+          member reports of forum and comment spam encounters. A moderator reviewed
+          submissions before incorporating entries into the blocklist. No automated
+          detection infrastructure (honeypots, network telescopes, active scanning,
+          or sandbox analysis) is documented for this list. With Bluetack defunct
+          since 2015, no active detection occurs.
+      scope_and_intent:
+        description: The feed targets IP addresses used for automated and manual forum
+          and comment spam — content posted to discussion forums, wikis, and blog
+          comment sections without genuine contribution. It was designed for personal-use
+          protection by individuals running PeerBlock, PeerGuardian, or similar IP-filtering
+          applications.
+        intended_for:
+        - Personal IP filtering on workstations and servers
+        - Blocking forum and comment spam sources in personal or small-group environments
+        not_intended_for:
+        - Commercial deployment or automated ingestion in production systems
+        - Enterprise-scale security operations without manual review
+        - Automated blocking pipelines without false-positive mitigation
+      license: iBlocklist Terms of Service — personal / non-commercial only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The iBlocklist.com Terms of Service restrict use to personal, non-commercial
+          purposes. Redistribution, public display (commercial or non-commercial),
+          and commercial deployment are expressly prohibited.
+      current_status:
+        state: discontinued
+        description: The feed is considered discontinued. The original authoring project,
+          Bluetack Internet Security Solutions, went offline in September 2015 and
+          has not resumed operations. Community analysis documents that the underlying
+          data has not been meaningfully updated since approximately 2016; timestamps
+          in distributed files are refreshed without corresponding content changes.
+          iBlocklist.com continues to serve the frozen feed file, but no active maintenance,
+          curation, or update process is applied. The engine has not observed a content-changing
+          update.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: 'Feed-specific criticism is structural rather than reputational:
+          the Bluetack forumspam list relies on community submissions through a moderation
+          channel that has been inactive since the Bluetack project ended. With no
+          active triage of new spam reports and no documented automatic expiry, the
+          list reflects the threat landscape of a forum/comment-spam era that has
+          since shifted toward CAPTCHA bypass, OAuth-abused accounts, and AI-generated
+          spam — categories the original methodology was not designed to capture.'
+        engagement: Public discussion of this specific forumspam feed is limited.
+          The broader security community treats StopForumSpam as the active replacement
+          for forum-spam IP intelligence, given that project's continuous submission
+          and validation cadence; this feed is not commonly recommended in current
+          forum-spam mitigation discussions.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/terms
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.derman.com/blogs/Choosing-IP-Blocking-Lists
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.stopforumspam.com/faq
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://en.wikipedia.org/wiki/PeerGuardian
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://web.archive.org/web/2003*/http://bluetack.co.uk/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://forum.netgate.com/topic/89300/what-happened-to-bluetack-co-uk
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/support
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

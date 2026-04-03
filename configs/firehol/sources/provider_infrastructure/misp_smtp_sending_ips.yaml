@@ -1,0 +1,168 @@
+sources:
+  misp_smtp_sending_ips:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/smtp-sending-ips/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) known SMTP
+      sending IP ranges. Mail infrastructure reference, not a threat indicator.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T18:12:47Z'
+      official_name: List of known SMTP sending IP ranges
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: CIDR ranges of known legitimate SMTP sending infrastructure,
+        used by MISP to flag mail-server IPs as expected rather than suspicious.
+      long_description: "The smtp-sending-ips warninglist is a curated collection
+        of CIDR ranges belonging to known, legitimate SMTP sending infrastructure
+        — the IP address space used by established email service providers, mail relay
+        operators, and transactional email platforms. It was introduced to the MISP
+        warninglists repository in June 2021 and is maintained under the CC0 1.0 public-domain
+        dedication.\n\nThe list uses CIDR-type matching in MISP: any attribute typed
+        ip-src, ip-dst, domain|ip, ip-src|port, or ip-dst|port that falls within one
+        of the listed ranges triggers a warning notification in the MISP interface,
+        identifying the IP as a known mail sender rather than a potentially malicious
+        source. This is the inverse of a threat-indicator blocklist: it suppresses
+        false-positive alerts on infrastructure that is provably legitimate mail-relay
+        equipment.\n\nPer the maintainer's README, warninglists are integrated into
+        MISP to display an informational or warning box at the event and attribute
+        levels whenever matching indicators are found, and can be enabled or disabled
+        globally at the instance level. The smtp-sending-ips list ships as part of
+        the default warninglists bundle and is updated by the single designated maintainer
+        approximately two to three times per month, drawing on community submissions
+        via GitHub pull requests."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://www.misp-project.org/
+        contact_email:
+        based_in: Luxembourg
+        active_since: '2016'
+        notes: The MISP Project is hosted and governed by CIRCL (Computer Incident
+          Response Center Luxembourg), a government-affiliated research institution.
+          The smtp-sending-ips list specifically is maintained by Alexandre Dulaunoy
+          (GitHub handle adulau), who has authored all 34 commits to the directory
+          since its creation in June 2021.
+      derivation:
+        type: original
+        description: The feed is compiled from community-reported SMTP sending infrastructure
+          submitted via GitHub pull requests. The maintainer reviews proposed additions
+          and merges them into the list.json file. No automated generation script
+          is associated with this specific list; the directory contains only the list.json
+          file. The broader misp-warninglists repository uses a generate_all.sh tool
+          at the repository root for batch operations, but smtp-sending-ips is maintained
+          manually.
+        source_feeds: []
+      listing_policy:
+        summary: An IP range is listed when it represents known, legitimate SMTP sending
+          infrastructure — the outbound mail-relay address space of established email
+          service providers, transactional email platforms, or mailing-list operators.
+          The intent is to identify provably benign mail senders, not to enumerate
+          threats.
+        criteria:
+        - The IP range must correspond to an SMTP sending service that operates as
+          a legitimate, opt-in mail relay for end users or organisations
+        - The range must be in active use as a mail origination or transit address,
+          not merely registered to a mail provider
+        - Submission is made via GitHub pull request; the maintainer reviews and approves
+          additions
+      unlisting_policy:
+        summary: Removals are handled via GitHub pull request or issue on the misp-warninglists
+          repository. The maintainer reviews and merges removal proposals. No automatic
+          expiry or decay mechanism is documented for this list.
+        criteria:
+        - Removal is requested via GitHub pull request modifying list.json, or via
+          a GitHub issue opened against the repository
+        - The maintainer reviews the request and merges the change if warranted
+        - No automatic TTL or time-based expiration is applied to entries
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/issues/new
+        email:
+        instructions: To request removal of an IP range from smtp-sending-ips, open
+          a GitHub issue at https://github.com/MISP/misp-warninglists/issues/new describing
+          the range(s) to be removed and the justification, or submit a pull request
+          directly modifying the list.json file.
+      update_frequency:
+        frequency:
+        human_readable: Approximately two to three times per month, per the maintainer's
+          commit history; no formal cadence is publicly committed.
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods: []
+        description: Entries are added via community pull requests to the misp-warninglists
+          GitHub repository. The maintainer reviews proposed additions and merges
+          approved changes into the list.json file. This is human-curated compilation,
+          not automated threat detection.
+      scope_and_intent:
+        description: The smtp-sending-ips list identifies known, legitimate SMTP sending
+          infrastructure so that MISP users can distinguish legitimate mail-relay
+          activity from suspicious IP activity in their events. It is a false-positive
+          suppression list, not a threat-indicator feed.
+        intended_for:
+        - Suppressing false-positive alerts on known mail sending infrastructure within
+          MISP events
+        - Enriching IP attributes with context about legitimate SMTP senders during
+          event triage
+        - Filtering or annotating IP-based indicators in MISP exports via the enforceWarninglist
+          parameter
+        not_intended_for:
+        - Blocking or dropping traffic at the network perimeter — this is a context
+          list, not a blocklist
+        - Threat indicator enrichment — the listed IPs are not malicious by definition
+        - Real-time email delivery scoring or sender reputation assessment
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: Under CC0 1.0, the data is released to the public domain with no restrictions.
+          No attribution is required, though crediting MISP / CIRCL is customary practice.
+      current_status:
+        state: active
+        description: Active. Regular updates are posted to the GitHub repository approximately
+          two to three times per month. The latest version (20260428) was published
+          on 28 April 2026. The maintainer (adulau) continues to merge changes.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: A GitHub issue opened in August 2025 requesting the addition of
+          Aruba IP addresses (AS31034) to smtp-sending-ips has remained open for approximately
+          nine months without a maintainer response, illustrating the latency characteristic
+          of a volunteer-maintained feed with a single designated reviewer.
+        engagement: Public discussion about smtp-sending-ips specifically is sparse.
+          The MISP community engages with warninglists primarily through GitHub issues
+          and pull requests; the feed is integrated into MISP instances globally via
+          the warninglists submodule and is referenced in the MISP Book user guide.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/smtp-sending-ips/list.json
+        document_date: '2026-04-28'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.circl.lu/doc/misp/warninglists/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/issues/300
+        document_date: '2025-08-08'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/commits/main/lists/smtp-sending-ips
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://creativecommons.org/publicdomain/zero/1.0/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

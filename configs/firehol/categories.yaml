@@ -1,0 +1,58 @@
+categories:
+  intrusion:
+    label: Intrusion
+    description: IPs observed initiating hostile access attempts against exposed services, including brute force, exploitation, and active attack traffic.
+    color: "#dc2626"
+    sort_order: 10
+  malware_infrastructure:
+    label: Malware Infrastructure
+    description: IPs that host, distribute, control, or receive traffic for malware, botnets, ransomware, stealers, loaders, C2, or exfiltration.
+    color: "#be123c"
+    sort_order: 20
+  messaging_abuse:
+    label: Messaging Abuse
+    description: IPs used to send spam, phishing, comment spam, harvesting, or other abuse where the message-delivery channel itself is the main signal.
+    color: "#ca8a04"
+    sort_order: 30
+  service_abuse:
+    label: Service Abuse
+    description: IPs abusing exposed internet services or protocols without being primarily malware infrastructure, such as SIP, DNS, forum, or hostile web automation abuse.
+    color: "#ea580c"
+    sort_order: 40
+  anonymizers:
+    label: Anonymizers
+    description: IPs whose main significance is hiding origin or bypassing policy, including Tor exits, VPN exits, open proxies, and relay infrastructure.
+    color: "#0891b2"
+    sort_order: 50
+  scanners:
+    label: Scanners
+    description: IPs whose defining behavior is systematic internet probing, measurement, enumeration, or widespread reconnaissance.
+    color: "#7c3aed"
+    sort_order: 60
+  policy_risk:
+    label: Policy / Risk
+    description: IPs or ranges blocked mainly for trust, safety, or local policy reasons rather than a single observed attack pattern.
+    color: "#2563eb"
+    sort_order: 70
+  provider_infrastructure:
+    label: Provider Infrastructure
+    description: Known cloud, hosting, CDN, corporate, and platform ranges useful for classification, whitelisting, filtering, or policy boundaries, but not malicious by themselves.
+    color: "#0d9488"
+    sort_order: 80
+  special_use:
+    label: Special Use
+    description: Private, reserved, multicast, documentation, and otherwise special-use or non-routable address space that should not appear as normal public internet endpoints.
+    color: "#64748b"
+    sort_order: 90
+  geolocation:
+    label: Geolocation
+    description: IP-to-country datasets used to attribute feeds geographically and explain where address space appears to originate.
+    color: "#0f766e"
+    sort_order: 100
+    public: false
+  asn:
+    label: ASN
+    description: IP-to-ASN datasets used to attribute feeds to autonomous systems and identify infrastructure concentration.
+    color: "#0369a1"
+    sort_order: 110
+    public: false

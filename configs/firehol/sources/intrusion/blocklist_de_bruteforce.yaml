@@ -1,0 +1,210 @@
+sources:
+  blocklist_de_bruteforce:
+    license: public feed
+    redistributable: true
+    url: http://lists.blocklist.de/lists/bruteforcelogin.txt
+    frequency: 15
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[Blocklist.de](https://www.blocklist.de/) All IPs which attacks Joomla,
+      Wordpress and other Web-Logins with Brute-Force Logins.'
+    maintainer: Blocklist.de
+    maintainer_url: https://www.blocklist.de/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T15:22:19Z'
+      official_name: blocklist.de — Bruteforce Login
+      official_url: https://www.blocklist.de/
+      short_description: Tracks IP addresses that have launched brute-force login
+        attacks against Joomla, WordPress, and other web applications, sourced from
+        a global network of fail2ban partner servers.
+      long_description: "The bruteforce login feed captures IP addresses observed
+        attempting brute-force logins against Joomla, WordPress, and other web-based
+        login portals, as reported by the Blocklist.de partner network of Fail2Ban-equipped
+        servers.\n\nEntries are regenerated every 30 minutes and carry an automatic
+        48-hour expiration: IPs drop off the list unless re-reported. The Blocklist.de
+        service cross-checks reported IPs against allow-lists from dnswl.org and spamhauswhitelist.org
+        and excludes known Tor exit nodes. For the shared sensor-network model, the
+        X-ARF abuse-reporting pipeline, and the maintainer/ownership history, see
+        the parent `blocklist_de` feed page and the `roles` block on this page."
+      roles:
+      - role: maintainer
+        name: Abusix Inc.
+        organization_type: commercial
+        official_url: https://abusix.com/
+        contact_email:
+        based_in:
+        active_since: '2022'
+        notes: Acquired blocklist.de operations in February 2022. Continues to operate
+          the service under the blocklist.de brand while integrating it with the Abusix
+          threat intelligence platform.
+      - role: original_author
+        name: Martin Schiftan
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since: '2006'
+        notes: Founder and original operator of blocklist.de. Described on the site
+          as a Fraud/Abuse specialist. Copyright notice on the delist page reads '2007–2025
+          by blocklist.de' attributed to his work.
+      - role: source_contributor
+        name: Blocklist.de Partner Servers
+        organization_type: informal_collective
+        official_url:
+        contact_email:
+        based_in:
+        active_since: '2006'
+        notes: Over 2,700 registered fail2ban partner servers contribute attack reports
+          to the network. These servers are operated by volunteers who install blocklist.de
+          reporting software and forward detected attacks via X-ARF format.
+      derivation:
+        type: original
+        description: First-party detection sourced from a global network of fail2ban
+          partner servers. Participating servers run blocklist.de reporting software
+          that detects brute-force login attacks (against Joomla, WordPress, and other
+          web applications) locally and submits reports via X-ARF format. Reports
+          are aggregated, deduplicated, and republished as a downloadable blocklist
+          regenerated every 30 minutes.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when it has been observed conducting at least one
+          confirmed brute-force login attack against Joomla, WordPress, or other web-based
+          login portals on blocklist.de partner servers or the blocklist.de infrastructure
+          itself. Listings automatically expire after 48 hours unless the attacking
+          behaviour is re-detected. The service applies whitelists from dnswl.org
+          and spamhauswhitelist.org to reduce benign IP false positives, and excludes
+          Tor exit node IPs.
+        criteria:
+        - At least one confirmed brute-force login attack on a blocklist.de partner
+          server or the blocklist.de infrastructure
+        - Attacks targeting Joomla, WordPress, or other web application login forms
+        - Automatic 48-hour expiration unless re-reported by partners
+        - Whitelisted IPs from dnswl.org and spamhauswhitelist.org are excluded from
+          listing
+        - Tor exit node IPs are excluded
+      unlisting_policy:
+        summary: All entries expire automatically after 48 hours. For earlier removal,
+          the affected party can submit an IP address via the online delist form at
+          blocklist.de/en/delist.html. Once the underlying issue is resolved, the
+          IP is removed within 60 minutes at the next list regeneration cycle.
+        criteria:
+        - Automatic 48-hour expiration for all entries
+        - Manual early delist via the blocklist.de delist form (requires resolving
+          the underlying security issue first)
+        - Removal takes effect within 60 minutes at the next 30-minute regeneration
+      unlist_request:
+        url: https://www.blocklist.de/en/delist.html
+        email: webmaster@blocklist.de
+        instructions: Visit the delist page and enter the IP address in the deletion
+          form. The IP will be removed within 60 minutes at the next list regeneration,
+          provided the underlying security issue has been resolved. For assistance,
+          contact the maintainer at webmaster@blocklist.de.
+      update_frequency:
+        frequency: 30m
+        human_readable: Regenerated every 30 minutes
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods: []
+        description: Detects brute-force login attacks through a distributed network
+          of fail2ban partner servers. Each participating server runs blocklist.de
+          reporting software that monitors local authentication logs for repeated
+          failed login attempts against web applications. When an attack pattern is
+          matched, the detecting server submits a structured report via X-ARF (Extended
+          Abuse Reporting Format) to blocklist.de, which aggregates reports across
+          all partners and generates the consolidated blocklist.
+      scope_and_intent:
+        description: A targeted blocklist for operators wishing to proactively block
+          hosts attempting brute-force logins against web applications. Intended as
+          one layer in a defence-in-depth strategy.
+        intended_for:
+        - Proactively blocking brute-force login attempts against web applications
+          (Joomla, WordPress, other CMS login portals)
+        - Edge firewall or gateway blocking before attacks reach target servers
+        - Supplementing per-server fail2ban with network-level pre-blocking
+        - Integration with firewall blocklists (pfSense, OPNsense, iptables, CSF)
+        not_intended_for:
+        - Permanent blocking of IPs — entries expire after 48 hours automatically
+        - Blocking all attack types — this feed covers only web login brute-force
+          attacks
+        - Serving as the sole security control — intended as one layer in a layered
+          security strategy
+      license: public feed
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: No redistribution terms are stated by the direct upstream. The file
+          is publicly downloadable with no embedded restrictions.
+      current_status:
+        state: active
+        description: Active and maintained. The feed is regenerated on the Blocklist.de
+          service's documented 30-minute cycle. Ownership and the February 2022 Abusix
+          takeover are recorded in the `roles` block; the engine surfaces current
+          size and freshness separately.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "The bruteforce-login feed shares the recognised limitation of
+          all short-window IP-based blocklists: dynamic or recycled ISP addresses
+          can land on the list after a previous occupant's malicious activity, potentially
+          affecting unrelated users who inherit the same address. One documented case
+          from October 2018 describes a Reddit user whose parents received abuse notifications
+          for an IP they had just been assigned by their ISP. Maintainer-wide reliability
+          complaints recorded in 2022 are noted on the parent `blocklist_de` feed
+          page and not duplicated here."
+        engagement: Public discussion is moderate. blocklist.de appears routinely
+          in pfSense, OPNsense, and Synology administration communities as a standard
+          feed alongside Spamhaus DROP, AbuseIPDB, and DShield — typically cited without
+          controversy as a routine part of a multi-source blocklist stack. No dedicated
+          evaluative threads or systematic accuracy debates were found. The maintainer's
+          own forum at forum.blocklist.de exists but was not assessed in detail.
+      sources_consulted:
+      - url: https://www.blocklist.de/
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.blocklist.de/en/export.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.blocklist.de/en/rbldns.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.blocklist.de/en/delist.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.blocklist.de/en/download.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.blocklist.de/en/api.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.blocklist.de/en/terms.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://lists.blocklist.de/lists/bruteforcelogin.txt
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.reddit.com/r/synology/comments/1px9fqs/comment/
+        document_date: '2025-01-27'
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.reddit.com/r/pfBlockerNG/comments/v679p4/
+        document_date: '2022-06-06'
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.reddit.com/r/selfhosted/comments/9rgaxt/
+        document_date: '2018-10-26'
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://abusix.com/blog/abusix-to-take-over-the-operation-of-blocklist-de/
+        document_date: '2022-02-01'
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.reddit.com/r/opnsense/comments/13hfl9v/
+        document_date: '2023-05-14'
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://glockapps.com/tutorials/delist-from-blocklist-de/
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'

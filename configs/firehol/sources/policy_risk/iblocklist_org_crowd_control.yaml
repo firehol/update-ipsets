@@ -1,0 +1,171 @@
+sources:
+  iblocklist_org_crowd_control:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=eveiyhgmusglurfmjyag&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Crowd Control Productions IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T10:48:33Z'
+      official_name: Crowd Control Productions
+      official_url: https://www.iblocklist.com/list.php?list=ccp
+      short_description: IP blocklist targeting addresses registered to Crowd Control
+        Productions, the game publisher behind EVE Online, for use with peer-to-peer
+        blocking software.
+      long_description: "The Crowd Control Productions list is published by iBlocklist.com
+        and targets IP addresses registered to Crowd Control Productions hf., the
+        Icelandic video game developer behind EVE Online.\n\nPer the maintainer's
+        description, entries represent addresses registered to the publisher and additional
+        infrastructure IPs needed for the games. The list is distributed in P2P format
+        (compatible with PeerBlock and PeerGuardian), DAT format (compatible with
+        iplist), and CIDR/netset format (compatible with firewall tools)."
+      roles:
+      - role: maintainer
+        name: iBlocklist.com
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in: United States
+        active_since: '2008'
+        notes: 'Operates the iblocklist.com platform distributing IP blocklists in
+          P2P, DAT, and CIDR formats. Legally registered as iblocklist, LLC, located
+          in Ashburn, Virginia (per BBB filing, evidence_id 8). The platform offers
+          a catalog of organization-specific and category-specific lists for peer-to-peer
+          blocking software. Service-level community signal across iBlocklist.com
+          (not specific to any single feed): Trustpilot reviews and the Netgate forum
+          thread document autorenewal disputes, dismissive support responses, and
+          reports that legacy Bluetack-origin lists carry stale content with refreshed
+          timestamps.'
+      derivation:
+        type: original
+        description: The Crowd Control Productions list is a first-party list compiled
+          and maintained by iBlocklist.com. Entries are identified based on association
+          with the Crowd Control Productions game publisher's registered IP address
+          space. The list does not draw from external IP feeds or third-party threat
+          intelligence; it is a narrowly scoped organizational blocklist assembled
+          by the platform operator.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added based on identification of IP addresses registered
+          to Crowd Control Productions hf. (the game publisher behind EVE Online)
+          or otherwise required for game connectivity. The maintainer does not publish
+          a detailed written policy describing verification steps, review cadence,
+          or escalation criteria.
+        criteria:
+        - IP addresses registered to Crowd Control Productions game publisher
+        - Other IP addresses needed for game connectivity and server communication
+      unlisting_policy:
+        summary: No formal unlisting or removal request procedure is published by
+          iBlocklist.com. The platform offers a comment system on individual list
+          pages accessible to registered users, which serves as the sole documented
+          feedback channel. No automatic expiration timeline or manual delisting workflow
+          is described.
+        criteria:
+        - No formal unlisting procedure published
+        - Registered users may submit comments on list pages
+        - No automatic IP expiration policy described
+      unlist_request:
+        url:
+        email:
+        instructions: The only documented channel is the comment system on the individual
+          list page at iblocklist.com/list.php?list=ccp. Users must register or log
+          in to submit a comment. No dedicated removal request URL, email address,
+          or support ticket process is published on the site.
+      update_frequency:
+        frequency: 1440m
+        human_readable: Updated approximately once per day, per the maintainer's catalog
+          configuration.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: 'Entries are assigned to the list based on organizational affiliation
+          — specifically, IP addresses registered to Crowd Control Productions hf.
+          or required for game connectivity. This is a policy-assignment model: the
+          maintainer compiles a list of IPs belonging to a named organization rather
+          than detecting malicious activity through sensors, honeypots, or user submissions.
+          No active probing, sandbox analysis, or community reporting mechanism is
+          described for this specific list.'
+      scope_and_intent:
+        description: The Crowd Control Productions list targets IP addresses associated
+          with a single video game publisher. It is designed for users of peer-to-peer
+          blocking software who wish to filter connections related to that publisher's
+          infrastructure.
+        intended_for:
+        - Filtering connections to or from Crowd Control Productions/EVE Online infrastructure
+        - Privacy-focused users of PeerBlock, PeerGuardian, and compatible P2P blocking
+          software
+        not_intended_for:
+        - General-purpose network security or threat intelligence
+        - Blocking malware, spam, or phishing infrastructure
+        - Commercial deployment without authorization from iBlocklist.com
+      license: iBlocklist Terms of Service — personal use only; commercial use prohibited
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution is not addressed in the Terms of Service beyond the
+          personal-use restriction. The license grant explicitly permits downloading
+          and personal use only; public redistribution or sharing is implicitly prohibited
+          by the commercial-use prohibition and the lack of any redistribution permission
+          language.
+      current_status:
+        state: active
+        description: The iBlocklist.com platform is reachable and the Crowd Control
+          Productions list remains listed in the catalog. The site displays a 2026
+          copyright footer. However, community reports across multiple independent
+          sources allege that some lists on the platform — particularly legacy Bluetack
+          feeds — are stale or frozen, and that the broader subscription service has
+          experienced quality and support issues. The Crowd Control Productions list
+          itself shows no documented complaints specific to staleness.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Specific complaints about the Crowd Control Productions list itself
+          were not found during research. Community discussion about the broader iBlocklist.com
+          service is recorded in the maintainer role notes.
+        engagement: Public discussion about the Crowd Control Productions list specifically
+          is sparse. The official list page records no comments in the preceding 365
+          days.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T10:00:00Z'
+      - url: https://www.iblocklist.com/list.php?list=ccp
+        document_date:
+        validation_date: '2026-05-18T10:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18T10:00:00Z'
+      - url: https://www.iblocklist.com/subscribe
+        document_date:
+        validation_date: '2026-05-18T10:00:00Z'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-18T10:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-18T10:00:00Z'
+      - url: 
+          https://malwaretips.com/threads/the-pay-i-blocklist-subscriptions-are-no-longer-updated-true.87878
+        document_date:
+        validation_date: '2026-05-18T10:00:00Z'
+      - url: 
+          https://www.bbb.org/us/va/ashburn/profile/computer-services/iblocklist-0241-236040259
+        document_date:
+        validation_date: '2026-05-18T10:00:00Z'
+      - url: https://groups.google.com/g/qubes-users/c/j7hiQvE6Bao
+        document_date:
+        validation_date: '2026-05-18T10:00:00Z'

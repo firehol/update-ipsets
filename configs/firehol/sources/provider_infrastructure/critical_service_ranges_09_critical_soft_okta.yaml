@@ -1,0 +1,184 @@
+sources:
+  critical_soft_okta:
+    license: Provider-published public IP ranges
+    redistributable: false
+    label: Okta service ranges
+    url: https://s3.amazonaws.com/okta-ip-ranges/ip_ranges.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - json_path:
+        path: "$.*.ip_ranges[*]"
+    - filter_all4
+    processor_raw: json_path
+    category: provider_infrastructure
+    provenance: primary
+    info: Okta-published IPv4 service ranges. Reference feed, not a threat indicator.
+    maintainer: Okta
+    maintainer_url: https://help.okta.com/en-us/content/topics/security/ip-address-allow-listing.htm
+    enabled_by_all: true
+    use: [critical_infrastructure]
+    critical:
+      tier: soft
+      role: identity_saas
+      source_type: authoritative_provider_json
+      source_quality: A
+      rationale: Okta is an identity and access-control dependency; blocking service
+        ranges can break authentication, provisioning, and administrative access.
+
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T13:04:46Z'
+      official_name: Okta IP Range Allowlist
+      official_url: https://help.okta.com/en-us/content/topics/security/ip-address-allow-listing.htm
+      short_description: Okta publishes the egress IP ranges for its own identity
+        platform, organized by regional and functional cell, for use in network allowlists.
+      long_description: "Okta publishes the egress IP ranges used by its identity
+        and access management platform. The list covers all Okta production, preview,
+        and privileged access management (PAM) cells across geographic regions including
+        the United States, Canada, Europe, Middle East and Africa, Asia-Pacific, and
+        India. Each cell is a logically isolated group of Okta infrastructure serving
+        a specific subset of Okta tenants.\n\nThe feed is a flat JSON object hosted
+        on Amazon S3, with top-level keys naming each cell (such as us_cell_1, emea_cell_1,
+        apac_cell_2). Each cell contains an ip_ranges array listing individual IP
+        addresses in CIDR notation. The file carries no metadata fields — no syncToken,
+        no creationDate, no changeTimestamp, and no version marker — meaning there
+        is no built-in mechanism to detect when the file has changed between polls.\n\
+        \nPer the Okta Developer Advocacy Team, the update frequency is unpredictable
+        and Okta currently offers no push notification or webhook to alert customers
+        when ranges change. Organizations relying on these ranges for firewall policy
+        must implement periodic polling and compare snapshots to detect additions
+        or removements. The official documentation notes the list 'includes all existing
+        IP addresses and any new IP addresses reserved for future updates,' meaning
+        the published set intentionally over-provides to absorb planned expansion."
+      roles:
+      - role: maintainer
+        name: Okta
+        organization_type: commercial
+        official_url: https://www.okta.com
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: Okta, Inc. is a publicly traded identity and access management company
+          headquartered in San Francisco, California. The company operates the Okta
+          Identity Cloud platform serving enterprise customers globally.
+      derivation:
+        type: original
+        description: The feed is Okta's own first-party authoritative publication
+          of its infrastructure egress IP ranges. Okta operates the underlying infrastructure
+          and publishes the resulting IP allocations directly. No third-party feeds,
+          threat intelligence sources, or external aggregation feeds are involved.
+        source_feeds: []
+      listing_policy:
+        summary: Entries represent Okta's own allocated infrastructure egress IP ranges.
+          Additions reflect new capacity Okta provisions for its platform; removals
+          reflect decommissioned capacity. Because this is an authoritative provider
+          infrastructure feed rather than a threat indicator feed, there is no abuse-reporting
+          mechanism — IPs are listed when Okta allocates them and unlisted when Okta
+          decommissions them.
+        criteria:
+        - IpRanges are listed when Okta allocates them as part of its platform infrastructure
+        - IpRanges are unlisted when Okta decommissions the allocation
+        - No third-party reporting or abuse-driven criteria apply — this is not a
+          threat intelligence feed
+      unlisting_policy:
+        summary: Unlisting is governed by Okta's infrastructure lifecycle decisions,
+          not by third-party requests. Because this is Okta's own infrastructure range
+          feed rather than a threat indicator list, there is no community abuse-reporting
+          or false-positive remediation channel. IPs are removed when Okta retires
+          the associated infrastructure.
+        criteria:
+        - IpRanges are unlisted when Okta retires the associated infrastructure allocation
+        - No third-party false-positive or abuse-request channel exists — this is
+          not a threat feed
+      unlist_request:
+      update_frequency:
+        frequency:
+        human_readable: The maintainer states the update frequency is unpredictable
+          and no push notification or webhook mechanism is offered to alert customers
+          when IP ranges change.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The feed classifies IP addresses by policy assignment — Okta
+          allocates IP ranges to its own infrastructure and publishes the resulting
+          set as the authoritative allowlist for customers' network policies. This
+          is not a threat detection methodology; it is an infrastructure disclosure.
+          No honeypots, sandboxes, sensors, or third-party reports contribute to this
+          feed.
+      scope_and_intent:
+        description: The feed is intended for network administrators who need to allow
+          Okta service traffic to pass through outbound-restrictive firewalls or inbound-blocking
+          firewall policies. It covers all Okta platform egress IPs for production,
+          preview, and PAM environments across all geographic regions.
+        intended_for:
+        - Allowlisting Okta service egress IPs in network firewalls and proxies
+        - Configuring inbound firewall rules to accept Okta-initiated connections
+          to on-premises agents
+        - Maintaining DNS allowlists for Okta domains alongside IP ranges
+        not_intended_for:
+        - Threat intelligence or security blocking — this is not an abuse or indicator
+          feed
+        - Blocking Okta traffic — the feed exists to enable connectivity, not to identify
+          malicious sources
+        - Real-time change detection — the file carries no versioning or delta mechanism
+      license: Provider-published public IP ranges
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms: The direct upstream asserts '© 2026 Okta, Inc. All Rights Reserved'
+          with no stated permission for redistribution. Operators consuming this feed
+          should consult Okta's terms of service and their account team regarding
+          any redistribution use case.
+      current_status:
+        state: active
+        description: Active and maintained as of May 2026. The official documentation
+          page is reachable and discusses the feed. Okta continues to publish IP ranges
+          via the S3 endpoint. The Okta Developer Advocacy Team confirmed ongoing
+          maintenance on the official developer forum in August 2023.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Community reports document isolated incidents where Okta IP ranges
+          changed without advance notice, causing authentication failures for organizations
+          that had allowlisted the previous set. The Okta Developer Advocacy Team
+          acknowledged this gap on the official developer forum in August 2023, noting
+          that the update frequency is unpredictable and that no notification mechanism
+          is currently offered. No persistent or widespread criticism pattern was
+          found beyond these isolated notices.
+        engagement: Public technical discussion is sparse. The Okta developer community
+          forum carries occasional questions about automating the IP ranges polling
+          workflow. Several open-source projects on GitHub consume the S3 URL directly
+          (paloalto-edl, cloud-ip-ranges feeder, terraform-provider-okta feature request),
+          indicating organic integration interest. No dedicated third-party documentation,
+          academic citations, or industry awards were found for this feed.
+      sources_consulted:
+      - url: https://help.okta.com/en-us/content/topics/security/ip-address-allow-listing.htm
+        document_date: '2026'
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: https://s3.amazonaws.com/okta-ip-ranges/ip_ranges.json
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: 
+          https://devforum.okta.com/t/how-to-dynamically-add-okta-ip-addresses-to-web-application-firewall/24940
+        document_date: '2023-08-02'
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: https://github.com/okta/terraform-provider-okta/issues/1400
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: https://github.com/disposable/cloud-ip-ranges
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: https://github.com/david-ramsden/paloalto-edl/blob/main/edl.php
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: https://github.com/oapicf/openapi-okta-ip-ranges
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: 
+          https://stackoverflow.com/questions/79850116/aws-security-groups-vs-okta-ips-ranges
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'

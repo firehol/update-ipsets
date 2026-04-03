@@ -1,0 +1,192 @@
+sources:
+  iblocklist_isp_att:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=grbtkzijgrowvobvessf&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: AT&T IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T05:48:54Z'
+      official_name: I-Blocklist
+      official_url: https://www.iblocklist.com/
+      short_description: A list of AT&T-allocated IP ranges from which anti-peer-to-peer
+        monitoring activity has been observed, distributed for use with peer-to-peer
+        privacy applications.
+      long_description: "This feed is published by I-Blocklist, a service operated
+        by iblocklist, LLC, dedicated to distributing Internet Protocol address lists
+        in standard formats including P2P, DAT, and CIDR for use with peer-to-peer
+        privacy tools such as PeerBlock, PeerGuardian, and firewall applications.\n\
+        \nThe AT&T ISP list is authored by TBG (The Bad Guys) and represents a filtered
+        subset of TBG's broader ISP-tracking work, isolating IP ranges allocated to
+        AT&T from which anti-peer-to-peer monitoring activity has been observed. Per
+        TBG's authorship description, the broader ISP-tracking methodology covers
+        companies or organizations involved in anti-p2p activity, ISPs from which
+        such activity has been detected, and organizations with strong financial interests
+        in copyrighted material.\n\nI-Blocklist distributes the feed in multiple formats
+        (P2P, DAT, CIDR) compressed in standard archives. The service operates on
+        a subscription model at $9.99 per year, granting access to all lists in multiple
+        formats along with the ability to create custom lists based on ranges, keywords,
+        and combinations of existing feeds."
+      roles:
+      - role: maintainer
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in: United States
+        active_since: '2008'
+        notes: Per the Terms of Service, iblocklist, LLC is the legal entity providing
+          the I-Blocklist service. The domain iblocklist.com was registered in January
+          2008. Community reports describe the operation as a single-person business
+          with no professional customer support structure.
+      - role: source_contributor
+        name: TBG (The Bad Guys)
+        organization_type: unknown
+        official_url: https://tbg.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: TBG is the original author of the ISP blocklist methodology. The TBG
+          authorship page describes the listing criteria for ISP-sourced entries.
+          The tbg.iblocklist.com website was unreachable during research, and no independent
+          confirmation of TBG's current operational status was found.
+      derivation:
+        type: partial_mirror
+        description: I-Blocklist acts as a distributor and repackager of IP blocklists
+          authored by third parties. The AT&T ISP feed is a filtered extraction of
+          AT&T-allocated IP ranges from TBG's broader ISP-tracking blocklist series.
+          I-Blocklist applies its own format conversion (P2P, DAT, CIDR) and distribution
+          infrastructure, but does not independently conduct detection or curation
+          of the underlying IP data. The feed draws from TBG's ISP-category lists,
+          which track IP ranges allocated to major ISPs from which anti-peer-to-peer
+          monitoring activity has been observed.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added when IP ranges allocated to AT&T are identified
+          as sources of anti-peer-to-peer monitoring activity. TBG's authorship description
+          defines the broader ISP-tracking criteria to include companies or organizations
+          from which anti-p2p activity has been observed, ISPs flagged for such monitoring,
+          and organizations with strong financial interests in copyrighted material.
+          I-Blocklist does not independently conduct detection; it republishes TBG's
+          curation decisions.
+        criteria:
+        - IP ranges allocated to AT&T from which anti-peer-to-peer monitoring activity
+          has been observed
+        - AT&T IP ranges associated with organizations clearly involved in attempting
+          to stop file sharing
+        - AT&T IP ranges belonging to organizations with strong financial interests
+          in copyrighted material
+      unlisting_policy:
+        summary: No unlisting procedure is publicly documented by I-Blocklist. The
+          website provides no delist request channel, contact form, or published policy
+          for removals. Community research found no evidence of a functioning delist
+          process; support inquiries are redirected to an unrelated VPN service (PhantomPeer),
+          and multiple reviewers report receiving no response to removal requests.
+        criteria: []
+      unlist_request:
+        url:
+        email:
+        instructions: No delist request channel is publicly documented by I-Blocklist.
+          The support page at iblocklist.com/support redirects to an unrelated PhantomPeer
+          VPN service and does not offer a delist submission pathway. Community reports
+          indicate support inquiries generally go unanswered. Operators seeking removal
+          from this feed would need to pursue resolution through AT&T directly, as
+          I-Blocklist functions as a distributor of TBG-authored content rather than
+          an independent curator.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated daily, per the catalog configuration.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods:
+        - honeypot
+        description: "The feed is built on policy-assignment detection: TBG identifies
+          IP ranges allocated to AT&T that are associated with organizations conducting
+          anti-peer-to-peer monitoring, based on observed activity. TBG's authorship
+          description also references activity 'seen from' those ranges, implying
+          a honeypot or sensor component that detects probing or monitoring behavior
+          directed at peer-to-peer networks. I-Blocklist does not independently conduct
+          detection; it repackages and distributes TBG's curated results."
+      scope_and_intent:
+        description: The feed is scoped to IP ranges allocated to AT&T from which
+          anti-peer-to-peer monitoring activity has been observed, intended for use
+          by peer-to-peer network participants seeking to avoid surveillance by anti-piracy
+          monitoring organizations.
+        intended_for:
+        - Peer-to-peer network privacy applications (PeerBlock, PeerGuardian, iplist)
+        - Firewall-based traffic filtering for P2P users
+        - Privacy-conscious users of BitTorrent and similar protocols
+        not_intended_for:
+        - General-purpose email security or spam filtering
+        - Network-wide security monitoring independent of P2P activity
+        - Commercial security operations or enterprise threat intelligence
+        - Blocking advertising or tracking domains
+      license: I-Blocklist Terms of Service — personal / non-commercial only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution is not permitted. The Terms of Service restrict use
+          to personal, non-commercial purposes only and prohibit any public display
+          of the materials. Commercial use is explicitly prohibited. No attribution
+          requirement is stated, but the broader prohibition on public display effectively
+          prevents redistribution in any form.
+      current_status:
+        state: active
+        description: Listed on I-Blocklist's website as of the research date. The
+          service continues to accept subscriptions and distribute feeds. Community
+          reports raise significant concerns about service quality (see community
+          section), but no explicit discontinuation announcement was found.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion specific to the AT&T ISP list is sparse.
+          No recent Reddit discussion of this list was found. The Pi-hole community
+          has recommended avoiding iBlocklist lists as a class due to format incompatibilities
+          and quality issues.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/subscribe
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/list.php?list=ijfqtofzixtwayqovmxn
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://discourse.pi-hole.net/t/how-to-include-list-from-iblocklist-com/18847
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.mywot.com/scorecard/iblocklist.com
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: 
+          https://malwaretips.com/threads/the-pay-i-blocklist-subscriptions-are-no-longer-updated-true.87878/
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'

@@ -1,0 +1,185 @@
+sources:
+  gpf_comics:
+    license: Copyright Jeffrey T. Darlington — informational use only
+    redistributable: true
+    url: https://www.gpf-comics.com/dnsbl/export.php
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: service_abuse
+    info: The GPF DNS Block List is a list of IP addresses on the Internet that have
+      attacked the [GPF Comics](http://www.gpf-comics.com/) family of Web sites. IPs
+      on this block list have been banned from accessing all of our servers because
+      they were caught in the act of spamming, attempting to exploit our scripts,
+      scanning for vulnerabilities, or consuming resources to the detriment of our
+      human visitors.
+    maintainer: GPF Comics
+    maintainer_url: https://www.gpf-comics.com/dnsbl/
+    # GPF Comics' export.php endpoint is a form-submission POST.
+    # A bare GET returns the HTML form page (no IPs). The POST
+    # requires: (a) form body with the three expected parameters
+    # (ipv6 + export_type + submit), (b) a proper Content-Type
+    # — the downloader adds application/x-www-form-urlencoded
+    # automatically when --data is present, (c) a browser-like
+    # User-Agent — the default update-ipsets UA gets served the
+    # HTML page regardless of the POST body, (d) an Origin /
+    # Referer header matching the page the form lives on.
+    attributes:
+      downloader_options: >-
+        --data 'ipv6=0&export_type=text&submit=Export' -H 'Origin: https://www.gpf-comics.com'
+        -H 'Referer: https://www.gpf-comics.com/dnsbl/export.php' -H 'User-Agent:
+        Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0
+        Safari/537.36'
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T02:13:33Z'
+      official_name: GPF DNS Block List
+      official_url: https://www.gpf-comics.com/dnsbl/
+      short_description: A hand-maintained blocklist of IP addresses that were caught
+        directly attacking the GPF Comics web servers, shared as a free service for
+        webmasters and network administrators.
+      long_description: "The GPF DNS Block List is a hand-maintained IP blocklist
+        operated by Jeffrey T. Darlington, creator of the GPF Comics family of web
+        sites. Every IP in the database was caught in the act of actively attacking
+        one of his servers — probing for vulnerabilities, injecting code, spamming
+        forums or wikis, scraping content, or misusing the server as an open proxy.
+        The maintainer investigates each IP using online reputation resources before
+        adding it, and batches are added when multiple identical attacks arrive simultaneously.\n\
+        \nTwelve distinct listing categories are tracked: vulnerability probes, environment
+        scans, bad bots, content scrapers, the distinctive w00tw00t.at.ISC.SANS.DFind
+        scanner signature, forum/comment spammers, XML-RPC attackers, proxy attempts,
+        code injectors, suspicious-but-unproven traffic, and DMARC violators. Records
+        carry a reason code, an RFC-1123 timestamp, and optional free-text comments
+        drawn from server logs.\n\nPer the maintainer's FAQ, the list is provided
+        as a free service to the internet community. Users may export the database
+        in seven formats — plain text, CSV, iptables DROP rules (with and without
+        CIDR range compression), hosts.deny entries, Apache mod_rewrite rule sets,
+        and an experimental BIND zone file — and adapt them for their own environments.
+        The maintainer notes that some formats are the ones he runs himself and may
+        need minor adjustments for other setups. The copyright notice covers 2011–2026."
+      roles:
+      - role: maintainer
+        name: Jeffrey T. Darlington
+        organization_type: individual
+        official_url: https://www.gpf-comics.com/
+        contact_email:
+        based_in:
+        active_since: '2011'
+        notes: Jeffrey T. Darlington is the sole curator of the list. He personally
+          reviews each IP, investigates its reputation via online resources, and makes
+          the final determination on every listing. The copyright on the site covers
+          2011–2026.
+      derivation:
+        type: original
+        description: The feed is original — all listed IPs are detected by the maintainer's
+          own server instrumentation. Suspicious activity is identified through server
+          log reports and spam filter notifications. Each flagged IP is individually
+          researched using online reputation resources before a listing decision is
+          made. No upstream IP feeds, third-party APIs, or community submissions are
+          incorporated.
+        source_feeds: []
+      listing_policy:
+        summary: 'Only IPs that were caught actively attacking the GPF Comics servers
+          are listed. The maintainer does not accept user submissions — the only way
+          to be added is to launch an attack. Twelve categories cover the listing
+          reasons: vulnerability probes, environment scans, bad bots, content scrapers,
+          the w00tw00t.at.ISC.SANS.DFind scanner signature, forum/comment/wiki spammers,
+          XML-RPC attacks, proxy attempts, code injection attempts, suspicious-but-unproven
+          traffic, and DMARC violations. Each IP is individually investigated before
+          listing.'
+        criteria:
+        - The IP must have been caught actively attacking — passively suspicious traffic
+          alone is insufficient for most categories
+        - The attack must be attributable to the IP (server logs, user agents, referral
+          data serve as evidence)
+        - Batch additions are permitted when multiple identical attacks arrive simultaneously
+        - Known-good clients (such as Google's crawlers) are proactively whitelisted
+      unlisting_policy:
+        summary: 'Automatic expiration removes listings after one year (365.25 days)
+          of inactivity, counted from the last-seen timestamp. Manual removal is possible
+          but the bar is high: the requester must provide hard evidence disproving
+          the logged attacks. Hate mail and threats result in additional bans. IPs
+          that re-attack after expiration are re-listed immediately.'
+        criteria:
+        - 'Passive expiration: records auto-expire after 365.25 days with no further
+          detections'
+        - 'Manual appeal: requires hard evidence contradicting the server logs; soft
+          appeals are declined'
+        - Threats or hostile communications trigger additional bans rather than removal
+        - Re-offending after expiration results in immediate re-listing
+      unlist_request:
+        url: https://www.gpf-comics.com/dnsbl/
+        email:
+        instructions: The maintainer does not publish a dedicated unlisting form or
+          email address. Appeals may be submitted through the contact channel on the
+          GPF Comics site, but the maintainer stresses that successful appeals require
+          hard evidence contradicting the server logs. Records that are not appealed
+          expire automatically after 365.25 days of inactivity.
+      update_frequency:
+        frequency:
+        human_readable: The maintainer states the export files are regenerated automatically
+          each time a new IP is added to the database, meaning the feed reflects new
+          listings immediately upon commit.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: "First-party server instrumentation: the maintainer's own web
+          servers act as sensors. Suspicious activity is flagged through server log
+          analysis and spam filter notifications. Each flagged IP is individually
+          researched via online reputation resources before a listing decision is
+          made. No external feeds, honeypots beyond the production servers, or community
+          submissions are involved."
+      scope_and_intent:
+        description: The maintainer describes the feed as a free service for webmasters
+          and network administrators who wish to protect their systems from hosts
+          that have demonstrated malicious behavior toward web servers. It covers
+          both IPv4 and IPv6 addresses, exported as separate lists.
+        intended_for:
+        - Edge blocking on web servers (iptables, Apache mod_rewrite, hosts.deny)
+        - Protecting web-facing infrastructure from scanners, injectors, and scrapers
+        - Sharing attack intelligence among site operators
+        not_intended_for:
+        - Email gateway filtering (the list tracks web-server attack patterns, not
+          mail delivery issues)
+        - Automated enforcement without review (the maintainer advises that his formats
+          may need adjustment for local policy)
+      license: Copyright Jeffrey T. Darlington — informational use only
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: The maintainer permits users to export the database in various formats
+          and use it wherever they wish. No formal attribution clause is stated. Commercial
+          use is neither explicitly permitted nor prohibited.
+      current_status:
+        state: active
+        description: The maintainer site is reachable and the DNSBL pages are published
+          and current. The copyright covers 2011–2026. The export page confirms ongoing
+          regeneration of the list on new entries.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion of this feed is sparse. Extensive searches across
+          Reddit, general web search, and code-hosting platforms returned no third-party
+          reviews, integration guides, or community reports specific to the GPF DNS
+          Block List. The feed appears to have a small, quiet user base without notable
+          public discourse.
+      sources_consulted:
+      - url: https://www.gpf-comics.com/dnsbl/
+        document_date:
+        validation_date: '2026-05-19T02:00:00Z'
+      - url: https://www.gpf-comics.com/dnsbl/faq.php
+        document_date:
+        validation_date: '2026-05-19T02:00:00Z'
+      - url: https://www.gpf-comics.com/dnsbl/export.php
+        document_date:
+        validation_date: '2026-05-19T02:00:00Z'
+      - url: https://www.gpf-comics.com/dnsbl/reasons.php
+        document_date:
+        validation_date: '2026-05-19T02:00:00Z'

@@ -1,0 +1,247 @@
+sources:
+  tor_exits:
+    license: CC0 1.0
+    redistributable: true
+    url: https://check.torproject.org/exit-addresses
+    frequency: 5
+    history:
+    - 1440
+    - 10080
+    - 43200
+    ipv: ipv4
+    output: ipset
+    processor:
+    - torproject_exits
+    processor_raw: torproject_exits
+    category: anonymizers
+    info: '[TorProject.org](https://www.torproject.org) list of all current TOR exit
+      points (TorDNSEL)'
+    maintainer: TorProject.org
+    maintainer_url: https://www.torproject.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T19:08:50+00:00'
+      official_name: TorDNSEL exit addresses
+      official_url: https://check.torproject.org/exit-addresses
+      short_description: A list of all current IPv4 addresses in use as Tor network
+        exit relays, generated from active reachability measurements conducted against
+        the volunteer-operated Tor network.
+      long_description: "The TorDNSEL exit-addresses feed enumerates every IPv4 address
+        currently functioning as a Tor network exit relay — the final hop in a Tor
+        circuit that forwards traffic to its destination on the open internet. Each
+        entry records the relay's unique 40-character hex fingerprint, the timestamp
+        when the relay published its descriptor to the Tor directory authorities,
+        the timestamp of the last network consensus in which the relay appeared, and
+        the exit address itself with its determination timestamp.\n\nThe feed is produced
+        by the TorBEL active-testing methodology: the Tor Project's systems actively
+        probe Tor relays to determine which ones permit exit traffic to external destinations.
+        Per the Tor Project's 2020 announcement, exit policies declared by relay operators
+        are no longer the sole determinant — any relay observed through active measurements
+        as capable of reaching external destinations is listed regardless of its declared
+        exit policy. This replaced the earlier DNS-based lookup service, which was
+        retired in April 2020.\n\nTor exit relays are operated entirely by volunteers.
+        To become an exit relay, an operator enables the ExitRelay option in their
+        Tor configuration and advertises a public-facing exit policy specifying which
+        destination ports the relay will accept (a minimum of ports 80 and 443 is
+        required to be useful). New exit relays complete a mandatory 4-day staging
+        period before becoming eligible for the Exit flag. The Tor Project does not
+        operate the exit relays themselves — they are donated bandwidth contributions
+        from the volunteer community. The TorBEL bulk-exporting tool that serves check.torproject.org
+        is published as Free Software and can be self-hosted by operators who want
+        to query privately without revealing user IP addresses to the Tor Project's
+        servers."
+      roles:
+      - role: maintainer
+        name: The Tor Project, Inc.
+        organization_type: non_profit
+        official_url: https://www.torproject.org/
+        contact_email: tor-relays@lists.torproject.org
+        based_in: United States (Massachusetts)
+        active_since: '2006'
+        notes: The Tor Project is a 501(c)(3) nonprofit organization that maintains
+          the Tor anonymity network. It publishes the exit-addresses feed as part
+          of the check.torproject.org service suite. The organization is governed
+          by a fully independent board of directors and publishes annual Form 990
+          filings and audited financial statements going back to 2007. Funding is
+          diversified across US government grants (35%), corporations and membership
+          dues (22%), private foundations (19%), individual donations (16%), and non-US
+          government sources (8%).
+      derivation:
+        type: original
+        description: "The feed is produced by the TorBEL active-testing subsystem:
+          the Tor Project's measurement infrastructure actively probes Tor network
+          relays to determine which ones permit exit traffic to external destinations.
+          The resulting list is published as the exit-addresses file and the torbulkexitlist
+          subset. No upstream IP feeds are consumed — the data originates from first-party
+          measurement against the volunteer-operated Tor network. The bulk-exporting
+          tool (git repository at gitlab.torproject.org/tpo/network-health/metrics/tor-check)
+          is available for self-hosting by operators who prefer to query locally rather
+          than contact the Tor Project's servers."
+        source_feeds: []
+      listing_policy:
+        summary: An IPv4 address is listed when the TorBEL active-measurement system
+          observes a Tor relay using that address to reach an external destination.
+          Prior to April 2020, the system's predecessor relied partly on relay-declared
+          exit policies; since the 2020 service change, declared exit policies are
+          no longer considered — only observed exit capability through active probing
+          determines inclusion. New exit relays must complete a 4-day staging period
+          before becoming eligible for the Exit flag, after which they are listed
+          upon first observed exit traffic.
+        criteria:
+        - The relay must be an active, consensus-participating Tor relay (not hibernating
+          or shut down)
+        - The relay's operator must have enabled the ExitRelay option in the torrc
+          configuration file
+        - The relay must have completed the 4-day mandatory staging phase and be eligible
+          for the Exit flag
+        - The TorBEL active-measurement system must observe the relay forwarding traffic
+          to an external destination address and port
+        - The relay's exit address must be reachable from the public internet
+      unlisting_policy:
+        summary: An IPv4 address is automatically removed from the list when the corresponding
+          relay ceases to participate in the Tor network consensus — this occurs when
+          the relay operator stops the Tor daemon. There is no manual submission process
+          for unlisting; the Tor consensus protocol handles removal organically. For
+          compromised or demonstrably malicious relays, the Tor Project's Network
+          Health Team coordinates with directory authorities to apply reject/badexit/middleonly
+          rules, accelerating removal from the consensus.
+        criteria:
+        - The relay operator stops the Tor daemon — the relay falls out of the network
+          consensus and is automatically delisted
+        - The relay enters hibernation (voluntary power-saving mode) — the relay loses
+          its Exit flag and is delisted until it rejoins
+        - Directory authorities apply badexit rules coordinated by the Tor Project's
+          Network Health Team — accelerated removal for confirmed malicious relays
+        - The relay's exit address changes — the old address is delisted when no active
+          relay is observed using it
+      unlist_request:
+        url:
+        email: bad-relays@lists.torproject.org
+        instructions: Normal relay shutdown requires no submission to the Tor Project
+          — stopping the Tor daemon causes automatic removal from the consensus within
+          a short time. For compromised relays or relays requiring urgent removal,
+          send an email to bad-relays@lists.torproject.org including the relay fingerprint(s)
+          and requesting immediate blacklist. For end-of-life Tor software relays
+          blocked by directory authorities, upgrade to a supported Tor version or
+          regenerate the relay's identity keys, then contact the bad-relays list.
+      update_frequency:
+        frequency: 40m
+        human_readable: Updated at most once every 40 minutes, per the Tor Project's
+          guidance on the bulk exit list service.
+      detection_classification:
+        primary_method: active_scanning
+        secondary_methods: []
+        description: "The TorBEL active-testing methodology: the Tor Project's measurement
+          infrastructure actively probes Tor network relays to determine which ones
+          permit exit traffic to external destinations. This is fine-grained reachability
+          testing — not passive observation of traffic sent to the maintainer's own
+          infrastructure, and not relying on relay-declared exit policies. The active
+          probes originate from the Tor Project's own measurement systems and test
+          relay reachability by attempting connections through candidate exit relays.
+          This replaced the legacy DNS-based lookup service in April 2020."
+      scope_and_intent:
+        description: The feed identifies IPv4 addresses currently in use as Tor network
+          exit relays — the final hop in a Tor circuit that connects to destinations
+          on the public internet. It is intended for service providers who need to
+          detect, allow, restrict, or throttle Tor network traffic originating from
+          their servers.
+        intended_for:
+        - Detecting Tor network traffic at network egress/ingress points
+        - Allow-listing or throttling Tor exit traffic for access-control purposes
+        - Building local blocklists for spam/abuse detection systems that need to
+          identify Tor exit nodes
+        - Privacy-preserving offline queries — downloading the list locally rather
+          than sending user IP addresses to the Tor Project's DNS service
+        not_intended_for:
+        - Permanently blocking all Tor users — the Tor Project encourages operators
+          to offer onion-site alternatives or other accommodations rather than blanket
+          bans
+        - Identifying the destination of Tor traffic (the exit address does not reveal
+          the Tor user's IP)
+        - Attributing abuse to specific Tor users (exit relays serve many concurrent
+          users)
+      license: CC0 1.0 Universal (public domain dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 carries no conditions — it is a public domain dedication that
+          releases the work into the public domain without restrictions. No attribution
+          is required, though crediting The Tor Project is customary practice.
+      current_status:
+        state: active
+        description: Actively maintained. The Tor Project publishes the exit-addresses
+          feed as part of the check.torproject.org service suite. The bulk list is
+          updated at most once every 40 minutes. The tor-check self-hosting tool is
+          maintained on the Tor Project GitLab instance.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Service providers that implement IP-based blocking using this feed
+          report widespread false positive impacts on legitimate Tor users — a structurally
+          unavoidable consequence of shared exit relay infrastructure. Reddit users
+          have documented account shadow-bans triggered by exit node IP reputation
+          even when the abusing party was a previous user of the same exit node. Anti-spam
+          libraries explicitly acknowledge this risk and offer opt-out options (such
+          as withNoTorExit()) for administrators seeking to avoid blocking legitimate
+          Tor users. Major platforms including Facebook and YouTube have progressively
+          restricted Tor access through layered defenses. The Tor Project's own documentation
+          acknowledges that exit relays bear the greatest legal exposure of all relay
+          types, as abuse complaints flow directly to relay operators.
+        engagement: Public community discussion is primarily centered on the relay-operator
+          side rather than the feed-consumer side. The tor-relays mailing list and
+          Tor Project Forum serve as the primary venues for relay operational discussions,
+          including responsible shutdown procedures and bad-relay reporting. On the
+          consumer side, discussion is fragmented across Reddit, Stack Exchange, and
+          GitHub — with notable threads on Reddit documenting the practical consequences
+          of IP-based Tor blocking for legitimate users. The Tor Project maintains
+          active presence on its own communication channels; third-party community
+          discussion tends to surface in security and sysadmin forums rather than
+          dedicated feed-focused venues.
+      sources_consulted:
+      - url: https://check.torproject.org/exit-addresses
+        document_date: '2026-05-17'
+        validation_date: '2026-05-17T19:00:00+00:00'
+      - url: https://community.torproject.org/relay/
+        document_date:
+        validation_date: '2026-05-17T19:00:00+00:00'
+      - url: https://blog.torproject.org/torbel-tor-bulk-exit-list-tools/
+        document_date: '2010-08-16'
+        validation_date: '2026-05-17T19:00:00+00:00'
+      - url: https://blog.torproject.org/changes-tor-exit-list-service/
+        document_date: '2020-03-09'
+        validation_date: '2026-05-17T19:00:00+00:00'
+      - url: https://check.torproject.org/api/bulk
+        document_date:
+        validation_date: '2026-05-17T19:00:00+00:00'
+      - url: https://www.torproject.org/about/reports/
+        document_date:
+        validation_date: '2026-05-17T19:00:00+00:00'
+      - url: https://blog.torproject.org/financials-blog-post-2023-2024
+        document_date:
+        validation_date: '2026-05-17T19:00:00+00:00'
+      - url: https://www.charitynavigator.org/ein/208096820
+        document_date:
+        validation_date: '2026-05-17T19:00:00+00:00'
+      - url: 
+          https://www.reddit.com/r/privacytoolsIO/comments/gqk996/i_seems_that_reddit_is_shadow_banning_tor_users
+        document_date:
+        validation_date: '2026-05-17T19:00:00+00:00'
+      - url: https://github.com/psilocyberunner/stop-forum-spam
+        document_date:
+        validation_date: '2026-05-17T19:00:00+00:00'
+      - url: https://gitlab.torproject.org/tpo/network-health/metrics/tor-check
+        document_date: '2020-06-13'
+        validation_date: '2026-05-17T19:00:00+00:00'
+      - url: 
+          https://forum.torproject.org/t/tor-relays-you-can-delete-my-relay-from-consensus/21007
+        document_date:
+        validation_date: '2026-05-17T19:00:00+00:00'
+      - url: https://community.torproject.org/policies/relays/102-tor-exit-lifecycle/
+        document_date: '2026-01-12'
+        validation_date: '2026-05-17T19:00:00+00:00'
+      - url: https://check.torproject.org/torbulkexitlist
+        document_date:
+        validation_date: '2026-05-17T19:00:00+00:00'

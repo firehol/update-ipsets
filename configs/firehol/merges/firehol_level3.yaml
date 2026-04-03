@@ -1,0 +1,127 @@
+merges:
+  firehol_level3:
+    license: Composite of component feed licenses
+    redistributable: true
+    frequency: 5
+    ipv: ipv4
+    output: netset
+    category: intrusion
+    info: An ipset made from blocklists that track attacks, spyware, viruses. It includes
+      IPs than have been reported or detected in the last 30 days.
+    maintainer: FireHOL
+    maintainer_url: http://iplists.firehol.org/
+    sources:
+    - bruteforceblocker
+    - ciarmy
+    - dshield_30d
+    - myip
+    - vxvault
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-27T06:30:35Z'
+      official_name: FireHOL Level 3
+      official_url:
+      short_description: Broader-coverage aggregate merge — wider feed set with higher
+        false-positive exposure.
+      long_description: "A broader FireHOL composite merge that adds longer-window
+        and more aggressive feeds on top of level2. Coverage increases, false-positive
+        exposure increases proportionately. Intended for use cases that prioritize
+        completeness over precision — threat intelligence enrichment, hunting queries,
+        and detection environments where the analyst can adjudicate matches. Component
+        feeds drive all listing decisions.\n\nComponents: bruteforceblocker, ciarmy,
+        dshield_30d, myip, vxvault."
+      roles:
+      - role: maintainer
+        name: FireHOL catalog project
+        organization_type: informal_collective
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Maintained by the FireHOL catalog project as a public reference / aggregate.
+          This page is generated deterministically from the catalog YAML; the agent-based
+          enrichment used for third-party feeds does not run on FireHOL-maintained
+          feeds.
+      derivation:
+        type: aggregate_merge
+        description: Additive union of 5 component feed(s). The merge applies no scoring,
+          threshold, or filter beyond the union and the optional subtraction; all
+          listing decisions are inherited from the component feeds. Component feeds
+          are recomposed on each catalog refresh.
+        source_feeds:
+        - identifier: bruteforceblocker
+          relationship: aggregate_component
+          notes:
+        - identifier: ciarmy
+          relationship: aggregate_component
+          notes:
+        - identifier: dshield_30d
+          relationship: aggregate_component
+          notes:
+        - identifier: myip
+          relationship: aggregate_component
+          notes:
+        - identifier: vxvault
+          relationship: aggregate_component
+          notes:
+      listing_policy:
+        summary: An IP appears in this merge if it appears in any of the 5 additive
+          component feed(s) listed below. The merge does not add IPs of its own.
+        criteria:
+        - 'IP appears in one or more of the additive component feeds: bruteforceblocker,
+          ciarmy, dshield_30d, myip, vxvault.'
+      unlisting_policy:
+        summary: Inherited from the component feeds. The merge does not maintain its
+          own whitelisting or per-entry unlist process. When a component feed removes
+          an IP, the next merge refresh drops the IP unless another component still
+          lists it.
+        criteria:
+        - All component feeds that previously listed the IP have removed it.
+      unlist_request:
+        url:
+        email:
+        instructions: 'This is an aggregate merge of component feeds; the merge does
+          not maintain its own unlist channel. To request that an IP be removed, identify
+          which component feed(s) list it and submit the removal request directly
+          to that maintainer. Component feeds: bruteforceblocker, ciarmy, dshield_30d,
+          myip, vxvault.'
+      update_frequency:
+      detection_classification:
+        primary_method: mixed
+        secondary_methods: []
+        description: 'This merge inherits detection methodology from its 5 additive
+          component feed(s). See each component for its specific detection method
+          (honeypot, sandbox, reputation aggregation, etc.). Component feeds: bruteforceblocker,
+          ciarmy, dshield_30d, myip, vxvault.'
+      scope_and_intent:
+        description: A broader FireHOL composite merge that adds longer-window and
+          more aggressive feeds on top of level2. Coverage increases, false-positive
+          exposure increases proportionately. Intended for use cases that prioritize
+          completeness over precision — threat intelligence enrichment, hunting queries,
+          and detection environments where the analyst can adjudicate matches. Component
+          feeds drive all listing decisions.
+        intended_for:
+        - Threat-intelligence enrichment and hunting queries
+        - Detection environments with analyst-in-the-loop adjudication
+        not_intended_for:
+        - Inline blocking — use level1 or level2 for that
+      license: Composite of component feed licenses
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: Component-feed license terms continue to apply; users should consult
+          each component's license before commercial or redistribution use.
+      current_status:
+        state: active
+        description: Maintained by FireHOL as a public catalog merge. Recomposed automatically
+          on each catalog refresh from the live state of the component feeds. Component
+          feeds that go offline or are archived are dropped from the merge by the
+          catalog engine.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement:
+      sources_consulted: []

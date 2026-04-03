@@ -1,0 +1,204 @@
+sources:
+  misp_ipip_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/ipip-nt-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) IPIP.net
+      commercial scanner IPs. Informational — not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T21:51:34+00:00'
+      official_name: Ipip IP Ranges Used for Scanning
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: IP addresses associated with IPIP.net commercial scanning
+        infrastructure, identified through CIRCL Luxembourg's passive darknet telescope
+        and published as a MISP warninglist for false-positive identification.
+      long_description: "This MISP warninglist flags IP addresses associated with
+        IPIP.net's commercial scanning infrastructure. IPIP.net is a Beijing-based
+        IP intelligence company founded in 2013 that operates a global network of
+        more than 1,200 monitoring points, offering commercial scanner and anonymous
+        IP detection services (covering VPN, SOCKS proxies, HTTP proxies, Tor exit
+        nodes, and public proxies). What makes this list distinctive among the CIRCL
+        -nt-scanning family is the operator profile: IPIP.net is a Chinese commercial
+        IP-intelligence vendor, a category that is otherwise underrepresented in the
+        family, where Western commercial scanners (Censys, Shodan, Onyphe) and security-research
+        telescopes dominate.\n\nThe listed IPs were identified through passive analysis
+        of unsolicited Internet traffic captured by CIRCL's Network Telescope. The
+        list is informational — designed to flag potential false positives in threat
+        intelligence feeds when IPIP.net's scanners turn up in operator data, not
+        to trigger blocking decisions."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: non_profit
+        official_url: https://github.com/MISP
+        contact_email:
+        based_in: Luxembourg
+        active_since:
+        notes: Hosts the MISP warninglists repository and integrates this list into
+          the MISP threat intelligence platform. The project is coordinated by CIRCL
+          (Computer Incident Response Center Luxembourg).
+      - role: source_contributor
+        name: Th4nat0s
+        organization_type: individual
+        official_url: https://github.com/Th4nat0s
+        contact_email:
+        based_in:
+        active_since:
+        notes: 'Individual contributor who submits quarterly updates to the network
+          telescope scanner warning lists, including this list, via pull requests
+          to the MISP warninglists repository. Authored PR #317 (December 2025) introducing
+          the nt-scanner lists and PR #330 (March 2026) refreshing 21 scanner lists
+          simultaneously.'
+      - role: source_contributor
+        name: CIRCL
+        organization_type: research_institution
+        official_url: https://www.circl.lu
+        contact_email: info@circl.lu
+        based_in: Luxembourg
+        active_since: '2012'
+        notes: Computer Incident Response Center Luxembourg. Operates the Network
+          Telescope darknet sensor that produced the scanner attribution data feeding
+          this list. Has monitored unsolicited Internet traffic on unused address
+          space since March 2012.
+      derivation:
+        type: extraction
+        description: IPs are extracted from CIRCL's passive darknet analysis of unsolicited
+          traffic. CIRCL monitors a block of unused but routable IPv4 address space;
+          any inbound traffic is unsolicited reconnaissance by definition. Source
+          IPs are attributed to commercial scanning infrastructure through reverse-DNS
+          lookups, BGP autonomous system correlation, and known scanner hostname pattern
+          matching. IPs associated with IPIP.net's scanning operations are extracted
+          and published as a MISP warninglist. No other IP feeds are consumed — the
+          source is CIRCL's own sensor data.
+        source_feeds: []
+      listing_policy:
+        summary: IPs enter this list when CIRCL's Network Telescope darknet sensor
+          observes unsolicited traffic originating from IP addresses belonging to
+          IPIP.net's commercial scanning infrastructure. Attribution is determined
+          by correlating source IPs against reverse-DNS records, BGP autonomous system
+          data, and known scanner hostname naming conventions.
+        criteria:
+        - Observed as a source of unsolicited inbound traffic on CIRCL's darknet address
+          space
+        - Attributed to IPIP.net's scanning infrastructure through reverse-DNS, BGP
+          AS, or scanner hostname pattern analysis
+        - Published by the contributor in a MISP warninglists pull request
+      unlisting_policy:
+        summary: No explicit unlisting policy is stated by the maintainer. As a warninglist
+          rather than a blocklist, removals are driven by the periodic refresh cycle
+          — the contributor submits updated lists quarterly via pull request, replacing
+          the previous version. IPs that no longer appear in CIRCL's active scanner
+          attributions are excluded from the refreshed list.
+        criteria:
+        - Absence from subsequent CIRCL Network Telescope scanner attribution data
+        - Removal in the next quarterly pull request refresh by the contributor
+      unlist_request:
+        url:
+        email:
+        instructions: No dedicated unlisting channel is publicly documented for this
+          specific list. As a MISP warninglist maintained via quarterly pull requests,
+          corrections would typically be addressed by filing a GitHub issue or submitting
+          a pull request against the MISP/misp-warninglists repository.
+      update_frequency:
+        frequency: 90d
+        human_readable: Refreshed approximately quarterly, per the contributor's pull
+          request history (December 2025 and March 2026 updates)
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: CIRCL's Network Telescope is a passive darknet sensor monitoring
+          a block of unused but routable IPv4 address space. Because the monitored
+          address space advertises no active services, any inbound traffic is unsolicited
+          reconnaissance by definition — there is no legitimate traffic to filter
+          out. CIRCL captures full packet data and extracts structured metadata (source
+          IP, destination IP, ports, timestamps, protocol version, community strings)
+          using Suricata. Source IPs are attributed to commercial scanning infrastructure
+          through reverse-DNS lookups, BGP autonomous system correlation, and tracking
+          of known scanner hostname naming conventions (e.g., *.censys-scanner.com,
+          *.shodan.io). IPs associated with IPIP.net's scanning operations are identified
+          through this attribution pipeline and published as a MISP warninglist.
+      scope_and_intent:
+        description: Flags IP addresses associated with IPIP.net's commercial scanning
+          infrastructure for contextual awareness in MISP threat intelligence investigations.
+        intended_for:
+        - False-positive identification in threat intelligence feeds — alerting analysts
+          when an IP appears in a blocklist or indicator feed that is also associated
+          with a legitimate commercial scanner service
+        - Enrichment context in MISP events — surfacing that an IP belongs to a known
+          commercial scanning service rather than a threat actor
+        - Alert triage — helping analysts distinguish between IPs associated with
+          commercial scanning and IPs associated with malicious activity
+        not_intended_for:
+        - Inline blocking or deny-listing — the list is explicitly informational and
+          not designed to trigger blocking decisions
+        - Security enforcement without analyst review — the list flags potential false
+          positives, not definitive malicious indicators
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal grants unlimited rights to use, copy, modify, and
+          distribute this work for any purpose, including commercial purposes, without
+          requiring attribution. The MISP warninglists README notes that individual
+          list authors may request relicensing under a different license via pull
+          request.
+      current_status:
+        state: active
+        description: 'Actively maintained. The list was updated in March 2026 (PR
+          #330, merged by adulau) and previously in December 2025 (PR #317). The latest
+          version stamp in the list.json is dated 2026/05/04. The MISP warninglists
+          repository is healthy and responsive.'
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion about this specific list is sparse.
+          No specific praise or criticism directed at the ipip-nt-scanning list was
+          found in public forums; engagement around it flows through the upstream
+          pull-request cycle rather than dedicated threads.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/ipip-nt-scanning/list.json
+        document_date: '2026-05-04'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/pull/330
+        document_date: '2026-03-13'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/pull/317
+        document_date: '2025-12-09'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.circl.lu/pub/
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: 
+          https://d4-project.org/2025/11/27/Learning-from-Large-Scale-IPv4-blackhole.behavioral-analysis-of-SNMP-traffic.html
+        document_date: '2025-11-27'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.en.ipip.net/
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: 
+          https://www.reddit.com/r/blueteamsec/comments/azcvc2/mispwarninglists_warning_lists_to_inform_users_of/
+        document_date: '2019-03-10'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.reddit.com/r/threatintel/comments/1fljbxz/misp/
+        document_date: '2024-09-20'
+        validation_date: '2026-05-18T00:00:00+00:00'

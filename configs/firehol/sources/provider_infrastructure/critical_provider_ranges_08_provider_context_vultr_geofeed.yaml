@@ -1,0 +1,214 @@
+sources:
+  provider_context_vultr_geofeed:
+    license: Provider-published RFC 8805 geofeed
+    redistributable: true
+    label: Vultr provider context
+    url: https://geofeed.constant.com/
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: primary
+    info: Vultr/Constant-published RFC 8805 geofeed IPv4 ranges. Provider context
+      feed, not a threat indicator and not a critical-infrastructure warning source.
+    maintainer: Vultr
+    maintainer_url: https://geofeed.constant.com/
+    enabled_by_all: true
+    use: [provider_context]
+    attributes:
+      context_role: cloud_customer_hosting
+      context_source_type: authoritative_geofeed_csv
+      context_source_quality: B
+      context_rationale: Vultr ranges are customer-hosting infrastructure; overlap
+        is contextual collateral-risk information and should not be treated as a critical
+        failure.
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T14:25:48Z'
+      official_name: Constant.com / Vultr.com GeoFeed (AS20473)
+      official_url: https://geofeed.constant.com/
+      short_description: An RFC 8805-format CSV mapping Vultr's IPv4 address prefixes
+        to geographic locations (country, region, city, postal code), published by
+        The Constant Company for AS20473.
+      long_description: "The Constant Company (operating the Vultr cloud platform)
+        publishes a self-published IP geolocation feed at geofeed.constant.com, covering
+        the entirety of their IPv4 address space under AS20473. The feed follows RFC
+        8805 — the IETF standard for self-published geofeeds — and provides one CSV
+        entry per allocated prefix, with five fields: IP prefix in CIDR notation,
+        ISO 3166-1 alpha-2 country code, ISO 3166-2 region code, free-text city name,
+        and postal code.\n\nPer RFC 8805, the IP prefix field is required; all subsequent
+        fields are optional and may be empty, though the requisite commas are retained
+        to preserve positional alignment. The postal code field is noted as deprecated
+        in RFC 8805 and Vultr continues to populate it. The feed is available in four
+        formats from the same endpoint: CSV (default), plain text (?text), JSON (?json),
+        and YAML (?yaml).\n\nThe feed is a provider-context asset: it declares the
+        geographic home of Vultr's own network infrastructure, not the location of
+        individual customer workloads. RFC 8805 explicitly advises that geolocation
+        feeds are coarse-grained and that operators bear responsibility for determining
+        what data to make public. The broader geofeed ecosystem (academic research,
+        NANOG operator discussions) has identified that fewer than 2% of IPv4 prefixes
+        globally are covered by any published geofeed, and that adversarial actors
+        can submit incorrect location claims — a known limitation of the self-declaration
+        model that operators should factor into their ingestion pipelines."
+      roles:
+      - role: maintainer
+        name: The Constant Company, LLC
+        organization_type: commercial
+        official_url: https://constant.com/
+        contact_email: support@vultr.com
+        based_in: United States
+        active_since:
+        notes: The Constant Company, LLC operates the Vultr cloud platform and holds
+          AS20473. The geofeed is published under the constant.com domain and the
+          support contact routes through Vultr's support team. The organization is
+          headquartered at 319 Clematis St, Suite 900, West Palm Beach, Florida, 33401,
+          US (per PeeringDB).
+      derivation:
+        type: original
+        description: The feed is generated from The Constant Company's own IP address
+          allocation records. Each entry maps a CIDR prefix to its registered geographic
+          location (country, region, city, postal code) as known to Vultr's network
+          operations team. No external IP feeds, threat-intelligence sources, active-probing
+          datasets, or third-party geolocation services are consumed in producing
+          this feed — it is a direct declaration by the network operator of where
+          their address space is deployed.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are created and updated when Vultr's network operations team
+          allocates or reassigns IP address space to a data-center location. There
+          is no public submission mechanism; the feed reflects Vultr's internal IP
+          address management records directly.
+        criteria:
+        - Vultr allocates a CIDR prefix to a data-center region in its network
+        - Vultr's IP address management records are updated to reflect the allocation's
+          geographic location
+        - The updated mapping is exported to the geofeed CSV
+      unlisting_policy:
+        summary: There is no documented automatic expiry or decay mechanism. Entries
+          are removed or updated when Vultr retires or relocates address space. RFC
+          8805 recommends that consumers refresh feeds no less often than weekly and
+          no more often than would cause issues to the publisher; it does not mandate
+          an expiry policy for publishers.
+        criteria:
+        - Vultr retires or reallocates a prefix from a data-center location
+        - Vultr's IP address management records are updated
+        - The updated CSV reflects the change
+      unlist_request:
+        url:
+        email: support@vultr.com
+        instructions: Requests for correction or removal of specific IP prefix entries
+          should be directed to support@vultr.com. There is no documented self-service
+          unlist portal. Corrections typically involve demonstrating that a prefix
+          is mislocated relative to Vultr's internal allocation records.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated approximately once per day, per the Last-Updated timestamp
+          embedded in the CSV file header.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: "The feed is a policy-assignment geofeed: Vultr's network operations
+          team assigns each allocated CIDR prefix to its registered geographic location
+          (country, region, city, postal code) based on internal IP address management
+          records. This is a first-party declaration, not a detection in the threat-intelligence
+          sense — there are no honeypots, sensors, active scans, malware analysis
+          pipelines, or third-party reports involved. The geographic assignment reflects
+          where Vultr's infrastructure physically deploys the prefix, not where any
+          attacker or victim is observed."
+      scope_and_intent:
+        description: The feed maps Vultr's own IPv4 address space (AS20473) to geographic
+          locations. It is scoped to Vultr's provider infrastructure, not to customer-deployed
+          workloads or end-user traffic. The intent is to provide authoritative, provider-published
+          geolocation data in the RFC 8805 format, enabling CDNs, geolocation services,
+          network operators, and security teams to resolve Vultr IP prefixes to physical
+          locations without relying solely on active-measurement inference.
+        intended_for:
+        - IP geolocation and geo-routing (resolving Vultr IP prefixes to physical
+          locations)
+        - CDN and load-balancer routing decisions
+        - Fraud-prevention systems identifying hosting-provider IP ranges
+        - Network operators correlating AS20473 allocations to data-center geography
+        - Security teams assessing collateral-risk exposure from hosting-provider
+          IP space
+        not_intended_for:
+        - Threat-indicator blocking (the feed contains no malice signals; it is provider-context
+          infrastructure data, not an abuse or attack list)
+        - Real-time intrusion detection
+        - Accurate geolocation of individual customer virtual machines or end-user
+          connections (geofeeds declare infrastructure location, not workload location)
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: The geofeed CSV is publicly accessible at geofeed.constant.com with
+          no access controls. No redistribution terms are stated in the file header.
+          The Vultr Terms of Service restricts reproduction and modification of Services
+          materials generally; operators redistributing the geofeed data should consider
+          seeking explicit confirmation from Vultr that redistribution of the geofeed
+          CSV is permitted under their ToS framework.
+      current_status:
+        state: active
+        description: The feed is actively maintained. CSV header timestamps observed
+          during research showed daily updates. The maintainer's geofeed.constant.com
+          endpoint is reachable and serving current data.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "The broader geofeed ecosystem has been the subject of substantive
+          community critique, though not specific to Vultr's feed. Operator discussions
+          on the NANOG mailing list have raised concerns about adversarial manipulation
+          — providers (particularly VPN services) opportunistically declaring prefixes
+          in countries they do not physically occupy. Academic research estimates
+          that 4–8.5% of router and server IP entries in published geofeeds contain
+          errors. The IPinfo community forum notes that the geofeed maintenance burden
+          is high: of over 70,000 ASNs globally, fewer than 2% publish any geofeed,
+          and most telecommunications providers do not publish at all. RFC 8805's
+          proposed RPKI-based authenticity mechanism for signed geofeeds (RFC 9632)
+          has seen no broad implementation support, leaving feed integrity unauthenticated.
+          These critiques apply to the geofeed model generally; Vultr's feed has not
+          been individually implicated in specific accuracy disputes."
+        engagement: "Public community discussion focused specifically on Vultr's geofeed
+          is sparse. Broader geofeed ecosystem discussion is active: the NANOG mailing
+          list hosted a 19-message thread in February 2026 debating geofeed trustworthiness
+          versus active-measurement approaches, with participation from network operators,
+          IPinfo DevRel, and standards-body representatives. Academic researchers
+          have studied geofeed adoption quantitatively, finding approximately 1.5%
+          of global IPv4 prefixes covered by any published geofeed. The CircleID article
+          advocates for RFC 8805/9632 adoption as a network-resilience initiative.
+          No dedicated Vultr geofeed issue tracker, community forum, or social-media
+          presence was found for this specific feed."
+      sources_consulted:
+      - url: https://geofeed.constant.com/
+        document_date: '2026-05-21'
+        validation_date: '2026-05-21'
+      - url: https://docs.vultr.com/vultr-ip-space
+        document_date: 2023-11
+        validation_date: '2026-05-21'
+      - url: https://www.rfc-editor.org/rfc/rfc8805.html
+        document_date: 2020-07
+        validation_date: '2026-05-21'
+      - url: https://www.vultr.com/legal/
+        document_date: '2024-03-28'
+        validation_date: '2026-05-21'
+      - url: https://www.peeringdb.com/org/1051
+        document_date: '2024-09-13'
+        validation_date: '2026-05-21'
+      - url: https://seclists.org/nanog/2026/Feb/126
+        document_date: 2026-02
+        validation_date: '2026-05-21'
+      - url: 
+          https://community.ipinfo.io/t/why-geofeed-works-as-a-fallback-not-a-foundation/7209
+        document_date: 2025-09
+        validation_date: '2026-05-21'
+      - url: 
+          https://circleid.com/posts/why-geofeed-is-the-sovereign-foundation-of-global-network-resilience
+        document_date:
+        validation_date: '2026-05-21'
+      - url: https://hal.science/hal-04663776v1
+        document_date: 2024-08
+        validation_date: '2026-05-21'

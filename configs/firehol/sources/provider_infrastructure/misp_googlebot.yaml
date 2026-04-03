@@ -1,0 +1,162 @@
+sources:
+  misp_googlebot:
+    license: CC0 1.0 (MISP warninglists)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/googlebot/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Googlebot
+      crawler IP address ranges. Search crawler infrastructure reference, not a threat
+      indicator.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T15:23:21Z'
+      official_name: List of known Googlebot IP ranges
+      official_url: https://github.com/MISP/misp-warninglists/blob/main/lists/googlebot/list.json
+      short_description: CIDR ranges of Google's official crawler IP addresses, maintained
+        as a false-positive warning list for MISP users analyzing search-engine bot
+        traffic.
+      long_description: "The googlebot warninglist is a CIDR list of Google's official
+        search-crawler IP addresses. It is designed as a false-positive prevention
+        tool: when an analyst encounters traffic from one of these IP ranges in MISP,
+        the system displays a warning indicating the source is a known legitimate
+        Google crawler rather than a threat actor.\n\nThe list is sourced directly
+        from Google's publicly published IP range endpoint (developers.google.com/search/apis/ipranges/googlebot.json),
+        and is regenerated whenever Google publishes changes to its crawler address
+        space. Entries are CIDR blocks matching against ip-src, ip-dst, domain|ip,
+        ip-src|port, and ip-dst|port attributes in MISP events. Unlike threat-intelligence
+        feeds that track malicious actors, this list identifies infrastructure that
+        is benign but commonly misidentified as suspicious when it appears in server
+        logs or network alerts."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: informal_collective
+        official_url: https://github.com/MISP/misp-warninglists
+        contact_email:
+        based_in:
+        active_since: '2016'
+        notes: The MISP Project maintains the warninglists repository. Key contributors
+          identified in commit history include Alexandre Dulaunoy (adulau) as primary
+          maintainer, and Paul Jung (Thanat0s) for regular network telescope and list
+          updates. No individual contact email is published for the warninglists sub-project
+          specifically.
+      derivation:
+        type: derivative
+        description: The list is a direct derivative of Google's officially published
+          Googlebot IP ranges. The MISP project fetches the upstream JSON from developers.google.com,
+          parses the ipv4Prefix and ipv6Prefix fields, and writes them as CIDR notation
+          into the warninglist JSON file. Google's source data uses finer-grained
+          subnets (some /27 and /28 blocks) that MISP consolidates into the aggregated
+          CIDR ranges stored in the warninglist. No additional scoring, weighting,
+          or third-party feeds are involved.
+        source_feeds:
+        - identifier: https://developers.google.com/search/apis/ipranges/googlebot.json
+          relationship: superset
+          notes: Google's official endpoint contains more granular subnets than the
+            MISP warninglist, which aggregates some ranges. The MISP list is a subset
+            of Google's published ranges.
+      listing_policy:
+        summary: An IP is listed when it falls within a CIDR range that Google officially
+          publishes as a Googlebot crawler address. The MISP project does not curate
+          or modify Google's published ranges; the list is a straightforward republication
+          of Google's authoritative data.
+        criteria:
+        - IP falls within a CIDR range that Google publishes as belonging to its crawler
+          infrastructure
+        - Range is present in Google's official IP ranges endpoint at developers.google.com
+      unlisting_policy:
+        summary: Removal occurs when Google retires a previously published crawler
+          IP range and the MISP project syncs the updated list. Users may submit a
+          false-positive removal request via a GitHub issue on the repository if a
+          listed range is incorrectly included.
+        criteria:
+        - Google removes the range from its official published crawler IP list
+        - MISP project merges an updated list reflecting the removal
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/issues/new
+        email:
+        instructions: Open a GitHub issue on the MISP/misp-warninglists repository
+          describing the incorrectly listed range and the reason it should be removed.
+          Reference the upstream source (Google's official IP ranges) if the range
+          is not a valid Googlebot crawler address.
+      update_frequency:
+        frequency: 1d
+        human_readable: Per the maintainer's commit history, the list is updated approximately
+          monthly or whenever Google publishes changes to its crawler address space,
+          with more frequent updates when Google expands its infrastructure.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: "The list uses policy-assignment detection: entries are IP ranges
+          defined by Google's published crawler infrastructure policy, not generated
+          by honeypots, sensors, or malware analysis. An analyst encountering traffic
+          from a listed IP receives a warning that the source is a known legitimate
+          Google crawler rather than a threat indicator."
+      scope_and_intent:
+        description: The googlebot warninglist identifies IP addresses that Google
+          officially uses for its search crawler. Its intended use is false-positive
+          suppression in threat-intelligence workflows.
+        intended_for:
+        - Preventing false-positive alerts when Googlebot appears in network logs
+          or security events
+        - Marking legitimate search-engine crawler traffic in MISP events
+        - Filtering Google crawler IPs from automated detection pipelines before ingestion
+        not_intended_for:
+        - Blocking or threat-blocking purposes — the list identifies benign infrastructure,
+          not malicious actors
+        - Attribution of malicious activity — traffic from listed IPs should be treated
+          as legitimate, not suspicious
+      license: CC0 1.0 Universal
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: Under CC0 1.0 Universal, the data may be freely used, copied, modified,
+          and distributed without attribution required. The license places the content
+          in the public domain.
+      current_status:
+        state: active
+        description: Active. The list is actively maintained; the most recent update
+          was committed on April 28, 2026. The MISP warninglists repository received
+          a push as recently as May 4, 2026.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion specific to the googlebot warninglist
+          is sparse. The MISP warninglists repository announcement on GitHub (March
+          2019) received no public comments. Broader Reddit discussions confirm the
+          operational problem this list solves — practitioners report legitimate Google
+          crawler traffic triggering security alerts — and recommend proper configuration
+          of warning lists as mitigation. The MISP project overall has a large international
+          user base operating communities worldwide, but individual warninglist-level
+          discussion is limited.
+      sources_consulted:
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T15:00:00Z'
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/googlebot/list.json
+        document_date: '2026-04-28'
+        validation_date: '2026-05-18T15:00:00Z'
+      - url: https://developers.google.com/search/apis/ipranges/googlebot.json
+        document_date: '2026-05-18'
+        validation_date: '2026-05-18T15:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/tree/main/lists/googlebot
+        document_date:
+        validation_date: '2026-05-18T15:00:00Z'
+      - url: https://www.misp-project.org/
+        document_date:
+        validation_date: '2026-05-18T15:00:00Z'

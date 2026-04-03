@@ -1,0 +1,162 @@
+sources:
+  blocklist_de_apache:
+    license: public feed
+    redistributable: true
+    url: http://lists.blocklist.de/lists/apache.txt
+    frequency: 15
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been
+      reported within the last 48 hours as having run attacks on the service Apache,
+      Apache-DDOS, RFI-Attacks.'
+    maintainer: Blocklist.de
+    maintainer_url: https://www.blocklist.de/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T15:16:36Z'
+      official_name: Blocklist.de Apache Feed
+      official_url: https://www.blocklist.de/en/download.html
+      short_description: IP addresses reported for attacking Apache web servers —
+        covering exploits, remote-file-inclusion attempts, HTTP floods, bad bots,
+        and shellshock probes observed over the preceding 48 hours.
+      long_description: "The apache.txt feed aggregates IPs that the maintainer's
+        Fail2Ban partner network has reported for Apache-targeted attack patterns:
+        exploit attempts and buffer overflows (including the w00tw00t scanning toolkit),
+        Remote File Inclusion (RFI) probes via PHP URL handlers, HTTP flood DDoS campaigns,
+        malicious bots scraping or exploiting web applications, and Shellshock bash
+        vulnerability probes. The maintainer notes that the w00tw00t pattern was disabled
+        in 2015 after it began flagging the legitimate Majestic12 web crawler.\n\n\
+        IPs on the plain-text list expire automatically after 48 hours unless re-reported.
+        The Blocklist.de service applies external whitelists from dnswl.org and spamhauswhitelist.org
+        to suppress legitimate sources and excludes known Tor exit nodes; see the
+        maintainer's general service description and the parent `blocklist_de` feed
+        page for the broader sensor-network model and reporting pipeline shared by
+        all Blocklist.de feeds."
+      roles:
+      - role: maintainer
+        name: Martin Schiftan
+        organization_type: individual
+        official_url: https://www.blocklist.de/
+        contact_email: webmaster@blocklist.de
+        based_in:
+        active_since:
+        notes: Operates Blocklist.de as a free, voluntary service. Identifies as a
+          fraud and abuse specialist whose own servers generate much of the attack
+          data. Copyright holder per page metadata.
+      derivation:
+        type: original
+        description: IPs are collected from a global network of over 2,700 server
+          operators who run Fail2Ban configured to send X-ARF-formatted abuse reports.
+          Blocklist.de parses incoming reports, resolves the abuse contact for each
+          attacking IP, forwards the report, and lists the IP in its feeds. External
+          whitelists from dnswl.org and spamhauswhitelist.org are applied to suppress
+          known-good IPs, and Tor exit nodes from torproject.org are excluded.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when a participating server operator's Fail2Ban instance
+          detects and logs an Apache-targeted attack matching one of the defined patterns
+          (exploit/overflow, RFI probe, HTTP DDoS flood, bad bot, or Shellshock probe).
+          A single confirmed detection from a partner is sufficient for inclusion.
+        criteria:
+        - Fail2Ban detects an Apache-targeted attack pattern on a partner server
+        - 'Attack matches one of the defined Apache subcategories: apache-scripts/overflows,
+          RFI/php-url-fopen, badbots, DDOS/http-flood, or shellshock'
+        - Report is submitted via X-ARF from a registered partner server
+      unlisting_policy:
+        summary: IPs expire automatically 48 hours after the last reported attack.
+          Owners can request early removal by submitting their IP through the delist
+          form on the website; the change takes effect within 60 minutes at the next
+          list regeneration cycle.
+        criteria:
+        - Automatic expiry 48 hours after last attack report
+        - Manual early removal request via the delist web form
+        - Propagation delay up to 60 minutes after form submission
+      unlist_request:
+        url: https://www.blocklist.de/en/delist.html
+        email:
+        instructions: Submit the IP address through the delist form at blocklist.de/en/delist.html.
+          Removal takes effect within 60 minutes. Alternatively, use the search page
+          to pause reports for 7 days while you remediate the underlying issue.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated continuously; IPs automatically expire after 48 hours
+          unless re-reported
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods: []
+        description: Detection is driven by reports submitted by a global network
+          of over 2,700 server operators who run Fail2Ban configured to send X-ARF-formatted
+          abuse reports. Each partner's Fail2Ban instance independently detects attacks
+          targeting Apache on that operator's server, formats the report in X-ARF
+          (Extensible Abuse Reporting Format, a structured schema for machine-readable
+          abuse reports), and submits it to Blocklist.de.
+      scope_and_intent:
+        description: The Apache feed targets IPs conducting attacks on Apache web
+          servers, including exploitation attempts, automated scanning, and denial-of-service.
+          Designed for firewall and IDS blocking at the network perimeter.
+        intended_for:
+        - Edge firewall deny-listing (iptables, pf, nftables)
+        - Intrusion prevention systems
+        - Fail2Ban ban-jails for Apache-targeted attacks
+        - Supplementary threat intelligence alongside broader feeds
+        not_intended_for:
+        - Email spam filtering or MTA recipient validation
+        - Single authoritative source — intended as one layer among multiple feeds
+      license: public feed
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: No redistribution terms are stated. The feed is freely downloadable
+          and the service is presented as a free public resource.
+      current_status:
+        state: active
+        description: Active. The maintainer's statistics page shows recent attack
+          data, the feed file is serving IPs, and the download page lists the Apache
+          feed among available resources. No discontinuation announcement has been
+          found.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: No discussion specifically about the apache.txt variant was identified
+          in the surveyed community sources. The parent Blocklist.de service is referenced
+          in firewall and self-hosting communities; that maintainer-wide signal is
+          recorded on the parent `blocklist_de` feed page and is not duplicated here.
+      sources_consulted:
+      - url: https://www.blocklist.de/
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.blocklist.de/en/rbl.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.blocklist.de/en/download.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.blocklist.de/en/feeds.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.blocklist.de/en/delist.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.blocklist.de/en/search.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.blocklist.de/api.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.blocklist.de/en/statistics.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.blocklist.de/en/about.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: http://lists.blocklist.de/lists/apache.txt
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'

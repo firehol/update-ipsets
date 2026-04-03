@@ -1,0 +1,205 @@
+sources:
+  misp_stretchoid_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/stretchoid-nt-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Stretchoid
+      scanning IPs. Largest of the MISP scanner lists (~1.7K entries). Informational
+      — not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T01:16:55+00:00'
+      official_name: Stretchoid IP Ranges Used for Scanning
+      official_url: https://github.com/MISP/misp-warninglists/tree/main/lists/stretchoid-nt-scanning
+      short_description: MISP warning list of IP addresses associated with Stretchoid,
+        an internet-wide scanning platform, identified through CIRCL's passive darknet
+        analysis of unsolicited inbound traffic.
+      long_description: "This warning list flags IP addresses observed conducting
+        internet-wide scanning activity attributed to Stretchoid, an autonomous scanning
+        platform. It is maintained within the MISP warninglists project and surfaces
+        informational warnings when matching indicators are encountered in MISP events
+        or attributes.\n\nPer the list's own metadata, the entries are extracted from
+        CIRCL's Network Telescope analysis — a passive darknet infrastructure that
+        monitors unsolicited inbound traffic to unused IP address space. When Stretchoid's
+        scanning probes reach CIRCL's monitored address ranges, the source IPs are
+        captured and compiled into this list.\n\nThe list is categorised as informational
+        — it is designed to warn analysts of potential false positives from Stretchoid
+        scanning, not to direct blocking decisions."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://www.misp-project.org
+        contact_email: info@misp-project.org
+        based_in: Luxembourg
+        active_since: '2012'
+        notes: The MISP Project develops the open-source MISP threat intelligence
+          platform and its associated warninglists, feeds, and taxonomies. Founded
+          in 2012, affiliated with CIRCL Luxembourg. Maintains 123 warning lists across
+          the corpus.
+      - role: source_contributor
+        name: CIRCL Luxembourg
+        organization_type: research_institution
+        official_url: https://www.circl.lu
+        contact_email:
+        based_in: Luxembourg
+        active_since:
+        notes: CIRCL (Computer Incident Response Center Luxembourg) operates the Network
+          Telescope infrastructure from which Stretchoid source IPs are identified.
+          CIRCL contributed the underlying analysis that seeded this warning list.
+      derivation:
+        type: extraction
+        description: The list is extracted from CIRCL's passive Network Telescope
+          darknet monitoring. Unsolicited inbound traffic reaching CIRCL's unused
+          address space is analyzed to identify source IP addresses; those attributed
+          to Stretchoid scanning probes are compiled into this warning list. The list
+          is formatted as CIDR notation and versioned with a %Y%m%d00 stamp reflecting
+          the analysis date. Updates are driven by periodic community PR submissions
+          to the MISP/misp-warninglists repository, reviewed and merged by MISP Project
+          maintainers.
+        source_feeds:
+        - identifier: CIRCL Network Telescope
+          relationship: filtered
+          notes: Passive darknet analysis providing the source IP observations that
+            seed this list. IPs are selected (filtered) from the broader darknet traffic
+            corpus based on attribution to Stretchoid.
+      listing_policy:
+        summary: An IP is listed when CIRCL's Network Telescope darknet infrastructure
+          observes unsolicited inbound traffic originating from an IP address later
+          attributed to Stretchoid scanning activity. Attributions are made through
+          reverse DNS (PTR) lookups and behavioral fingerprinting — Stretchoid's scanning
+          probes encode probe signatures as 'MGLNDD_IP.ADDRESS_PORT' and use the ZGrab
+          scanner with a characteristic User-Agent string.
+        criteria:
+        - Source IP observed sending scanning probes to CIRCL's darknet address space
+        - Probes fingerprinted as Stretchoid via ZGrab User-Agent signature or encoded
+          probe metadata
+        - PTR records resolving to domains ending in stretchoid.com
+        - Behavioral pattern consistent with Stretchoid's observed port targeting
+      unlisting_policy:
+        summary: 'Entries are removed when the MISP Project merges a community pull
+          request updating the scanner lists. The March 2026 update (PR #330) removed
+          over 200 legacy IPs from previously used provider ranges as Stretchoid shifted
+          infrastructure. There is no automated decay mechanism; removals are driven
+          by periodic refresh cycles submitted as PRs to the misp-warninglists repository.'
+        criteria:
+        - Periodic community-submitted refresh identifying expired or migrated Stretchoid
+          infrastructure
+        - IPs no longer attributed to Stretchoid via updated CIRCL analysis
+        - IPs replaced as Stretchoid migrates between cloud providers
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/issues/new
+        email:
+        instructions: This is an informational MISP warning list, not a blocklist.
+          Removal requests for specific IPs from this list are handled through GitHub
+          issues filed against the MISP/misp-warninglists repository. Operators can
+          alternatively suppress Stretchoid alerts within MISP by disabling this warning
+          list for their organization.
+      update_frequency:
+        frequency: 1d
+        human_readable: Daily refresh, per the catalog configuration
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: The list is built from CIRCL's passive Network Telescope infrastructure
+          — a darknet that monitors unsolicited inbound traffic to unused routable
+          IP address space. Unlike honeypots, a darknet receives no legitimate traffic;
+          any inbound packet is by definition unauthorized or erroneous, allowing
+          clean attribution of scanning sources. CIRCL's telescope is positioned near
+          RFC1918 private address space to also capture typographic routing errors
+          from misconfigured internal networks.
+      scope_and_intent:
+        description: The list is scoped to IP addresses observed conducting internet-wide
+          scanning and attributed to Stretchoid. It covers IPv4 addresses only. Matching
+          attributes in MISP include ip-src, ip-dst, domain|ip, ip-dst|port, and ip-src|port.
+          The list is explicitly informational — it warns analysts that an observed
+          IP is associated with a known scanning platform, helping distinguish intentional
+          reconnaissance from opportunistic malicious activity.
+        intended_for:
+        - False positive suppression in SIEM and threat hunting workflows
+        - Enriching MISP events with contextual awareness of Stretchoid scanning sources
+        - Identifying Stretchoid scanning activity in network traffic logs
+        not_intended_for:
+        - Inline blocking or firewall enforcement
+        - Automated blocking pipelines without analyst review
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal (Public Domain Dedication) — no conditions imposed.
+          The data may be freely used, copied, modified, and redistributed for any
+          purpose, including commercial use, without attribution required.
+      current_status:
+        state: active
+        description: Active. The stretchoid-nt-scanning list is present in the MISP/misp-warninglists
+          repository and is refreshed through periodic CIRCL Network Telescope update
+          PRs.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Security practitioners have reported alert fatigue from Stretchoid
+          scanning activity, particularly when probes target administrative interfaces
+          (ports 22, 3389, 502, 7001) that resemble intrusion attempts. Community
+          discussions document frustration with Stretchoid's opt-out mechanism, with
+          administrators reporting persistent scanning after opt-out submissions.
+          Researchers have noted that Stretchoid's infrastructure shifted from DigitalOcean
+          to Microsoft Azure, and a subsequent scanner-list refresh removed the legacy
+          DigitalOcean address space. SANS ISC analysis has also noted transparency
+          concerns given limited public information about the platform's funding and
+          data handling. The MISP warninglist itself serves to contextualise this
+          activity rather than direct blocking.
+        engagement: The stretchoid-nt-scanning list has received multiple community-driven
+          updates since its introduction, with contributors including Th4nat0s, karenyousefi,
+          cudeso, Showfom, and bartblaze. Community discussion of Stretchoid scanning
+          appears across Reddit r/cybersecurity, the SANS ISC Diary, and pfSense/Netgate
+          forums.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/stretchoid-nt-scanning/list.json
+        document_date: '2026-05-04'
+        validation_date: '2026-05-19T00:45:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-19T00:40:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/pull/330
+        document_date: '2026-03-13'
+        validation_date: '2026-05-19T00:50:00+00:00'
+      - url: https://www.circl.lu/projects/scanning/
+        document_date:
+        validation_date: '2026-05-19T00:51:00+00:00'
+      - url: https://stretchoid.com/
+        document_date:
+        validation_date: '2026-05-19T00:52:00+00:00'
+      - url: https://isc.sans.edu/diary/30670
+        document_date: '2024-02-22'
+        validation_date: '2026-05-19T00:53:00+00:00'
+      - url: 
+          https://www.reddit.com/r/cybersecurity/comments/10w2eab/stretchoid_phishing_and_recon_campaign/
+        document_date:
+        validation_date: '2026-05-19T00:54:00+00:00'
+      - url: https://github.com/MISP
+        document_date:
+        validation_date: '2026-05-19T00:55:00+00:00'
+      - url: https://api.github.com/repos/MISP/misp-warninglists
+        document_date: '2026-05-08'
+        validation_date: '2026-05-19T00:56:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/releases
+        document_date: '2026-04-05'
+        validation_date: '2026-05-19T00:57:00+00:00'
+      - url: https://www.misp-project.org/
+        document_date:
+        validation_date: '2026-05-19T00:57:00+00:00'

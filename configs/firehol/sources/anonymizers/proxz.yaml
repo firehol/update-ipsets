@@ -1,0 +1,122 @@
+sources:
+  proxz:
+    license: public feed
+    redistributable: true
+    url: http://www.proxz.com/proxylists.xml
+    frequency: 60
+    history:
+    - 1440
+    - 10080
+    - 43200
+    ipv: ipv4
+    output: ipset
+    processor:
+    - xml_rss_proxy
+    processor_raw: parse_rss_proxy
+    category: anonymizers
+    info: '[proxz.com](http://www.proxz.com) open proxies (this list is composed using
+      an RSS feed)'
+    maintainer: ProxZ.com
+    maintainer_url: http://www.proxz.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T11:28:55Z'
+      official_name: Proxz.com
+      official_url: http://www.proxz.com/
+      short_description: Daily updated collection of free public proxy servers, categorized
+        by anonymity level.
+      long_description: "Proxz.com was created in 2003 to provide the general public
+        with free proxy servers. The service maintains an extensive database of proxies
+        that are tested for quality before being distributed via RSS feed. Proxies
+        are categorized into two types: transparent or non-anonymous proxies (which
+        reveal the user's IP and indicate proxy usage to destination servers) and
+        anonymous or elite proxies (which hide the user's IP and send only limited
+        server information). The feed is distributed with a 60-minute TTL, indicating
+        refresh recommendations, though the site describes its update cycle as daily."
+      roles:
+      - role: maintainer
+        name: Proxz.com
+        organization_type: unknown
+        official_url: http://www.proxz.com/
+        contact_email: info@proxz.com
+        based_in:
+        active_since: '2003'
+        notes: Operates the proxy discovery, testing, and distribution infrastructure.
+          The RSS feed header reveals contact email and generator information.
+      derivation:
+        type: original
+        description: Collects proxy servers from Proxz.com's own scanning and testing
+          infrastructure. Proxies are validated for functionality before being added
+          to the distribution feed. The service distinguishes between transparent
+          and elite anonymity levels based on test results.
+        source_feeds: []
+      listing_policy:
+        summary: "Proxies are collected from public internet scanning and tested for
+          connectivity before inclusion. The maintainer applies a quality filter—only
+          proxies that respond successfully during testing are listed. Two tiers exist
+          based on anonymity characteristics: transparent proxies that leak identifying
+          information, and elite proxies that conceal the user's IP address."
+        criteria:
+        - Must respond to connectivity test (reachability validation)
+        - 'Categorized by anonymity level: transparent (leaks IP) versus elite (conceals
+          IP)'
+      unlisting_policy:
+        summary: Not publicly documented. The maintainer does not publish an explicit
+          unlisting mechanism, removal request form, or decay policy on the website.
+        criteria: []
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated daily, with a recommended cache refresh interval of
+          60 minutes.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: Discovers and validates proxy servers through automated scanning
+          and testing of public internet resources. Proxies that pass connectivity
+          and anonymity tests are added to the feed.
+      scope_and_intent:
+        description: Provides free public proxy servers for privacy enhancement, secure
+          web browsing, and firewall bypass purposes.
+        intended_for:
+        - Hiding IP address for privacy
+        - Secure web browsing
+        - Firewall bypass
+        - Connection latency optimization
+        not_intended_for: []
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: No redistribution terms are publicly stated by the maintainer.
+      current_status:
+        state: active
+        description: The Proxz.com website and RSS feed remain accessible as of the
+          latest research. The domain registration extends to December 2026, indicating
+          continued operation. Historical snapshots show intermittent archiving activity
+          through February 2025.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion about Proxz.com is sparse. Extensive searches
+          across Reddit, security forums, and tech communities found no direct mentions,
+          reviews, or user reports. The absence of community signal reflects either
+          limited user adoption or a user base that does not participate in public
+          forums—not necessarily negative sentiment.
+      sources_consulted:
+      - url: http://www.proxz.com/
+        document_date:
+        validation_date: '2026-05-16T11:00:00Z'
+      - url: http://www.proxz.com/proxylists.xml
+        document_date: '2021-03-12'
+        validation_date: '2026-05-16T11:00:00Z'
+      - url: https://web.archive.org/web/*/http://www.proxz.com/proxylists.xml
+        document_date:
+        validation_date: '2026-05-16T11:00:00Z'
+      - url: https://github.com/brianc/node-proxz
+        document_date:
+        validation_date: '2026-05-16T11:00:00Z'

@@ -1,0 +1,192 @@
+sources:
+  critical_soft_mollie:
+    license: Provider-published public IP ranges
+    redistributable: false
+    label: Mollie ranges
+    url: https://ip-ranges.mollie.com/ips.txt
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4
+    - append_slash32
+    - filter_all4
+    processor_raw: extract_ipv4_from_any_file
+    category: provider_infrastructure
+    provenance: primary
+    info: Mollie-published IPv4 addresses. Reference feed, not a threat indicator.
+    maintainer: Mollie
+    maintainer_url: https://docs.mollie.com/reference/ip-ranges
+    enabled_by_all: true
+    use: [critical_infrastructure]
+    critical:
+      tier: soft
+      role: payment_or_commerce
+      source_type: authoritative_plain_text
+      source_quality: A
+      rationale: Mollie payment ranges support payment processing and webhook delivery;
+        overlap should be reviewed before blocking commerce paths.
+
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T13:01:23Z'
+      official_name: Mollie IP ranges
+      official_url: 
+        https://help.mollie.com/hc/en-us/articles/213470829-Which-IP-addresses-does-Mollie-use
+      short_description: Outbound IP addresses used by Mollie for webhook delivery
+        and API callbacks, published for firewall configuration and webhook source
+        verification.
+      long_description: "Mollie publishes the outbound IP addresses its platform uses
+        to deliver payment webhooks and make API callback requests. The feed is maintained
+        as a plain-text file at ip-ranges.mollie.com, retrievable with `curl`, and
+        is intended primarily for operators configuring network-level controls to
+        permit incoming Mollie webhook traffic.\n\nPer the maintainer's documentation,
+        Mollie operates two webhook delivery modes: lightweight ID-only webhooks that
+        invite an authenticated API call to retrieve the full payload, and signed
+        webhooks that carry the full payload protected by an HMAC-SHA256 signature.
+        Because both modes authenticate cryptographically, the source IP is described
+        as less critical for security — and the maintainer explicitly recommends avoiding
+        IP allowlisting wherever possible. The feed nonetheless remains operationally
+        useful for auditing which IPs Mollie uses for outbound connections, particularly
+        for operators whose hosting providers apply heuristic firewall rules that
+        may flag unexpected outbound traffic patterns.\n\nThe feed contains individual
+        IPv4 addresses only; no CIDR ranges or port information is included. All currently
+        listed addresses are hosted on Google Cloud Platform infrastructure."
+      roles:
+      - role: maintainer
+        name: Mollie BV
+        organization_type: commercial
+        official_url: https://www.mollie.com
+        contact_email:
+        based_in: Netherlands
+        active_since: '2004'
+        notes: Mollie BV is a licensed payment service provider supervised by De Nederlandsche
+          Bank (DNB), registered with the Dutch Chamber of Commerce under number 30204462.
+          Founded in 2004 by Adriaan Mol, the company is headquartered in Amsterdam
+          and serves over 200,000 European businesses.
+      derivation:
+        type: original
+        description: The feed is produced directly by Mollie's own infrastructure.
+          It lists the outbound IP addresses currently in use by Mollie's platform
+          for webhook delivery and API callbacks. No upstream IP feeds are consumed.
+        source_feeds: []
+      listing_policy:
+        summary: This is not a threat indicator feed. Entries represent Mollie's own
+          outbound infrastructure IP addresses currently in use for webhook delivery
+          and API callbacks. IPs are added or replaced as Mollie's infrastructure
+          evolves, without a fixed enumeration criteria analogous to threat-feeds.
+        criteria:
+        - Addresses currently allocated to Mollie's outbound infrastructure for webhook
+          delivery
+        - Addresses used for API callback requests to merchant systems
+      unlisting_policy:
+        summary: There is no formal unlisting mechanism for this feed. IPs are removed
+          when Mollie's infrastructure rotates away from them. Operators who experience
+          false positives from previously-listed IPs should contact Mollie support.
+        criteria:
+        - Automatic removal when Mollie's infrastructure retires or rotates the address
+      unlist_request:
+        url:
+        email:
+        instructions: No dedicated unlisting channel is published. Operators experiencing
+          false positives from Mollie IPs should contact Mollie support at https://www.mollie.com/support.
+          Hosting-provider-level false positives (where a hosting provider's firewall
+          incorrectly flags Mollie webhook IPs) require resolution through the hosting
+          provider's whitelist process.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated daily, per the catalog configuration. The maintainer's
+          help article advises operators to monitor the Last-Modified HTTP header
+          to detect changes.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: 'The feed is a policy-assignment reference: Mollie publishes
+          its own outbound infrastructure IP addresses for operators who wish to configure
+          network-level allowlisting for incoming webhook traffic. This is not a threat-detection
+          feed — entries are not indicators of malicious activity.'
+      scope_and_intent:
+        description: Mollie publishes this feed to help merchants and platform operators
+          configure network-level controls that permit incoming webhook traffic from
+          Mollie. The maintainer explicitly recommends against relying solely on IP
+          allowlisting, advising instead the use of HMAC-SHA256 signature verification
+          as the primary authentication mechanism for webhook events.
+        intended_for:
+        - Configuring firewall rules to permit incoming Mollie webhook traffic
+        - Auditing which IPs Mollie uses for outbound connections
+        - Verifying the source IP of incoming Mollie webhook requests
+        not_intended_for:
+        - Blocking Mollie IPs as threat indicators — this is a reference feed, not
+          a threat intelligence feed
+        - Using as the sole security control for webhook authentication — the maintainer
+          recommends HMAC-SHA256 signature verification instead
+        - Correlating with fraudulent transactions — IP-based screening operates at
+          the country level in Mollie's risk controls, not per-individual-IP
+      license: Provider-published public IP ranges
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms: The catalog YAML marks this feed as non-redistributable. Operators
+          should pull the live feed directly from ip-ranges.mollie.com rather than
+          redistributing cached copies.
+      current_status:
+        state: active
+        description: Active. The feed is maintained and updated; operators can retrieve
+          the current list with `curl https://ip-ranges.mollie.com/ips.txt` and monitor
+          the Last-Modified HTTP header for changes.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Documented false positive cases have been reported where hosting
+          provider security layers blocked Mollie webhook IPs. In one case on the
+          WordPress.org support forum, SiteGround's firewall greylisted two Mollie
+          IPs because outbound traffic patterns resembled mass PHPMail activity, causing
+          webhook delivery failures and orders remaining stuck in pending status until
+          SiteGround support manually whitelisted the addresses. In a separate case
+          on the Cloudflare community forum from November 2024, a user experienced
+          persistent 403 Forbidden errors on incoming Mollie webhooks forwarded through
+          Cloudflare's WAF, with the thread closing without a confirmed resolution.
+          The Mollie WooCommerce wiki acknowledges that third-party plugins and hosting
+          firewalls occasionally block Mollie communications despite the developer's
+          intent not to block them, directing affected operators to disable anti-spam
+          miscellaneous-form protections or contact hosting support.
+        engagement: Public community discussion is moderate in volume. False positive
+          incidents are documented in hosting provider support forums (SiteGround,
+          Cloudflare) rather than in a dedicated Mollie community space. Mollie's
+          own documentation actively addresses the IP feed and recommends against
+          relying on it as a primary security control, preferring HMAC-SHA256 signature
+          verification instead. No dedicated Mollie community forum, Discord channel,
+          or subreddit was found or indexed for this feed specifically.
+      sources_consulted:
+      - url: https://ip-ranges.mollie.com/ips.txt
+        document_date:
+        validation_date: '2026-05-21T13:00:00Z'
+      - url: 
+          https://help.mollie.com/hc/en-us/articles/213470829-Which-IP-addresses-does-Mollie-use
+        document_date:
+        validation_date: '2026-05-21T13:00:00Z'
+      - url: 
+          https://help.mollie.com/hc/en-us/articles/14199431980050-How-do-I-manage-my-Risk-Controls
+        document_date:
+        validation_date: '2026-05-21T13:00:00Z'
+      - url: https://github.com/mollie/WooCommerce/wiki/Common-issues
+        document_date:
+        validation_date: '2026-05-21T13:00:00Z'
+      - url: 
+          https://github.com/mollie/mollie-api-php/blob/main/docs/recipes/webhooks/signature-verification.md
+        document_date:
+        validation_date: '2026-05-21T13:00:00Z'
+      - url: https://wordpress.org/support/topic/update-order-solution/
+        document_date:
+        validation_date: '2026-05-21T13:00:00Z'
+      - url: https://community.cloudflare.com/t/mollie-apis-webhooks-forbidden-403/737053
+        document_date:
+        validation_date: '2026-05-21T13:00:00Z'
+      - url: https://www.mollie.com/legal/impressum
+        document_date:
+        validation_date: '2026-05-21T13:00:00Z'
+      - url: https://www.crunchbase.com/organization/mollie
+        document_date:
+        validation_date: '2026-05-21T13:00:00Z'

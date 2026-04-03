@@ -1,0 +1,176 @@
+sources:
+  shadowwhisperer_threats_unclassified:
+    license: The Unlicense (Public Domain)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/Lists/Threats_Unclassified
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: primary
+    info: '[ShadowWhisperer/IPs](https://github.com/ShadowWhisperer/IPs) IPs observed
+      by the maintainer''s honeypots but not yet classified — lower-confidence signal,
+      kept separate from confirmed threats. ~9K entries, hourly refresh.'
+    maintainer: ShadowWhisperer
+    maintainer_url: https://github.com/ShadowWhisperer/IPs
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T00:25:46Z'
+      official_name: Threats_Unclassified
+      official_url: https://github.com/ShadowWhisperer/IPs/blob/master/Lists/Threats_Unclassified
+      short_description: IPv4 addresses observed by the maintainer's honeypot network
+        but not yet assigned to a specific threat category — lower-confidence detections
+        held separately from confirmed threats.
+      long_description: "Threats_Unclassified holds IPv4 addresses that triggered
+        the maintainer's honeypot sensors but lacked sufficient distinctive behavior
+        to be placed into one of the seven other defined categories — Ads, DNS, Probes,
+        Scanners, Threats, Trackers, or Tunnels. The list is the residual bucket for
+        sightings whose intent could not be confidently classified at processing time.\n\
+        \nEntries in this list therefore carry lower confidence than entries in the
+        confirmed `Lists/Threats` list. The IPs were seen attacking honeypot infrastructure,
+        but the attack signatures were not distinctive enough to assign a definitive
+        category, and the maintainer has chosen to surface these observations separately
+        rather than discard them or fold them into the confirmed Threats list."
+      roles:
+      - role: maintainer
+        name: ShadowWhisperer
+        organization_type: individual
+        official_url: https://github.com/ShadowWhisperer/IPs
+        contact_email:
+        based_in:
+        active_since: '2021'
+        notes: Individual researcher running a multi-location honeypot network. Also
+          an active AbuseIPDB contributor with over 600,000 IPs reported. Authored
+          the complementary AbuseIPDB_Reporter bash script.
+      derivation:
+        type: original
+        description: Collected from honeypot sensors running across multiple geographic
+          locations. Logs are aggregated to a central system, analyzed, and IPs are
+          categorized into eight behavioral buckets. Entries landing in this list
+          were observed attacking honeypot infrastructure but did not exhibit enough
+          distinctive behavior to qualify for the confirmed Threats category or any
+          other defined category.
+        source_feeds: []
+      listing_policy:
+        summary: An IP enters this list when the maintainer's honeypot sensors observe
+          it making connections — but the observed behavior does not match any of
+          the seven other defined categories (Ads, DNS, Probes, Scanners, Threats,
+          Trackers, Tunnels). In essence, the IP was seen attacking honeypot infrastructure
+          without triggering a more specific classification.
+        criteria:
+        - Observed connecting to a honeypot sensor operated by the maintainer
+        - Behavior does not match the criteria for any other defined category (Ads,
+          DNS, Probes, Scanners, Threats, Trackers, Tunnels)
+      unlisting_policy:
+        summary: No automated unlisting mechanism exists. Third parties submit removal
+          requests by opening a GitHub issue on the maintainer's repository, providing
+          evidence that the IP was miscategorized or belongs to a legitimate service.
+          The maintainer reviews and manually edits the list files.
+        criteria:
+        - Submit a GitHub issue with evidence that the IP is miscategorized or belongs
+          to a legitimate service
+        - Maintainer reviews and manually removes the entry from the list
+      unlist_request:
+        url: https://github.com/ShadowWhisperer/IPs/issues/new
+        email:
+        instructions: Open a GitHub issue on the maintainer's repository describing
+          the IP address and providing evidence that it was miscategorized or belongs
+          to a legitimate service. The maintainer reviews and manually edits the list
+          files.
+      update_frequency:
+        frequency: 1h
+        human_readable: Updated every hour
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: Passive collection from honeypot sensors — decoy services deployed
+          across multiple geographic locations that accept and log incoming connections.
+          Attackers who probe or attempt to exploit these decoys reveal their IP addresses,
+          which are then aggregated, analyzed, and categorized. IPs that trigger the
+          sensors but lack enough distinctive behavioral fingerprints to be placed
+          in a specific category land in this list.
+      scope_and_intent:
+        description: Holds IPs observed attacking honeypot infrastructure but not
+          yet assigned to a specific threat category. Intended as one signal in a
+          layered threat-intelligence pipeline — not as a sole authoritative source.
+          The maintainer acknowledges that some entries in adjacent lists have been
+          disputed as potentially unwanted programs (PUPs) rather than confirmed malware.
+        intended_for:
+        - Intrusion detection and prevention systems as one signal among multiple
+          sources
+        - Firewall blocklists for edge protection
+        - SIEM correlation with other threat-intelligence feeds
+        not_intended_for:
+        - As the sole authoritative source of threat intelligence
+        - Without allowlisting for shared hosting ranges and legitimate services
+      license: The Unlicense (Public Domain)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: No restrictions. The Unlicense places no conditions on redistribution,
+          modification, or commercial use.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026. Hourly updates continue;
+          the maintainer recently accepted community contributions (ONYPHE IP ranges,
+          February 2026) and added the Unlicense license (January 2026).
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: No false-positive reports or removal disputes specific to the Threats_Unclassified
+          list were found in the maintainer's issue tracker. Operators consuming this
+          list should treat its entries as lower-confidence signals — the maintainer
+          has implicitly acknowledged the lower-confidence nature by surfacing them
+          in this separate residual bucket rather than the confirmed Threats list.
+        engagement: Sparse public discussion. No Reddit mentions, no third-party reviews,
+          and no dedicated discussion of the Threats_Unclassified list were found
+          across security forums or comparison platforms. Operator feedback on this
+          list — when it occurs — arrives as ad-hoc GitHub issues.
+      sources_consulted:
+      - url: https://github.com/ShadowWhisperer/IPs
+        document_date:
+        validation_date: '2026-05-17T00:10:00Z'
+      - url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/README.md
+        document_date:
+        validation_date: '2026-05-17T00:10:00Z'
+      - url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/LICENSE
+        document_date:
+        validation_date: '2026-05-17T00:12:00Z'
+      - url: https://github.com/ShadowWhisperer/IPs/blob/master/Lists/Threats_Unclassified
+        document_date:
+        validation_date: '2026-05-17T00:13:00Z'
+      - url: 
+          https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/Lists/Threats_Unclassified
+        document_date:
+        validation_date: '2026-05-17T00:14:00Z'
+      - url: https://github.com/ShadowWhisperer/IPs/issues
+        document_date:
+        validation_date: '2026-05-17T00:16:00Z'
+      - url: https://github.com/ShadowWhisperer/IPs/issues/2
+        document_date: '2022-10-17'
+        validation_date: '2026-05-17T00:17:00Z'
+      - url: https://github.com/ShadowWhisperer/IPs/issues/6
+        document_date:
+        validation_date: '2026-05-17T00:17:00Z'
+      - url: https://github.com/ShadowWhisperer/IPs/issues/11
+        document_date: '2026-01-12'
+        validation_date: '2026-05-17T00:18:00Z'
+      - url: https://github.com/ShadowWhisperer/IPs/issues/12
+        document_date: '2026-02-16'
+        validation_date: '2026-05-17T00:18:00Z'
+      - url: https://github.com/AdguardTeam/HostlistsRegistry/issues/202
+        document_date: '2023-04-20'
+        validation_date: '2026-05-17T00:15:00Z'
+      - url: https://www.abuseipdb.com/user/51407
+        document_date:
+        validation_date: '2026-05-17T00:11:00Z'
+      - url: https://github.com/ShadowWhisperer/IPs/pulls
+        document_date:
+        validation_date: '2026-05-17T00:16:00Z'

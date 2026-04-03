@@ -1,0 +1,177 @@
+sources:
+  iblocklist_org_electronic_arts:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=ejqebpcdmffinaetsvxj&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Electronic Arts IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T10:54:38Z'
+      official_name: Electronic Arts
+      official_url: https://www.iblocklist.com/lists
+      short_description: A curated list of IP subnets registered to or operated by
+        Electronic Arts, a video game publisher with documented anti-piracy enforcement
+        activity, intended for users who wish to block EA server connections during
+        peer-to-peer file transfers.
+      long_description: "This feed targets IP address space associated with Electronic
+        Arts, the video game publisher headquartered in Redwood City, California.
+        The list covers EA's corporate network infrastructure (including the registered
+        autonomous system AS393349, registered in April 2016) and related content
+        delivery and hosting allocations.\n\nPer the maintainer's description, entries
+        represent addresses registered to the publisher and additional infrastructure
+        IPs needed for Electronic Arts games to function. The maintainer's Terms of
+        Service explicitly disclaims any commitment to update the materials."
+      roles:
+      - role: maintainer
+        name: iBlocklist.com
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: 'Operated by iblocklist, LLC. Distributes approximately 44 IP blocklists
+          in P2P, DAT, and CIDR formats for use with PeerBlock, PeerGuardian, pfBlocker,
+          and related software. Transitioned to subscription-only model in 2016 at
+          $9.99/year. Also operates PhantomPeer VPN (phantompeer.com), a separate
+          affiliated service. Service-level community signal across iBlocklist.com
+          (not specific to any single feed): Trustpilot reviews document a consistent
+          pattern of unauthorized recurring charges billed after subscription expiry,
+          download errors, and customer support responses described as rude or dismissive.'
+      derivation:
+        type: original
+        description: The Electronic Arts list is compiled by iBlocklist.com from publicly
+          available IP registration records — primarily ARIN, where Electronic Arts
+          is the registered organization for AS393349 — and related content delivery
+          and hosting allocations. The maintainer does not publicly document the specific
+          criteria used to select or exclude individual subnets from the EA list.
+          No upstream IP feeds are consumed; the list does not aggregate or mirror
+          another blocklist.
+        source_feeds: []
+      listing_policy:
+        summary: IPs are listed based on association with Electronic Arts' registered
+          corporate infrastructure and content delivery relationships. The maintainer
+          does not publish explicit listing criteria; the selection methodology is
+          not publicly documented.
+        criteria:
+        - Association with Electronic Arts' registered autonomous system (AS393349)
+          or corporate IP allocations
+        - Cross-reference with EA's content delivery and hosting arrangements
+        - Inclusion in publicly available IP registration records
+      unlisting_policy:
+        summary: No unlisting policy is documented. The maintainer's Terms of Service
+          contains no section addressing complaint submission, dispute resolution,
+          or removal requests. The site's primary contact page (/contact) returns
+          a 404 error, and the support page (/support) contains only PhantomPeer VPN
+          information with no contact form or email address. Subscribers may access
+          an 'exclusions' list as a supplementary whitelist, but this functions as
+          a local override rather than a formal unlisting mechanism.
+        criteria:
+        - No documented unlisting policy
+        - No published appeal or dispute resolution process
+        - Exclusions list available to subscribers as a local whitelist workaround
+      unlist_request:
+        url:
+        email:
+        instructions: No unlisting channel is publicly documented. The iBlocklist.com
+          website provides no contact form, email address, or complaint submission
+          page. The /contact path returns a 404 error, and the /support page contains
+          only PhantomPeer VPN information. Subscribers wishing to contest a listing
+          may access an 'exclusions' list (available at https://www.iblocklist.com/list?list=mtxmiireqmjzazcsoiem)
+          as a local whitelist supplement, but this does not constitute a formal removal
+          request process.
+      update_frequency:
+        frequency: 1d
+        human_readable: Listed as daily in downstream metadata; the maintainer's Terms
+          of Service states no commitment to update the materials.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: "The feed classifies IPs by organizational affiliation rather
+          than by observed malicious activity. Entries are selected based on registration
+          records linking IP ranges to Electronic Arts' corporate infrastructure and
+          content delivery relationships. This is a policy-assignment classification:
+          IPs are categorized because they are EA infrastructure, not because they
+          have been observed generating abuse or attack traffic. The maintainer does
+          not operate honeypots, sensor networks, or malware analysis pipelines for
+          this feed."
+      scope_and_intent:
+        description: The feed is scoped to IP address space associated with Electronic
+          Arts for the purpose of blocking EA server connections during peer-to-peer
+          file transfers. It is one of several publisher-scoped organizational lists
+          distributed alongside broader anti-p2p blocklists such as Bluetack level1.
+        intended_for:
+        - Blocking EA server connections during peer-to-peer file transfers to protect
+          privacy
+        - Preventing anti-p2p monitoring organizations from logging P2P client activity
+        - Privacy-preserving configurations for PeerBlock, PeerGuardian, and related
+          P2P firewall software
+        not_intended_for:
+        - Blocking Electronic Arts online gaming services in competitive play scenarios
+        - Enterprise perimeter security or threat intelligence workflows
+        - Attribution of malicious activity — the feed categorizes by publisher association,
+          not by observed abuse
+      license: iBlocklist Terms of Service — personal / non-commercial only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The Terms of Service grant permission for personal use only. Commercial
+          use and any public display (commercial or non-commercial) are prohibited.
+          The license terminates automatically upon violation. No redistribution rights
+          are granted beyond the subscriber's own personal use.
+      current_status:
+        state: active
+        description: The feed remains listed on the iBlocklist.com lists directory
+          and the subscription service continues to operate as of the research date.
+          However, the maintainer's Terms of Service explicitly disclaims any commitment
+          to update the materials, and the seed data carried in downstream mirrors
+          records a source-file date of June 2018, indicating the underlying dataset
+          has not been visibly refreshed in subsequent public revision cycles. No
+          discontinuation announcement has been published.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: No targeted complaints about the Electronic Arts feed specifically
+          were found in public discussion. Service-level community signal across iBlocklist.com
+          is recorded in the maintainer role notes.
+        engagement: Public community discussion of the Electronic Arts feed specifically
+          is sparse. No Reddit posts, security blog writeups, or technical forum threads
+          referencing this list were found across multiple search queries.
+      sources_consulted:
+      - url: https://www.iblocklist.com/lists
+        document_date: '2026'
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/subscribe
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/support
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date: '2025-01-09'
+        validation_date: '2026-05-18'
+      - url: https://ipinfo.io/AS393349
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/list.php?list=bt_level1
+        document_date:
+        validation_date: '2026-05-18'

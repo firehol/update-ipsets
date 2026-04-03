@@ -1,0 +1,134 @@
+sources:
+  shadowwhisperer_bruteforce_high:
+    license: Unlicense
+    redistributable: true
+    url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/BruteForce/High
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[ShadowWhisperer/IPs](https://github.com/ShadowWhisperer/IPs) high-volume
+      brute-force IPs that connected to the maintainer''s honeypots. Bitwire consumes
+      this legacy path; the file still updates from the repository automation.'
+    maintainer: ShadowWhisperer
+    maintainer_url: https://github.com/ShadowWhisperer/IPs
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T23:49:25Z'
+      official_name: BruteForce/High
+      official_url: https://github.com/ShadowWhisperer/IPs
+      short_description: IPv4 addresses that connected to the maintainer's honeypots
+        between 20 and 79 times, indicating sustained brute-force attack activity.
+      long_description: "This feed collects IPv4 addresses observed making repeated
+        SSH and Telnet connection attempts against Cowrie honeypot deployments. Addresses
+        qualify for the High tier when they attempt between 20 and 79 connections—persistent
+        enough to indicate deliberate attack campaigns, but below the extreme threshold
+        of 80 or more.\n\nThe maintainer processes honeypot logs hourly, extracting
+        unique source IPs and categorizing them by connection frequency. The resulting
+        lists are published in both plain-text (.txt) and CSV formats with extended
+        metadata including first-seen and last-seen timestamps.\n\nNote: The BruteForce
+        folder is a legacy section. The maintainer now directs users to the Lists/
+        folder for actively maintained feeds covering threats, probes, and other categories."
+      roles:
+      - role: maintainer
+        name: ShadowWhisperer
+        organization_type: individual
+        official_url: https://github.com/ShadowWhisperer
+        contact_email:
+        based_in:
+        active_since:
+        notes: Individual researcher operating honeypot infrastructure for threat
+          intelligence collection. Holds an AbuseIPDB Contributor Badge.
+      derivation:
+        type: original
+        description: First-party detection from Cowrie honeypot deployments. The maintainer
+          operates honeypots that log SSH and Telnet connection attempts, extracts
+          unique source IPs, counts connection frequency per source, and publishes
+          qualifying addresses in tiered lists based on connection thresholds.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when it reaches 20 or more recorded connection attempts
+          to the honeypot infrastructure, but fewer than 80. Each connection attempt—whether
+          a login probe, partial handshake, or completed session—is counted toward
+          the threshold.
+        criteria:
+        - Observed connecting to Cowrie honeypots at least 20 times
+        - Fewer than 80 total connections observed (addresses with 80+ fall into the
+          Extreme tier)
+      unlisting_policy:
+        summary: No explicit unlisting mechanism is documented. The repository periodically
+          clears diffs and pull requests to reduce storage size, which effectively
+          removes any historical tracking of delisting requests.
+        criteria:
+        - No documented automatic expiration or decay policy
+        - No documented manual unlisting request process
+        - Repository compression clears historical tracking data
+      unlist_request:
+      update_frequency:
+        frequency: 1h
+        human_readable: Automatically uploaded every hour
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: Passive network sensor detection using Cowrie, an open-source
+          medium/high-interaction SSH and Telnet honeypot. Cowrie logs all connection
+          attempts—including failed and partial logins—and records the source IP for
+          each. The maintainer aggregates these logs to identify repeat offenders.
+      scope_and_intent:
+        description: Intended for operators seeking to block systems performing sustained
+          brute-force authentication attacks against SSH and Telnet services. The
+          High tier targets persistent attackers who exceed casual scanning but fall
+          below extreme-volume campaigns.
+        intended_for:
+        - Blocking brute-force SSH/Telnet attackers at network perimeter
+        - Supplementary threat intelligence for security monitoring pipelines
+        not_intended_for:
+        - Single definitive determination of maliciousness (IPs may be NAT'd or recycled)
+        - Blocking based solely on presence without local validation
+      license: Unlicense
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: The Unlicense grants unlimited rights to use, copy, modify, distribute,
+          and redistribute the work without attribution requirement.
+      current_status:
+        state: altered_scope
+        description: The BruteForce folder is designated legacy. The maintainer now
+          directs users to the Lists/ folder for actively maintained feeds. While
+          the BruteForce/High file continues to update from repository automation,
+          it is no longer the primary vehicle for this class of threat intelligence.
+        successor:
+          name: Lists/Threats
+          url: https://github.com/ShadowWhisperer/IPs/tree/master/Lists
+        announcement_date:
+      community:
+        awards:
+        criticism: No documented false-positive reports or removal disputes specific
+          to the BruteForce/High tier were found in the maintainer's issue tracker.
+          The maintainer does not publish false-positive rate metrics or retention/expiration
+          policies for this list.
+        engagement: Public discussion is sparse. The maintainer does not run a forum
+          or dedicated communication channel for this feed. Operator feedback on the
+          BruteForce tiers — when it occurs — is filed as ad-hoc GitHub issues rather
+          than concentrated in any topic-specific venue.
+      sources_consulted:
+      - url: https://github.com/ShadowWhisperer/IPs
+        document_date:
+        validation_date: '2026-05-16T23:45:00Z'
+      - url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/BruteForce/High
+        document_date: '2026-03-28'
+        validation_date: '2026-05-16T23:44:00Z'
+      - url: https://github.com/ShadowWhisperer/IPs/issues
+        document_date:
+        validation_date: '2026-05-16T23:46:00Z'
+      - url: https://github.com/AdguardTeam/HostlistsRegistry/issues/202
+        document_date:
+        validation_date: '2026-05-16T23:47:00Z'
+      - url: https://help.nextdns.io/t/p8ykkx2/add-extra-hagezi-and-shadowwhisperer-lists
+        document_date:
+        validation_date: '2026-05-16T23:47:00Z'

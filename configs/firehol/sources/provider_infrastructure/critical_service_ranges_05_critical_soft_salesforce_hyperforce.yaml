@@ -1,0 +1,265 @@
+sources:
+  critical_soft_salesforce_hyperforce:
+    license: Provider-published public IP ranges
+    redistributable: false
+    label: Salesforce Hyperforce ranges
+    url: https://ip-ranges.salesforce.com/ip-ranges.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - json_path:
+        path: "$.prefixes[*].ip_prefix[*]"
+    - filter_all4
+    processor_raw: json_path
+    category: provider_infrastructure
+    provenance: primary
+    info: Salesforce-published Hyperforce IPv4 ranges. Reference feed, not a threat
+      indicator.
+    maintainer: Salesforce
+    maintainer_url: https://ip-ranges.salesforce.com/
+    enabled_by_all: true
+    use: [critical_infrastructure]
+    critical:
+      tier: soft
+      role: saas_crm_platform
+      source_type: authoritative_provider_json
+      source_quality: A
+      rationale: Salesforce is a core CRM and business-operations platform; overlap
+        can disrupt sales, support, and automation workflows and should be reviewed.
+
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T13:27:03Z'
+      official_name: Hyperforce IPs to Allow
+      official_url: https://help.salesforce.com/s/articleView?id=003876184&language=en_US&type=1
+      short_description: Salesforce's authoritative list of outbound and inbound IP
+        address ranges used by Hyperforce, its next-generation cloud infrastructure
+        built on AWS, published as a JSON file for customer network allowlisting.
+      long_description: "Salesforce Hyperforce is the company's next-generation infrastructure
+        architecture, rebuilt from the ground up on public cloud platforms — primarily
+        Amazon Web Services, supplemented by Microsoft Azure and Google Cloud Platform.
+        Rather than operating proprietary data centres, Salesforce now runs its Sales,
+        Service, Industries, and Tableau Clouds on elastic, containerised AWS workloads
+        distributed across 22 AWS regions worldwide, each spanning three availability
+        zones.\n\nThe IP ranges published in the JSON file cover two traffic directions.
+        Outbound entries are the source addresses from which Hyperforce initiates
+        connections to customer infrastructure — for example, outbound API callouts,
+        webhook deliveries, and data integrations flowing from Salesforce to external
+        systems. Inbound entries are the addresses from which external clients connect
+        into Hyperforce, including Salesforce Edge Nodes that sit at the perimeter
+        of the platform. The list does not cover email traffic, and explicitly excludes
+        Marketing Cloud, Commerce Cloud, and Slack — those products may be added in
+        future releases.\n\nBecause Hyperforce uses dynamic IP allocation on AWS,
+        addresses are not permanently fixed. Salesforce manages this by giving customers
+        at least 30 days' advance notice before activating any new IP range, via the
+        Trust Notifications system. Customers are advised to download and compare
+        successive versions of the JSON file, tracking changes via the embedded createDate
+        field. Salesforce actively discourages reliance on IP allowlisting as a long-term
+        security strategy, recommending instead mutual TLS (mTLS), OAuth-based authentication,
+        or Salesforce Private Connect for enterprise connectivity needs."
+      roles:
+      - role: maintainer
+        name: Salesforce
+        organization_type: commercial
+        official_url: https://www.salesforce.com
+        contact_email:
+        based_in: United States
+        active_since: '2020'
+        notes: Salesforce operates Hyperforce as its primary infrastructure platform
+          for Sales, Service, Industries, and Tableau Clouds. The company asserts
+          exclusive ownership of all first-party public IP addresses used across its
+          infrastructure, per the Core Services IP Addresses and Domains to Allow
+          article.
+      - role: publisher
+        name: Amazon Web Services
+        organization_type: commercial
+        official_url: https://aws.amazon.com
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: All IP ranges currently published in the JSON file are allocated from
+          AWS address space, confirmed by the provider field in the JSON. Hyperforce
+          runs on AWS EC2 infrastructure across 22 regions.
+      derivation:
+        type: original
+        description: The feed is an original, authoritative publication by Salesforce.
+          It is not derived from any other IP feed. The JSON file is generated from
+          Salesforce's own IP address allocation records on AWS; each entry carries
+          the aws provider designation. No external threat feeds, sensor networks,
+          or community reports contribute to this list. The build process consists
+          of Salesforce allocating IP space from AWS for Hyperforce workloads and
+          publishing the resulting ranges in the JSON file, with at least 30 days'
+          notice before any new range is activated.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added automatically when Salesforce allocates IP address
+          space from AWS for Hyperforce workloads. Salesforce gives customers at least
+          30 days' advance notice — via the Trust Notifications system — before any
+          new IP range is activated, allowing time to update network allowlists. Entries
+          are not formally unlisted; Salesforce stops advertising an IP range once
+          it is deallocated from Hyperforce, and customers are expected to remove
+          it from their allowlists. The list explicitly excludes email traffic, Marketing
+          Cloud, Commerce Cloud, and Slack.
+        criteria:
+        - Any IPv4 or IPv6 CIDR block allocated by AWS for Salesforce Hyperforce workloads
+          is included in the published list
+        - Both outbound source addresses (connections initiated by Hyperforce) and
+          inbound addresses (connections from external sources reaching Hyperforce,
+          including Edge Nodes) are listed
+        - Salesforce activates new ranges no sooner than 30 days after publishing
+          them to the JSON file
+        - Mail traffic, Marketing Cloud, Commerce Cloud, and Slack are explicitly
+          excluded — these may be added in future releases
+      unlisting_policy:
+        summary: There is no formal unlisting request process for this feed, because
+          it is not a blocklist or threat indicator — it is a reference list of Salesforce's
+          own infrastructure IP addresses. IPs leave the list when Salesforce deallocates
+          them from Hyperforce; customers are expected to monitor the JSON file for
+          changes and remove deprecated ranges from their allowlists independently.
+        criteria:
+        - IP ranges are removed from the JSON file when Salesforce deallocates them
+          from Hyperforce on AWS
+        - Customers track changes by comparing successive versions of the JSON file
+          and monitoring the createDate field
+        - No manual unlisting request channel is offered — this is a reference feed,
+          not a reactive blocklist
+      unlist_request:
+        url:
+        email:
+        instructions: Salesforce does not offer a formal unlisting request process
+          for this feed. Because the feed is a reference list of the customer's own
+          cloud provider's IP addresses — not a reactive blocklist — IPs are removed
+          by Salesforce when they are deallocated from Hyperforce. Customers should
+          monitor the JSON file for changes using the createDate field and remove
+          deprecated ranges from their own network configurations. For assistance
+          with IP geolocation inaccuracies, Salesforce directs customers to contact
+          customer support with the affected IPs and the geolocation database in question.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated daily, per the maintainer's recommendation that customers
+          poll the JSON file at least twice in each 30-day period to catch changes
+          within the advance-notice window
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The feed classifies IP addresses by policy assignment — Salesforce
+          allocates IP address space from AWS for Hyperforce workloads and publishes
+          the resulting ranges. This is not a threat-detection feed; entries represent
+          authorised infrastructure addresses, not indicators of compromise. The classification
+          reflects Salesforce's exclusive ownership of all first-party public IP addresses
+          used across its platform.
+      scope_and_intent:
+        description: The feed is intended for Salesforce customers and network administrators
+          who need to configure inbound and outbound network allowlists to maintain
+          connectivity with Hyperforce. It covers the full set of IP addresses for
+          outbound connections initiated by Hyperforce to third-party infrastructure,
+          and inbound connections from external sources reaching Hyperforce, including
+          Salesforce Edge Nodes.
+        intended_for:
+        - Network allowlisting for outbound connections from Salesforce Hyperforce
+          to customer infrastructure
+        - Network allowlisting for inbound connections from external sources to Salesforce
+          Hyperforce
+        - Salesforce Sales, Service, Industries, and Tableau Cloud customers
+        - MuleSoft Anypoint Platform integrations with Hyperforce
+        not_intended_for:
+        - Email security and spam filtering — mail traffic is explicitly excluded
+        - Marketing Cloud, Commerce Cloud, and Slack connectivity
+        - Threat intelligence and security incident detection — this is a provider
+          infrastructure reference list, not a blocklist
+        - Long-term static allowlisting — Salesforce recommends mTLS, OAuth, or Private
+          Connect as durable alternatives
+      license: Public, no stated license
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The Salesforce Master Subscription Agreement (MSA) prohibits commercial
+          redistribution, sublicensing, and resale of the Service and Content. While
+          the MSA does not separately enumerate IP address ranges as licensed intellectual
+          property, the IP ranges are treated as operational infrastructure falling
+          under the broader service-restrictions clause. Salesforce asserts exclusive
+          ownership of all first-party public IP addresses.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026. Salesforce publishes regular
+          updates to the IP ranges JSON file, with at least 30 days' advance notice
+          before new IP ranges are activated. Trust Notifications are available for
+          Sales, Service, and Industries Cloud; Tableau Cloud customers should poll
+          the JSON file at least twice per 30-day period.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "Community discussion surfaces operational friction rather than
+          security-threat concerns. Administrators report that Hyperforce's dynamic
+          IP allocation on AWS makes traditional static IP allowlisting unworkable
+          — IPs change as containers scale, and the published list lags behind real-time
+          allocation changes. Sandbox migrations to new Hyperforce data centres have
+          caused unexpected IP changes requiring rapid allowlist updates. A hard cap
+          of approximately 16.7 million total IP addresses per organisation (introduced
+          in Winter '26) has caused organisations with large allowlists to hit the
+          limit, triggering inverse-logic behaviour where the system requires MFA
+          on every login instead of skipping it from trusted IPs. Device activation
+          requirements introduced in October 2025 have disrupted automated test pipelines
+          and SSO workflows when OTP delivery paths are unavailable. Email delivery
+          disruptions have been reported immediately following Hyperforce migrations
+          when sending servers change IP addresses. Resolution patterns vary: Salesforce
+          Support assists with individual cases, and the 30-day advance notice policy
+          provides lead time for planned expansions, but dynamic IP churn remains
+          an ongoing operational challenge."
+        engagement: "Community discussion is concentrated in the r/salesforce subreddit
+          and Salesforce Stack Exchange, where practitioners share migration experiences
+          and workarounds. Salesforce communicates changes through the Trust Notifications
+          system (subject line: 'UPCOMING MAINTENANCE - External IP List Update').
+          The feed is mirrored by third-party aggregation projects including disposable/cloud-ip-ranges
+          on GitHub (as of May 2026). Sparse public discussion overall — this is a
+          provider infrastructure reference feed, not a threat feed, so adversarial-community
+          dynamics do not apply."
+      sources_consulted:
+      - url: https://ip-ranges.salesforce.com/ip-ranges.json
+        document_date: '2026-05-04'
+        validation_date: '2026-05-21T13:27:03Z'
+      - url: https://help.salesforce.com/s/articleView?id=003876184&language=en_US&type=1
+        document_date: '2025-10-23'
+        validation_date: '2026-05-21T13:27:03Z'
+      - url: https://help.salesforce.com/s/articleView?id=000384438&language=en_US&type=1
+        document_date: '2026-04-01'
+        validation_date: '2026-05-21T13:27:03Z'
+      - url: https://help.salesforce.com/s/articleView?id=000394078&language=en_US&type=1
+        document_date:
+        validation_date: '2026-05-21T13:27:03Z'
+      - url: 
+          https://help.salesforce.com/s/articleView?id=release-notes.rn_hyperforce_inboud_ips.htm
+        document_date:
+        validation_date: '2026-05-21T13:27:03Z'
+      - url: 
+          https://engineering.salesforce.com/behind-the-scenes-of-hyperforce-salesforces-infrastructure-for-the-public-cloud-429309542d8e
+        document_date:
+        validation_date: '2026-05-21T13:27:03Z'
+      - url: https://help.salesforce.com/s/articleView?id=000396845&language=en_US&type=1
+        document_date:
+        validation_date: '2026-05-21T13:27:03Z'
+      - url: https://www.salesforce.com/platform/public-cloud-infrastructure
+        document_date:
+        validation_date: '2026-05-21T13:27:03Z'
+      - url: https://www.reddit.com/r/salesforce/comments/1gsxax2/
+        document_date:
+        validation_date: '2026-05-21T13:27:03Z'
+      - url: https://www.reddit.com/r/salesforce/comments/197tzv9/
+        document_date:
+        validation_date: '2026-05-21T13:27:03Z'
+      - url: https://salesforce.stackexchange.com/questions/381012/
+        document_date:
+        validation_date: '2026-05-21T13:27:03Z'
+      - url: https://www.reddit.com/r/salesforce/comments/1pq622n/
+        document_date:
+        validation_date: '2026-05-21T13:27:03Z'
+      - url: https://www.reddit.com/r/salesforce/comments/1of9s1o/
+        document_date:
+        validation_date: '2026-05-21T13:27:03Z'
+      - url: 
+          https://github.com/disposable/cloud-ip-ranges/blob/master/json/salesforce-hyperforce.json
+        document_date:
+        validation_date: '2026-05-21T13:27:03Z'

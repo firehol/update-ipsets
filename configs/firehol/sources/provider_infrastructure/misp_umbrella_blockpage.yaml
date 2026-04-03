@@ -1,0 +1,178 @@
+sources:
+  misp_umbrella_blockpage:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/umbrella-blockpage-v4/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Cisco Umbrella
+      IPv4 blockpage addresses. Provider infrastructure reference, not a threat indicator.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T18:32:17Z'
+      official_name: cisco-umbrella-blockpage-ipv4
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: Six IPv4 addresses used by Cisco Umbrella's DNS-layer blockpage
+        redirect infrastructure, enabling security analysts to identify and suppress
+        false positives when observing connections to Umbrella's own block response
+        IPs.
+      long_description: "When Cisco Umbrella blocks a domain at the DNS layer, it
+        returns its own block page hosted on a fixed set of Anycast IP addresses rather
+        than NXDOMAIN or the original destination. Security monitoring tools that
+        observe connection attempts to these IPs may incorrectly flag them as suspicious,
+        when in fact they are Umbrella's own redirect infrastructure responding to
+        a blocked domain. This warninglist enumerates those IPs so analysts can recognise
+        such traffic as benign.\n\nThe entries are IPv4 addresses drawn from Cisco's
+        published block page IP address documentation. Per Cisco's documentation,
+        each IP is assigned to a specific block page type (Domain List, Command and
+        Control Callback, Content Category or Application, Malware, Phishing, and
+        Security Integrations). Reverse DNS lookups on these IPs resolve to hostnames
+        such as hit-block.opendns.com, hit-malware.opendns.com, and hit-phish.opendns.com,
+        which are covered by a companion hostname warninglist in the same repository.\n\
+        \nThe list is generated programmatically by a dedicated Python script (tools/generate-cisco-umbrella-blockpage.py)
+        that iterates over the hardcoded IP set, performs reverse DNS lookups to derive
+        hostnames, and separates entries into IPv4 and IPv6 variant lists. Updates
+        are driven by changes in Cisco's published infrastructure rather than automated
+        polling."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: non_profit
+        official_url: https://www.misp-project.org
+        contact_email: info@misp-project.org
+        based_in:
+        active_since:
+        notes: The MISP Project is an open-source initiative developing the MISP Threat
+          Intelligence Platform and associated warning lists, taxonomies, and correlation
+          libraries. The primary maintainer credited across repository commits is
+          @adulau, with contributions from a distributed team of named collaborators
+          including @iglocska, @SteveClement, @Rafiot, and others listed on the GitHub
+          organisation page.
+      derivation:
+        type: original
+        description: "The list is generated from a static hardcoded set of IP addresses
+          sourced from Cisco's published block page IP address documentation. A Python
+          generator script iterates over the IP set, performs reverse DNS lookups
+          to derive associated hostnames, and writes three output files: umbrella-blockpage-v4
+          (IPv4 CIDR type), umbrella-blockpage-v6 (IPv6 CIDR type), and umbrella-blockpage-hostname
+          (hostname type). No other IP feeds are consumed as inputs."
+        source_feeds: []
+      listing_policy:
+        summary: Entries are the six Anycast IPv4 addresses Cisco Umbrella publishes
+          for its DNS-layer block page redirect infrastructure. Each IP corresponds
+          to a specific block page type (Domain List, Command and Control Callback,
+          Content Category or Application, Malware, Phishing, or Security Integrations).
+          The list is updated when Cisco modifies its published block page addressing.
+        criteria:
+        - Must appear in Cisco's published block page IP address documentation at
+          docs.umbrella.com
+        - Must be one of the Anycast IPs assigned to Umbrella's block page redirect
+          infrastructure
+        - Must be routable and responsive to reverse DNS lookups yielding *.opendns.com
+          hostnames
+      unlisting_policy:
+        summary: Entries are removed when Cisco retires or renumbers the corresponding
+          block page IP address. There is no manual submission or review process;
+          removals are driven by changes in Cisco's published infrastructure.
+        criteria:
+        - Cisco discontinues use of the IP address in its block page infrastructure
+        - Cisco republishes its block page addressing with a revised IP set
+      unlist_request:
+      update_frequency:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The list is a curated collection of known-benign infrastructure
+          IP addresses assigned to Cisco Umbrella's DNS-layer blockpage redirect service.
+          It is not produced by honeypots, scanners, or malware analysis. Instead,
+          it documents Umbrella's own published addressing, allowing MISP and downstream
+          tools to recognise blockpage responses as legitimate redirects rather than
+          suspicious indicators. The generator script additionally performs reverse
+          DNS lookups to associate hostnames with each IP.
+      scope_and_intent:
+        description: The list marks Cisco Umbrella's blockpage redirect IPv4 addresses
+          as known-benign infrastructure, enabling analysts to distinguish legitimate
+          blockpage responses from suspicious connection attempts. It is scoped to
+          Umbrella's DNS-layer redirect IPs only and does not cover Umbrella's broader
+          resolver infrastructure.
+        intended_for:
+        - Suppressing false positive alerts in MISP events when Umbrella blockpage
+          IPs appear as ip-src or ip-dst attributes
+        - Filtering Umbrella blockpage IPs from automated IOC ingestion pipelines
+        - Contextualising Umbrella blockpage connections in SIEM or TIP workflows
+        not_intended_for:
+        - Blocking or deny-listing at the network perimeter
+        - Threat indicator enrichment — the IPs are benign by design
+        - Detecting malicious activity — their presence indicates a blocked domain,
+          not a compromised host
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Public Domain Dedication imposes no restrictions on use, reproduction,
+          modification, or redistribution. No attribution is required.
+      current_status:
+        state: active
+        description: Actively maintained. The list received an update on 28 April
+          2026, and the commit history shows a sustained update cadence throughout
+          2024 and 2025, with commits averaging every few weeks.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion is sparse. A Reddit post announcing the MISP
+          warninglists project in March 2019 received no replies. Practitioners in
+          threat intelligence forums have referenced the warninglists collection broadly
+          as a resource for identifying trusted vendor IP ranges. Community discussion
+          centres on Cisco Umbrella's false positive behaviour (legitimate domains
+          incorrectly blocked) rather than on the warning list itself, suggesting
+          the list is understood as a settled utility rather than a debated resource.
+      sources_consulted:
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/umbrella-blockpage-v4/list.json
+        document_date: '2026-04-28'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/tools/generate-cisco-umbrella-blockpage.py
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://docs.umbrella.com/deployment-umbrella/docs/block-page-ip-addresses
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://github.com/MISP/misp-warninglists/commits/main/lists/umbrella-blockpage-v4
+        document_date: '2026-04-28'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://reddit.com/r/blueteamsec/comments/azcvc2/mispwarninglists_warning_lists_to_inform_users_of/
+        document_date: '2019-03-09'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://reddit.com/r/threatintel/comments/1nwb5oo/whitelist_ip_ranges/
+        document_date: '2026-01-03'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://reddit.com/r/sysadmin/comments/120n500/cisco_umbrella_blocking_amazoncom/
+        document_date: '2023-03-24'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://reddit.com/r/it/comments/1mvacnn/cisco_umbrella_is_the_most_asinine_corporate_it/
+        document_date: '2024-04-19'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

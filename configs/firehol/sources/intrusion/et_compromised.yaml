@@ -1,0 +1,185 @@
+sources:
+  et_compromised:
+    license: BSD-3-Clause (Emerging Threats Open)
+    redistributable: true
+    url: http://rules.emergingthreats.net/blockrules/compromised-ips.txt
+    frequency: 720
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[EmergingThreats.net compromised hosts](http://doc.emergingthreats.net/bin/view/Main/CompromisedHost)'
+    maintainer: Proofpoint ET Labs
+    maintainer_url: 
+      https://www.proofpoint.com/us/products/advanced-threat-protection/et-intelligence
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T04:32:46Z'
+      official_name: ET Compromised
+      official_url: https://www.proofpoint.com/us/products/et-intelligence
+      short_description: Raw IPv4 addresses of hosts confirmed as compromised, drawn
+        from private threat intelligence sources and updated on weekdays.
+      long_description: "The ET Compromised feed is a raw list of IPv4 addresses identified
+        as compromised or otherwise maliciously controlled hosts. Per the maintainer's
+        published category description, the list is confirmed and updated on weekdays
+        from several private but highly reliable data sources; the resulting IP set
+        varies in cardinality day to day depending on the underlying intelligence.
+        The maintainer does not disclose the specific collection methods or scoring
+        thresholds used to add or retain an entry.\n\nThe maintainer warns that IP-matching
+        rules can impose significant processing load on sensors operating near capacity
+        and recommends the BotCC rules as an alternative in high-volume deployments.
+        The feed is distributed as a plain-text file with one IPv4 address per line
+        and no per-entry metadata; no registration or login is required to download
+        it."
+      roles:
+      - role: maintainer
+        name: Proofpoint ET Labs
+        organization_type: commercial
+        official_url: https://www.proofpoint.com/us/products/et-intelligence
+        contact_email: support@emergingthreats.net
+        based_in:
+        active_since: '2015'
+        notes: Proofpoint ET Labs is the current operating division of Proofpoint
+          Inc. that maintains the Emerging Threats ruleset family. The original Emerging
+          Threats open-source community was founded in 2003 by Matt Jonkman; Proofpoint
+          acquired the project in March 2015 and has operated it as a commercial threat
+          intelligence product line since.
+      derivation:
+        type: original
+        description: The compromised hosts list is produced directly by Proofpoint
+          ET Labs from private threat intelligence sources. The feed is not derived
+          from or mirrored from any other public IP feed — it represents first-party
+          threat intelligence compiled by the ET research team. The resulting IPs
+          are published as a bare list without upstream attribution per entry.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when it is identified as a compromised or otherwise
+          maliciously controlled host through the maintainer's private threat intelligence
+          sources. The maintainer does not publish the specific detection mechanisms
+          or scoring thresholds used to add an IP.
+        criteria:
+        - Identified as a compromised host through private threat intelligence sources
+        - Confirmed as a hostile or maliciously controlled host
+      unlisting_policy:
+        summary: The maintainer does not publish a documented automatic expiry or
+          decay policy for the compromised hosts IP list. IPs are removed upon manual
+          review following a support request. The maintainer acknowledges that stale
+          entries can result when previously malicious IPs are cleaned and reassigned
+          to innocent parties before being unlisted.
+        criteria:
+        - Removed upon manual review following a support request
+        - No publicly documented automatic expiry window
+      unlist_request:
+        url: https://community.emergingthreats.net/
+        email: support@emergingthreats.net
+        instructions: "Submit a delist request through one of the maintainer's support
+          channels: post on the community forum at community.emergingthreats.net,
+          email support@emergingthreats.net, or reach out via Twitter @ET_Labs. No
+          formal self-service delist portal is published. The maintainer recommends
+          remediating the compromise before requesting removal."
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated on weekdays, with occasional out-of-band updates,
+          per the maintainer's download instructions.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: The compromised hosts list is built from private threat intelligence
+          sources compiled by Proofpoint ET Labs. The maintainer describes the sources
+          as several private but highly reliable data sources but does not disclose
+          the specific collection methods. The feed represents aggregated reputation
+          assessment rather than honeypot captures, active scanning, or user-submitted
+          reports.
+      scope_and_intent:
+        description: The ET Compromised feed is intended for use as an IP blocklist
+          for intrusion detection and prevention systems. The maintainer explicitly
+          notes that IP-matching rules can impose significant processing load on sensors
+          operating near capacity, and recommends the BotCC rules as an alternative
+          in high-volume sensor deployments.
+        intended_for:
+        - Intrusion detection and prevention
+        - Network blocking at the perimeter
+        not_intended_for:
+        - High-capacity sensor deployments (the maintainer recommends BotCC rules
+          instead)
+      license: BSD-3-Clause (Emerging Threats Open)
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: Freely downloadable without registration; no redistribution restrictions
+          stated by the direct upstream.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026. Updates published on weekdays
+          to rules.emergingthreats.net/blockrules/compromised-ips.txt, with a COMPrev
+          version marker last incremented May 18, 2026.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Community discussions acknowledge that stale entries can persist
+          on the compromised hosts list when previously malicious IPs are cleaned
+          by their owners and reassigned to innocent parties before the maintainer
+          processes the delist request. This is a recognized characteristic of all
+          IP-reputation feeds that lack automatic expiry; the maintainer's recommended
+          mitigation is to submit a delist request once the compromise is remediated.
+        engagement: Public discussion of the ET Compromised feed is sparse. Active
+          engagement occurs primarily through the ET community forum where false positive
+          complaints are filed and resolved by ET staff, typically within one to three
+          business days. Support channels include the community forum, email to support@emergingthreats.net,
+          and Twitter @ET_Labs. Broader Reddit discussions of IP blocklisting mention
+          ET among commonly used feeds without sustained thread-level focus on the
+          compromised hosts list specifically.
+      sources_consulted:
+      - url: https://community.emergingthreats.net/t/frequently-asked-questions/56/
+        document_date:
+        validation_date: '2026-05-19T04:00:00Z'
+      - url: https://tools.emergingthreats.net/docs/ETPro%20Rule%20Categories.pdf
+        document_date: '2020-11-01'
+        validation_date: '2026-05-19T04:00:00Z'
+      - url: https://rules.emergingthreats.net/OPEN_download_instructions.html
+        document_date:
+        validation_date: '2026-05-19T04:00:00Z'
+      - url: https://community.emergingthreats.net/t/licensing-of-third-party-rules/2396/
+        document_date: '2025-01-29'
+        validation_date: '2026-05-19T04:00:00Z'
+      - url: https://rules.emergingthreats.net/changelogs/open-daily-changes.txt
+        document_date: '2026-05-18'
+        validation_date: '2026-05-19T04:00:00Z'
+      - url: https://rules.emergingthreats.net/
+        document_date: '2026-05-18'
+        validation_date: '2026-05-19T04:00:00Z'
+      - url: https://rules.emergingthreats.net/blockrules/compromised-ips.txt
+        document_date:
+        validation_date: '2026-05-19T04:00:00Z'
+      - url: 
+          https://community.emergingthreats.net/t/false-positive-for-2067921-et-malware-purelogs-stealer-cnc-ping-request/3215
+        document_date: '2026-02-01'
+        validation_date: '2026-05-19T04:00:00Z'
+      - url: https://community.emergingthreats.net/t/licensing-of-third-party-rules/2396/
+        document_date: '2025-01-29'
+        validation_date: '2026-05-19T04:00:00Z'
+      - url: 
+          https://www.proofpoint.com/us/proofpoint-signs-definitive-agreement-acquire-emerging-threats-enhances-threat-intelligence
+        document_date: '2015-03-02'
+        validation_date: '2026-05-19T04:00:00Z'
+      - url: 
+          https://www.scworld.com/analysis/me-and-my-job-qa-with-matt-jonkman-ceo-of-emerging-threats
+        document_date: '2010-12-01'
+        validation_date: '2026-05-19T04:00:00Z'
+      - url: 
+          https://community.emergingthreats.net/t/false-positive-for-sid-2015813-dns-query-sinkhole-domain/553
+        document_date: '2023-05-01'
+        validation_date: '2026-05-19T04:00:00Z'
+      - url: 
+          https://community.emergingthreats.net/t/false-positive-et-info-domain-virustotal/2049
+        document_date: '2024-10-01'
+        validation_date: '2026-05-19T04:00:00Z'
+      - url: https://www.proofpoint.com/us/products/et-intelligence
+        document_date:
+        validation_date: '2026-05-19T04:00:00Z'

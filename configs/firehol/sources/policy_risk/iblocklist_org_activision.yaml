@@ -1,0 +1,168 @@
+sources:
+  iblocklist_org_activision:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=gfnxlhxsijzrcuxwzebb&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Activision IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T06:17:59Z'
+      official_name: Activision
+      official_url: https://www.iblocklist.com/list.php?list=gfnxlhxsijzrcuxwzebb
+      short_description: IP blocklist targeting IP addresses registered to Activision
+        game publisher, for filtering game-company traffic in P2P and torrent client
+        applications.
+      long_description: "The Activision list is a P2P-format IP blocklist published
+        by iBlocklist.com, targeting IP address space registered to Activision Publishing,
+        Inc. (the video game publisher behind the Call of Duty franchise and related
+        titles). The list is distributed in the .p2p blocklist format, compatible
+        with PeerBlock, PeerGuardian, uTorrent, Transmission, Tixati, and pfBlocker
+        running on pfSense.\n\nPer the maintainer's description, the list covers IPs
+        registered to the Activision game publisher and other addresses needed for
+        game connectivity — intended to prevent inadvertent peer-to-peer connections
+        to gaming company infrastructure during torrent activity. The list is one
+        of several organization-targeted feeds in the iBlocklist catalog alongside
+        similar feeds for Blizzard, Nintendo, Electronic Arts, and Sony Online Entertainment.\n\
+        \nThe service distributes lists in standard formats including P2P, DAT, CIDR,
+        and hosts, with gzip, ZIP, and 7-zip archive options. The maintainer's Terms
+        of Service explicitly disclaim any commitment to update the materials."
+      roles:
+      - role: maintainer
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: iblocklist, LLC is the legal entity operating the iblocklist.com service.
+          The company also develops PeerBlock, a Windows desktop firewall application
+          whose IP lists are distributed via iblocklist.com. Both brands share the
+          same legal entity and copyright footer.
+      derivation:
+        type: original
+        description: The Activision list is compiled and maintained by iBlocklist.com
+          as an original publication within their catalog. iBlocklist aggregates and
+          repackages IP lists from multiple named authors (Bluetack, Squidblacklist,
+          Spamhaus, and others), but the Activision list is labeled as an I-Blocklist-authored
+          feed — meaning iBlocklist, LLC compiles and publishes this particular list
+          directly. The list is distributed in the .p2p blocklist format developed
+          for PeerBlock compatibility.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when it is registered to Activision Publishing, Inc.
+          or otherwise required for game-server connectivity. The maintainer does
+          not publish the specific criteria, thresholds, or detection mechanisms used
+          to compile or validate entries on this list.
+        criteria:
+        - IP address space registered to Activision Publishing, Inc
+        - IP addresses needed for Activision game-server connectivity
+      unlisting_policy:
+        summary: The maintainer does not publish any unlisting or delisting policy
+          for this feed. No automatic expiration, manual review process, or removal
+          criteria are documented on the iBlocklist.com website.
+        criteria: []
+      unlist_request:
+        url:
+        email:
+        instructions: iBlocklist.com does not publish a dedicated removal or unlisting
+          channel. The only publicly available support contact is a CAPTCHA-protected
+          web form on the support page, which redirects to PhantomPeer VPN promotion
+          and contains no direct email address, no ticket system, and no self-service
+          portal. Community reports document that support requests frequently go unanswered
+          for extended periods.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated daily, per third-party mirror tracking of the feed's
+          update header
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: 'Entries are assigned to this list based on organizational affiliation
+          — IP address space registered to Activision Publishing, Inc. or otherwise
+          required for game connectivity. This is a policy-assignment classification:
+          IPs are listed because they belong to a named organization, not because
+          they were detected engaging in malicious activity. The maintainer does not
+          describe active scanning, honeypot sensors, or user submissions as contributing
+          to this specific feed.'
+      scope_and_intent:
+        description: The Activision list targets IP address space associated with
+          Activision Publishing, Inc. for use in P2P and torrent filtering applications.
+        intended_for:
+        - Filtering game-company IP ranges in P2P and torrent client applications
+          (PeerBlock, PeerGuardian, uTorrent, Transmission, Tixati, pfBlocker)
+        - Preventing inadvertent peer-to-peer connections to Activision game servers
+          during torrent activity
+        not_intended_for:
+        - General-purpose network security or intrusion detection
+        - Email security or SMTP sender filtering
+        - Commercial environments, per the ToS restriction on commercial use
+      license: iBlocklist Terms of Service — personal use only, no commercial use
+        permitted
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution is not expressly permitted. The license grants personal
+          use only; it is explicitly a license, not a transfer of title, and no redistribution
+          rights are granted beyond personal use. Commercial use of any materials
+          is prohibited.
+      current_status:
+        state: active
+        description: The iBlocklist.com service is operational and the Activision
+          list remains downloadable from the maintainer's catalog. No discontinuation
+          announcement has been issued for this feed. The Terms of Service explicitly
+          disclaim any commitment to update the materials.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion specific to the Activision list is
+          sparse. Integrations with PeerBlock, PeerGuardian, uTorrent, Transmission,
+          Tixati, and pfBlocker are documented on the maintainer's homepage. Third-party
+          developers have released workarounds to handle iBlocklist's shift toward
+          captcha-gated access (ipfilter v4.5, August 2024).
+      sources_consulted:
+      - url: https://www.iblocklist.com/list.php?list=gfnxlhxsijzrcuxwzebb
+        document_date:
+        validation_date: '2026-05-19T06:00:00Z'
+      - url: https://www.iblocklist.com/tos.php
+        document_date:
+        validation_date: '2026-05-19T06:00:00Z'
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-19T06:00:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-19T06:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-19T06:00:00Z'
+      - url: https://github.com/qianbinbin/transmission-block/issues/11
+        document_date: '2025-04-01'
+        validation_date: '2026-05-19T06:00:00Z'
+      - url: https://github.com/fonic/ipfilter/releases/tag/ipfilter-v4.5
+        document_date: '2024-08-01'
+        validation_date: '2026-05-19T06:00:00Z'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-19T06:00:00Z'
+      - url: https://www.iblocklist.com/support.php
+        document_date:
+        validation_date: '2026-05-19T06:00:00Z'
+      - url: 
+          https://gitee.com/jasonzhang666/blocklist-ipsets/blob/master/iblocklist_org_activision.netset
+        document_date:
+        validation_date: '2026-05-19T06:00:00Z'

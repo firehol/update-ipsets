@@ -1,0 +1,157 @@
+sources:
+  critical_soft_auth0:
+    license: Provider-published public IP ranges
+    redistributable: true
+    label: Auth0 service ranges
+    url: https://cdn.auth0.com/ip-ranges.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - json_path:
+        path: "$.regions.*.ipv4_cidrs[*]"
+    - filter_all4
+    processor_raw: json_path
+    category: provider_infrastructure
+    provenance: primary
+    info: Auth0-published IPv4 service ranges. Reference feed, not a threat indicator.
+    maintainer: Auth0
+    maintainer_url: https://auth0.com/docs/secure/security-guidance/data-security/allowlist
+    enabled_by_all: true
+    use: [critical_infrastructure]
+    critical:
+      tier: soft
+      role: identity_saas
+      source_type: authoritative_provider_json
+      source_quality: A
+      rationale: Auth0 is an authentication and authorization dependency; overlap
+        should be reviewed before blocking identity service paths.
+
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T09:00:16Z'
+      official_name: Auth0 IP Addresses for Allow Lists
+      official_url: https://auth0.com/docs/secure/security-guidance/data-security/allowlist
+      short_description: Auth0-published IPv4 CIDR ranges for the Auth0 identity platform's
+        outbound traffic, organized by region (US, EU, AU, JP, UK, CA), for use in
+        firewall allowlists.
+      long_description: Auth0 publishes this list to help tenants configure firewall
+        allowlists for inbound traffic originating from the Auth0 identity platform.
+        The list covers six geographic regions — United States, Europe, Australia,
+        Japan, United Kingdom, and Canada — with each region's IPv4 CIDR ranges published
+        as /32 host prefixes. The machine-readable JSON endpoint at cdn.auth0.com/ip-ranges.json
+        exposes a `last_updated_at` timestamp, a `regions` object keyed by region
+        name, and a `changelog` array recording every historical addition and removal
+        with date, region, action, and affected CIDRs. Per the maintainer's documentation,
+        Auth0 updates this list ahead of any functional impact to existing tenants
+        and sends advance notifications months before changes take effect. The maintainer
+        recommends scheduling weekly programmatic checks to detect changes, using
+        HTTP conditional headers (If-None-Match or If-Modified-Since) or polling the
+        `last_updated_at` field. Terraform and Pulumi provider integrations are also
+        available. Private Cloud tenants receive unique IP addresses listed in the
+        Auth0 Support Center rather than this public list.
+      roles:
+      - role: maintainer
+        name: Auth0 (Okta subsidiary)
+        organization_type: commercial
+        official_url: https://auth0.com
+        contact_email:
+        based_in:
+        active_since:
+        notes: Auth0 is an identity-as-a-service platform owned by Okta, Inc. The
+          IP allowlist is maintained as part of Auth0's standard infrastructure documentation.
+      derivation:
+        type: original
+        description: The feed is Auth0's own authoritative record of the IPv4 CIDR
+          ranges used for outbound traffic from the Auth0 platform. Data is maintained
+          internally by Auth0 and published directly to the public CDN endpoint. No
+          upstream IP feeds are consumed.
+        source_feeds: []
+      listing_policy:
+        summary: Entries represent the IPv4 CIDR ranges from which Auth0 initiates
+          outbound connections to customer infrastructure. Additions and removals
+          are driven by Auth0's own infrastructure capacity planning, not by threat
+          signals or abuse reports.
+        criteria:
+        - IPv4 CIDR ranges allocated to Auth0's outbound traffic infrastructure in
+          a given region
+        - Ranges are added when Auth0 expands regional capacity
+        - Ranges are removed when deprecated after a transition period with advance
+          customer notification
+      unlisting_policy:
+        summary: Ranges are removed from the published list when deprecated after
+          Auth0's internal transition process. There is no manual customer-requested
+          removal mechanism; the list reflects Auth0's current operational footprint
+          only.
+        criteria:
+        - Ranges are removed when deprecated after Auth0's internal deprecation cycle
+        - Removal is coordinated with advance customer notification before the change
+          takes effect
+        - No manual unlisting request channel is provided — this is an infrastructure
+          reference list, not an abuse list
+      unlist_request:
+      update_frequency:
+        frequency:
+        human_readable: Auth0 updates the list ahead of any functional impact to tenants;
+          the maintainer recommends checking for changes weekly via the machine-readable
+          endpoint or conditional HTTP requests.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: 'The feed is a policy-assignment reference: Auth0 publishes the
+          CIDR ranges allocated to its outbound infrastructure so that customers can
+          configure firewall allowlists. This is not a threat-detection feed — entries
+          are not indicators of compromise, abuse, or malicious activity. They are
+          the authorized egress ranges of a commercial SaaS identity platform.'
+      scope_and_intent:
+        description: The feed covers IPv4 CIDR ranges (/32 host prefixes) used for
+          Auth0's outbound traffic across six public cloud regions. IPv6 ranges are
+          not included. Private Cloud tenants are excluded and must consult the Auth0
+          Support Center for their tenant-specific addresses.
+        intended_for:
+        - Configuring firewall allowlists for inbound traffic from the Auth0 identity
+          platform
+        - Identifying Auth0-origin traffic in network flow logs
+        - Terraform and Pulumi infrastructure-as-code integrations
+        not_intended_for:
+        - Threat detection or abuse screening — entries are Auth0's own infrastructure,
+          not indicators of malicious activity
+        - Blocking Auth0 traffic — the list defines ranges to allow, not to deny
+        - IPv6-based filtering — only IPv4 CIDRs are published
+        - Private Cloud deployments — those tenants have tenant-unique addresses not
+          published in this list
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: No redistribution terms are stated by Auth0. The endpoint is publicly
+          accessible via CDN without authentication or login.
+      current_status:
+        state: active
+        description: Active and maintained as of the most recent confirmed update
+          on 2025-09-08. Auth0 updates the list ahead of any functional impact to
+          tenants and sends advance notifications before changes take effect.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion is sparse. An Auth0 community thread
+          confirms that no push-based subscription service (webhook, RSS, email alerts)
+          exists for automated change notifications — customers are directed to poll
+          the endpoint weekly or rely on advance emails from Auth0 support before
+          planned changes. The feed is primarily consumed silently via infrastructure-as-code
+          integrations (Terraform provider, Pulumi provider) rather than discussed
+          publicly.
+      sources_consulted:
+      - url: https://auth0.com/docs/secure/security-guidance/data-security/allowlist
+        document_date:
+        validation_date: '2026-05-21T09:00:16Z'
+      - url: https://cdn.auth0.com/ip-ranges.json
+        document_date: '2025-09-08'
+        validation_date: '2026-05-21T09:00:16Z'
+      - url: 
+          https://community.auth0.com/t/how-can-i-automatically-keep-the-auth0-ip-address-allowlist-up-to-date/149788
+        document_date:
+        validation_date: '2026-05-21T09:00:16Z'

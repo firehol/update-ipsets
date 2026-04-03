@@ -1,0 +1,131 @@
+sources:
+  critical_dns_root_servers:
+    license: Public Domain (IANA root server list)
+    redistributable: false
+    label: DNS root servers
+    static:
+    - 198.41.0.4
+    - 170.247.170.2
+    - 192.33.4.12
+    - 199.7.91.13
+    - 192.203.230.10
+    - 192.5.5.241
+    - 192.112.36.4
+    - 198.97.190.53
+    - 192.36.148.17
+    - 192.58.128.30
+    - 193.0.14.129
+    - 199.7.83.42
+    - 202.12.27.33
+    frequency: 0
+    ipv: ipv4
+    output: netset
+    processor:
+    - passthrough
+    processor_raw: passthrough
+    category: provider_infrastructure
+    provenance: primary
+    info: Curated IPv4 service addresses for the 13 DNS root server named authorities
+      published by IANA. Reference feed, not a threat indicator.
+    maintainer: FireHOL
+    maintainer_url: https://iplists.firehol.org/
+    enabled_by_all: true
+    use: [critical_infrastructure]
+    critical:
+      tier: hard
+      role: dns_root
+      source_type: authoritative_static_docs
+      source_quality: C
+      rationale: DNS root server service addresses are foundational DNS resolution
+        infrastructure; blocking them can break recursive resolver bootstrap and root-zone
+        lookup paths.
+
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-27T06:30:35Z'
+      official_name: DNS root server service addresses
+      official_url:
+      short_description: The IPv4 service addresses of the 13 named DNS root server
+        authorities, per the IANA root server registry.
+      long_description: A curated reference list of the IPv4 service addresses for
+        the 13 named DNS root server authorities (A through M), as published by IANA.
+        This is foundational DNS resolution infrastructure; blocking these addresses
+        can break recursive resolver bootstrap and root-zone lookup paths. The list
+        is a reference feed, not a threat indicator.
+      roles:
+      - role: maintainer
+        name: FireHOL catalog project
+        organization_type: informal_collective
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Maintained by the FireHOL catalog project as a public reference / aggregate.
+          This page is generated deterministically from the catalog YAML; the agent-based
+          enrichment used for third-party feeds does not run on FireHOL-maintained
+          feeds.
+      derivation:
+        type: original
+        description: Static curated reference data published as part of the FireHOL
+          catalog. Entries are explicit, hand-curated, and change only when the underlying
+          authoritative source (provider documentation, IANA registry, or cited RFC)
+          changes.
+        source_feeds: []
+      listing_policy:
+        summary: Curated reference. An entry appears in this list when the underlying
+          authoritative source (provider documentation, IANA registry, or cited RFC)
+          names it as part of the relevant infrastructure class.
+        criteria:
+        - Entry is published by the authoritative source as part of the feed's stated
+          scope.
+      unlisting_policy:
+        summary: Entries are removed only when the underlying authoritative source
+          (provider documentation, IANA registry, RFC) removes them. The catalog does
+          not maintain its own per-entry unlist process.
+        criteria:
+        - Authoritative source removes the entry from its published scope.
+      unlist_request:
+        url:
+        email:
+        instructions: This is a static curated reference feed. The catalog does not
+          operate a per-entry unlist channel. If an entry should not be in this list,
+          the change must occur at the authoritative source (provider documentation,
+          IANA registry, or relevant RFC); the catalog will then reflect it on next
+          refresh.
+      update_frequency:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: Curated policy-defined reference data. Entries are not derived
+          from observation, scanning, or honeypot detection; they are the explicit
+          allocations or service addresses published by the relevant authority.
+      scope_and_intent:
+        description: "Curated IPv4 service addresses for the 13 DNS root server named
+          authorities published by IANA. Reference feed, not a threat indicator.\n\
+          \nDNS root server service addresses are foundational DNS resolution infrastructure;
+          blocking them can break recursive resolver bootstrap and root-zone lookup
+          paths."
+        intended_for:
+        - Whitelisting from edge block lists
+        - Excluding from anti-bot/rate-limit rules at recursive resolvers
+        - Audit of DNS traffic patterns
+        not_intended_for:
+        - Threat blocking — these are legitimate critical infrastructure
+      license: Public Domain (IANA root server list)
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms:
+      current_status:
+        state: active
+        description: Static curated reference; published as part of the FireHOL catalog.
+          Entries change only when the underlying authoritative source publishes a
+          change.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement:
+      sources_consulted: []

@@ -1,0 +1,176 @@
+sources:
+  iblocklist_exclusions:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=mtxmiireqmjzazcsoiem&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Exclusions.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T05:34:43Z'
+      official_name: Bluetack - exclusions
+      official_url: https://www.iblocklist.com/list?list=mtxmiireqmjzazcsoiem
+      short_description: An allowlist of IP ranges excluded from other Bluetack blocklists,
+        used to prevent false positives when running P2P privacy tools with multiple
+        blocklists active.
+      long_description: "The Bluetack exclusions list is an allowlist maintained by
+        Bluetack and distributed through iblocklist.com. Rather than identifying threatening
+        IPs to block, it specifies IP ranges that should be excluded from blocking
+        by other Bluetack lists — preventing legitimate services, peers, or institutional
+        IPs from being falsely flagged when users run multiple blocklists simultaneously.\n\
+        \nThe list is distributed in standard P2P, DAT, CIDR, and hosts file formats,
+        compatible with PeerBlock, PeerGuardian, iplist, Vuze, Transmission, uTorrent,
+        Tixati, and pfBlocker. Its primary use case is reducing false positives for
+        users running aggressive blocklists such as Bluetack level1 (targeting anti-P2P
+        monitoring entities), spyware, advertising trackers, and bad-peers lists.\n\
+        \nPer the iBlocklist.com Terms of Service, the list is licensed for personal
+        use only; commercial use and public display are prohibited. The underlying
+        Bluetack source lists have been reported by community members as not receiving
+        active updates since approximately 2016, though iblocklist.com continues to
+        distribute the list through its platform."
+      roles:
+      - role: maintainer
+        name: Bluetack
+        organization_type: unknown
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Bluetack authored the exclusions list and the broader tiered blocklist
+          suite (level1 through level3, spyware, ads, proxy, and related lists). Community
+          reports indicate the Bluetack source lists have not received active updates
+          since approximately 2016.
+      - role: publisher
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: iblocklist, LLC operates the iblocklist.com distribution platform and
+          serves as the direct upstream for this catalog entry. The company distributes
+          the Bluetack exclusions list alongside its own branded lists and lists from
+          Squidblacklist, Spamhaus, CINS Army, and other sources. Per the ToS, permission
+          is granted for personal use only; commercial use is prohibited.
+      derivation:
+        type: partial_mirror
+        description: The feed is a partial mirror of the Bluetack exclusions list,
+          republished by iblocklist.com. It is distributed in P2P, DAT, CIDR, and
+          hosts file formats. The list serves as a complementary allowlist — IPs listed
+          here are excluded from blocking by other Bluetack lists. The catalog entry
+          downloads the compressed P2P-format file from iblocklist.com's endpoint.
+        source_feeds: []
+      listing_policy:
+        summary: The exclusions list specifies IP ranges that should be excluded from
+          blocking by other Bluetack blocklists. No formal written criteria were found
+          on the maintainer's site describing what qualifies an IP range for inclusion.
+          Based on the list's function as a false-positive reduction tool, included
+          ranges typically represent trusted institutional, governmental, or service
+          IP space that legitimate users may need to access despite being flagged
+          by other blocklists.
+        criteria:
+        - IP ranges associated with trusted institutions, services, or peers that
+          legitimate users need to access
+        - Ranges commonly flagged by other Bluetack blocklists (such as level1, spyware,
+          or ads) that should nonetheless remain accessible
+      unlisting_policy:
+        summary: No unlisting policy was found on the maintainer's site. The exclusions
+          list page does not describe any process for requesting removal of IP ranges,
+          and no auto-decay mechanism is documented.
+        criteria:
+        - No documented unlisting policy found on iblocklist.com
+      unlist_request:
+        url:
+        email:
+        instructions: No dedicated unlisting channel was found on iblocklist.com for
+          this list. The support page offers a general contact form for inquiries,
+          but no specific removal process, email address, or instructions are publicly
+          documented for the exclusions list.
+      update_frequency:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The list is built by policy assignment — it defines IP ranges
+          that should be exempted from blocking by other Bluetack blocklists, rather
+          than detecting malicious activity. Entries represent trusted or commonly
+          false-flagged IP space identified by the maintainer, not IPs detected through
+          honeypots, sensors, or malware analysis.
+      scope_and_intent:
+        description: The Bluetack exclusions list is designed as a complementary allowlist
+          for users running P2P privacy tools with multiple Bluetack blocklists active.
+          Its intended purpose is reducing false positives by ensuring trusted IP
+          ranges remain accessible even when they fall within ranges flagged by other
+          blocklists.
+        intended_for:
+        - Reducing false positives when using P2P privacy tools (PeerBlock, PeerGuardian,
+          iplist) with multiple Bluetack blocklists
+        - Maintaining access to legitimate institutional, governmental, or service
+          IP space that happens to fall within ranges blocked by other Bluetack lists
+        not_intended_for:
+        - Enterprise perimeter security or threat detection
+        - General-purpose firewall blocking
+        - Detection of malicious infrastructure
+      license: iBlocklist Terms of Service — personal / non-commercial only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Per the iBlocklist.com Terms of Service, the list may be downloaded
+          for personal use only. Commercial use and any public display (commercial
+          or non-commercial) are prohibited. Redistribution in commercial contexts
+          is not permitted.
+      current_status:
+        state: active
+        description: Distributed by iblocklist.com as of the research date. The exclusions
+          list remains listed in the iblocklist.com catalog and downloadable through
+          the platform. Community reports from multiple independent sources indicate
+          the underlying Bluetack source lists have not received active updates since
+          approximately 2016; iblocklist.com continues to serve the file through its
+          endpoints.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion specific to the Bluetack exclusions list is
+          sparse. The P2P privacy tool communities (PeerBlock, PeerGuardian) that
+          historically consumed Bluetack lists have largely dispersed.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/list?list=mtxmiireqmjzazcsoiem
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/support
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/subscribe
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date: '2016-08-01'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://malwaretips.com/threads/free-alternative-to-i-blocklist.56482/
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.derman.com/blogs/Choosing-IP-Blocking-lists
+        document_date: '2015-12-01'
+        validation_date: '2026-05-19T00:00:00Z'

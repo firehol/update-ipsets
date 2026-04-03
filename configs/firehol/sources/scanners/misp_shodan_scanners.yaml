@@ -1,0 +1,201 @@
+sources:
+  misp_shodan_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/shodan-nt-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Shodan.io
+      commercial scanner IPs. Informational — not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T00:35:41Z'
+      official_name: Shodan IP Ranges Used for Scanning
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: A MISP warninglist identifying IP ranges associated with
+        Shodan.io commercial internet scanners, derived from CIRCL Luxembourg's network
+        telescope darknet observations.
+      long_description: "The shodan-nt-scanning warninglist identifies IP addresses
+        and CIDR ranges associated with Shodan.io's commercial internet scanning infrastructure.
+        Per the list's own description, the entries are extracted from CIRCL Luxembourg's
+        Network Telescope darknet analysis — a passive observation system that monitors
+        unsolicited inbound traffic across unused IP address space to identify scanning
+        sources.\n\nThe maintainer describes the list as informational: it is designed
+        to warn analysts when observed scanning activity originates from a known commercial
+        scanner rather than a malicious actor, not to serve as a blocking list. The
+        shodan-nt-scanning variant receives periodic CIRCL Network Telescope refreshes;
+        the sibling shodan-scanning list (sourced from Shodan's own infrastructure
+        documentation rather than telescope observation) is updated on a less frequent
+        cadence."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: informal_collective
+        official_url: https://github.com/MISP
+        contact_email: info@misp-project.org
+        based_in: Luxembourg
+        active_since: '2012'
+        notes: Coordinates the MISP warninglists repository. Core copyright holders
+          include CIRCL Luxembourg, Alexandre Dulaunoy, Belgian Defence, and NATO
+          NCIRC. Per the project README, MISP and its copyright is fully owned by
+          an interlocked license among all contributors.
+      - role: source_contributor
+        name: CIRCL Luxembourg
+        organization_type: research_institution
+        official_url: https://www.circl.lu
+        based_in: Luxembourg
+        notes: Provides the Network Telescope darknet analysis from which Shodan scanner
+          IP ranges are extracted. CIRCL (Computer Incident Response Center Luxembourg)
+          is operated by the Luxembourg House of Cybersecurity and offers MISP Threat
+          Intelligence Sharing as a core service.
+      - role: source_contributor
+        name: Paul Jung (Thanat0s)
+        official_url: https://github.com/Th4nat0s
+        notes: 'Active contributor credited with maintaining and updating the shodan-nt-scanning
+          warninglist. Authored PR #310 introducing Shodan to the repository in October
+          2025 and subsequent quarterly updates.'
+      derivation:
+        type: derivative
+        description: The shodan-nt-scanning list is a derivative of CIRCL Luxembourg's
+          Network Telescope darknet analysis. CIRCL operates a passive darknet — a
+          block of routed but unused IP address space — that records unsolicited inbound
+          traffic (Internet Background Radiation). When scanning sources attributed
+          to Shodan's infrastructure appear in this darknet data, their IP ranges
+          are extracted and formatted as a CIDR-type warninglist for MISP. The list
+          is distilled into a static CIDR reference set updated periodically by the
+          maintainer.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added when CIRCL Luxembourg's Network Telescope darknet
+          detects scanning activity originating from IP ranges associated with Shodan's
+          commercial scanning infrastructure. The maintainer reviews CIRCL's darknet
+          analysis and formats qualifying CIDR ranges into the warninglist.
+        criteria:
+        - Observed scanning activity from a Shodan-associated IP range in CIRCL's
+          Network Telescope darknet data
+        - Periodic review by the maintainer of updated CIRCL Network Telescope analysis
+        - Formatting as CIDR notation for MISP matching attributes (ip-src, ip-dst,
+          domain|ip, ip-dst|port, ip-src|port)
+      unlisting_policy:
+        summary: Entries are reviewed and removed during periodic updates when CIRCL's
+          Network Telescope analysis no longer associates the IP range with active
+          Shodan scanning infrastructure. The maintainer submits changes via GitHub
+          pull request, removing stale entries and updating the version field.
+        criteria:
+        - IP range no longer observed in CIRCL Network Telescope darknet data as active
+          Shodan scanning infrastructure
+        - Removal processed by the maintainer during periodic list updates
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/issues/new
+        email:
+        instructions: "Submit a GitHub issue at https://github.com/MISP/misp-warninglists/issues/new
+          describing the IP or range to be removed and the justification (e.g., the
+          IP no longer belongs to Shodan's scanning infrastructure). Alternatively,
+          submit a pull request directly: fork the repository, edit lists/shodan-nt-scanning/list.json
+          to remove the entry, increment the version number, validate the JSON with
+          ./jq_all_the_things.sh, and open a pull request. Per the contributing guidelines,
+          maintainers process these requests but there are no guarantees that an issue
+          will be addressed within any particular time frame. Locally, the warninglist
+          can be disabled at the MISP instance level without waiting for upstream
+          changes."
+      update_frequency:
+        frequency:
+        human_readable: The maintainer does not publish a fixed update schedule. Updates
+          are driven by periodic CIRCL Network Telescope analysis revisions — the
+          list was updated in October 2025, March 2026, and May 2026, suggesting roughly
+          quarterly revision cycles.
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods:
+        - honeypot
+        description: The list is built from CIRCL Luxembourg's Network Telescope darknet
+          analysis. A network telescope (darknet) is a block of allocated but unused
+          IP address space that passively records all unsolicited inbound traffic
+          — any packet arriving at darknet addresses is inherently suspicious since
+          no legitimate services should contact them. CIRCL's telescope captures Internet
+          Background Radiation including horizontal scanning probes; IPs attributed
+          to Shodan's scanning infrastructure are extracted and incorporated into
+          the warninglist as a CIDR reference set.
+      scope_and_intent:
+        description: The list marks IP ranges associated with Shodan.io's commercial
+          internet scanning infrastructure as informational warnings within MISP,
+          helping analysts distinguish legitimate commercial scanning activity from
+          potentially malicious scanning.
+        intended_for:
+        - Identifying observed scanning activity as originating from a known commercial
+          scanner rather than a malicious actor
+        - Reducing false positive triage time in MISP-powered threat intelligence
+          workflows
+        - Attributing scanning events to Shodan's documented packet fingerprint when
+          correlating with darknet observations
+        not_intended_for:
+        - Inline blocking or firewall enforcement — the maintainer explicitly describes
+          the list as informational, not for blocking
+        - Automated takedown or abuse processing — Shodan is a legitimate commercial
+          service and its scanning is intentional
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal public domain dedication imposes no conditions on
+          redistribution or commercial use. The data may be freely copied, modified,
+          and redistributed in any form, including for commercial purposes, without
+          attribution requirements.
+      current_status:
+        state: active
+        description: Active. The shodan-nt-scanning list is present in the misp-warninglists
+          repository and is refreshed through periodic CIRCL Network Telescope update
+          PRs.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion specifically about the shodan-nt-scanning warninglist
+          is sparse. The MISP warninglists repository receives occasional community
+          contributions touching the scanner-list family. A GitHub issue filed by
+          a MISP member proposes integrating external acknowledged scanner datasets
+          as a future enhancement.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/shodan-nt-scanning/list.json
+        document_date: '2026-05-04'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/commit/da68b87
+        document_date: '2026-05-04'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://book.shodan.io/enterprise/database-files/internet-scanners
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.circl.lu/
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://github.com/MISP/PyMISP
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/pull/330
+        document_date: '2026-03-13'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/pull/310
+        document_date: '2025-10-29'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.misp-project.org/contributing
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/tree/main/lists/shodan-nt-scanning
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'

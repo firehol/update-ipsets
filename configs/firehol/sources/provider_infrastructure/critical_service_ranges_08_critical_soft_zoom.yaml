@@ -1,0 +1,185 @@
+sources:
+  critical_soft_zoom:
+    license: Provider-published public IP ranges
+    redistributable: false
+    label: Zoom service ranges
+    url: https://assets.zoom.us/docs/ipranges/Zoom.txt
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: primary
+    info: Zoom-published IPv4 service ranges. Reference feed, not a threat indicator.
+    maintainer: Zoom
+    maintainer_url: https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0060548
+    enabled_by_all: true
+    use: [critical_infrastructure]
+    critical:
+      tier: soft
+      role: saas_productivity
+      source_type: authoritative_plain_text
+      source_quality: A
+      rationale: Zoom is real-time communications infrastructure for many organizations;
+        overlap should be reviewed before operational blocking.
+
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T13:42:19Z'
+      official_name: Zoom IP Ranges
+      official_url: https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0060548
+      short_description: IPv4 address ranges published by Zoom Video Communications
+        for use in firewall allowlisting and proxy configurations.
+      long_description: "Zoom Video Communications publishes a set of IPv4 CIDR blocks
+        representing the address space used by its global cloud infrastructure. The
+        ranges cover multiple Zoom services including Meetings and Webinars, Phone,
+        Contact Center, Virtual Agent, Support and Community, Zoom Apps, certificate
+        validation endpoints, CDN delivery, and device management (ZDM). Per-service
+        downloadable TXT files are also available for Zoom Phone, Zoom Contact Center,
+        Zoom CDN, and Zoom Apps.\n\nZoom operates its infrastructure across multiple
+        cloud providers including Oracle Cloud Infrastructure (core meeting services)
+        and Amazon Web Services. The ranges span globally distributed Points of Presence.
+        IPv6 ranges are published separately at assets.zoom.us/docs/ipranges/. The
+        feed is updated periodically; Zoom announces planned IP address changes on
+        the Zoom Status page and directs customers to subscribe for notifications.
+        The most recent documented update cycle was December 2024, when new ranges
+        were added for Zoom Phone and Zoom Contact Center and one legacy range was
+        retired.\nThis feed is reference infrastructure data, not a threat indicator.
+        It is intended to be allowlisted, not blocked."
+      roles:
+      - role: maintainer
+        name: Zoom Video Communications, Inc.
+        organization_type: commercial
+        official_url: https://zoom.us
+        contact_email:
+        based_in: United States
+        active_since: '2011'
+        notes: 'Zoom Video Communications, Inc. (NASDAQ: ZM) operates AS30103 and
+          publishes these IP ranges as authoritative infrastructure data for enterprise
+          firewall configuration. The company is headquartered in San Jose, California.'
+      derivation:
+        type: original
+        description: The feed is Zoom's own authoritative publication of its allocated
+          IPv4 address space. It is not derived from any external threat intelligence
+          source. Zoom compiles the ranges from its own infrastructure provisioning
+          records across Oracle Cloud Infrastructure and Amazon Web Services. Per-service
+          TXT files are generated from the same underlying inventory for Zoom Phone,
+          Contact Center, CDN, and Apps.
+        source_feeds: []
+      listing_policy:
+        summary: This is not a threat indicator feed. Addresses are listed because
+          Zoom has allocated them as part of its cloud infrastructure. Additions reflect
+          new capacity deployment; removals reflect decommissioning of legacy allocations.
+          There is no community reporting mechanism — Zoom provisions its own address
+          space.
+        criteria:
+        - Address is allocated to Zoom Video Communications (AS30103) or a contracted
+          cloud provider acting on Zoom's behalf
+        - Address is actively in use by a Zoom cloud service (meetings, phone, contact
+          center, CDN, device management, or supporting infrastructure)
+      unlisting_policy:
+        summary: Addresses are removed when Zoom retires the corresponding infrastructure.
+          There is no manual unlisting request channel because this is not a threat
+          feed — requests to remove Zoom's own infrastructure ranges would be handled
+          through Zoom Technical Support as a configuration question, not as a traditional
+          unlisting process.
+        criteria:
+        - Address is no longer allocated to Zoom infrastructure (decommissioned)
+        - Address has been replaced by a larger contiguous range in a migration
+      unlist_request:
+        url: 
+          https://support.zoom.com/hc/en-us/articles/201363063-Policy-on-IP-address-changes
+        email:
+        instructions: Because this is Zoom's own infrastructure data and not a threat
+          feed, there is no dedicated unlisting channel. Network administrators who
+          believe a Zoom-provisioned address has been incorrectly classified in a
+          third-party blocklist should contact Zoom Technical Support. Administrators
+          updating their allowlists should pull the latest ranges from assets.zoom.us/docs/ipranges/Zoom.txt
+          or subscribe to Zoom Status for update notifications.
+      update_frequency:
+        frequency:
+        human_readable: Updated periodically; changes are announced in advance on
+          the Zoom Status page, per the maintainer's support documentation. Subscribers
+          can receive email or SMS notifications for IP range updates.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The feed consists of IPv4 CIDR blocks that Zoom Video Communications
+          has allocated to its cloud infrastructure. Addresses are included when Zoom
+          provisions new capacity and removed when capacity is decommissioned. This
+          is authoritative infrastructure publication — the detection method is allocation
+          tracking against Zoom's own address space, not honeypot observations, user
+          reports, or third-party feeds.
+      scope_and_intent:
+        description: Zoom publishes these ranges to enable enterprise network administrators
+          to configure firewall allow rules and proxy server exceptions that permit
+          Zoom traffic without broadly opening all outbound traffic.
+        intended_for:
+        - Firewall allowlisting for Zoom cloud services
+        - Proxy server exception configuration
+        - Identifying Zoom-originated traffic in network flow logs
+        - Conditional Access named-location exclusions in identity providers
+        not_intended_for:
+        - Blocking or denying Zoom traffic
+        - Threat indicator correlation (the ranges are not indicators of malicious
+          activity)
+        - Building outbound deny-lists for Zoom services
+      license: Public, no stated license
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms: "No redistribution terms are stated on the feed file or the KB article.
+          Zoom's Terms of Service prohibit commercial use of the service itself (Section
+          8.xiii: 'make, use, or offer the Services or Software for lease, rent, or
+          sale'), but do not explicitly address redistribution of publicly published
+          IP ranges. Given the absence of an explicit permission, redistribution is
+          classified as not allowed."
+      current_status:
+        state: active
+        description: Active. The KB article was last updated 2026-05-14. The most
+          recent documented IP range change cycle was December 2024, when new ranges
+          were added for Zoom Phone and Zoom Contact Center and one legacy range was
+          retired. Updates are announced on Zoom Status.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "Network administrators have reported false positive scenarios
+          when Zoom's IP ranges are inadvertently included in third-party threat-intelligence
+          blocklists, particularly on next-generation firewalls that perform URL-category-based
+          filtering. Because Zoom shifted from DNS-resolvable hostnames to direct
+          IP-based connections for performance optimization, URL categorization no
+          longer matches Zoom traffic on some firewall platforms, leading to blocking
+          despite allow-policies being in place. A secondary scenario involves Microsoft
+          Entra ID (Azure AD) Conditional Access: Zoom Rooms' automated calendar-polling
+          API calls originate from Zoom's allocated IP ranges and can trigger false
+          risky-sign-in alerts. In both cases the resolution involves whitelisting
+          Zoom's IP ranges in the respective platform rather than modifying the blocklist.
+          Community members have also noted that some Zoom infrastructure hosted on
+          AWS falls outside the published ranges, requiring direct engagement with
+          Zoom Engineering for the current inventory."
+        engagement: Public discussion of Zoom IP ranges is concentrated in enterprise
+          sysadmin forums (Reddit r/sysadmin, r/PFSENSE, Firewalla community, Microsoft
+          Tech Community) and focuses on operational challenges rather than the feed
+          itself. Discussion density is moderate — threads arise around firewall configuration
+          changes, false positive incidents, and periodic Zoom IP range update announcements.
+          Zoom's own community portal publishes update announcements with advance
+          notice. No formal bug tracker or issue queue for the IP ranges feed was
+          identified.
+      sources_consulted:
+      - url: https://assets.zoom.us/docs/ipranges/Zoom.txt
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: https://support.zoom.com/hc/en/article?id=zm_kb&sysparm_article=KB0060548
+        document_date: '2026-05-14'
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: 
+          https://community.zoom.com/contact-center-15/zoom-updates-to-ip-ranges-and-network-configurations-64300
+        document_date: '2024-12-18'
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: https://zoom.us/terms
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'

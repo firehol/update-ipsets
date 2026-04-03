@@ -1,0 +1,172 @@
+sources:
+  misp_research_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/research-scanner-nt-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) generic
+      academic / research scanner IPs. Informational — not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T23:25:47+00:00'
+      official_name: Research scanner IP Ranges Used for Scanning
+      official_url: 
+        https://github.com/MISP/misp-warninglists/tree/main/lists/research-scanner-nt-scanning
+      short_description: A MISP warninglist of IP addresses associated with academic
+        research scanning infrastructure, sourced from CIRCL Luxembourg's darknet
+        telescope and intended for informational alerting rather than blocking.
+      long_description: "The research-scanner-nt-scanning list contains IP addresses
+        identified as belonging to academic research scanning infrastructure, sourced
+        from analysis of CIRCL Luxembourg's Network Telescope darknet traffic.\n\n\
+        A network telescope monitors routed but unused IP address space (darknet).
+        Because no legitimate services are hosted there, any inbound packet represents
+        unsolicited scanning, misconfiguration, or attack activity. CIRCL's telescope
+        is positioned adjacent to RFC 1918 private address space to maximise capture
+        of typo-generated misconfiguration traffic.\n\nWithin MISP, warninglists function
+        as informational alerts — when an analyst uploads an indicator that matches
+        an entry in this list, MISP displays a warning box informing the analyst that
+        the IP is associated with known research scanning infrastructure. This helps
+        analysts distinguish intentional scanning activity from malicious intrusion.
+        The list uses CIDR-type matching and supports ip-src, ip-dst, domain|ip, ip-dst|port,
+        and ip-src|port attribute types."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: non_profit
+        official_url: https://github.com/MISP
+        contact_email:
+        based_in: Luxembourg
+        active_since: '2016'
+        notes: The MISP Project develops and distributes the MISP threat intelligence
+          platform and its associated warninglists repository. The project is coordinated
+          by CIRCL Luxembourg and governed via community pull requests on GitHub.
+      - role: source_contributor
+        name: CIRCL Luxembourg
+        organization_type: government
+        official_url: https://circl.lu/
+        contact_email: info@circl.lu
+        based_in: Luxembourg
+        active_since: '2012'
+        notes: CIRCL (Computer Incident Response Center Luxembourg) is a government-driven
+          initiative operated under the Luxembourg House of Cybersecurity. CIRCL operates
+          the Network Telescope darknet infrastructure that is the upstream data source
+          for this list, and several CIRCL team members are core contributors to the
+          MISP warninglists repository.
+      derivation:
+        type: derivative
+        description: The list is a derivative extraction from CIRCL Luxembourg's Network
+          Telescope darknet monitoring infrastructure. IPs observed conducting research
+          scanning against the darknet are extracted and published as a MISP warninglist.
+          The list uses CIDR-type matching in MISP, meaning individual IPs or network
+          ranges trigger an informational alert when they appear in uploaded events.
+        source_feeds: []
+      listing_policy:
+        summary: IPs are added to the list when CIRCL's Network Telescope analysis
+          identifies them as originating from academic research scanning infrastructure.
+          The list is updated periodically via pull request to the MISP warninglists
+          repository, with the version number incremented on each update.
+        criteria:
+        - Observed conducting research scanning activity against the CIRCL Network
+          Telescope darknet
+        - Attributed to academic research scanning infrastructure by CIRCL analysis
+      unlisting_policy:
+        summary: IPs are removed when the list is updated to a new version reflecting
+          current research scanning infrastructure. As a community-maintained warninglist
+          managed via GitHub pull requests, removals occur as part of periodic version
+          updates rather than on-demand delisting.
+        criteria:
+        - IP no longer observed conducting research scanning activity against the
+          CIRCL Network Telescope
+        - List version update reflecting changed infrastructure
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/issues/new
+        email:
+        instructions: Submit an issue on the MISP warninglists GitHub repository to
+          propose corrections or removals. Alternatively, fork the repository, modify
+          the list, and submit a pull request with an incremented version number.
+      update_frequency:
+        frequency:
+        human_readable:
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: The list is built from passive observation of unsolicited inbound
+          traffic captured by CIRCL Luxembourg's Network Telescope darknet. A network
+          telescope monitors routed but unused IP address space — because no legitimate
+          services occupy those addresses, any inbound packet indicates scanning,
+          misconfiguration, or attack activity. IPs observed conducting research-class
+          scanning patterns against this darknet are extracted and published in this
+          warninglist.
+      scope_and_intent:
+        description: The list marks IP addresses associated with academic research
+          scanning infrastructure for informational purposes within MISP threat intelligence
+          workflows.
+        intended_for:
+        - Reducing false positives when analyzing events containing research scanning
+          infrastructure IPs
+        - Contextual awareness when research institution IPs appear in threat intelligence
+          data
+        not_intended_for:
+        - Inline blocking or deny-listing at network perimeter
+        - Automated enforcement actions against listed IPs
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal public domain dedication — no restrictions on use
+          or redistribution. No attribution is required.
+      current_status:
+        state: active
+        description: Active. The research-scanner-nt-scanning list is present in the
+          misp-warninglists repository and is refreshed through periodic CIRCL Network
+          Telescope update PRs.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion about this specific list is sparse. Broader
+          MISP warninglists community discussion reflects cautious neutrality toward
+          IP whitelisting methodologies — practitioners note that bad actors can also
+          operate from cloud infrastructure — rather than specific criticism of the
+          research-scanner-nt-scanning list. Development and community engagement
+          occurs primarily through the project's GitHub repository rather than social
+          media forums.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/research-scanner-nt-scanning/list.json
+        document_date: '2026-05-04'
+        validation_date: '2026-05-18T23:00:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T23:00:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-18T23:00:00+00:00'
+      - url: https://circl.lu/doc/misp/warninglists/
+        document_date:
+        validation_date: '2026-05-18T23:00:00+00:00'
+      - url: https://circl.lu/
+        document_date:
+        validation_date: '2026-05-18T23:00:00+00:00'
+      - url: https://www.circl.lu/projects/scanning/
+        document_date:
+        validation_date: '2026-05-18T23:00:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/tree/main/lists
+        document_date:
+        validation_date: '2026-05-18T23:00:00+00:00'
+      - url: https://raw.githubusercontent.com/MISP/misp-warninglists/main/schema.json
+        document_date:
+        validation_date: '2026-05-18T23:00:00+00:00'

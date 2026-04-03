@@ -1,0 +1,156 @@
+sources:
+  iblocklist_org_ubisoft:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=etmcrglomupyxtaebzht&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Ubisoft IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T12:45:35Z'
+      official_name: Ubisoft
+      official_url: https://www.iblocklist.com/list?list=etmcrglomupyxtaebzht
+      short_description: IP addresses registered to Ubisoft's game-publishing infrastructure,
+        distributed by iBlocklist.com as a subscription-fed blocklist in standard
+        formats for desktop firewall applications.
+      long_description: "This feed distributes IP addresses and prefixes registered
+        to Ubisoft's game-publishing and online-services infrastructure, maintained
+        by iBlocklist.com.\n\nPer the maintainer's description, the list covers Ubisoft's
+        own registered infrastructure and adjacent addresses needed for Ubisoft-hosted
+        games to function correctly. The exact methodology by which IPs are selected
+        or removed is not publicly documented by the maintainer.\n\nDistributions
+        are available in P2P, DAT, CIDR, and hosts file formats, archived as gz, zip,
+        or 7z files. The feed URL is gated behind a human-verification challenge;
+        registration with iBlocklist.com is required to download without interruption."
+      roles:
+      - role: maintainer
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in: United States
+        active_since: '2008'
+        notes: 'Operates the iBlocklist.com subscription service offering IP blocklists
+          in multiple formats. Per the homepage, the service distributes lists compatible
+          with PeerBlock, PeerGuardian, iplist, Vuze, uTorrent, Tixati, and pfBlocker.
+          The company also operates a companion VPN service called PhantomPeer. Service-level
+          community signal across iBlocklist.com (not specific to any single feed):
+          Trustpilot reviews (2.6/5) document unauthorized recurring charges, credit-card
+          reuse after cancellation, and dismissive support; Netgate forum analyses
+          report that some compressed list timestamps were updated without corresponding
+          content changes.'
+      derivation:
+        type: original
+        description: The feed is maintained by iBlocklist.com as a discrete entry
+          within their organization-category collection. It draws from IP ranges registered
+          to Ubisoft's infrastructure. The maintainer does not publicly describe aggregation
+          from multiple upstream feeds for this specific list — it is a single-organization
+          feed rather than a multi-source merge. No third-party feeds are named as
+          inputs.
+        source_feeds: []
+      listing_policy:
+        summary: IPs are listed when registered to Ubisoft's game-publishing infrastructure
+          or adjacent addresses required for Ubisoft-hosted games, per the maintainer's
+          description. No further public criteria are documented.
+        criteria:
+        - IP addresses registered to Ubisoft's game-publishing infrastructure
+        - Adjacent IP addresses required for Ubisoft-hosted games to function correctly
+      unlisting_policy:
+        summary: No public unlisting policy or removal procedure is documented by
+          the maintainer. The contact page does not provide unlisting instructions
+          or a support email.
+        criteria: []
+      unlist_request:
+        url:
+        email:
+        instructions: No public unlisting channel was found on the iBlocklist.com
+          site. The contact page does not provide a support email or removal-request
+          procedure. Subscribers with billing-accessible accounts may be able to submit
+          requests through the registered-account interface, but this pathway is not
+          publicly documented.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated daily, per the maintainer's feed metadata
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: "The feed consists of IP addresses allocated to Ubisoft's own
+          infrastructure, identified by registry ownership records. This is a policy-assignment
+          approach: IPs are listed because they belong to a named organization, not
+          because they were individually observed engaging in malicious activity.
+          No honeypot, sandbox, telescope, or community-submission mechanism is described
+          for this feed."
+      scope_and_intent:
+        description: The feed is scoped to IP addresses associated with Ubisoft's
+          game-publishing and online-services infrastructure. Its intended purpose
+          is to allow users to permit or block connections to Ubisoft's services —
+          for example, ensuring game clients can reach Ubisoft servers, or blocking
+          outbound connections to Ubisoft infrastructure as a privacy or policy measure.
+        intended_for:
+        - Permitting game-client connections to Ubisoft online services
+        - Blocking outbound connections to Ubisoft infrastructure as a privacy measure
+        - Desktop firewall applications compatible with P2P, DAT, CIDR, or hosts file
+          formats
+        not_intended_for:
+        - Identifying malicious IP addresses — the feed lists Ubisoft's own infrastructure,
+          not attackers
+        - Commercial use — the subscription terms restrict all content to personal,
+          non-commercial use
+      license: iBlocklist Terms of Service — personal / non-commercial use only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution is not permitted under the iBlocklist Terms of Service.
+          The ToS grants a personal-use license only and explicitly prohibits use
+          of the materials for any commercial purpose or public display. Sharing account
+          access outside of a user's household is also prohibited.
+      current_status:
+        state: active
+        description: The iBlocklist.com subscription service remains in operation
+          as of the research date. The Ubisoft feed is listed in the organization-category
+          page and remains available to subscribers. The maintainer has not announced
+          any change to this feed's lifecycle status.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: No Ubisoft-feed-specific complaints were found in public discussion.
+          Service-level community signal across iBlocklist.com is recorded in the
+          maintainer role notes.
+        engagement: Public discussion about the Ubisoft feed specifically is sparse.
+          No dedicated forum threads, GitHub issues, or Reddit posts referencing this
+          list were identified.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date: '2026'
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/lists.php?category=organization
+        document_date: '2025'
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/list?list=etmcrglomupyxtaebzht
+        document_date: '2026'
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/contact.php
+        document_date: 2008-2015
+        validation_date: '2026-05-18'
+      - url: https://trustpilot.com/review/iblocklist.com
+        document_date: '2025'
+        validation_date: '2026-05-18'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date: '2016'
+        validation_date: '2026-05-18'

@@ -1,0 +1,159 @@
+sources:
+  misp_openai_gptbot:
+    license: CC0 1.0 (MISP warninglists)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/openai-gptbot/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) OpenAI GPTBot
+      crawler IP address ranges. Crawler infrastructure reference, not a threat indicator.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T06:48:15+00:00'
+      official_name: List of known IP address ranges for OpenAI GPT crawler bot
+      official_url: https://github.com/MISP/misp-warninglists/tree/main/lists/openai-gptbot
+      short_description: OpenAI GPTBot crawler IP address ranges, republished from
+        OpenAI's published ranges file into the MISP warninglist format for marking
+        crawler traffic as informational context in threat intelligence workflows.
+      long_description: "This list repackages OpenAI's published GPTBot crawler IP
+        address ranges into the MISP warninglist format. GPTBot is OpenAI's web crawler,
+        described on OpenAI's platform documentation as used to make generative AI
+        foundation models more useful and safe by crawling content that may be used
+        in training. Because GPTBot can generate very high volumes of HTTP requests
+        to web servers, its IP addresses frequently appear in server logs and can
+        trigger false-positive threat indicators in security monitoring systems.\n\
+        \nThe list uses CIDR-type matching against MISP attributes ip-src, ip-dst,
+        domain|ip, ip-src|port, and ip-dst|port. When a matching IP is found in a
+        MISP event, the warninglist displays an informational alert identifying the
+        IP as belonging to OpenAI's GPTBot crawler rather than treating it as unknown
+        or suspicious infrastructure.\n\nPer the maintainer's generator script, the
+        list is produced by downloading OpenAI's published GPTBot ranges file (openai.com/gptbot-ranges.txt),
+        consolidating overlapping or adjacent CIDR blocks, and writing the result
+        as a MISP-format warninglist. The list specifically tracks GPTBot — not OpenAI's
+        other published crawler families (such as ChatGPT-User or OAI-SearchBot),
+        which OpenAI publishes via separate range files."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://github.com/MISP
+        contact_email:
+        based_in:
+        active_since:
+        notes: The MISP Project maintains the misp-warninglists repository, including
+          this list. The project is hosted by CIRCL (Computer Incident Response Coordination
+          Centre), a nonprofit security research institute based in Luxembourg.
+      derivation:
+        type: extraction
+        description: The list is produced by a generator script that downloads OpenAI's
+          published GPTBot IP ranges from openai.com/gptbot-ranges.txt, passes the
+          raw CIDR lines through a consolidation function that merges overlapping
+          or adjacent CIDR blocks, and writes the result as a MISP-format warninglist
+          JSON file. The script runs as part of the MISP warninglists build process.
+          The sole upstream source is OpenAI's publicly published crawler ranges file.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added whenever OpenAI publishes new IP address ranges
+          for its GPTBot crawler on openai.com/gptbot-ranges.txt. The generator script
+          pulls the latest ranges on each build run, so any newly published OpenAI
+          ranges are incorporated automatically.
+        criteria:
+        - The IP range must appear in OpenAI's publicly published GPTBot crawler ranges
+          file at openai.com/gptbot-ranges.txt
+      unlisting_policy:
+        summary: Entries are removed when OpenAI removes IP address ranges from its
+          published GPTBot crawler ranges file. On each generator run, the script
+          re-downloads the current OpenAI ranges; any previously listed ranges no
+          longer present in OpenAI's file are excluded from the regenerated list.
+        criteria:
+        - The IP range is no longer present in OpenAI's published GPTBot crawler ranges
+          file at openai.com/gptbot-ranges.txt
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: Regenerated daily as part of the MISP warninglists build cycle,
+          per the maintainer's generator script
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: "The list classifies IP addresses by policy assignment: IPs are
+          listed because OpenAI has publicly declared them as belonging to its GPTBot
+          crawler. This is not a threat-intelligence detection — it is an informational
+          reference list identifying known crawler infrastructure. The classification
+          reflects OpenAI's own published declarations, not any reactive detection
+          or measurement performed by the MISP Project."
+      scope_and_intent:
+        description: The list marks IP addresses belonging to OpenAI's GPTBot crawler
+          as informational context in MISP events. Its purpose is to prevent GPTBot
+          crawler traffic from generating false-positive threat indicators during
+          incident investigation.
+        intended_for:
+        - Marking GPTBot crawler IPs as informational context in MISP events
+        - Preventing false-positive threat indicators from AI crawler traffic
+        - Enriching MISP events with crawler infrastructure awareness
+        not_intended_for:
+        - Blocking or denying traffic — this is not a threat indicator
+        - Threat hunting or incident response targeting
+        - Attributing malicious activity
+      license: CC0 1.0 Universal (CC0 1.0) — Public Domain Dedication
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 public domain dedication places this work in the public domain
+          with no restrictions. No attribution is legally required, though customary
+          practice in the MISP community is to credit the MISP Project.
+      current_status:
+        state: active
+        description: The list is maintained as part of the active MISP warninglists
+          repository. The generator script remains in the repository and the list.json
+          file is present and accessible.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion specifically about the MISP openai-gptbot
+          warninglist is sparse. No GitHub issues or pull requests referencing this
+          list were found in the repository. Broader community discussion about GPTBot
+          crawler traffic is active on developer forums — with documented cases of
+          GPTBot generating hundreds of thousands of requests per month, driving significant
+          bandwidth costs — but this discussion focuses on robots.txt blocking and
+          server-level mitigation rather than MISP warninglist usage. The MISP warninglists
+          project overall is widely adopted across the threat intelligence and security
+          operations community, with the openai-gptbot list representing one of many
+          crawler-infrastructure reference lists in the collection.
+      sources_consulted:
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-19T06:45:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-19T06:45:00+00:00'
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/openai-gptbot/list.json
+        document_date: '2024-04-26'
+        validation_date: '2026-05-19T06:45:00+00:00'
+      - url: https://openai.com/gptbot-ranges.txt
+        document_date:
+        validation_date: '2026-05-19T06:45:00+00:00'
+      - url: https://platform.openai.com/docs/gptbot
+        document_date:
+        validation_date: '2026-05-19T06:45:00+00:00'
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/tools/generate-gptbot.py
+        document_date:
+        validation_date: '2026-05-19T06:47:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/tree/main/lists/openai-gptbot
+        document_date:
+        validation_date: '2026-05-19T06:45:00+00:00'

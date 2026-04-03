@@ -1,0 +1,150 @@
+sources:
+  ip2location_country:
+    attribution: This site uses the IP2Location LITE database for IP geolocation
+    license: IP2Location LITE Data License
+    redistributable: false
+    label: IP2Location LITE
+    url: https://download.ip2location.com/lite/IP2LOCATION-LITE-DB1.CSV.ZIP
+    frequency: 1440
+    category: geolocation
+    info: '[IP2Location.com](http://lite.ip2location.com/database-ip-country)'
+    maintainer: IP2Location.com
+    maintainer_url: http://lite.ip2location.com/database-ip-country
+    hidden: true
+    use: [geoip]
+    format: ip2location_country_zip
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T13:19:09Z'
+      official_name: IP2Location LITE
+      official_url: https://lite.ip2location.com/
+      short_description: A free IP-to-country geolocation database mapping IPv4 addresses
+        to ISO 3166-1 alpha-2 country codes, updated monthly.
+      long_description: "IP2Location LITE is a free IP geolocation database that maps
+        IPv4 addresses to country codes. DB1 is the entry-level product in the LITE
+        lineup, containing two columns: the IP address range start and the ISO 3166-1
+        alpha-2 country code. The database covers Class C IP ranges (/24 networks)
+        and returns the majority location when a single Class C spans multiple geographies
+        — a design trade-off that limits precision compared with the commercial edition.
+        According to the maintainer's own comparison, LITE achieves approximately
+        98% country-level accuracy versus 99.5% for the commercial product. The maintainer
+        notes that accuracy degrades by roughly 1–5% per month as IP allocations shift,
+        recommending monthly refreshes. Data is sourced from Regional Internet Registries
+        and other public routing-whois records. A free account registration is required
+        to download the file from the maintainer's site."
+      roles:
+      - role: maintainer
+        name: IP2Location.com
+        organization_type: commercial
+        official_url: https://www.ip2location.com
+        contact_email:
+        based_in: Malaysia
+        active_since:
+        notes: Operated by Hexasoft Development Sdn Bhd. Provides both a free LITE
+          edition and commercial editions of IP geolocation data.
+      derivation:
+        type: original
+        description: IP2Location compiles IP-to-country mappings from Regional Internet
+          Registry (RIR) allocation data and public whois records, packaging the result
+          as a flat CSV file sorted by IP range start.
+        source_feeds: []
+      listing_policy:
+        summary: Not applicable — this is a geolocation reference dataset, not a threat-intelligence
+          blocklist. There are no malicious-actor criteria; the database simply maps
+          allocated IP space to countries.
+        criteria: []
+      unlisting_policy:
+        summary: Not applicable — this is a geolocation reference dataset reflecting
+          RIR allocation records. Individual IP corrections are handled by submitting
+          updated allocation data to the originating registry, not by removing entries
+          from this database.
+        criteria: []
+      unlist_request:
+        url:
+        email:
+        instructions: IP2Location does not offer a manual unlisting channel for the
+          free LITE edition. For correction requests, the maintainer advises registering
+          on the site and downloading the latest monthly file. The maintainer does
+          not provide customer support for the free tier.
+      update_frequency:
+        frequency: 30d
+        human_readable: Updated on the first day of each calendar month. The maintainer
+          recommends downloading once a month during a random day in the first week
+          to avoid congestion.
+      detection_classification:
+        primary_method: unknown
+        secondary_methods: []
+        description: IP2Location LITE DB1 is a compiled reference dataset, not a live
+          threat-detection feed. It is assembled from public IP allocation records
+          published by Regional Internet Registries and packaged into a sorted CSV.
+          No honeypot, telescope, or submission-driven detection is involved.
+      scope_and_intent:
+        description: IP2Location LITE DB1 maps IPv4 addresses to country codes for
+          visitor geolocation. It is free for personal and commercial use with attribution
+          required.
+        intended_for:
+        - Determining a visitor's country of origin based on their IP address
+        - Basic geofencing and content localization
+        - Fraud detection using rough geographic signals
+        not_intended_for:
+        - Precise city or coordinates (DB1 provides country only; use DB5 or higher
+          for city-level data)
+        - Real-time threat blocking (this is a reference dataset, not a blocklist)
+        - Applications requiring greater than 98% country accuracy (upgrade to commercial
+          edition)
+      license: IP2Location LITE Data License
+      redistribution:
+        allowed: false
+        commercial_use_allowed: true
+        attribution_required: '[Your site name] uses the IP2Location LITE database
+          for IP geolocation. (hyperlinked to lite.ip2location.com)'
+        terms: Redistribution and resale are prohibited. One copy may be redistributed
+          bundled with an application if attribution is included and users are directed
+          to register individually at lite.ip2location.com for their own updates.
+          Third-party repositories are not permitted.
+      current_status:
+        state: active
+        description: Active and maintained as of the most recent monthly update cycle.
+          The download URL responds normally. The maintainer continues to publish
+          monthly updates and maintains the site.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "Community discussion about IP2Location LITE DB1 specifically is
+          sparse. The recurring concern that does apply to DB1 is the accuracy limitation
+          inherent to its Class C aggregation model: a single /24 range mapped to
+          its majority country can misclassify IPs belonging to multinational cloud
+          providers, with documented cases of Microsoft Azure IPs appearing attributed
+          to the wrong country. No systematic accuracy report is published for DB1
+          beyond the maintainer's stated ~98% country accuracy figure."
+        engagement: Public community discussion about IP2Location LITE DB1 specifically
+          is very limited. Organic user-generated discussion of this particular country-only
+          database is rare; most public threads referencing DB1 are help requests
+          about download or licensing rather than substantive analysis of its data
+          quality.
+      sources_consulted:
+      - url: https://lite.ip2location.com/
+        document_date:
+        validation_date: '2026-05-16T13:19:09Z'
+      - url: https://lite.ip2location.com/data-license
+        document_date: '2026'
+        validation_date: '2026-05-16T13:19:09Z'
+      - url: https://lite.ip2location.com/faq
+        document_date:
+        validation_date: '2026-05-16T13:19:09Z'
+      - url: https://lite.ip2location.com/terms-of-use
+        document_date:
+        validation_date: '2026-05-16T13:19:09Z'
+      - url: https://lite.ip2location.com/edition-comparison
+        document_date:
+        validation_date: '2026-05-16T13:19:09Z'
+      - url: https://download.ip2location.com/lite/IP2LOCATION-LITE-DB1.CSV.ZIP
+        document_date:
+        validation_date: '2026-05-16T13:19:09Z'
+      - url: https://www.reddit.com/r/ip2location/comments/1pnrsm1/
+        document_date: '2024-12-15'
+        validation_date: '2026-05-16T13:19:09Z'
+      - url: https://www.reddit.com/r/WatchGuard/comments/1buvxos/
+        document_date: 2024-04
+        validation_date: '2026-05-16T13:19:09Z'

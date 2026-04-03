@@ -1,0 +1,168 @@
+sources:
+  blocklist_net_ua:
+    license: public feed
+    redistributable: true
+    url: https://blocklist.net.ua/blocklist.csv
+    frequency: 10
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments_semi
+    processor_raw: remove_comments_semi_colon
+    category: service_abuse
+    info: '[blocklist.net.ua](https://blocklist.net.ua) The BlockList project was
+      created to become protection against negative influence of the harmful and potentially
+      dangerous events on the Internet. First of all this service will help internet
+      and hosting providers to protect subscribers sites from being hacked. BlockList
+      will help to stop receiving a large amount of spam from dubious SMTP relays
+      or from attempts of brute force passwords to servers and network equipment.'
+    maintainer: blocklist.net.ua
+    maintainer_url: https://blocklist.net.ua
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T01:13:27Z'
+      official_name: BlockList
+      official_url: https://blocklist.net.ua
+      short_description: A Ukrainian IP blocklist identifying attacking, spamming,
+        and brute-force-password hosts observed through passive traffic analysis,
+        aimed at internet and hosting providers.
+      long_description: "BlockList is a Ukrainian threat intelligence project that
+        monitors internet traffic through its own infrastructure to identify IP addresses
+        engaged in malicious activity. Per the maintainer's about page, the project
+        uses proprietary algorithms to analyze traffic behavior — detecting attack
+        patterns, unsolicited bulk email, and credential brute-forcing attempts —
+        and compiles the resulting IP addresses into freely downloadable blocklists.\n\
+        \nThe project targets two audiences: internet and hosting providers, who can
+        integrate the blocklist to protect subscriber sites from compromise and reduce
+        unwanted traffic; and ordinary users, who can check whether their own IP address
+        has been flagged for any recorded malicious activity. Entries carry a reason
+        field describing the specific offense and the affected target.\n\nPer the
+        providers page, the maintainer states the blocklist is fully open and refreshed
+        every 10 minutes. The project disclaims liability for any harm arising from
+        inclusion, noting the service is informational only."
+      roles:
+      - role: maintainer
+        name: blocklist.net.ua
+        organization_type: unknown
+        official_url: https://blocklist.net.ua
+        contact_email: support@blocklist.net.ua
+        based_in: Ukraine
+        active_since:
+        notes: 'The project is identified by its domain name as the maintaining entity.
+          No individual person or organization name is published beyond the domain.
+          Two contact addresses are publicly listed: support@blocklist.net.ua for
+          technical support and office@blocklist.net.ua for business inquiries.'
+      derivation:
+        type: original
+        description: The feed is built from the maintainer's own passive traffic monitoring
+          infrastructure. Per the about page, the project observes internet traffic
+          through its own instrumented network and applies proprietary behavioral-analysis
+          algorithms to identify patterns characteristic of attacks, spam distribution,
+          and brute-force credential attempts. No external IP feeds, commercial threat-intel
+          APIs, or third-party blocklists are described as inputs.
+        source_feeds: []
+      listing_policy:
+        summary: IPs are added when the maintainer's passive traffic monitoring detects
+          behavior characteristic of attacks, unsolicited bulk email distribution,
+          or credential brute-forcing against servers and network equipment. The decision
+          is driven by behavioral pattern analysis rather than static signatures.
+        criteria:
+        - Conducting attack traffic (such as DDoS or application-layer attacks against
+          websites) detected through anomalous traffic patterns
+        - Distributing unsolicited bulk email through dubious SMTP relays
+        - Attempting to guess credentials (brute-force password attacks) against servers,
+          content-management systems, or network equipment
+      unlisting_policy:
+        summary: Entries carry a calculated unbanning timestamp that varies with the
+          type and intensity of the offense; repeat offenders face progressively stricter
+          unblocking restrictions. Additionally, the owner of a listed IP can self-service
+          unblock through the Check IP page, subject to captcha verification and rate
+          limits that prevent frequent automated unblocking.
+        criteria:
+        - Automatic expiration after a maintainer-determined period proportional to
+          offense type and severity
+        - Manual self-service unblocking via the Check IP page, constrained by rate
+          limits and captcha verification
+        - Repeated offending IPs face hardened unblocking restrictions
+      unlist_request:
+        url: https://blocklist.net.ua/check/
+        email:
+        instructions: Visit the Check IP page, enter the IP address to look up, and
+          if it is listed, complete the captcha challenge to request automatic unblocking.
+          Frequent automated unblocking is restricted per the maintainer's usage rules.
+      update_frequency:
+        frequency: 10m
+        human_readable: The maintainer states the blocklist is refreshed every 10
+          minutes, per the providers page.
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: The maintainer describes observing internet traffic through their
+          own network infrastructure and applying proprietary behavioral-analysis
+          algorithms to identify malicious patterns. This is classified as network
+          telescope — a passive sensor infrastructure that collects inbound traffic
+          — rather than honeypot (which simulates vulnerable services) or active scanning
+          (which initiates outbound probes).
+      scope_and_intent:
+        description: BlockList is positioned as a defensive tool for internet and
+          hosting providers to protect subscriber infrastructure, and for end users
+          to verify whether their IP has participated in recorded malicious activity.
+        intended_for:
+        - Blocking attack, spam, and brute-force traffic at the network perimeter
+          (firewalls, border gateways)
+        - Protecting hosted subscriber sites from compromise
+        - Reducing parasitic inbound traffic and server load
+        - Individual IP reputation checks by end users
+        not_intended_for:
+        - Legal enforcement or liability attribution — the maintainer explicitly disclaims
+          responsibility for any harm arising from inclusion
+        - Permanent blocking without regard to automatic expiry — entries are time-limited
+          by design
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: The direct upstream is publicly downloadable with no stated redistribution
+          restrictions. The maintainer describes the blocklist as 'fully open' on
+          the providers page.
+      current_status:
+        state: active
+        description: The maintainer's site is reachable and the blocklist remains
+          available for download. No discontinuation or migration notice has been
+          published.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: 'Public discussion is sparse. The project is referenced by a small
+          number of third-party projects and integrators: it was listed as a data
+          source by the NERD (CESNET) academic threat-intel aggregator in the Czech
+          Republic, and was added to the Gatekeeper network security application in
+          July 2025 with a stated 20-minute refresh cycle. The project is mirrored
+          on several GitHub repositories. No notable public controversy, complaint
+          pattern, or formal third-party recognition was found in research.'
+      sources_consulted:
+      - url: https://blocklist.net.ua/
+        document_date:
+        validation_date: '2026-05-19T01:13:27Z'
+      - url: https://blocklist.net.ua/about/
+        document_date:
+        validation_date: '2026-05-19T01:13:27Z'
+      - url: https://blocklist.net.ua/rules/
+        document_date:
+        validation_date: '2026-05-19T01:13:27Z'
+      - url: https://blocklist.net.ua/check/
+        document_date:
+        validation_date: '2026-05-19T01:13:27Z'
+      - url: https://blocklist.net.ua/providers/
+        document_date:
+        validation_date: '2026-05-19T01:13:27Z'
+      - url: https://blocklist.net.ua/blocklist.csv
+        document_date:
+        validation_date: '2026-05-19T01:13:27Z'
+      - url: https://reddit.com/r/gatekeepr/comments/1mi0at6/updates_for_w202531/
+        document_date: 2025-07
+        validation_date: '2026-05-19T01:13:27Z'

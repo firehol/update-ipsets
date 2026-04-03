@@ -1,0 +1,175 @@
+sources:
+  critical_context_apple_networks:
+    license: Provider-published support documentation
+    redistributable: false
+    label: Apple service network context
+    static:
+    - 17.0.0.0/8
+    frequency: 0
+    ipv: ipv4
+    output: netset
+    processor:
+    - passthrough
+    processor_raw: passthrough
+    category: provider_infrastructure
+    provenance: primary
+    info: Apple-published IPv4 network allowance guidance. Contextual reference feed,
+      not a threat indicator.
+    maintainer: Apple
+    maintainer_url: https://support.apple.com/en-us/101555
+    enabled_by_all: true
+    use: [critical_infrastructure]
+    critical:
+      tier: contextual
+      role: software_update
+      source_type: authoritative_static_docs
+      source_quality: C
+      rationale: Apple documents broad 17.0.0.0/8 allowance for Apple services, including
+        update paths, but the range is too broad for hard or soft warning semantics;
+        treat overlap as context.
+
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T12:09:37Z'
+      official_name: Use Apple products on enterprise networks
+      official_url: https://support.apple.com/en-us/101555
+      short_description: Apple's published guidance on the IPv4 network range used
+        by Apple services, intended as a reference for enterprise firewall and proxy
+        configuration.
+      long_description: "Apple's HT101555 article is the primary authoritative reference
+        for configuring enterprise firewalls and proxy servers to support Apple device
+        deployments. The document designates a single large IPv4 Class A network block
+        as Apple's sole IPv4 address range, covering Apple Push Notifications, software
+        updates, iCloud, App Store, MDM, Apple Intelligence, and other Apple services.\n\
+        \nThe article takes a hostname-first approach: wherever possible, administrators
+        are advised to configure firewall rules using hostnames (*.apple.com and related
+        domains) rather than IP ranges, because Apple's infrastructure relies on chained
+        CNAME records that resolve to CDN endpoints with IP addresses outside Apple's
+        own allocation. The document explicitly states that IP-based rules are offered
+        as a fallback for firewalls that support only numeric configuration.\n\nThe
+        article is actively maintained with periodic revisions; the changelog records
+        updates in April 2026, January 2026, July 2025, and April 2025. No fixed update
+        cadence is stated. The document also warns that HTTPS interception (SSL inspection)
+        breaks Apple services and that DNS resolution must not be blocked."
+      roles:
+      - role: maintainer
+        name: Apple
+        organization_type: commercial
+        official_url: https://www.apple.com
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: Apple Inc. publishes and maintains the HT101555 enterprise network
+          guide as part of its official support documentation portfolio. The company
+          owns the documented IPv4 Class A block and operates the services covered
+          within it.
+      derivation:
+        type: original
+        description: This feed is a passthrough of Apple's authoritative static documentation.
+          The sole IPv4 range is published directly by Apple as the network block
+          allocated to Apple services. No aggregation, filtering, or third-party processing
+          is applied.
+        source_feeds: []
+      listing_policy:
+        summary: This feed is not a threat indicator list. Entries represent Apple's
+          documented network ranges used by its own services. No dynamic listing criteria
+          apply — the range is Apple's statically documented allowance, not a dynamic
+          threat feed.
+        criteria:
+        - 'Static authoritative documentation: the published range is the network
+          block Apple designates as allocated to Apple services'
+        - 'No threat-based listing: entries are not indicators of malicious activity'
+        - "Passthrough processing: the feed reproduces Apple's published documentation
+          without modification"
+      unlisting_policy:
+        summary: Not applicable. This feed is not a dynamic threat indicator list
+          with removal procedures. As a static documentation feed reflecting Apple's
+          published network allowances, changes to the range originate from Apple
+          and are reflected upon the next documentation revision.
+        criteria:
+        - 'No dynamic unlisting: this is a static documentation feed'
+        - 'Changes originate from Apple: the range is updated when Apple revises HT101555'
+        - 'No manual removal process: the feed does not track individual IPs as threat
+          indicators'
+      unlist_request:
+      update_frequency:
+        frequency:
+        human_readable: Apple revises the HT101555 article periodically; the changelog
+          records updates in April 2026, January 2026, July 2025, and April 2025.
+          No fixed update cadence is stated in the document.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: "The feed is classified as policy-assignment: it reproduces Apple's
+          internally assigned network allocation, not a detection finding. Apple owns
+          and operates the documented Class A block and presents it as the address
+          space allocated to Apple services. This is a network registration fact,
+          not a threat detection."
+      scope_and_intent:
+        description: Apple publishes this network guidance to enable enterprise network
+          administrators to configure firewalls and proxy servers for Apple device
+          deployments. The intended audience is IT departments managing macOS, iOS,
+          iPadOS, tvOS, and watchOS devices in corporate or education environments.
+        intended_for:
+        - Enterprise firewall and proxy allowlist configuration for Apple device deployments
+        - Distinguishing Apple's legitimate service infrastructure from unknown or
+          suspicious traffic
+        - Network documentation for MDM, Apple School Manager, and Apple Business
+          Manager environments
+        not_intended_for:
+        - 'Threat indicator blocking: the range is too broad for hard or soft block
+          semantics'
+        - Hard block or high-confidence threat enforcement
+        - Replacement for traditional threat intelligence feeds
+      license: Public, no stated license
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms: Apple's support documentation does not state redistribution terms.
+          Apple's trademark and copyright guidelines require authorization for reproducing
+          Apple content in publications and websites. The catalog YAML classifies
+          this feed as non-redistributable.
+      current_status:
+        state: active
+        description: Actively maintained. Apple's HT101555 was last revised on April
+          14, 2026, with a documented changelog showing ongoing updates in April 2026,
+          January 2026, July 2025, and April 2025.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Enterprise IT administrators have documented practical challenges
+          with Apple's recommendation to whitelist the entire /8 block. Practitioners
+          have reported that the range alone is insufficient for software update infrastructure
+          because Apple's CDN integration routes traffic through endpoints outside
+          Apple's own allocation, meaning a pure /8 allowlist does not guarantee software
+          update functionality. Intrusion detection systems have generated false positives
+          against legitimate Apple traffic within the range, requiring manual policy
+          overrides. iCloud Private Relay introduces additional complexity for content-filtering
+          environments, as the relay's egress IPs fall within the documented range
+          but may enable policy bypass. These are documented practitioner experiences,
+          not criticisms of feed quality.
+        engagement: Public discussion of Apple's network allowance guidance is concentrated
+          in specialist enterprise IT forums — particularly network administration
+          communities and practitioner blogs — rather than in general security communities.
+          Discussion focuses on practical implementation challenges rather than the
+          feed itself. No dedicated public issue tracker or community forum is associated
+          with this feed.
+      sources_consulted:
+      - url: https://support.apple.com/en-us/101555
+        document_date: '2026-04-14'
+        validation_date: '2026-05-21'
+      - url: https://richard-purves.com/2017/11/17/apple-now-it-hurts-when-ip-address/
+        document_date: '2017-11-17'
+        validation_date: '2026-05-21'
+      - url: 
+          https://www.reddit.com/r/Cisco/comments/snz7nx/firepower_blocking_apple_updates_outbound_reason/
+        document_date: '2022-02-09'
+        validation_date: '2026-05-21'
+      - url: https://www.edugeek.net/forums/topic/208032-apple-ip-addresses/
+        document_date: '2022-05-27'
+        validation_date: '2026-05-21'
+      - url: https://www.apple.com/legal/intellectual-property/guidelinesfor3rdparties.html
+        document_date:
+        validation_date: '2026-05-21'

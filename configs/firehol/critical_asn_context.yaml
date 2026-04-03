@@ -1,0 +1,35 @@
+critical_asn_context:
+  - asn: 714
+    name: Apple Inc.
+    tier: contextual
+    role: software_update
+    source_quality: C
+    rationale: Apple owns the network and does not sell general public cloud hosting, but AS714 is broad service/corporate space; use as secondary context for Apple service and update blast-radius risk only.
+
+  - asn: 6185
+    name: Apple Inc.
+    tier: contextual
+    role: software_update
+    source_quality: C
+    rationale: Apple owns the network and does not sell general public cloud hosting, but AS6185 is broad service/corporate space; use as secondary context for Apple service and update blast-radius risk only.
+
+  - asn: 32934
+    name: Meta Platforms
+    tier: contextual
+    role: social_platform
+    source_quality: C
+    rationale: Meta operates large consumer and messaging platforms without a general public cloud product, but ASN-wide overlap is still coarse; use as secondary blast-radius context only.
+
+  - asn: 13414
+    name: X/Twitter
+    tier: contextual
+    role: social_platform
+    source_quality: C
+    rationale: X/Twitter operates a service-owned network without a general public cloud product, but ASN-wide overlap is coarse; use as secondary blast-radius context only.
+
+  - asn: 36459
+    name: GitHub
+    tier: contextual
+    role: developer_platform
+    source_quality: C
+    rationale: GitHub publishes service ranges but documents that IP lists may not be exhaustive; ASN-wide overlap is a fallback context signal, not a replacement for GitHub Meta reference feeds.

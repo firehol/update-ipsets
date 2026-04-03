@@ -1,0 +1,129 @@
+sources:
+  critical_public_dns_core:
+    license: Curated static reference from provider-published public DNS documentation
+    redistributable: false
+    label: Core public DNS resolvers
+    static:
+    - 1.1.1.1
+    - 1.0.0.1
+    - 8.8.8.8
+    - 8.8.4.4
+    - 9.9.9.9
+    - 149.112.112.112
+    - 208.67.222.222
+    - 208.67.220.220
+    frequency: 0
+    ipv: ipv4
+    output: netset
+    processor:
+    - passthrough
+    processor_raw: passthrough
+    category: provider_infrastructure
+    provenance: primary
+    info: Curated IPv4 service addresses for Cloudflare 1.1.1.1, Google Public DNS,
+      Quad9 recommended service, and Cisco Umbrella/OpenDNS public resolvers. Reference
+      feed, not a threat indicator.
+    maintainer: FireHOL
+    maintainer_url: https://iplists.firehol.org/
+    enabled_by_all: true
+    use: [critical_infrastructure]
+    critical:
+      tier: hard
+      role: public_dns_core
+      source_type: curated_static
+      source_quality: C
+      rationale: Core public recursive DNS resolver anycast addresses are intentionally
+        configured by many networks and users; blocking them can immediately break
+        name resolution.
+
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-27T06:30:35Z'
+      official_name: Core public DNS resolvers
+      official_url:
+      short_description: Curated reference list of widely-used public recursive DNS
+        resolver service addresses (Cloudflare, Google Public DNS, Quad9, Cisco Umbrella/OpenDNS).
+      long_description: 'A curated reference list of IP addresses operated as public
+        recursive DNS resolver services by major providers — Cloudflare, Google Public
+        DNS, Quad9 recommended service, and Cisco Umbrella/OpenDNS. This is a reference
+        feed, not a threat indicator. The intended use is whitelisting or exclusion:
+        many networks intentionally configure these addresses, and blocking them can
+        immediately break name resolution for users who rely on them.'
+      roles:
+      - role: maintainer
+        name: FireHOL catalog project
+        organization_type: informal_collective
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Maintained by the FireHOL catalog project as a public reference / aggregate.
+          This page is generated deterministically from the catalog YAML; the agent-based
+          enrichment used for third-party feeds does not run on FireHOL-maintained
+          feeds.
+      derivation:
+        type: original
+        description: Static curated reference data published as part of the FireHOL
+          catalog. Entries are explicit, hand-curated, and change only when the underlying
+          authoritative source (provider documentation, IANA registry, or cited RFC)
+          changes.
+        source_feeds: []
+      listing_policy:
+        summary: Curated reference. An entry appears in this list when the underlying
+          authoritative source (provider documentation, IANA registry, or cited RFC)
+          names it as part of the relevant infrastructure class.
+        criteria:
+        - Entry is published by the authoritative source as part of the feed's stated
+          scope.
+      unlisting_policy:
+        summary: Entries are removed only when the underlying authoritative source
+          (provider documentation, IANA registry, RFC) removes them. The catalog does
+          not maintain its own per-entry unlist process.
+        criteria:
+        - Authoritative source removes the entry from its published scope.
+      unlist_request:
+        url:
+        email:
+        instructions: This is a static curated reference feed. The catalog does not
+          operate a per-entry unlist channel. If an entry should not be in this list,
+          the change must occur at the authoritative source (provider documentation,
+          IANA registry, or relevant RFC); the catalog will then reflect it on next
+          refresh.
+      update_frequency:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: Curated policy-defined reference data. Entries are not derived
+          from observation, scanning, or honeypot detection; they are the explicit
+          allocations or service addresses published by the relevant authority.
+      scope_and_intent:
+        description: "Curated IPv4 service addresses for Cloudflare, Google Public
+          DNS, Quad9 recommended service, and Cisco Umbrella/OpenDNS public resolvers.
+          Reference feed, not a threat indicator.\n\nCore public recursive DNS resolver
+          anycast addresses are intentionally configured by many networks and users;
+          blocking them can immediately break name resolution."
+        intended_for:
+        - Whitelisting from broader block policies
+        - Excluding from anti-bot rules and rate-limiting
+        - Operator awareness when investigating DNS-related traffic
+        not_intended_for:
+        - Threat blocking — these are legitimate critical infrastructure
+        - Outbound deny lists
+      license: Curated static reference from provider-published public DNS documentation
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms:
+      current_status:
+        state: active
+        description: Static curated reference; published as part of the FireHOL catalog.
+          Entries change only when the underlying authoritative source publishes a
+          change.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement:
+      sources_consulted: []

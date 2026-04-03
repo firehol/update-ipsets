@@ -1,0 +1,155 @@
+sources:
+  iblocklist_org_sony_online:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=tukpvrvlubsputmkmiwg&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Sony Online Entertainment IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T12:38:31Z'
+      official_name: Sony Online Entertainment
+      official_url: https://www.iblocklist.com/list.php?list=soe
+      short_description: IP addresses registered to the Sony Online Entertainment
+        game publisher and related game-server infrastructure, maintained by iBlocklist.com.
+      long_description: "This feed lists IP addresses registered to Sony Online Entertainment
+        (SOE), the game publisher behind EverQuest, PlanetSide, DC Universe Online,
+        and Vanguard: Saga of Heroes. The feed was created by iBlocklist.com to allow
+        players who run IP-blocklist software (such as PeerBlock, PeerGuardian, or
+        pfBlocker) to permit inbound connections from Sony's game-server infrastructure
+        while blocking hostile inbound traffic.\n\nSony Online Entertainment was a
+        subsidiary of Sony Computer Entertainment and operated from 1997 until February
+        2015, when Sony sold the studio to investment firm Columbus Nova. The company
+        was immediately rebranded as Daybreak Game Company. As of 2015, the legal
+        entity trading as \"Sony Online Entertainment\" no longer exists; the games
+        and infrastructure continue under the Daybreak Game Company banner. The iBlocklist.com
+        feed retains the original name.\n\nThe feed is distributed by iBlocklist.com
+        in P2P format (gzip-compressed). Per the iBlocklist.com Terms of Service,
+        the feed is licensed for personal use only; commercial deployment is not permitted."
+      roles:
+      - role: maintainer
+        name: iBlocklist.com
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: 'iBlocklist.com is operated by iblocklist, LLC, a US-based commercial
+          service distributing IP blocklists in P2P, DAT, and CIDR formats. The service
+          offers both free and paid subscription tiers. Service-level community signal
+          across iBlocklist.com (not specific to any single feed): Netgate forum users
+          reported that several iBlocklist feeds appeared frozen; Trustpilot reviews
+          document autorenewal charges, stale downloads, and unresponsive support.'
+      derivation:
+        type: original
+        description: The feed is compiled and published directly by iBlocklist.com.
+          The maintainer does not disclose the specific sourcing methodology for this
+          list — it is not described as originating from a honeypot, sensor network,
+          community reports, or another IP feed. The list represents IPs registered
+          to or allocated for Sony Online Entertainment's game-server infrastructure.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when it is registered to or allocated for Sony Online
+          Entertainment's game-server infrastructure, per iBlocklist.com's determination.
+          The maintainer does not publish a written policy document describing the
+          listing criteria.
+        criteria:
+        - IP is registered to or allocated for Sony Online Entertainment game-publisher
+          infrastructure
+      unlisting_policy:
+        summary: iBlocklist.com does not publish a documented unlisting policy or
+          automatic expiration mechanism for this feed. No removal request form, email
+          address, or procedure is provided on the website.
+        criteria: []
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: Daily updates, per the catalog configuration.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: "The feed consists of IP addresses assigned to a named organization's
+          infrastructure, determined by iBlocklist.com. This is a policy-assignment
+          classification: IPs are listed because they are registered to or allocated
+          for Sony Online Entertainment's game-server network, not because they were
+          observed generating malicious traffic. No honeypot, sandbox, sensor network,
+          or community-report mechanism is involved."
+      scope_and_intent:
+        description: The feed is intended to allow-list or track IPs belonging to
+          Sony Online Entertainment's game-server infrastructure for users of IP-blocklist
+          software who wish to permit inbound connections from SOE game servers while
+          blocking other unwanted inbound traffic.
+        intended_for:
+        - Users of PeerBlock, PeerGuardian, or pfBlocker who want to allow inbound
+          connections from Sony Online Entertainment game servers
+        - Network operators running inbound IP blocklists who want to exclude SOE
+          game-server IPs from being blocked
+        not_intended_for:
+        - Commercial deployments — the iBlocklist.com Terms of Service prohibit commercial
+          use of materials
+        - Security blocking of malicious traffic — the feed lists game-server IPs,
+          not attacker IPs
+      license: iBlocklist Terms of Service — personal / non-commercial only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The iBlocklist.com Terms of Service grant permission for personal use
+          only. Redistributing the feed publicly or commercially is not permitted
+          under the license terms.
+      current_status:
+        state: unknown
+        description: 'The iBlocklist.com website is reachable and the Sony Online
+          Entertainment feed is listed in the master XML catalog. However, the engine
+          has not observed an update to the upstream file (last_observed_update: null),
+          and community reports indicate that several iBlocklist.com feeds appear
+          frozen with stale content and that support is unresponsive. Sony Online
+          Entertainment as a legal entity ceased to exist in 2015 upon its sale and
+          rebranding as Daybreak Game Company. No explicit discontinuation notice
+          has been published by iBlocklist.com.'
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: No specific false-positive incidents or community complaints were
+          found for the Sony Online Entertainment feed itself. Sony Online Entertainment
+          ceased to exist as a legal entity in 2015 (sold and rebranded as Daybreak
+          Game Company); the iBlocklist.com list retains the original name despite
+          the rebranding. Service-level community signal across iBlocklist.com is
+          recorded in the maintainer role notes.
+        engagement: Public community discussion about the Sony Online Entertainment
+          list specifically is very sparse. No Reddit threads, security-blog posts,
+          or academic papers discussing this blocklist were found.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/list.php?list=soe
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/lists.xml
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/support
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

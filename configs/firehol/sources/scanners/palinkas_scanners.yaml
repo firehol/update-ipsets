@@ -1,0 +1,133 @@
+sources:
+  palinkas_scanners:
+    license: public feed
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/palinkas-jo-reggelt/List_of_Internet_Scanner_IPs/main/Scanner_IP_ranges.txt
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: scanners
+    provenance: secondary_upstream
+    info: '[palinkas-jo-reggelt/List_of_Internet_Scanner_IPs](https://github.com/palinkas-jo-reggelt/List_of_Internet_Scanner_IPs)
+      CIDR ranges of known internet scanners (commercial, academic, research). Informational
+      — not for blocking.'
+    maintainer: palinkas-jo-reggelt
+    maintainer_url: https://github.com/palinkas-jo-reggelt/List_of_Internet_Scanner_IPs
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T00:35:19Z'
+      official_name: List of Internet Scanner IPs by /24 range
+      official_url: https://github.com/palinkas-jo-reggelt/List_of_Internet_Scanner_IPs
+      short_description: /24 CIDR ranges of internet scanning hosts identified by
+        matching their reverse DNS (PTR) records against a set of known scanning domains,
+        formatted for Windows Firewall rule creation.
+      long_description: "The maintainer compiles a list of /24 IP subnets associated
+        with known internet scanning organisations. Entries are added when a host's
+        reverse DNS (PTR) record resolves to one of 23 recognised scanning domains
+        — including censys-scanner.com, census.shodan.io, probe.onyphe.net, shadowserver.org,
+        internet-census.org, binaryedge.ninja, stretchoid.com, and others covering
+        network measurement, email verification, and cybersecurity research.\n\nThe
+        feed is distributed as a plain-text file of CIDR prefixes, one per line, with
+        each entry representing a /24 subnet (256 contiguous IPs). The maintainer
+        provides a companion PowerShell script that automates creation or update of
+        a Windows Firewall rule named 'Internet_Scanners_Blocklist', intended to be
+        run daily from Task Scheduler with administrator privileges.\n\nPer the maintainer's
+        README, the list is informational and intended for firewall-rule construction
+        — operators should satisfy themselves that blocking these ranges aligns with
+        their environment before deploying the list."
+      roles:
+      - role: maintainer
+        name: palinkas-jo-reggelt
+        organization_type: individual
+        official_url: https://github.com/palinkas-jo-reggelt
+        contact_email:
+        based_in:
+        active_since:
+        notes: Individual GitHub account maintaining the project. No additional biographical
+          or organisational information is published on the repository.
+      derivation:
+        type: original
+        description: The feed is built by querying reverse DNS (PTR) records for IP
+          addresses and flagging any host whose PTR resolves to one of 23 known scanning
+          domains. No other IP feeds are consumed as inputs — the detection is first-party,
+          based on passive DNS lookups performed by the maintainer. The maintainer
+          does not describe consuming AbuseIPDB, Shodan API, or any external threat-intel
+          feed.
+        source_feeds: []
+      listing_policy:
+        summary: An IP address is listed when its reverse DNS (PTR) record resolves
+          to one of 23 known scanning domains. The maintainer does not document minimum
+          detection thresholds, dwell time, or confirmation steps — the single criterion
+          is a matching PTR record.
+        criteria:
+        - Reverse DNS (PTR) record resolves to a known scanning domain in the maintainer's
+          curated list of 23 domains
+      unlisting_policy:
+        summary: No unlisting policy is documented. The README does not describe automatic
+          expiry, manual removal procedures, or decay mechanisms.
+        criteria: []
+      unlist_request:
+      update_frequency:
+        frequency:
+        human_readable: Updated as new IPs are found, per the maintainer's README
+          — no fixed schedule is stated.
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: Passive identification via reverse DNS (PTR) record matching.
+          The maintainer resolves PTR records for IP addresses and flags any host
+          whose forward or reverse DNS maps to one of 23 known scanning domains. This
+          is a DNS-layer telescope approach — it captures any instrumented scanner
+          that registers a recognisable PTR identity, without sending probe traffic.
+      scope_and_intent:
+        description: The maintainer intends the list for firewall-rule construction
+          targeting known scanning hosts. The catalog YAML info field characterises
+          the feed as informational — not for indiscriminate blocking — and the README
+          reinforces this framing.
+        intended_for:
+        - Firewall rule creation targeting known internet scanning infrastructure
+        not_intended_for:
+        - Indiscriminate blocking without environmental review
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: No redistribution terms are stated by the direct upstream. The feed
+          is publicly available via an unauthenticated GitHub raw URL with no conditions
+          documented.
+      current_status:
+        state: active
+        description: Active as of May 2026. The maintainer's README is current, the
+          raw file is served from the main branch, and community contributions (open
+          issues requesting specific IP ranges) indicate ongoing maintenance.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: 'Public discussion is sparse. The repository has accumulated 19
+          stars on GitHub (as of May 2026). Four issues have been opened: two requesting
+          specific IP ranges be added (Censys, internet-measurement.com), one closed
+          after the maintainer added a vendor subnet, and one closed declining IPv6
+          support. No false-positive complaints were found in any accessible channel.'
+      sources_consulted:
+      - url: https://github.com/palinkas-jo-reggelt/List_of_Internet_Scanner_IPs
+        document_date:
+        validation_date: '2026-05-19T00:35:19Z'
+      - url: 
+          https://raw.githubusercontent.com/palinkas-jo-reggelt/List_of_Internet_Scanner_IPs/main/Scanner_IP_ranges.txt
+        document_date:
+        validation_date: '2026-05-19T00:35:19Z'
+      - url: 
+          https://github.com/palinkas-jo-reggelt/List_of_Internet_Scanner_IPs/blob/main/LICENSE
+        document_date:
+        validation_date: '2026-05-19T00:35:19Z'
+      - url: https://github.com/palinkas-jo-reggelt/List_of_Internet_Scanner_IPs/issues
+        document_date:
+        validation_date: '2026-05-19T00:35:19Z'

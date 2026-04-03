@@ -1,0 +1,157 @@
+sources:
+  bruteforceblocker:
+    license: public feed
+    redistributable: true
+    url: http://danger.rulez.sk/projects/bruteforceblocker/blist.php
+    frequency: 180
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[danger.rulez.sk bruteforceblocker](http://danger.rulez.sk/index.php/bruteforceblocker/)
+      (fail2ban alternative for SSH on OpenBSD). This is an automatically generated
+      list from users reporting failed authentication attempts. An IP seems to be
+      included if 3 or more users report it. Its retention pocily seems 30 days.'
+    maintainer: danger.rulez.sk
+    maintainer_url: http://danger.rulez.sk/index.php/bruteforceblocker/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T16:23:37Z'
+      official_name: BruteForceBlocker
+      official_url: http://danger.rulez.sk/index.php/bruteforceblocker/
+      short_description: A Perl script that monitors SSH authentication logs and shares
+        blocked brute-force attacker IPs via a community-maintained blocklist.
+      long_description: "BruteForceBlocker is a Perl script that integrates with the
+        pf firewall (developed by OpenBSD, available on FreeBSD and NetBSD) to block
+        SSH brute-force attacks. The script monitors syslog for failed SSH login attempts,
+        counts occurrences per IP address, and adds IPs reaching a configurable threshold
+        to the local firewall's block table.\n\nWhen an IP is blocked locally, the
+        script can optionally report it to the central blocklist hosted at danger.rulez.sk.
+        This enables participants to share a collective view of attacking infrastructure.
+        Users configure the script with parameters including mindays (only include
+        IPs reported within the last X days) and mincount (only include IPs reported
+        from at least X different source machines) to tune the blocklist for their
+        environment.\n\nThe project was created by Daniel Gerzo and has been distributed
+        via FreeBSD ports. While the Perl script itself was declared abandonware and
+        removed from FreeBSD ports in 2022, the community blocklist continues to be
+        generated from participant reports."
+      roles:
+      - role: maintainer
+        name: Daniel Gerzo
+        organization_type: individual
+        official_url: http://danger.rulez.sk/
+        contact_email:
+        based_in:
+        active_since:
+        notes: FreeBSD committer maintaining the BruteForceBlocker project and the
+          associated community blocklist. Declared the Perl script abandonware in
+          2021–2022.
+      derivation:
+        type: original
+        description: First-party detection via participating BruteForceBlocker installations.
+          Each node running the script monitors its own SSH daemon logs via syslog,
+          detects failed authentication attempts, and reports blocked IPs to the central
+          blocklist. The blocklist aggregates reports from all participating nodes,
+          applying mincount (minimum number of reporting sources) and mindays (recency
+          window) filters configured by each consumer.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is added to the blocklist when it accumulates a configured
+          threshold of failed SSH authentication attempts across participating BruteForceBlocker
+          installations. The minimum-reporting-source threshold (mincount) determines
+          how many different networks must observe the attacking IP before it appears
+          in the shared blocklist.
+        criteria:
+        - Failed SSH authentication attempts detected by local BruteForceBlocker script
+        - Number of failures meets or exceeds the configured max_attempts threshold
+        - 'For the shared blocklist: observed by at least mincount different source
+          machines'
+      unlisting_policy:
+        summary: IPs are removed from the blocklist upon direct email request to the
+          maintainer. There is no automated self-service portal. The maintainer handles
+          removals manually.
+        criteria:
+        - Submit a written request via email to the maintainer specifying the IP address
+          to be removed
+      unlist_request:
+        url:
+        email:
+        instructions: Send an email directly to the maintainer (Daniel Gerzo) requesting
+          removal of your IP address from the blocklist. State the specific IP address
+          in the message. There is no automated unlisting system; the maintainer handles
+          requests manually.
+      update_frequency:
+        frequency:
+        human_readable: Dynamic — entries are added as participating installations
+          report blocked IPs. No fixed schedule is published.
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods: []
+        description: "Detection occurs when a BruteForceBlocker installation running
+          on a participant's system observes failed SSH authentication attempts in
+          its syslog. When the configured threshold is reached, the IP is added to
+          the local firewall block table and optionally reported to the central blocklist.
+          This is a crowdsourced model: each participant contributes detections from
+          their own SSH daemon logs."
+      scope_and_intent:
+        description: The blocklist is intended to share SSH brute-force attacking
+          IPs observed by BruteForceBlocker participants. Community members report
+          that the list extends beyond SSH to include other ports experiencing abuse.
+        intended_for:
+        - Blocking SSH brute-force attack sources at the firewall level
+        - Sharing observed attacking infrastructure with other participants
+        not_intended_for:
+        - Application-layer protection (the script operates at the firewall level
+          via pf)
+        - Protection without a compatible firewall (pf or iptables port required)
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: The blocklist is publicly accessible and downloadable with no stated
+          redistribution restrictions. No license file or terms page constrains reuse.
+      current_status:
+        state: altered_scope
+        description: The BruteForceBlocker Perl script was declared abandonware and
+          removed from the FreeBSD ports tree in 2021–2022. However, the community
+          blocklist at danger.rulez.sk/projects/bruteforceblocker/blist.php remains
+          active and continues to accept and distribute reports from existing installations.
+          Participants wishing to use the blocklist can download it directly; those
+          seeking active script development are directed to sshguard.
+        successor:
+        announcement_date: '2021-11-24'
+      community:
+        awards:
+        criticism: The project was declared abandonware in late 2021 and removed from
+          FreeBSD ports in March 2022. Concerns raised included the Perl dependency
+          overhead and lack of security updates. Administrators recommended sshguard
+          as the maintained alternative for scripted SSH protection.
+        engagement: Sparse public discussion. A FreeBSD forums thread from April 2022
+          captured the community transition conversation, where a long-term user reported
+          the tool blocking severe brute-force and DDoS attacks across SSH and HTTP(S)
+          ports over years of operation. Beyond that thread, notable public discussion
+          is limited. The maintainer's own site shows no recent blog posts or changelog
+          updates.
+      sources_consulted:
+      - url: http://danger.rulez.sk/index.php/bruteforceblocker/
+        document_date:
+        validation_date: '2026-05-16T16:20:00Z'
+      - url: http://danger.rulez.sk/
+        document_date:
+        validation_date: '2026-05-16T16:20:00Z'
+      - url: http://danger.rulez.sk/projects/bruteforceblocker/blist.php
+        document_date:
+        validation_date: '2026-05-16T16:20:00Z'
+      - url: https://github.com/dgerzo/bruteforceblocker
+        document_date:
+        validation_date: '2026-05-16T16:20:00Z'
+      - url: https://stage.freshports.org/security/bruteforceblocker/
+        document_date: '2022-03-31'
+        validation_date: '2026-05-16T16:20:00Z'
+      - url: https://forums.freebsd.org/threads/abandonware-security-bruteforceblocker.84675/
+        document_date: '2022-04-04'
+        validation_date: '2026-05-16T16:20:00Z'

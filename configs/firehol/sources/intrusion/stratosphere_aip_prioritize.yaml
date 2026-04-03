@@ -1,0 +1,245 @@
+sources:
+  stratosphere_aip_prioritize:
+    license: GPL-3.0
+    redistributable: true
+    attribution: Stratosphere Laboratory, Czech Technical University — https://www.stratosphereips.org/
+    url: 
+      https://mcfp.felk.cvut.cz/publicDatasets/CTU-AIPP-BlackList/Latest/AIP-Prioritize_New-latest.csv
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - extract_ipv4
+    processor_raw: extract_ipv4_from_any_file
+    category: intrusion
+    info: '[Stratosphere IPS AIP](https://www.stratosphereips.org/aip) — Prioritize_New
+      scoring tier. Honeypot-observed attacker IPs ranked by the AIP model''s prioritization
+      score. CSV columns are `ip,score`.'
+    maintainer: Stratosphere Laboratory
+    maintainer_url: https://www.stratosphereips.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T00:42:43Z'
+      official_name: Attacker IP Prioritization (AIP)
+      official_url: https://www.stratosphereips.org/aip-tool
+      short_description: IPv4 addresses observed attacking the Stratosphere honeypot
+        network, ranked by a machine-learning prioritization score that favors newly-seen
+        attackers over persistent ones.
+      long_description: 'The Attacker IP Prioritization (AIP) project generates IP
+        blocklists from attacks recorded against a network of 27 honeypot IoT devices
+        operated by the Stratosphere Research Laboratory at Czech Technical University
+        in Prague. The honeypots capture raw network flows, which are processed by
+        the AIP algorithm to compute eight behavioral features per attacking IP: flow
+        count, total duration, byte volume, packet count, and their respective daily
+        averages. Each feature is min-max normalized across the entire database to
+        a [0, 1] range, then combined using a weighted linear sum where the Prioritize
+        New model weights favor raw activity metrics (flows, duration, bytes, packets
+        at 0.20 each) over averaged metrics (at 0.05 each). A time-decay modifier
+        further reduces scores for IPs whose last attack occurred more than a day
+        prior, using the formula days/(days + 5). The resulting score determines rank
+        in the output CSV. The feed is regenerated daily at 05:00 Central European
+        Time. The project is designed to produce compact, resource-efficient blocklists
+        suitable for IoT devices with limited CPU and storage, and is released under
+        GPLv3.'
+      roles:
+      - role: maintainer
+        name: Stratosphere Research Laboratory
+        organization_type: research_institution
+        official_url: https://www.stratosphereips.org/
+        contact_email: stratosphere@aic.fel.cvut.cz
+        based_in: Prague, Czech Republic
+        active_since: '2013'
+        notes: Cybersecurity research group of the Artificial Intelligence Centre,
+          Faculty of Electrical Engineering at Czech Technical University in Prague.
+          Operates the honeypot network that supplies the raw attack data underlying
+          the feed.
+      - role: original_author
+        name: Thomas O'Hara
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since: '2021'
+        notes: "Author of the original AIP bachelor's thesis, The Attacker IP Prioritizer:
+          An IoT Optimized Blacklisting Algorithm (2021), which became the foundation
+          of the AIP project."
+      - role: source_contributor
+        name: Joaquin Bogado
+        organization_type: research_institution
+        official_url: https://www.stratosphereips.org/
+        contact_email: stratosphere@aic.fel.cvut.cz
+        based_in: Prague, Czech Republic
+        active_since:
+        notes: Active contributor and maintainer listed in the AIP CITATION.cff file.
+      - role: source_contributor
+        name: Veronica Valeros
+        organization_type: research_institution
+        official_url: https://www.stratosphereips.org/
+        contact_email: stratosphere@aic.fel.cvut.cz
+        based_in: Prague, Czech Republic
+        active_since:
+        notes: Active contributor and co-author listed in the AIP CITATION.cff file.
+          Most recent commit (October 2024) attributed to this contributor.
+      - role: source_contributor
+        name: Sebastian Garcia
+        organization_type: research_institution
+        official_url: https://www.stratosphereips.org/
+        contact_email: stratosphere@aic.fel.cvut.cz
+        based_in: Prague, Czech Republic
+        active_since:
+        notes: Co-author and senior researcher listed in the AIP CITATION.cff file.
+      derivation:
+        type: original
+        description: First-party honeypot detection. The Stratosphere Research Laboratory
+          operates a network of 27 IoT honeypot devices exposed to the public Internet.
+          Raw Zeek-format network flows from these honeypots are processed by the
+          AIP algorithm to compute eight behavioral features per attacking IP (flow
+          count, duration, bytes, packets, and their daily averages). Scores are normalized,
+          weighted, and aged by a time-decay function before ranking in the output
+          CSV. No upstream IP feeds are consumed.
+        source_feeds: []
+      listing_policy:
+        summary: 'An IP is listed when it has been observed attacking the Stratosphere
+          honeypot network. The AIP algorithm computes eight behavioral features from
+          the honeypot flows (total flows, total duration, total bytes, total packets,
+          and their daily averages). Each feature is min-max normalized to a [0, 1]
+          range relative to all IPs in the database, then combined in a weighted linear
+          sum. For the Prioritize New model, raw activity metrics carry higher weight
+          (0.20 each) than averaged metrics (0.05 each). The resulting score is multiplied
+          by a time-decay factor: IPs inactive for more than one day receive a decaying
+          multiplier (days / (days + 5)), so older attackers score lower. IPs with
+          a score above the threshold (0.00001 for PN) are included in the blocklist.'
+        criteria:
+        - Observed attacking a Stratosphere honeypot IoT device
+        - 'Eight behavioral features computed from honeypot flows: flow count, total
+          duration, byte volume, packet count, and their daily averages'
+        - Features min-max normalized across the entire IP database to [0, 1] range
+        - Weighted linear combination with Prioritize New weights favoring raw activity
+          (0.20 each) over averages (0.05 each)
+        - 'Time-decay applied for IPs inactive more than one day: score multiplied
+          by days/(days + 5)'
+        - Score must exceed the Prioritize New threshold of 0.00001
+      unlisting_policy:
+        summary: IPs are automatically unlisted when their score drops below the threshold
+          due to inactivity. The time-decay modifier progressively reduces scores
+          for IPs that have not attacked recently (multiplying by days/(days + 5)
+          for each day beyond the first). After sufficient inactivity, the decayed
+          score falls below the threshold and the IP exits the blocklist. Users who
+          believe they were incorrectly listed can contact the project by email.
+        criteria:
+        - 'Automatic score decay: IPs inactive more than one day have their score
+          multiplied by days/(days + 5), progressively reducing until they fall below
+          threshold'
+        - IPs falling below the Prioritize New threshold (0.00001) are excluded from
+          the blocklist
+        - Manual removal requests accepted by email to the Stratosphere Lab contact
+          address
+      unlist_request:
+        url:
+        email: stratosphere@aic.fel.cvut.cz
+        instructions: Send an email to stratosphere@aic.fel.cvut.cz reporting the
+          IP address believed to be incorrectly listed. The blocklist project page
+          also lists aposemat@aic.fel.cvut.cz as a contact path.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated once per day, typically at 05:00 Central European
+          Time.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods:
+        - reputation_aggregation
+        description: First-party honeypot detection backed by a machine-learning scoring
+          algorithm. The Stratosphere Research Laboratory operates a network of 27
+          IoT honeypot devices exposed to the public Internet. Raw network flows from
+          these honeypots are processed by the AIP algorithm, which computes eight
+          behavioral features per attacking IP, normalizes them, applies weighted
+          linear combination, and applies time-decay to produce a prioritization score.
+          The secondary reputation_aggregation label reflects that the scoring algorithm
+          aggregates multiple behavioral dimensions into a composite score, similar
+          in spirit to reputation-based ranking systems.
+      scope_and_intent:
+        description: The AIP Prioritize New feed is designed to help protect IoT devices
+          by surfacing newly-seen attackers before persistent ones. The Prioritize
+          New model elevates IPs that are new to the honeypot network, reflecting
+          the hypothesis that emerging attackers pose greater risk to naive IoT deployments.
+          The feed is optimized for resource-constrained environments where blocklist
+          size directly impacts CPU and storage costs.
+        intended_for:
+        - Blocking newly-seen attacker IPs targeting IoT devices
+        - Edge firewalls and IoT gateways with limited CPU and storage
+        - Identifying emerging threats before they establish persistent infrastructure
+        not_intended_for:
+        - General enterprise perimeter security (the feed is sized for constrained
+          IoT environments)
+        - Processing normal network traffic — the AIP tool treats every IP in the
+          input as an attacker and requires honeypot-filtered data
+        - Real-time blocking (updates are daily, not continuous)
+      license: GPL-3.0
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required: Credit Stratosphere Research Laboratory, Czech Technical
+          University
+        terms: Redistribution and use of source and binary forms, with or without
+          modification, are permitted provided that the source code remains openly
+          available and modifications are clearly marked. Derivative works must retain
+          copyright notices. The software is provided AS IS without warranty.
+      current_status:
+        state: active
+        description: Actively maintained. The latest commit on the AIP GitHub repository
+          was pushed by Veronica Valeros on October 30, 2024. The CTU dataset directory
+          continues to publish daily-updated CSV files. AIP v3.0.0 was released in
+          October 2023 with a major infrastructure overhaul.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: 'The primary community concerns center on false positives arising
+          when the CTU-AIPP feed is integrated into downstream tools such as StratosphereLinuxIPS
+          (Slips). A documented parsing failure occurred when Slips attempted to parse
+          the CTU-AIPP CSV due to a column-naming mismatch between documentation versions.
+          Additionally, open issues in the Slips tracker document C&C channel detection
+          false positives triggered by IPs belonging to major CDN providers that appear
+          in threat-feeds, and quality issues where invalid IPs in aggregated feeds
+          cause spurious alerts. The Stratosphere team has addressed these through
+          a series of releases: over sixteen false-positive fixes are logged in the
+          Slips changelog since 2022, including whitelist expansions for Microsoft,
+          Apple, Google, and other major organizations. Several issues remain open
+          in the tracker.'
+        engagement: Public community discussion is sparse. No Reddit threads, security
+          blog posts, or third-party reviews discussing the CTU-AIPP feed specifically
+          were found. The primary engagement channel is the Stratosphere LinuxIPS
+          GitHub repository, where the feed is consumed as a data source and community
+          members file parsing and false-positive issues. The AIP GitHub repository
+          carried 32 stars and 9 forks (as of May 2026). The Stratosphere Lab maintains
+          active blog posts documenting releases and methodology.
+      sources_consulted:
+      - url: https://www.stratosphereips.org/
+        document_date:
+        validation_date: '2026-05-17T00:35:00Z'
+      - url: https://www.stratosphereips.org/aip-tool
+        document_date:
+        validation_date: '2026-05-17T00:36:00Z'
+      - url: https://www.stratosphereips.org/attacker-ip-prioritization-blacklist
+        document_date:
+        validation_date: '2026-05-17T00:37:00Z'
+      - url: https://mcfp.felk.cvut.cz/publicDatasets/CTU-AIPP-BlackList/
+        document_date: '2023-03-27'
+        validation_date: '2026-05-17T00:38:00Z'
+      - url: 
+          https://mcfp.felk.cvut.cz/publicDatasets/CTU-AIPP-BlackList/Latest/AIP-Prioritize_New-latest.csv
+        document_date:
+        validation_date: '2026-05-17T00:39:00Z'
+      - url: https://github.com/stratosphereips/AIP
+        document_date:
+        validation_date: '2026-05-17T00:40:00Z'
+      - url: https://github.com/stratosphereips/StratosphereLinuxIPS/issues/412
+        document_date:
+        validation_date: '2026-05-17T00:41:00Z'
+      - url: https://github.com/stratosphereips/StratosphereLinuxIPS/blob/master/CHANGELOG.md
+        document_date:
+        validation_date: '2026-05-17T00:41:00Z'
+      - url: https://www.stratosphereips.org/blog/2024/10/30/aip-v300-is-here
+        document_date:
+        validation_date: '2026-05-17T00:41:00Z'

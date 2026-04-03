@@ -1,0 +1,213 @@
+sources:
+  stratosphere_aip_24h:
+    license: Academic public dataset (CTU / Stratosphere Lab)
+    redistributable: true
+    attribution: Stratosphere Laboratory, Czech Technical University — https://www.stratosphereips.org/
+    url: 
+      https://mcfp.felk.cvut.cz/publicDatasets/CTU-AIPP-BlackList/Latest/AIP_blacklist_for_IPs_seen_last_24_hours.csv
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - extract_ipv4
+    processor_raw: extract_ipv4_from_any_file
+    category: intrusion
+    info: '[Stratosphere IPS AIP](https://www.stratosphereips.org/aip) — 24h sliding
+      window. IPs seen attacking the honeypot network in the last 24 hours. Captures
+      the freshest attacker population.'
+    maintainer: Stratosphere Laboratory
+    maintainer_url: https://www.stratosphereips.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T00:30:07+00:00'
+      official_name: Attacker IP Prioritization (AIPP) Blacklist
+      official_url: https://www.stratosphereips.org/attacker-ip-prioritization-blacklist
+      short_description: Honeypot-derived IP blocklist from a university research
+        lab in Prague, optimized for resource-constrained IoT and edge devices.
+      long_description: "This catalog entry tracks AIP_blacklist_for_IPs_seen_last_24_hours.csv,
+        the original 24-hour-window file in the maintainer's Attacker IP Prioritization
+        (AIP) project. The README directory index annotates this filename as 'not
+        used anymore, please use AIP-Alpha-latest.csv instead' — pointing operators
+        to the successor file that publishes the same 24-hour-window list under the
+        Alpha model name.\n\nThe AIP project is produced by Stratosphere Laboratory,
+        the cybersecurity research group at the Artificial Intelligence Centre, Faculty
+        of Electrical Engineering, Czech Technical University in Prague. The project
+        generates IP blocklists from network traffic observed by the lab's honeypot
+        infrastructure — servers deliberately exposed to attract scanning and attacking
+        traffic.\n\nThe AIP scoring algorithm, as documented on the AIP tool page,
+        scores each attacking IP across eight dimensions drawn from honeypot connection
+        data: event count, total duration, average duration per connection, total
+        bytes, average bytes per connection, total packets, average packets per connection,
+        and recency of last seen. These values are normalized, weighted, and combined
+        with a time-decay function that reduces an IP's score the longer it has been
+        since the last attack. IPs scoring above a configurable threshold are included
+        in the blocklist. For this specific 24-hour file, the maintainer states no
+        ranking is applied: it is the flat set of IPs seen connecting to the honeypots
+        in the previous 24 hours.\n\nThe maintainer states the blocklists are intentionally
+        kept compact, framing the design as targeting IoT devices and home routers
+        that lack the CPU and memory headroom to process large blocklists."
+      roles:
+      - role: maintainer
+        name: Stratosphere Laboratory
+        organization_type: research_institution
+        official_url: https://www.stratosphereips.org/
+        contact_email: stratosphere@aic.fel.cvut.cz
+        based_in: Prague, Czech Republic
+        active_since:
+        notes: Cybersecurity research group at the Artificial Intelligence Centre,
+          Faculty of Electrical Engineering, Czech Technical University in Prague.
+      - role: original_author
+        name: Sebastian Garcia
+        organization_type: research_institution
+        official_url: https://www.aic.fel.cvut.cz/members/sebastian-garcia
+        contact_email:
+        based_in: Prague, Czech Republic
+        active_since:
+        notes: Head of Stratosphere Laboratory; holds the Avast Chair; director of
+          the Joint AIC/Avast Lab. Author of the AIP algorithm and lead researcher
+          on the project.
+      - role: source_contributor
+        name: Veronica Valeros
+        organization_type: research_institution
+        official_url:
+        contact_email:
+        based_in: Prague, Czech Republic
+        active_since:
+        notes: Malware researcher contributing to the Aposemat honeypot project and
+          blocklist generation.
+      derivation:
+        type: original
+        description: First-party honeypot detection. The lab operates a network of
+          honeypot sensors that collect attacking traffic from the public internet.
+          Connection metadata (Zeek-format logs) is fed to the AIP algorithm, which
+          scores each observed IP across eight behavioral dimensions and applies time-decay
+          weighting. The resulting blocklist is filtered through a whitelist of known-good
+          IPs (Google ranges, common crawlers) before publication.
+        source_feeds: []
+      listing_policy:
+        summary: "Any IP that sends traffic to the lab's honeypot network is initially
+          treated as an attacker. The AIP algorithm then scores each IP across eight
+          behavioral dimensions drawn from the honeypot connection log: event count,
+          total duration, average duration per connection, total bytes, average bytes
+          per connection, total packets, average packets per connection, and the interval
+          between first and last event. These normalized values are weighted, summed,
+          and multiplied by a time-decay factor that reduces the score the longer
+          it has been since the last observed attack. IPs whose final score exceeds
+          a configurable threshold are included in the blocklist."
+        criteria:
+        - Observed sending any traffic to a Stratosphere Lab honeypot sensor
+        - Scored above the configurable threshold across eight weighted behavioral
+          dimensions
+        - Not matched by the whitelist of known-good IPs (includes Google ranges and
+          common web crawlers)
+      unlisting_policy:
+        summary: "IPs leave the blocklist naturally through score decay: the time-decay
+          factor progressively reduces an IP's score the longer it remains inactive.
+          Once the score falls below the threshold, the IP is no longer included in
+          subsequent blocklist generations. There is no manual delist channel for
+          IPs; the automated aging is the sole removal mechanism."
+        criteria:
+        - Score decays below the configurable threshold due to inactivity (time-decay
+          factor increases with days since last attack)
+        - IP is no longer present in the next scheduled blocklist regeneration
+      unlist_request:
+        url:
+        email: aposemat@aic.fel.cvut.cz
+        instructions: If you believe your IP was incorrectly blocklisted, contact
+          the lab at aposemat@aic.fel.cvut.cz. Note that the blocklist regenerates
+          daily and IPs exit automatically through score decay when they stop attacking
+          the honeypot network.
+      update_frequency:
+        frequency: 1d
+        human_readable: Regenerated daily — a new blocklist is published each day
+          containing IPs seen attacking the honeypot in the preceding 24 hours.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: First-party honeypot network operated by Stratosphere Laboratory
+          at Czech Technical University. Any device that connects to the lab's honeypot
+          sensors is logged; the honeypot does not distinguish attack traffic from
+          reconnaissance, so every observed IP is scored by the AIP algorithm. The
+          honeypot infrastructure is part of the Aposemat project, a collaboration
+          with Avast Software.
+      scope_and_intent:
+        description: Resource-efficient IP blocklists for protecting IoT devices and
+          resource-constrained edge hardware. The project was designed specifically
+          because many existing blocklists contain hundreds of thousands of entries,
+          exceeding the capacity of typical IoT firmware.
+        intended_for:
+        - Blocking attackers on IoT devices and home routers with limited CPU and
+          memory
+        - Supplementing broader security stacks with honeypot-derived threat intelligence
+        - Fresh-attacker detection — catching IPs within 24 hours of first observed
+          attack
+        not_intended_for:
+        - High-volume enterprise firewalls capable of consuming larger blocklists
+          (consider Spamhaus DROP or similar)
+        - Real-time blocking — the feed is regenerated daily, not continuously
+        - Guaranteed comprehensive coverage — the honeypot captures only traffic directed
+          at the lab's own sensor network
+      license: Academic public dataset (CTU / Stratosphere Lab)
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required: Stratosphere Laboratory, Czech Technical University
+        terms: Publicly available for download without stated restrictions. Attribution
+          to Stratosphere Laboratory / CTU is customary but not legally mandated by
+          an explicit license.
+      current_status:
+        state: altered_scope
+        description: The specific file AIP_blacklist_for_IPs_seen_last_24_hours.csv
+          is explicitly marked as deprecated by the maintainer. The README directory
+          index annotates this filename as 'not used anymore, please use AIP-Alpha-latest.csv
+          instead'. The file continues to be regenerated and served at the same URL,
+          and the maintainer points users to AIP-Alpha-latest.csv, which the README
+          defines as the same 24-hour-window Alpha model.
+        successor:
+          name: stratosphere_aip_alpha
+          url: 
+            https://mcfp.felk.cvut.cz/publicDatasets/CTU-AIPP-BlackList/Latest/AIP-Alpha-latest.csv
+        announcement_date:
+      community:
+        awards: Cited in a peer-reviewed arXiv study (Deri & Fusco, August 2023, 'Evaluating
+          IP Blacklists Effectiveness'), which evaluated this feed among six file-based
+          IP blacklists and reported a 50.5% match rate for scanner IPs at a service
+          provider network and a 14.6% match rate at a university network, with zero
+          false positives recorded against the paper's ground-truth set.
+        criticism: "The same arXiv study (Deri & Fusco, 2023) recorded a substantially
+          lower match rate at a university network (14.6%) than at a service provider
+          network (50.5%). The maintainer documents the detection input as honeypot-only:
+          IPs that do not connect to the lab's honeypot sensors are not observed by
+          the feed."
+        engagement: Maintainer-facing channels for this feed are the AIP GitHub repository
+          (stratosphereips/AIP) and the contact email aposemat@aic.fel.cvut.cz given
+          in the README for blocklist questions. No dedicated user discussion forum,
+          mailing list, or third-party benchmarking thread specific to this feed was
+          located in research.
+      sources_consulted:
+      - url: https://www.stratosphereips.org/
+        document_date:
+        validation_date: '2026-05-17T00:15:00+00:00'
+      - url: https://www.stratosphereips.org/aip
+        document_date:
+        validation_date: '2026-05-17T00:15:00+00:00'
+      - url: https://mcfp.felk.cvut.cz/publicDatasets/CTU-AIPP-BlackList/
+        document_date: '2026-05-15'
+        validation_date: '2026-05-17T00:15:00+00:00'
+      - url: https://mcfp.felk.cvut.cz/publicDatasets/CTU-AIPP-BlackList/README.md
+        document_date: '2023-03-27'
+        validation_date: '2026-05-17T00:15:00+00:00'
+      - url: 
+          https://mcfp.felk.cvut.cz/publicDatasets/CTU-AIPP-BlackList/Latest/AIP_blacklist_for_IPs_seen_last_24_hours.csv
+        document_date:
+        validation_date: '2026-05-17T00:15:00+00:00'
+      - url: https://github.com/stratosphereips/AIP
+        document_date:
+        validation_date: '2026-05-17T00:15:00+00:00'
+      - url: https://arxiv.org/pdf/2308.08356
+        document_date: '2023-08-16'
+        validation_date: '2026-05-17T00:15:00+00:00'
+      - url: https://www.stratosphereips.org/attacker-ip-prioritization-blacklist
+        document_date:
+        validation_date: '2026-05-17T00:15:00+00:00'

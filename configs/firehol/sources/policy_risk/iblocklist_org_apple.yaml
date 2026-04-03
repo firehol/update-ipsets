@@ -1,0 +1,174 @@
+sources:
+  iblocklist_org_apple:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=aphcqvpxuqgrkgufjruj&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Apple IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T10:40:02Z'
+      official_name: Apple
+      official_url: https://www.iblocklist.com/list?list=aphcqvpxuqgrkgufjruj
+      short_description: Blocks all IP addresses registered to Apple Inc. across its
+        global infrastructure, assembled from public IP allocation registry data.
+      long_description: "The Apple list on iBlocklist.com assembles IP address ranges
+        registered to Apple Inc. in public IP allocation registries (such as ARIN)
+        into a blocklist formatted for use with peer-to-peer privacy applications.
+        The list covers Apple's primary registered Class A allocation plus supplemental
+        ranges across other segments, amounting to tens of thousands of individual
+        CIDR ranges.\n\nThe list is produced by identifying Apple's registered netblocks
+        in Regional Internet Registry (RIR) records and converting them into standard
+        blocklist formats (P2P, DAT, CIDR, hosts). Per the maintainer's developer
+        documentation, automated access is restricted to no more than once per 24
+        hours.\n\nBecause the list covers Apple's complete registered infrastructure
+        rather than targeting specific subsystems, it will block both anti-piracy
+        monitoring entities and legitimate Apple services simultaneously — including
+        the App Store, iCloud, push notification infrastructure, and software update
+        endpoints. The maintainer does not subdivide the list by infrastructure role.
+        Users deploying this list should anticipate that broad categories of Apple-connected
+        traffic will be affected."
+      roles:
+      - role: maintainer
+        name: iBlocklist.com
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in: United States
+        active_since: '2010'
+        notes: iBlocklist.com (iblocklist, LLC) operates a subscription-based IP blocklist
+          distribution service. The service aggregates and redistributes lists from
+          multiple authors — including its own internally-maintained lists, Bluetack,
+          Squidblacklist, Spamhaus, and others — in standardized formats compatible
+          with PeerBlock, PeerGuardian, pfBlocker, and similar applications. The service
+          transitioned to a subscription-only model around 2016. Per the Terms of
+          Service, the license granted is strictly personal use; commercial use and
+          public redistribution are prohibited.
+      derivation:
+        type: original
+        description: The Apple list is produced by extracting IP address ranges registered
+          to Apple Inc. from public Regional Internet Registry (RIR) allocation records
+          — primarily ARIN — and converting the resulting netblocks into standard
+          blocklist formats (P2P, DAT, CIDR, hosts). The list covers Apple's primary
+          registered Class A allocation plus supplemental ranges across other segments.
+          No honeypot, sensor, or community-report data is used; the source is exclusively
+          public IP registry records.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when it falls within any IP address range registered
+          to Apple Inc. in public Regional Internet Registry (RIR) allocation records.
+          Because the list is constructed from registry data rather than observed
+          threat activity, there is no concept of a detection threshold — any IP belonging
+          to Apple's registered netblocks is included.
+        criteria:
+        - IP falls within any Apple Inc.-registered netblock in public RIR records
+          (primarily ARIN)
+      unlisting_policy:
+        summary: No automatic unlisting mechanism is documented. The list does not
+          employ time-based expiry or activity-triggered removal — IPs remain listed
+          for as long as they appear in Apple's registered RIR allocations. Manual
+          removal requests are not formally documented on the site; the support page
+          was found to contain no substantive content beyond a PhantomPeer VPN promotion.
+        criteria:
+        - IP is removed from Apple's RIR registration records (registry-level change,
+          not controllable by iBlocklist.com)
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated daily, per the maintainer's catalog configuration.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: 'The list is built by policy assignment: every IP registered
+          to Apple Inc. in public IP allocation registries is assigned to the list
+          unconditionally, regardless of observed behavior. No honeypot, sensor network,
+          sandbox, or community-report mechanism is used.'
+      scope_and_intent:
+        description: The list covers all IP addresses registered to Apple Inc. across
+          its global infrastructure, including datacentre, corporate, consumer, and
+          cloud segments. The maintainer presents it as an organization-level block
+          for users who wish to exclude all Apple-connected traffic.
+        intended_for:
+        - Peer-to-peer privacy applications (PeerBlock, PeerGuardian, pfBlocker) to
+          shield against organizations monitoring P2P networks
+        - Privacy-focused users who wish to exclude Apple infrastructure from their
+          network-visible address space
+        not_intended_for:
+        - Inline security blocking — the list covers Apple's entire registered infrastructure
+          including consumer and cloud endpoints, which will cause legitimate Apple
+          services (App Store, iCloud, push notifications, software updates) to be
+          unreachable
+        - Threat-intelligence use cases requiring behavioural indicators — the list
+          is constructed from registry data with no observed-malice component
+      license: iBlocklist Terms of Service — personal use / non-commercial only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution is not permitted. The Terms of Service prohibit use
+          'for any public display (commercial or non-commercial)' and the developer
+          terms prohibit redistribution without written permission. Automated redistribution
+          (scraping, scheduled re-publishing) is explicitly barred per the developer
+          documentation.
+      current_status:
+        state: active
+        description: iBlocklist.com (iblocklist, LLC) is operational as of May 2026.
+          The homepage loads, the lists directory is accessible, subscription billing
+          is processed, and the copyright notice reads '© 2026 iblocklist, LLC'. No
+          discontinuation announcement has been found.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Power users on networking forums have reported that iBlocklist.com
+          lists carry elevated false-positive rates compared to direct upstream sources,
+          and that the service has appeared to update file timestamps without refreshing
+          actual list content. The pfBlockerNG package developer noted on the Netgate
+          forum that iBlocklist feeds 'don't seem to be actively updating their feeds
+          and seem to have quite a few FPs'. Subscribers in 2016 reported contacting
+          support multiple times without response. Because the Apple list covers Apple's
+          entire registered infrastructure indiscriminately — including consumer and
+          cloud endpoints — any deployment will break legitimate Apple services such
+          as the App Store, iCloud, and software update endpoints; the maintainer
+          does not subdivide the list by infrastructure role.
+        engagement: Public community discussion about this specific feed is sparse.
+          The broader iBlocklist.com service has been discussed on networking forums
+          (Netgate, OPNsense) with a focus on reliability concerns and format compatibility.
+          No dedicated issue tracker, bug tracker, or public RFC process was found
+          for this list.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/list?list=aphcqvpxuqgrkgufjruj
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/lists.xml
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date: '2016-08-01'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://forum.netgate.com/topic/116346/iblocklist-com-is-either-dead-or-a-scam
+        document_date: '2016-08-01'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/developer
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

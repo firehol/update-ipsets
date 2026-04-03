@@ -1,0 +1,185 @@
+sources:
+  iblocklist_level1:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=ydxerpxkpcfqjaybcssw&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: 'Level 1 (for use in p2p): Companies or organizations who are clearly involved
+      with trying to stop filesharing (e.g. Baytsp, MediaDefender, Mediasentry). Companies
+      which anti-p2p activity has been seen from. Companies that produce or have a
+      strong financial interest in copyrighted material (e.g. music, movie, software
+      industries a.o.). Government ranges or companies that have a strong financial
+      interest in doing work for governments. Legal industry ranges. IPs or ranges
+      of ISPs from which anti-p2p activity has been observed. Basically this list
+      will block all kinds of internet connections that most people would rather not
+      have during their internet travels.'
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T09:52:16Z'
+      official_name: level1
+      official_url: https://www.iblocklist.com/list.php?list=bt_level1
+      short_description: IP blocklist targeting organisations involved in anti-filesharing
+        enforcement, compiled from WHOIS enumeration and user-submitted incident logs.
+      long_description: "The level1 list is authored by Bluetack, a UK-based collective
+        that developed the Bluetack Internet Management System (B.I.M.S.) — a systematic
+        methodology that crawled WHOIS servers to enumerate IP address allocations,
+        cross-referenced registered entity names against known anti-P2P actors, and
+        incorporated logs submitted by users who received legal notices for illegal
+        downloads. From these inputs, Bluetack compiled blocklists targeting companies
+        and organisations engaged in anti-piracy enforcement, copyright litigation,
+        and related internet monitoring.\n\niBlocklist.com distributes the level1
+        list alongside dozens of other blocklists from multiple authors. The list
+        is presented on iblocklist.com for use with PeerBlock, PeerGuardian, qbittorrent,
+        uTorrent, and compatible software.\n\nThe original Bluetack project ceased
+        active development years ago. Community reports indicate the level1 list has
+        not been meaningfully refreshed since that time, while the iBlocklist.com
+        distribution infrastructure continues to serve the file with updated timestamps.
+        The catalog download URL is protected by a CAPTCHA challenge requiring manual
+        human verification."
+      roles:
+      - role: maintainer
+        name: Bluetack
+        organization_type: informal_collective
+        official_url:
+        contact_email:
+        based_in: United Kingdom
+        active_since: '2006'
+        notes: Bluetack was a UK-based informal collective that developed the B.I.M.S.
+          methodology. The original project is defunct; no active maintenance of the
+          level1 list has been reported since the cessation.
+      - role: publisher
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Distributes the level1 list alongside dozens of blocklists from multiple
+          authors. Operates the download infrastructure and enforces the personal-use-only
+          license via Terms of Service. Platform-wide community criticism of iBlocklist
+          (auto-renewal billing, support responsiveness, perceived freshness of redistributed
+          feeds in general) applies at the publisher level rather than being specific
+          to this level1 list.
+      derivation:
+        type: partial_mirror
+        description: iBlocklist.com distributes the Bluetack-authored level1 list
+          as a hosted feed. The list originates from the defunct Bluetack project;
+          iBlocklist.com repackages it in P2P, DAT, and CIDR formats for distribution.
+          No active refresh or incremental update from new B.I.M.S. scans has been
+          reported since the Bluetack project ceased.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added when the B.I.M.S. system identifies IP ranges registered
+          to entities engaged in anti-piracy enforcement, copyright litigation, or
+          related monitoring activity. The system crawls WHOIS records to enumerate
+          IP allocations, searches for known anti-P2P entity names, and incorporates
+          logs submitted by users who received legal notices for illegal downloads.
+          Entries are coded with a status flag to generate the blocklist.
+        criteria:
+        - IP ranges registered to organisations clearly involved in anti-filesharing
+          enforcement
+        - Organisations from which anti-P2P activity has been directly observed
+        - Organisations with a strong financial interest in copyrighted material (music,
+          film, software industries)
+        - Government IP ranges or contractors performing government anti-piracy work
+        - Legal industry IP ranges
+        - ISPs from which anti-P2P activity has been observed
+        - IP ranges identified from user-submitted legal-notice logs
+      unlisting_policy:
+        summary: No unlisting mechanism is documented. The maintainer does not publish
+          any expiry window, manual review process, or delisting procedure for entries
+          on the level1 list.
+        criteria: []
+      unlist_request:
+      update_frequency:
+      detection_classification:
+        primary_method: mixed
+        secondary_methods: []
+        description: The list was built using a combination of active scanning (automated
+          WHOIS server spidering to enumerate IP allocations), user submission (legal-notice
+          logs submitted by users who received cease-and-desist letters for illegal
+          downloads), and manual review (administrators cross-referencing entity names
+          against known anti-P2P actors). These methods were applied by the Bluetack
+          collective; iBlocklist.com acts as a redistributor of the resulting list.
+      scope_and_intent:
+        description: The level1 list is scoped to organisations and IP ranges associated
+          with anti-piracy enforcement activity. Its intended use is protecting P2P
+          users from monitoring by entertainment industry groups, anti-piracy contractors,
+          and government entities engaged in copyright enforcement.
+        intended_for:
+        - Blocking anti-piracy enforcement entities during P2P file-sharing sessions
+        - Protecting privacy from copyright troll monitoring in P2P networks
+        not_intended_for:
+        - General perimeter network security or firewall blocking
+        - Blocking advertising or tracking domains
+        - Blocking malware command-and-control infrastructure
+      license: Personal use only — iBlocklist Terms of Service
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution is not explicitly addressed in the Terms of Service;
+          however, the personal-use-only license grant implicitly prohibits redistribution
+          beyond personal use. Commercial redistribution and public display (commercial
+          or non-commercial) are expressly prohibited.
+      current_status:
+        state: unknown
+        description: The iBlocklist.com website remains reachable and continues to
+          publish a current copyright footer. No formal discontinuation announcement
+          has been issued by the maintainer. Community reports indicate the Bluetack-authored
+          lists, including level1, have not been meaningfully refreshed since the
+          Bluetack project ceased active development. The catalog download URL returns
+          a CAPTCHA challenge requiring manual human verification.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Feed-specific community concerns describe the level1 list as frozen
+          — the underlying anti-P2P enforcement IP data has not been refreshed despite
+          periodically updated file timestamps, which matters for this list because
+          the targeted entities (anti-piracy contractors, copyright enforcement firms,
+          government monitoring ranges) actively rotate their address allocations
+          to evade static blocklists. The community widely regards this Bluetack-authored
+          list as defunct for its stated anti-monitoring purpose and recommends alternatives
+          that provide active maintenance.
+        engagement: Public community discussion specifically about the level1 list
+          is sparse. Where the list is discussed, the conversation typically centers
+          on its historical role in the PeerGuardian/P2P-privacy ecosystem rather
+          than on contemporary deployment recommendations.
+      sources_consulted:
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18T09:00:00Z'
+      - url: https://www.iblocklist.com/list.php?list=bt_level1
+        document_date:
+        validation_date: '2026-05-18T09:00:00Z'
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T09:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-18T09:00:00Z'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-18T09:00:00Z'
+      - url: https://www.iblocklist.com/support
+        document_date:
+        validation_date: '2026-05-18T09:00:00Z'
+      - url: https://en.wikipedia.org/wiki/PeerGuardian
+        document_date:
+        validation_date: '2026-05-18T09:00:00Z'
+      - url: 
+          http://list.iblocklist.com/?list=ydxerpxkpcfqjaybcssw&fileformat=p2p&archiveformat=gz
+        document_date:
+        validation_date: '2026-05-18T09:00:00Z'

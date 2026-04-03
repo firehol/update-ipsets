@@ -1,0 +1,166 @@
+sources:
+  sefinek_malicious:
+    license: MIT License
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/sefinek/Malicious-IP-Addresses/main/lists/main.txt
+    frequency: 120
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[sefinek/Malicious-IP-Addresses](https://github.com/sefinek/Malicious-IP-Addresses)
+      aggregated list of malicious IPs observed by the curator''s own honeypots and
+      feeds. ~174K entries, daily refresh.'
+    maintainer: sefinek
+    maintainer_url: https://github.com/sefinek/Malicious-IP-Addresses
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T23:02:42Z'
+      official_name: Malicious IP Addresses
+      official_url: https://github.com/sefinek/Malicious-IP-Addresses
+      short_description: A plain-text list of IPv4 addresses associated with botnets,
+        DDoS campaigns, and abusive VPN or proxy infrastructure, maintained by a single
+        European developer.
+      long_description: "This feed is a straightforward, flat list of IPv4 addresses
+        compiled by a single independent developer (handle: sefinek) based in Europe.
+        The entries represent sources involved in botnets, Layer 7 HTTP flood DDoS
+        attacks, and VPN or proxy services observed conducting abuse.\n\nThe maintainer
+        also operates SniffCat (sniffcat.com), a community-driven abuse reporting
+        platform positioned as an open-source alternative to AbuseIPDB. Entries in
+        the main list are drawn from the maintainer's own honeypot telemetry and from
+        aggregated community submissions submitted through SniffCat. A companion CSV
+        file (details.csv) enriches a subset of entries with associated user-agent
+        strings and endpoint data.\n\n\nThe feed ships in two formats: a recommended
+        plain-text file (main.txt) and an extended CSV (details.csv) containing user-agent
+        and endpoint context for a subset of IPs. Historical DDoS snapshot CSVs are
+        also archived in the repository. The maintainer explicitly cautions operators
+        to update the list regularly and to apply it carefully to avoid blocking legitimate
+        traffic."
+      roles:
+      - role: maintainer
+        name: sefinek
+        organization_type: individual
+        official_url: https://github.com/sefinek
+        contact_email: contact@sefinek.net
+        based_in:
+        active_since: '2024'
+        notes: Individual developer specializing in system administration, open-source
+          tooling, and threat intelligence automation. Also maintains SniffCat (sniffcat.com),
+          a community abuse-reporting platform, and the T-Pot-To-AbuseIPDB integration
+          tool. Has reported over 3.1 million IPs to AbuseIPDB since July 2024.
+      derivation:
+        type: aggregate_merge
+        description: 'The maintainer aggregates IP addresses from two primary channels:
+          their own honeypot sensor infrastructure (including T-Pot deployments) and
+          community submissions received through the SniffCat abuse-reporting platform.
+          Entries are deduplicated and compiled into a flat list. A companion CSV
+          file enriches a subset of entries with user-agent and endpoint context sourced
+          from SniffCat submissions.'
+        source_feeds: []
+      listing_policy:
+        summary: IPs enter the list when they are observed participating in botnet
+          activity, Layer 7 HTTP flood DDoS attacks, or when they are identified as
+          VPN or proxy services facilitating abuse. The maintainer cross-references
+          their own honeypot telemetry with community submissions submitted through
+          SniffCat. Specific thresholds or minimum-confidence scores are not publicly
+          documented.
+        criteria:
+        - Observed participation in botnet command-and-control or propagation traffic
+        - Confirmed involvement in Layer 7 HTTP flood DDoS attacks
+        - Identified as VPN or proxy infrastructure used for abuse
+        - Traffic from sources flagged by SniffCat community submissions
+      unlisting_policy:
+        summary: The maintainer does not publish a formal unlisting procedure. The
+          README advises operators to update the list regularly and to apply it carefully
+          to avoid restricting legitimate traffic. No automated expiry or decay mechanism
+          is documented.
+        criteria:
+        - No formal unlisting channel is documented
+        - Operators advised to refresh the list frequently to reduce stale entries
+      unlist_request:
+      update_frequency:
+        frequency: 2h
+        human_readable: Updated approximately every 2 hours; occasional delays of
+          several days may occur.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods:
+        - user_submission
+        description: The feed draws from two detection channels. First, the maintainer's
+          own honeypot infrastructure — including T-Pot deployments running Cowrie
+          (SSH/Telnet), Dionaea (general-purpose), and Honeytrap (low-interaction)
+          honeypots — captures inbound attack telemetry. Second, community submissions
+          through the SniffCat platform contribute abuse reports. These inputs are
+          aggregated, deduplicated, and compiled into the flat list. Specific scoring
+          thresholds or confidence cutoffs are not publicly documented.
+      scope_and_intent:
+        description: A blocklist of malicious IPv4 addresses targeting network defenders
+          who want to block inbound threat traffic at the network edge.
+        intended_for:
+        - Edge firewall blocking to prevent DDoS, brute-force, and scanner traffic
+        - Webserver ingress filtering to block malicious bots and crawlers
+        - Protecting Google AdSense revenue from artificial traffic inflation
+        - Blocking abusive VPN and proxy exit nodes
+        not_intended_for:
+        - Precision blocking where low false-positive rates are critical — the list
+          is broad and not scoped to a single threat category
+        - Legal or compliance purposes requiring auditable classification criteria
+        - IPv6 traffic filtering — this feed is IPv4 only
+      license: MIT License
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required: Credit Sefinek
+        terms: Under the MIT License, redistribution and reuse for any purpose is
+          permitted, provided the copyright notice and license terms are included.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026. The maintainer commits regular
+          updates approximately every 2 hours and has committed historical DDoS snapshots
+          as recently as August 2025. The repository shows ongoing development across
+          multiple related projects.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion of this specific feed is sparse. Searches
+          across Reddit, security forums, and broader web sources returned no notable
+          mentions of the sefinek/Malicious-IP-Addresses repository as a standalone
+          resource. The maintainer's other projects — particularly the Sefinek Blocklist
+          Collection (over 100 blocklists, 6M+ domains) and SniffCat — have larger
+          community footprints, but this specific IP list has not attracted independent
+          reviews, benchmarks, or comparative evaluations in public forums. Sparse
+          public discussion is a neutral condition for a smaller, single-maintainer
+          feed.
+      sources_consulted:
+      - url: https://github.com/sefinek/Malicious-IP-Addresses
+        document_date:
+        validation_date: '2026-05-16T23:00:00Z'
+      - url: 
+          https://raw.githubusercontent.com/sefinek/Malicious-IP-Addresses/main/lists/main.txt
+        document_date:
+        validation_date: '2026-05-16T23:00:00Z'
+      - url: https://github.com/sefinek/Malicious-IP-Addresses/tree/main/lists
+        document_date:
+        validation_date: '2026-05-16T23:00:00Z'
+      - url: https://github.com/sefinek
+        document_date:
+        validation_date: '2026-05-16T23:00:00Z'
+      - url: https://sefinek.net
+        document_date:
+        validation_date: '2026-05-16T23:00:00Z'
+      - url: https://sniffcat.com
+        document_date:
+        validation_date: '2026-05-16T23:00:00Z'
+      - url: https://github.com/sefinek/T-Pot-To-AbuseIPDB
+        document_date:
+        validation_date: '2026-05-16T23:00:00Z'
+      - url: https://github.com/sefinek/Malicious-IP-Addresses/tree/main/lists/ddos-attacks
+        document_date:
+        validation_date: '2026-05-16T23:00:00Z'

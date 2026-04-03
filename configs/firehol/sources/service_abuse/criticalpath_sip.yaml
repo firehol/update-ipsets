@@ -1,0 +1,165 @@
+sources:
+  criticalpath_sip:
+    license: MIT License
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/CriticalPathSecurity/Public-Intelligence-Feeds/master/sip.txt
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: service_abuse
+    info: '[CriticalPathSecurity/Public-Intelligence-Feeds](https://github.com/CriticalPathSecurity/Public-Intelligence-Feeds)
+      SIP abuse IP feed.'
+    maintainer: Critical Path Security
+    maintainer_url: https://github.com/CriticalPathSecurity/Public-Intelligence-Feeds
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T01:52:00+00:00'
+      official_name: SIP Abuse IP Feed
+      official_url: https://github.com/CriticalPathSecurity/Public-Intelligence-Feeds
+      short_description: A plain-text list of IPv4 addresses involved in Session Initiation
+        Protocol (SIP) abuse, compiled from public threat feeds and Critical Path
+        Security's own intelligence.
+      long_description: "The SIP Abuse IP Feed is a straightforward text file listing
+        IPv4 addresses associated with SIP abuse, maintained within the CriticalPathSecurity
+        Public-Intelligence-Feeds repository. The feed is published as a plain-text
+        file with one IPv4 address per line and no per-entry metadata such as confidence
+        scores, timestamps, or threat-category labels.\n\nPer the repository README,
+        the feed is described as a compilation drawing from both publicly available
+        threat intelligence sources and data gathered by Critical Path Security's
+        own operations. The broader repository aggregates indicators from nine named
+        upstream sources including Abuse.CH, AlienVault OTX, Binary Defense, Emerging
+        Threats, SANS Internet Storm Center, and Georgia Tech Research Institute's
+        Predict feed. The SIP feed itself is not individually sourced in the README's
+        table; it is presented alongside these aggregated feeds."
+      roles:
+      - role: maintainer
+        name: CriticalPathSecurity
+        organization_type: commercial
+        official_url: https://www.criticalpathsecurity.com/
+        contact_email:
+        based_in:
+        active_since: '2021'
+        notes: A cybersecurity firm maintaining a suite of open-source threat intelligence
+          feeds alongside commercial services including managed SOC, Zeek IDS consulting,
+          and incident response. The GitHub organization operates multiple public
+          repositories covering diverse threat types. The primary credited contributor
+          across the repositories is listed as CPS-Erin.
+      derivation:
+        type: aggregate_merge
+        description: "The feed is assembled from multiple public threat intelligence
+          sources and Critical Path Security's own gathered indicators. The repository's
+          README names nine upstream sources: Abuse.CH Blacklist, Abuse.CH ThreatFox,
+          AlienVault OTX, Binary Defense, CobaltStrike IP (ThreatView), Emerging Threats
+          Compromised IPs, Critical Path Security Illuminate, GTRI Predict, and SANS
+          ISC. The SIP feed itself is not individually mapped to specific upstream
+          sources in the documentation; it is maintained alongside the aggregated
+          feeds in the same repository. No per-entry provenance metadata is included
+          in the feed output."
+        source_feeds: []
+      listing_policy:
+        summary: The maintainer does not publish a documented listing policy for the
+          SIP feed. Listings appear to be driven by detections of SIP scanning, registration
+          brute-forcing, or toll-fraud activity observed through public threat feeds
+          and the maintainer's own intelligence gathering.
+        criteria:
+        - Observed involvement in SIP abuse activity as reported through aggregated
+          public threat intelligence sources
+        - Detections from Critical Path Security's own sensor or intelligence-gathering
+          operations
+        - Inclusion in upstream feeds that the maintainer monitors (Abuse.CH, AlienVault,
+          SANS ISC, Emerging Threats, and others)
+      unlisting_policy:
+        summary: The maintainer does not publish a documented unlisting policy. Removal
+          requests are handled informally through the GitHub issue tracker.
+        criteria:
+        - Submitter files a GitHub issue identifying the entry as a false positive
+        - Maintainer reviews and closes the issue upon resolution
+      unlist_request:
+        url: https://github.com/CriticalPathSecurity/Public-Intelligence-Feeds/issues/new
+        email:
+        instructions: Open a new GitHub issue on the Public-Intelligence-Feeds repository
+          to report a false positive. Include the IP address or domain in the issue
+          title and describe why it should be removed. The maintainer has addressed
+          similar false positive reports through the issue tracker.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated approximately once per day, per the catalog configuration.
+          The maintainer's Zeek-format sibling repository states updates are made
+          'as often as possible.'
+      detection_classification:
+        primary_method: reputation_aggregation
+        description: The feed is built by aggregating indicators from multiple public
+          threat intelligence sources and Critical Path Security's own gathered intelligence.
+          No honeypot network, active scanning campaign, or user-submission portal
+          is individually documented for the SIP feed. The detection approach is best
+          characterized as reputation aggregation from upstream feeds supplemented
+          by the maintainer's own intelligence.
+      scope_and_intent:
+        description: The feed targets IP addresses involved in Session Initiation
+          Protocol (SIP) abuse directed at VoIP and telecommunications infrastructure.
+          SIP is the signaling protocol underlying most internet telephone systems;
+          common abuses include registration brute-force attacks, toll fraud, INVITE
+          flooding, and caller-ID spoofing.
+        intended_for:
+        - Blocking SIP scanners and attackers at network perimeter firewalls
+        - Enriching VoIP session logs with threat intelligence
+        - SIEM correlation for SIP abuse incidents
+        not_intended_for:
+        - General-purpose malware C2 blocking (separate feeds cover Cobalt Strike,
+          ransomware, and other threat types)
+        - Email security (covered by separate feeds in the repository)
+      license: MIT License
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit 'Critical Path Security' or 'CriticalPathSecurity'
+          with a link to the source repository.
+        terms: Redistribute freely with attribution. Include the MIT copyright notice
+          in all copies or substantial portions.
+      current_status:
+        state: active
+        description: Actively maintained as of April 2026. The repository received
+          a push on April 2, 2026, and the README bears a timestamp of May 17, 2026.
+          One open issue from July 2025 awaits maintainer response.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: No false positive reports specific to the SIP feed are documented
+          in the repository's issue tracker. Historical closed issues against the
+          parent Public-Intelligence-Feeds repository demonstrate that the maintainer
+          has previously addressed private-address contamination and invalid IP entries
+          in other feeds in the same repository, with response times varying from
+          same-day to several months.
+        engagement: Modest open-source engagement. The parent repository has accumulated
+          128 stars and 21 forks on GitHub (as of May 2026). Across the parent repository
+          (covering all feeds, not SIP-specific), the maintainer has closed 13 of
+          14 tracked issues. Community interaction occurs exclusively through the
+          GitHub issue tracker. No dedicated discussion forum, subreddit, or mailing
+          list was found for this feed.
+      sources_consulted:
+      - url: https://github.com/CriticalPathSecurity/Public-Intelligence-Feeds
+        document_date: '2026-04-02'
+        validation_date: '2026-05-19T01:30:00+00:00'
+      - url: 
+          https://raw.githubusercontent.com/CriticalPathSecurity/Public-Intelligence-Feeds/master/sip.txt
+        document_date:
+        validation_date: '2026-05-19T01:30:00+00:00'
+      - url: 
+          https://raw.githubusercontent.com/CriticalPathSecurity/Public-Intelligence-Feeds/master/LICENSE
+        document_date: '2021'
+        validation_date: '2026-05-19T01:30:00+00:00'
+      - url: https://github.com/CriticalPathSecurity/Public-Intelligence-Feeds/issues/13
+        document_date: '2025-07-25'
+        validation_date: '2026-05-19T01:30:00+00:00'
+      - url: https://github.com/CriticalPathSecurity/Zeek-Intelligence-Feeds
+        document_date:
+        validation_date: '2026-05-19T01:30:00+00:00'
+      - url: https://www.criticalpathsecurity.com/
+        document_date:
+        validation_date: '2026-05-19T01:30:00+00:00'

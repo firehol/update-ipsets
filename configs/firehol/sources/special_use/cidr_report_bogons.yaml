@@ -1,0 +1,166 @@
+sources:
+  cidr_report_bogons:
+    label: CIDR Report bogons
+    license: public feed
+    redistributable: true
+    url: http://www.cidr-report.org/bogons/freespace-prefix.txt
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: special_use
+    info: Unallocated (Free) Address Space, generated on a daily basis using the IANA
+      registry files, the Regional Internet Registry stats files and the Regional
+      Internet Registry whois data.
+    maintainer: CIDR-Report.org
+    maintainer_url: http://www.cidr-report.org
+    enabled_by_all: true
+    exclude_from_unmaintained: true
+    use: [bogons]
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T02:51:59Z'
+      official_name: CIDR Report — Bogons
+      official_url: http://www.cidr-report.org/bogons/
+      short_description: A daily-generated list of IPv4 address prefixes that are
+        either reserved for special use by RFC or currently unallocated by IANA and
+        the regional internet registries, derived from official allocation registry
+        data.
+      long_description: "The CIDR Report Bogons section publishes a daily-generated
+        inventory of IPv4 address prefixes that are not currently allocated by IANA
+        or the regional internet registries. The list combines two categories: address
+        space reserved for special or private use by RFC (including RFC 1918 private
+        addresses, loopback, link-local, documentation prefixes, and multicast ranges),
+        and address blocks held in IANA's freespace pool awaiting RIR allocation.
+        The feed is derived by cross-referencing the IANA IPv4 Address Space registry,
+        RIR stats files, and RIR whois data. Multiple output formats are published
+        (prefix/mask, start-end address pairs in dotted-decimal and decimal, bitmask
+        notations) for IPv4 and IPv6. The freespace-prefix.txt file distributed by
+        this catalog uses prefix/mask notation. As IPv4 address space exhaustion progresses,
+        the unallocated portion of this list shrinks over time; the reserved-special-use
+        portion is stable. Per the maintainer's bogons page, the report has operated
+        since the late 1990s and is produced daily on APNIC's platform."
+      roles:
+      - role: maintainer
+        name: Geoff Huston
+        organization_type: research_institution
+        official_url: https://www.potaroo.net
+        contact_email: cidr-reports@potaroo.net
+        based_in: Australia
+        active_since: '1997'
+        notes: Chief Scientist at APNIC (Asia-Pacific Network Information Centre),
+          a regional internet registry. Took over maintenance of the CIDR Report from
+          Philip Smith, who had taken over from original creator Tony Bates. Serves
+          as the primary contact for the report. Operates the report on APNIC-provided
+          infrastructure (AS 131072).
+      derivation:
+        type: original
+        description: "The feed is derived by cross-referencing three authoritative
+          registry data sources: the IANA IPv4 Address Space registry, RIR stats files,
+          and RIR whois data. Each day's report is recomputed against the current
+          state of these registries. No live BGP routing data is used for freespace-prefix
+          — the list reflects the formal allocation status as recorded in registries,
+          not observed routing announcements. The maintainer also publishes a companion
+          bogons list derived from live BGP routing observations, which additionally
+          captures routes for unassigned address space that are being actively advertised
+          in the global routing table."
+        source_feeds: []
+      listing_policy:
+        summary: An IPv4 prefix is listed if it falls within address space that is
+          not currently allocated to any regional internet registry (RIR) by IANA,
+          or if it is reserved for special or private use by an RFC. The formal allocation
+          status is determined by cross-referencing the IANA IPv4 Address Space registry,
+          RIR stats files, and RIR whois data. Listings change only when IANA makes
+          a new /8 allocation to an RIR, or when address space transitions from reserved
+          to allocated status.
+        criteria:
+        - Address space not allocated by IANA to any RIR (unallocated freespace)
+        - Address space designated as reserved for special or private use by applicable
+          RFCs (martians)
+      unlisting_policy:
+        summary: There is no manual unlisting mechanism. Listings are removed automatically
+          when IANA allocates the corresponding address block to a regional internet
+          registry, or when address space transitions from reserved to allocated status
+          in official registries. Between updates, the list is deterministic — the
+          same prefixes are listed until their allocation status changes in the underlying
+          registries.
+        criteria:
+        - Automatic removal upon IANA allocating the block to an RIR
+        - Automatic removal upon address space transitioning from reserved to allocated
+          status in official registries
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: Regenerated daily, per the maintainer's bogons section page
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: Entries are assigned to the list based on formal address allocation
+          policy — specifically, whether each IPv4 /8 block is currently allocated
+          by IANA to a regional internet registry, or is reserved for special or private
+          use by an applicable RFC. The determination is made by cross-referencing
+          the IANA IPv4 Address Space registry, RIR stats files, and RIR whois data.
+          This is a policy-assignment classification because every prefix in the list
+          is there solely by virtue of its status in authoritative allocation records,
+          not by observation of malicious activity, user reports, or sensor detections.
+      scope_and_intent:
+        description: The feed is intended as a reference filter for network operators
+          implementing bogon filtering at network edges. Bogon filtering drops traffic
+          with source addresses in address space that should not appear in the public
+          internet routing table, reducing noise from misconfigured or spoofing sources
+          and improving traceability of attack traffic.
+        intended_for:
+        - Network edge bogon filtering at border routers and firewalls
+        - Validating ingress filter sanity checks
+        - Identifying potentially spoofed source addresses in network flow data
+        not_intended_for:
+        - Spam or email sender reputation assessment
+        - Malware command-and-control detection
+        - Fraud prevention or abuse triage
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms:
+      current_status:
+        state: active
+        description: Active. Maintained as of May 2026; the bogons section page is
+          reachable and the feed regenerates daily per the maintainer's stated schedule.
+          Geoff Huston continues to produce the report on APNIC's platform.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion referencing cidr-report.org's bogons
+          feed is sparse. Reddit searches across r/networking, r/netsec, r/Juniper,
+          and r/PFSENSE returned no posts mentioning cidr-report.org or freespace-prefix
+          specifically. Alternative bogon reference resources (Team Cymru RADB filter-sets,
+          Spamhaus DROP) dominate practitioner discussion. The CIDR Report as a whole
+          is referenced in APNIC blog posts and network operations literature as a
+          foundational routing visibility tool, but the freespace-prefix bogons feed
+          specifically does not generate independent community discussion. Sparse
+          public discussion is consistent with the feed's utility as a stable reference
+          list rather than an active threat signal.
+      sources_consulted:
+      - url: http://www.cidr-report.org/bogons/
+        document_date:
+        validation_date: '2026-05-19T02:49:20Z'
+      - url: http://www.cidr-report.org/bogons/freespace-prefix.txt
+        document_date:
+        validation_date: '2026-05-19T02:49:20Z'
+      - url: https://blog.apnic.net/2026/03/24/the-why-and-what-of-the-cidr-report/
+        document_date: '2026-03-24'
+        validation_date: '2026-05-19T02:49:20Z'
+      - url: https://manrs.org/2021/01/routing-security-terms-bogons-vogons-and-martians/
+        document_date: 2021-01
+        validation_date: '2026-05-19T02:49:20Z'
+      - url: https://www.iana.org/assignments/ipv4-address-space
+        document_date: 2025-10
+        validation_date: '2026-05-19T02:49:20Z'
+      - url: https://www.potaroo.net/ispcol/2026-03/cidr-report.html
+        document_date: 2026-03
+        validation_date: '2026-05-19T02:49:20Z'

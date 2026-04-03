@@ -1,0 +1,146 @@
+sources:
+  iblocklist_org_riot_games:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=sdlvfabdjvrdttfjotcy&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Riot Games IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T12:22:50Z'
+      official_name: Riot Games IPs
+      official_url:
+      short_description: A blocklist of IP subnets associated with Riot Games servers,
+        originally published by iBlocklist.com and now discontinued.
+      long_description: The Riot Games IPs feed was a blocklist of IP subnets associated
+        with Riot Games game servers, originally published by iBlocklist.com. The
+        feed was removed from iBlocklist.com's public catalog sometime after June
+        2018 and has not been restored. Monitoring by third-party observers shows
+        the list held six subnets totalling approximately 1,792 unique IPs, with no
+        additions or removals recorded since monitoring began in August 2015 — indicating
+        the feed was effectively static from its inception. iBlocklist.com continues
+        to operate its subscription service at $9.99/year, but the Riot Games list
+        is not included in its current offerings. The broader iBlocklist.com service
+        has been reported by community members as non-operational, with subscription
+        fees charged against lists that are not actively updated. Operators seeking
+        current Riot Games server IP ranges should consult AS6507 routing data or
+        Riot Games' own published connectivity guides rather than this archived feed.
+      roles:
+      - role: maintainer
+        name: iBlocklist.com
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: 'iBlocklist.com (iblocklist, LLC) operated a commercial IP blocklist
+          subscription service distributing lists in P2P, DAT, CIDR, and hosts formats.
+          The Riot Games feed was removed from the public catalog; the broader service
+          has been reported as non-operational by subscribers. Service-level community
+          signal across iBlocklist.com (not specific to any single feed): Netgate
+          forum subscribers reported that list timestamps were updated to current
+          dates while underlying content remained frozen; community members reported
+          submitting support requests and receiving no response.'
+      derivation:
+        type: original
+        description: The Riot Games feed was an I-Blocklist-authored single-organization
+          list — a curated collection of IP ranges associated with Riot Games' game-server
+          infrastructure compiled by iBlocklist.com from its own research. iBlocklist.com
+          did not publish the sourcing methodology for this specific feed. No upstream
+          IP feeds were named as inputs. The feed has not been updated since its original
+          publication and has been removed from the iBlocklist.com catalog.
+        source_feeds: []
+      listing_policy:
+        summary: The criteria for adding IPs to the Riot Games feed were not documented
+          by iBlocklist.com. As a policy-risk categorized feed, entries presumably
+          represented IP space associated with Riot Games game server infrastructure.
+        criteria:
+        - IP space associated with Riot Games game server infrastructure
+      unlisting_policy:
+        summary: No unlisting policy was documented for this feed. Given the feed's
+          discontinuation and removal from the iBlocklist.com catalog, no active delisting
+          mechanism exists.
+        criteria: []
+      unlist_request:
+        url:
+        email:
+        instructions: iBlocklist.com provides a contact support form at https://www.iblocklist.com/support
+          requiring an email address and captcha completion. No direct email address
+          or dedicated unlisting workflow is published. Given the feed's discontinuation,
+          submitting an unlist request through this channel is unlikely to yield a
+          response — community reports indicate support requests have gone unanswered.
+      update_frequency:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The feed was categorized as policy_risk, representing IP space
+          associated with Riot Games game server infrastructure. iBlocklist.com did
+          not publish the detection or selection methodology for this specific feed.
+          Entries were static and appear to have been established once at the feed's
+          original creation.
+      scope_and_intent:
+        description: The feed was intended to enumerate IP subnets associated with
+          Riot Games game server infrastructure, allowing operators to whitelist or
+          selectively block traffic from/to Riot Games services.
+        intended_for:
+        - Whitelisting Riot Games game server IP ranges
+        not_intended_for:
+        - Active threat blocking
+        - Security enforcement at network perimeter
+      license: iBlocklist.com Terms of Service — personal use only, non-commercial
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution is not addressed in the iBlocklist.com Terms of Service.
+          The license grant is limited to personal use; public redistribution would
+          constitute 'public display' and is prohibited under restriction b of the
+          ToS.
+      current_status:
+        state: unknown
+        description: The Riot Games feed was removed from iBlocklist.com's public
+          catalog sometime after June 2018. No official discontinuation announcement
+          was found. The broader iBlocklist.com subscription service continues to
+          operate its website and accept payments, but community reports indicate
+          lists are not actively updated and support is unresponsive. The feed's current
+          status is assessed as unknown due to lack of an explicit maintainer statement.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: The Riot Games list has been absent from the iBlocklist.com catalog
+          for years with no communication from the maintainer. Service-level community
+          signal across iBlocklist.com is recorded in the maintainer role notes.
+        engagement: Public community discussion about the Riot Games feed specifically
+          is sparse. No GitHub repository, issue tracker, or dedicated community channel
+          was found for this feed.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/subscribe
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/support
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

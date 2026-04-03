@@ -1,0 +1,197 @@
+sources:
+  misp_probethenet_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/probethenet-nt-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) ProbeTheNet
+      non-threat scanning IPs. Informational — not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T23:08:48Z'
+      official_name: Probethenet IP Ranges Used for Scanning
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: A MISP warninglist of IP ranges allocated to ProbeTheNet,
+        a monthly IPv4 space research scanner operated by mThreat Technology, identified
+        from CIRCL's passive darknet monitoring.
+      long_description: "This warninglist records the IP address ranges used by ProbeTheNet,
+        a white-hat research project that scans the full public IPv4 address space
+        approximately once per month to catalogue internet usage patterns, hardware
+        profiles, and software distributions. The ranges in this list were identified
+        by CIRCL (Computer Incident Response Center Luxembourg) through their Network
+        Telescope — a passive darknet monitor that captures unsolicited inbound traffic
+        directed at unused but routed address space. Because the listed IPs originate
+        from legitimate, self-identifying research scans rather than malicious activity,
+        the maintainer explicitly marks this list as informational: it warns analysts
+        that an IP belongs to ProbeTheNet's infrastructure, not that it should be
+        blocked. Entries are updated as CIRCL's ongoing telescope analysis identifies
+        changes in ProbeTheNet's allocated address space."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://github.com/MISP/misp-warninglists
+        contact_email:
+        based_in: Luxembourg
+        active_since:
+        notes: 'The MISP Project develops and distributes the MISP malware and threat
+          intelligence sharing platform and its associated warninglists. Alexandre
+          Dulaunoy (GitHub: adulau) is credited as the primary maintainer on the releases
+          page. The project is based in Luxembourg.'
+      - role: source_contributor
+        name: CIRCL Luxembourg
+        organization_type: government
+        official_url: https://circl.lu/
+        contact_email:
+        based_in: Luxembourg
+        active_since:
+        notes: CIRCL (Computer Incident Response Center Luxembourg) operates the Network
+          Telescope darknet that produced the underlying analysis identifying ProbeTheNet's
+          scanning IP ranges. CIRCL is the Luxembourg government's national computer
+          emergency response team.
+      - role: source_contributor
+        name: mThreat Technology Inc.
+        organization_type: commercial
+        official_url: https://www.probethenet.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Per ProbeTheNet's about page, the scanner project is operated by the
+          Research Arm of mThreat Technology Inc. as a white-hat research initiative.
+          Scans are conducted approximately once per month across the full public
+          IPv4 address space.
+      derivation:
+        type: extraction
+        description: The list is produced by CIRCL's Network Telescope darknet analysis.
+          CIRCL operates a passive monitoring system watching unused but routed address
+          space; when ProbeTheNet's monthly scans traverse that address space, the
+          darknet captures the inbound packets and attributes the source IP. Analysts
+          then aggregate and CIDR-collapse the observed scanning sources into a list,
+          which is contributed to the MISP warninglists repository as a JSON file.
+          The MISP Project distributes the resulting warninglist as part of its standard
+          warninglists release. No other IP feeds are consumed in producing this list.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when CIRCL's Network Telescope darknet captures inbound
+          packets sourced from an address within ProbeTheNet's allocated address space.
+          Analysts aggregate the observed scanning sources, collapse overlapping observations
+          into CIDR blocks, and contribute the result as a pull request to the MISP
+          warninglists repository.
+        criteria:
+        - Source IP observed by CIRCL Network Telescope darknet as transmitting unsolicited
+          scanning traffic
+        - Source IP confirmed as belonging to ProbeTheNet's allocated address pool
+        - Aggregated into CIDR blocks covering the observed range
+      unlisting_policy:
+        summary: No automatic expiration or automatic removal mechanism is documented.
+          Entries are removed or modified when a contributor submits a pull request
+          identifying that the address range is no longer allocated to ProbeTheNet.
+          There is no standing per-entry challenge or dispute process — the removal
+          pathway is the same GitHub pull-request workflow used for additions.
+        criteria:
+        - Address range confirmed as no longer allocated to ProbeTheNet
+        - Pull request submitted to the MISP warninglists repository
+        - Reviewed and merged by a maintainer
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/issues/new
+        email:
+        instructions: Submit a GitHub issue on the MISP/misp-warninglists repository
+          describing the address range and why it should be removed, or submit a pull
+          request modifying the list.json file directly. There is no dedicated unlisting
+          email address — the standard GitHub issue and pull-request workflow is the
+          only documented channel.
+      update_frequency:
+        frequency: 1w
+        human_readable: Approximately monthly, per the observed pattern of Network
+          Telescope update pull requests merged by the maintainer
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: The listed IP ranges are identified through CIRCL's Network Telescope
+          — a passive darknet monitoring system that watches unused but routed IPv4
+          address space. Unlike a honeypot, which accepts connections to simulated
+          services, a darknet receives no legitimate traffic; any packet arriving
+          there is by definition unsolicited. When ProbeTheNet's monthly scans traverse
+          the monitored darknet address space, the incoming packets are captured and
+          attributed to their source IP. Repeated observations allow analysts to map
+          the scanner's allocated address pool.
+      scope_and_intent:
+        description: The list identifies IP addresses that belong to ProbeTheNet's
+          scanning infrastructure, enabling analysts to recognise the source of observed
+          scanning behaviour as a legitimate, self-identifying research project rather
+          than a threat actor.
+        intended_for:
+        - Attribution of scanning traffic observed in network telemetry
+        - Suppression of false-positive threat alerts triggered by ProbeTheNet source
+          IPs
+        - Context enrichment in MISP events and attribute investigations
+        not_intended_for:
+        - Inline blocking or deny-listing of ProbeTheNet IP addresses
+        - Security enforcement based solely on presence in this list
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 carries no conditions. The copyright waiver applies globally
+          and the work may be reproduced, distributed, or adapted without restriction.
+      current_status:
+        state: active
+        description: Active. The probethenet-nt-scanning list is present in the MISP
+          warninglists repository and is refreshed through periodic CIRCL Network
+          Telescope update PRs.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: 'Public discussion specific to this list is sparse. No GitHub
+          issues or discussions in the misp-warninglists repository reference ProbeTheNet
+          or this warninglist by name. Maintenance activity is visible in the commit
+          log: contributor Paul Jung (Th4nat0s) has submitted multiple Network Telescope
+          update PRs merged by maintainer Alexandre Dulaunoy (adulau), indicating
+          a stable maintenance loop for this family of lists.'
+      sources_consulted:
+      - url: https://raw.githubusercontent.com/MISP/misp-warninglists/main/README.md
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/probethenet-nt-scanning/list.json
+        document_date: '2026-04-09'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://raw.githubusercontent.com/MISP/misp-warninglists/main/schema.json
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.probethenet.com/whoweare.php
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/releases
+        document_date: '2026-04-05'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://github.com/MISP/misp-warninglists/commits/main/lists/probethenet-nt-scanning
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/wiki
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/issues
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/pull/335
+        document_date: '2026-05-04'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/pull/332
+        document_date: '2026-04-09'
+        validation_date: '2026-05-18T00:00:00Z'

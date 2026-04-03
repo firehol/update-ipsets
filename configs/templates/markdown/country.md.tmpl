@@ -1,0 +1,65 @@
+# {{ .Code | countryName }}
+
+> Threat intelligence IP feeds covering {{ .Code | countryName }}.
+> ASN data provided by **{{ .Provider }}**.
+
+---
+
+## Summary
+
+| Metric | Value |
+|--------|-------:|
+| Feeds | {{ .Totals.Feeds | comma }} |
+| Attributed IPs | {{ .Totals.IPs | comma }} |
+| Categories | {{ .Totals.Categories | comma }} |
+| Maintainers | {{ .Totals.Maintainers | comma }} |
+| ASNs | {{ .Totals.ASNs | comma }} |
+
+---
+
+{{ if .TopCategories }}
+## Top Categories
+
+| Category | Feeds | IPs |
+|----------|------:|----:|
+{{ range .TopCategories }}| {{ .Category }} | {{ .Feeds | comma }} | {{ .IPs | comma }} |
+{{ end }}
+
+---
+{{ end }}
+
+{{ if .TopMaintainers }}
+## Top Maintainers
+
+| Maintainer | Feeds | IPs |
+|-----------|------:|----:|
+{{ range .TopMaintainers }}| {{ if .URL }}[{{ .Name }}]({{ .URL }}){{ else }}{{ .Name }}{{ end }} | {{ .Feeds | comma }} | {{ .IPs | comma }} |
+{{ end }}
+
+---
+{{ end }}
+
+{{ if .TopASNs }}
+## Top ASNs
+
+| ASN | Name | Feeds | IPs |
+|----:|------|------:|----:|
+{{ range .TopASNs }}| {{ .ASN }} | {{ .Name }} | {{ .Feeds | comma }} | {{ .IPs | comma }} |
+{{ end }}
+
+---
+{{ end }}
+
+{{ if .FeedsByCategory }}
+## Feeds by Category
+
+{{ range $cat := sortedKeys .FeedsByCategory }}
+### {{ $cat }}
+
+| Feed | IPs | Health |
+|------|----:|--------|
+{{ range index $.FeedsByCategory $cat }}| {{ .Name }} | {{ .IPs | comma }} | {{ .Health }} |
+{{ end }}
+
+{{ end }}
+{{ end }}

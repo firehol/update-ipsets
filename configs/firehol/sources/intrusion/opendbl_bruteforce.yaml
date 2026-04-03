@@ -1,0 +1,195 @@
+sources:
+  opendbl_bruteforce:
+    license: public feed
+    redistributable: true
+    url: https://www.opendbl.net/lists/bruteforce.list
+    frequency: 120
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[OpenDBL](https://www.opendbl.net/) brute-force attacker IP list. The feed
+      header carries its own update timestamp and the current endpoint refreshes every
+      few hours.'
+    maintainer: OpenDBL
+    maintainer_url: https://www.opendbl.net/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T22:19:18Z'
+      official_name: BruteforceBlocker
+      official_url: https://danger.rulez.sk/index.php/bruteforceblocker/
+      short_description: Aggregated IP addresses involved in brute-force login attacks,
+        compiled from a network of reporting servers and auto-detection of failed
+        SSH authentication attempts.
+      long_description: "This feed mirrors the BruteforceBlocker project, which aggregates
+        IP addresses observed conducting brute-force login attacks — primarily against
+        SSH services. Detection operates in two modes: the BruteforceBlocker software
+        monitors sshd logs on participating servers, incrementing a counter each time
+        a failed authentication attempt is logged from a given IP; when that counter
+        crosses a configurable threshold, the IP is added to the blocklist. Separately,
+        users of the BruteforceBlocker software can report blocked IPs to the central
+        aggregation point, creating a shared community dataset.\n\nOpenDBL serves
+        as a redistribution proxy, pulling the aggregated list and refreshing it on
+        the same schedule as the underlying source. The feed targets inbound blocking
+        — operators apply it to block incoming connections from listed IPs at their
+        perimeter. As of the most recent update the list held roughly 450–460 entries.\n\
+        \nThe maintainer notes that all use of OpenDBL services is at the user's own
+        risk, and Fnutt Consulting disclaims liability for any loss or damage arising
+        from the service."
+      roles:
+      - role: maintainer
+        name: Fnutt Consulting
+        organization_type: commercial
+        official_url: https://www.fnuttconsulting.com/
+        contact_email: daniel@fnutt.net
+        based_in:
+        active_since:
+        notes: Operates the OpenDBL redistribution service, pulls and republishes
+          blocklists including BruteforceBlocker. Based in Sweden per PeeringDB records.
+      - role: source_contributor
+        name: Daniel Gerzo
+        organization_type: individual
+        official_url: https://danger.rulez.sk/index.php/bruteforceblocker/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Original author of the BruteforceBlocker project. Runs the central
+          aggregation point that OpenDBL mirrors.
+      derivation:
+        type: partial_mirror
+        description: OpenDBL mirrors the aggregated BruteforceBlocker IP list from
+          danger.rulez.sk. The source project collects reports from a distributed
+          network of servers running the BruteforceBlocker software, which monitors
+          sshd logs locally and submits blocked IPs to the central aggregation point.
+          OpenDBL fetches the resulting aggregated list and republishes it unchanged.
+        source_feeds:
+        - identifier: BruteforceBlocker (danger.rulez.sk)
+          relationship: mirror
+          notes: OpenDBL mirrors the aggregated output from the BruteforceBlocker
+            project. The upstream source aggregates reports from participant servers
+            running the BruteforceBlocker daemon.
+      listing_policy:
+        summary: An IP enters the list when it accumulates a configured number of
+          failed SSH login attempts across one or more reporting servers, or when
+          it is submitted to the central aggregation point by a participant running
+          the BruteforceBlocker software. Once listed, an IP remains listed for a
+          defined period; if it is re-reported during that window, the expiry timer
+          resets.
+        criteria:
+        - 'Automated detection: repeated failed SSH authentication attempts reaching
+          a configurable threshold on a participating server'
+        - 'Community submission: IP reported to the BruteforceBlocker aggregation
+          point by a participant server'
+      unlisting_policy:
+        summary: There is no self-service unlisting mechanism. IPs are removed either
+          by manual email request to the source maintainer or automatically when the
+          aggregation window expires without a re-report.
+        criteria:
+        - Manual email request to the source maintainer (Daniel Gerzo at danger.rulez.sk)
+        - Automatic expiry after the aggregation retention window passes without re-reporting
+      unlist_request:
+        url:
+        email: daniel@fnutt.net
+        instructions: Email daniel@fnutt.net with the IP address and a request for
+          removal. OpenDBL does not operate an independent unlisting process; since
+          it mirrors the source feed, removal requests forwarded to Fnutt Consulting
+          would need to be propagated to the source at danger.rulez.sk for processing.
+      update_frequency:
+        frequency: 4h
+        human_readable: Refreshed approximately every four hours; the feed file header
+          carries a timestamp showing the last update time.
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods:
+        - honeypot
+        description: 'The feed blends two detection approaches. The primary method
+          is community submission: servers running the BruteforceBlocker daemon submit
+          blocked IPs to the central aggregation point after local threshold-based
+          detection. The secondary method is passive log monitoring: the daemon watches
+          sshd logs for failed authentication attempts and increments counters per
+          remote IP, adding to the blocklist when a threshold is crossed.'
+      scope_and_intent:
+        description: The feed is intended for inbound blocking at network perimeters
+          — operators apply it to drop or reject connections from listed IPs before
+          they reach protected services.
+        intended_for:
+        - Inbound firewall blocking — drop or reject connections from listed IPs at
+          the network edge
+        - Integration with Check Point, Palo Alto Networks, Fortinet, OPNsense, and
+          other firewalls that consume IP blocklists
+        not_intended_for:
+        - Outbound blocking — the feed is classified as incoming-direction only
+        - Legal or attribution purposes — the maintainer disclaims liability for any
+          use of the data
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: The direct upstream makes the feed publicly downloadable with no stated
+          restriction. No redistribution terms are posted on the site.
+      current_status:
+        state: active
+        description: Active as of May 2026. The feed file carried a timestamp of 2026-05-16
+          20:00. The news page shows regular maintenance activity including a TLS
+          certificate transition in May 2025. No discontinuation or scope-reduction
+          notices pertain to this specific feed.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Some community members have expressed caution about vouching for
+          the feed's data quality, noting the lack of formal documentation about data
+          sourcing. The maintainer has acknowledged on the news page that other feeds
+          within the broader OpenDBL service have gone inactive over time, illustrating
+          that feeds within the service can become stale without prominent notice.
+          No formal false-positive reporting channel exists for this specific feed.
+        engagement: The feed is documented in Fortinet's official FortiSOAR integration
+          playbook, and Check Point administrators on the CheckMates forum have reported
+          running OpenDBL feeds on production clusters without measurable performance
+          impact. Public discussion is otherwise sparse — mentions appear in firewall-admin
+          communities (Check Point CheckMates, Reddit r/opnsense, Reddit r/paloaltonetworks,
+          Palo Alto LIVEcommunity) as references in broader blocklist threads rather
+          than as dedicated topic threads. Response from Fnutt Consulting to community
+          questions appears limited but constructive when it occurs.
+      sources_consulted:
+      - url: https://www.opendbl.net/
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: https://www.opendbl.net/lists/bruteforce.list
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: https://www.opendbl.net/about.html
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: https://www.opendbl.net/news.html
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: https://danger.rulez.sk/index.php/bruteforceblocker/
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: https://danger.rulez.sk/projects/bruteforceblocker/blist.php
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: 
+          https://community.checkpoint.com/t5/API-CLI-Discussion/Dynamic-Block-Lists-for-Check-Point-firewalls/td-p/38871
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: https://www.reddit.com/r/opnsense/comments/1pt972c/ip_blocklists_geoip_blocking/
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: 
+          https://live.paloaltonetworks.com/t5/next-generation-firewall/ip-block-list-feeds/td-p/537645
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: 
+          https://www.reddit.com/r/paloaltonetworks/comments/15oc9mx/edl_besides_pan_maintained_lists/
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'
+      - url: 
+          https://docs.fortinet.com/document/fortisoar/1.0.0/bruteforceblocker-feed/272/bruteforceblocker-feed-v1-0-0
+        document_date:
+        validation_date: '2026-05-16T22:00:00Z'

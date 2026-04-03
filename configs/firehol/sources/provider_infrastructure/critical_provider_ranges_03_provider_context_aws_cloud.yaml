@@ -1,0 +1,160 @@
+sources:
+  provider_context_aws_cloud:
+    license: AWS Intellectual Property License
+    redistributable: false
+    label: AWS cloud provider context
+    url: https://ip-ranges.amazonaws.com/ip-ranges.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: primary
+    info: AWS-published IPv4 ranges across services and regions. Provider context
+      feed, not a threat indicator and not a critical-infrastructure warning source.
+    maintainer: Amazon Web Services
+    maintainer_url: https://docs.aws.amazon.com/vpc/latest/userguide/aws-ip-ranges.html
+    enabled_by_all: true
+    use: [provider_context]
+    attributes:
+      context_role: cloud_customer_hosting
+      context_source_type: authoritative_provider_json
+      context_source_quality: A
+      context_rationale: AWS ranges include provider services and customer workloads;
+        overlap is policy-dependent and should not be treated as proof that a feed
+        is bad or safe.
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T14:01:28Z'
+      official_name: AWS IP Address Ranges
+      official_url: https://docs.aws.amazon.com/vpc/latest/userguide/aws-ip-ranges.html
+      short_description: Amazon Web Services publishes the IPv4 and IPv6 address ranges
+        allocated to its infrastructure, organized by AWS region, network border group,
+        and service.
+      long_description: "Amazon Web Services publishes the IP address ranges allocated
+        to its global infrastructure via a publicly accessible JSON file. Each entry
+        records a CIDR prefix, the AWS region it serves, the network border group,
+        and the associated service (such as AMAZON, EC2, S3, Route 53, or CloudFront).
+        The feed was introduced in November 2014 and is updated event-driven — whenever
+        AWS adds, removes, or reshuffles allocation space.\n\nThe maintainer advises
+        that the published ranges cover services customers commonly use for egress
+        filtering, but do not encompass all AWS services; some services publish their
+        ranges via AWS-managed prefix lists instead. Bring-your-own-IP (BYOIP) customer
+        allocations are excluded. When one service uses resources from another, their
+        respective ranges overlap in the feed — the AMAZON service code superset includes
+        all other service codes.\n\nThe maintainer explicitly recommends subscribing
+        to the AmazonIpSpaceChanged SNS topic for change notifications, and notes
+        that programmatic consumers should verify TLS certificates when downloading
+        the file. The feed is structured for machine consumption: a syncToken (Unix
+        epoch) and createDate stamp enable delta checking against locally cached copies."
+      roles:
+      - role: maintainer
+        name: Amazon Web Services
+        organization_type: commercial
+        official_url: https://aws.amazon.com/
+        contact_email:
+        based_in: United States
+        active_since: '2014'
+        notes: Published the IP ranges JSON file in November 2014. Governed by the
+          AWS Intellectual Property License for accounts outside EMEA; Amazon Web
+          Services EMEA SARL for EMEA-based accounts.
+      derivation:
+        type: original
+        description: This feed is AWS's own authoritative record of IP address space
+          allocated to its infrastructure. It is not derived from any other IP feed.
+          AWS acquires address space through regional internet registries (RIRs) and
+          publishes the resulting allocations. No external threat intelligence, honeypot,
+          sandbox, or community reporting feeds into this data.
+        source_feeds: []
+      listing_policy:
+        summary: Not applicable. This is an authoritative provider context feed recording
+          AWS's own allocated IP space — it is not a threat intelligence list and
+          does not apply threat-based listing criteria.
+        criteria:
+        - This feed does not apply listing criteria — it is a complete enumeration
+          of AWS-allocated address space, not a blacklist
+      unlisting_policy:
+        summary: Not applicable. Entries represent AWS's current IP allocations and
+          are updated whenever AWS modifies its address space. There is no manual
+          unlisting mechanism.
+        criteria:
+        - Entries reflect AWS's live allocation state and update automatically with
+          infrastructure changes
+      unlist_request:
+      update_frequency:
+        frequency:
+        human_readable: 'Event-driven: the file is updated whenever AWS modifies its
+          IP address allocations. Subscribers can track changes via the AmazonIpSpaceChanged
+          SNS topic.'
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: "Authoritative provider allocation data: AWS publishes the IP
+          address space it has registered and allocated to its services and regions.
+          This is not detection-based; it is a direct enumeration of AWS's own address
+          holdings, maintained by AWS as infrastructure metadata."
+      scope_and_intent:
+        description: AWS publishes its IP address ranges so that customers can identify
+          traffic originating from or destined for AWS infrastructure, enabling egress
+          filtering and access-control decisions.
+        intended_for:
+        - 'Egress filtering: allowing or denying outbound traffic from AWS resources
+          to specific AWS services'
+        - 'Identifying traffic from AWS: determining whether incoming connections
+          originate from AWS infrastructure'
+        - Firewall and security-group configuration using AWS-allocated CIDR ranges
+        - Network routing and access-control list management
+        not_intended_for:
+        - "Threat intelligence or abuse indication: the feed lists AWS's own address
+          allocations, not malicious actors"
+        - Proof that an IP overlapping an AWS range is safe or malicious — overlap
+          is policy-dependent
+        - Critical infrastructure warnings
+      license: AWS Intellectual Property License
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: 'Restricted: the AWS Intellectual Property License prohibits sublicensing,
+          sale, relay, or redistribution of AWS Content to any third party. Modification
+          and creation of derivative works are also prohibited. Use is permitted solely
+          in connection with permitted use of AWS Services.'
+      current_status:
+        state: active
+        description: Active. AWS continues to publish and maintain the IP ranges JSON
+          file. The endpoint was recently validated (May 2026) and returns current
+          allocation data. Updates occur event-driven on infrastructure changes.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: 'Wide adoption across the sysadmin, DevOps, and security engineering
+          communities. Third-party tooling is common: community-maintained converters
+          transform the JSON into firewall configs for nginx, iptables, nftables,
+          and UFW; filtering interfaces exist for selecting specific regions or services.
+          Community discussions on Reddit and developer forums confirm routine use
+          for egress filtering, bot detection, and identifying cloud-hosted services.
+          No notable complaints about data quality or reliability were identified
+          in community discussion.'
+      sources_consulted:
+      - url: https://docs.aws.amazon.com/vpc/latest/userguide/aws-ip-ranges.html
+        document_date:
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: https://ip-ranges.amazonaws.com/ip-ranges.json
+        document_date: '2026-05-20'
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: https://aws.amazon.com/legal/aws-ip-license-terms/
+        document_date: '2025-10-27'
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: https://aws.amazon.com/service-terms/
+        document_date:
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: https://aws.amazon.com/aup
+        document_date:
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: https://aws.amazon.com/blogs/aws/aws-ip-ranges-json/
+        document_date: '2014-11-24'
+        validation_date: '2026-05-21T14:00:00Z'

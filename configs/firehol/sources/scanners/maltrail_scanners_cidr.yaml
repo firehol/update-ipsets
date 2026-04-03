@@ -1,0 +1,219 @@
+sources:
+  maltrail_scanners_cidr:
+    license: MIT License
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/stamparm/maltrail/master/trails/static/mass_scanner_cidr.txt
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MalTrail](https://github.com/stamparm/maltrail) mass-Internet scanners
+      aggregated to /24 networks — derived from the scanner IP list by rounding each
+      scanner to its nearest /24 to reduce firewall rule count. Includes legitimate
+      research scanners from Rapid7 Labs, Censys, Cortex Xpanse, BinaryEdge, Shodan,
+      ltx71, and others. Informational catalog of scanning infrastructure.'
+    maintainer: stamparm
+    maintainer_url: https://github.com/stamparm/maltrail
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T19:53:06+00:00'
+      official_name: Mass Scanner CIDR
+      official_url: https://github.com/stamparm/maltrail/
+      short_description: Aggregated /24 network blocks of known benign mass-Internet
+        scanning infrastructure, compiled from multiple coordinated scanning projects,
+        formatted for efficient firewall rule creation.
+      long_description: "Maltrail is a malicious traffic detection system that maintains
+        a collection of static threat intelligence trails covering domains, URLs,
+        IP addresses, and HTTP User-Agent strings. The mass_scanner_cidr.txt feed
+        is a derived companion file to the individual-IP mass_scanner.txt list: it
+        rounds each listed scanner IP to its nearest /24 network boundary, producing
+        CIDR blocks that represent the same scanning infrastructure at lower granularity.\n\
+        \nPer the file header, the feed draws from the parent mass_scanner.txt registry,
+        which aggregates IP ranges belonging to coordinated Internet-wide scanning
+        projects. Identified sources include Shodan (censys.shodan.io), Rapid7 Project
+        Sonar (scanners.labs.rapid7.com), Censys (censys.io), BinaryEdge (binaryedge.ninja),
+        ShadowServer (scan-*.shadowserver.org), Cortex Xpanse, RiskIQ, LeakIX, Kudelski
+        Security, NYU Osiris Lab, and others. Each CIDR entry carries an inline comment
+        annotating the scanner hostname or organization responsible for that /24 block.\n\
+        \nThe feed is intended as an informational reference for operators who wish
+        to identify or selectively exclude legitimate scanning traffic from their
+        alerting pipelines. Because /24 aggregation reduces the number of firewall
+        rules required compared to individual-IP listing, the feed is also suited
+        for bulk policy enforcement at the network perimeter. Operators should note
+        that /24 aggregation may encompass adjacent tenant IPs within shared hosting
+        or cloud environments; the maintainer does not provide per-tenant disaggregation
+        guidance."
+      roles:
+      - role: maintainer
+        name: Miroslav Stampar (@stamparm)
+        organization_type: individual
+        official_url: https://github.com/stamparm
+        contact_email:
+        based_in:
+        active_since: '2014'
+        notes: Primary author and lead developer of the Maltrail project. Created
+          the repository on December 4, 2014. Maintains the trail definitions, including
+          the mass_scanner and mass_scanner_cidr feeds.
+      - role: maintainer
+        name: Mikhail Kasimov (@MikhailKasimov)
+        organization_type: individual
+        official_url: https://github.com/MikhailKasimov
+        contact_email:
+        based_in:
+        active_since: '2014'
+        notes: Co-maintainer of the Maltrail project, credited in the README and copyright
+          notices alongside @stamparm.
+      derivation:
+        type: derivative
+        description: The feed is produced by taking every IP address listed in the
+          parent mass_scanner.txt file and rounding each to its nearest /24 network
+          boundary. The resulting CIDR blocks cover the same scanning infrastructure
+          as the individual-IP parent feed but at reduced granularity. The parent
+          mass_scanner.txt feed aggregates IPs from multiple coordinated Internet
+          scanning projects, annotated with scanner hostnames in inline comments.
+          The CIDR feed inherits those annotations at the /24 level. No additional
+          scoring, weighting, or threshold filtering is applied during the /24 conversion
+          step.
+        source_feeds: []
+      listing_policy:
+        summary: Entries enter the feed when their originating IP appears in the parent
+          mass_scanner.txt list. That parent list is populated by aggregating IPs
+          observed by coordinated Internet-wide scanning projects — organizations
+          that conduct systematic, consented surveys of global address space. Each
+          scanner IP retained in mass_scanner.txt is annotated with the responsible
+          scanning service hostname in an inline comment. The CIDR feed converts these
+          individual IPs to /24 blocks without altering the source attribution.
+        criteria:
+        - The IP belongs to a coordinated Internet-wide scanning project that systematically
+          surveys public address space
+        - The scanning project is identified by hostname annotation in the parent
+          mass_scanner.txt entry
+        - The IP is converted to its /24 network boundary for the CIDR feed
+      unlisting_policy:
+        summary: 'The maintainer does not publish a documented auto-decay mechanism
+          or automatic expiration window for this feed. Removals from the parent mass_scanner.txt
+          are handled through a community-driven GitHub issue workflow: a party submits
+          evidence (ownership records, VirusTotal links, or a description of legitimate
+          use) via a GitHub issue on the Maltrail repository, and upon verification
+          the maintainer commits a corresponding entry to misc/whitelist.txt with
+          the issue reference tagged. The CIDR feed reflects removals from the parent
+          list.'
+        criteria:
+        - Submit a GitHub issue on the Maltrail repository with evidence supporting
+          removal
+        - Maintainer reviews and, if approved, adds the entry to misc/whitelist.txt
+          with the issue reference
+        - Entry propagates to all Maltrail installations on the next trail update
+          cycle
+      unlist_request:
+        url: https://github.com/stamparm/maltrail/issues/new
+        email:
+        instructions: Open a GitHub issue on the Maltrail repository. Provide evidence
+          such as VirusTotal links, ownership documentation, or a description of the
+          legitimate scanning activity. Reference the specific scanner service or
+          IP range. Upon maintainer approval, the entry is added to misc/whitelist.txt
+          with the issue number tagged and propagates on the next trail update.
+      update_frequency:
+        frequency: 1d
+        human_readable: The Maltrail trail update cycle runs daily by default (UPDATE_PERIOD=86400
+          seconds), per the maintainer's maltrail.conf. The CIDR feed is regenerated
+          from the parent mass_scanner.txt on each update cycle; it has no independent
+          update cadence.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: The feed classifies scanning infrastructure by aggregating known-good
+          scanning sources rather than detecting malicious behavior. Each /24 block
+          represents IP space allocated to a coordinated Internet-wide scanning project.
+          The maintainer does not operate the scanning sensors; the sources are independent
+          organizations that publish their own methodology. The feed's contribution
+          is the assembly, /24 normalization, and annotation of these known-safe scanning
+          prefixes into a single reference list.
+      scope_and_intent:
+        description: The feed catalogs the IP infrastructure used by coordinated,
+          legitimate Internet-wide scanning projects. Its intended use is to identify
+          or selectively exclude known-good scanning traffic from Maltrail's alerting
+          pipeline, and to enable efficient bulk firewall policy at the /24 level.
+        intended_for:
+        - Identifying known-benign mass-Internet scanning traffic in network monitoring
+          pipelines
+        - Selective exclusion of scanning infrastructure from alert triage
+        - Bulk /24-level firewall policy creation using ipset or iptables
+        - Reference inventory of coordinated scanning project address space
+        not_intended_for:
+        - Precise per-IP blocking of scanning infrastructure (use mass_scanner.txt
+          for individual IPs)
+        - Detection of malicious scanning activity (the feed lists benign infrastructure,
+          not attackers)
+        - Real-time threat indicator use (the feed is a static reference list, not
+          an incident feed)
+      license: MIT License
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit 'Maltrail developers' and include the MIT copyright
+          notice
+        terms: The MIT license permits use, modification, merging, publication, distribution,
+          sublicensing, and sale of copies, provided the copyright notice and permission
+          notice are included in all copies or substantial portions of the Software.
+      current_status:
+        state: active
+        description: The project is actively maintained. The copyright header on the
+          feed file extends to 2026, the GitHub repository received a push on 2026-05-18,
+          and the project README documents current configuration options and active
+          development. No discontinuation, merger, or scope-change announcement has
+          been issued by the maintainer.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "Community discussion about this specific feed is sparse. Broader
+          Maltrail false-positive reports filed as GitHub issues show a recurring
+          theme: heuristic over-sensitivity in scanner detection, where legitimate
+          monitoring tools (such as Uptime Kuma) trigger the 'potential port scanning'
+          heuristic. The maintainer directs affected users to the USER_WHITELIST configuration
+          option. Several domain false-positive complaints have been successfully
+          resolved through the GitHub issue workflow, with entries committed to misc/whitelist.txt.
+          No notable public criticism specifically targeting the mass_scanner_cidr.txt
+          feed was found."
+        engagement: Public community discussion about the Maltrail project is sparse
+          on Reddit and general security forums — no Reddit posts specifically mentioning
+          Maltrail were found despite broad searching. Discussion occurs primarily
+          through the GitHub issue tracker, where users report false positives, request
+          enhancements, and receive responses from the maintainers. The project has
+          been covered by industry press including Help Net Security. Derivative projects
+          exist as forks on GitHub, including a Pi-hole blocklist derived from maltrail
+          trails and a fork with vulnerability and exposure (V&E) support.
+      sources_consulted:
+      - url: https://github.com/stamparm/maltrail
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: 
+          https://raw.githubusercontent.com/stamparm/maltrail/master/trails/static/mass_scanner_cidr.txt
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: 
+          https://raw.githubusercontent.com/stamparm/maltrail/master/trails/static/mass_scanner.txt
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://raw.githubusercontent.com/stamparm/maltrail/master/LICENSE
+        document_date: '2026-01-01'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://api.github.com/repos/stamparm/maltrail/contents/trails/static
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://raw.githubusercontent.com/stamparm/maltrail/master/misc/whitelist.txt
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/stamparm/maltrail/issues/19359
+        document_date: '2025-10-20'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/stamparm/maltrail/pull/19548
+        document_date: '2026-05-02'
+        validation_date: '2026-05-18T00:00:00+00:00'

@@ -1,0 +1,218 @@
+sources:
+  fullbogons:
+    label: Team Cymru fullbogons
+    license: Free — no restrictions stated on https://www.team-cymru.com/bogon-reference-http
+      ("Free. Forever.")
+    url: https://team-cymru.org/Services/Bogons/fullbogons-ipv4.txt
+    frequency: 240
+    ipv: ipv4
+    output: netset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: special_use
+    info: '[Team-Cymru.org](http://www.team-cymru.org) IP space that has been allocated
+      to an RIR, but not assigned by that RIR to an actual ISP or other end-user'
+    maintainer: Team Cymru
+    maintainer_url: https://www.team-cymru.com
+    enabled_by_all: true
+    exclude_from_unmaintained: true
+    use: [bogons]
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T03:13:35Z'
+      official_name: IPv4 Fullbogons
+      official_url: https://www.team-cymru.com/bogon-reference-http
+      short_description: IPv4 prefixes that have been allocated to a Regional Internet
+        Registry but not yet assigned to an end-user, plus traditional bogon space
+        (RFC1918 private addresses, RFC6598 shared address space), for border router
+        ingress filtering.
+      long_description: "The IPv4 Fullbogons list is compiled and maintained by Team
+        Cymru. Unlike a traditional bogons list — which covers only reserved and never-allocated
+        space — this feed additionally tracks prefixes that have been allocated to
+        a Regional Internet Registry (RIR) but not yet assigned by that RIR to an
+        ISP or other end-user. The maintainer derives the list by monitoring IANA
+        IPv4 allocation data and RIR assignment records; prefixes enter the feed upon
+        RIR allocation and exit upon end-user assignment. Per the maintainer's bogon
+        reference page, the feed is updated every four hours.\n\nThe maintainer explicitly
+        cautions that this is not a simple filter. Fullbogons can encompass tens of
+        thousands of prefixes and changes frequently as RIRs make new allocations.
+        Improperly applied, these filters can block legitimate traffic. The maintainer
+        specifically calls out RFC 6598 Carrier-Grade NAT shared address space as
+        requiring explicit attention before filtering, and advises rigorous testing
+        before any deployment. The feed is distributed as plain-text CIDR notation
+        via HTTP and is also available via BGP route-server peering and DNS blackhole-style
+        queries as alternative delivery mechanisms."
+      roles:
+      - role: maintainer
+        name: Team Cymru
+        organization_type: commercial
+        official_url: https://www.team-cymru.com
+        contact_email: support@cymru.com
+        based_in: United States
+        active_since:
+        notes: Cybersecurity and threat intelligence company offering Pure Signal
+          reconnaissance products, IP reputation feeds, and community bogon reference
+          services. Maintains the bogon reference feeds as a free community service
+          alongside commercial intelligence products.
+      derivation:
+        type: original
+        description: The feed is compiled by Team Cymru from IANA IPv4 allocation
+          data and RIR assignment records. Prefixes are listed when allocated to an
+          RIR and removed when assigned by the RIR to an end-user. The maintainer
+          does not consume other IP feeds as inputs; the list is produced by tracking
+          registry allocation status changes. Data is also available via BGP route-server
+          peering (AS 65332) and DNS blackhole-style queries as alternative delivery
+          mechanisms.
+        source_feeds: []
+      listing_policy:
+        summary: 'An IPv4 prefix enters the fullbogons list when it has been allocated
+          to a Regional Internet Registry (RIR) by IANA but has not yet been assigned
+          by that RIR to an ISP or other end-user. Also listed are traditional bogon
+          prefixes: RFC 1918 private address space, RFC 5735 reserved space, RFC 6598
+          Carrier-Grade NAT shared address space, loopback, link-local, and multicast
+          ranges. Once a prefix is assigned by the RIR to an end-user, it exits the
+          list.'
+        criteria:
+        - Allocated to an RIR by IANA but not yet assigned by the RIR to an end-user
+        - RFC 1918 private address space
+        - RFC 5735 reserved and special-use IPv4 addresses
+        - RFC 6598 Carrier-Grade NAT shared address space
+        - Loopback, link-local, and multicast ranges
+      unlisting_policy:
+        summary: A prefix leaves the fullbogons list automatically when it is assigned
+          by its RIR to an end-user. There is no manual review process; the list is
+          driven by registry allocation status. Because the feed tracks allocation
+          state rather than threat activity, false-positive reports against legitimate
+          IPs are outside the feed's scope.
+        criteria:
+        - Automatic removal upon RIR-to-end-user assignment
+        - No manual delisting request process for this feed
+      unlist_request:
+        url:
+        email:
+        instructions: The bogon list is not a blocklist for malicious IPs and does
+          not have a traditional unlisting process. Per the maintainer's blacklist
+          page, if an IP appears on the list it is because that IP is unregistered
+          for public internet use—not because it is associated with malicious activity.
+          If you believe your network is incorrectly filtering bogon space, the maintainer
+          advises contacting your own network administrator to reconsider the use
+          of bogon filters. There is no mechanism to petition removal of a legitimately
+          allocated prefix from the fullbogons list.
+      update_frequency:
+        frequency: 4h
+        human_readable: Updated every four hours, per the maintainer's bogon reference
+          page
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: 'The feed is produced by tracking the allocation status of IPv4
+          address space at IANA and the five Regional Internet Registries (AFRINIC,
+          APNIC, ARIN, LACNIC, RIPE NCC). A prefix is listed when IANA allocates it
+          to an RIR and removed when the RIR assigns it to an end-user. This is a
+          registry-policy tracking feed, not a threat-detection feed: it identifies
+          prefixes that are not yet registered for public internet use, regardless
+          of whether any malicious activity is associated with them.'
+      scope_and_intent:
+        description: The fullbogons list is a network-operations reference feed for
+          identifying IPv4 address space that should not appear in the public internet
+          routing table. Its primary intended use is border router ingress filtering
+          to reduce noise and improve routing integrity.
+        intended_for:
+        - Border router ingress filtering to block anomalous or unroutable source
+          addresses
+        - Identifying illegitimate source IPs in network traffic logs
+        - Network telemetry enrichment for security analytics
+        not_intended_for:
+        - Blocking IPs associated with malicious activity (this is not a threat-intelligence
+          blocklist)
+        - Firewall blocklists without thorough testing and understanding of network
+          topology
+        - Filtering without accounting for RFC 6598 Carrier-Grade NAT shared address
+          space
+        - Static deployment without regular filter updates
+      license: Public, no stated license
+      redistribution:
+        allowed:
+        commercial_use_allowed:
+        attribution_required:
+        terms:
+      current_status:
+        state: active
+        description: Active community service maintained by Team Cymru as of May 2026.
+          Updated every four hours per the maintainer's bogon reference page.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Network operators have documented false-positive incidents when
+          deploying fullbogons filters without accounting for RFC 6598 Carrier-Grade
+          NAT shared address space. A documented case involved an operator whose ISP
+          used Carrier-Grade NAT without consistently applying Source NAT for on-net
+          traffic, causing legitimate ISP customers to appear as bogon sources and
+          be blocked. Community responses traced the root cause to inconsistent ISP
+          SNAT behavior rather than the feed itself. Another documented case involved
+          a major web application's newly allocated IP range triggering fullbogons
+          filters when the local ISP received a new RIR allocation and began assigning
+          those addresses to customers mid-deployment. Firewall products including
+          pfSense have shipped bugs conflating RFC 6598 shared address space with
+          RFC 1918 private space, hardening the false-positive condition. Team Cymru's
+          own documentation explicitly warns about RFC 6598 and advises rigorous pre-deployment
+          testing, which the community cites as the correct mitigation.
+        engagement: Multiple open-source projects consume the fullbogons HTTP feed
+          programmatically, including container images generating BIRD routing daemon
+          configurations, Docker images populating Linux ipsets, Python async libraries
+          for IP/ASN checks, Arista EOS filters, and nftables ruleset generators.
+          Public community discussion is moderate; the feed is referenced in network-operator
+          forums (Reddit r/networking, Netgate/pfSense forum, OPNsense forum) primarily
+          around false-positive troubleshooting rather than routine operational use.
+      sources_consulted:
+      - url: https://www.team-cymru.com/bogon-reference-http
+        document_date:
+        validation_date: '2026-05-19T02:40:00Z'
+      - url: https://team-cymru.org/Services/Bogons/fullbogons-ipv4.txt
+        document_date: '2026-05-19'
+        validation_date: '2026-05-19T02:40:00Z'
+      - url: https://team-cymru.com/bogon-networks/
+        document_date:
+        validation_date: '2026-05-19T02:45:00Z'
+      - url: https://www.team-cymru.com/blacklist
+        document_date:
+        validation_date: '2026-05-19T02:50:00Z'
+      - url: https://www.team-cymru.com/terms
+        document_date:
+        validation_date: '2026-05-19T02:48:00Z'
+      - url: 
+          https://www.team-cymru.com/post/unravelling-the-mystery-of-bogons-a-senior-stakeholder-and-it-professional-guide
+        document_date:
+        validation_date: '2026-05-19T02:50:00Z'
+      - url: https://github.com/team-cymru
+        document_date:
+        validation_date: '2026-05-19T02:52:00Z'
+      - url: 
+          https://www.reddit.com/r/networking/comments/1hw4evk/packages_coming_from_100600010_to_my_wan/
+        document_date: 2025-01
+        validation_date: '2026-05-19T02:47:00Z'
+      - url: 
+          https://www.reddit.com/r/networking/comments/s1fctn/does_anyone_use_team_cymru_for_bogon_updates/
+        document_date: 2022-01
+        validation_date: '2026-05-19T02:47:00Z'
+      - url: https://forum.netgate.com/topic/79351/bug-bogon-network-vs-filter-inc-rfc6598
+        document_date: 2015-02
+        validation_date: '2026-05-19T02:47:00Z'
+      - url: 
+          https://www.businesswire.com/news/home/20260114234857/en/Team-Cymru-and-OpenCTI-Partner-to-Supercharge-Threat-Intelligence-With-Global-Visibility
+        document_date: '2026-01-14'
+        validation_date: '2026-05-19T02:53:00Z'
+      - url: https://splunkbase.splunk.com/app/7789
+        document_date:
+        validation_date: '2026-05-19T02:54:00Z'
+      - url: https://github.com/team-cymru/opencti-connectors
+        document_date:
+        validation_date: '2026-05-19T02:53:00Z'
+      - url: https://github.com/team-cymru/scout-splunk
+        document_date:
+        validation_date: '2026-05-19T02:54:00Z'
+      - url: https://www.caida.org/catalog/datasets/bogons/
+        document_date:
+        validation_date: '2026-05-19T02:49:00Z'

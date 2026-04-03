@@ -1,0 +1,167 @@
+sources:
+  cleanmx_viruses:
+    license: public feed
+    redistributable: true
+    url: http://support.clean-mx.de/clean-mx/xmlviruses.php?response=alive&fields=ip
+    frequency: 30
+    ipv: ipv4
+    output: ipset
+    processor:
+    - xml_tag:
+        tag: ip
+    processor_raw: parse_xml_clean_mx
+    category: messaging_abuse
+    info: '[Clean-MX.de](http://support.clean-mx.de/clean-mx/viruses.php) IPs with
+      viruses'
+    maintainer: Clean-MX.de
+    maintainer_url: http://support.clean-mx.de/clean-mx/viruses.php
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T02:19:54Z'
+      official_name: Clean-MX Virus Database
+      official_url: http://support.clean-mx.com/clean-mx/viruses.php
+      short_description: IP addresses hosting verified malware distribution URLs,
+        identified through passive monitoring of malware distribution infrastructure.
+      long_description: "The Clean-MX Virus Database is operated by net4sec UG (haftungsbeschränkt),
+        a German threat intelligence service that has monitored malware distribution
+        infrastructure since February 2006. The feed tracks IP addresses hosting malware
+        executables and drive-by download locations by passively observing changes
+        in malware URL distributions over time — a methodology the maintainer describes
+        as 'VirusWatch.' Each entry links an IP address to associated malware family
+        names (such as worm.win32.autoit), country codes, ASN information, and abuse-contact
+        emails harvested from WHOIS records.\n\nPer the maintainer's public notice,
+        the service suffered sustained DDoS amplification attacks exceeding 200 Gbit/s
+        bandwidth consumption, which led to discontinuation of the mailing list and
+        proactive alert emails to abuse desks. Public unauthenticated access was subsequently
+        revoked; the feed now requires a registered HTTP User-Agent string identifying
+        the requester. Integrations through IntelMQ and AbuseIO continue to consume
+        the feed using approved User-Agent configurations.\n\nThe maintainer does
+        not publish a formal retention window or expiry policy for individual listings.
+        Entries flagged with the response=alive parameter represent IPs that have
+        passed periodic re-verification checks."
+      roles:
+      - role: maintainer
+        name: net4sec UG (haftungsbeschränkt)
+        organization_type: commercial
+        official_url: http://www.net4sec.com
+        contact_email: abuse@clean-mx.de
+        based_in: Germany
+        active_since: '2006'
+        notes: 'Gerhard W. Recher is the CTO. Registered at HRB 27139, Augsburg, Germany.
+          VAT/EG-Identnr: DE283762194.'
+      derivation:
+        type: original
+        description: The feed is built from the maintainer's own passive monitoring
+          infrastructure. The system continuously observes malware URL distributions
+          and records address changes over time, cross-referencing entries against
+          SURBL and browser blocklist data. Each entry is enriched with geolocation
+          (country code), ASN assignment, and WHOIS-derived abuse-contact email. Entries
+          flagged with the response=alive parameter have passed periodic re-verification
+          checks. The feed does not consume other public IP feeds as inputs.
+        source_feeds: []
+      listing_policy:
+        summary: An IP address is listed when the maintainer's passive monitoring
+          infrastructure detects it hosting a malware executable URL. The maintainer
+          periodically re-verifies listed IPs using an alive-check query parameter;
+          IPs that fail re-verification are excluded from responses filtered by response=alive.
+        criteria:
+        - Hosting a malware executable URL confirmed by passive observation
+        - Periodic re-verification passes (for response=alive filtered output)
+      unlisting_policy:
+        summary: 'The maintainer does not publish a formal written unlisting policy.
+          Listings appear to decay implicitly through the periodic re-verification
+          mechanism: IPs that no longer respond to alive checks are excluded from
+          response=alive-filtered output. Manual unlisting requests can be submitted
+          via email to the maintainer.'
+        criteria:
+        - Failure to respond to periodic re-verification checks (implicit decay via
+          response=alive filter)
+        - Manual removal via email to the maintainer (process not publicly documented)
+      unlist_request:
+        url:
+        email: abuse@clean-mx.de
+        instructions: Submit an unlisting request by email to abuse@clean-mx.de. The
+          maintainer does not publish a self-service portal or documented removal
+          process on their website.
+      update_frequency:
+        frequency: 1d
+        human_readable: Daily polling is recommended, per IntelMQ's documented rate
+          limit of 86400 seconds for the CleanMX collector bot.
+      detection_classification:
+        primary_method: mixed
+        secondary_methods: []
+        description: The feed is produced through passive monitoring of malware URL
+          distributions. The maintainer's VirusWatch infrastructure observes changes
+          in malware URL hosting patterns over time, cross-referencing entries against
+          SURBL and browser blocklists. Entries are enriched with geolocation, ASN,
+          and WHOIS-derived abuse contacts. No active probing or honeypot methodology
+          is described.
+      scope_and_intent:
+        description: The feed is designed to identify IP addresses involved in malware
+          distribution, particularly hosting infrastructure for malware executables
+          and drive-by download locations.
+        intended_for:
+        - Malware infection detection and alerting
+        - Enrichment of security events with malware-hosting infrastructure context
+        - DNSBL-style blocking at the IP layer for malware distribution
+        not_intended_for:
+        - General perimeter blocking (caution advised due to collateral damage risk
+          from shared hosting IPs)
+        - Phishing detection (a separate phishing feed is maintained)
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: No redistribution terms are stated by the direct upstream. The feed
+          is publicly downloadable via HTTP without authentication.
+      current_status:
+        state: altered_scope
+        description: The feed remains operational but with significantly altered access
+          conditions. Following sustained DDoS amplification attacks exceeding 200
+          Gbit/s, the maintainer discontinued the mailing list and proactive alert
+          emails, and revoked public unauthenticated access. The feed now requires
+          a registered HTTP User-Agent string. Last recorded activity on the viruses
+          page is December 10, 2023. The maintainer site is reachable and discussing
+          the feed.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: A documented false positive case from 2017 shows a GitHub IP address
+          listed in the cleanmx_viruses feed, which propagated into aggregated blocklists
+          and caused users to be blocked from GitHub. The issue remained open at time
+          of research with no resolution from downstream aggregators, who explained
+          they do not selectively filter individual entries from third-party feeds.
+          No public delisting or false-positive removal process is documented by the
+          maintainer.
+        engagement: Public community discussion about CleanMX is sparse. No Reddit
+          posts, security mailing list threads, or third-party blog posts referencing
+          the feed were found during research. The AbuseIO parser received a minor
+          update in November 2025, indicating continued integration maintenance. The
+          IntelMQ parser has been maintained continuously since 2015, receiving datetime-compatibility
+          updates as recently as 2025.
+      sources_consulted:
+      - url: 
+          https://github.com/certtools/intelmq-feeds-documentation/blob/master/CleanMX.de/Malware.md
+        document_date:
+        validation_date: '2026-05-18T02:19:54Z'
+      - url: https://github.com/AbuseIO/parser-cleanmx/blob/master/config/Cleanmx.php
+        document_date:
+        validation_date: '2026-05-18T02:19:54Z'
+      - url: https://support.clean-mx.com/clean-mx/viruses.php
+        document_date: '2023-12-10'
+        validation_date: '2026-05-18T02:19:54Z'
+      - url: https://docs.intelmq.org/3.5.0/user/feeds/
+        document_date: '2018-01-20'
+        validation_date: '2026-05-18T02:19:54Z'
+      - url: https://support.clean-mx.com/clean-mx/public.php
+        document_date:
+        validation_date: '2026-05-18T02:19:54Z'
+      - url: https://github.com/AbuseIO/parser-cleanmx
+        document_date:
+        validation_date: '2026-05-18T02:19:54Z'
+      - url: http://www.tor-relays@lists.torproject.org/msg17907.html
+        document_date:
+        validation_date: '2026-05-18T02:19:54Z'

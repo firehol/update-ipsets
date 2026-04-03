@@ -1,0 +1,164 @@
+sources:
+  iblocklist_spider:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=mcvxsnihddgutbjfbghy&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: scanners
+    provenance: secondary_upstream
+    info: IP list intended to be used by webmasters to block hostile spiders from
+      their web sites.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T19:23:53Z'
+      official_name: Bluetack - spider
+      official_url: https://www.iblocklist.com/list?list=mcvxsnihddgutbjfbghy
+      short_description: IP blocklist compiled by Bluetack and distributed via iBlocklist,
+        intended to block hostile web crawlers and scrapers from websites.
+      long_description: "The Bluetack spider blocklist is a community-curated IP list
+        distributed through the iBlocklist.com platform, targeting IPs associated
+        with hostile or abusive web crawling and scraping behavior. The list is authored
+        by Bluetack, a pseudonym associated with the historic PeerGuardian/P2P blocklist
+        ecosystem, and redistributed by iBlocklist, LLC as one of dozens of pre-built
+        blocklists in their catalog.\n\nThe list ships in multiple formats including
+        P2P DAT, CIDR, and gzip-compressed archives, compatible with PeerGuardian,
+        PeerBlock, pfBlocker, and other desktop firewall applications. The spider
+        list frequently co-appears in configurations alongside other Bluetack-authored
+        lists — notably the spyware, level1, and ads lists — suggesting a shared authorship
+        and compilation methodology across the Bluetack suite.\n\nThe maintainer does
+        not publish a documented detection methodology, listing criteria, or submission
+        process for this specific feed. The broader Bluetack ecosystem historically
+        relied on community-submitted reports of abusive crawler behavior and administrative
+        review of flagged IP ranges, but these practices are not confirmed for the
+        spider list specifically. No update cadence, retention window, or false-positive
+        handling procedure is documented on the iBlocklist.com site."
+      roles:
+      - role: maintainer
+        name: Bluetack
+        organization_type: informal_collective
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Bluetack is the original author of the spider blocklist. The identity
+          is a pseudonym; no named individuals are publicly credited. Bluetack is
+          historically associated with the PeerGuardian/P2P blocklist ecosystem. Community
+          reports indicate Bluetack as a maintainer has been inactive for years.
+      - role: publisher
+        name: iBlocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: iBlocklist, LLC operates the iblocklist.com platform and redistributes
+          the Bluetack spider list among dozens of other blocklists. The company also
+          offers a commercial VPN product (PhantomPeer). The ToS governing use of
+          the spider list is published by iBlocklist, LLC. Platform-wide community
+          criticism of iBlocklist (billing practices, support responsiveness, perceived
+          staleness of redistributed feeds in general) applies at the publisher level
+          rather than being specific to this spider list.
+      derivation:
+        type: original
+        description: The spider list originates from Bluetack's own compilation process.
+          The specific detection methodology is not publicly documented by Bluetack
+          or iBlocklist. The broader Bluetack blocklist ecosystem historically relied
+          on community-submitted reports of abusive crawler behavior and administrative
+          review of flagged IP ranges, but these practices are not confirmed for the
+          spider list specifically. The list is republished by iBlocklist, LLC without
+          modification to the feed contents.
+        source_feeds: []
+      listing_policy:
+        summary: The maintainer does not publish documented listing criteria for this
+          feed. The spider list page states only that the list is 'intended to be
+          used by webmasters to block hostile spiders,' without specifying what behavioral,
+          technical, or threshold conditions trigger an IP's addition.
+        criteria: []
+      unlisting_policy:
+        summary: The maintainer does not publish a documented unlisting policy or
+          automatic expiry mechanism for this feed. iBlocklist.com provides no removal
+          request form, no false-positive handling procedure, and no stated retention
+          window for the spider list.
+        criteria: []
+      unlist_request:
+        url:
+        email:
+        instructions: iBlocklist.com does not publish a dedicated unlisting channel
+          for the spider blocklist. The site's support page advertises a commercial
+          VPN product and does not offer a blocklist management or removal request
+          workflow. There is no documented path for a webmaster to request IP removal
+          through the platform.
+      update_frequency:
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods: []
+        description: The specific detection method for this feed is not publicly documented.
+          The broader Bluetack blocklist ecosystem historically relied on community-submitted
+          reports of abusive crawler behavior and administrative review of flagged
+          IP ranges, but these practices are not confirmed for the spider list specifically.
+          The spider list page offers no description of the detection pipeline.
+      scope_and_intent:
+        description: The spider list targets IPs associated with hostile or abusive
+          web crawling and scraping behavior, enabling webmasters to block automated
+          access that ignores robots.txt directives, scrapes site content, or exhibits
+          excessive request rates.
+        intended_for:
+        - blocking hostile web crawlers and scrapers from websites
+        not_intended_for: []
+      license: iBlocklist Terms of Service — personal use only; commercial use and
+        public display prohibited
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution of downloaded materials is not permitted without the
+          author's agreement, per the iBlocklist.com ToS. Commercial use and public
+          display (commercial or non-commercial) are explicitly prohibited.
+      current_status:
+        state: discontinued
+        description: The spider list is attributed to Bluetack, a pseudonym that community
+          reports indicate has been inactive for years. Subscribers on security forum
+          discussions have reported that Bluetack-authored lists are frozen and no
+          longer receiving updates. iBlocklist.com as a platform remains operational,
+          distributing the list in its last-compiled state, but the original author
+          has not issued updates to this feed.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: 'Feed-specific criticism focuses on the operator-impact of the
+          missing unlisting channel: webmasters who find their own crawler or syndicated
+          content blocked by this list — including legitimate search-engine crawlers
+          misclassified as hostile, or research/archive bots that respect robots.txt
+          — have no documented path to dispute or request removal through the platform.
+          Combined with reports that the underlying Bluetack lists are no longer receiving
+          meaningful updates, this means false-positive entries can persist indefinitely.'
+        engagement: Public community discussion about this specific spider feed is
+          minimal. The list appears in configuration guides alongside other Bluetack
+          lists, but generates little independent commentary. No dedicated issue tracker,
+          subreddit, or developer forum is associated with the feed.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/list?list=mcvxsnihddgutbjfbghy
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/support
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

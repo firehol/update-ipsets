@@ -1,0 +1,9 @@
+User-agent: *
+Disallow: /api/v1/search
+Disallow: /api/v1/query
+Disallow: /api/v1/compose
+Disallow: /api/v1/client-ip
+Disallow: /api/v1/sets/*/search
+Disallow: /api/v1/ipsets/*/search
+Allow: /
+Sitemap: https://iplists.firehol.org/sitemap.xml

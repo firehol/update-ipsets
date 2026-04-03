@@ -1,0 +1,184 @@
+sources:
+  critical_soft_aws_cloudfront:
+    license: AWS Intellectual Property License
+    redistributable: false
+    label: AWS CloudFront edge ranges
+    url: https://d7uri8nf7uskq.cloudfront.net/tools/list-cloudfront-ips
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - json_paths:
+        paths: "$.CLOUDFRONT_GLOBAL_IP_LIST[*],$.CLOUDFRONT_REGIONAL_EDGE_IP_LIST[*]"
+    - filter_all4
+    processor_raw: json_paths
+    category: provider_infrastructure
+    provenance: primary
+    info: AWS-published CloudFront IPv4 edge ranges. Reference feed, not a threat
+      indicator.
+    maintainer: Amazon Web Services
+    maintainer_url: 
+      https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/LocationsOfEdgeServers.html
+    enabled_by_all: true
+    use: [critical_infrastructure]
+    critical:
+      tier: soft
+      role: cdn_edge
+      source_type: authoritative_provider_json
+      source_quality: A
+      rationale: CloudFront fronts software distribution, package registries, APIs,
+        media, and many high-dependency services; overlap should be reviewed before
+        operational blocking.
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T09:22:45Z'
+      official_name: AWS CloudFront Edge IP Addresses
+      official_url: 
+        https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/LocationsOfEdgeServers.html
+      short_description: AWS-published IPv4 CIDR ranges allocated to CloudFront edge
+        servers, published as a public JSON file and maintained as an always-current
+        managed prefix list.
+      long_description: "AWS publishes the IP address ranges allocated to its CloudFront
+        CDN edge servers as a public JSON file. The data covers all globally distributed
+        origin-facing servers that CloudFront uses to deliver traffic to and from
+        customer origins. Entries are organized into two lists: one for GLOBAL edge
+        nodes (serving international content) and one for REGIONAL edge nodes (serving
+        content cached in specific AWS regions). The data is published in CIDR notation
+        and made available through a convenience endpoint at d7uri8nf7uskq.cloudfront.net,
+        which filters the full AWS ip-ranges.json file to CloudFront entries only.\n\
+        \nAWS maintains the data dynamically — changes are pushed whenever IP allocations
+        change, with no fixed schedule. Practitioners detect changes by comparing
+        the file's publication timestamp against a saved copy. AWS provides an SNS
+        topic (AmazonIpSpaceChanged) for optional change notifications, and offers
+        two managed prefix lists — com.amazonaws.global.cloudfront.origin-facing (IPv4)
+        and com.amazonaws.global.ipv6.cloudfront.origin-facing (IPv6) — that AWS updates
+        automatically without manual intervention. AWS officially supports referencing
+        these prefix lists directly in VPC security group rules and AWS WAF IP sets.\n\
+        \nThe feed is a reference or infrastructure feed, not a threat indicator feed.
+        AWS explicitly supports using the ranges to allow inbound traffic from CloudFront
+        to origins and to configure egress allowlists. Blocking CloudFront IPs is
+        counterproductive for services that depend on the CDN."
+      roles:
+      - role: maintainer
+        name: Amazon Web Services, Inc.
+        organization_type: commercial
+        official_url: https://aws.amazon.com/
+        contact_email:
+        based_in: United States
+        active_since: '2008'
+        notes: AWS, Inc. operates CloudFront and publishes the IP ranges as AWS Content
+          under the AWS Intellectual Property License. For EMEA-based accounts, the
+          licensor is Amazon Web Services EMEA SARL.
+      derivation:
+        type: original
+        description: 'The feed is published directly by AWS as authoritative JSON.
+          AWS allocates IP address ranges to CloudFront as part of its CDN infrastructure
+          and publishes the resulting ranges without transformation. The convenience
+          endpoint at d7uri8nf7uskq.cloudfront.net filters the full AWS ip-ranges.json
+          file to CloudFront entries only (matching "service": "CLOUDFRONT"), producing
+          the two-array JSON structure used by this feed. No third-party feeds, sensors,
+          or external APIs contribute to the dataset.'
+        source_feeds: []
+      listing_policy:
+        summary: Entries represent IP address ranges that AWS has allocated to CloudFront
+          for CDN operations. There is no threat-based listing criterion — an IP appears
+          on the list because AWS uses it for CloudFront, not because it has been
+          observed engaging in malicious activity. Removing an IP from the list occurs
+          when AWS decommissions or reallocates the range.
+        criteria:
+        - AWS has allocated the IP range to CloudFront for CDN edge server operations
+        - The IP range is in active use by CloudFront's globally distributed edge
+          network
+      unlisting_policy:
+        summary: Entries are removed when AWS decommissions or reallocates the corresponding
+          IP range from CloudFront. There is no manual unlisting mechanism — removals
+          are driven by AWS infrastructure decisions reflected in the published JSON.
+          Third parties cannot request additions or removals; the list reflects AWS's
+          own infrastructure topology.
+        criteria:
+        - AWS retires or reallocates the IP range from CloudFront CDN operations
+        - Changes propagate automatically through the published JSON file
+      unlist_request:
+      update_frequency:
+        frequency:
+        human_readable: Event-driven — the file is updated whenever AWS adds or removes
+          CloudFront IP allocations, with no fixed schedule. Practitioners detect
+          changes by comparing the file's publication timestamp against a saved copy,
+          or subscribe to the AmazonIpSpaceChanged SNS topic for change notifications.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: "The feed is produced by AWS's own infrastructure allocation
+          process — IPs are listed because AWS has assigned them to CloudFront, not
+          because they have been detected engaging in malicious activity. This is
+          a policy-assignment feed: entries reflect a deliberate administrative decision
+          by AWS to allocate a range to the CloudFront CDN. No honeypots, sandboxes,
+          sensors, or community reports contribute to this dataset."
+      scope_and_intent:
+        description: The feed identifies IP address ranges that AWS operates for its
+          CloudFront CDN. AWS officially supports using the ranges to allow inbound
+          HTTPS traffic from CloudFront to origins and to configure egress allowlists
+          in security groups and AWS WAF IP sets.
+        intended_for:
+        - Allowing inbound traffic from CloudFront to origin servers (ingress allowlisting)
+        - Configuring egress filtering to permit outbound traffic to CloudFront
+        - Populating AWS WAF IP sets with CloudFront origin-facing ranges
+        - Referencing in VPC security group rules via AWS managed prefix lists
+        not_intended_for:
+        - Blocking or blacklisting CloudFront IPs — doing so prevents legitimate traffic
+          from any customer using CloudFront
+        - Threat detection or abuse list correlation — the feed identifies CDN infrastructure,
+          not malicious actors
+      license: AWS Intellectual Property License
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms: The AWS Intellectual Property License prohibits modifying, distributing,
+          altering, tampering with, repairing, or creating derivative works of AWS
+          Content, and prohibits sublicensing AWS Content. Copying and use are permitted
+          solely in connection with permitted use of AWS Services. These restrictions
+          survive termination of the license.
+      current_status:
+        state: active
+        description: Active — AWS continues to publish CloudFront IP ranges and maintains
+          the managed prefix lists as always-current. The convenience endpoint at
+          d7uri8nf7uskq.cloudfront.net remains accessible. AWS last updated the Intellectual
+          Property License in October 2025.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion is active among AWS practitioners. On Reddit,
+          a community member (seligman99) maintains a historical archive of AWS ip-ranges.json
+          on GitHub, with periodic milestone posts tracking the file's growth. AWS
+          publishes an official Lambda automation tool (aws-samples/update-aws-ip-ranges
+          on GitHub) for automatically updating security groups and WAF IP sets from
+          the file. The feed is referenced in security group configuration guides,
+          Terraform modules, and AWS WAF setup tutorials across the community. No
+          notable third-party complaints about the feed itself were found.
+      sources_consulted:
+      - url: 
+          https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/LocationsOfEdgeServers.html
+        document_date:
+        validation_date: '2026-05-21T09:22:45Z'
+      - url: https://d7uri8nf7uskq.cloudfront.net/tools/list-cloudfront-ips
+        document_date:
+        validation_date: '2026-05-21T09:22:45Z'
+      - url: https://aws.amazon.com/legal/aws-ip-license-terms/
+        document_date: '2025-10-27'
+        validation_date: '2026-05-21T09:22:45Z'
+      - url: https://docs.aws.amazon.com/vpc/latest/userguide/aws-ip-ranges.html
+        document_date:
+        validation_date: '2026-05-21T09:22:45Z'
+      - url: 
+          https://aws.amazon.com/blogs/networking-and-content-delivery/limit-access-to-your-origins-using-the-aws-managed-prefix-list-for-amazon-cloudfront/
+        document_date:
+        validation_date: '2026-05-21T09:22:45Z'
+      - url: https://github.com/seligman/aws-ip-ranges
+        document_date:
+        validation_date: '2026-05-21T09:22:45Z'
+      - url: https://github.com/aws-samples/update-aws-ip-ranges
+        document_date:
+        validation_date: '2026-05-21T09:22:45Z'

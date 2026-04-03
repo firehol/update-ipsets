@@ -1,0 +1,9 @@
+artifacts:
+  dronebl:
+    type: dronebl_buildzone
+    frequency: 60
+    max_download_size: 268435456
+    info: '[DroneBL.org](https://dronebl.org) shared buildzone download used to derive the DroneBL family of IP feeds.'
+    maintainer: DroneBL.org
+    maintainer_url: https://dronebl.org
+    rsync_url: rsync://firehol@rsync.dronebl.org/dronebl/

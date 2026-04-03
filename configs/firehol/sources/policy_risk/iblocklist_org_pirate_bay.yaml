@@ -1,0 +1,164 @@
+sources:
+  iblocklist_org_pirate_bay:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=nzldzlpkgrcncdomnttb&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: The Pirate Bay IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T06:16:23Z'
+      official_name: The Pirate Bay
+      official_url: https://www.iblocklist.com/list.php?list=nzldzlpkgrcncdomnttb
+      short_description: A list of IP addresses associated with The Pirate Bay BitTorrent
+        tracker infrastructure, maintained by iBlocklist.com for use in peer-to-peer
+        privacy applications.
+      long_description: "This feed is published by iblocklist, LLC through their iBlocklist.com
+        subscription service. The list targets IP addresses associated with The Pirate
+        Bay BitTorrent tracker's server infrastructure, aiming to allow BitTorrent
+        users to filter connections to or from those addresses.\n\nPer the maintainer's
+        lists directory, the list falls under the 'Piracy Related' category authored
+        by Squidblacklist, with iBlocklist.com acting as the distribution intermediary.
+        The feed is distributed in standard blocklist formats including P2P (.p2p.gz),
+        DAT, and CIDR/netset, compatible with PeerBlock, PeerGuardian, iplist, Vuze,
+        uTorrent, Tixati, and pfBlocker.\n\nAcademic research from the University
+        of Birmingham (presented at SecureComm 2012) studied the effectiveness of
+        P2P blocklists broadly and found that publicly available blocklists contain
+        significant rates of false positives and false negatives. The research noted
+        that copyright enforcement monitors frequently rotate through large IP address
+        blocks, making static blocklists less effective over time. Operators should
+        weigh these documented limitations when evaluating this feed for their use
+        case."
+      roles:
+      - role: maintainer
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: iblocklist, LLC distributes IP address lists in standard formats (P2P,
+          DAT, CIDR) for use with peer-to-peer privacy software. The company also
+          offers a separate VPN product branded PhantomPeer. Per the home page, the
+          company's copyright notice reads '© 2026 iblocklist, LLC'.
+      - role: source_contributor
+        name: Squidblacklist
+        organization_type: unknown
+        official_url: https://www.squidblacklist.org/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Per the iBlocklist.com lists directory, the Pirate Bay list is categorized
+          under the 'Piracy Related' list authored by Squidblacklist, with iBlocklist.com
+          distributing it.
+      derivation:
+        type: partial_mirror
+        description: Per the iBlocklist.com lists directory the upstream author for
+          the 'Piracy Related' category is Squidblacklist, with iBlocklist.com acting
+          as the redistribution platform. iBlocklist.com republishes the list in P2P,
+          DAT, and CIDR/netset formats. The specific detection methodology or sourcing
+          for The Pirate Bay entries is not described on the maintainer's site.
+        source_feeds: []
+      listing_policy:
+        summary: The maintainer does not publicly document the criteria for adding
+          IP addresses to this list. The list is categorized as 'Piracy Related' targeting
+          The Pirate Bay tracker infrastructure, suggesting additions are driven by
+          association with the tracked BitTorrent network.
+        criteria:
+        - IP addresses associated with The Pirate Bay BitTorrent tracker server infrastructure
+          (maintainer's stated scope)
+      unlisting_policy:
+        summary: The maintainer does not publicly document any policy or process for
+          removing IP addresses from this list. No removal request form, support email,
+          or documented delisting procedure was found on the iBlocklist.com website.
+        criteria: []
+      unlist_request:
+        url:
+        email:
+        instructions: The maintainer does not publish any removal request channel
+          for this feed. The site's only support pathway leads to a PhantomPeer VPN
+          product page, and the contact page returned a 404 error at research time.
+          No email address, form, or process for requesting IP removal is publicly
+          documented.
+      update_frequency:
+        frequency: 1440m
+        human_readable: Daily updates, per the catalog configuration.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: 'IP addresses are listed based on their association with The
+          Pirate Bay BitTorrent tracker infrastructure. This is a policy-driven list:
+          entries are included based on organizational affiliation rather than active
+          probing, honeypot detection, or malware analysis. The maintainer does not
+          describe a specific technical detection methodology.'
+      scope_and_intent:
+        description: The feed targets IP addresses associated with The Pirate Bay
+          BitTorrent tracker, enabling users of peer-to-peer privacy software to filter
+          connections related to that infrastructure.
+        intended_for:
+        - Filtering BitTorrent connections to/from The Pirate Bay tracker infrastructure
+          in peer-to-peer privacy applications (PeerBlock, PeerGuardian, iplist, Vuze,
+          uTorrent, Tixati, pfBlocker)
+        not_intended_for:
+        - Network security blocking (the list is not designed for perimeter firewall
+          rules)
+        - Commercial use (prohibited by the Terms of Service)
+      license: iBlocklist Terms of Service — personal use only, no commercial use,
+        no public display
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The iBlocklist.com Terms of Service prohibit use for commercial purposes
+          or public display. Distribution of the feed beyond personal use is not permitted
+          under the stated terms.
+      current_status:
+        state: unknown
+        description: The maintainer's site is reachable and the feed URL resolves,
+          but no explicit lifecycle announcement has been made for this list. No recent
+          maintainer communications, blog posts, or changelog entries were found to
+          confirm current activity. The current lifecycle state cannot be reliably
+          determined from publicly available evidence about this specific list.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Academic research from the University of Birmingham (SecureComm
+          2012) found that publicly available P2P blocklists contain significant rates
+          of false positives and false negatives, reducing their protective utility
+          — a generic finding applicable to listings of tracker infrastructure such
+          as this feed.
+        engagement: Public community discussion about this specific feed is sparse.
+          No recent GitHub activity, Reddit discussions, or third-party blog posts
+          specifically addressing this feed were found in research.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/lists.php
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/list.php?list=nzldzlpkgrcncdomnttb
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: http://tbg.iblocklist.com/pages/Disclaimer.html
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: 
+          https://www.csoonline.com/article/545808/microsoft-subnet-p2p-blocklists-fail-to-protect-privacy-from-copyright-cops-mass-monitoring.html
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'

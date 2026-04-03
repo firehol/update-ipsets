@@ -1,0 +1,143 @@
+sources:
+  botvrij_src:
+    license: Botvrij.eu — use at own risk, no resale
+    redistributable: true
+    url: http://www.botvrij.eu/data/ioclist.ip-src.raw
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[botvrij.eu](http://www.botvrij.eu/) Indicators of Compromise (IOCS) about
+      malicious source IPs, gathered via open source information feeds (blog pages
+      and PDF documents) and then consolidated into different datasets. To ensure
+      the quality of the data all entries older than approx. 6 months are removed.'
+    maintainer: botvrij.eu
+    maintainer_url: http://www.botvrij.eu/
+    enabled_by_all: true
+    accept_empty: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T16:25:25Z'
+      official_name: botvrij.eu
+      official_url: http://www.botvrij.eu/
+      short_description: Open-source Indicators of Compromise (IOCs) about malicious
+        source IPs, aggregated from public security reports and automatically purged
+        after approximately six months to maintain freshness.
+      long_description: "botvrij.eu provides freely accessible Indicators of Compromise
+        (IOCs) for detecting potentially malicious network activity. The feed aggregates
+        data from publicly available security blog posts and PDF documents, then structures
+        the information into various formats suitable for security monitoring tools.\n\
+        \nThe operator maintains the data using a MISP (Malware Information Sharing
+        Platform) backend, extracting entries via PyMISP into text files. Entries
+        older than approximately six months are automatically removed to help ensure
+        the feed contains relatively current threat intelligence.\n\nThe operator
+        explicitly advises treating these IOCs as detection signals rather than direct
+        blocklist entries: use them to generate alerts that warrant further investigation,
+        rather than automatically blocking traffic. This approach acknowledges that
+        IPs appearing in public reports may have been reassigned or cleaned, but can
+        still indicate malicious activity patterns worth monitoring."
+      roles:
+      - role: maintainer
+        name: Koen Van Impe
+        organization_type: individual
+        official_url: https://www.vanimpe.eu/
+        contact_email: info@botvrij.eu
+        based_in: Belgium
+        active_since: '2016'
+        notes: Freelance security professional with 20+ years experience in CSIRT,
+          threat intelligence, and incident response. Active contributor to the MISP
+          project and creator of PyMISP. Holds multiple GIAC certifications including
+          GCTI and GREM.
+      derivation:
+        type: original
+        description: Collects Indicators of Compromise from publicly available security
+          blog posts and PDF documents through open-source intelligence (OSINT) gathering.
+          The operator curates and structures the raw intelligence into standardized
+          formats for consumption by security monitoring tools.
+        source_feeds: []
+      listing_policy:
+        summary: IPs are added when they appear in publicly reported security incidents
+          documented in blog posts or PDF reports. The operator extracts and consolidates
+          these IOCs into the feed without applying additional scoring or filtering.
+        criteria:
+        - Appears in a publicly accessible security report (blog post or PDF document)
+        - Identifies a source IP associated with malicious activity
+      unlisting_policy:
+        summary: Request removal by contacting the operator via email with a description
+          of the IP, domain, or URL to be delisted.
+        criteria:
+        - Submit a removal request via email to the address published on the site
+        - Include a description of the affected asset
+      unlist_request:
+        url:
+        email: info@botvrij.eu
+        instructions: Send an email to **info@botvrij.eu** with a brief description
+          of the IP address, domain, or URL you wish to have removed from the feed.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated daily, with entries older than approximately six months
+          automatically removed to maintain data freshness.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: 'Open-source intelligence aggregation: the operator monitors
+          publicly available security reports (blog posts, PDF documents) and extracts
+          IP-based Indicators of Compromise for consolidation into standardized formats.
+          This differs from honeypots or user submissions—it relies entirely on published
+          third-party reporting.'
+      scope_and_intent:
+        description: Provides Indicators of Compromise for security monitoring and
+          incident response enrichment.
+        intended_for:
+        - Detecting potential malicious network activity through alerting systems
+        - Enriching incident response investigations with contextual threat intelligence
+        - Feeding security information and event management (SIEM) platforms
+        not_intended_for:
+        - Direct implementation as a deny-list in intrusion prevention systems without
+          investigation
+        - Automated blocking without human review of generated alerts
+      license: Botvrij.eu — use at own risk, no resale
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: 'Free to use and redistribute with no stated attribution requirement,
+          subject to the core restrictions: use at your own risk, and no resale (neither
+          as an individual package nor bundled with other data).'
+      current_status:
+        state: active
+        description: Actively maintained as of February 2026. The data directory shows
+          recent updates to IOC lists and OSINT feeds, with the latest file timestamps
+          from early February 2026.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Historical MISP synchronization issues were reported and resolved
+          by 2021. The operator acknowledges that IPs in the feed are 'cleaned' (previously
+          flagged IPs that may have been reassigned), advising users to treat entries
+          as detection signals rather than direct blocks—a design choice that requires
+          proper workflow integration.
+        engagement: Sparse public social media discussion; the feed lacks dedicated
+          discussion forums or issue trackers. Integrated into over 30 security platforms
+          including OpenCTI, Yeti, SpiderFoot, CrowdSec, and FortiSOAR (as of May
+          2026). Listed in the 'Awesome Threat Intelligence' curated resource collection
+          and referenced by Rapid7's threat intelligence documentation. The operator
+          responds to unlisting requests submitted via the published email channel.
+      sources_consulted:
+      - url: http://www.botvrij.eu/
+        document_date:
+        validation_date: '2026-05-16T16:20:00Z'
+      - url: http://www.botvrij.eu/data/
+        document_date: '2026-02-03'
+        validation_date: '2026-05-16T16:22:00Z'
+      - url: https://www.vanimpe.eu/about/curriculum-vitae-in-english
+        document_date:
+        validation_date: '2026-05-16T16:23:00Z'
+      - url: https://github.com/fortinet-fortisoar/connector-botvrij-misp-osint-feed
+        document_date: '2022-01-04'
+        validation_date: '2026-05-16T16:21:00Z'

@@ -1,0 +1,162 @@
+sources:
+  shadowwhisperer_bruteforce_medium:
+    license: The Unlicense (public domain)
+    redistributable: true
+    url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/BruteForce/Medium
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[ShadowWhisperer/IPs](https://github.com/ShadowWhisperer/IPs) brute-force
+      IPs that connected to the maintainer''s honeypots more than 5 and fewer than
+      20 times. Bitwire consumes this legacy path; the file still updates from the
+      repository automation.'
+    maintainer: ShadowWhisperer
+    maintainer_url: https://github.com/ShadowWhisperer/IPs
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T23:47:37+00:00'
+      official_name: BruteForce/Medium
+      official_url: https://github.com/ShadowWhisperer/IPs/tree/master/BruteForce
+      short_description: SSH and Telnet brute-force source IPs that connected to the
+        maintainer's honeypots between 5 and 19 times — mid-severity tier from a Cowrie
+        honeypot deployment.
+      long_description: "BruteForce/Medium captures the middle band of the maintainer's
+        tiered brute-force ladder: IPs that connected to the Cowrie honeypot fleet
+        between 5 and 19 times. The threshold isolates persistent automated attackers
+        that are above casual scanning noise but below the High (20–79) and Extreme
+        (80+) volume tiers.\n\nBruteForce/Medium lives inside the maintainer's older
+        `BruteForce/` directory, which the README marks as legacy. The maintainer
+        directs integrators to the actively maintained `Lists/` folder — specifically
+        `Lists/Probes` (5+ connections without full handshake) — for ongoing coverage
+        in this volume range."
+      roles:
+      - role: maintainer
+        name: ShadowWhisperer
+        organization_type: individual
+        official_url: https://github.com/ShadowWhisperer/IPs
+        contact_email:
+        based_in:
+        active_since: 2020-12
+        notes: Runs the honeypot infrastructure and maintains the IP collection project.
+          Also registered on AbuseIPDB as contributor ID 51407, with over 565,000
+          IPs reported since joining in December 2020.
+      derivation:
+        type: original
+        description: 'First-party honeypot detection: IPs are collected from a distributed
+          Cowrie honeypot deployment. Cowrie records every inbound SSH and Telnet
+          connection attempt, capturing the source IP. Logs are transferred to a central
+          system, analyzed, and sorted into severity tiers by connection count. The
+          BruteForce/Medium tier contains IPs with 5–19 observed connections.'
+        source_feeds: []
+      listing_policy:
+        summary: An IP qualifies for BruteForce/Medium when it makes between 5 and
+          19 TCP connections to the maintainer's Cowrie honeypots. Connections are
+          counted per unique source IP over the observation window; IPs with fewer
+          than 5 connections fall into the Low tier, and IPs with 20 or more fall
+          into the High tier.
+        criteria:
+        - Observed making 5–19 TCP connections to a Cowrie honeypot (SSH or Telnet
+          port)
+      unlisting_policy:
+        summary: No explicit unlisting mechanism is documented. The maintainer does
+          not publish removal instructions, an unlist email address, or a self-service
+          portal for this feed. Given the legacy status of the BruteForce/ folder,
+          IPs naturally expire as the file is no longer regenerated.
+        criteria:
+        - No documented removal channel
+      unlist_request:
+      update_frequency:
+        frequency: 1h
+        human_readable: Hourly automated uploads to the repository
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: 'Cowrie honeypot detection: Cowrie is a medium-to-high interaction
+          SSH/Telnet honeypot that emulates a vulnerable shell environment. Every
+          inbound connection attempt — successful or not — is logged along with the
+          source IP. ShadowWhisperer runs Cowrie instances across multiple geographic
+          locations. Connection counts per source IP are aggregated centrally and
+          used to assign severity tiers.'
+      scope_and_intent:
+        description: Intended for operators who want to block SSH and Telnet brute-force
+          sources at the network perimeter. The Medium tier targets persistent attackers
+          who are clearly automated (5+ attempts) but stop short of high-volume sustained
+          campaigns.
+        intended_for:
+        - Firewall blocklists (iptables, nftables, pf)
+        - SSH daemon denyhosts configurations
+        - Network-edge ACLs
+        not_intended_for:
+        - Application-layer authentication decisions (the feed does not identify compromised
+          credentials)
+        - Legal or attribution purposes (IPs are spoofable and shared across many
+          actors)
+      license: The Unlicense (public domain)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: The Unlicense places no restrictions on redistribution, modification,
+          or commercial use. The data is dedicated to the public domain.
+      current_status:
+        state: altered_scope
+        description: The BruteForce/ folder (including Medium) is designated legacy.
+          The maintainer advises migrating to the Lists/ folder, which is the only
+          actively maintained section. Lists/Probes covers IPs probed five or more
+          times and is the functional equivalent replacement. The BruteForce/Medium
+          file is retained in the repository but is no longer systematically regenerated.
+        successor:
+          name: Lists/Probes
+          url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/Lists/Probes
+        announcement_date:
+      community:
+        awards:
+        criticism: No false-positive reports or removal disputes specific to the BruteForce/Medium
+          tier were found in the maintainer's issue tracker. The legacy classification
+          of the parent `BruteForce/` directory means active scrutiny has shifted
+          to the newer `Lists/` feeds.
+        engagement: Public discussion of this specific tier is sparse. There is no
+          dedicated forum or topic-specific issue tracker for the BruteForce ladder.
+          GitHub Discussions are disabled on the maintainer's repository, so operator
+          feedback — when it occurs — arrives as ad-hoc GitHub issues.
+      sources_consulted:
+      - url: https://github.com/ShadowWhisperer/IPs
+        document_date:
+        validation_date: '2026-05-16T23:40:00+00:00'
+      - url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/README.md
+        document_date:
+        validation_date: '2026-05-16T23:41:00+00:00'
+      - url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/LICENSE
+        document_date:
+        validation_date: '2026-05-16T23:41:00+00:00'
+      - url: https://api.github.com/repos/ShadowWhisperer/IPs/contents/BruteForce
+        document_date:
+        validation_date: '2026-05-16T23:42:00+00:00'
+      - url: https://raw.githubusercontent.com/ShadowWhisperer/IPs/master/BruteForce/Medium
+        document_date: '2026-03-28'
+        validation_date: '2026-05-16T23:44:00+00:00'
+      - url: https://api.github.com/repos/ShadowWhisperer/IPs/contents/Lists
+        document_date:
+        validation_date: '2026-05-16T23:43:00+00:00'
+      - url: 
+          https://api.github.com/repos/ShadowWhisperer/IPs/commits?path=BruteForce/Medium&per_page=100
+        document_date: '2026-05-02'
+        validation_date: '2026-05-16T23:47:00+00:00'
+      - url: https://www.abuseipdb.com/user/51407
+        document_date:
+        validation_date: '2026-05-16T23:47:00+00:00'
+      - url: 
+          https://github.com/ShadowWhisperer/IPs/issues?state=all&sort=updated&direction=desc
+        document_date:
+        validation_date: '2026-05-16T23:43:00+00:00'
+      - url: https://github.com/ShadowWhisperer/IPs/discussions
+        document_date:
+        validation_date: '2026-05-16T23:45:00+00:00'
+      - url: https://www.libhunt.com/r/ShadowWhisperer/BlockLists
+        document_date: '2025-02-18'
+        validation_date: '2026-05-16T23:43:00+00:00'

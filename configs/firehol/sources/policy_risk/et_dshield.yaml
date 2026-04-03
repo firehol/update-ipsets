@@ -1,0 +1,215 @@
+sources:
+  et_dshield:
+    license: BSD-3-Clause (Emerging Threats Open)
+    redistributable: true
+    url: http://rules.emergingthreats.net/fwrules/emerging-PIX-DSHIELD.rules
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - pix_deny_rules
+    processor_raw: pix_deny_rules_to_ipv4
+    category: policy_risk
+    provenance: secondary_upstream
+    info: '[EmergingThreats.net](http://www.emergingthreats.net/) dshield blocklist'
+    maintainer: Emerging Threats
+    maintainer_url: http://www.emergingthreats.net/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T05:15:02Z'
+      official_name: Emerging Threats DShield
+      official_url: http://rules.emergingthreats.net/fwrules/emerging-PIX-DSHIELD.rules
+      short_description: PIX firewall deny rules blocking the top attacking /24 subnets
+        identified by the SANS Internet Storm Center's DShield distributed honeypot
+        network, refreshed on a sub-daily cadence.
+      long_description: "The Emerging Threats DShield feed repackages the SANS Internet
+        Storm Center's DShield distributed honeypot telemetry into Cisco PIX firewall
+        deny rules. DShield aggregates attack reports from a volunteer-run sensor
+        network simulating vulnerable internet services; participating servers forward
+        anonymized connection logs to the ISC central collection infrastructure. From
+        this raw telemetry, DShield ranks source /24 subnets by the number of distinct
+        target sensors reporting attacks from that subnet over a rolling 72-hour window,
+        then publishes the top 20 most prevalent attacking subnets. Emerging Threats
+        consumes this feed and converts the subnet list into PIX access-list deny
+        rules, producing a ready-to-deploy firewall configuration for perimeter blocking.\n\
+        \nThe feed is distributed in PIX .rules format, structured as a sequence of
+        `access-list ET-dshield deny ip` statements (one per top-attacker /24 subnet).
+        Downstream consumers targeting other platforms (for example, Linux netfilter
+        ipset) typically extract the CIDR ranges from the PIX statements and reformat
+        them as needed."
+      roles:
+      - role: maintainer
+        name: Emerging Threats
+        organization_type: commercial
+        official_url: https://rules.emergingthreatspro.com/
+        contact_email: support@emergingthreats.net
+        based_in:
+        active_since: '2003'
+        notes: A division of Proofpoint, Inc. Operates both the free ET Open (BSD-licensed,
+          community-contributed) and commercial ET Pro rulesets. The fwrules directory
+          at rules.emergingthreats.net is actively maintained; the main emergingthreats.net
+          domain now hosts Proofpoint commercial product pages.
+      - role: source_contributor
+        name: SANS Internet Storm Center (ISC)
+        organization_type: research_institution
+        official_url: https://isc.sans.edu/about.html
+        contact_email: systems@isc.sans.edu
+        based_in: United States
+        active_since: '2000'
+        notes: Operates the DShield distributed honeypot network that generates the
+          underlying attack telemetry. Volunteers install DShield client software
+          on internet-exposed servers, which forward anonymized connection logs to
+          ISC. DShield ranks source /24 subnets by unique-target count over a rolling
+          72-hour window and publishes the top 20 as the blocklist feed consumed by
+          Emerging Threats.
+      derivation:
+        type: derivative
+        description: Emerging Threats repackages the DShield blocklist into Cisco
+          PIX firewall deny rules. DShield collects anonymized attack reports from
+          its volunteer-distributed honeypot sensor network and ranks source /24 subnets
+          by the count of distinct target sensors reporting attacks over a rolling
+          72-hour window. The top 20 attacking subnets by prevalence are published
+          as the DShield blocklist; Emerging Threats converts this subnet list into
+          PIX access-list deny rules (one rule per subnet) and distributes the resulting
+          file via the fwrules directory. Downstream consumers targeting non-Cisco
+          platforms typically extract the CIDR ranges and reformat them for their
+          target syntax. No other IP feeds are consumed; the feed is a single-source
+          derivative of DShield telemetry.
+        source_feeds:
+        - identifier: DShield Blocklist
+          relationship: filtered
+          notes: Emerging Threats selects the top 20 attacking /24 subnets from DShield's
+            ranked list and converts them to PIX deny rules. The DShield feed itself
+            is the sole upstream; no other feeds are incorporated.
+      listing_policy:
+        summary: A subnet qualifies for the DShield blocklist when it appears among
+          the top 20 attacking class C (/24) subnets by unique-target count over the
+          preceding 72-hour reporting window. 'Unique-target count' measures how many
+          distinct DShield sensors reported receiving attack connections from IP addresses
+          within that subnet — a subnet attacking many different sensors ranks higher
+          than one generating large volumes against a single target. Listings persist
+          only while the subnet remains in the top 20; exiting the top 20 causes automatic
+          removal when the next refresh cycle publishes a new top-20 set.
+        criteria:
+        - Must be a class C (/24) subnet
+        - Source IPs within the subnet must have been observed attacking DShield honeypot
+          sensors
+        - The subnet must rank among the top 20 by unique-target count (distinct sensors
+          reporting attacks) over the rolling 72-hour window
+        - Continued presence requires maintaining top-20 rank; decay is automatic
+          upon losing rank
+      unlisting_policy:
+        summary: Listings are not manually removed — they expire automatically when
+          a subnet falls below the top-20 rank in the rolling 72-hour window. Because
+          the blocklist always contains exactly the current top 20 attacking subnets,
+          any subnet that ceases attacking DShield sensors sufficiently broadly will
+          naturally exit the list within one refresh cycle. There is no stated manual
+          appeal or challenge process specific to the Emerging Threats DShield ruleset;
+          the upstream DShield blocklist's dedicated removal page (www.dshield.org/remove.html)
+          has been non-functional (returning a 404) as of the research date.
+        criteria:
+        - Automatic expiry occurs when the subnet falls out of the top 20 by unique-target
+          count in the next refresh cycle
+        - No stated manual challenge or false-positive appeal process for the Emerging
+          Threats DShield ruleset
+        - The upstream DShield removal page (www.dshield.org/remove.html) is non-functional
+      unlist_request:
+        url:
+        email:
+        instructions: No dedicated unlisting channel is publicly offered for the Emerging
+          Threats DShield ruleset. The upstream DShield project's removal page (www.dshield.org/remove.html)
+          returns a 404 error. For issues with DShield-listed IPs, the DShield project
+          directs users to their general contact form (www.dshield.org/contact.html)
+          or the community forums. For Emerging Threats ruleset feedback in general,
+          the maintainer accepts contact via email (support@emergingthreats.net),
+          the community forum, or Twitter (@et_labs).
+      update_frequency:
+        frequency: 12h
+        human_readable: Refreshed approximately every 12 hours, reflecting the DShield
+          rolling 72-hour window refreshed on a sub-daily cadence, per the maintainer's
+          fwrules directory update schedule.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods:
+        - user_submission
+        description: The feed is built from DShield's distributed honeypot sensor
+          network. Volunteer participants install DShield client software on internet-exposed
+          servers; the clients simulate vulnerable services and log incoming connection
+          attempts from external sources. Each sensor forwards anonymized connection
+          records (source IP, destination port, protocol, timestamp) to the SANS ISC
+          central collection infrastructure. ISC aggregates these reports and ranks
+          source /24 subnets by the count of distinct sensors that reported attacks
+          from that subnet — a metric that rewards broad, opportunistic scanning over
+          concentrated campaigns. The top 20 by this prevalence metric become the
+          blocklist entries. This methodology detects any remote source performing
+          reconnaissance or attack activity against internet-exposed services, regardless
+          of whether the attack succeeds.
+      scope_and_intent:
+        description: The Emerging Threats DShield feed is intended for perimeter firewall
+          blocking at the network layer. It converts DShield's top-attacking-subnet
+          telemetry into Cisco PIX access-list deny rules, ready for deployment on
+          PIX and ASA appliances. The feed covers any source IP observed conducting
+          attack or reconnaissance activity against DShield honeypot sensors sufficient
+          to rank in the top 20 by prevalence over a 72-hour window.
+        intended_for:
+        - Perimeter firewall inbound blocking (PIX/ASA access-list deployment)
+        - IDS/IPS alert and block rules (via Suricata/Snort conversion)
+        - Network-layer threat indicator enrichment
+        not_intended_for:
+        - Comprehensive threat protection as a standalone control
+        - Application-layer filtering (HTTP, SMTP, DNS)
+        - IPv6 traffic (feed is IPv4-only)
+      license: BSD-3-Clause (Emerging Threats Open)
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required: Credit Emerging Threats (Proofpoint) when contributing
+          ideas or signatures back to the community
+        terms: The Emerging Threats Open ruleset is BSD-style licensed and free. The
+          maintainer requests that anyone with ideas, new signatures, feedback, or
+          theories send them in to benefit the community. No formal redistribution
+          restrictions are stated beyond the BSD-style permissiveness.
+      current_status:
+        state: active
+        description: 'Actively maintained as of May 2026. The fwrules directory at
+          rules.emergingthreats.net was last updated on 2026-05-18. The Emerging Threats
+          community site remains accessible at community.emergingthreats.net. Past
+          incident: the DShield ruleset was inadvertently emptied on the Emerging
+          Threats website and in Snort updates on 2022-12-29; Emerging Threats support
+          resolved the issue within approximately 48 hours, restoring the feed by
+          2022-12-31.'
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: In December 2022, the Emerging Threats DShield ruleset was inadvertently
+          emptied on the Emerging Threats website and in downstream Snort and pfSense
+          installations for approximately 48 hours before Emerging Threats support
+          restored it. No other feed-specific criticism of the DShield ruleset was
+          documented during research; broader Emerging Threats portfolio-level operational
+          discussions exist but are not attributed to this feed.
+        engagement: Sparse public discussion specific to the Emerging Threats DShield
+          ruleset. The December 2022 empty-ruleset incident was primarily documented
+          on the Netgate/pfSense community forum. The DShield project itself engages
+          via community forums and a contact form at dshield.org.
+      sources_consulted:
+      - url: http://rules.emergingthreats.net/fwrules/
+        document_date: '2026-05-18'
+        validation_date: '2026-05-19T05:00:00Z'
+      - url: http://rules.emergingthreats.net/fwrules/emerging-PIX-DSHIELD.rules
+        document_date:
+        validation_date: '2026-05-19T05:00:00Z'
+      - url: https://community.emergingthreats.net/t/frequently-asked-questions/56
+        document_date:
+        validation_date: '2026-05-19T05:00:00Z'
+      - url: https://www.dshield.org/block.txt
+        document_date: '2026-05-19'
+        validation_date: '2026-05-19T05:00:00Z'
+      - url: https://www.dshield.org/howto.html
+        document_date:
+        validation_date: '2026-05-19T05:00:00Z'
+      - url: 
+          https://forum.netgate.com/topic/176783/resolved-warning-emerging-threats-dshield-rule-set-is-now-empty-inside-snort-and-on-emerging-threats-official-website
+        document_date: '2022-12-29'
+        validation_date: '2026-05-19T05:00:00Z'

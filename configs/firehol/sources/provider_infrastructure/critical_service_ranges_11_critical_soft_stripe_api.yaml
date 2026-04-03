@@ -1,0 +1,193 @@
+sources:
+  critical_soft_stripe_api:
+    license: Stripe Services Agreement (proprietary)
+    redistributable: false
+    label: Stripe API ranges
+    url: https://stripe.com/files/ips/ips_api.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - json_path:
+        path: "$.API[*]"
+    - append_slash32
+    - filter_all4
+    processor_raw: json_path
+    category: provider_infrastructure
+    provenance: primary
+    info: Stripe-published API IPv4 addresses. Reference feed, not a threat indicator.
+    maintainer: Stripe
+    maintainer_url: https://docs.stripe.com/ips
+    enabled_by_all: true
+    use: [critical_infrastructure]
+    critical:
+      tier: soft
+      role: payment_or_commerce
+      source_type: authoritative_provider_json
+      source_quality: A
+      rationale: Stripe API ranges support payment processing and commerce workflows;
+        overlap should be reviewed before blocking.
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T13:36:12Z'
+      official_name: Stripe API IP Addresses
+      official_url: https://docs.stripe.com/ips
+      short_description: IPv4 addresses from which api.stripe.com originates outbound
+        API responses, published by Stripe for use in server-side firewall allowlisting.
+      long_description: "Stripe publishes this feed as the authoritative list of IPv4
+        addresses from which api.stripe.com may originate outbound connections — primarily
+        TCP responses to merchant API calls and related infrastructure traffic. The
+        list spans addresses in AWS IP space across US, EU, and Asia-Pacific regions,
+        plus two dedicated /24 blocks allocated to Stripe's own infrastructure. Per
+        the Stripe documentation, the list is provided solely to assist merchants
+        in configuring egress firewall rules: the documentation explicitly instructs
+        operators to connect via the api.stripe.com DNS name and use the IP list only
+        to validate that returned addresses match the published set. The feed is formatted
+        as a simple JSON array of individual IPv4 addresses (each representing a /32),
+        with no metadata fields indicating region, service type, or role. Stripe announces
+        IP changes through their API Announce mailing list with a minimum seven-day
+        advance notice period. Because these addresses represent Stripe's own production
+        infrastructure, they are not threat indicators — blocking them would interrupt
+        payment processing."
+      roles:
+      - role: maintainer
+        name: Stripe, Inc.
+        organization_type: commercial
+        official_url: https://stripe.com
+        contact_email:
+        based_in: United States
+        active_since: '2010'
+        notes: San Francisco-based payments infrastructure company. Publishes IP ranges
+          for api.stripe.com, webhook sender IPs, and Armada/Gator service IPs across
+          multiple downloadable JSON and TXT files.
+      derivation:
+        type: original
+        description: "First-party authoritative feed: Stripe compiles this list from
+          their own production AWS infrastructure allocations. No external IP feeds,
+          threat intelligence sources, or third-party data contribute to this feed.
+          Entries represent IP addresses assigned to Stripe's own compute fleet across
+          AWS regions (US-East-1, US-West-2, EU-Central-1, AP-Southeast-1) plus two
+          dedicated /24 blocks registered to Stripe directly."
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added and removed by Stripe as their production infrastructure
+          changes — there is no third-party submission or community-reporting mechanism.
+          An IP enters the list when Stripe commissions new capacity in a given address;
+          it leaves the list when Stripe decommissions that address. Stripe announces
+          additions and removals through their API Announce mailing list with a minimum
+          seven-day advance notice before any change takes effect.
+        criteria:
+        - IP is assigned to a Stripe-operated compute instance or network resource
+          reachable as part of api.stripe.com routing
+        - IP is actively advertised in Stripe's production BGP routes and responding
+          to health checks
+        - IP is allocated from an AWS VPC or bare-metal host controlled by Stripe
+          engineering
+      unlisting_policy:
+        summary: Automatic removal occurs when Stripe retires an IP address from their
+          production infrastructure. There is no manual delisting request process
+          because this is not a threat or abuse feed — IPs are removed by Stripe internally
+          when the underlying infrastructure is decommissioned, announced seven days
+          in advance via the API Announce mailing list.
+        criteria:
+        - 'Infrastructure decommission: Stripe retires the underlying compute or network
+          resource'
+        - 'IP address released: AWS Elastic IP disassociated from Stripe account'
+        - "Route withdrawal: BGP advertisement for the prefix is withdrawn from Stripe's
+          upstream providers"
+      unlist_request:
+        url:
+        email:
+        instructions: This feed is not a threat or abuse blocklist; unlisting requests
+          are not applicable. Operators who believe an IP has been incorrectly included
+          should contact Stripe Support (https://support.stripe.com) for investigation.
+          Changes to the published list are made by Stripe engineering, not via third-party
+          requests.
+      update_frequency:
+        frequency:
+        human_readable: Irregular, event-driven updates; Stripe announces changes
+          through the API Announce mailing list with a minimum seven-day advance notice.
+          Historical records show changes occurring multiple times per year as infrastructure
+          expands or contracts.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: "Static infrastructure enumeration: Stripe assigns IP addresses
+          to their production compute fleet and publishes the resulting list. This
+          is not threat detection — IPs are not listed because they are associated
+          with malicious activity. The feed is analogous to a company's published
+          netblock registry."
+      scope_and_intent:
+        description: Stripe publishes this feed to enable merchants to configure server-side
+          firewall allowlists for outbound connections to api.stripe.com. The feed
+          is not a threat indicator feed — entries represent Stripe's own production
+          infrastructure, not sources of malicious activity.
+        intended_for:
+        - 'Egress firewall allowlisting: permitting outbound TCP connections from
+          merchant servers to api.stripe.com'
+        - 'Ingress validation: verifying that TCP responses from api.stripe.com originate
+          from a listed address'
+        - 'Audit and logging: correlating observed source IPs in API traffic logs
+          against the published list'
+        not_intended_for:
+        - "Blocking or deny-listing: entries are Stripe's own infrastructure; blocking
+          them would interrupt payment processing"
+        - 'Threat intelligence correlation: IPs are not listed based on malicious
+          activity association'
+        - 'Abuse report processing: there is no community reporting channel for this
+          feed'
+      license: Stripe Services Agreement (proprietary)
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms: Redistribution is not permitted under the Stripe Services Agreement
+          except where expressly allowed by the agreement or law. The IP range JSON
+          is provider documentation/support data, not an open-data feed.
+      current_status:
+        state: active
+        description: Active. Stripe maintains and updates this feed as part of ongoing
+          operations. IP changes are announced via the API Announce mailing list with
+          seven-day advance notice. The feed has been continuously published since
+          at least January 2018.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Developer discussions on Reddit and Hacker News surface operational
+          friction when third-party security products (Cloudflare WAF, Sucuri) block
+          legitimate Stripe webhook traffic — a false-positive-on-Stripe-traffic scenario.
+          Community members note that Stripe's multi-origin webhook delivery (requests
+          arriving from dozens of different IPs simultaneously) complicates idempotency
+          handling. No formal bug reports or sustained criticism directed at Stripe's
+          IP management practices were found.
+        engagement: Discussion is sparse and focused on implementation questions rather
+          than the feed itself. Hacker News threads confirm appreciation for Stripe
+          publishing official IP documentation. Reddit discussions center on webhook
+          delivery mechanics and allowlisting complexity behind shared-egress platforms.
+          No dedicated community forum, issue tracker, or social channel specifically
+          for this feed exists — engagement flows through Stripe's general developer
+          support channels.
+      sources_consulted:
+      - url: https://docs.stripe.com/ips
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: https://stripe.com/files/ips/ips_api.json
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: https://groups.google.com/a/lists.stripe.com/g/api-announce
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: https://stripe.com/legal/ssa
+        document_date: '2025-11-18'
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: https://stripe.com/privacy
+        document_date: '2026-04-28'
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: 
+          https://www.reddit.com/r/stripe/comments/1f73n39/help_with_error_403_in_stripe_webhook/
+        document_date: '2024-12-01'
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: https://news.ycombinator.com/item?id=34866407
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'

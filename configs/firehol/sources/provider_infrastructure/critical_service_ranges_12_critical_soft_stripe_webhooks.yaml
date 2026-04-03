@@ -1,0 +1,171 @@
+sources:
+  critical_soft_stripe_webhooks:
+    license: Stripe Services Agreement (proprietary)
+    redistributable: false
+    label: Stripe webhook ranges
+    url: https://stripe.com/files/ips/ips_webhooks.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - json_path:
+        path: "$.WEBHOOKS[*]"
+    - append_slash32
+    - filter_all4
+    processor_raw: json_path
+    category: provider_infrastructure
+    provenance: primary
+    info: Stripe-published webhook IPv4 addresses. Reference feed, not a threat indicator.
+    maintainer: Stripe
+    maintainer_url: https://docs.stripe.com/ips
+    enabled_by_all: true
+    use: [critical_infrastructure]
+    critical:
+      tier: soft
+      role: payment_or_commerce
+      source_type: authoritative_provider_json
+      source_quality: A
+      rationale: Stripe webhook ranges deliver payment state changes; overlap can
+        break commerce automation and should be reviewed.
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T13:22:36Z'
+      official_name: Domains and IP addresses
+      official_url: https://docs.stripe.com/ips
+      short_description: Stripe publishes the set of IPv4 addresses from which its
+        webhook notification servers originate, for use in firewall allowlisting.
+      long_description: "Stripe publishes the authoritative set of IPv4 addresses
+        used by its webhook notification infrastructure. These are the egress addresses
+        Stripe servers use when delivering signed event payloads to registered webhook
+        endpoints. The list is provided as individual /32 addresses in JSON format
+        at stripe.com/files/ips/ips_webhooks.json, alongside a plain-text variant.\n\
+        \nStripe recommends combining IP allowlisting with cryptographic signature
+        verification for defense-in-depth. The official webhook documentation advises
+        verifying the Stripe-Signature header using official SDK libraries as the
+        primary control, with IP allowlisting as a supplementary layer. The IP list
+        has undergone irregular updates over the years — documented changes occurred
+        in January 2014, February 2020, July 2021, and October 2022, typically announced
+        via the Stripe API Announcements mailing list. Subscribers to that list receive
+        advance notice of changes, allowing time to update firewall rules before new
+        IPs become active.\n\nThe feed is classified as a provider infrastructure
+        reference feed. It is not a threat indicator; IPs on this list represent legitimate
+        Stripe infrastructure, not malicious actors. Including these IPs in a blocklist
+        would break webhook delivery. The intended use is strictly inbound allowlisting
+        — configuring firewalls or API gateways to accept traffic only from these
+        addresses."
+      roles:
+      - role: maintainer
+        name: Stripe
+        organization_type: commercial
+        official_url: https://stripe.com
+        contact_email: support@stripe.com
+        based_in: United States
+        active_since: '2010'
+        notes: Stripe is a financial infrastructure platform. The IP address publication
+          is part of the platform's published technical documentation rather than
+          a standalone project.
+      derivation:
+        type: original
+        description: The feed consists of first-party authoritative infrastructure
+          data. Stripe operates the webhook delivery servers and publishes the egress
+          IP addresses from that infrastructure directly. No third-party feeds, threat
+          intelligence, or aggregation is involved — the list represents the actual
+          addressing of Stripe's own notification fleet.
+        source_feeds: []
+      listing_policy:
+        summary: Not applicable. This is an authoritative infrastructure reference
+          list, not a threat indicator feed. Entries are not added based on threat
+          behavior or abuse reports — they represent the egress addressing of Stripe's
+          own webhook delivery infrastructure. Stripe controls additions and removals
+          unilaterally as part of its infrastructure operations.
+        criteria:
+        - Entries represent the egress IP addresses of Stripe-operated webhook notification
+          servers
+        - Changes are driven by Stripe's internal infrastructure operations, not external
+          reporting
+        - Advance notice of changes is communicated via the Stripe API Announcements
+          mailing list
+      unlisting_policy:
+        summary: Not applicable. Individual IPs cannot be unlisted from this feed.
+          Removal of an IP occurs only when Stripe retires that address from its webhook
+          delivery fleet, which is an infrastructure decision outside subscriber control.
+        criteria:
+        - IP removal is at Stripe's discretion as part of infrastructure management
+        - Subscribers cannot request removal of specific IPs
+        - Subscriptions to the API Announcements list provide advance notice of changes
+      unlist_request:
+      update_frequency:
+        frequency:
+        human_readable:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The feed is produced by policy assignment — Stripe defines and
+          publishes the egress addressing of its own webhook delivery infrastructure.
+          This is not detection in the threat-intelligence sense; it is authoritative
+          infrastructure documentation. No honeypots, sandboxes, sensors, or community
+          reports contribute to this list.
+      scope_and_intent:
+        description: The feed covers the egress IPv4 addressing of Stripe's webhook
+          notification infrastructure. Its sole intended purpose is inbound allowlisting
+          at firewalls or API gateways — permitting traffic originating from these
+          addresses while blocking all others. It is not intended for outbound blocking
+          or as a threat indicator.
+        intended_for:
+        - Inbound firewall allowlisting for Stripe webhook endpoints
+        - API gateway source-IP filtering for Stripe webhook receivers
+        - Supplemental validation layer alongside Stripe signature verification
+        not_intended_for:
+        - Outbound blocking or deny-listing
+        - Threat indicator or abuse feed
+        - General-purpose IP reputation scoring
+        - Replacing cryptographic signature verification
+      license: Stripe Services Agreement (proprietary)
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms: Redistribution is not permitted under the Stripe Services Agreement
+          except where expressly allowed by the agreement or law. The IP range JSON
+          is provider documentation/support data, not an open-data feed.
+      current_status:
+        state: active
+        description: Active. The Stripe IP address documentation page is reachable
+          and up to date. The webhook IP list at stripe.com/files/ips/ips_webhooks.json
+          is available for download. Stripe continues to maintain and publish this
+          list as part of its ongoing platform documentation.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion about this specific IP list is sparse.
+          Broader webhook security discussions in developer communities emphasize
+          cryptographic signature verification as the primary control, with IP allowlisting
+          viewed as a supplementary legacy practice. Community members on no-code
+          platforms have reported practical difficulties obtaining static outbound
+          IPs for allowlisting implementation. No notable third-party awards, formal
+          recognitions, or adverse community resolutions specific to this feed were
+          found.
+      sources_consulted:
+      - url: https://docs.stripe.com/ips
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: https://stripe.com/files/ips/ips_webhooks.json
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: https://docs.stripe.com/webhooks
+        document_date:
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: https://stripe.com/en-gr/legal/ssa
+        document_date: '2026-04-28'
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: https://groups.google.com/a/lists.stripe.com/g/api-announce/c/rgEB41tUn1w
+        document_date: '2021-07-20'
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: https://groups.google.com/a/lists.stripe.com/g/api-announce/c/d5o6h_r4w2k
+        document_date: '2020-02-12'
+        validation_date: '2026-05-21T00:00:00Z'
+      - url: https://groups.google.com/a/lists.stripe.com/g/api-announce/c/IcezRRZP0bw
+        document_date: '2014-01-30'
+        validation_date: '2026-05-21T00:00:00Z'

@@ -1,0 +1,200 @@
+sources:
+  bitwire_ipsum_clean:
+    license: The Unlicense (derived from IPsum; Bitwire mirror has no license file)
+    redistributable: true
+    url: https://raw.githubusercontent.com/bitwire-it/ipsum-clean/main/ipsum.txt
+    frequency: 120
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[bitwire-it/ipsum-clean](https://github.com/bitwire-it/ipsum-clean) is
+      the IPsum feed with IPsum score columns stripped, published as a plain IP list
+      and refreshed automatically.'
+    maintainer: bitwire-it / stamparm
+    maintainer_url: https://github.com/bitwire-it/ipsum-clean
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T15:11:25Z'
+      official_name: ipsum-clean
+      official_url: https://github.com/bitwire-it/ipsum-clean
+      short_description: A daily-updated plain-IP list derived from the IPsum threat-intel
+        feed, with occurrence-count columns removed for simpler firewall integration.
+      long_description: "This feed is a minimalist mirror of the IPsum threat-intel
+        feed maintained by stamparm. IPsum aggregates detections from over 60 public
+        blacklists and honeypot networks, ranks each IP by how many source feeds reported
+        it, and publishes the result daily. The bitwire-it mirror takes that output
+        and strips the occurrence-count column, publishing only the bare IP addresses
+        — one per line, no headers, no metadata.\n\nThe mirror is kept synchronized
+        automatically via a GitHub Actions workflow that runs roughly every 20 hours,
+        downloading a fresh copy of the upstream ipsum.txt, filtering out comment
+        lines and CIDR notation, and committing the result. Because the mirror drops
+        the confidence-ranking column, operators lose the ability to filter by cross-list
+        occurrence count but gain a simpler, smaller feed file suitable for straightforward
+        ipset or firewall import.\n\nThe upstream IPsum is licensed under The Unlicense
+        (public domain). As a derivative mirror with no stated license of its own,
+        bitwire-it/ipsum-clean inherits that permissive posture."
+      roles:
+      - role: publisher
+        name: bitwire-it
+        organization_type: informal_collective
+        official_url: https://github.com/bitwire-it
+        contact_email:
+        based_in:
+        active_since: '2023-10-25'
+        notes: Operates the GitHub Actions automation that keeps the mirror synchronized
+          with the upstream IPsum feed every ~20 hours.
+      - role: original_author
+        name: stamparm
+        organization_type: individual
+        official_url: https://github.com/stamparm
+        contact_email:
+        based_in:
+        active_since:
+        notes: Created the IPsum feed (github.com/stamparm/ipsum) and its underlying
+          Maltrail sensor network. The bitwire-it mirror derives from stamparm's upstream.
+          The upstream IPsum has been recommended in r/opnsense and r/selfhosted discussions
+          as a balanced threat-intel feed compatible with ipset, and has handled false-positive
+          reports for legitimate services (Backblaze B2, Synology QuickConnect, Hugging
+          Face, Zoho) via GitHub Issues — community signals that attach to the upstream
+          project, not specifically to the bitwire-it mirror.
+      derivation:
+        type: derivative
+        description: Extracts bare IP addresses from the IPsum feed by stamparm, stripping
+          the occurrence-count column that IPsum uses for confidence ranking. IPsum
+          itself is a daily-rebuilt aggregate of over 60 public blacklists and honeypot
+          networks managed through the Maltrail platform.
+        source_feeds:
+        - identifier: github.com/stamparm/ipsum
+          relationship: filtered
+          notes: The direct upstream. Provides IP addresses with occurrence-count
+            column; bitwire-it strips that column.
+      listing_policy:
+        summary: As a passive mirror, this feed has no independent listing policy.
+          IPs enter when they appear on the upstream IPsum feed, which ranks IPs by
+          how many of its 60+ source feeds reported them. The upstream IPsum sorts
+          entries by occurrence count (highest first); IPs appearing on more source
+          feeds carry higher confidence and lower false-positive risk.
+        criteria:
+        - Appears on one or more of the 60+ public blacklists and honeypot networks
+          that feed into IPsum
+        - Automatically retrieved and parsed daily by the Maltrail platform
+        - Listed with an occurrence count equal to the number of source feeds reporting
+          that IP
+      unlisting_policy:
+        summary: This mirror has no independent unlisting mechanism. Removal requests
+          must be filed against the upstream IPsum feed (github.com/stamparm/ipsum),
+          where the maintainer reviews and acts on false-positive reports. Once the
+          upstream removes an IP, the next automated sync will propagate the change
+          to this mirror.
+        criteria:
+        - Submit a false-positive report via a GitHub Issue on the upstream stamparm/ipsum
+          repository
+        - Provide evidence of legitimate ownership or proof the threat no longer exists
+        - Maintainer reviews and removes the IP from the upstream feed
+        - Change propagates to this mirror on the next scheduled sync (~20 hours)
+      unlist_request:
+        url: https://github.com/stamparm/ipsum/issues/new
+        email:
+        instructions: Open a GitHub Issue on the upstream **stamparm/ipsum** repository
+          (not this mirror). Label it `FP report` and `support`. Include the IP address
+          or CIDR range being flagged, which trail or source list it appears in, and
+          evidence that the address is now legitimate (such as proof of remediation
+          or current ownership). The maintainer reviews and closes issues upon resolution;
+          the change propagates to this mirror on the next sync cycle.
+      update_frequency:
+        frequency: 20h
+        human_readable: Refreshed approximately every 20 hours via automated GitHub
+          Actions workflow
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods:
+        - honeypot
+        - user_submission
+        description: The upstream IPsum builds its feed by aggregating reports from
+          over 60 public blacklists and honeypot networks operated through the Maltrail
+          platform. Each contributing feed submits IPs it has detected as suspicious
+          — through honeypot hits, credential stuffing observations, malware callback
+          addresses, and similar signals. IPsum tallies how many feeds reported each
+          IP and sorts by that count. The bitwire-it mirror strips the tally column,
+          passing through all IPs unchanged.
+      scope_and_intent:
+        description: A firewall-oriented IP blocklist derived from broad threat-intel
+          aggregation. By dropping the confidence-ranking column, this feed prioritizes
+          simplicity over tunable sensitivity — every IP in the upstream feed is included
+          regardless of how many sources reported it.
+        intended_for:
+        - WAN-ingress blocking on perimeter firewalls and border routers
+        - Import into ipset or equivalent IP-set utilities for efficient iptables
+          rule matching
+        - SIEM and SOC pipelines as an enrichment source for known-bad IP context
+        not_intended_for:
+        - Precision blocking where false positives are costly — the feed lacks per-IP
+          confidence scoring, so benign IPs appearing on even one source list are
+          included
+        - IPv6 traffic — the upstream IPsum is IPv4-only
+        - Single-IP exception handling — the mirror has no independent unlist channel;
+          remediation requires going through the upstream
+      license: The Unlicense (public domain)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: The Unlicense permits unlimited redistribution for any purpose — commercial
+          or non-commercial — with no conditions. No attribution required.
+      current_status:
+        state: active
+        description: 'Actively maintained. Automated GitHub Actions workflow refreshes
+          the feed roughly every 20 hours. Most recent commit: 2026-05-16.'
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "The column-stripping that defines this mirror amplifies false-positive
+          risk: upstream IPsum publishes each IP with an occurrence count (how many
+          source feeds reported it), and operators of the upstream feed commonly use
+          that column to filter out IPs with low occurrence counts (1 or 2). The bitwire-it
+          mirror discards that column entirely, so every IP in the upstream is included
+          regardless of confidence — operators using this mirror cannot apply a confidence
+          threshold without their own post-processing. Upstream IPsum's false-positive
+          history is a property of the upstream project (recorded in the original_author
+          role notes), not specifically of this mirror."
+        engagement: Sparse direct discussion of the bitwire-it ipsum-clean mirror
+          specifically. The mirror has no issue tracker activity; bug reports and
+          feature requests have been filed against the upstream stamparm/ipsum repository
+          rather than against the column-stripping mirror.
+      sources_consulted:
+      - url: https://github.com/bitwire-it/ipsum-clean
+        document_date:
+        validation_date: '2026-05-16T14:00:00Z'
+      - url: https://raw.githubusercontent.com/bitwire-it/ipsum-clean/main/README.md
+        document_date:
+        validation_date: '2026-05-16T14:05:00Z'
+      - url: https://raw.githubusercontent.com/bitwire-it/ipsum-clean/main/ipsum.txt
+        document_date:
+        validation_date: '2026-05-16T14:10:00Z'
+      - url: https://github.com/stamparm/ipsum
+        document_date:
+        validation_date: '2026-05-16T14:15:00Z'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/README.md
+        document_date:
+        validation_date: '2026-05-16T14:20:00Z'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/LICENSE
+        document_date:
+        validation_date: '2026-05-16T14:25:00Z'
+      - url: https://github.com/stamparm/maltrail
+        document_date:
+        validation_date: '2026-05-16T14:30:00Z'
+      - url: https://github.com/bitwire-it/ipsum-clean/actions
+        document_date:
+        validation_date: '2026-05-16T14:35:00Z'
+      - url: https://github.com/stamparm/ipsum/issues
+        document_date:
+        validation_date: '2026-05-16T14:40:00Z'
+      - url: https://github.com/stamparm/maltrail/issues
+        document_date:
+        validation_date: '2026-05-16T14:45:00Z'

@@ -1,0 +1,224 @@
+sources:
+  php_harvesters:
+    license: Project Honey Pot Terms of Use — All Rights Reserved
+    url: http://www.projecthoneypot.org/list_of_ips.php?t=h&rss=1
+    frequency: 60
+    history:
+    - 1440
+    - 10080
+    - 43200
+    ipv: ipv4
+    output: ipset
+    processor:
+    - xml_rss_title
+    processor_raw: parse_php_rss
+    category: messaging_abuse
+    info: '[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) harvesters
+      (IPs that surf the internet looking for email addresses) (this list is composed
+      using an RSS feed)'
+    maintainer: ProjectHoneypot.org
+    maintainer_url: http://www.projecthoneypot.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T04:24:44Z'
+      official_name: Harvester IPs | By Last Bad Event | Project Honey Pot
+      official_url: http://www.projecthoneypot.org/list_of_ips.php?t=h
+      short_description: Tracks IP addresses that surf the internet collecting email
+        addresses from websites, identified through a distributed network of decoy
+        email addresses planted by participating webmasters.
+      long_description: "Project Honey Pot is a distributed honeypot system for identifying
+        email-address harvesters — automated programs that crawl websites to collect
+        email addresses for spam mailing lists. The system works by distributing specially
+        crafted honeypot pages to participating websites; these pages contain email
+        addresses that are uniquely tagged to both the hosting site and the visiting
+        IP address. When a harvester collects one of these addresses and subsequently
+        sends spam to it, the system can correlate the event to pinpoint the harvester's
+        IP address and the moment of collection.\n\nThe php_harvesters feed publishes
+        IPs associated with harvester behavior via an RSS feed. Each entry carries
+        the IP address, a multi-letter type code indicating the categories of observed
+        behavior (such as H for pure harvester, HS for harvester plus spammer, HC
+        for harvester plus comment spammer, and compound codes like HSCR or HSDCR),
+        and a link to the IP's detail page showing the total number of recorded sightings,
+        first-seen date, and last-seen date. The feed is sorted by most recent bad
+        event.\n\nPer the maintainer's about page, the system was created by Unspam
+        Technologies, an anti-spam company with a stated mission of designing and
+        enforcing anti-spam laws. Data is shared with participants, law enforcement
+        authorities, and anti-spam filter developers and researchers."
+      roles:
+      - role: maintainer
+        name: Unspam Technologies, Inc
+        organization_type: commercial
+        official_url: http://www.unspam.com/
+        contact_email:
+        based_in: Murray, UT, USA
+        active_since: '2004'
+        notes: Unspam Technologies, Inc operates Project Honey Pot and its associated
+          services including http:BL. Registered in Delaware, with physical address
+          at P.O. Box 57265, Murray, UT 84157-0265. Created the honeypot system as
+          an anti-spam enforcement tool.
+      derivation:
+        type: original
+        description: The feed is built from Project Honey Pot's own distributed honeypot
+          network. Participating webmasters install honeypot pages on their websites;
+          these pages serve email addresses uniquely tagged to the hosting site and
+          the visiting IP address. When a visitor accesses a honeypot page, the tag
+          encodes the visitor's IP. If the same visitor later sends spam to the collected
+          address, the system correlates the event to identify the harvester IP and
+          the harvest timestamp. The php_harvesters feed publishes IPs that exhibited
+          harvester behavior, with type codes classifying the observed activity categories.
+          No external IP feeds are consumed.
+        source_feeds: []
+      listing_policy:
+        summary: 'An IP is listed when it visits a honeypot page and subsequently
+          sends spam to one of the email addresses it collected. The honeypot addresses
+          are uniquely tagged to the visiting IP, so any incoming spam to that address
+          implicates the collector. The feed publishes IPs exhibiting harvester-type
+          behavior, categorized by multi-letter type codes: H (pure harvester), HS
+          (harvester also observed sending spam), HC (harvester also posting to web
+          forms), HW (harvester also performing web searches), and compound codes
+          such as HSDCR (harvester + spammer + directories + comment spammer + registration).'
+        criteria:
+        - Visiting a Project Honey Pot honeypot page and collecting a tagged email
+          address
+        - Subsequently sending spam to the collected address, establishing the correlation
+          between harvester IP and harvest event
+        - Being identified as engaging in harvester-category behavior (pure harvester,
+          comment spammer, directory harvester, or combinations)
+      unlisting_policy:
+        summary: IPs are removed through a self-service whitelist mechanism or through
+          automatic expiry. To self-whitelist, the IP owner must connect from the
+          IP (or any address in the same /24 subnet) and submit a whitelist request
+          at the whitelist page; propagation takes approximately one hour. Each subsequent
+          re-whitelisting after a delisting incurs a progressively longer propagation
+          delay. IPs that remain inactive (no further bad activity) are automatically
+          removed after approximately 90 days, per the IP inspector page. No formal
+          delist request form or human-supported appeal process exists.
+        criteria:
+        - 'Self-whitelist: connecting from the listed IP (or its /24 subnet) and submitting
+          via the whitelist page — affects the entire subnet, propagates in approximately
+          one hour'
+        - 'Automatic expiry: no further malicious activity from the IP for approximately
+          90 days'
+        - Repeat re-offending increases the whitelist propagation delay incrementally
+      unlist_request:
+        url: https://www.projecthoneypot.org/white_list.php
+        email:
+        instructions: Visit the whitelist page from the IP address you wish to unlist
+          (or any address within the same /24 subnet). The request is automatic and
+          propagates within approximately one hour. Before submitting, check your
+          IP status at the search page. Note that each subsequent re-whitelisting
+          after a delisting incurs a longer propagation delay. IPs with no further
+          malicious activity expire automatically after approximately 90 days. No
+          human-supported removal channel is offered.
+      update_frequency:
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: 'The feed is built from a distributed honeypot network. Participating
+          webmasters install honeypot pages on their websites; these pages display
+          email addresses uniquely tagged to the hosting site and the visiting IP
+          address. When a visitor navigates to a honeypot page, the system records
+          the IP that accessed it. If the same visitor later sends spam to the collected
+          address, the system correlates the event — linking the harvester IP to the
+          specific address and the harvest timestamp. This is a passive detection
+          approach: the system does not scan or probe external networks; it waits
+          for harvesters to visit participating honeypot pages.'
+      scope_and_intent:
+        description: The feed tracks IP addresses associated with email-address harvesting
+          behavior — programs that crawl websites to collect email addresses for spam
+          mailing lists. It is scoped to the harvester category of malicious visitor,
+          distinct from general malware C2, exploit kits, or phishing infrastructure.
+        intended_for:
+        - Blocking email-address harvesters at the web application layer
+        - Enforcing opt-in email policies by preventing address collection
+        - Correlating harvester IPs with downstream spam activity for threat intelligence
+        not_intended_for:
+        - Hard blocking of all IPs with low threat scores — the maintainer notes that
+          IPs with low threat scores are often harmless robots and recommends graduated
+          responses (CAPTCHA, content restriction) rather than complete denial
+        - Certification of IPs as safe — an absence from the list means only that
+          no harvester behavior has been observed, not that the IP is trustworthy
+      license: Project Honey Pot Terms of Use — All Rights Reserved
+      redistribution:
+        allowed:
+        commercial_use_allowed:
+        attribution_required:
+        terms: The Terms of Use prohibit reproduction of content without written permission
+          and prohibit resale. Section 4 imposes special restrictions on Non-Human
+          Visitors, defining automated scrapers, bots, and harvesters as restricted
+          from accessing the site beyond typical human visitor levels. No affirmative
+          redistribution permission is granted in the Terms of Use; the feed is freely
+          downloadable via RSS but no redistribution license is explicitly offered.
+      current_status:
+        state: active
+        description: The feed is actively maintained. The RSS feed showed a LastBuildDate
+          of May 18 2026, indicating recent updates. The copyright notice on the feed
+          extends to 2026. Project Honey Pot continues to operate its honeypot network,
+          http:BL service, and IP monitoring services.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Users have reported frustration with false-positive listings —
+          particularly those behind shared ISP NAT addresses, corporate proxies, or
+          previously-tenanted VPS IPs where a prior occupant generated the listing.
+          A 2015 Reddit post described difficulty obtaining any explanation or recourse
+          upon discovering one's IP listed. A 2018 Cloudflare community post described
+          automated RSS-fetcher servers being blocked, disrupting legitimate workflows.
+          A 2020 Cloudflare community post raised concerns about database freshness
+          relative to more actively maintained competitors. Resolution is handled
+          through a self-service whitelist mechanism; the maintainer explicitly states
+          no official tech support is available. Repeat re-offenders face incrementally
+          longer whitelist propagation delays.
+        engagement: Public community discussion is sparse. The most visible discussions
+          originate from affected users seeking recourse after being blocklisted,
+          typically on Reddit or CDN provider forums rather than on Project Honey
+          Pot's own boards. The maintainer operates a message board and presence on
+          Facebook and Twitter. Integration into third-party products appears primarily
+          indirect — the http:BL DNS-based lookup is consumed through webserver plugins
+          and CDN providers rather than as a standalone IP list. No GitHub repository
+          or social follower counts were found for the project.
+      sources_consulted:
+      - url: http://www.projecthoneypot.org/
+        document_date:
+        validation_date: 2026-05-19T
+      - url: http://www.projecthoneypot.org/about_us.php
+        document_date:
+        validation_date: 2026-05-19T
+      - url: http://www.projecthoneypot.org/list_of_ips.php?t=h&rss=1
+        document_date: '2026-05-18'
+        validation_date: 2026-05-19T
+      - url: http://www.projecthoneypot.org/terms_of_use.php
+        document_date: '2007-04-15'
+        validation_date: 2026-05-19T
+      - url: http://www.projecthoneypot.org/faq.php
+        document_date:
+        validation_date: 2026-05-19T
+      - url: http://www.projecthoneypot.org/httpbl_api.php
+        document_date:
+        validation_date: 2026-05-19T
+      - url: http://www.projecthoneypot.org/white_list.php
+        document_date:
+        validation_date: 2026-05-19T
+      - url: http://www.projecthoneypot.org/services_overview.php
+        document_date:
+        validation_date: 2026-05-19T
+      - url: http://www.projecthoneypot.org/ip_23.129.64.136
+        document_date:
+        validation_date: 2026-05-19T
+      - url: 
+          https://www.reddit.com/r/AskNetsec/comments/308k8a/project_honeypot_has_my_ip_on_its_blacklist/
+        document_date: '2015'
+        validation_date: 2026-05-19T
+      - url: 
+          https://community.cloudflare.com/t/my-ip-blocked-due-to-projecthoneypot-how-to-resolve/28285
+        document_date: '2018'
+        validation_date: 2026-05-19T
+      - url: https://community.cloudflare.com/t/why-projecthoneypot/225043
+        document_date: 2020-11
+        validation_date: 2026-05-19T
+      - url: 
+          https://www.virusbulletin.com/uploads/pdf/magazine/2012/201203-vbspam-comparative.pdf
+        document_date: 2012-03
+        validation_date: 2026-05-19T

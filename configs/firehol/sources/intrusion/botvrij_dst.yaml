@@ -1,0 +1,168 @@
+sources:
+  botvrij_dst:
+    license: Botvrij.eu — use at own risk, no resale
+    redistributable: true
+    url: http://www.botvrij.eu/data/ioclist.ip-dst.raw
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[botvrij.eu](http://www.botvrij.eu/) Indicators of Compromise (IOCS) about
+      malicious destination IPs, gathered via open source information feeds (blog
+      pages and PDF documents) and then consolidated into different datasets. To ensure
+      the quality of the data all entries older than approx. 6 months are removed.'
+    maintainer: botvrij.eu
+    maintainer_url: http://www.botvrij.eu/
+    enabled_by_all: true
+    accept_empty: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T20:34:36+00:00'
+      official_name: Botvrij.eu Data
+      official_url: http://www.botvrij.eu/
+      short_description: Indicators of Compromise (IOCs) about malicious destination
+        IP addresses, gathered from public blog posts and PDF documents describing
+        malicious infrastructure.
+      long_description: "\"Botvrij\" is Dutch for \"free of bots\" (\"vrij\" means
+        free). The project provides freely available network IOCs drawn from open-source
+        information feeds — public blog posts, PDF documents, APT writeups, and exploit
+        campaign descriptions — consolidated into structured datasets. The maintainer
+        processes IOCs using the ioc-parser tool, stores them in a MISP instance,
+        and exports them via PyMISP into multiple formats: raw lists, MISP OSINT feeds,
+        and Snort/Suricata rules. Per the maintainer's stated policy, all entries
+        older than approximately six months are removed automatically to maintain
+        data quality. The project is operated by cudeso.be and is described as a volunteer
+        effort."
+      roles:
+      - role: maintainer
+        name: cudeso.be
+        organization_type: non_profit
+        official_url: https://www.cudeso.be
+        contact_email: info@botvrij.eu
+        based_in: Belgium
+        active_since: '2016'
+        notes: Nonprofit security research organization. Runs the Botvrij.eu project
+          and associated MISP instance. Copyright holder per the project copyright
+          notice. Operated by Koen Van Impe (@cudeso on GitHub), who also maintains
+          several related MISP and security tooling repositories on GitHub.
+      derivation:
+        type: original
+        description: "The maintainer gathers Indicators of Compromise from open-source
+          information feeds — public blog posts, PDF documents, APT writeups, and
+          descriptions of exploit campaigns — and consolidates them into multiple
+          structured datasets. Processing uses the ioc-parser tool to extract IOCs,
+          a MISP instance for storage and normalization, and PyMISP for export. Multiple
+          output formats are produced: raw lists (one IOC per line, comments stripped),
+          MISP OSINT feeds, and Snort/Suricata rules. Per the maintainer's stated
+          policy, entries older than approximately six months are removed automatically."
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when it appears in a publicly available blog post
+          or PDF document that describes it as part of malicious infrastructure —
+          such as command-and-control servers, exploit delivery endpoints, or other
+          attacker-controlled systems. The maintainer parses these sources programmatically
+          using ioc-parser and adds resulting IOCs to the MISP instance.
+        criteria:
+        - Appears in a publicly available blog post or PDF document describing malicious
+          infrastructure
+        - Described by the source as a destination IP address used in an attack or
+          malicious campaign
+      unlisting_policy:
+        summary: Entries older than approximately six months are removed automatically.
+          Beyond automatic expiry, the maintainer accepts manual unlisting requests
+          by email.
+        criteria:
+        - Automatic removal after approximately six months of no new corroborating
+          reports
+        - Manual removal upon email request to the maintainer
+      unlist_request:
+        url:
+        email: info@botvrij.eu
+        instructions: Send an email to info@botvrij.eu with a short description of
+          the IP, domain, or URL to be removed, per the maintainer's instructions
+          on their homepage.
+      update_frequency:
+        frequency:
+        human_readable: Updated whenever new APT writeups or exploit campaign reports
+          become publicly available; the maintainer characterizes this as a volunteer
+          project with no guaranteed update interval.
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods: []
+        description: The maintainer gathers Indicators of Compromise by reading publicly
+          available blog posts and PDF documents that describe malicious infrastructure
+          — such as APT analysis reports, incident response post-mortems, and exploit
+          campaign writeups. IOCs are extracted from these sources using the ioc-parser
+          tool and stored in a MISP instance. No active scanning, honeypot network,
+          or direct sensor infrastructure is used.
+      scope_and_intent:
+        description: The feed is intended as an additional data source for security
+          monitoring and investigation. Per the maintainer's guidance on the MISP
+          feeds page, IOCs should be used to detect possible malicious behavior, raise
+          alerts, and support incident response investigations — not installed directly
+          into intrusion prevention systems without analysis.
+        intended_for:
+        - Detecting possible malicious network behavior in security monitoring tools
+        - Raising IDS/alerting signals for suspicious activity
+        - Supporting incident response investigations with file hashes and network
+          IOCs
+        - Enriching threat intelligence platforms (MISP and compatible systems)
+        not_intended_for:
+        - Direct installation into intrusion prevention systems (IPS) without prior
+          analysis
+        - Automated blocking without investigation
+      license: Botvrij.eu — use at own risk, no resale
+      redistribution:
+        allowed: true
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Free to use in any manner, at the user's own risk. Redistribution for
+          resale is prohibited, whether as an individual package or as part of a larger
+          package. No formal attribution requirement is stated.
+      current_status:
+        state: active
+        description: Active volunteer project maintained by cudeso.be. Regular updates
+          posted whenever new public APT writeups or exploit campaign reports become
+          available.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Listed as a default feed on the official MISP project feeds page,
+          confirming first-class integration within the MISP threat-sharing platform.
+          A certified connector for FortiSOAR (Fortinet's security orchestration platform,
+          version 7.2.0+) is published on the Fortinet document hub and GitHub. Referenced
+          in peer-reviewed academic publications including an ACM Computers & Security
+          paper (2023) on privacy-preserving threat intelligence sharing and a ScienceDirect
+          paper (2024) on cross-organizational cyber threat correlation. The project
+          is operated by Koen Van Impe (@cudeso), who maintains several related MISP
+          and security tooling repositories on GitHub with a combined following of
+          203 accounts on the cudeso profile (as of May 2026).
+      sources_consulted:
+      - url: http://www.botvrij.eu/
+        document_date:
+        validation_date: '2026-05-17T20:28:00+00:00'
+      - url: https://www.misp-project.org/feeds/
+        document_date:
+        validation_date: '2026-05-17T20:32:00+00:00'
+      - url: 
+          https://docs.fortinet.com/document/fortisoar/1.0.0/botvrij-eu-misp-osint-feed/254/
+        document_date:
+        validation_date: '2026-05-17T20:33:00+00:00'
+      - url: https://github.com/cudeso
+        document_date:
+        validation_date: '2026-05-17T20:33:00+00:00'
+      - url: https://github.com/fortinet-fortisoar/connector-botvrij-misp-osint-feed
+        document_date: '2022-04-20'
+        validation_date: '2026-05-17T20:33:00+00:00'
+      - url: https://dl.acm.org/doi/fullHtml/10.1145/3538969.3538982
+        document_date:
+        validation_date: '2026-05-17T20:34:00+00:00'
+      - url: https://www.sciencedirect.com/science/article/abs/pii/S0167404823004157
+        document_date:
+        validation_date: '2026-05-17T20:34:00+00:00'

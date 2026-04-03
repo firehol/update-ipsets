@@ -1,0 +1,169 @@
+sources:
+  ipsum_5:
+    license: The Unlicense
+    redistributable: true
+    url: https://raw.githubusercontent.com/stamparm/ipsum/master/levels/5.txt
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[IPsum](https://github.com/stamparm/ipsum) threat intelligence feed of
+      IPs appearing on at least 5 blacklists. Based on analysis of 30+ publicly available
+      blacklists updated daily.'
+    maintainer: stamparm
+    maintainer_url: https://github.com/stamparm/ipsum
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T21:05:51Z'
+      official_name: IPsum
+      official_url: https://github.com/stamparm/ipsum
+      short_description: A daily-updated threat intelligence feed of IP addresses
+        that appear on five or more public blacklists, ranked by cross-list occurrence
+        count as a confidence signal.
+      long_description: "This feed is the `levels/5.txt` slice of the IPsum project
+        — IPs that appear on five or more of the 30+ upstream public blacklists IPsum
+        aggregates. The five-source consensus threshold targets IPs with strong cross-list
+        agreement while keeping the list compact enough for perimeter filtering on
+        resource-constrained appliances.\n\nIPsum tallies how many of its upstream
+        blacklists list a given IP and emits one file per integer threshold; this
+        feed publishes the level-5 cut. The full feed is rebuilt daily and sorted
+        by occurrence count, highest first. Since IPsum derives its data entirely
+        from upstream blacklists, it does not conduct its own active scanning or honeypot
+        sensing — the level-5 threshold is a confidence filter on aggregated reputation
+        data, not a detection method of its own.\n\nThe upstream sources cover a mix
+        of reputation lists, malware C2 trackers, proxy/abuse feeds, ransomware trackers,
+        and phishing feeds; the IPsum README does not enumerate them individually.
+        Operators who want broader coverage can use `ipsum_2` through `ipsum_4`; operators
+        who want the strictest possible consensus can move to `ipsum_6` through `ipsum_8`."
+      roles:
+      - role: maintainer
+        name: stamparm
+        organization_type: individual
+        official_url: https://github.com/stamparm
+        contact_email:
+        based_in:
+        active_since:
+        notes: Individual researcher maintaining IPsum alongside several other open-source
+          security tools (Maltrail, identYwaf, aux). Engages with the community through
+          the project GitHub issues.
+      derivation:
+        type: aggregate_merge
+        description: Daily aggregation of more than thirty public threat-intelligence
+          blacklists. Each IP is scored by how many source lists flagged it; IPs appearing
+          on five or more sources qualify for the level/5.txt output. The feed is
+          sorted by occurrence count descending. The IPsum README cites '30+' upstream
+          lists but does not enumerate them individually.
+        source_feeds: []
+      listing_policy:
+        summary: 'An IP qualifies for level/5.txt when it appears on five or more
+          of the aggregated source blacklists simultaneously. The occurrence count
+          acts as a confidence proxy: IPs flagged by more independent sources carry
+          stronger consensus and lower false-positive probability.'
+        criteria:
+        - Appears on at least 5 of the aggregated source blacklists in the same daily
+          cycle
+      unlisting_policy:
+        summary: Automatic and passive. IPs are removed when they no longer appear
+          on the required threshold of source blacklists during a daily regeneration
+          cycle. No active investigation or adjudication is performed by IPsum — delisting
+          is driven entirely by upstream source-list status.
+        criteria:
+        - IP falls below the 5-list threshold in the next daily aggregation cycle
+        - IP is no longer flagged by any contributing source blacklist
+      unlist_request:
+        url: https://github.com/stamparm/ipsum/issues/new
+        email:
+        instructions: Open a GitHub issue on the project repository describing the
+          IP address and the legitimate use case. The maintainer reviews and closes
+          issues once the threat has been remediated upstream. Note that IPsum does
+          not control the underlying source blacklists — remediation may also require
+          delisting from those upstream sources.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated once per day, with all source blacklists re-parsed
+          and the scored feed regenerated.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: Reputation aggregation from more than thirty upstream public
+          blacklists. No active scanning or honeypot sensing is performed. The contributing
+          feeds cover a mix of threat categories (malware C2, proxy abuse, ransomware
+          trackers, phishing, brute-force blocks, and others). An IP's score reflects
+          how many independent sources flagged it.
+      scope_and_intent:
+        description: Perimeter blocking feed for inbound traffic. Intended as a first-layer
+          deny list for firewalls and network ACLs.
+        intended_for:
+        - Blocking inbound connections from suspicious IP addresses at the network
+          perimeter
+        - Enriching SIEM or SOC pipelines with threat-indicator context
+        - Generating ipset/iptables block lists for edge firewalls
+        not_intended_for:
+        - Email security (spam filtering) — feeds focused on email senders exist and
+          are better suited
+        - Guaranteeing absence of malicious activity — the feed reflects consensus
+          across public sources, not exhaustive threat coverage
+        - Blocking outbound traffic — the feed tracks inbound scanner and attacker
+          IPs, not compromised egress vectors
+      license: The Unlicense
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: Public domain dedication under The Unlicense. No conditions, no attribution
+          required, no restrictions on commercial or non-commercial use.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026. Regular daily updates pushed
+          to the repository. Recent GitHub issues show ongoing maintainer engagement
+          with false-positive reports and delist requests.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Across the IPsum project, past community discussion has surfaced
+          accuracy concerns around search-engine crawler IPs (Microsoft Bing, Google,
+          Baidu, Yandex) and other legitimate infrastructure being listed by upstream
+          blacklists. Most of those cases involve IPs flagged by only a small number
+          of sources; the level-5 threshold filters the noisiest of those out by requiring
+          five-source consensus, but the risk is not eliminated. Some operators have
+          also reported frustration with the lack of whitelisting controls for trusted
+          cloud and CDN ranges. The maintainer has addressed individual false-positive
+          reports through the GitHub issue tracker, typically closing issues once
+          upstream remediation is confirmed.
+        engagement: Moderately active community discussion across multiple platforms
+          (Reddit communities including r/pihole, r/cybersecurity, r/opnsense, r/firewalla,
+          r/pfBlockerNG, r/sonicwall) demonstrates real-world deployment interest.
+          The maintainer responds to GitHub issues regularly, addressing false-positive
+          reports and delist requests. Sparse formal documentation beyond the README;
+          no dedicated FAQ or unlisting guide.
+      sources_consulted:
+      - url: https://github.com/stamparm/ipsum
+        document_date:
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/README.md
+        document_date:
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/levels/5.txt
+        document_date:
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/LICENSE
+        document_date:
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: https://github.com/stamparm/maltrail
+        document_date:
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: https://github.com/stamparm/ipsum/issues?q=is%3Aissue+sort%3Aupdated-desc
+        document_date:
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: https://github.com/stamparm/ipsum/wiki
+        document_date:
+        validation_date: '2026-05-16T21:00:00Z'
+      - url: https://github.com/stamparm/ipsum/tree/master/levels
+        document_date:
+        validation_date: '2026-05-16T21:00:00Z'

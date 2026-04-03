@@ -1,0 +1,195 @@
+sources:
+  coinbl_hosts:
+    license: AGPL-3.0
+    redistributable: true
+    url: https://zerodot1.gitlab.io/CoinBlockerLists/hosts
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - hphosts2ips
+    processor_raw: hphosts2ips
+    category: policy_risk
+    info: '[CoinBlockerLists](https://gitlab.com/ZeroDot1/CoinBlockerLists) Simple
+      lists that can help prevent cryptomining in the browser or other applications.
+      This list contains all domains - A list for administrators to prevent mining
+      in networks. The maintainer''s file contains hostnames, which have been DNS
+      resolved to IP addresses.'
+    maintainer: CoinBlockerLists
+    maintainer_url: https://gitlab.com/ZeroDot1/CoinBlockerLists
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T04:49:52Z'
+      official_name: CoinBlockerLists
+      official_url: https://zerodot1.gitlab.io/CoinBlockerLists/
+      short_description: Filter lists compiled from community reports and public mining-block
+        lists, converting cryptomining hostnames to IP addresses for network-level
+        blocking.
+      long_description: "This feed is the IP-resolved form of the CoinBlockerLists
+        'hosts' file — the maintainer's broad cryptomining domain list covering all
+        known mining-related hostnames (browser-based miners, mining pool infrastructure,
+        and cryptocurrency fraud schemes). The catalog fetches the maintainer's hosts
+        file and DNS-resolves each domain to its current IPv4 addresses for use with
+        firewall and IP-blocking tools. The broad scope is the maintainer's union
+        list; the narrower browser-only variant is published as a separate hosts_browser
+        file.\n\nEntries were contributed by community members through GitLab pull
+        requests and issues. The maintainer cross-checked listed domains using PyFunceble
+        — a Python tool authored by the same developer that validates domain availability
+        via WHOIS lookups, DNS resolution, and HTTP status checks.\n\nThe project
+        was discontinued in January 2025. ZeroDot1 took the repository and downloads
+        offline and publicly recommended complete removal of all lists, citing health
+        reasons and insufficient community and financial support. Third-party archives
+        and PyFunceble-cleaned mirrors of the last available version exist independently
+        but cannot add new mining domains without an active upstream source."
+      roles:
+      - role: maintainer
+        name: ZeroDot1
+        organization_type: individual
+        official_url: https://gitlab.com/ZeroDot1
+        contact_email:
+        based_in:
+        active_since: '2017'
+        notes: Pseudonymous developer. Also authored PyFunceble, the domain-validation
+          tool used to check listed domains for availability. Discontinued the project
+          in January 2025 citing health reasons and insufficient community and financial
+          support.
+      derivation:
+        type: derivative
+        description: The feed starts from the CoinBlockerLists domain list (list.txt),
+          resolves each hostname to its current IP address(es) via DNS lookups, and
+          outputs the resulting IP addresses in hosts-file format. The underlying
+          domain list was assembled from community-reported mining domains and cross-checked
+          using PyFunceble for availability. No external IP feeds are consumed as
+          inputs.
+        source_feeds: []
+      listing_policy:
+        summary: Entries were added based on community reports submitted via GitLab
+          pull requests and issues. The maintainer reviewed submissions and validated
+          listed domains using PyFunceble, which checks availability via WHOIS lookups,
+          DNS resolution, and HTTP status codes. Domains associated with browser-based
+          crypto mining (such as Coinhive-style in-page miners), standalone mining
+          pool infrastructure, and cryptocurrency-related fraudulent sites were in
+          scope.
+        criteria:
+        - Domains reported by community members via GitLab issues or pull requests
+        - Domains associated with browser-based crypto mining (Coinhive-style in-page
+          miners)
+        - Standalone mining pool infrastructure hostnames
+        - Domains associated with cryptocurrency fraud schemes
+        - Validated as active via PyFunceble availability checks (WHOIS, DNS, HTTP)
+      unlisting_policy:
+        summary: After February 2018, the maintainer adopted a policy of declining
+          all false-positive removal requests, directing affected operators to maintain
+          their own local whitelists instead. Prior to this policy shift, removals
+          were processed through GitLab issues.
+        criteria:
+        - 'Before February 2018: removals processed via GitLab issues'
+        - 'After February 2018: no false-positive entries removed upon request; operators
+          directed to local whitelists'
+      unlist_request:
+        url: https://zerodot1.gitlab.io/CoinBlockerListsWeb/contacts.html
+        email:
+        instructions: The maintainer's contact page was available at zerodot1.gitlab.io/CoinBlockerListsWeb/contacts.html.
+          Following the February 2018 policy shift, the maintainer stated that emails
+          requesting false-positive removals would no longer receive responses. With
+          the project discontinued in January 2025 and the site offline, no functional
+          unlisting channel exists.
+      update_frequency:
+      detection_classification:
+        primary_method: mixed
+        secondary_methods:
+        - user_submission
+        - malware_analysis
+        description: The feed combined multiple detection approaches. Primary additions
+          came from community reports submitted via GitLab issues and pull requests
+          — users identifying and reporting mining domains they encountered. Cross-validation
+          was performed using PyFunceble, a domain-availability checker that queries
+          WHOIS records, performs DNS lookups, and checks HTTP status codes to determine
+          whether a listed domain is still active. Domains associated with browser-based
+          mining scripts, standalone mining pool infrastructure, and cryptocurrency
+          fraud schemes were in scope.
+      scope_and_intent:
+        description: "CoinBlockerLists was designed to block cryptocurrency mining
+          in web browsers and network infrastructure. Two primary scopes were offered:
+          a broad list covering all known cryptomining domains and IP addresses, and
+          a narrower browser-focused list targeting in-browser Coinhive-style mining
+          scripts that run on websites without the visitor's knowledge or consent."
+        intended_for:
+        - Browser-level blocking of in-page crypto miners via browser extensions (uBlock
+          Origin, AdGuard)
+        - Network-level blocking via Pi-hole, dnscrypt-proxy, pfSense, and firewall
+          hosts files
+        - Preventing unauthorized use of visitor browser resources for cryptocurrency
+          mining
+        not_intended_for:
+        - Blocking legitimate cryptocurrency exchanges or wallet websites
+        - Blocking DNS-over-HTTPS providers or public CDNs that host no mining content
+        - As a substitute for antivirus or endpoint detection software
+      license: AGPL-3.0
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: Both GPLv3 and AGPLv3 have been cited for the project. Under GPLv3,
+          redistribution is permitted with attribution and share-alike terms. AGPLv3
+          extends these obligations to networked use. The license conflict creates
+          legal uncertainty for downstream redistributors.
+      current_status:
+        state: discontinued
+        description: Discontinued. ZeroDot1 took the repository and downloads offline
+          in January 2025, citing health reasons and insufficient community and financial
+          support. The maintainer explicitly recommended complete removal of all lists,
+          warning that outdated entries can lead to incorrect blocking decisions.
+          The GitLab Pages site is offline (HTTP 404). Independent static archives
+          and PyFunceble-cleaned mirrors of the last available version exist but cannot
+          add new entries without an active upstream source.
+        successor:
+        announcement_date: '2025-01-15'
+      community:
+        awards:
+        criticism: Documented false-positive incidents date to February 2018, when
+          dnscrypt-proxy's maintainer tested CoinBlockerLists and found legitimate
+          domains including the official Monero website, a major crypto payment processor,
+          and a GitHub raw-content CDN incorrectly listed. The dnscrypt-proxy project
+          ultimately disabled CoinBlockerLists by default. After this incident, the
+          maintainer adopted a policy of refusing all false-positive removal requests,
+          directing affected operators to maintain local whitelists instead. Community
+          discussion on Reddit in late 2024 and early 2025 reflected Pi-hole users
+          encountering gravity-update errors as the upstream became intermittently
+          inaccessible before going fully offline.
+        engagement: Public discussion was sparse throughout the project's lifetime.
+          The most active engagement period was February 2018, centered on the dnscrypt-proxy
+          GitHub issue where the maintainer and community testers documented false
+          positives and reached a resolution (list disabled by default). Community
+          interest resurged briefly in early 2025 upon discovery of the discontinuation,
+          with Reddit threads on r/pihole and r/pfBlockerNG confirming the site was
+          offline. Multiple community members subsequently created static mirrors
+          of the last available version. The project was referenced in academic conference
+          presentations on cryptojacking detection between 2018 and 2023.
+      sources_consulted:
+      - url: https://zerodot1.gitlab.io/CoinBlockerListsWeb/info.txt
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://github.com/WaLLy3K/wally3k.github.io/issues/215
+        document_date: '2025-01-15'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://github.com/AstroMash/ZeroDot1_CoinBlockerLists
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://github.com/Ultimate-Hosts-Blacklist/ZeroDot1_CoinBlockerLists
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://github.com/jedisct1/dnscrypt-proxy/issues/119
+        document_date: '2018-02-15'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: 
+          https://www.reddit.com/r/pihole/comments/1iupcku/zerodot1_coinblockerlists_is_no_longer_mantained/
+        document_date: '2025-02-21'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: 
+          https://www.reddit.com/r/pfBlockerNG/comments/1i5th81/looks_like_the_coinblocker_lists_have_gone_kaput/
+        document_date: '2025-01-20'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://zerodot1.gitlab.io/CoinBlockerListsWeb/downloads.html
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'

@@ -1,0 +1,169 @@
+sources:
+  dataplane_dnsversion:
+    license: Dataplane.org — non-commercial use only, redistribution prohibited
+    redistributable: false
+    url: https://dataplane.org/dnsversion.txt
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - dataplane_column3
+    processor_raw: dataplane_column3
+    category: scanners
+    info: '[DataPlane.org](https://dataplane.org/) IP addresses that have been identified
+      as sending DNS CH TXT VERSION.BIND queries to a remote host. This report lists
+      addresses that may be cataloging DNS software.'
+    maintainer: DataPlane.org
+    maintainer_url: https://dataplane.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T18:58:56+00:00'
+      official_name: DNS CH TXT version.bind
+      official_url: https://dataplane.org/signals.html
+      short_description: IP addresses observed sending DNS Chaos class TXT queries
+        for the VERSION.BIND record, indicating DNS server version reconnaissance.
+      long_description: "The DNS CH TXT version.bind signal tracks IPv4 addresses
+        observed sending DNS Chaos (CH) class TXT queries requesting the VERSION.BIND
+        record -- a query used to fingerprint the version of a BIND DNS server. This
+        is a well-documented reconnaissance technique employed by security researchers,
+        threat actors, and internet-wide scanning projects alike.\n\nThe feed is produced
+        by DataPlane.org, a 501(c)(3) nonprofit organization founded in 2016 by John
+        Kristoff and operated by a small team. Detection relies on a globally distributed
+        sensor network that passively monitors unsolicited inbound traffic across
+        participating networks. Per the maintainer's about page, the network spans
+        multiple metropolitan areas on six continents. The maintainer explicitly disclaims
+        that Signals are not block lists and advises against treating them as such
+        -- the data is informational.\n\nEach entry in the feed file is a pipe-delimited
+        record containing the originating ASN, ASN name, IP address, last-seen timestamp,
+        and the fixed category tag. Entries are deduplicated per ASN. The maintainer
+        uses the PyASN IP-to-ASN mapping service to resolve origin ASNs. Addresses
+        decay from the signal automatically once the querying behavior is no longer
+        observed."
+      roles:
+      - role: maintainer
+        name: DataPlane.org
+        organization_type: non_profit
+        official_url: https://dataplane.org/
+        contact_email: info@dataplane.org
+        based_in: Chicago, IL
+        active_since: '2016'
+        notes: A 501(c)(3) nonprofit organization (EIN 88-2177476) that operates a
+          distributed sensor network to observe unsolicited Internet communications.
+          Founded by John Kristoff; team also includes Matthew Kemp and Bill Eaheart.
+          The maintainer's about page lists over twenty downstream adopters of their
+          signal portfolio — including Recorded Future, RiskIQ, Shadowserver, Team
+          Cymru, MISP, IntelMQ, and Maltrail — which applies across all DataPlane.org
+          signals rather than to any single feed.
+      derivation:
+        type: original
+        description: The signal is generated from DataPlane.org's own globally distributed
+          sensor network, which passively monitors unsolicited inbound traffic across
+          participating networks. Sensors observe DNS CH TXT VERSION.BIND queries
+          directed at the maintainer's own infrastructure. Resolved IP addresses are
+          mapped to their originating ASN using the PyASN IP-to-ASN mapping service.
+          Entries are deduplicated per ASN and decay automatically when querying activity
+          ceases.
+        source_feeds: []
+      listing_policy:
+        summary: An IP address is listed when DataPlane.org's sensors observe it sending
+          a DNS Chaos class TXT query for the VERSION.BIND record to a monitored destination.
+          The query must be unsolicited -- initiated by the remote host toward the
+          maintainer's infrastructure rather than responses to outbound queries. Multiple
+          detections from the same IP within the reporting window result in a single
+          deduplicated entry.
+        criteria:
+        - Observed sending a DNS CH TXT query for the VERSION.BIND record
+        - Query is unsolicited (inbound to the maintainer's sensor infrastructure)
+        - Address is deduplicated per originating ASN -- only one entry per IP per
+          ASN
+      unlisting_policy:
+        summary: There is no manual unlisting request process. Listings decay automatically
+          once the querying behavior is no longer observed from the IP address. The
+          maintainer advises ensuring the listed device is operating as expected --
+          once the issue is resolved and the device stops sending VERSION.BIND queries,
+          the address will naturally fall off the signal.
+        criteria:
+        - Automatic decay when querying activity is no longer observed
+        - No manual removal request channel is offered
+      unlist_request:
+        url:
+        email:
+        instructions: The maintainer offers no manual unlisting channel for this signal.
+          Per the contact page FAQ, the recommended course is to resolve the underlying
+          issue causing the device to send VERSION.BIND queries -- once the behavior
+          stops, the address decays from the signal automatically. General inquiries
+          can be directed to info@dataplane.org.
+      update_frequency:
+        frequency: 1h
+        human_readable: Updated hourly, per the maintainer's stated update cadence
+          for all Signals unless otherwise noted.
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: "Passive network telescope: DataPlane.org's distributed sensor
+          network listens for unsolicited inbound DNS Chaos class TXT queries for
+          VERSION.BIND directed at the maintainer's own infrastructure. Sensors are
+          deployed across diverse networks and cloud providers globally. The approach
+          is purely observational -- no active probes are sent to enumerate remote
+          DNS servers. Addresses are mapped to their originating ASN using the PyASN
+          IP-to-ASN mapping service."
+      scope_and_intent:
+        description: The signal identifies IP addresses performing DNS server version
+          reconnaissance by querying for VERSION.BIND via DNS Chaos class TXT records.
+          This is informational data for operators assessing scanning activity in
+          their environments.
+        intended_for:
+        - Identifying hosts performing DNS server version fingerprinting
+        - Correlating scanning sources with known research or threat actor infrastructure
+        - Security research and situational awareness
+        not_intended_for:
+        - Inline blocking or deny-listing at network perimeter devices
+        - Automated enforcement actions without human review
+        - Attributing malicious intent to listed IPs without additional context
+      license: Non-commercial use only; redistribution prohibited without express
+        permission of DataPlane.org
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution in whole or in part is expressly prohibited without
+          written permission from DataPlane.org. Commercial use requires prior contact
+          at info@dataplane.org to negotiate terms.
+      current_status:
+        state: active
+        description: Active signal maintained by DataPlane.org. Updated hourly. The
+          maintainer's site is operational with no discontinuation notices found.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public practitioner discussion of the dnsversion signal specifically
+          is sparse. Direct user reviews or forum threads about it were not found
+          during research. The maintainer publishes a Substack newsletter with annual
+          year-in-review posts; downstream-platform adoption applies across the maintainer's
+          signal portfolio rather than to dnsversion specifically — see roles[].notes
+          for that context.
+      sources_consulted:
+      - url: https://dataplane.org/
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://dataplane.org/dnsversion.txt
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://dataplane.org/signals.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://dataplane.org/contact.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://dataplane.org/about.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://dataplane.org/statistics/dnsversion.html
+        document_date: '2022-04-13'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/Dataplane
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'

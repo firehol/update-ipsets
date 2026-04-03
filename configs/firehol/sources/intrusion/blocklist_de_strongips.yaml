@@ -1,0 +1,180 @@
+sources:
+  blocklist_de_strongips:
+    license: public feed
+    redistributable: true
+    url: http://lists.blocklist.de/lists/strongips.txt
+    frequency: 15
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[Blocklist.de](https://www.blocklist.de/) All IPs which are older then
+      2 month and have more then 5.000 attacks.'
+    maintainer: Blocklist.de
+    maintainer_url: https://www.blocklist.de/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T20:20:38+00:00'
+      official_name: Blocklist.de Strong IPs
+      official_url: https://www.blocklist.de/en/export.html
+      short_description: Free IP blocklist targeting persistent, high-volume attackers
+        — IPs with more than 5,000 recorded attacks over a minimum age of two months
+        — drawn from a network of Fail2Ban-reporting servers.
+      long_description: "The strongips feed is the most restrictive of the Blocklist.de
+        export variants. Rather than covering attackers from the last 48 hours, the
+        maintainer publishes only IPs that have accumulated more than 5,000 attacks
+        over a minimum elapsed time of two months. The dual threshold — high attack
+        volume plus a long observation window — is intended to capture persistent,
+        heavily active attackers and to exclude transient or opportunistic scanners
+        that the shorter-window feeds may surface.\n\nThe feed is regenerated on the
+        same 30-minute cycle as Blocklist.de's other export lists and is served as
+        a plain-text file with one IPv4 address per line. For the underlying sensor
+        network, the Fail2Ban/X-ARF reporting model, the dnswl.org and spamhauswhitelist.org
+        allow-list cross-checks, Tor exclusion, and the maintainer's mission of routing
+        abuse reports to ISPs, see the parent `blocklist_de` feed page."
+      roles:
+      - role: maintainer
+        name: Martin Schiftan
+        organization_type: individual
+        official_url: https://www.blocklist.de/
+        contact_email: support@blocklist.de
+        based_in: Switzerland
+        active_since: '2007'
+        notes: Fraud and abuse specialist running blocklist.de as a personal voluntary
+          initiative. Makes all listing and unlisting decisions. Operates the sensor
+          infrastructure, API, and all export feeds. Copyright holder for all content.
+      derivation:
+        type: original
+        description: "The feed is built from the maintainer's own detection infrastructure:
+          a network of Fail2Ban-reporting servers operated by over 2,710 registered
+          users who forward attack logs to blocklist.de via the Fail2Ban integration.
+          Attack reports are validated against dnswl.org and spamhauswhitelist.org
+          to suppress false positives, and known Tor exit node IPs are excluded via
+          torproject.org. The strongips feed applies a stricter threshold than the
+          standard 48-hour feeds: only IPs that have accumulated more than 5,000 attacks
+          over a minimum elapsed time of two months qualify for inclusion. All export
+          lists are regenerated every 30 minutes."
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed on strongips when it has accumulated more than 5,000
+          recorded attacks over a minimum elapsed time of two months since its first
+          detection. This dual threshold — attack volume plus elapsed time — is significantly
+          stricter than the standard 48-hour feeds, intended to select persistent
+          heavy attackers. Cross-referencing against dnswl.org and spamhauswhitelist.org
+          suppresses listings for IPs associated with legitimate mail or security-scanning
+          activity, and known Tor exit node IPs are excluded.
+        criteria:
+        - More than 5,000 recorded attacks directed at blocklist.de partner servers
+        - First attack occurred at least two months prior
+        - IP is not listed on dnswl.org or spamhauswhitelist.org (legitimate sender
+          whitelists)
+        - IP is not a known Tor exit node (excluded via torproject.org blacklist)
+      unlisting_policy:
+        summary: IPs are automatically removed when no new attacks are recorded within
+          48 hours. Manual removal is available at any time via the online delist
+          form — the change takes effect within 60 minutes at the next list regeneration.
+          The maintainer also offers a seven-day pause option for IPs undergoing remediation,
+          giving operators additional time to resolve the underlying issue before
+          the IP reappears on the list.
+        criteria:
+        - Automatic expiry after 48 hours with no new attack detections
+        - Immediate manual removal via the delist form on the website
+        - Seven-day pause option available for IPs undergoing remediation
+      unlist_request:
+        url: https://www.blocklist.de/en/delist.html
+        email:
+        instructions: Submit the IP address via the online delist form at blocklist.de/en/delist.html.
+          The change takes effect within 60 minutes at the next list regeneration.
+          Alternatively, use the seven-day pause option if remediation is still in
+          progress.
+      update_frequency:
+        frequency: 30m
+        human_readable: Export lists are regenerated every 30 minutes, per the maintainer's
+          export page.
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods: []
+        description: The feed is built from attack reports submitted by a network
+          of Fail2Ban-reporting servers. Over 2,710 registered users forward structured
+          attack logs to blocklist.de via the Fail2Ban integration, using the X-ARF
+          (Extended Abuse Reporting Format) standard. The maintainer supplements this
+          with his own honeypot infrastructure monitoring SSH, mail, FTP, and web
+          server attacks. Incoming reports are cross-checked against dnswl.org and
+          spamhauswhitelist.org to suppress false positives, and known Tor exit node
+          IPs are excluded via torproject.org.
+      scope_and_intent:
+        description: The strongips feed targets persistent, high-volume attackers
+          for use in network-edge blocking. Its extended eligibility window (two months
+          minimum) and high attack-count threshold (5,000+) make it the most conservative
+          blocklist.de export variant, intended to identify repeat offenders rather
+          than one-time scanners.
+        intended_for:
+        - SSH, FTP, mail, and web server access control at the network perimeter
+        - Firewall and IDS rule augmentation
+        - fail2ban and pfBlockerNG / OPNsense integration
+        not_intended_for:
+        - Email filtering (blocklist.de explicitly excludes spam from its scope)
+        - DNS-based blocking (use the DNS RBL zones bl.blocklist.de for that use case)
+      license: public feed
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: Provided as-is, use at own risk. No guarantee for accuracy, completeness,
+          or quality. Author not liable for damages from use or non-use of the information.
+      current_status:
+        state: active
+        description: Active. The Blocklist.de website is reachable, the strongips
+          feed is listed on the maintainer's export page, and the site copyright spans
+          the service's continuous operation since 2007. No discontinuation, migration,
+          or rename notice was found.
+        successor:
+        announcement_date:
+      community:
+        awards: The IntelMQ feeds documentation includes a dedicated Strong_IPs page
+          that documents the feed's inclusion criteria, format, and a high accuracy
+          rating for the strongips variant specifically.
+        criticism:
+        engagement: Direct discussion of the strongips variant in public forums is
+          sparse beyond the IntelMQ documentation page. Operator commentary in the
+          surveyed Reddit threads (r/PFSENSE, r/selfhosted, r/pihole) targets the
+          Blocklist.de service as a whole rather than this specific variant; that
+          maintainer-level signal is recorded on the parent `blocklist_de` feed page.
+      sources_consulted:
+      - url: https://www.blocklist.de/
+        document_date:
+        validation_date: '2026-05-17T20:20:38+00:00'
+      - url: https://lists.blocklist.de/lists/strongips.txt
+        document_date:
+        validation_date: '2026-05-17T20:20:38+00:00'
+      - url: https://www.blocklist.de/en/export.html
+        document_date:
+        validation_date: '2026-05-17T20:20:38+00:00'
+      - url: https://www.blocklist.de/en/delist.html
+        document_date:
+        validation_date: '2026-05-17T20:20:38+00:00'
+      - url: https://www.blocklist.de/en/terms.html
+        document_date:
+        validation_date: '2026-05-17T20:20:38+00:00'
+      - url: 
+          https://github.com/certtools/intelmq-feeds-documentation/blob/master/Blocklist.de/Strong_IPs.md
+        document_date:
+        validation_date: '2026-05-17T20:20:38+00:00'
+      - url: https://www.reddit.com/r/pfBlockerNG/comments/v679p4/feed_issue_blocklistde/
+        document_date: '2022-06-06'
+        validation_date: '2026-05-17T20:20:38+00:00'
+      - url: 
+          https://www.reddit.com/r/selfhosted/comments/1pbijys/python_i_built_an_automated_abuse_reporter_parse/
+        document_date: '2025-04-01'
+        validation_date: '2026-05-17T20:20:38+00:00'
+      - url: 
+          https://www.reddit.com/r/pihole/comments/csegav/pihole_useful_for_more_than_blocking_ads/
+        document_date: '2019-06-19'
+        validation_date: '2026-05-17T20:20:38+00:00'
+      - url: 
+          https://www.reddit.com/r/PFSENSE/comments/1o5jf64/which_ip_dnsbl_lists_are_your_favorites/
+        document_date: '2025-02-12'
+        validation_date: '2026-05-17T20:20:38+00:00'

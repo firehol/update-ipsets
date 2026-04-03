@@ -1,0 +1,162 @@
+sources:
+  hfish_honeypot:
+    license: MIT License
+    redistributable: true
+    url: https://raw.githubusercontent.com/yuexuan521/honeypot-blocklist/main/ip_list.txt
+    frequency: 240
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[yuexuan521/honeypot-blocklist](https://github.com/yuexuan521/honeypot-blocklist)
+      HFish honeypot network observations. Small (~250 entries) but refreshed hourly
+      — the signal is fresher than the count suggests.'
+    maintainer: yuexuan521
+    maintainer_url: https://github.com/yuexuan521/honeypot-blocklist
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T19:33:22Z'
+      official_name: honeypot-blocklist
+      official_url: https://yuexuan521.github.io/honeypot-blocklist/
+      short_description: A rolling 24-hour blocklist of attacker IPs observed by publicly
+        exposed HFish honeypots, refreshed every few hours and formatted for direct
+        ingestion by firewalls, WAFs, and SIEM pipelines.
+      long_description: "This feed aggregates attacker IP addresses observed by publicly
+        deployed HFish honeypots — lightweight trap services that emulate common server
+        protocols and log any incoming connections. When scanners, worms, or credential
+        guessers reach a honeypot, their source IP is recorded. The maintainer collects
+        these observations from participating honeypot deployments, applies automated
+        filtering and a basic whitelist (excluding GoogleBot, BingBot, GitHub services,
+        and Cloudflare), and publishes the result as a plain-text list.\n\nThe feed
+        covers a rolling 24-hour window: IPs remain listed for up to one day after
+        last observed activity, then fall off naturally. Refreshes every two to four
+        hours via automated CI/CD commits. At any given moment the list holds roughly
+        three hundred entries — a small but focused snapshot of currently active probing
+        infrastructure.\n\nThe maintainer publishes integration guides for Linux iptables/ipset,
+        Nginx deny rules, Cloudflare Workers, and Palo Alto EDLs, along with a Python
+        SDK and CLI tool. A production-use disclaimer advises testing in monitor mode
+        first and combining with local allowlists."
+      roles:
+      - role: maintainer
+        name: yuexuan521
+        organization_type: individual
+        official_url: https://github.com/yuexuan521
+        contact_email:
+        based_in:
+        active_since: '2025-12-23'
+        notes: Solo maintainer. Authors all automated update commits. No external
+          contributors visible in recent commit history. Also publishes the Python
+          SDK, CLI tooling, and platform integration scripts.
+      derivation:
+        type: derivative
+        description: Collects connection records from publicly deployed HFish honeypot
+          nodes — trap services emulating SSH, RDP, HTTP, and other common protocols.
+          Attacker IPs that interact with any participating node are aggregated, filtered
+          for known-good infrastructure (search engines, CDNs), and published as a
+          rolling 24-hour blocklist rebuilt every two to four hours.
+        source_feeds: []
+      listing_policy:
+        summary: An IP enters the feed when a publicly deployed HFish honeypot node
+          records a connection attempt from that address. The honeypot emulates common
+          services — SSH, RDP, web servers, databases, and dozens of other protocols
+          — and logs any inbound probe or authentication attempt. Observed IPs accumulate
+          for the rolling 24-hour window; entries expire automatically when no new
+          contact is recorded within that period.
+        criteria:
+        - Connection attempt logged by a publicly deployed HFish honeypot node
+        - Activity falls within the honeypot's emulated service surface (SSH, RDP,
+          HTTP, database protocols, or other trapped services)
+        - IP not excluded by the automated whitelist (GoogleBot, BingBot, GitHub services,
+          Cloudflare)
+      unlisting_policy:
+        summary: Entries expire automatically after 24 hours with no new honeypot
+          contact. For immediate removal, open a GitHub Issue with the IP address,
+          the reason it should not be listed, supporting evidence, and an approximate
+          timestamp if known.
+        criteria:
+        - Entry older than 24 hours with no renewed honeypot contact — automatic expiry
+        - Manual removal request via GitHub Issue — requires IP address, justification,
+          evidence, and timestamp
+      unlist_request:
+        url: https://github.com/yuexuan521/honeypot-blocklist/issues/new
+        email:
+        instructions: Open a GitHub Issue on the project repository. Include the affected
+          IP address, why it should be removed, relevant supporting evidence, and
+          an approximate timestamp if known. The maintainer reviews and closes resolved
+          issues.
+      update_frequency:
+        frequency: 4h
+        human_readable: Refreshed every two to four hours via automated commits —
+          typically twice per day in practice.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: Passive connection logging via HFish honeypot nodes — decoy services
+          that mimic SSH, RDP, HTTP, databases, and dozens of other protocols. Any
+          inbound connection to a honeypot is recorded regardless of whether the attacker
+          succeeds; there is no exploit execution or payload detonation involved.
+          The feed aggregates these observations from multiple participating honeypot
+          deployments.
+      scope_and_intent:
+        description: Designed as a near-real-time blocklist for perimeter security
+          controls. The maintainer explicitly frames it as a defensive signal for
+          edge devices and security pipelines.
+        intended_for:
+        - Linux firewall rules (ipset + iptables)
+        - WAF and CDN edge blocking (Cloudflare Workers, Nginx deny rules)
+        - SIEM enrichment and alert triage
+        - External Dynamic Lists for network appliances (Palo Alto EDL)
+        not_intended_for:
+        - Hard enforcement without local allowlists — the maintainer warns to test
+          in monitor mode first
+        - Shared or dynamically allocated IP ranges without review — collateral impact
+          on legitimate users is possible
+        - As the sole threat intelligence signal — meant to complement other controls,
+          not replace them
+      license: MIT License
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit required — MIT License requires inclusion of
+          the copyright notice and permission notice in all copies or substantial
+          portions of the Software.
+        terms: Under the MIT License, anyone may use, copy, modify, merge, publish,
+          distribute, sublicense, and/or sell copies of the material without restriction,
+          provided the copyright notice and permission notice are retained.
+      current_status:
+        state: active
+        description: Actively maintained. Automated update commits post every two
+          hours. Latest observed push was on 2026-05-16. The feed file was updated
+          on 2026-05-17 (UTC). No discontinuation or migration notices have been issued.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Sparse public discussion. GitHub Discussions are disabled on the
+          repository. One open GitHub Issue exists. No Reddit mentions were found
+          across multiple searches. The project is listed in the 1Password for Open
+          Source registry and catalogued in several third-party security resource
+          collections. The broader HFish upstream project (hacklcx/HFish) maintains
+          an active Chinese-language issue queue covering deployment and configuration
+          questions, but that community pertains to the honeypot software itself,
+          not this specific aggregated feed.
+      sources_consulted:
+      - url: https://yuexuan521.github.io/honeypot-blocklist/
+        document_date:
+        validation_date: '2026-05-16T19:30:00Z'
+      - url: https://github.com/yuexuan521/honeypot-blocklist
+        document_date:
+        validation_date: '2026-05-16T19:25:00Z'
+      - url: https://raw.githubusercontent.com/yuexuan521/honeypot-blocklist/main/ip_list.txt
+        document_date: '2026-05-17'
+        validation_date: '2026-05-16T19:26:00Z'
+      - url: https://github.com/yuexuan521/honeypot-blocklist/blob/main/LICENSE
+        document_date: '2025'
+        validation_date: '2026-05-16T19:31:00Z'
+      - url: https://hfish.net/
+        document_date:
+        validation_date: '2026-05-16T19:32:00Z'

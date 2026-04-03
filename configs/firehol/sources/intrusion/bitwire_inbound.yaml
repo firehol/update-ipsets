@@ -1,0 +1,237 @@
+sources:
+  bitwire_inbound:
+    license: CC BY-NC-SA 4.0
+    redistributable: true
+    attribution: bitwire-it/ipblocklist — https://github.com/bitwire-it/ipblocklist
+    url: https://raw.githubusercontent.com/bitwire-it/ipblocklist/main/inbound.txt
+    frequency: 120
+    ipv: ipv4
+    output: netset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[bitwire-it](https://github.com/bitwire-it/ipblocklist) inbound blocklist
+      — aggregated C2, malware, and phishing IPs used to block WAN > LAN traffic.
+      Refreshed every ~2 hours via GitHub Actions.'
+    maintainer: bitwire-it
+    maintainer_url: https://github.com/bitwire-it/ipblocklist
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T12:56:12Z'
+      official_name: IP Blocklist
+      official_url: https://github.com/bitwire-it/ipblocklist
+      short_description: Aggregated blocklist of IPs and CIDRs with malicious inbound
+        reputations, compiled from over 35 public threat-intelligence sources and
+        refreshed every 2 hours via automated pipeline.
+      long_description: "The bitwire-it/ipblocklist project aggregates IP blocklists
+        from over 35 publicly available threat-intelligence sources into two distributions:
+        inbound.txt (malicious initiators) and outbound.txt (malicious destinations).
+        The inbound list covers sources of spam, port scanning, brute-force attacks
+        against SSH and RDP, and web exploit origins.\n\nThe aggregation pipeline
+        is implemented in Python (update_tables.py) and runs on a self-hosted GitHub
+        Actions runner triggered every 2 hours via cron. Source feeds are fetched
+        concurrently (up to 10 workers, 3 retries per URL), parsed for valid IP/CIDR
+        lines, and fed through a parallel fragmentation engine that excludes major
+        public DNS resolver ranges to reduce collateral damage. Adjacent and overlapping
+        entries are merged using Python's ipaddress.collapse_addresses() before the
+        final sorted output is committed to the repository.\n\nPer the maintainer's
+        README, the aggregated data is explicitly non-commercial: several upstream
+        sources (notably Spamhaus) prohibit commercial use without a separate agreement.
+        The maintainer therefore applies CC BY-NC-SA 4.0 to the compiled data while
+        releasing the generation code under MIT. The feed targets operators applying
+        WAN-IN or INPUT-chain firewall rules to DROP or REJECT inbound connections
+        from listed sources."
+      roles:
+      - role: maintainer
+        name: bitwire-it
+        organization_type: individual
+        official_url: https://github.com/bitwire-it
+        contact_email:
+        based_in:
+        active_since:
+        notes: GitHub organization maintaining the ipblocklist project. Acknowledged
+          contributors include David and Garrett Laman (code), and sponsors mraxu,
+          Hareen, Alexandru Balmus, and blockstreamtechnologies.llc.
+      derivation:
+        type: aggregate_merge
+        description: The feed merges entries from over 35 publicly available IP blocklists
+          and threat-feeds. Source URLs are listed in a local urltable_inbound file
+          and fetched concurrently (up to 10 parallel workers, 3 retries per URL).
+          Parsed IPs are deduplicated and collapsed into adjacent CIDR ranges using
+          Python's ipaddress.collapse_addresses(). Major public DNS resolver address
+          ranges are excluded via a separate urlexclusion_inbound file before the
+          final sorted output is written. No per-entry source attribution is retained
+          in the output file.
+        source_feeds:
+        - identifier: borestad/blocklist-abuseipdb
+          relationship: aggregate_component
+        - identifier: borestad/firehol-mirror
+          relationship: aggregate_component
+        - identifier: duggytuxy/Data-Shield_IPv4_Blocklist
+          relationship: aggregate_component
+        - identifier: stamparm/ipsum (via bitwire-it/ipsum-clean)
+          relationship: aggregate_component
+        - identifier: ShadowWhisperer/IPs
+          relationship: aggregate_component
+        - identifier: romainmarcoux/malicious-ip
+          relationship: aggregate_component
+        - identifier: romainmarcoux/malicious-outgoing-ip
+          relationship: aggregate_component
+        - identifier: elliotwutingfeng/ThreatFox-IOC-IPs
+          relationship: aggregate_component
+        - identifier: CriticalPathSecurity/Public-Intelligence-Feeds
+          relationship: aggregate_component
+        - identifier: T145/black-mirror
+          relationship: aggregate_component
+        - identifier: drb-ra/C2IntelFeeds
+          relationship: aggregate_component
+        - identifier: SecOps-Institute/Tor-IP-Addresses
+          relationship: aggregate_component
+        - identifier: mitchellkrogza/nginx-ultimate-bad-bot-blocker
+          relationship: aggregate_component
+        - identifier: hagezi/dns-blocklists
+          relationship: aggregate_component
+        - identifier: malware-filter/malware-filter (botnet-filter)
+          relationship: aggregate_component
+        - identifier: binarydefense.com banlist
+          relationship: aggregate_component
+        - identifier: bruteforceblocker.com
+          relationship: aggregate_component
+        - identifier: darklist.de
+          relationship: aggregate_component
+        - identifier: Emerging Threats compromised-ips
+          relationship: aggregate_component
+        - identifier: Spamhaus DROP
+          relationship: aggregate_component
+        - identifier: CINSscore / CINSArmy
+          relationship: aggregate_component
+        - identifier: dataplane.org
+          relationship: aggregate_component
+        - identifier: greensnow.co
+          relationship: aggregate_component
+        - identifier: vxvault.net
+          relationship: aggregate_component
+        - identifier: blackip.ustc.edu.cn
+          relationship: aggregate_component
+        - identifier: sblam.com blacklist
+          relationship: aggregate_component
+        - identifier: stopforumspam.com toxic_ip_cidr
+          relationship: aggregate_component
+        - identifier: multiproxy.org proxy list
+          relationship: aggregate_component
+        - identifier: myip.ms htaccess blacklist
+          relationship: aggregate_component
+        - identifier: AlienVault OTX reputation list
+          relationship: aggregate_component
+        - identifier: Rutgers DROP
+          relationship: aggregate_component
+        - identifier: Checkpoint TOR list
+          relationship: aggregate_component
+        - identifier: opendbl.net bruteforce list
+          relationship: aggregate_component
+        - identifier: turris.cz
+          relationship: aggregate_component
+      listing_policy:
+        summary: "Entries enter the feed passively through aggregation: any IP appearing
+          in any of the 35 upstream source feeds is included in the merged output.
+          No per-entry review or scoring is applied by bitwire-it; the feed defers
+          to each upstream source's own listing decisions."
+        criteria:
+        - Presence in at least one of the 35 upstream source feeds (no minimum threshold
+          stated)
+        - Valid IPv4 address or CIDR notation parseable by Python's ipaddress module
+          or extracted via regex fallback from log lines
+      unlisting_policy:
+        summary: No manual unlisting mechanism is documented. The feed has no formal
+          removal or delisting process. Because entries originate from upstream sources,
+          removal from upstream sources will eventually propagate through the next
+          automated update cycle (every 2 hours).
+        criteria: []
+      unlist_request:
+      update_frequency:
+        frequency: 120m
+        human_readable: Refreshed every 2 hours, driven by a cron-triggered GitHub
+          Actions workflow on a self-hosted runner
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods:
+        - policy_assignment
+        description: The feed does not perform independent detection. Entries are
+          sourced from over 35 upstream public threat-feeds and merged without per-entry
+          review. The only local policy applied is an exclusion list for major public
+          DNS resolver address ranges, processed via a parallel fragmentation engine
+          that removes any network fragment fully contained within an exclusion range.
+      scope_and_intent:
+        description: The inbound list targets WAN-to-LAN perimeter enforcement. It
+          is designed to be applied to a firewall's WAN IN or INPUT chain to DROP
+          or REJECT inbound connections initiated by listed sources.
+        intended_for:
+        - Dropping or rejecting inbound malicious connection attempts at network perimeter
+          firewalls
+        - Protecting public-facing servers (web servers, mail servers, game servers,
+          SSH/RDP endpoints)
+        not_intended_for:
+        - Commercial use without a separate license agreement with upstream data providers
+        - Blocking outbound connections from internal hosts (that is the scope of
+          outbound.txt)
+      license: CC BY-NC-SA 4.0
+      redistribution:
+        allowed: true
+        commercial_use_allowed: false
+        attribution_required: Attribution to bitwire-it/ipblocklist and original upstream
+          data providers required; ShareAlike — derivatives must carry the same CC
+          BY-NC-SA 4.0 license
+        terms: Non-commercial redistribution permitted under CC BY-NC-SA 4.0 with
+          attribution and share-alike. Commercial use requires a separate agreement
+          with upstream data providers (notably Spamhaus), per the maintainer's README.
+      current_status:
+        state: active
+        description: Active as of May 2026. Updates are published every 2 hours via
+          a self-hosted GitHub Actions runner. The repository has ongoing sponsor
+          support and acknowledged code contributors.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: One documented operational incident involved the feed exceeding
+          a network appliance's entry-count ceiling, causing whitelists to be ignored
+          and disrupting a hosted service. The incident was resolved by the operator
+          through list management, not through a maintainer-channel fix. Beyond this,
+          no formal false-positive reporting workflow or unlisting process is documented,
+          which limits recourse when legitimate IPs are listed through upstream propagation.
+        engagement: Public discussion is sparse. The GitHub repository has 0 open
+          issues and 6 closed issues; closed-issue content was not accessible via
+          static fetch. One Reddit thread discusses the feed by name in the context
+          of a FortiGate integration issue. No GitHub Discussions tab is enabled.
+          The project acknowledges individual code contributors and sponsors but does
+          not publish a public roadmap or changelog.
+      sources_consulted:
+      - url: https://github.com/bitwire-it/ipblocklist
+        document_date:
+        validation_date: '2026-05-17T12:50:00Z'
+      - url: https://raw.githubusercontent.com/bitwire-it/ipblocklist/main/README.md
+        document_date:
+        validation_date: '2026-05-17T12:50:00Z'
+      - url: https://raw.githubusercontent.com/bitwire-it/ipblocklist/main/inbound.txt
+        document_date:
+        validation_date: '2026-05-17T12:51:00Z'
+      - url: https://raw.githubusercontent.com/bitwire-it/ipblocklist/main/LICENSE
+        document_date: '2026'
+        validation_date: '2026-05-17T12:52:00Z'
+      - url: 
+          https://raw.githubusercontent.com/bitwire-it/ipblocklist/main/.github/workflows/update.yml
+        document_date:
+        validation_date: '2026-05-17T12:52:00Z'
+      - url: https://raw.githubusercontent.com/bitwire-it/ipblocklist/main/update_tables.py
+        document_date:
+        validation_date: '2026-05-17T12:53:00Z'
+      - url: 
+          https://reddit.com/r/fortinet/comments/1nx07a8/fortigate_ip_address_threat_feed_changes/
+        document_date: '2025-10-03'
+        validation_date: '2026-05-17T12:53:00Z'
+      - url: https://github.com/bitwire-it/ipblocklist/issues
+        document_date:
+        validation_date: '2026-05-17T12:53:00Z'

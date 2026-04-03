@@ -1,0 +1,211 @@
+sources:
+  misp_ipinfo_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/ipinfo-nt-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) IPInfo.io
+      non-threat scanning IPs. Informational — not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T22:22:48Z'
+      official_name: Ipinfo IP Ranges Used for Scanning
+      official_url: https://github.com/MISP/misp-warninglists/tree/main/lists/ipinfo-nt-scanning
+      short_description: Flags IP addresses associated with Ipinfo's active internet
+        scanning infrastructure as known non-threatening reconnaissance sources, sourced
+        from CIRCL's passive darknet observation.
+      long_description: "This warninglist identifies IP addresses associated with
+        Ipinfo.io's active internet scanning infrastructure. Ipinfo operates a probe
+        network of distributed servers that perform active measurements — including
+        ping, traceroute, and port scanning — across the internet to build IP intelligence
+        data (geolocation, VPN/proxy detection, ASN mapping). The IPs in this list
+        were observed initiating scanning traffic that reached CIRCL's passive darknet
+        sensors; CIRCL analysed that traffic and extracted the source IPs as belonging
+        to Ipinfo's scanning infrastructure. What distinguishes this list among the
+        CIRCL -nt-scanning family is that the scanning operator is itself an IP-intelligence-data
+        vendor: Ipinfo's scans build the very dataset (geolocation, VPN/proxy detection,
+        ASN mapping) that many MISP users rely on, so analysts will frequently meet
+        Ipinfo probes in their logs from two directions.\n\nA companion list in the
+        same repository, `whats-my-ip`, separately flags the ipinfo.io service domain
+        itself, suppressing alerts when internal hosts query the service to determine
+        their own external IP — that is a complementary but distinct concern from
+        this list, which catalogues the scanner sources rather than the lookup endpoint."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://www.misp-project.org/
+        contact_email:
+        based_in: Luxembourg
+        active_since: '2011'
+        notes: The MISP Project develops and distributes the MISP threat intelligence
+          platform and its associated warning lists. Led by Andras Iklody and funded
+          primarily by CIRCL Luxembourg, with additional support from EU Connecting
+          Europe Facility grants. Hosts the canonical repository at github.com/MISP/misp-warninglists.
+      - role: source_contributor
+        name: CIRCL Luxembourg
+        organization_type: government
+        official_url: https://www.circl.lu/
+        contact_email:
+        based_in: Luxembourg
+        active_since: '2009'
+        notes: Computer Incident Response Center Luxembourg — Luxembourg's national
+          CERT for the private sector, operating under the Luxembourg House of Cybersecurity.
+          Performs the Network Telescope darknet analysis that generates the scanner
+          IP observations incorporated into this list. The most recent update (May
+          2026) was submitted by CIRCL contributor Paul Jung (handle Thanat0s).
+      derivation:
+        type: extraction
+        description: The list is produced by extracting IPs observed conducting scanning
+          activity from CIRCL Luxembourg's passive darknet (Network Telescope) observation
+          infrastructure. CIRCL operates distributed sensors monitoring unused IP
+          address space; any traffic reaching this space is inherently suspicious
+          and is captured. Analysts identify source IPs exhibiting systematic scanning
+          behaviour (sequential port hits, consistent timing, protocol fingerprints)
+          and cross-reference them against known scanning-service signatures. When
+          IPs match Ipinfo.io's known scanning infrastructure fingerprint, they are
+          added to this list. The MISP warninglists project packages these extractions
+          into structured warning lists for MISP users. The list does not consume
+          other IP feeds as inputs.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when CIRCL's darknet analysis identifies it as a
+          source of systematic scanning activity matching Ipinfo.io's known scanning
+          infrastructure fingerprint. CIRCL's sensors monitor unused IP address space;
+          IPs observed hitting multiple darknet destinations with scanning-characteristic
+          patterns (sequential port hits, consistent timing intervals, protocol fingerprints
+          consistent with active measurement tools) are candidates. Analysts cross-reference
+          candidate IPs against known scanning-service behavioural signatures to confirm
+          they belong to Ipinfo's probe network rather than another scanner. Confirmed
+          IPs are packaged into this list.
+        criteria:
+        - CIRCL darknet sensor observes the IP directing scanning-traffic patterns
+          at unused IP address space
+        - Behavioural analysis confirms scanning-characteristic patterns (horizontal
+          port sweep, consistent timing, protocol fingerprints)
+        - Cross-reference against known scanning-service signatures attributes the
+          IP to Ipinfo.io scanning infrastructure
+      unlisting_policy:
+        summary: IPs are removed when the list is refreshed with a new CIRCL analysis
+          cycle. There is no documented automatic expiry or manual delisting mechanism
+          specific to this list. Updates occur when CIRCL publishes a new round of
+          scanner analysis; the previous IPs are replaced with the newly identified
+          set. Users who believe an IP was incorrectly attributed can raise the issue
+          via a GitHub issue or pull request against the repository.
+        criteria:
+        - New CIRCL analysis cycle supersedes previously listed IPs
+        - Community report via GitHub issue or pull request prompts correction
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/issues/new
+        email:
+        instructions: Open a GitHub issue at github.com/MISP/misp-warninglists/issues/new
+          choosing Bug report, or email the MISP project mailing list. Describe the
+          IP address and the context (that it does not belong to Ipinfo scanning infrastructure).
+          Alternatively, submit a pull request with a corrected list.json following
+          the repository's validation scripts.
+      update_frequency:
+        frequency:
+        human_readable: Manual updates driven by CIRCL Network Telescope analysis
+          cycles; the list is refreshed when CIRCL publishes a new round of scanner
+          identifications, typically several times per year.
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: The IPs are identified through CIRCL Luxembourg's passive darknet
+          (Network Telescope) observation infrastructure. CIRCL operates distributed
+          sensors monitoring unused IP address space — any traffic reaching this space
+          is inherently suspicious since no legitimate services run there. Sensors
+          capture all unsolicited inbound traffic using passive tcpdump collection
+          with BPF filtering, recording source IPs, destination ports, TCP flags,
+          and timing. Analysts apply behavioural analysis to identify sources exhibiting
+          systematic scanning characteristics (horizontal port sweeps, consistent
+          timing intervals, protocol fingerprints) and cross-reference against known
+          scanning-service signatures to attribute IPs to Ipinfo's probe network.
+      scope_and_intent:
+        description: The list is intended for use within MISP as a false-positive
+          suppressor. When an analyst encounters an alert triggered by one of these
+          IPs, the warninglist causes MISP to display an informational warning rather
+          than a high-priority indicator, signalling that the traffic originates from
+          a known legitimate scanning service rather than a threat actor.
+        intended_for:
+        - False-positive suppression in MISP threat intelligence workflows
+        - Flagging known scanning infrastructure IPs during alert triage
+        - Attribution context when Ipinfo scanner IPs appear in intrusion detection
+          alerts
+        not_intended_for:
+        - Inline blocking or deny-listing at network perimeter
+        - Firewall blocklist compilation
+        - Punitive action against Ipinfo or its infrastructure
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Public Domain Dedication imposes no conditions on reuse, modification,
+          or redistribution. The data may be copied, modified, and redistributed without
+          attribution or notice.
+      current_status:
+        state: active
+        description: 'Actively maintained. The most recent update was merged on May
+          4, 2026 (commit da68b87, Network Telescope update May 2026). The preceding
+          update was merged in March 2026 (PR #330) as part of a coordinated batch
+          of scanner-list refreshes.'
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Community discussion specific to ipinfo-nt-scanning is sparse
+          — no open false-positive reports or issues targeting this list were found
+          in the repository. The list is updated in batch rounds alongside other CIRCL
+          telescope scanner lists, so engagement tends to surface via those coordinated
+          pull requests rather than as standalone threads.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/ipinfo-nt-scanning/list.json
+        document_date: '2026-05-04'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/tree/main/lists/ipinfo-nt-scanning
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/pull/330
+        document_date: '2026-03-13'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/issues/23
+        document_date: '2019-04-23'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.misp-project.org/governance/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.circl.lu/services/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.circl.lu/assets/files/20171115-LIDS-DDOS-workshop.pdf
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://ipinfo.io/blog/probe-network-how-we-make-sure-our-data-is-accurate
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://ipinfo.io/blog/ip-address-portscan-tag
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.misp-project.org/contributing/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://creativecommons.org/publicdomain/zero/1.0/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

@@ -1,0 +1,203 @@
+sources:
+  ipdeny_country:
+    license: public feed
+    redistributable: true
+    label: IPDeny
+    url: http://www.ipdeny.com/ipblocks/data/countries/all-zones.tar.gz
+    frequency: 1440
+    category: geolocation
+    info: '[IPDeny.com](http://www.ipdeny.com/)'
+    maintainer: IPDeny.com
+    maintainer_url: http://www.ipdeny.com/
+    hidden: true
+    use: [geoip]
+    format: ipdeny_country_tar_gz
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T13:58:16Z'
+      official_name: IPDeny Country Zones
+      official_url: https://www.ipdeny.com/
+      short_description: Free country-level IP address zone files in CIDR notation,
+        aggregated from the five Regional Internet Registries, for use with firewalls
+        and packet filters to restrict or allow traffic by country of origin.
+      long_description: "IPDeny publishes IP address zone files organized by country,
+        drawn from the allocation records of the five Regional Internet Registries
+        — APNIC, RIPE NCC, ARIN, LACNIC, and AFRINIC. Each country's allocated address
+        space is consolidated into a single .zone file in CIDR notation, with both
+        regular (full-delegation) and pre-aggregated (optimized-rule-count) variants
+        available. Separate IPv6 files are maintained in a parallel directory tree.\n\
+        \nZone files are freely downloadable and can be fed directly into iptables,
+        ipset, FirewallD, pfSense, OPNsense, Cisco ACL generators, and other packet-filter
+        tools. The service also hosts an online firewall rule generator (currently
+        undergoing updates).\n\nThe project was founded circa 2005 and has operated
+        continuously since. The service is offered as-is without SLAs or guaranteed
+        response times."
+      roles:
+      - role: maintainer
+        name: IPdeny Project
+        organization_type: informal_collective
+        official_url: https://www.ipdeny.com/
+        contact_email:
+        based_in:
+        active_since: '2005'
+        notes: An anonymous collective operating a free public service. No individual
+          names, company affiliation, or physical address are publicly disclosed.
+          The contact form at /contact.php returned a 404 error in testing, and no
+          alternative contact channel is listed.
+      derivation:
+        type: original
+        description: IPDeny aggregates IP allocation records from the five Regional
+          Internet Registries — APNIC, RIPE NCC, ARIN, LACNIC, and AFRINIC — consolidates
+          overlapping and adjacent CIDR ranges per country, and publishes the result
+          as per-country zone files in CIDR notation. Both regular and pre-aggregated
+          variants are offered. The service does not consume other public IP feeds;
+          it derives directly from authoritative RIR registry data.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are determined by which Regional Internet Registry (RIR)
+          allocated or assigned the IP address range and to whom, regardless of where
+          the IP is currently routed or used. An IP appears in a country's zone file
+          based on the original allocation record, not its present geographic routing.
+        criteria:
+        - IP address falls within a CIDR block allocated by APNIC, RIPE NCC, ARIN,
+          LACNIC, or AFRINIC to a registry holder in that country
+        - The IP is attributed to the allocating RIR's country assignment, not necessarily
+          its current routing destination
+      unlisting_policy:
+        summary: There is no manual unlisting or delisting process. Since entries
+          reflect authoritative RIR allocation records, corrections require a reassignment
+          or transfer recorded at the RIR level. Operators who need to exclude specific
+          IPs must apply their own whitelists or exemptions at the firewall layer.
+        criteria:
+        - No per-IP removal request channel exists
+        - Corrections require a change in the underlying RIR allocation record
+        - Operators needing exemptions must implement local whitelists outside the
+          feed
+      unlist_request:
+        url:
+        email:
+        instructions: No dedicated unlisting channel exists. Requests to remove a
+          specific IP from a country zone file cannot be submitted to IPDeny — the
+          IP appears there because it falls within an RIR allocation record for that
+          country. Corrections must originate at the RIR level. Operators who need
+          to exempt specific IPs from blocking must do so locally, outside the feed.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated approximately daily via automated batch processing
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: 'IPDeny does not detect threats — it assigns IP addresses to
+          countries based on authoritative allocation records published by the five
+          Regional Internet Registries. Entries reflect the country to which an IP
+          block was originally allocated, not the country where it is currently routed
+          or hosted. This is a policy-assignment classification: the feed maps registry
+          data into a structured format for operator use.'
+      scope_and_intent:
+        description: IPDeny publishes country-level IP zone files for use in firewalls,
+          routers, and packet filters to control traffic by geographic origin.
+        intended_for:
+        - Blocking or allowing traffic by country of origin at the firewall or packet-filter
+          layer
+        - Geo-restricting web application access by country
+        - Reducing spam, fraud, and brute-force attacks by geography
+        - Generating ACL rules for Cisco devices, iptables, ipset, FirewallD, pfSense,
+          and OPNsense
+        not_intended_for:
+        - Accurate geolocation of a specific IP address to a city or coordinates
+        - Determining the current routing location of an IP (entries reflect original
+          RIR allocation, not present use)
+        - Real-time threat intelligence or reputation scoring
+        - Precise blocking of adversarial IPs within a country (consider combining
+          with a reputation feed)
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Keep the Copyrights.txt file intact and distributed
+          with zone files or archives; link back to www.ipdeny.com if offering a web-based
+          IP-to-country service
+        terms: 'Zone files may be redistributed subject to: keeping the Copyrights.txt
+          file intact and distributed with the files; required link-back to ipdeny.com
+          for web-based IP-to-country services; prohibited uses include spamming,
+          bulk advertising, and illegal activities. Website content (text, graphics,
+          tools) may NOT be redistributed without express written authorization.'
+      current_status:
+        state: active
+        description: 'Active as of May 2026. IPv4 zone files showed fresh batch timestamps
+          on May 16, 2026; IPv6 files on February 9, 2026. The download service is
+          operational. Known limitations: HTTPS TLS certificate expired December 2021
+          (operators should use HTTP for downloads); the online firewall rule generator
+          is offline for updates; the legacy contact form returns 404.'
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: 'A Reddit report from June 2021 noted an expired TLS certificate
+          (HTTPS remained expired as of late 2021). Community commenters observed
+          the copyright footer frozen at 2019 and speculated about reduced maintenance.
+          A 2017 LowEndTalk thread documented a domain expiration scare with subsequent
+          recovery. One documented incident illustrated overblocking risk: blocking
+          all Russian Federation IPs caused loss of connectivity to legitimate CDNs
+          and cloud services originating from that country. No support channel is
+          available — the contact form returns 404 and contact attempts reportedly
+          go unanswered.'
+        engagement: Sparse direct engagement with the maintainer. The project operates
+          anonymously with no public issue tracker, changelog, or support forum. Community
+          discussion occurs in third-party venues (Reddit, ServerFault, LowEndTalk)
+          rather than on the IPDeny site itself. Integrated into multiple open-source
+          projects including Netdata (network flow enrichment), Backdrop CMS (geo-blocking
+          module), and various ipset-country automation scripts (as of May 2026).
+          Practical guides documenting ipset integration appear on ServerFault.
+      sources_consulted:
+      - url: https://www.ipdeny.com/
+        document_date:
+        validation_date: '2026-05-16'
+      - url: https://www.ipdeny.com/about.php
+        document_date:
+        validation_date: '2026-05-16'
+      - url: https://www.ipdeny.com/copyright.php
+        document_date: '2014-08-29'
+        validation_date: '2026-05-16'
+      - url: https://www.ipdeny.com/tos.php
+        document_date:
+        validation_date: '2026-05-16'
+      - url: https://www.ipdeny.com/usagelimits.php
+        document_date: '2022-09-24'
+        validation_date: '2026-05-16'
+      - url: 
+          https://www.netdata.cloud/integrations/network-flows/enrichment-methods/ipdeny-country-zones/
+        document_date:
+        validation_date: '2026-05-16'
+      - url: 
+          https://www.reddit.com/r/sysadmin/comments/f5v9jf/reliable_source_for_ip_blocks_by_country
+        document_date: '2020-02-26'
+        validation_date: '2026-05-16'
+      - url: 
+          https://www.reddit.com/r/sysadmin/comments/o60hzp/ipdenycom_expired_tls_cert_are_they_ok/
+        document_date: '2021-06-18'
+        validation_date: '2026-05-16'
+      - url: 
+          https://serverfault.com/questions/772028/howto-configure-ipset-to-block-entire-countries-ips
+        document_date:
+        validation_date: '2026-05-16'
+      - url: 
+          https://www.reddit.com/r/meraki/comments/3vzmvx/deny_ru_ips_lost_all_internet_connections/
+        document_date: '2015-12-07'
+        validation_date: '2026-05-16'
+      - url: 
+          https://www.reddit.com/r/selfhosted/comments/1s1xhc7/anyone_familiar_with_this_ip_list_for_countries/
+        document_date: '2026-03-04'
+        validation_date: '2026-05-16'
+      - url: https://lowendtalk.com/discussion/63701/what-happened-to-ipdeny-com
+        document_date: '2017'
+        validation_date: '2026-05-16'
+      - url: https://rankchart.org/site/ipdeny.com/
+        document_date:
+        validation_date: '2026-05-16'
+      - url: https://www.ipdeny.com/ipblocks/data/aggregated/
+        document_date:
+        validation_date: '2026-05-16'
+      - url: https://www.ipdeny.com/ipv6/ipaddresses/aggregated/
+        document_date:
+        validation_date: '2026-05-16'

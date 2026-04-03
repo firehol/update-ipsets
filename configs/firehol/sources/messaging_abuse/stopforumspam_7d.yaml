@@ -1,0 +1,227 @@
+sources:
+  stopforumspam_7d:
+    license: CC BY-NC-ND 3.0 (modified)
+    redistributable: true
+    url: http://www.stopforumspam.com/downloads/listed_ip_7.zip
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - unzip
+    processor_raw: unzip_and_extract
+    category: messaging_abuse
+    info: '[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers
+      (last 7 days)'
+    maintainer: StopForumSpam.com
+    maintainer_url: http://www.stopforumspam.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T03:50:17Z'
+      official_name: Stop Forum Spam
+      official_url: https://www.stopforumspam.com/
+      short_description: Community-built database of IP addresses, email addresses,
+        and usernames reported by webmasters as sources of forum, blog, and wiki spam,
+        with a confidence score reflecting sighting frequency and recency.
+      long_description: "The 7-day Listed IP feed is the one-week rolling-window slice
+        of the Stop Forum Spam database. It contains IPv4 addresses that received
+        at least one community spam report or honeypot hit within the preceding seven
+        days, delivered as a Unix newline-delimited text file inside a ZIP archive
+        at downloads/listed_ip_7.zip.\n\nCompared with the 1-day variant this window
+        captures more corroboration; compared with the 30-, 90-, 180-, and 365-day
+        variants it filters out aging signal more aggressively. Each entry retains
+        the database's confidence score — a statistically calculated percentage combining
+        sighting count and recency — though the downloadable file itself is a plain
+        IP list. Per the maintainer's FAQ, much of the listed data originates from
+        honeypot installations, so listing does not by itself imply the current occupant
+        of an address sent spam. A separate Toxic tier of permanent-abuse infrastructure
+        is published in different files and does not participate in this rolling window.\n\
+        \nProject history, maintainership, and operating model live in the maintainer's
+        roles."
+      roles:
+      - role: maintainer
+        name: Russ
+        organization_type: individual
+        official_url: https://www.stopforumspam.com/
+        contact_email:
+        based_in:
+        active_since: '2006'
+        notes: "Site founder and primary maintainer. Operates the project as a volunteer
+          effort in his spare time. Per the about page: 'The site owner, Russ, decided
+          to put this site together for the greater good of the community.'"
+      - role: maintainer
+        name: pedigree
+        organization_type: individual
+        official_url: https://www.stopforumspam.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Co-maintainer who joined shortly after the founding and contributed
+          to the database architecture, site performance, and bug fixes. Also authored
+          the legacy vbStopForumSpam module for vBulletin 3.6–3.8.
+      - role: publisher
+        name: dZone
+        organization_type: unknown
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Provides server hosting for the Stop Forum Spam project, per the about
+          page credits section.
+      derivation:
+        type: original
+        description: The feed is built from user-submitted spam reports and honeypot
+          detections. Webmasters submit confirmed spam incidents — requiring a validated
+          email address (one that required the spammer to click a confirmation link
+          during registration) and optionally spam content as evidence. The IP submitted
+          must be the direct origin IP, not a reverse-proxy header. Submissions are
+          reviewed manually by the reporter; automated mass-reporting is prohibited.
+          The service also operates honeypot installations that passively capture
+          spambot activity. From these inputs, the maintainer calculates a confidence
+          score per entry based on sighting count and recency of last-seen activity.
+          Separate from the rolling-window listed-IP archives, the service maintains
+          a toxic/blocklist of entries believed to only ever be used for abuse — these
+          are returned as blacklisted in API results and are not included in the standard
+          downloadable archives.
+        source_feeds: []
+      listing_policy:
+        summary: An entry is added when a human webmaster submits a confirmed spam
+          incident through the Stop Forum Spam web form or API. The submitter must
+          hold a registered API key (obtained via the project's forum). The submission
+          requires the spammer's username, the direct origin IP address (not a reverse-proxy
+          header), and a verified email address — verified meaning the address required
+          the spammer to click a confirmation link during registration, proving the
+          address was under the spammer's control at that time. Optionally, spam content
+          may be submitted as evidence. Mass automated submissions are prohibited;
+          each report requires human judgment. Additionally, the maintainer's honeypot
+          installations passively capture spambot activity and contribute to the database.
+        criteria:
+        - Confirmed spam content received on a live forum, blog, or wiki — not mere
+          suspicion or unwanted behavior
+        - Origin IP address of the spammer (direct IP, not extracted from reverse-proxy
+          headers)
+        - Email address that required the spammer to complete a verification step
+          during registration
+        - Human decision to submit each incident individually
+        - Active API key held by the submitting webmasters
+      unlisting_policy:
+        summary: IP removal requests are submitted through a web form on the removal
+          page. Requests from VPN exit nodes are automatically rejected without investigation.
+          The submitter must provide a permanent (non-disposable) email address; a
+          confirmation email is sent and must be responded to. Once confirmed, the
+          request enters a non-public review queue and is investigated against cross-referenced
+          databases — typically within 24 hours. If investigation confirms the original
+          report was made fairly, the entry remains permanently. Abuse of the removal
+          system may result in the requester's information being shared or the requester's
+          network being blacklisted. Threatening legal action pauses the request indefinitely.
+        criteria:
+        - Request submitted via the web form on the removal page
+        - Permanent email address provided (disposable email addresses are not accepted)
+        - Confirmation email responded to within the deadline
+        - Investigation finds the original report was not made fairly
+        - VPN-based requests are automatically deleted without investigation
+      unlist_request:
+        url: https://www.stopforumspam.com/removal
+        email:
+        instructions: Submit the IP address to be removed through the web form at
+          stopforumspam.com/removal. A confirmation email will be sent to the address
+          you provide; respond to it to confirm the request. Requests from VPN exit
+          nodes are automatically rejected. Disposable email addresses are not accepted.
+          Investigation typically takes up to 24 hours after confirmation. If the
+          original report is confirmed as fair, the entry remains permanently.
+      update_frequency:
+        frequency: 1d
+        human_readable: Daily — the downloadable rolling-window IP archives are rebuilt
+          once per day, per the maintainer's downloads page.
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods:
+        - honeypot
+        description: "Primary detection is through user submission: webmasters with
+          an API key submit confirmed spam incidents through the web form or API.
+          Each submission requires a human decision — automated mass-reporting is
+          not permitted. Secondary detection comes from the maintainer's own honeypot
+          installations that passively capture automated spambot activity. Combined,
+          these inputs produce a confidence score per entry reflecting sighting count
+          and recency."
+      scope_and_intent:
+        description: Stop Forum Spam is designed to help site operators block automated
+          spam registrations and postings at forums, blogs, wikis, and related web
+          applications. It is not a general-purpose IP reputation service and is not
+          suited for blocking email-borne spam, network intrusion attempts, or DDoS
+          traffic.
+        intended_for:
+        - Blocking spam user registrations on forums, blogs, wikis, and CMS platforms
+        - Pre-registration screening of new accounts using IP, email, and username
+          checks
+        - Moderating guest postings and comment submissions
+        not_intended_for:
+        - Email spam filtering (SMTP relay blocking)
+        - Network perimeter blocking or firewall integration
+        - DDoS mitigation
+        - Intrusion detection/prevention
+      license: CC BY-NC-ND 3.0 (modified)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: false
+        attribution_required: Credit StopForumSpam.com in the manner specified by
+          the licensor (but not in any way that suggests endorsement)
+        terms: You may copy, distribute and transmit the work under the license terms.
+          Commercial use is permitted on commercial sites, but you cannot resell any
+          information gathered from the site or claim it as your own. You may not
+          alter, transform, or build upon the work, nor use any manual or automated
+          tools to mirror, copy, scan, duplicate, backup, distribute, scrape, or spider
+          the data, unless the owner gives permission. Any waiver of conditions requires
+          explicit permission from the copyright holder.
+      current_status:
+        state: active
+        description: Active. The project is maintained as of 2026; Russ and pedigree
+          continue to operate the service as a volunteer effort. Server hosting is
+          provided by dZone. The API and downloadable archives remain available and
+          actively queried — the service reports processing over 157 billion API queries
+          to date with a peak load of approximately 500 queries per second.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "False positives are a recurring theme in public discussion. Residential
+          ISP users sharing dynamic IP pools occasionally find themselves blocked
+          after a previous occupant was reported. The maintainer's FAQ explicitly
+          addresses this: being listed does not imply the current IP occupant sent
+          spam, and the removal process is the recourse. A 2015 Reddit post documented
+          a user's IP being blocked despite never having sent spam, with the CAPTCHA
+          gate persisting even after attempting verification — the post received no
+          replies, leaving the outcome unclear. The removal page notes that VPN-based
+          requests are automatically deleted without investigation, which means users
+          of shared VPN exits have no viable unlisting path. The maintainer does not
+          disclose specific FP rates or publish a whitelist of major CDN or public
+          DNS IP ranges."
+        engagement: Public discussion of the 7-day Listed IP feed specifically is
+          sparse on general forums, reflecting its niche audience of forum administrators.
+          Across the maintainer's overall portfolio, integrations exist for over 40
+          forum and CMS platforms (phpBB, WordPress, vBulletin, XenForo, MyBB, Drupal,
+          and others per the contributions page) — those integrations consume the
+          API and other download variants as well, not just this 7-day file. The maintainer
+          operates a public forum for community discussion.
+      sources_consulted:
+      - url: https://www.stopforumspam.com/
+        document_date:
+        validation_date: '2026-05-18T03:50:00Z'
+      - url: https://www.stopforumspam.com/faq
+        document_date:
+        validation_date: '2026-05-18T03:50:00Z'
+      - url: https://www.stopforumspam.com/removal
+        document_date:
+        validation_date: '2026-05-18T03:50:00Z'
+      - url: https://www.stopforumspam.com/license
+        document_date:
+        validation_date: '2026-05-18T03:50:00Z'
+      - url: https://www.stopforumspam.com/about
+        document_date:
+        validation_date: '2026-05-18T03:50:00Z'
+      - url: https://www.stopforumspam.com/contributions
+        document_date:
+        validation_date: '2026-05-18T03:50:00Z'
+      - url: https://www.stopforumspam.com/downloads
+        document_date:
+        validation_date: '2026-05-18T03:50:00Z'

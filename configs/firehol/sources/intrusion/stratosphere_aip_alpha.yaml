@@ -1,0 +1,209 @@
+sources:
+  stratosphere_aip_alpha:
+    license: GPL-3.0
+    redistributable: true
+    attribution: Stratosphere Laboratory, Czech Technical University — https://www.stratosphereips.org/
+    url: 
+      https://mcfp.felk.cvut.cz/publicDatasets/CTU-AIPP-BlackList/Latest/AIP-Alpha-latest.csv
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - extract_ipv4
+    processor_raw: extract_ipv4_from_any_file
+    category: intrusion
+    info: '[Stratosphere IPS AIP](https://www.stratosphereips.org/aip) — Alpha scoring
+      tier. Baseline honeypot-observed attacker IPs. Single-column CSV with header
+      `attacker`.'
+    maintainer: Stratosphere Laboratory
+    maintainer_url: https://www.stratosphereips.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T00:56:11Z'
+      official_name: AIP-Alpha
+      official_url: https://www.stratosphereips.org/attacker-ip-prioritization-blacklist
+      short_description: Baseline honeypot-observed attacker IPs from the last 24
+        hours, regenerated daily by the Stratosphere Laboratory at Czech Technical
+        University in Prague.
+      long_description: "The AIP-Alpha blocklist is produced by the Stratosphere Blocklist
+        Generation Project, a research initiative of the Stratosphere Laboratory at
+        the Czech Technical University in Prague. The list records every IP address
+        that connected to the laboratory's honeypot sensors during the preceding 24
+        hours — regardless of attack type, session duration, or traffic volume — and
+        makes that snapshot available as a flat, unranked CSV. Because entries expire
+        automatically after one day of inactivity, the list naturally discards transient
+        scanners while retaining active sources of malicious traffic.\n\nThe underlying
+        AIP (Attacker IP Prioritization) algorithm processes honeypot flow data through
+        a multi-feature scoring stage: it extracts eight behavioral indicators per
+        IP (event count, byte totals, packet counts, session duration, recency), normalizes
+        each to a 0–1 range, applies a weighted linear combination, then applies a
+        time-decay modifier that reduces scores for IPs whose last observed activity
+        is more than a day old. IPs exceeding a fixed threshold enter the blocklist.
+        The Alpha model applies no prioritization weighting — it is the baseline reference
+        against which the Prioritize Consistent and Prioritize New models are compared.\n\
+        \nThe project targets IoT device operators specifically: the blocklist is
+        intentionally kept compact so that devices with small CPUs and limited storage
+        can apply it without performance overhead. An academic evaluation found that
+        top free blacklists (including those derived from honeypot networks) identify
+        roughly half of scanner attacks in production networks, with a design trade-off
+        favoring precision over breadth. The list is regenerated daily, with the previous
+        day's honeypot observations feeding the next day's blocklist. The tool that
+        generates the list is published as free software under GPL v3.0."
+      roles:
+      - role: maintainer
+        name: Stratosphere Laboratory
+        organization_type: research_institution
+        official_url: https://www.stratosphereips.org/
+        contact_email: stratosphere@aic.fel.cvut.cz
+        based_in: Prague, Czech Republic
+        active_since: '2013'
+        notes: Cybersecurity research group of the Artificial Intelligence Centre,
+          Faculty of Electrical Engineering, Czech Technical University in Prague.
+          Runs the honeypot sensor network, develops the AIP algorithm, and publishes
+          the blocklists.
+      derivation:
+        type: original
+        description: 'First-party honeypot detection: the Stratosphere Laboratory
+          operates a network of honeypot sensors in their IoT lab at CTU Prague. Network
+          flows recorded by those sensors are processed daily through the open-source
+          AIP algorithm, which scores each observed IP across eight behavioral features,
+          normalizes and weights them, applies a time-decay modifier, and emits all
+          IPs exceeding a threshold as the Alpha blocklist. No external IP feeds are
+          merged in.'
+        source_feeds: []
+      listing_policy:
+        summary: An IP enters the Alpha blocklist when it has been observed connecting
+          to a Stratosphere Laboratory honeypot at least once during the preceding
+          24-hour window. There is no minimum threshold for traffic volume, session
+          duration, or attack type — a single connection qualifies. The entry expires
+          automatically when no new connections from that IP are observed on the following
+          day.
+        criteria:
+        - Observed connecting to a Stratosphere Lab honeypot sensor at least once
+          in the last 24 hours
+        - No minimum traffic volume, byte count, or session duration required
+        - Any attack type or port qualifies — the policy is attack-type agnostic
+        - Entry is automatically removed if no new connection is observed the next
+          day
+      unlisting_policy:
+        summary: Entries are removed automatically when no new honeypot connection
+          from that IP is observed within a 24-hour window. There is no passive decay
+          grace period — an IP seen on Day 1 but not on Day 2 does not appear on the
+          Day 2 blocklist. For false-positive requests (e.g., your server legitimately
+          contacted a honeypot), the maintainer accepts direct email reports.
+        criteria:
+        - 'Automatic: no new honeypot connection observed within 24 hours of last
+          sighting'
+        - 'Manual: email report to aposemat@aic.fel.cvut.cz for incorrectly listed
+          IPs'
+      unlist_request:
+        url:
+        email: aposemat@aic.fel.cvut.cz
+        instructions: Send an email to aposemat@aic.fel.cvut.cz describing your IP
+          address and the reason you believe it was incorrectly listed. The maintainer
+          reviews reports submitted to this address.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated once per day, typically early morning (CET), reflecting
+          honeypot connections observed during the previous calendar day.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: Passive network observation through a fleet of honeypot sensors
+          operated by the Stratosphere Laboratory at CTU Prague. A honeypot is a decoy
+          server that deliberately exposes vulnerable services to the internet to
+          attract and log connection attempts from scanning and attacking software.
+          The AIP algorithm then processes those logged flows to score and select
+          IPs for the blocklist.
+      scope_and_intent:
+        description: The AIP-Alpha list is designed to block IPs that have been observed
+          attacking honeypot sensors within the preceding 24 hours. It is intentionally
+          unranked — every qualifying IP appears equally — serving as a baseline reference
+          list rather than a prioritized threat feed.
+        intended_for:
+        - Blocking IPs observed attacking IoT-connected devices
+        - Edge firewall blocklists for networks with constrained devices
+        - Comparing the effectiveness of other prioritization models against a flat
+          baseline
+        not_intended_for:
+        - Comprehensive protection against all attackers — the list captures only
+          honeypot-observed IPs and covers a minority of scanner sources in production
+          networks
+        - High-volume enterprise SIEM correlation — the list is deliberately compact
+          and unranked, providing no severity ordering
+      license: GPL-3.0
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit Stratosphere Laboratory / Czech Technical University
+          in Prague
+        terms: 'Under GNU General Public License v3.0: you may redistribute verbatim
+          copies and modified versions, provided modified versions are released under
+          GPL v3.0 with prominent modification notices, and complete source code (or
+          a written offer for it) accompanies any distribution. Commercial use is
+          permitted. There is no warranty.'
+      current_status:
+        state: active
+        description: The Latest folder on the dataset server shows a Last-Modified
+          date of 2026-05-15 for the AIP-Alpha-latest.csv file, consistent with the
+          README's stated daily regeneration cadence. The maintainer has not posted
+          any deprecation, end-of-life, or successor notice for this filename.
+        successor:
+        announcement_date:
+      community:
+        awards: Cited in a peer-reviewed arXiv evaluation by Deri and Fusco (August
+          2023, 'Evaluating IP Blacklists Effectiveness'), which measured the AIP
+          feeds alongside other free file-based blocklists and reported that the tested
+          honeypot-derived feeds identified roughly half of scanner IPs at a service
+          provider network in their experimental setup.
+        criticism: The Deri & Fusco arXiv evaluation reports that the tested honeypot-derived
+          feeds identified a minority of scanner sources in some of the production
+          networks measured. The maintainer documents the input to this feed as honeypot
+          connections only; the README does not describe a manual false-positive review
+          process beyond the email contact channel.
+        engagement: Maintainer-facing channels are the AIP GitHub repository (stratosphereips/AIP)
+          and the contact email aposemat@aic.fel.cvut.cz given in the README. Microsoft
+          has published a Microsoft Tech Community guide describing how to ingest
+          the AIP blocklist into Microsoft Defender ATP. No dedicated user discussion
+          forum, mailing list, or third-party benchmarking thread specific to this
+          feed was located in research.
+      sources_consulted:
+      - url: https://www.stratosphereips.org/
+        document_date:
+        validation_date: '2026-05-17T00:51:00Z'
+      - url: https://www.stratosphereips.org/attacker-ip-prioritization-blacklist
+        document_date:
+        validation_date: '2026-05-17T00:52:00Z'
+      - url: https://www.stratosphereips.org/the-blocklist-generation-project
+        document_date:
+        validation_date: '2026-05-17T00:53:00Z'
+      - url: https://mcfp.felk.cvut.cz/publicDatasets/CTU-AIPP-BlackList/README.md
+        document_date:
+        validation_date: '2026-05-17T00:49:00Z'
+      - url: 
+          https://mcfp.felk.cvut.cz/publicDatasets/CTU-AIPP-BlackList/Latest/AIP-Alpha-latest.csv
+        document_date:
+        validation_date: '2026-05-17T00:48:00Z'
+      - url: https://mcfp.felk.cvut.cz/publicDatasets/CTU-AIPP-BlackList/
+        document_date: '2026-05-15'
+        validation_date: '2026-05-17T00:47:00Z'
+      - url: https://github.com/stratosphereips/AIP
+        document_date:
+        validation_date: '2026-05-17T00:55:00Z'
+      - url: https://github.com/stratosphereips/AIP/blob/main/LICENSE
+        document_date:
+        validation_date: '2026-05-17T00:54:00Z'
+      - url: https://www.stratosphereips.org/datasets-faq
+        document_date:
+        validation_date: '2026-05-17T00:55:00Z'
+      - url: https://www.stratosphereips.org/aip-tool
+        document_date:
+        validation_date: '2026-05-17T00:50:00Z'
+      - url: https://arxiv.org/pdf/2308.08356
+        document_date: 2023-08
+        validation_date: '2026-05-17T00:51:00Z'
+      - url: 
+          https://techcommunity.microsoft.com/discussions/microsoftdefenderatp/how-to-use-attacker-ip-prioritization-blacklist-feeds-with-microsoft-defender-fo/2920428
+        document_date:
+        validation_date: '2026-05-17T00:52:00Z'

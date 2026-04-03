@@ -1,0 +1,179 @@
+sources:
+  iblocklist_org_linden_lab:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=qnjdimxnaupjmpqolxcv&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Linden Lab IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T11:19:01Z'
+      official_name: Linden Lab
+      official_url:
+      short_description: IP addresses registered to Linden Lab for Second Life and
+        related gaming services, distributed as a blocklist by iBlocklist.com.
+      long_description: "This feed contains IP address ranges historically registered
+        to Linden Lab, the company behind the virtual world Second Life. Per the maintainer's
+        lists.xml entry, the list covers IPs registered to the Linden Lab game publisher
+        and other IPs needed for gaming services.\n\nThe list originates from iBlocklist.com's
+        Organizations category. The IP data in the feed dates to June 2018 and consists
+        of eleven CIDR subnet blocks. These ranges represent Linden Lab's legacy IP
+        allocations from its pre-cloud hosting era.\n\nA significant caveat affects
+        this feed's operational utility: Linden Lab migrated the entire Second Life
+        grid to Amazon Web Services (AWS) in November 2020. The Second Life Wiki carries
+        a prominent banner stating that the documented IP ranges are obsolete and
+        that it is no longer possible to list current Second Life service addresses.
+        Linden Lab's autonomous system number (AS26926) is similarly marked inactive.
+        Blocking these IPs today will not effectively intercept current Second Life
+        traffic, which now routes through AWS IP space. The feed may instead affect
+        legacy infrastructure or IP blocks that have since been reassigned to other
+        organizations."
+      roles:
+      - role: maintainer
+        name: I-Blocklist
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: 'I-Blocklist (stylized as I-BlockList), operated by iblocklist, LLC,
+          is a blocklist distribution service dedicated to serving IP address lists.
+          The company distributes feeds authored by multiple parties including its
+          own branded lists and lists from Squidblacklist, Bluetack, and other authors.
+          Compatible client software includes PeerBlock, PeerGuardian, iplist, Vuze,
+          Transmission, uTorrent, Tixati, and pfBlocker. Service-level community signal
+          across iBlocklist.com (not specific to any single feed): Trustpilot (2.5/5
+          on six reviews) documents autorenewal disputes and dismissive support; Netgate
+          forum analyses reported feeds containing RFC1918 addresses and malformed
+          CIDR notations; a Pi-hole community moderator advised avoiding the service
+          in favor of directly maintained blocklists.'
+      derivation:
+        type: original
+        description: The feed is assembled by iBlocklist.com from IP address ranges
+          registered to Linden Lab. The maintainer curates the Organizations category,
+          selecting and aggregating IP space associated with named companies and institutions.
+          The list is distributed in P2P, DAT, and CIDR formats for use with PeerBlock,
+          PeerGuardian, iplist, Vuze, Transmission, uTorrent, Tixati, and pfBlocker.
+        source_feeds: []
+      listing_policy:
+        summary: iBlocklist.com does not publish a documented listing policy for this
+          feed. The service operates as a blocklist distribution platform rather than
+          a primary blacklist operator that evaluates individual IP reports. No submission
+          form, criteria page, or listing guidelines were found on the website.
+        criteria: []
+      unlisting_policy:
+        summary: iBlocklist.com does not publish a documented unlisting or removal
+          procedure for this feed. The /remove and /faq pages both return 404 errors.
+          The support page offers no IP removal guidance, redirecting instead to a
+          VPN product. As a distribution platform rather than a primary blacklist
+          operator, iBlocklist.com does not appear to accept or process removal requests
+          directly.
+        criteria: []
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: Listed as updated daily in the catalog (1440 minutes), though
+          the maintainer's Terms of Service states no commitment to update the materials.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The feed consists of IP address ranges registered to Linden Lab,
+          compiled by iBlocklist.com from publicly available registration data. Entries
+          represent the organization's historically allocated IP space rather than
+          detections from honeypots, sensors, or user reports. No active probing or
+          behavioral analysis is involved.
+      scope_and_intent:
+        description: The feed is intended to identify and block traffic associated
+          with Linden Lab and Second Life services. Per the maintainer's description,
+          it covers IPs registered to the Linden Lab game publisher and related gaming
+          infrastructure.
+        intended_for:
+        - Blocking Second Life and Linden Lab traffic at the network perimeter
+        - Preventing ISP or network logging of Second Life connection IPs for privacy
+          purposes
+        - Network firewall administration for organizations choosing to restrict gaming
+          traffic
+        not_intended_for:
+        - Blocking current, active Second Life traffic (the listed IP ranges are from
+          2018 and largely obsolete following Linden Lab's 2020 migration to AWS)
+        - Real-time threat intelligence (the feed represents static registration data,
+          not behavioral detections)
+      license: iBlocklist Terms of Service — personal / non-commercial only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The user license grants permission for personal use only. Commercial
+          use, public display, account sharing outside the household, and use for
+          malicious activities are prohibited. The materials are provided as-is with
+          no warranty and no commitment to update.
+      current_status:
+        state: active
+        description: The iBlocklist.com website is reachable and displays a 2026 copyright.
+          The Linden Lab list entry remains present in the maintainer's lists.xml
+          index. The catalog continues to download the feed on its scheduled cadence.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: 'No targeted community complaints about the Linden Lab feed itself
+          were identified. The dominant operational caveat for this feed is documented
+          in the long description: Linden Lab migrated Second Life to AWS in November
+          2020, so the listed registry-era ranges no longer match current Second Life
+          traffic. Service-level community signal across iBlocklist.com is recorded
+          in the maintainer role notes.'
+        engagement: Public discussion about the Linden Lab feed specifically is sparse.
+          No dedicated forum threads, GitHub issues, or Reddit posts discussing this
+          list were identified.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date: '2026'
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/tos
+        document_date: '2026'
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/lists.xml
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/lists.php
+        document_date: '2026'
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/support
+        document_date: '2026'
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/faq
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/remove
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://wiki.secondlife.com/wiki/Simulator_IP_Addresses
+        document_date:
+        validation_date: '2026-05-18'
+      - url: 
+          https://modemworld.me/2020/11/19/ll-confirms-second-life-regatures-now-all-on-aws
+        document_date: '2020-11-19'
+        validation_date: '2026-05-18'
+      - url: https://ipinfo.io/AS26926
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://discourse.pi-hole.net/t/how-to-include-list-from-iblocklist-com/18847
+        document_date:
+        validation_date: '2026-05-18'

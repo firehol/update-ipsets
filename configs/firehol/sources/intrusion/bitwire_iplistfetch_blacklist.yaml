@@ -1,0 +1,118 @@
+sources:
+  bitwire_iplistfetch_blacklist:
+    license: public feed
+    redistributable: true
+    url: https://raw.githubusercontent.com/bitwire-it/ip_list_fetch/main/blacklist.txt
+    frequency: 180
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[bitwire-it/ip_list_fetch](https://github.com/bitwire-it/ip_list_fetch)
+      generated blacklist feed. Entries are published as `/32` IPv4 CIDRs and refreshed
+      automatically.'
+    maintainer: bitwire-it
+    maintainer_url: https://github.com/bitwire-it/ip_list_fetch
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T03:40:56Z'
+      official_name: BitWire IT IP List Fetch — blacklist
+      official_url: https://github.com/bitwire-it/ip_list_fetch
+      short_description: A generated IP blocklist maintained by BitWire IT, delivering
+        individual IPv4 and IPv6 addresses as /32 or /128 CIDRs, refreshed on an automated
+        schedule.
+      long_description: "The feed is produced by the bitwire-it organization and hosted
+        as a plain-text file on GitHub. Entries are published as individual host addresses
+        — IPv4 as /32 and IPv6 as /128 — with no headers, comments, or metadata embedded
+        in the file. Updates are driven by an automated pipeline that commits revised
+        listings every 4 hours on a UTC-aligned schedule.\n\nThe repository has no
+        README, no description field, no topics, and no LICENSE file. The maintainer
+        publishes no methodology document for this feed — sourcing criteria, detection
+        method, listing thresholds, and unlisting process are not documented at the
+        direct upstream."
+      roles:
+      - role: maintainer
+        name: bitwire-it
+        organization_type: informal_collective
+        official_url: https://github.com/bitwire-it
+        contact_email:
+        based_in:
+        active_since: '2025-06-30'
+        notes: The bitwire-it organization operates multiple cybersecurity tooling
+          repositories on GitHub, including the sibling project ipblocklist. The organization
+          controls the domain bitwire.it. No individual contributor names are credited
+          within the ip_list_fetch repository.
+      derivation:
+        type: unknown
+        description: The specific sourcing methodology for this feed is not documented.
+          No README, description field, or other documentation was found in the repository.
+          The maintainer publishes no statement of whether the feed aggregates upstream
+          sources, is built from first-party detection, or follows some other method.
+        source_feeds: []
+      listing_policy:
+        summary: Not documented. The repository contains no README or other documentation
+          describing what criteria govern additions to the blocklist.
+        criteria: []
+      unlisting_policy:
+        summary: Not documented. No unlisting mechanism, automatic expiry window,
+          or manual review process is described in any available documentation for
+          this feed.
+        criteria: []
+      unlist_request:
+      update_frequency:
+        frequency: 4h
+        human_readable: Automated updates every 4 hours on a UTC-aligned schedule,
+          per the observed commit pattern
+      detection_classification:
+        primary_method: unknown
+        secondary_methods: []
+        description: The detection methodology for this specific feed is not documented.
+          No README or other documentation describes how entries are sourced or detected.
+      scope_and_intent:
+        description: Not explicitly documented for this feed. The maintainer publishes
+          no statement of intended use cases, target environments, or scope boundaries
+          at the direct upstream.
+        intended_for: []
+        not_intended_for: []
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: The direct upstream is publicly available with no stated redistribution
+          restrictions. No license file or terms document is present in the repository.
+      current_status:
+        state: active
+        description: Active maintenance confirmed. Commits observed through May 2026,
+          with automated updates every 4 hours on a UTC-aligned schedule. The most
+          recent commit was observed on May 19, 2026.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion specific to this feed is sparse. The
+          ip_list_fetch repository has not attracted independent community contributions
+          or issue reports, and no third-party blog posts, forum threads, or integration
+          tutorials specifically referencing this feed were found.
+      sources_consulted:
+      - url: https://api.github.com/repos/bitwire-it/ip_list_fetch
+        document_date: '2025-06-30'
+        validation_date: '2026-05-19T03:35:00Z'
+      - url: https://raw.githubusercontent.com/bitwire-it/ip_list_fetch/main/blacklist.txt
+        document_date:
+        validation_date: '2026-05-19T03:30:00Z'
+      - url: https://raw.githubusercontent.com/bitwire-it/ip_list_fetch/main/LICENSE
+        document_date:
+        validation_date: '2026-05-19T03:35:00Z'
+      - url: https://github.com/bitwire-it/ipblocklist
+        document_date:
+        validation_date: '2026-05-19T03:38:00Z'
+      - url: 
+          https://reddit.com/r/fortinet/comments/1nx07a8/fortigate_ip_address_threat_feed_changes/
+        document_date: '2025-10-01'
+        validation_date: '2026-05-19T03:34:00Z'

@@ -1,0 +1,219 @@
+sources:
+  romainmarcoux_malicious_aa:
+    license: MIT License
+    redistributable: true
+    url: https://raw.githubusercontent.com/romainmarcoux/malicious-ip/main/full-aa.txt
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[romainmarcoux/malicious-ip](https://github.com/romainmarcoux/malicious-ip)
+      full inbound malicious-IP chunk `full-aa.txt` - the highest-ranked 131,072 scanner/bruteforce
+      IPs for WAN-to-LAN blocking. Refreshed hourly.'
+    maintainer: Romain Marcoux
+    maintainer_url: https://github.com/romainmarcoux/malicious-ip
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T22:01:28Z'
+      official_name: malicious-ip — full-aa.txt (top-confidence chunk)
+      official_url: https://github.com/romainmarcoux/malicious-ip
+      short_description: Aggregates scanner and bruteforce IPs from 16 threat-intelligence
+        sources, ranked by cross-source consensus and refreshed hourly for WAN-to-LAN
+        firewall blocking.
+      long_description: "This feed serves full-aa.txt, the top-confidence chunk of
+        the maintainer's hourly inbound-IP aggregation. Of the multi-file split, full-aa.txt
+        holds the 131,072 IPs that the upstream ranking places highest — IPs reported
+        by the most contributing threat-intelligence sources. Sibling chunks (full-ab.txt,
+        full-ac.txt, full-ad.txt) follow with progressively lower cross-source agreement;
+        an alternate full-40k.txt slice carries the top 40,000 entries for smaller
+        appliances. Operators choosing this chunk are opting for the highest-consensus
+        subset of the maintainer's pipeline.\n\nThe underlying project aggregates
+        scanner and brute-force IPs from sixteen public threat-intelligence sources,
+        removes whitelisted services (Google Bot, Bing Bot, Cloudflare egress, French
+        mobile carriers), and ranks IPs by cross-source frequency. Output is intended
+        exclusively for inbound blocking (WAN to LAN/DMZ); the maintainer publishes
+        a separate repository (malicious-outgoing-ip) for outbound threats. Files
+        are formatted for enterprise firewall integration: FortiGate, Palo Alto, pfSense,
+        OPNsense, Check Point, Sophos, and Linux ipset."
+      roles:
+      - role: maintainer
+        name: Romain Marcoux
+        organization_type: individual
+        official_url: https://github.com/romainmarcoux
+        contact_email:
+        based_in:
+        active_since: '2023-09-20'
+        notes: Freelance cybersecurity expert specializing in firewall hardening.
+          Maintains this project and related repositories for malicious domains and
+          hashes. Responds to false-positive reports via LinkedIn. Across the project
+          (not chunk-specific), reported false positives have involved legitimate
+          services such as Cloudflare, Semrush, and Let's Encrypt, which were addressed
+          via whitelist additions.
+      derivation:
+        type: aggregate_merge
+        description: Merges output from 16 public threat-intelligence feeds, ranks
+          IPs by occurrence count across all sources, and splits into tiered files.
+          The top tier (full-aa.txt) holds the 131,072 IPs appearing in the most sources.
+          Whitelisted services are excluded before publication.
+        source_feeds:
+        - identifier: AbuseIPDB
+          relationship: aggregate_component
+          notes: Collaborative blocklist; 120-day retention
+        - identifier: AlienVault OTX (alienvault-fakelabs)
+          relationship: aggregate_component
+          notes: SSH Brute-Force Honeypot; 30-day retention
+        - identifier: AlienVault OTX (alienvault-georgs)
+          relationship: aggregate_component
+          notes: RDP/SSH/VNC intrusion and Trojan requests; 30-day retention
+        - identifier: AlienVault OTX (alienvault-ssh-bruteforce)
+          relationship: aggregate_component
+          notes: SSH Brute-Force Honeypot; 30-day retention
+        - identifier: Binary Defense
+          relationship: aggregate_component
+          notes: IP Block List; 30-day retention
+        - identifier: blocklist.de
+          relationship: aggregate_component
+          notes: Collaborative blocklist with 6,000 sensors; 30-day retention
+        - identifier: CINS Score List
+          relationship: aggregate_component
+          notes: IP Block List; 30-day retention
+        - identifier: Emerging Threats (Proofpoint)
+          relationship: aggregate_component
+          notes: IP Block List; 30-day retention
+        - identifier: GreenSnow
+          relationship: aggregate_component
+          notes: IP Block List; 30-day retention
+        - identifier: ISC SANS (isc.sans.edu)
+          relationship: aggregate_component
+          notes: Collaborative blocklist with 500,000 sensors; 20-day retention; false
+            positives removed
+        - identifier: duggytuxy/malicious_ip_addresses
+          relationship: aggregate_component
+          notes: Private honeypots and other sources
+        - identifier: nxdomain.no
+          relationship: aggregate_component
+          notes: Bruteforce IPs; added January 2026
+        - identifier: Project Honey Pot
+          relationship: aggregate_component
+          notes: Collaborative blocklist; 30-day retention
+        - identifier: sekio (customer submissions)
+          relationship: aggregate_component
+          notes: Malicious IPs submitted by the maintainer's own customers; 30-day
+            retention
+        - identifier: Snort.org (Cisco Talos)
+          relationship: aggregate_component
+          notes: IP Block List; 30-day retention
+        - identifier: stamparm/ipsum
+          relationship: aggregate_component
+          notes: Aggregator of malicious IP lists; 30-day retention
+      listing_policy:
+        summary: IPs are included automatically when they appear in any of the 16
+          aggregated source feeds. The feed applies no independent scoring—it inherits
+          the listing decisions of its sources. IPs are then ranked by how many sources
+          report them; those in the most sources rank highest. Known benign services
+          (Google Bot, Bing Bot, Cloudflare, French mobile carriers) are excluded
+          via static whitelist.
+        criteria:
+        - Appears in at least one of the 16 aggregated threat-intelligence sources
+        - Represents scanner or bruteforce behavior (not other threat categories)
+        - 'Not belonging to whitelisted services: Google Bot, Bing Bot, Cloudflare,
+          French mobile operators'
+      unlisting_policy:
+        summary: Removal requests are handled through LinkedIn outreach to the maintainer.
+          The maintainer reviews reported IPs and removes false positives from the
+          next hourly regeneration. There is no self-service unlisting portal; direct
+          contact is required.
+        criteria:
+        - IP belongs to a legitimate service incorrectly flagged as malicious
+        - IP is a known false positive reported via LinkedIn
+      unlist_request:
+        url:
+        email:
+        instructions: Contact Romain Marcoux via LinkedIn to report false positives
+          or request IP removal. Include the affected IP address and context about
+          why it should be delisted. The maintainer reviews submissions and removes
+          confirmed false positives from the next hourly build.
+      update_frequency:
+        frequency: 1h
+        human_readable: Refreshed every hour
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods:
+        - user_submission
+        description: The feed aggregates reports from 16 established threat-intelligence
+          sources and ranks IPs by how many sources flag them. Individual source contributions
+          vary—some come from honeypots (AlienVault OTX pulses, Project Honey Pot),
+          some from collaborative sensor networks (blocklist.de with 6,000 sensors,
+          ISC SANS with 500,000 sensors), and some from customer submissions (sekio).
+          The primary method is aggregation and ranking rather than direct sensor
+          detection.
+      scope_and_intent:
+        description: Inbound blocking of scanner and bruteforce IPs for enterprise
+          firewall platforms. The maintainer explicitly constrains the feed to WAN-to-LAN
+          direction and excludes outbound threats, which are handled by a separate
+          repository.
+        intended_for:
+        - FortiGate, Palo Alto, pfSense, OPNsense, Check Point, Sophos, and Linux
+          ipset firewall integration
+        - Blocking inbound scanner and bruteforce attempts at the network perimeter
+        - WAN-to-LAN/DMZ directional blocking only
+        not_intended_for:
+        - Outbound/LAN-to-WAN blocking (use malicious-outgoing-ip repository instead)
+        - Blocking non-scanner/non-bruteforce threat types
+        - Fine-grained application-layer filtering
+      license: MIT License
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit Romain MARCOUX / malicious-ip project
+        terms: MIT License permits redistribution in source and binary forms, with
+          attribution and the MIT copyright notice retained in copies.
+      current_status:
+        state: active
+        description: Actively maintained as of 2026-05-16 with hourly updates. Recent
+          additions include nxdomain.no (January 2026) and ongoing daily commits.
+          The maintainer engages with false-positive reports via GitHub Issues and
+          LinkedIn.
+        successor:
+        announcement_date:
+      community:
+        awards: Fortinet's official community documentation for SSL VPN hardening
+          lists this maintainer's project among recommended IP reputation filters;
+          that recommendation effectively points operators at full-aa.txt as the practical
+          default chunk to ingest. An independent blogger (blog.holtzweb.com) cites
+          this chunk as the foundation for a custom geofiltered blocklist aggregator.
+        criticism: No criticism specific to this chunk was found. General project-level
+          false-positive patterns and operator caveats are summarized in the maintainer
+          note above and not duplicated here.
+        engagement: GitHub Discussions are not enabled; substantive conversations
+          route to LinkedIn. As of May 2026, the project's GitHub issue tracker showed
+          all 19 filed issues closed. Public discussion on Reddit and broader forums
+          refers to IP blocklists generally rather than to this specific chunk.
+      sources_consulted:
+      - url: https://github.com/romainmarcoux/malicious-ip
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16T22:01:28Z'
+      - url: https://raw.githubusercontent.com/romainmarcoux/malicious-ip/main/README.md
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16T22:01:28Z'
+      - url: https://raw.githubusercontent.com/romainmarcoux/malicious-ip/main/full-aa.txt
+        document_date:
+        validation_date: '2026-05-16T22:01:28Z'
+      - url: https://raw.githubusercontent.com/romainmarcoux/malicious-ip/main/LICENSE
+        document_date: '2025'
+        validation_date: '2026-05-16T22:01:28Z'
+      - url: https://github.com/romainmarcoux/malicious-ip/issues
+        document_date:
+        validation_date: '2026-05-16T22:01:28Z'
+      - url: https://blog.holtzweb.com/posts/custom-ipblocklist-aggregator-with-geofiltering/
+        document_date:
+        validation_date: '2026-05-16T22:01:28Z'
+      - url: 
+          https://community.fortinet.com/fortigate-3/technical-tip-hardening-fortigate-ssl-vpn-best-practices-for-enhanced-security-185441
+        document_date:
+        validation_date: '2026-05-16T22:01:28Z'

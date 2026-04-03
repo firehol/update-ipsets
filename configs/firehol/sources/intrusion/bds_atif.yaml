@@ -1,0 +1,163 @@
+sources:
+  bds_atif:
+    license: Binary Defense ATIF — non-commercial use only
+    redistributable: true
+    url: https://www.binarydefense.com/banlist.txt
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[Binary Defense](https://www.binarydefense.com/) Artillery Threat Intelligence
+      Feed (ATIF). IPs detected by the Artillery honeypot/monitoring platform.'
+    maintainer: Binary Defense
+    maintainer_url: https://www.binarydefense.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T14:47:22Z'
+      official_name: Binary Defense Systems Artillery Threat Intelligence Feed and
+        Banlist Feed
+      official_url: https://www.binarydefense.com
+      short_description: A free IP blocklist of malicious addresses observed attacking
+        Binary Defense's global Artillery honeypot network, updated daily and available
+        for defensive use.
+      long_description: "The Artillery Threat Intelligence Feed (ATIF) is a free,
+        publicly accessible IP blocklist maintained by Binary Defense Systems. The
+        feed consists of IPv4 addresses that were observed actively attacking the
+        Artillery honeypot network — a distributed sensor array that lures attackers
+        by exposing common targets such as SSH, FTP, and web server ports. Any host
+        that connects to these ports is flagged as having hostile intent and added
+        to the banlist.\n\nThe Artillery project began as an open-source tool created
+        by TrustedSec founder and Binary Defense co-founder David Kennedy. It was
+        adopted by Binary Defense Systems and integrated into their managed detection
+        and response operations, where the honeypot sensors now span production deployments
+        worldwide. The resulting IP feed reflects first-party detection rather than
+        aggregation from third-party sources.\n\nThe feed is distributed as plain
+        text with one IPv4 address per line. It is freely available for download with
+        no registration required. Commercial resale and use in fee-charging products
+        are expressly prohibited. Organizations typically ingest it into firewalls,
+        IDS systems, or SIEM pipelines for perimeter blocking."
+      roles:
+      - role: maintainer
+        name: Binary Defense Systems
+        organization_type: commercial
+        official_url: https://www.binarydefense.com
+        contact_email:
+        based_in: Stow, Ohio, USA
+        active_since: '2014'
+        notes: Founded by David Kennedy and Mike Valentine. Operates a 24/7 MDR SOC
+          and develops the NightBeacon AI SOC platform. Co-created the open-source
+          Social Engineer Toolkit (SET) and Artillery honeypot.
+      derivation:
+        type: original
+        description: First-party detection from the Artillery honeypot network operated
+          by Binary Defense Systems. Sensors expose common attack-surface ports (SSH,
+          FTP, HTTP, etc.); any inbound connection to those ports triggers automatic
+          blacklisting of the source IP. No upstream IP feeds are consumed.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when it connects to an Artillery honeypot port. The
+          honeypot exposes common attack-surface ports such as SSH, FTP, and web server
+          ports. Any inbound connection to these ports — regardless of whether the
+          connection succeeds — is interpreted as hostile reconnaissance or an attack
+          attempt, and the source IP is added to the banlist permanently.
+        criteria:
+        - Observed connecting to an Artillery honeypot port
+        - Connection to any instrumented port constitutes listing — successful exploitation
+          is not required
+      unlisting_policy:
+        summary: No public unlisting process is documented. For local Artillery deployments,
+          administrators manually edit the banlist.txt file. For the central Binary
+          Defense feed, no automated expiry or manual removal request channel was
+          identified.
+        criteria:
+        - No automated decay mechanism documented
+        - Manual removal requires contacting Binary Defense directly
+        - 'Local deployments: edit banlist.txt directly'
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated daily
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: 'Honeypot-based detection: the Artillery honeypot exposes common
+          attack-surface ports (such as SSH, FTP, HTTP, and other frequently targeted
+          services). Any remote host that initiates a connection to one of these ports
+          is automatically flagged as having hostile intent and added to the banlist.
+          This catches attackers at the reconnaissance stage — before they reach production
+          systems — and generates a blocklist of IPs that have demonstrated probing
+          or exploit behavior.'
+      scope_and_intent:
+        description: Free IP blocklist for defensive perimeter security. Designed
+          for ingestion into firewalls, IDS systems, and SIEM pipelines to block known-malicious
+          hosts at the network edge.
+        intended_for:
+        - Firewall edge blocking
+        - IDS/IPS pre-filtering
+        - SIEM correlation and alerting
+        - Automated blocklist enforcement (fail2ban, ufw, iptables)
+        not_intended_for:
+        - Commercial products or services that charge fees
+        - Resale or redistribution in commercial threat-intel products
+        - As a sole or comprehensive threat-intelligence source
+      license: Binary Defense ATIF — non-commercial use only
+      redistribution:
+        allowed: true
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Free for personal and defensive use. Commercial resale and use in fee-charging
+          products are prohibited. Attribution is not explicitly required by the header,
+          but crediting Binary Defense Systems is implied by the source attribution
+          norm.
+      current_status:
+        state: active
+        description: Active. The banlist.txt remains publicly accessible and downloadable.
+          No discontinuation notices found on the Binary Defense website or blog.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion of the ATIF feed is sparse. A direct inquiry
+          posted to r/threatintel in November 2024 asking whether anyone uses the
+          Binary Defense banlist received two upvotes and zero replies — indicating
+          neither community endorsement nor criticism. Earlier discussion of the Artillery
+          open-source tool (January 2020, r/blueteamsec) was modestly received but
+          drew skeptical commentary about long-term maintenance. No false-positive
+          complaints, comparative benchmarks, or sustained community evaluation of
+          the feed itself were found.
+      sources_consulted:
+      - url: https://www.binarydefense.com/banlist.txt
+        document_date:
+        validation_date: '2026-05-16T14:47:22Z'
+      - url: https://www.binarydefense.com/
+        document_date:
+        validation_date: '2026-05-16T14:47:22Z'
+      - url: https://www.binarydefense.com/about-us/
+        document_date:
+        validation_date: '2026-05-16T14:47:22Z'
+      - url: https://github.com/BinaryDefense/artillery
+        document_date:
+        validation_date: '2026-05-16T14:47:22Z'
+      - url: https://github.com/BinaryDefense/artillery/blob/master/README.md
+        document_date:
+        validation_date: '2026-05-16T14:47:22Z'
+      - url: 
+          https://www.binarydefense.com/resources/blog/project-artillery-is-now-a-binary-defense-project
+        document_date:
+        validation_date: '2026-05-16T14:47:22Z'
+      - url: 
+          https://docs.eclecticiq.com/extensions/current/integrations/binary-defense-systems/incoming-binary-defense-systems/
+        document_date:
+        validation_date: '2026-05-16T14:47:22Z'
+      - url: https://www.reddit.com/r/threatintel/comments/1gqdgdq/binary_defense_banlist/
+        document_date: '2024-11-13'
+        validation_date: '2026-05-16T14:47:22Z'
+      - url: 
+          https://reddit.com/r/blueteamsec/comments/eix19p/binarydefenseartillery_the_artillery_project_is/
+        document_date: '2020-01-02'
+        validation_date: '2026-05-16T14:47:22Z'

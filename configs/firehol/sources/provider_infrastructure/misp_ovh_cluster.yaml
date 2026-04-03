@@ -1,0 +1,219 @@
+sources:
+  misp_ovh_cluster:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/ovh-cluster/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) OVH cluster
+      IP addresses. Provider infrastructure reference, not a threat indicator.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T17:30:07Z'
+      official_name: List of known Ovh Cluster IP
+      official_url: https://github.com/MISP/misp-warninglists/blob/main/lists/ovh-cluster/list.json
+      short_description: A MISP warning list that flags OVHcloud shared web hosting
+        cluster IPs as known-false positives, preventing legitimate OVH-hosted services
+        from being incorrectly flagged as malicious in threat reports.
+      long_description: "This warning list originates from OVHcloud's publicly published
+        documentation listing the IP addresses assigned to their shared web hosting
+        cluster infrastructure across Europe and Canada. The list is maintained within
+        the MISP warninglists project as one of its provider-infrastructure entries.\n\
+        \nPer the maintainer's list.json, the entries use CIDR-type matching, meaning
+        each IP is matched individually against ip-src, ip-dst, domain|ip, ip-src|port,
+        and ip-dst|port attribute types in MISP. The list was originally contributed
+        in February 2018 by a community member and subsequently corrected for a malformed
+        IPv6 address in November 2018.\n\nThe list is not a threat indicator feed.
+        Its sole purpose is to suppress false positives: when an analyst encounters
+        an alert referencing an OVH cluster IP, the warning list causes MISP to display
+        an informational note that this IP belongs to OVHcloud's known-shared hosting
+        infrastructure. Organizations that operate legitimate services on OVH infrastructure
+        enable this list to reduce noise. Organizations investigating abuse hosted
+        on OVH infrastructure may choose to disable it."
+      roles:
+      - role: maintainer
+        name: Alexandre Dulaunoy
+        organization_type: research_institution
+        official_url: https://www.circl.lu/
+        contact_email:
+        based_in: Luxembourg
+        active_since:
+        notes: Primary maintainer of the MISP warninglists project. Serves as the
+          deciding approver for all contributions and changes to the collection.
+      - role: publisher
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://github.com/MISP
+        contact_email:
+        based_in:
+        active_since:
+        notes: The overarching open-source project that hosts the misp-warninglists
+          repository where this list lives.
+      - role: source_contributor
+        name: '@ater49'
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since: '2018'
+        notes: 'Community contributor who authored the initial OVH cluster warning
+          list via pull requests #59 and #61, merged in February 2018.'
+      - role: source_contributor
+        name: '@mlodic'
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since: '2018'
+        notes: 'Community contributor who submitted pull request #85 fixing a malformed
+          IPv6 address in the OVH cluster list, merged in November 2018.'
+      derivation:
+        type: extraction
+        description: The list is a direct extraction from OVHcloud's publicly published
+          web hosting cluster IP address documentation. The maintainer converts OVH's
+          structured multi-cluster, multi-country IP tables into a flat JSON list
+          using CIDR-type matching. No scoring, weighting, or correlation with other
+          feeds is applied - the list is a verbatim transcription of OVH's published
+          reference data.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added when they appear in OVHcloud's publicly published
+          web hosting cluster IP address documentation. There is no active probing
+          or community reporting mechanism - the list is a static reference transcription
+          of OVH's own published infrastructure addresses.
+        criteria:
+        - The IP must appear in OVHcloud's officially published list of web hosting
+          cluster and web hosting IP addresses
+        - The IP must correspond to OVH shared hosting cluster infrastructure (not
+          dedicated servers, not VPS nodes)
+      unlisting_policy:
+        summary: Removals are handled via GitHub pull request to the misp-warninglists
+          repository. There is no stated automatic expiration or time-based decay
+          policy.
+        criteria:
+        - An IP is removed when a pull request correcting the list is merged by a
+          maintainer
+        - No automatic delisting mechanism is described
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/pulls
+        email:
+        instructions: Submit a pull request to the MISP/misp-warninglists GitHub repository
+          modifying the lists/ovh-cluster/list.json file to remove the erroneous entry.
+          Changes require a maintainer to approve and merge.
+      update_frequency:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The list is a policy-assignment warning list. It does not detect
+          malicious activity - it assigns a known-false-positive classification to
+          IPs belonging to OVHcloud's shared web hosting infrastructure. Analysts
+          using MISP with this list enabled receive an informational warning (not
+          a blocking alert) when an event contains an OVH cluster IP, signaling that
+          the IP is a known shared hosting address and should not be interpreted as
+          inherently malicious.
+      scope_and_intent:
+        description: 'The list marks OVHcloud shared web hosting cluster IPs as known-false
+          positives for intrusion detection systems. Its purpose is to reduce analyst
+          noise: when an MISP event contains an alert about an OVH cluster IP, the
+          warning list causes MISP to display an informational note that this IP is
+          a known shared hosting address, not an indicator of compromise.'
+        intended_for:
+        - Reducing false positive noise in MISP when analyzing events that involve
+          OVH-hosted services
+        - Preventing legitimate OVH shared hosting infrastructure from triggering
+          IDS alerts
+        - Helping analysts contextualize alerts that involve OVHcloud-hosted websites
+          or services
+        not_intended_for:
+        - Indicating that an IP is malicious - the list marks IPs as known infrastructure,
+          not threats
+        - Blocking or denying traffic based solely on presence in this list
+        - Detecting OVH-hosted phishing, malware, or abuse (use threat intelligence
+          feeds for that purpose)
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal dedicates the work to the public domain. No rights
+          are reserved. The work may be copied, modified, distributed, and used for
+          any purpose without restriction.
+      current_status:
+        state: active
+        description: Actively maintained as of 2026. The list.json carries version
+          20240422. The project homepage is reachable and the file is served from
+          the canonical GitHub repository. No discontinuation notices have been issued.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community engagement around the ovh-cluster list is sparse.
+          Seven GitHub issues matching 'ovh' were found in the repository, but none
+          specifically addressed the ovh-cluster warning list - they concerned unrelated
+          OVH configuration topics. Five pull requests relating to ovh-cluster were
+          filed in February and November 2018; all were merged or closed by 2018.
+          No open issues or active pull requests concerning this list were found.
+          The list stabilized after mid-2021 corrections and has received no further
+          documented community attention since.
+      sources_consulted:
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-18'
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/ovh-cluster/list.json
+        document_date: '20240422'
+        validation_date: '2026-05-18'
+      - url: 
+          https://docs.ovh.com/fr/hosting/liste-des-adresses-ip-des-clusters-et-hebergements-web/
+        document_date: '2021-07-01'
+        validation_date: '2026-05-18'
+      - url: 
+          https://github.com/MISP/misp-warninglists/commit/156c6015db6b97244b33b4801e122f9cd4a8767f
+        document_date: '2018-02-23'
+        validation_date: '2026-05-18'
+      - url: 
+          https://github.com/MISP/misp-warninglists/commit/ac091864d6e2bbc9b5508542aa0e61a46ddf686a
+        document_date: '2018-02-23'
+        validation_date: '2026-05-18'
+      - url: 
+          https://github.com/MISP/misp-warninglists/commit/3db263ec7696ae8160279422d7a1d8e81828ec0d
+        document_date: '2018-11-07'
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/pull/58
+        document_date: '2018-02-22'
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/pull/59
+        document_date: '2018-02-23'
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/pull/60
+        document_date: '2018-02-23'
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/pull/61
+        document_date: '2018-02-23'
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/pull/85
+        document_date: '2018-11-07'
+        validation_date: '2026-05-18'
+      - url: https://www.misp-project.org/Changelog-misp-warninglists.txt
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/graphs/contributors
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/issues?q=ovh
+        document_date:
+        validation_date: '2026-05-18'

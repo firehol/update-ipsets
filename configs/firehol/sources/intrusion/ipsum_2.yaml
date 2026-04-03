@@ -1,0 +1,146 @@
+sources:
+  ipsum_2:
+    license: The Unlicense
+    redistributable: true
+    url: https://raw.githubusercontent.com/stamparm/ipsum/master/levels/2.txt
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[IPsum](https://github.com/stamparm/ipsum) threat intelligence feed of
+      IPs appearing on at least 2 blacklists. Based on analysis of 30+ publicly available
+      blacklists updated daily.'
+    maintainer: stamparm
+    maintainer_url: https://github.com/stamparm/ipsum
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T20:29:38Z'
+      official_name: IPsum Level 2
+      official_url: https://github.com/stamparm/ipsum
+      short_description: Daily-updated threat intelligence feed aggregating IP addresses
+        from 30+ public blacklists, ranked by how many source lists each IP appears
+        on.
+      long_description: "This feed is the `levels/2.txt` slice of the IPsum project
+        — IPs that appear on at least two of the 30+ upstream public blacklists IPsum
+        aggregates. The two-source consensus threshold trims the noisiest single-source
+        listings from the broadest tier while keeping coverage high.\n\nIPsum builds
+        each level by tallying how many of its upstream blacklists list a given IP,
+        then emitting one file per threshold; this feed publishes the level-2 cut.
+        The full feed is rebuilt daily and sorted by occurrence count, highest first.
+        Operators who need stricter precision can move to `ipsum_3` through `ipsum_8`;
+        operators willing to accept more noise for higher recall can use `ipsum` (level
+        1).\n\nThe project is dedicated to the public domain under The Unlicense,
+        making it free for any use including commercial applications."
+      roles:
+      - role: maintainer
+        name: stamparm
+        organization_type: individual
+        official_url: https://github.com/stamparm
+        contact_email:
+        based_in:
+        active_since:
+        notes: Also maintains Maltrail, a related open-source malicious-traffic detection
+          project from the same author.
+      derivation:
+        type: aggregate_merge
+        description: Aggregates IP addresses from 30+ publicly available threat intelligence
+          blacklists. Each IP is scored by how many source lists it appears on (occurrence
+          count), then sorted highest-first. The level/2.txt subset contains only
+          IPs appearing on at least 2 blacklists.
+        source_feeds: []
+      listing_policy:
+        summary: IPs are automatically listed when they appear on at least 2 of the
+          aggregated source blacklists. The occurrence count reflects how many upstream
+          sources independently flagged the IP as suspicious or malicious.
+        criteria:
+        - Appears on at least 2 of the 30+ aggregated public blacklists
+        - Listed by upstream sources as suspicious or malicious
+      unlisting_policy:
+        summary: IPs are removed when the upstream source blacklists no longer include
+          them in subsequent daily updates. No automated individual delisting mechanism
+          exists; operators must submit evidence of remediation via GitHub issues.
+        criteria:
+        - Upstream sources no longer list the IP in their next daily refresh
+        - Manual removal requested via GitHub issue with evidence of remediation
+      unlist_request:
+        url: https://github.com/stamparm/ipsum/issues/new
+        email:
+        instructions: Submit a GitHub issue documenting the IP address and providing
+          evidence that the issue has been remediated (such as cleaning infected systems,
+          implementing proper security controls, or demonstrating the IP belongs to
+          a legitimate service that was incorrectly flagged).
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated daily, with all source blacklists automatically retrieved
+          and parsed every 24 hours
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: Reputation aggregation from 30+ public threat intelligence blacklists.
+          Each IP is scored by how many upstream sources independently list it, with
+          higher counts indicating stronger malicious activity signals and fewer false
+          positives.
+      scope_and_intent:
+        description: Provides a ready-to-deploy blocklist for filtering inbound traffic
+          from suspicious or malicious sources.
+        intended_for:
+        - Blocking inbound connections from IPs appearing on multiple threat intelligence
+          blacklists
+        - Edge firewall enforcement using ipset or similar tools
+        - Reducing exposure to scanners, bots, and other automated threats
+        not_intended_for:
+        - Precise threat attribution (aggregated sources lose per-source context)
+        - Blocking residential ISP IPs with high churn rates without careful threshold
+          tuning
+        - Standalone defense without complementary security measures
+      license: The Unlicense
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: No restrictions. The Unlicense dedicates the work to the public domain
+          with no conditions whatsoever.
+      current_status:
+        state: active
+        description: Actively maintained with daily updates. The repository is accessible
+          and recent commits are visible.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Operators have reported false positives across the IPsum project
+          when blocking IPs flagged by only a small number of upstream blacklists,
+          particularly affecting legitimate services (Google mail servers, Mozilla
+          push notifications, Zoom infrastructure). The level-2 threshold is among
+          the most permissive cuts the project publishes and is therefore one of the
+          tiers most exposed to that risk. The maintainer responds to delist requests
+          via GitHub issues when remediation is demonstrated.
+        engagement: Moderate community engagement through GitHub issues for delist
+          requests and occasional discussions on Reddit and professional networking
+          sites, where the project is frequently recommended alongside established
+          feeds like GreyNoise and Spamhaus for homelab and small-scale deployments.
+          Public discussion is sparse relative to larger commercial feeds.
+      sources_consulted:
+      - url: https://github.com/stamparm/ipsum
+        document_date: '2026-05-14'
+        validation_date: '2026-05-16T20:25:00Z'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/README.md
+        document_date:
+        validation_date: '2026-05-16T20:25:00Z'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/LICENSE
+        document_date:
+        validation_date: '2026-05-16T20:25:00Z'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/levels/2.txt
+        document_date:
+        validation_date: '2026-05-16T20:26:00Z'
+      - url: https://github.com/stamparm/maltrail
+        document_date:
+        validation_date: '2026-05-16T20:26:00Z'
+      - url: https://github.com/stamparm/ipsum/issues
+        document_date:
+        validation_date: '2026-05-16T20:28:00Z'

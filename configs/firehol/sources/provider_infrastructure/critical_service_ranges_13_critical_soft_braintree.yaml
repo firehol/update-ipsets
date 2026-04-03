@@ -1,0 +1,183 @@
+sources:
+  critical_soft_braintree:
+    license: Provider-published public IP ranges
+    redistributable: false
+    label: Braintree ranges
+    url: https://assets.braintreegateway.com/json/ips.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - json_paths:
+        paths: "$.production.cidrs[*],$.production.ips[*],$.production.outboundIps[*],$.sandbox.cidrs[*],$.sandbox.ips[*],$.sandbox.outboundIps[*]"
+    - append_slash32
+    - filter_all4
+    processor_raw: json_paths
+    category: provider_infrastructure
+    provenance: primary
+    info: Braintree-published IPv4 CIDR and address ranges. Reference feed, not a
+      threat indicator.
+    maintainer: Braintree
+    maintainer_url: 
+      https://developer.paypal.com/braintree/articles/control-panel/important-gateway-credentials/
+    enabled_by_all: true
+    use: [critical_infrastructure]
+    critical:
+      tier: soft
+      role: payment_or_commerce
+      source_type: authoritative_provider_json
+      source_quality: A
+      rationale: Braintree payment gateway ranges support payment processing and webhooks;
+        overlap should be reviewed before blocking.
+
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T12:10:26Z'
+      official_name: Braintree IP Addresses
+      official_url: 
+        https://developer.paypal.com/braintree/docs/reference/general/braintree-ip-addresses
+      short_description: Braintree's authoritative IPv4 address ranges for their payment
+        gateway, published as a JSON file for use in firewall allowlisting.
+      long_description: "Braintree, a PayPal-owned payment gateway, publishes the
+        definitive IP address ranges that their gateway infrastructure uses for processing
+        payments and sending outbound webhooks. The list is available as a downloadable
+        JSON file at assets.braintreegateway.com, organized into two top-level sections:
+        production and sandbox. Each section exposes three arrays — CIDR ranges, individual
+        IP addresses, and outbound IPs used when the gateway initiates connections
+        back to a merchant's server.\n\nThe feed is an authoritative provider-infrastructure
+        list, not a threat indicator feed. Its sole purpose is to enable merchants
+        to configure firewall rules and IP allowlists so that outbound connections
+        from Braintree's servers are permitted through network security controls.
+        Per the official documentation, allowlisting Braintree's IP addresses 'further
+        ensures that requests from your server are indeed going to a trusted Braintree
+        server' on top of TLS guarantees.\n\nThe official documentation states that
+        Braintree IP addresses are subject to change without advance notice, and no
+        formal change notification system exists. The documented recommendation is
+        to monitor the JSON file programmatically for changes. A historical ad-hoc
+        update was announced approximately five weeks in advance in June 2018, but
+        no regular cadence is published. The governing legal instrument is the Braintree
+        Payment Services Agreement, which restricts reproduction and distribution
+        of PayPal materials."
+      roles:
+      - role: maintainer
+        name: Braintree
+        organization_type: commercial
+        official_url: https://www.braintreepayments.com
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: Braintree is a PayPal-owned payment processing platform. The IP addresses
+          list is published under the Braintree brand on the PayPal Developer portal.
+      - role: publisher
+        name: PayPal Developer
+        organization_type: commercial
+        official_url: https://developer.paypal.com/braintree
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: The developer documentation portal that hosts the official IP addresses
+          reference page and the JSON asset file.
+      derivation:
+        type: original
+        description: "The feed is Braintree's own first-party publication of their
+          gateway infrastructure IP ranges. The JSON file is generated from Braintree's
+          internal network allocation records and published directly — no upstream
+          IP feeds are consumed. The file separates production and sandbox environments,
+          each with three arrays: CIDR ranges, individual IPs, and outbound IPs used
+          for callback connections."
+        source_feeds: []
+      listing_policy:
+        summary: This is an authoritative provider-infrastructure list, not a threat
+          indicator feed. There is no listing policy in the conventional sense — the
+          entries represent Braintree's own allocated gateway infrastructure and are
+          published unconditionally as the authoritative record of those allocations.
+        criteria:
+        - Braintree allocates IP addresses and CIDR ranges to gateway infrastructure
+        - Ranges are published unconditionally as the authoritative record
+      unlisting_policy:
+        summary: There is no unlisting policy because this is an authoritative provider
+          list, not a threat feed. Entries represent Braintree's own infrastructure
+          and cannot be unlisted by third parties.
+        criteria:
+        - Entries represent Braintree's own infrastructure and are not removable by
+          third parties
+      unlist_request:
+      update_frequency:
+        frequency:
+        human_readable: No documented update cadence; per the official documentation,
+          IPs are subject to change without advance notice and merchants are advised
+          to monitor the JSON file for changes.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The feed represents policy-assigned IP allocations — Braintree
+          formally assigns and publishes the IP addresses that their gateway infrastructure
+          uses. This is not a detection feed in the threat-intelligence sense; entries
+          are not scored for maliciousness. The classification reflects that entries
+          are determined by the provider's own infrastructure allocation decisions,
+          not by honeypot observations, sandbox reports, or community submissions.
+      scope_and_intent:
+        description: "The feed covers Braintree's production and sandbox gateway infrastructure
+          IP addresses used for the payment processing lifecycle: inbound API connections,
+          outbound webhook delivery, and static asset hosting."
+        intended_for:
+        - Firewall allowlisting of Braintree gateway endpoints
+        - Validating that incoming webhook requests originate from Braintree infrastructure
+        - Configuring network security policy exceptions for payment processing
+        not_intended_for:
+        - Blocking Braintree infrastructure as threat indicators — blocking these
+          IPs will prevent payment processing
+        - Threat intelligence correlation or malicious traffic detection
+        - Fraud scoring or risk assessment
+      license: Public, no stated license
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms: The governing Braintree Payment Services Agreement (Section 6.04) prohibits
+          alteration, reproduction, adaptation, and distribution of PayPal-provided
+          materials. The IP list is publicly downloadable for allowlisting configuration
+          but no explicit redistribution rights are granted.
+      current_status:
+        state: active
+        description: Active. The JSON asset file at assets.braintreegateway.com/json/ips.json
+          is live and accessible. The official documentation page is maintained on
+          PayPal Developer. No discontinuation notices have been issued.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion about this feed is sparse. Reddit
+          searches found no substantive technical discussions about Braintree IP allowlist
+          configuration, false positive resolution, or IP change incidents. Technical
+          troubleshooting for proprietary payment processors typically occurs through
+          official support channels rather than public forums.
+      sources_consulted:
+      - url: 
+          https://developer.paypal.com/braintree/docs/reference/general/braintree-ip-addresses
+        document_date:
+        validation_date: '2026-05-21T12:10:26Z'
+      - url: https://assets.braintreegateway.com/json/ips.json
+        document_date:
+        validation_date: '2026-05-21T12:10:26Z'
+      - url: https://developer.paypal.com/braintree/articles/risk-and-security/allowlisting
+        document_date:
+        validation_date: '2026-05-21T12:10:26Z'
+      - url: https://www.paypal.com/us/legalhub/braintree/payment-services-agreement
+        document_date: '2026-03-02'
+        validation_date: '2026-05-21T12:10:26Z'
+      - url: https://developer.paypal.com/braintree/articles/control-panel/audit-webhooks
+        document_date:
+        validation_date: '2026-05-21T12:10:26Z'
+      - url: 
+          https://developer.paypal.com/braintree/articles/control-panel/important-gateway-credentials/
+        document_date:
+        validation_date: '2026-05-21T12:10:26Z'
+      - url: https://www.paypal.com/us/legalhub/braintree/acceptable-use-policy
+        document_date: '2017-11-08'
+        validation_date: '2026-05-21T12:10:26Z'
+      - url: 
+          https://answers.laserfiche.com/questions/143127/Updates-to-Braintree-IP-Addresses
+        document_date: '2018-06-05'
+        validation_date: '2026-05-21T12:10:26Z'

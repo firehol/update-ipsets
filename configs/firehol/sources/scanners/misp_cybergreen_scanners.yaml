@@ -1,0 +1,210 @@
+sources:
+  misp_cybergreen_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/cybergreen-nt-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Cybergreen
+      scanner ranges extracted from CIRCL network telescope analysis. Informational
+      - not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T20:45:39+00:00'
+      official_name: Cybergreen IP Ranges Used for Scanning
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: A MISP warning list of IP ranges associated with Cybergreen
+        scanning infrastructure, extracted from CIRCL Luxembourg's network telescope
+        analysis, intended to flag potential false positives in threat intelligence
+        workflows.
+      long_description: "The Cybergreen IP Ranges Used for Scanning list records the
+        source IP addresses that CIRCL Luxembourg's network telescope attributes to
+        scanning activity by Cybergreen — historically a non-profit cyber-risk measurement
+        project focused on quantifying systemic internet hygiene issues such as open
+        DNS resolvers and amplification-attack reflectors. As with other CIRCL -nt-scanning
+        lists, the file is a passive-observation extract; what makes it distinct in
+        the family is the attribution target, which is a measurement/research initiative
+        rather than a commercial scanner vendor.\n\nThe maintainer explicitly marks
+        this list as informational — it is not intended for use as a blocklist. Because
+        measurement projects often rotate the IP space they scan from, treating the
+        file as a blocklist risks collateral damage when the same addresses are later
+        reassigned to unrelated parties."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://www.misp-project.org
+        contact_email:
+        based_in: Luxembourg
+        active_since: '2011'
+        notes: The MISP Project is an open-source threat intelligence sharing platform
+          led by CIRCL Luxembourg. Alexandre Dulaunoy (@adulau) and Andras Iklody
+          (@Iglocska) serve as primary maintainers. The project encompasses the MISP
+          core platform and a family of companion repositories including misp-warninglists,
+          misp-taxonomies, misp-galaxy, and misp-objects.
+      - role: source_contributor
+        name: Paul Jung (Thanat0s)
+        organization_type: research_institution
+        official_url:
+        contact_email:
+        based_in: Luxembourg
+        active_since:
+        notes: Contributor credited with maintaining the Cybergreen network telescope
+          scanner lists within the MISP warninglists repository. Authored the two
+          most recent commits to the cybergreen-nt-scanning list.json file (December
+          10, 2025).
+      - role: source_contributor
+        name: CIRCL Luxembourg
+        organization_type: research_institution
+        official_url: https://www.circl.lu
+        contact_email:
+        based_in: Luxembourg
+        active_since: '2011'
+        notes: Computer Incident Response Center Luxembourg. Operates the network
+          telescope infrastructure from which the Cybergreen scanner data is derived.
+          Serves as the primary organizational home of the MISP Project. Governed
+          by the Ministry of Economy of Luxembourg and housed within the Luxembourg
+          House of Cybersecurity.
+      derivation:
+        type: extraction
+        description: The list is an extraction from CIRCL Luxembourg's operational
+          network telescope. CIRCL operates a /18 network telescope (approximately
+          16,000 unused IP addresses) that has continuously monitored unsolicited
+          inbound traffic since August 2011. Raw packet capture is stored in 5-minute
+          PCAP files and processed through a pipeline using Suricata for protocol
+          extraction and ClickHouse for metadata storage. From this baseline, CIRCL
+          identifies IP addresses exhibiting scanning behaviour — distinguishing intentional
+          reconnaissance (e.g., Censys, Shodan, Onyphe) from misconfigured devices
+          — and publishes specific IP ranges associated with the Cybergreen scanning
+          campaign as a structured CIDR list for ingestion into MISP warninglists.
+          The list does not consume other IP feeds; it is a first-party extraction
+          from CIRCL's own sensor infrastructure.
+        source_feeds: []
+      listing_policy:
+        summary: An IP address or prefix is added to the Cybergreen list when CIRCL's
+          network telescope analysis identifies it as belonging to the Cybergreen
+          scanning infrastructure. The network telescope observes all unsolicited
+          traffic to unused IP address space; because no legitimate services run on
+          the telescope, any observed traffic is inherently anomalous. CIRCL applies
+          attribution analysis — correlating source IPs with BGP autonomous systems
+          and performing reverse DNS lookups — to distinguish intentional scanning
+          activity from accidental misconfiguration. Once an IP is classified as a
+          Cybergreen scanner, its prefix is recorded in CIDR notation and published
+          in the warning list.
+        criteria:
+        - Observed sending scanning traffic to CIRCL's network telescope address space
+        - Attribution analysis confirms the source as Cybergreen scanning infrastructure
+          (vs. misconfiguration or legitimate scanner)
+        - Prefix recorded in CIDR notation compatible with MISP's cidr matching type
+      unlisting_policy:
+        summary: The MISP warninglists repository does not document an automatic expiry
+          mechanism or a formal manual unlisting review process for the Cybergreen
+          list. Updates to the list are driven by the maintainer's periodic re-analysis
+          of CIRCL's network telescope data; the list was last revised on December
+          10, 2025. There is no publicly stated commitment to a specific review cadence
+          or to removing entries when infrastructure is decommissioned.
+        criteria: []
+      unlist_request:
+      update_frequency:
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: "The list is built from CIRCL Luxembourg's operational network
+          telescope — a passive monitoring system that receives all unsolicited traffic
+          directed at a large block of unused IP address space. Because the telescope
+          contains no active services, every inbound packet is anomalous by definition.
+          CIRCL processes raw packet captures through Suricata (protocol extraction)
+          and ClickHouse (metadata storage), then applies attribution analysis — BGP
+          AS correlation, reverse DNS lookups, and scanner-type differentiation —
+          to identify IPs belonging to the Cybergreen scanning infrastructure. This
+          is a first-party detection method: CIRCL operates the sensor, analyses the
+          data, and publishes the resulting CIDR list directly into the MISP warninglists
+          repository."
+      scope_and_intent:
+        description: The Cybergreen list is a MISP warning list — its purpose is to
+          warn analysts when an IP address in their threat intelligence data matches
+          a known scanning infrastructure range, helping to identify potential false
+          positives rather than initiating defensive action.
+        intended_for:
+        - Flagging Cybergreen scanner IPs as potential false positives in MISP events
+          and attributes
+        - Enriching threat intelligence investigations with context about scanning
+          infrastructure
+        - Filtering MISP alerts at the API level to suppress noise from known scanner
+          sources
+        not_intended_for:
+        - Inline blocking or deny-listing at network perimeter devices
+        - Automated enforcement actions that affect traffic to listed IP ranges
+        - Use as a replacement for threat-intelligence blocklists with active blocking
+          intent
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal (Public Domain Dedication). Under this license, the
+          maintainer has waived all copyright and neighbouring rights to the extent
+          permitted by law. The data may be copied, modified, and redistributed even
+          in commercial applications, without requiring attribution, although acknowledgment
+          of CIRCL and the MISP Project is customary practice.
+      current_status:
+        state: active
+        description: Active. The list was updated on December 10, 2025, with a new
+          CIDR entry reflecting the latest CIRCL network telescope analysis. The MISP
+          warninglists repository is reachable and the Cybergreen list is present
+          in the current catalog.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion specific to the Cybergreen network
+          telescope scanner list is sparse. The broader MISP warninglists repository
+          has approximately 25 open issues at the time of research; discussions centre
+          on generator script maintenance and format enhancements rather than individual
+          list entries. The Cybergreen list has no open issues or pull requests filed
+          against it in the reviewed history. The MISP Project more broadly is widely
+          adopted across enterprise threat intelligence teams; adoption breadth is
+          evidenced by its integration into MISP instances worldwide rather than by
+          public discussion volume.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/cybergreen-nt-scanning/list.json
+        document_date: '2025-12-10'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/tree/main/lists/cybergreen-nt-scanning
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: 
+          https://github.com/MISP/misp-warninglists/commits/main/lists/cybergreen-nt-scanning/list.json
+        document_date: '2025-12-10'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.misp-project.org/who/
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: 
+          https://d4-project.org/2025/11/27/Learning-from-Large-Scale-IPv4-Blackhole-behavioral-analysis-of-SNMP-traffic.html
+        document_date: '2025-11-27'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.circl.lu/assets/files/tnc17_paper_Fullpaper-IoTBlackholeCW.pdf
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.circl.lu/assets/files/circl-blackhole-honeynetworkshop2014.pdf
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.misp-project.org/contributing
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'

@@ -1,0 +1,156 @@
+sources:
+  iblocklist_org_nintendo:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=pevkykuhgaegqyayzbnr&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Nintendo IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T11:53:40+00:00'
+      official_name: Nintendo
+      official_url: https://www.iblocklist.com/
+      short_description: A list of IP addresses associated with Nintendo server infrastructure,
+        maintained by iBlocklist.com. The feed is accessible via the service's P2P-format
+        endpoint but is not displayed as a named entry in the public lists directory.
+      long_description: This feed is maintained by iBlocklist.com and targets IP addresses
+        associated with Nintendo server infrastructure. The feed is accessible via
+        the service's P2P-format endpoint using the list identifier 'pevkykuhgaegqyayzbnr';
+        the direct URL was confirmed returning a gzipped archive on research. The
+        maintainer does not publish a description of the specific sourcing methodology
+        used to compile this feed, nor is the feed listed by name in the public iBlocklist.com
+        lists directory — it exists as an accessible resource without prominent cataloguing
+        on the maintainer's site. iBlocklist.com distributes lists in standard formats
+        (P2P, DAT, CIDR) compatible with PeerBlock, PeerGuardian, pfBlocker, and related
+        software. The service operates as a commercial subscription ($9.99/year) with
+        a subset of feeds available without registration. The maintainer states lists
+        are provided 'as is' with no commitment to update or accuracy.
+      roles:
+      - role: maintainer
+        name: iBlocklist.com
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: "Operates the iBlocklist.com IP blocklist distribution service. The
+          service transitioned to registration-required access for most feeds; a subset
+          of feeds remain freely accessible. Copyright notice reads '© 2026 iblocklist,
+          LLC.' The maintainer does not publish individual contributor names or a
+          team roster. Service-level community signal across iBlocklist.com (not specific
+          to any single feed): community reports document that some Bluetack-origin
+          lists have produced false positives affecting Battle.net, Steam, Google,
+          and FedEx; the broader iBlocklist subscription model has attracted Trustpilot
+          complaints about autorenewal billing and support responsiveness."
+      derivation:
+        type: original
+        description: The feed is compiled by iBlocklist.com as an original resource.
+          The maintainer does not publish the specific methodology used to identify
+          and collect Nintendo-associated IP addresses for this feed, nor does the
+          lists directory describe sourcing processes for any individual feed. The
+          feed is distributed in P2P format alongside other iBlocklist.com feeds.
+        source_feeds: []
+      listing_policy:
+        summary: The maintainer does not publish listing criteria or a policy document
+          for this feed. The iBlocklist.com Terms of Service prohibit use of the service
+          for 'hacking, DOS hacks, SPAM or other activities of a malicious nature,'
+          but do not describe the criteria by which individual IP addresses are selected
+          for inclusion in any specific feed.
+        criteria: []
+      unlisting_policy:
+        summary: The maintainer does not publish unlisting criteria or a removal process
+          for this feed. The Terms of Service contain no provisions describing how
+          IPs are removed or how third parties can request delisting.
+        criteria: []
+      unlist_request:
+        url: https://www.iblocklist.com/support
+        email:
+        instructions: The maintainer directs users to the support page at https://www.iblocklist.com/support.
+          The support page primarily promotes the PhantomPeer VPN service and does
+          not provide a direct email address or a specific unlisting request procedure
+          for IP feeds.
+      update_frequency:
+        frequency: 1d
+        human_readable: The maintainer does not state an update cadence for this feed.
+          The catalog records a frequency value of 1440 minutes (once per day), but
+          this represents the catalog's configured polling interval rather than a
+          maintainer-stated target.
+      detection_classification:
+        primary_method: unknown
+        secondary_methods: []
+        description: The maintainer does not publish the detection or sourcing methodology
+          used to compile this feed or any individual iBlocklist.com feed.
+      scope_and_intent:
+        description: The feed targets IP addresses associated with Nintendo server
+          infrastructure. It is commonly used to block connectivity to Nintendo services
+          — primarily employed by users seeking to prevent firmware updates, restrict
+          telemetry, or disable online functionality on Nintendo consoles.
+        intended_for:
+        - Blocking Nintendo server connectivity on personal networks
+        - Preventing firmware update downloads on Nintendo consoles
+        - Restricting Nintendo telemetry on personal devices
+        not_intended_for:
+        - Commercial network environments
+        - Production infrastructure requiring Nintendo API access
+        - Enforcement of intellectual property restrictions
+      license: iBlocklist.com Terms of Service — personal use only, non-commercial
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution of list data is explicitly prohibited. Scripts or tools
+          that access the service may be shared, but the list data itself may not
+          be republished. The maintainer has issued takedown requests to third-party
+          repositories mirroring their data.
+      current_status:
+        state: active
+        description: The feed URL returned a valid gzipped P2P archive on research,
+          confirming the resource is currently accessible. The iBlocklist.com service
+          remains online with a 2026 copyright notice. However, the Nintendo feed
+          is not listed by name in the public iBlocklist.com lists directory, and
+          the service has exhibited intermittent availability — some automated checks
+          returned HTTP 401 errors, suggesting inconsistent access behavior.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: No Nintendo-specific false-positive reports were found in community
+          discussion. Service-level community signal across iBlocklist.com is recorded
+          in the maintainer role notes.
+        engagement: The Nintendo feed is referenced in community projects (iblocklist-loader,
+          90dns, Switch Atmosphere guides) as a configuration option, but no dedicated
+          issue tracker, forum, or discussion space exists for the feed itself.
+      sources_consulted:
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/subscribe
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://gist.github.com/johntyree/3331662
+        document_date:
+        validation_date: '2026-05-18'
+      - url: 
+          https://github.com/shounak-de/iblocklist-loader/blob/master/iblocklist-loader-v2.sh
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.reddit.com/r/PFSENSE/comments/iyjovl/comment/gkgcwkw/
+        document_date:
+        validation_date: '2026-05-18'

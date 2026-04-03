@@ -1,0 +1,179 @@
+sources:
+  blocklist_de_mail:
+    license: public feed
+    redistributable: true
+    url: http://lists.blocklist.de/lists/mail.txt
+    frequency: 15
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been
+      reported within the last 48 hours as having run attacks on the service Mail,
+      Postfix.'
+    maintainer: Blocklist.de
+    maintainer_url: https://www.blocklist.de/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T15:54:25+00:00'
+      official_name: Blocklist.de
+      official_url: https://www.blocklist.de/
+      short_description: Daily-updated list of IP addresses that recently attacked
+        mail services (Postfix, SASL, IMAP, and related daemons), generated from fail2ban
+        reports submitted by a volunteer server network.
+      long_description: "The mail.txt feed collects IPs that the Blocklist.de partner
+        network has reported for attacks against mail daemons — Postfix, SASL authentication,
+        IMAP/Dovecot/Courier, Amavis, and Exim variants — in the preceding 48 hours.
+        Listings expire automatically after 48 hours; operators can also request early
+        removal via the delist form. Among the per-service Blocklist.de feeds, the
+        mail.txt category typically carries the highest report volume because credential-guessing
+        and relay-abuse traffic against mail infrastructure is widespread.\n\nThe
+        Blocklist.de service cross-references reported IPs against allow-lists from
+        dnswl.org and spamhauswhitelist.org and excludes known Tor exit nodes via
+        torproject.org. For the broader sensor-network model, the X-ARF abuse-reporting
+        pipeline, the maintainer's mission of routing reports to ISPs, and the founder/Abusix
+        ownership history, see the `roles` block on this page and the parent `blocklist_de`
+        feed page."
+      roles:
+      - role: maintainer
+        name: Martin Schiftan
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since: '2006'
+        notes: Original founder and operator of blocklist.de. Passed operational control
+          to Abusix in 2022 while retaining association with the service.
+      - role: publisher
+        name: Abusix
+        organization_type: commercial
+        official_url: https://abusix.com/
+        contact_email:
+        based_in: Germany / United States
+        active_since: '2022'
+        notes: Mail security company that assumed operation of blocklist.de on 28
+          February 2022, integrating it into the Abusix platform to improve data quality
+          and expand features.
+      derivation:
+        type: original
+        description: IP addresses are collected from fail2ban reports submitted by
+          volunteer servers running mail services. When a server detects a login attempt
+          matching the postfix, mail, sasl, imap, or related attack signatures, the
+          attacking IP is logged and fed into the mail.txt distribution. The service
+          enriches reports with WHOIS abuse contacts and X-ARF formatted abuse notifications.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when a participating fail2ban-equipped mail server
+          detects an attack matching postfix, mail, SASL, IMAP, or related daemon
+          signatures. The service applies whitelists from dnswl.org and spamhauswhitelist.org
+          and excludes Tor exit nodes to reduce false positives. Listings cover the
+          preceding 48-hour window.
+        criteria:
+        - Detected attack on a mail service (Postfix, SASL, IMAP/Dovecot, Courier,
+          Amavis, or Exim)
+        - Attack matched a supported fail2ban filter signature
+        - IP is not on dnswl.org or spamhauswhitelist.org allowlists
+        - IP is not a known Tor exit node
+      unlisting_policy:
+        summary: Listed IPs automatically expire after 48 hours. Operators can request
+          early removal by submitting their IP via the online delist form; removals
+          are processed within 60 minutes. The service also allows pausing reports
+          for a specific IP and abuse-contact pair for up to 7 days.
+        criteria:
+        - Automatic expiry after 48 hours from listing
+        - Manual removal via the delist form on blocklist.de/en/delist.html
+        - Report pause for 7 days available via the search interface
+      unlist_request:
+        url: https://www.blocklist.de/en/delist.html
+        email: webmaster@blocklist.de
+        instructions: Submit the IP address via the online form at blocklist.de/en/delist.html.
+          Removals are processed within 60 minutes. For extended relief, use the search
+          interface to pause reports for up to 7 days.
+      update_frequency:
+        frequency: 30m
+        human_readable: Updated every 30 minutes; the feed retains IPs from the preceding
+          48-hour window
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods: []
+        description: 'IPs are contributed by a volunteer network of server operators
+          who run fail2ban on their mail services. When fail2ban triggers on a postfix,
+          SASL, IMAP, or related attack signature, the attacking IP is forwarded to
+          blocklist.de for distribution. This is a user-submission model: blocklist.de
+          aggregates reports from its own server participants, not from external honeypots
+          or scanners.'
+      scope_and_intent:
+        description: Blocklist.de is designed for edge firewall and IDS/IPS blocking
+          at the perimeter. The feeds help operators block known attackers before
+          they reach services. The maintainer explicitly advises that blocklist.de
+          does not block anything itself — third-party administrators configure their
+          systems to act on the feeds.
+        intended_for:
+        - Edge firewall blocking (iptables, pf, nftables)
+        - Fail2ban and DenyHosts integration
+        - IDS/IPS enrichment
+        - Abuse contact discovery (via X-ARF reports)
+        not_intended_for:
+        - Preemptive email blocking based on sender reputation alone
+        - Permanent blocking (feeds carry a 48-hour rolling window)
+        - Legal or regulatory compliance purposes
+      license: public feed
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: The direct upstream is publicly downloadable with no stated redistribution
+          restriction. No redistribution terms, attribution requirement, or commercial-use
+          prohibition appear on the license page or feed file.
+      current_status:
+        state: active
+        description: Active and maintained. Abusix took over operations on 28 February
+          2022 and continues to operate the Blocklist.de service with planned integration
+          into the Abusix platform. The mail.txt file is served by the maintainer;
+          the engine surfaces current freshness separately.
+        successor:
+        announcement_date: '2022-02-28'
+      community:
+        awards: PortalZine's 2026 self-hoster threat-intelligence guide singles out
+          mail.txt as the largest Blocklist.de export and assesses it as having relatively
+          low false-positive rates for its stated SSH/mail/web-server-protection use
+          case.
+        criticism:
+        engagement: Mail-feed-specific discussion is sparse. The mail.txt variant
+          is referenced in mail-server forums (DirectAdmin, sysadmin) primarily within
+          broader anti-abuse stack discussions. Maintainer-wide community signal —
+          including the NDSS 2024 DNSBL evaluation that rated Blocklist.de's listing
+          volume as conservative relative to peers — is recorded on the parent `blocklist_de`
+          feed page rather than duplicated here.
+      sources_consulted:
+      - url: https://www.blocklist.de/
+        document_date:
+        validation_date: '2026-05-16T15:40:00+00:00'
+      - url: http://lists.blocklist.de/lists/mail.txt
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16T15:35:00+00:00'
+      - url: https://www.blocklist.de/en/license.html
+        document_date:
+        validation_date: '2026-05-16T15:45:00+00:00'
+      - url: https://www.blocklist.de/en/delist.html
+        document_date:
+        validation_date: '2026-05-16T15:47:00+00:00'
+      - url: https://www.blocklist.de/en/faq.html
+        document_date:
+        validation_date: '2026-05-16T15:52:00+00:00'
+      - url: https://abusix.com/blog/abusix-to-take-over-the-operation-of-blocklist-de/
+        document_date: '2022-02-28'
+        validation_date: '2026-05-16T15:48:00+00:00'
+      - url: https://glockapps.com/tutorials/delist-from-blocklist-de
+        document_date:
+        validation_date: '2026-05-16T15:49:00+00:00'
+      - url: 
+          https://portalzine.de/free-threat-intelligence-feeds-the-self-hosters-guide-to-real-time-protection/
+        document_date: '2026-04-22'
+        validation_date: '2026-05-16T15:53:00+00:00'
+      - url: https://www.ndss-symposium.org/wp-content/uploads/2025-2156-paper.pdf
+        document_date: '2024'
+        validation_date: '2026-05-16T15:46:00+00:00'

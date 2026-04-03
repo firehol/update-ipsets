@@ -1,0 +1,197 @@
+sources:
+  serpro_reputation:
+    license: public feed
+    redistributable: true
+    url: https://s3.i02.estaleiro.serpro.gov.br/blocklist/blocklist.txt
+    frequency: 3
+    ipv: ipv4
+    output: ipset
+    processor:
+    - extract_ipv4
+    processor_raw: extract_ipv4_from_any_file
+    category: policy_risk
+    info: '[SERPRO](https://www.serpro.gov.br/) reputation IP feed from the MISP default
+      feed catalog. Classified as policy risk because the feed gives reputation/blocklist
+      context without detailed abuse-type semantics.'
+    maintainer: SERPRO
+    maintainer_url: https://www.serpro.gov.br/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T13:31:55Z'
+      official_name: Reputation Serpro
+      official_url: https://reputation.serpro.gov.br/
+      short_description: A publicly available list of IPv4 addresses identified as
+        sources of malicious activity against Brazilian federal government networks,
+        maintained by SERPRO's Cybersecurity Department.
+      long_description: "Reputation Serpro is a publicly available IP blocklist maintained
+        by SERPRO's Cybersecurity Department (Departamento de Segurança Cibernética),
+        implemented in 2021. The feed aggregates IPv4 addresses identified as sources
+        of malicious activity targeting SERPRO and its federal government clients.\n\
+        \nDetection follows a penetration-testing-oriented methodology: the SOC maps
+        attacker behavior across multiple intrusion stages and correlates indicators
+        of compromise observed across government network traffic. The service operates
+        continuously, with IPs released after passing through a configurable quarantine
+        period. Addresses associated with repeat offending (malicious recidivism)
+        have their quarantine duration extended.\n\nPer the maintainer's stated position,
+        after two years of operation and more than six million unique sources blocked,
+        no relevant errors (false positives) have been recorded. The feed is intentionally
+        formatted as a plain-text list of IPv4 addresses only — no domains, categories,
+        scores, or timestamps — optimized for direct ingestion by network security
+        devices.\n\nThe service is positioned primarily for government agencies and
+        organizations that lack advanced threat-detection infrastructure. SERPRO's
+        superintendent stated the rationale: 'Se a gente já bloqueia aqui, por que
+        não compartilhar essa base de reputação' (If we are already blocking here,
+        why not share this reputation database)."
+      roles:
+      - role: maintainer
+        name: SERPRO — Serviço Federal de Processamento de Dados
+        organization_type: government
+        official_url: https://www.serpro.gov.br/
+        contact_email:
+        based_in: Brazil
+        active_since: '1970'
+        notes: Brazil's largest state-owned IT enterprise serving the federal government.
+          Operates the Cybersecurity Department (Departamento de Segurança Cibernética)
+          and a 24/7 Security Operations Center (SOC) responsible for the reputation
+          feed.
+      - role: maintainer
+        name: João Almeida
+        organization_type: government
+        official_url:
+        contact_email:
+        based_in: Brazil
+        active_since:
+        notes: Superintendente at SERPRO. Publicly presented the reputation service
+          at the 2nd Cyber Gov event in Brasília (October 2024), emphasizing the operational-sharing
+          rationale.
+      - role: maintainer
+        name: Tiago Iahn
+        organization_type: government
+        official_url:
+        contact_email:
+        based_in: Brazil
+        active_since:
+        notes: Gerente de Segurança Cibernética at SERPRO. Presented the SOC methodology
+          and recidivism policy at the Superior Courts Cybersecurity Symposium (March
+          2023).
+      derivation:
+        type: original
+        description: The feed is built entirely from SERPRO's own Security Operations
+          Center (SOC) operations. Detection is driven by correlation of attack patterns
+          observed across SERPRO and federal government network infrastructure, supplemented
+          by honeypot and darknet/telescope monitoring. The SOC acts proactively,
+          including monitoring deep-web sources for emerging threats. No external
+          IP feeds are consumed as inputs. The resulting list is the summary output
+          of all correlation work performed by SERPRO's security teams.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when SERPRO's SOC correlates it against attack-pattern
+          indicators mapped to penetration-testing-stage methodology. The SOC defines
+          a set of actions corresponding to each stage of an intrusion attempt; any
+          IP observed advancing through a mapped stage is correlated and added to
+          the blocklist. Recidivist attackers — IPs that reappear after initial quarantine
+          — have their quarantine duration extended upon subsequent detection.
+        criteria:
+        - Observed advancing through at least one mapped intrusion stage in an attack
+          attempt against SERPRO or government-client infrastructure
+        - Correlated by the SOC as a source of malicious activity based on multi-stage
+          indicator matching
+        - Repeat offender (recidivist) status triggering extended quarantine on re-detection
+      unlisting_policy:
+        summary: Listed IPs are automatically released after passing through a configurable
+          quarantine period with no further detections. IPs associated with repeat
+          offending (malicious recidivism) have their quarantine duration extended
+          upon re-detection. No manual unlisting request channel is publicly documented;
+          the mechanism is fully automated based on sustained inactivity.
+        criteria:
+        - Automatic release after passing through the quarantine period with no further
+          correlated detections
+        - Extended quarantine duration for IPs associated with repeat offending (recidivism)
+      unlist_request:
+      update_frequency:
+        frequency: 3m
+        human_readable: Updated every three minutes, per SERPRO's published news articles
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods:
+        - honeypot
+        - network_telescope
+        description: Detection is driven by the SOC's correlation engine, which maps
+          attacker behavior against penetration-testing-stage indicators observed
+          across government network traffic. Supplementary inputs come from honeypot
+          deployments and darknet/telescope monitoring. The SOC also proactively monitors
+          deep-web sources for emerging threat indicators before they target government
+          systems. The resulting score per IP is binary (listed/not-listed) — no numeric
+          confidence score is published.
+      scope_and_intent:
+        description: Reputation Serpro is intended as a shared threat-intelligence
+          resource for Brazilian government agencies and organizations that lack advanced
+          detection capabilities. The feed aggregates indicators of compromise from
+          attacks observed against SERPRO and its federal government clients.
+        intended_for:
+        - Government agencies and organizations without advanced threat-detection
+          infrastructure
+        - Network security devices (firewalls, IDS/IPS systems) for automated blocking
+        - Preemptive blocking of IPs observed conducting malicious activity against
+          government networks
+        not_intended_for:
+        - Commercial redistribution as a standalone revenue-generating product
+        - IPv6 traffic (the feed contains only IPv4 addresses)
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: The direct upstream is publicly available at s3.i02.estaleiro.serpro.gov.br
+          with no stated redistribution restrictions. SERPRO's general corporate terms
+          note that information collected is not resold to third parties, but this
+          applies to SERPRO's inbound data-collection practices, not to the outbound
+          reputation feed itself. No redistribution prohibition is stated for the
+          blocklist.
+      current_status:
+        state: active
+        description: Active. Implemented in 2021 and maintained as of the latest SERPRO
+          news (October 2024). Updated every three minutes. No discontinuation or
+          migration notices found.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion is sparse in English-language venues. The feed
+          is referenced in Portuguese-language pfSense/pfBlocker integration tutorials
+          and Brazilian technology news outlets covering government cybersecurity
+          initiatives. No dedicated issue tracker, public forum, or bug-report channel
+          is maintained. The absence of direct community mentions in Reddit, Hacker
+          News, or comparable English-language forums likely reflects the feed's government-sector
+          focus and Portuguese-language operator base rather than quality concerns.
+      sources_consulted:
+      - url: https://reputation.serpro.gov.br/
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://s3.i02.estaleiro.serpro.gov.br/blocklist/blocklist.txt
+        document_date:
+        validation_date: '2026-05-18'
+      - url: 
+          https://www.serpro.gov.br/menu/noticias/noticias-2023/contra-logs-nao-ha-argumentos
+        document_date: '2023-03-31'
+        validation_date: '2026-05-18'
+      - url: 
+          https://www.serpro.gov.br/menu/noticias/noticias-2024/serpro-governo-ciberseguranca
+        document_date: '2024-10-22'
+        validation_date: '2026-05-18'
+      - url: 
+          https://convergenciadigital.com.br/governo/serpro-6-milhoes-de-ips-unicos-atacavam-redes-do-governo-em-2023-o-dobro-de-2022/
+        document_date:
+        validation_date: '2026-05-18'
+      - url: 
+          https://blog.bemanuel.com.br/2020/11/pfsense-pfblocker-e-a-lista-de-reputa%C3%A7%C3%A3o-do-serpro/
+        document_date: 2020-11
+        validation_date: '2026-05-18'
+      - url: https://gist.github.com/cleytonferrari/b037fe9b7f5906e4e47089b4b69259cc
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.serpro.gov.br/en/privacy-data-protection
+        document_date:
+        validation_date: '2026-05-18'

@@ -1,0 +1,200 @@
+sources:
+  ipsum_6:
+    license: The Unlicense
+    redistributable: true
+    url: https://raw.githubusercontent.com/stamparm/ipsum/master/levels/6.txt
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[IPsum](https://github.com/stamparm/ipsum) threat intelligence feed of
+      IPs appearing on at least 6 blacklists. Based on analysis of 30+ publicly available
+      blacklists updated daily.'
+    maintainer: stamparm
+    maintainer_url: https://github.com/stamparm/ipsum
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T21:22:58+00:00'
+      official_name: IPsum
+      official_url: https://github.com/stamparm/ipsum
+      short_description: Daily feed of malicious IPs appearing on six or more public
+        blacklists, drawn from a pool of 30+ sources and ranked by cross-listing confidence.
+      long_description: "This feed is the `levels/6.txt` slice of the IPsum project
+        — IPs that appear on six or more of the 30+ upstream public blacklists IPsum
+        aggregates. The six-source consensus threshold yields a high-confidence list
+        aimed at operators who want to minimize false positives at the cost of recall.\n\
+        \nIPsum tallies how many of its upstream blacklists list a given IP and emits
+        one file per integer threshold; this feed publishes the level-6 cut. The full
+        feed is regenerated daily and sorted by occurrence count, highest first. Higher
+        scores indicate stronger corroboration across independent sources, so the
+        level-6 cut tends to surface long-lived, broadly-reported malicious infrastructure
+        rather than transient single-source listings.\n\nThe project uses The Unlicense,
+        placing the data in the public domain with no redistribution restrictions.
+        Operators who want broader coverage can use `ipsum_2` through `ipsum_5`; operators
+        who want even stricter consensus can move to `ipsum_7` or `ipsum_8`."
+      roles:
+      - role: maintainer
+        name: stamparm
+        organization_type: individual
+        official_url: https://github.com/stamparm
+        contact_email:
+        based_in:
+        active_since:
+        notes: Develops and maintains IPsum as part of the Maltrail ecosystem. Responds
+          to GitHub issues including IP removal requests and false positive reports.
+      derivation:
+        type: aggregate_merge
+        description: Aggregates IP addresses from more than thirty publicly available
+          threat-intelligence blacklists. Each source contributes its list of flagged
+          IPs; the pipeline tallies how many sources independently listed each IP
+          and ranks them by that occurrence count. The levels/6.txt file extracts
+          only IPs that scored six or higher — meaning at least six source lists flagged
+          that address. The Maltrail project enumerates the full set of upstream sources,
+          which include feeds such as AbuseIPDB, AlienVault OTX, Emerging Threats,
+          Feodo Tracker, URLhaus, and others totaling more than fifty named sources.
+        source_feeds: []
+      listing_policy:
+        summary: Inclusion is automatic and algorithmic. An IP is added to the level-6
+          feed when six or more upstream source blacklists independently flag it.
+          As the underlying source feeds refresh daily, an IP's score rises when additional
+          sources list it and falls when sources stop listing it — IPs that drop below
+          the threshold are excluded from subsequent level files.
+        criteria:
+        - Appears on at least six independent public blacklists tracked by the IPsum
+          pipeline
+        - Listed by one or more of the 30+ upstream sources that IPsum monitors
+      unlisting_policy:
+        summary: There is no manual unlisting channel. Because the feed is algorithmically
+          derived from upstream sources, an IP exits the level-6 file when fewer than
+          six source lists continue to flag it after a daily refresh cycle. Operators
+          who believe an IP was incorrectly listed can report it via a GitHub issue,
+          but resolution depends on the upstream sources delisting the IP first.
+        criteria:
+        - Fewer than six upstream source lists flag the IP after a daily refresh
+        - Upstream sources independently delist the IP
+      unlist_request:
+        url: https://github.com/stamparm/ipsum/issues/new
+        email:
+        instructions: Open a GitHub issue at the project repository to report an IP
+          you believe was incorrectly listed. Include the IP address and evidence
+          that the associated activity has been remediated. Note that removal from
+          IPsum ultimately depends on the upstream source blacklists delisting the
+          IP first.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated once per day — all source lists are retrieved and
+          reprocessed daily, with the resulting feed pushed to the repository.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: Reputation aggregation — the feed compiles and deduplicates IP
+          addresses reported across more than thirty independent public blacklists.
+          Each IP's score reflects how many upstream sources independently listed
+          it; a higher score means more corroboration. This cross-listing approach
+          increases confidence compared to any single source, as an IP flagged by
+          six or more independent trackers is less likely to be a false positive.
+      scope_and_intent:
+        description: Intended for perimeter firewall blocking — adding the level-6
+          feed to a firewall or IDS to drop inbound connections from IPs that multiple
+          independent sources have flagged as malicious.
+        intended_for:
+        - Edge firewall blocking with ipset or equivalent
+        - Dropping inbound connections from confirmed-malicious IPs before they reach
+          services
+        - Supplementary input to a multi-feed threat-intelligence pipeline
+        not_intended_for:
+        - Single point of defense — IPs rotate and the feed does not cover all threat
+          types
+        - Allow-listing decisions without additional validation
+        - Real-time blocking at sub-minute granularity (feed refreshes daily)
+      license: The Unlicense
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: The Unlicense places this work in the public domain with no conditions.
+          Redistribution in any form, for any purpose, including commercial use, is
+          permitted without restriction.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026. Daily updates are posted
+          to the repository with dated timestamps in the feed header. Recent GitHub
+          commits and issue responses confirm ongoing maintenance.
+        successor:
+        announcement_date:
+      community:
+        awards: Referenced in Microsoft's official Tech Community documentation as
+          an Azure Sentinel/Defender integration example — a named third-party documentation
+          reference.
+        criticism: A minority of users have misunderstood how threat feeds work —
+          for example, reporting anti-virus alerts triggered by the presence of malicious
+          IP addresses in a blocklist file as if the file itself were malware; the
+          community clarified this distinction. Check Point operators noted that loading
+          the lowest threshold levels (level 1) without preparation can cause CPU
+          spikes on some appliances, and recommended starting at level 2 or higher.
+          Some operators using lower thresholds have encountered false positives when
+          legitimate cloud or CDN IPs happen to appear on multiple source lists, prompting
+          advice to pair the feed with application-layer controls.
+        engagement: Moderate community discussion across Reddit, SNBForums, and Check
+          Point forums spanning 2021 to 2026. The IPsum project is listed among recommended
+          threat-intelligence sources by security community members on Reddit's r/cybersecurity,
+          and is deployed in production by Check Point customers, Azure labs, and
+          self-hosted operators across OPNsense, SonicWall, pfSense, CyberPanel, and
+          ConfigServer Security & Firewall. The maintainer responds to GitHub issues
+          including IP removal requests and false positive reports, typically closing
+          them with explanatory comments.
+      sources_consulted:
+      - url: https://github.com/stamparm/ipsum
+        document_date:
+        validation_date: '2026-05-16T21:00:00+00:00'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/README.md
+        document_date: '2026-05-14'
+        validation_date: '2026-05-16T21:00:00+00:00'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/LICENSE
+        document_date:
+        validation_date: '2026-05-16T21:00:00+00:00'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/ipsum.txt
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16T21:00:00+00:00'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/levels/6.txt
+        document_date:
+        validation_date: '2026-05-16T21:00:00+00:00'
+      - url: https://github.com/stamparm/maltrail
+        document_date:
+        validation_date: '2026-05-16T21:00:00+00:00'
+      - url: https://github.com/stamparm/ipsum/issues
+        document_date:
+        validation_date: '2026-05-16T21:00:00+00:00'
+      - url: https://github.com/stamparm/ipsum/issues?q=removal+OR+false+positive+OR+unlist
+        document_date:
+        validation_date: '2026-05-16T21:00:00+00:00'
+      - url: https://www.reddit.com/r/cybersecurity/comments/pl6u94/
+        document_date: '2021-09-09'
+        validation_date: '2026-05-16T21:00:00+00:00'
+      - url: https://www.reddit.com/r/selfhosted/comments/192uh72/
+        document_date: '2024-01-09'
+        validation_date: '2026-05-16T21:00:00+00:00'
+      - url: https://www.reddit.com/r/linuxadmin/comments/kw23g3/
+        document_date: '2021-01-12'
+        validation_date: '2026-05-16T21:00:00+00:00'
+      - url: 
+          https://www.snbforums.com/threads/stay-away-from-this-address-like-the-plague.95671/
+        document_date: '2025-09-01'
+        validation_date: '2026-05-16T21:00:00+00:00'
+      - url: 
+          https://community.checkpoint.com/t5/Firewall-and-Security-Management/Network-feed/td-p/212407
+        document_date:
+        validation_date: '2026-05-16T21:00:00+00:00'
+      - url: 
+          https://portalzine.de/free-threat-intelligence-feeds-the-self-hosters-guide-to-real-time-protection/
+        document_date: '2026-04-01'
+        validation_date: '2026-05-16T21:00:00+00:00'
+      - url: 
+          https://techcommunity.microsoft.com/t5/microsoft-defender-for-endpoint/threat-detection-and-response-tdr-with-defender-for-endpoint/td-p/2959869
+        document_date:
+        validation_date: '2026-05-16T21:00:00+00:00'

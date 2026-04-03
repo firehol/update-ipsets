@@ -1,0 +1,174 @@
+sources:
+  misp_telegram:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/telegram-ips/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Telegram
+      messenger IP ranges (https://core.telegram.org/resources/cidr.txt). Infrastructure
+      reference, not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T17:49:24Z'
+      official_name: List of known Telegram IP address ranges
+      official_url: https://github.com/MISP/misp-warninglists/tree/main/lists/telegram-ips
+      short_description: A MISP warning list identifying Telegram Messenger's server
+        infrastructure IP ranges, used to suppress false positives when Telegram endpoints
+        appear in threat intelligence data.
+      long_description: "The telegram-ips warninglist enumerates the IP address ranges
+        allocated to Telegram Messenger's server infrastructure, sourced directly
+        from Telegram's publicly published CIDR file at core.telegram.org/resources/cidr.txt.
+        It covers both IPv4 and IPv6 ranges used by Telegram's backend servers, data
+        centers, and API endpoints.\n\nThe list is formatted as a CIDR-type MISP warninglist,
+        matching attributes of type ip-src, ip-dst, domain|ip, ip-src|port, and ip-dst|port.
+        Its role is informational, not enforcement: when a security analyst encounters
+        a Telegram IP in network telemetry, a MISP event, or a threat intelligence
+        feed, the warninglist flags the indicator as a known Telegram endpoint rather
+        than a hostile actor.\n\nThe list was contributed by a community member (rectifyq)
+        via GitHub pull request #324 and merged in March 2026. Updates follow the
+        broader MISP warninglists update mechanism, triggered manually from MISP's
+        GUI or CLI."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://www.misp-project.org
+        contact_email: info@misp-project.org
+        based_in: Luxembourg
+        active_since: '2016'
+        notes: The MISP Project is an open-source threat intelligence platform maintained
+          by a core team and financially supported by CIRCL (Computer Incident Response
+          Center Luxembourg). The warninglists submodule is hosted within the MISP
+          GitHub organization and governed under the project's open-source contribution
+          model.
+      - role: source_contributor
+        name: rectifyq
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: 'Community contributor who opened pull request #324 adding the telegram-ips
+          list. Merged by the MISP core team member adulau.'
+      derivation:
+        type: derivative
+        description: The telegram-ips warning list is a derivative of Telegram's officially
+          published IP address ranges. The list mirrors the CIDR blocks listed at
+          core.telegram.org/resources/cidr.txt, which Telegram publishes as its server
+          infrastructure allocations. No scoring, weighting, or third-party correlation
+          is applied — the list is a direct representation of Telegram's self-declared
+          IP space. The MISP warninglists repository does not supplement this list
+          with additional sources.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added when an IP or CIDR block is confirmed as belonging
+          to Telegram Messenger's server infrastructure, as published by Telegram
+          at core.telegram.org/resources/cidr.txt. The list is updated by community
+          contribution via GitHub pull request, reviewed and merged by the MISP core
+          team.
+        criteria:
+        - The IP range must be published by Telegram at its official core.telegram.org/resources/cidr.txt
+          resource
+        - The range must represent Telegram-owned server infrastructure (backend,
+          API, or data center endpoints)
+      unlisting_policy:
+        summary: No formal unlisting policy is documented for this specific list.
+          In the broader MISP warninglists framework, lists can be updated or removed
+          via GitHub pull request. Individual MISP instances can disable the telegram-ips
+          warning list at the instance level without affecting other installations.
+        criteria:
+        - Removal or narrowing of a range occurs when Telegram withdraws or renumbers
+          the allocation, reflected in an updated cidr.txt publication
+        - Individual MISP instances can disable the list via the warninglists management
+          interface
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/issues/new
+        email:
+        instructions: Submit a GitHub issue or pull request on the MISP/misp-warninglists
+          repository. For list modifications, increment the version number in list.json
+          before submitting.
+      update_frequency:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: "The list is built by policy assignment: Telegram publishes its
+          own server infrastructure IP ranges, and the warning list mirrors those
+          ranges verbatim. No active probing, honeypot sensing, or third-party reporting
+          is involved — the source is Telegram's own self-declaration of its allocated
+          IP space."
+      scope_and_intent:
+        description: The telegram-ips warning list identifies Telegram Messenger's
+          server infrastructure endpoints to prevent analysts from falsely attributing
+          Telegram-generated traffic to malicious actors.
+        intended_for:
+        - Suppressing false positives in threat intelligence pipelines when Telegram
+          server IPs appear in alerts
+        - Flagging Telegram infrastructure in MISP events for contextual awareness
+        - Filtering exports to exclude known-Telegram attributes from downstream processing
+        not_intended_for:
+        - Blocking or denying access to Telegram services
+        - Attributing malicious activity to Telegram Messenger as an actor
+        - Enforcement or punitive action against Telegram infrastructure
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal public domain dedication places the work in the public
+          domain, with no restrictions imposed.
+      current_status:
+        state: active
+        description: Active. The telegram-ips list was merged into the MISP warninglists
+          repository on 19 March 2026 by core team member adulau. The latest commit
+          on the list directory ('jq all the things') was applied at merge time. The
+          list is published and available for import via the MISP warninglists update
+          mechanism.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: "The MISP/misp-warninglists repository has accumulated 625 stars
+          and 190 forks on GitHub (as of May 2026), indicating broad adoption within
+          the threat intelligence and MISP community. The telegram-ips list specifically
+          received no public discussion: PR #324 attracted zero review comments and
+          was merged silently by the core team. No GitHub issues mentioning telegram-ips
+          were found. Broader MISP warninglist community engagement is evident in
+          pull requests addressing false-positive reduction in other lists (parking
+          domains, disposable email, Windows binaries). The telegram-ips list's recent
+          addition (January 2026) and narrow scope as a single-service infrastructure
+          reference contribute to the absence of public debate."
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/telegram-ips/list.json
+        document_date: '2026-01-19'
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/tree/main/lists/telegram-ips
+        document_date: '2026-03-19'
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/pull/324
+        document_date: '2026-03-19'
+        validation_date: '2026-05-18'
+      - url: https://raw.githubusercontent.com/MISP/misp-warninglists/main/README.md
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.circl.lu/doc/misp/warninglists/
+        document_date: '2024-10-02'
+        validation_date: '2026-05-18'
+      - url: https://www.misp-project.org
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://core.telegram.org/resources/cidr.txt
+        document_date:
+        validation_date: '2026-05-18'

@@ -1,0 +1,203 @@
+sources:
+  iblocklist_org_microsoft:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=xshktygkujudfnjfioro&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Microsoft IP ranges.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T11:30:32Z'
+      official_name: Bluetack - Microsoft
+      official_url: https://www.iblocklist.com/list?list=xshktygkujudfnjfioro
+      short_description: A curated list of Microsoft-owned IP address ranges, originally
+        compiled by the Bluetack project for P2P privacy protection and now redistributed
+        by iBlocklist.com.
+      long_description: "The Bluetack - Microsoft list tracks IP address ranges allocated
+        to Microsoft Corporation. It was originally created by the Bluetack Internet
+        Security Solutions (BISS) project, a volunteer effort launched around 2006
+        that developed the Bluetack Internet Management System (B.I.M.S.), an automated
+        WHOIS spidering tool that crawled registration databases to identify and categorize
+        IP blocks belonging to anti-P2P organizations. The Bluetack project also incorporated
+        user-submitted evidence from copyright infringement letters to flag offending
+        IP ranges. The resulting blocklists were distributed in the P2P format (a
+        plain-text format encoding IP ranges as `FirstIP-LastIP` pairs) for use with
+        PeerGuardian and similar applications.\n\nThe Bluetack project became defunct,
+        and its lists are now redistributed through iBlocklist.com, operated by iblocklist,
+        LLC. The service distributes feeds in multiple standard formats (P2P, DAT,
+        CIDR, hosts) compatible with PeerBlock, PeerGuardian, iplist, Vuze, uTorrent,
+        Tixati, and pfBlocker. Access to the Microsoft list is gated behind a subscription
+        requirement and a human verification challenge at the download endpoint.\n\
+        \nPer the maintainer's own catalog entry, the list is described simply as
+        'All the known Microsoft ranges.' No documented methodology, inclusion criteria,
+        retention window, or submission process is published on the site. The Bluetack-authored
+        lists (which comprise the majority of feeds on the platform) have been reported
+        by community members as stale, with the Bluetack project itself having been
+        inactive for years."
+      roles:
+      - role: maintainer
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since: '2008'
+        notes: "iblocklist, LLC operates the distribution platform and sets the subscription
+          terms. The company's domain has been registered since January 2008. The
+          site carries copyright '© 2026 iblocklist, LLC'. No public contact email
+          is published on the site; the support page redirects to a VPN product upsell
+          with no removal or inquiry form. Service-level community signal across iBlocklist.com
+          (not specific to any single feed): Trustpilot reviews (2.6/5) document autorenewal
+          disputes, download errors, and dismissive support; the Netgate forum thread
+          is the most substantive technical discussion of the platform."
+      - role: original_author
+        name: Bluetack Internet Security Solutions
+        organization_type: informal_collective
+        official_url:
+        contact_email:
+        based_in:
+        active_since: '2006'
+        notes: The original authoring project, a volunteer collective associated with
+          the PeerGuardian development team. Developed the B.I.M.S. automated WHOIS
+          spidering system and maintained the blocklists until becoming defunct. The
+          project's website (bluetack.co.uk) currently serves only a placeholder.
+          The administrator team included members using handles Seraphielx, Moore,
+          Firstaid, Tozanno, DeathAngel, and R00ted. The Microsoft list was one of
+          approximately 25 feeds produced by this project.
+      derivation:
+        type: partial_mirror
+        description: The feed originates from the Bluetack Internet Security Solutions
+          project, which compiled IP ranges using its B.I.M.S. (Bluetack Internet
+          Management System) — an automated WHOIS crawler that mapped IP address registrations
+          and tagged blocks belonging to known anti-P2P organizations. Additions were
+          also driven by user-submitted logs of copyright infringement letters identifying
+          sender IP ranges. iBlocklist.com acts as the current publisher and subscription
+          distributor of the feed. No external IP feeds are consumed as inputs; the
+          feed is not described as a subset, superset, or derivative of any other
+          list.
+        source_feeds: []
+      listing_policy:
+        summary: The maintainer does not publish any documented listing policy. The
+          iblocklist.com catalog entry describes the feed as 'All the known Microsoft
+          ranges,' offering no criteria for how ranges are identified, validated,
+          or retained. The original Bluetack methodology (documented on Wikipedia)
+          used an automated WHOIS crawler (B.I.M.S.) to identify IP blocks registered
+          to Microsoft-related entities, supplemented by user-submitted evidence of
+          copyright infringement letters sent from those ranges. No minimum detection
+          threshold, dwell time, or review process is stated for the current publication.
+        criteria:
+        - IP ranges registered to Microsoft Corporation or its subsidiaries, per WHOIS
+          registration data (historical Bluetack methodology)
+        - IP ranges from which copyright infringement letters were submitted by users
+          (historical Bluetack methodology)
+      unlisting_policy:
+        summary: The maintainer does not publish any documented unlisting policy.
+          No removal criteria, automatic expiration window, or manual review process
+          is described on any page of the iblocklist.com website. The support page
+          contains no removal request form or contact procedure — only a promotional
+          redirect to a VPN service.
+        criteria: []
+      unlist_request:
+      update_frequency:
+      detection_classification:
+        primary_method: mixed
+        secondary_methods:
+        - user_submission
+        description: The original Bluetack methodology combined two approaches. First,
+          an automated system called B.I.M.S. (Bluetack Internet Management System)
+          spidered WHOIS registration databases to identify IP ranges registered to
+          or associated with Microsoft and tagged them with status codes. Second,
+          user-submitted logs of copyright infringement letters — where users reported
+          the IP addresses from which monitoring organizations sent cease-and-desist
+          letters — were used to flag offensive IP ranges. The current maintainer
+          (iBlocklist.com) does not document whether either method remains in active
+          use, nor whether any supplementary detection is applied.
+      scope_and_intent:
+        description: The feed tracks IP address ranges allocated to Microsoft Corporation
+          and its subsidiaries. Originally created as a privacy tool for peer-to-peer
+          network users who wished to block communications from or to Microsoft IP
+          addresses — primarily to avoid copyright infringement monitoring activity.
+          The current maintainer redistributes the feed without published guidance
+          on intended use beyond the general service scope of P2P privacy applications.
+        intended_for:
+        - Personal use with P2P privacy applications (PeerBlock, PeerGuardian, iplist,
+          Vuze, uTorrent, Tixati, pfBlocker)
+        - Blocking Microsoft IP ranges in personal firewall or content-filtering setups
+        not_intended_for:
+        - Commercial deployments or enterprise use
+        - Public display or redistribution in commercial products
+        - Automated ingestion pipelines without human review
+      license: I-Blocklist Terms of Service — personal / non-commercial only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The ToS grants download permission for personal use only. Redistribution
+          in any form — commercial or non-commercial, public display or otherwise
+          — is prohibited without documented authorization from iblocklist, LLC. The
+          license is not a Creative Commons, MIT, or similarly permissive grant; it
+          is a restricted personal-use license with no carve-out for redistribution.
+      current_status:
+        state: active
+        description: The iblocklist.com website is operational and accepting subscriptions
+          as of May 2026, carrying copyright '© 2026 iblocklist, LLC.' The Microsoft
+          list remains listed in the catalog. Community reports describe the Bluetack-authored
+          feeds as stale, with the original Bluetack project having been inactive
+          for years, and allege that file timestamps may be updated without corresponding
+          content refreshes. No formal discontinuation or migration notice has been
+          issued by the maintainer.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "Community discussion specific to the Microsoft list is sparse.
+          Because this feed is one of the Bluetack-authored lists redistributed by
+          iBlocklist.com, the Bluetack-staleness signal is operationally relevant:
+          pfBlockerNG moderator BBcan177 stated the Bluetack feeds 'don't seem to
+          be actively updating' and carry 'quite a few false positives'; Netgate forum
+          users documented that the underlying Bluetack project has been inactive
+          for years. Service-level community signal across iBlocklist.com is recorded
+          in the maintainer role notes."
+        engagement: Public community discussion about the Microsoft list specifically
+          is sparse. The platform operates no public blog, changelog, forum, or issue
+          tracker.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/tos.php
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          http://list.iblocklist.com/?list=xshktygkujudfnjfioro&fileformat=p2p&archiveformat=gz
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/support
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://en.wikipedia.org/wiki/PeerGuardian
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://awesome-privacy.xyz/networking/host-block-lists/iblocklist/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

@@ -1,0 +1,195 @@
+sources:
+  threatview_ip:
+    license: All rights reserved by Threatview.io
+    redistributable: true
+    url: https://threatview.io/Downloads/IP-High-Confidence-Feed.txt
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - extract_ipv4
+    processor_raw: extract_ipv4_from_any_file
+    category: intrusion
+    info: '[Threatview.io](https://threatview.io/) high-confidence IP blocklist from
+      the MISP default feed catalog. Current samples include a small number of 0/8
+      addresses, so consumers should treat quality through normal feed comparison
+      and bogon-overlap signals.'
+    maintainer: Threatview.io
+    maintainer_url: https://threatview.io/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T00:56:58Z'
+      official_name: Threatview.io IP Blocklist
+      official_url: https://threatview.io/
+      short_description: Free daily-updated IP blocklist aggregating malicious infrastructure
+        from public blocklists, OSINT sources, honeypots, and community reports, aimed
+        at blocking malware delivery and C2 communication paths.
+      long_description: "Threatview.io is a cybersecurity intelligence platform founded
+        in 2019, offering free community threat feeds through its Cyber Threat Watch
+        project alongside a paid Oneview TIP platform. The IP blocklist is generated
+        daily at 11 PM UTC and draws from a layered mix of sources: public blocklists,
+        OSINT feeds, honeypot networks, community-contributed reports, and the Threatview
+        team's proprietary telemetry backed by more than five years of historical
+        data. The platform tracks malicious infrastructure including ransomware operations,
+        command-and-control servers, botnets, infostealers, and phishing campaigns.\n\
+        \nThe feed is distributed as a plain-text file with one IPv4 address per line,
+        consumable by standard blocklist tooling, SIEM platforms, and DNS sinkholes.
+        Eight Threatview.io feeds — covering IPs, domains, URLs, file hashes, and
+        cryptocurrency wallets — are included in the MISP default feed catalog distributed
+        with MISP installations worldwide.\n\nThe maintainer advises that significant
+        effort has gone into filtering false positives, but the feed is not guaranteed
+        free of them. Consumers are encouraged to evaluate and test the data before
+        deployment in production blocking rules."
+      roles:
+      - role: maintainer
+        name: Threatview.io
+        organization_type: unknown
+        official_url: https://threatview.io/
+        contact_email: feeds@threatview.io
+        based_in:
+        active_since: '2019'
+        notes: Operates both free community feeds (Cyber Threat Watch) and a paid
+          Oneview TIP platform. Eight of its feeds are included in the MISP default
+          feed catalog. Contact for false-positive reports and feed inquiries is feeds@threatview.io.
+      derivation:
+        type: aggregate_merge
+        description: Aggregates IPs from public blocklists, OSINT sources, honeypots,
+          community-contributed reports, and the Threatview team's proprietary telemetry
+          spanning more than five years of historical data. Entries are ranked and
+          filtered for high confidence before inclusion. The resulting set is regenerated
+          daily at 11 PM UTC.
+        source_feeds: []
+      listing_policy:
+        summary: IPs are included when they are assessed as hosting malicious infrastructure
+          — malware distribution, command-and-control servers, botnets, infostealers,
+          or phishing — based on correlation across the platform's blended detection
+          sources. Residential proxies and shared VPN exit nodes are excluded to limit
+          collateral damage to legitimate shared infrastructure.
+        criteria:
+        - Association with confirmed malicious infrastructure (malware hosting, C2,
+          botnet, infostealer, ransomware, phishing) determined through correlation
+          across multiple detection sources
+        - Presence in the platform's proprietary telemetry and historical data sets
+        - Exclusion of residential proxy and shared VPN exit-node IPs to reduce false
+          positives against shared legitimate services
+      unlisting_policy:
+        summary: IPs identified as false positives can be submitted for removal by
+          emailing feeds@threatview.io. The team verifies the report and removes the
+          IP from active feeds upon confirmation.
+        criteria:
+        - Submitter identifies the IP as a false positive via email to feeds@threatview.io
+        - Threatview team verifies the report
+        - Confirmed false positives are removed from active feeds immediately
+      unlist_request:
+        url:
+        email: feeds@threatview.io
+        instructions: Email feeds@threatview.io identifying the IP address(es) and
+          explaining why they are false positives. The team verifies and removes confirmed
+          false positives from active feeds immediately. No web form or self-service
+          portal is available.
+      update_frequency:
+        frequency: 1d
+        human_readable: Generated once per day, at approximately 11 PM UTC.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods:
+        - honeypot
+        - user_submission
+        description: "The feed is produced by aggregating and correlating indicators
+          across multiple detection channels: public blocklists, OSINT sources, honeypot
+          networks, and community-submitted reports, enriched by the Threatview team's
+          proprietary telemetry. Entries passing a high-confidence threshold are retained
+          in the published blocklist. Honeypots provide passive capture of scanning
+          and exploitation attempts; community submissions augment the raw signal
+          with human-reported incidents."
+      scope_and_intent:
+        description: Intended for blocking malware delivery infrastructure, command-and-control
+          communication paths, botnet and infostealer callback addresses, and exploit-kit
+          staging IPs. Designed for integration with firewalls, SIEM platforms, and
+          DNS sinkholes.
+        intended_for:
+        - Blocking malware delivery and C2 communication paths at the network perimeter
+        - Enriching SIEM correlations with high-confidence malicious-IP context
+        - Feeding DNS sinkholes and firewall blocklists
+        not_intended_for:
+        - Application-layer DDoS mitigation — the feed targets infrastructure IPs,
+          not volumetric flood sources
+        - Whitelisting decisions without independent verification — false positives
+          have occurred against shared legitimate services
+        - Standing blocking without periodic review — the maintainer does not guarantee
+          the feed is free of false positives
+      license: All rights reserved by Threatview.io
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit Threatview.io
+        terms: MIT License terms apply. Redistribution in source and binary forms,
+          with or without modification, is permitted provided the copyright notice
+          and MIT license text are preserved.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026. Eight feeds remain in the
+          MISP default feed catalog. An SSL certificate expiration in early April
+          2026 was resolved within three days. Regular daily regeneration continues.
+        successor:
+        announcement_date:
+      community:
+        awards: Described as 'excellent' and 'valuable' threat intelligence feeds
+          in a Microsoft Tech Community integration tutorial (June 2022). Threatview.io
+          holds a prominent position in the MISP default feed catalog with eight feeds,
+          distributed as part of standard MISP installations worldwide — a form of
+          institutional practitioner adoption. Referenced in Microsoft ServiceNow
+          security management documentation as a named OSINT source.
+        criticism: In September 2025, multiple IPFire community members reported that
+          the blocklist began blocking legitimate Google Cloud CDN, GitHub Fastly
+          egress, and Google Public DNS addresses — generating tens of thousands of
+          dropped packets and forcing users to disable the blocklist. A community
+          member reported the false positives to the maintainer. Separately, the founder
+          acknowledged on Reddit that some feeds contained IOCs dating back five years
+          without age-based filtering, and characterized the Twitter/OSINT feed as
+          'experimental'. An SSL certificate expiration in early April 2026 caused
+          TLS errors for automated feed consumers until the certificate was renewed
+          within three days.
+        engagement: Public discussion is concentrated in specialized forums — IPFire
+          community, Netgate pfSense forums, and Reddit r/blueteamsec — rather than
+          broad security-media channels. The founder (MohitK_) responds directly to
+          Reddit inquiries and commits to false-positive removal on request. MISP
+          integration is documented by third-party contributors.
+      sources_consulted:
+      - url: https://threatview.io/
+        document_date:
+        validation_date: '2026-05-17T00:51:00Z'
+      - url: https://threatview.io/Downloads/IP-High-Confidence-Feed.txt
+        document_date:
+        validation_date: '2026-05-17T00:51:00Z'
+      - url: 
+          https://www.reddit.com/r/blueteamsec/comments/kkvzui/threat_intelligence_feeds_threatviewio/
+        document_date:
+        validation_date: '2026-05-17T00:52:00Z'
+      - url: 
+          https://community.ipfire.org/t/threatview-io-ip-blocklist-going-nuts-on-outbound-lately/15046
+        document_date: '2025-09-16'
+        validation_date: '2026-05-17T00:52:00Z'
+      - url: 
+          https://www.vanimpe.eu/2024/06/23/using-threatview-io-as-example-to-add-misp-feeds/
+        document_date: '2024-06-23'
+        validation_date: '2026-05-17T00:53:00Z'
+      - url: https://forum.netgate.com/topic/169371/integrate-threatview-io-feed
+        document_date: '2022-01-26'
+        validation_date: '2026-05-17T00:53:00Z'
+      - url: 
+          https://raw.githubusercontent.com/MISP/MISP/2.4/app/files/feed-metadata/defaults.json
+        document_date:
+        validation_date: '2026-05-17T00:54:00Z'
+      - url: 
+          https://techcommunity.microsoft.com/t5/security-compliance-and-identity/new-blog-post-how-to-use-threatview-io-threat-intelligence-feeds/td-p/3535235
+        document_date: '2022-06-21'
+        validation_date: '2026-05-17T00:55:00Z'
+      - url: https://forum.netgate.com/topic/200466/feeds-from-threatview
+        document_date: '2026-04-03'
+        validation_date: '2026-05-17T00:55:00Z'
+      - url: 
+          https://www.reddit.com/r/ShittySysadmin/comments/1saawlr/threatviewio_ssl_cert_exipred/
+        document_date: '2026-04-02'
+        validation_date: '2026-05-17T00:55:00Z'

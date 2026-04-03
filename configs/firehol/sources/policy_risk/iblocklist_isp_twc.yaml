@@ -1,0 +1,157 @@
+sources:
+  iblocklist_isp_twc:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=aqtsnttnqmcucwrjmohd&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Time Warner Cable IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T09:24:30Z'
+      official_name: Time Warner Cable
+      official_url: https://www.iblocklist.com/list.php?list=roadrunner
+      short_description: A static list of IP address ranges allocated to Road Runner
+        (Charter Spectrum), formerly Time Warner Cable, intended for blocking peer-to-peer
+        connections from that ISP's endpoints.
+      long_description: "The Time Warner Cable list is a static compilation of IP
+        address subnets allocated to Road Runner, the residential ISP brand formerly
+        operated by Time Warner Cable and now part of Charter Spectrum following the
+        2016 merger. The list is maintained by iBlocklist, LLC and distributed through
+        their iblocklist.com platform in P2P, DAT, CIDR, and hosts file formats.\n\
+        \nThe maintainer describes the list as containing all Road Runner ISP IP ranges.
+        The list is sourced from publicly available regional IP allocation records
+        and compiled into blocklist-compatible format.\n\nPer the maintainer's explicit
+        warning on the list page, this feed is not recommended for subscribers of
+        the ISP. The maintainer further states that users who choose to apply it despite
+        this caution do so at their own risk and should not contact support about
+        related problems. This caveat reflects the inherent risk of applying a large
+        ISP IP blocklist: dynamic IP allocation by the ISP means legitimate Road Runner
+        subscribers may fall within listed ranges, and the list cannot distinguish
+        individual bad actors within the allocated pool."
+      roles:
+      - role: maintainer
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Operates the iblocklist.com platform distributing IP blocklists in
+          P2P, DAT, CIDR, and hosts formats. Also offers a related VPN service branded
+          PhantomPeer. The company's Terms of Service govern the license and permitted
+          use of all lists distributed through the platform. Across the broader iBlocklist.com
+          service, community reports describe lists with embedded timestamps updated
+          without corresponding changes to the underlying IP data, minimal-to-absent
+          support responsiveness, and erroneous entries in some lists; the maintainer
+          has not publicly responded to or addressed these complaints.
+      derivation:
+        type: original
+        description: The feed is compiled by iBlocklist, LLC from publicly available
+          regional IP address allocation records published by regional internet registries.
+          The allocations are filtered to Road Runner (formerly Time Warner Cable)
+          prefixes and formatted into blocklist-compatible files. No third-party threat
+          feeds are consumed; the list is a static organizational-affiliation list
+          rather than a dynamically generated threat-intelligence feed.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when it falls within an IP address prefix allocated
+          to Road Runner (formerly Time Warner Cable, now Charter Spectrum) as documented
+          in public regional internet registry records. There is no active scanning,
+          honeypot detection, or user-submission mechanism; inclusions are determined
+          by static affiliation with the ISP's allocated address space.
+        criteria:
+        - IP falls within a CIDR prefix allocated to Road Runner by the relevant regional
+          internet registry
+      unlisting_policy:
+        summary: No unlisting mechanism is documented. The maintainer does not publish
+          any policy, process, or contact channel for requesting the removal of individual
+          IPs or ranges from this list.
+        criteria: []
+      unlist_request:
+      update_frequency:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The feed classifies IPs by organizational affiliation rather
+          than by observed malicious behavior. Entries are included based on static
+          IP address allocation records identifying which prefixes belong to Road
+          Runner (formerly Time Warner Cable). No honeypots, sandboxes, user reports,
+          or active scanning contributes to this list — it is a geographic-organizational
+          blocklist equivalent to a country-level list, scoped to one ISP's allocated
+          address space.
+      scope_and_intent:
+        description: The feed is intended for users who wish to block incoming peer-to-peer
+          network connections originating from Road Runner ISP endpoints. Common use
+          cases include protecting BitTorrent swarms from ISP monitoring, preventing
+          DMCA notice generation from anti-piracy services that track P2P activity,
+          and generally restricting inbound connections from residential cable internet
+          infrastructure.
+        intended_for:
+        - Blocking P2P connections from Road Runner ISP endpoints
+        - Preventing automated DMCA tracking by anti-piracy services that monitor
+          BitTorrent traffic
+        - Restricting inbound connections from residential cable internet infrastructure
+        not_intended_for:
+        - ISP subscribers of Road Runner / Charter Spectrum — applying this list will
+          block the subscriber's own legitimate outbound and inbound connections
+        - General perimeter security — the list covers only one ISP's allocation and
+          offers no threat-behavior signal
+        - Real-time threat blocking — the list is static and does not respond to active
+          campaigns
+      license: iBlocklist Terms of Service — personal / non-commercial use only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The iBlocklist.com Terms of Service prohibit redistribution in any
+          form (commercial or non-commercial) and public display. Sharing accounts
+          outside the immediate household is also prohibited. Violation results in
+          automatic license termination without refund.
+      current_status:
+        state: active
+        description: The iblocklist.com website remains operational, with the Time
+          Warner Cable list page accessible and the subscription service actively
+          promoted. The maintainer has not issued any public communication about the
+          list's status, discontinuation, or migration. The Global Cyber Alliance
+          ACT catalog lists the maintenance status as 'Active' with last updated date
+          'Unknown.'
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion about this specific feed is sparse.
+          The maintainer does not operate a public blog, changelog, forum, or social
+          media presence through which updates or incident responses are communicated.
+          The support page redirects to an unrelated VPN service rather than offering
+          a blocklist-specific contact channel.
+      sources_consulted:
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/list.php?list=roadrunner
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date: '2018-06-07'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://act.globalcyberalliance.org/index.php/I-Blocklist
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://gist.github.com/shmup/29566c5268569069c256
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

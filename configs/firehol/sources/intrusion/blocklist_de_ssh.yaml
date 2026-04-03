@@ -1,0 +1,158 @@
+sources:
+  blocklist_de_ssh:
+    license: public feed
+    redistributable: true
+    url: http://lists.blocklist.de/lists/ssh.txt
+    frequency: 15
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been
+      reported within the last 48 hours as having run attacks on the service SSH.'
+    maintainer: Blocklist.de
+    maintainer_url: https://www.blocklist.de/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T16:06:48Z'
+      official_name: Fail2Ban-/DenyHost-Attacks-Type
+      official_url: https://www.blocklist.de/en/index.html
+      short_description: Real-time SSH attack blocklist compiled from Fail2Ban and
+        DenyHosts reports submitted by volunteer server operators, retaining entries
+        for 48 hours.
+      long_description: "Blocklist.de is a free, volunteer-run abuse-reporting service
+        operated by a fraud and abuse specialist based in Switzerland. Rather than
+        blocking connections directly, the service collects SSH brute-force and attack
+        evidence from Fail2Ban and DenyHosts running on participating servers — over
+        2,710 partners contribute reports — and distributes those IPs as a downloadable
+        blocklist.\n\nThe SSH feed captures hosts that triggered attack-detection
+        rules on participating servers, typically requiring three failed login attempts,
+        a match for an invalid username, or a 5xx error code. Reports are generated
+        in X-ARF (Extended Abuse Reporting Format), enabling receiving abuse departments
+        to parse them automatically. The service resolves abuse contacts via WHOIS
+        records, the RIPE Abuse Finder, and the Abusix contact database.\n\nTo reduce
+        false positives, the service cross-references incoming reports against allowlists
+        from dnswl.org and spamhauswhitelist.org, and excludes known Tor exit nodes
+        via the torproject.org deny list. Entries expire automatically after 48 hours.
+        Partners may also create private server-level allowlists to prevent their
+        own infrastructure from being reported."
+      roles:
+      - role: maintainer
+        name: Martin Schiftian
+        organization_type: individual
+        official_url: https://www.blocklist.de/en/index.html
+        contact_email: support@blocklist.de
+        based_in: Switzerland
+        active_since: '2007'
+        notes: Operates blocklist.de as a free, voluntary service. Identified by name
+          and Swiss address on the imprint page.
+      derivation:
+        type: aggregate_merge
+        description: Aggregates SSH attack detections from Fail2Ban and DenyHosts
+          running on a volunteer network of over 2,700 participating servers. Cross-references
+          reports against allowlists from dnswl.org and spamhauswhitelist.org, and
+          excludes Tor exit nodes via torproject.org. Rebuilds every 12 hours.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when it triggers a participating server's Fail2Ban
+          or DenyHosts SSH rule — typically three failed login attempts, a match for
+          an invalid username, or receipt of a 5xx error code from the target. Reports
+          are validated against WHOIS records and the Abusix contact database before
+          distribution.
+        criteria:
+        - Three or more failed SSH login attempts recorded by a participating Fail2Ban
+          or DenyHosts installation
+        - Connection attempt matching an invalid-username pattern
+        - Receipt of a 5xx error code from the target server
+        - Originating IP confirmed via WHOIS lookup and abuse-contact resolution
+      unlisting_policy:
+        summary: Entries expire automatically after 48 hours. Early removal is available
+          via the online delist form — the IP must first be remediated on the reporter's
+          side. Processing takes effect within 60 minutes of the next list regeneration
+          cycle.
+        criteria:
+        - Automatic expiry after 48 hours
+        - Manual delist request via the web form, conditional on resolving the underlying
+          security issue
+        - Removal processed within 60 minutes at next list generation
+      unlist_request:
+        url: https://www.blocklist.de/en/delist.html
+        email:
+        instructions: Visit the delist page and enter the IP address in the deletion
+          form. The prerequisite is that the security issue on the originating server
+          has been resolved. Removals take effect within 60 minutes of the next list
+          regeneration.
+      update_frequency:
+        frequency: 12h
+        human_readable: Updated every 12 hours; individual entries regenerate in near-real
+          time as new attacks are reported
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods: []
+        description: The feed is assembled from SSH attack reports submitted voluntarily
+          by server operators running Fail2Ban or DenyHosts. Participating servers
+          send reports in X-ARF format; the service enriches them with WHOIS-derived
+          abuse contacts and distributes the resulting IP list. This is a user-submission
+          model — the feed aggregates detections made by each participant's own local
+          sensor.
+      scope_and_intent:
+        description: Blocklist.de targets SSH brute-force and dictionary attacks against
+          server infrastructure. The service is designed for firewall and IDS operators
+          who want to block credential-guessing traffic at the network edge.
+        intended_for:
+        - Blocking SSH brute-force and credential-guessing attempts at network perimeter
+        - Feeding Fail2Ban, DenyHosts, or firewall blocklists
+        - Correlating abuse reports with ISP abuse contacts
+        not_intended_for:
+        - Permanent blocking (entries expire after 48 hours by design)
+        - Blocking email-borne spam (service explicitly excludes spam reports)
+      license: public feed
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: No redistribution restrictions are stated by the direct upstream. The
+          feed is freely downloadable via unauthenticated HTTP.
+      current_status:
+        state: active
+        description: Active as of May 2026. The service continues to accept new partner
+          registrations and distribute feeds. A Wayback Machine snapshot from January
+          2025 shows the site operating normally with no discontinuation notices.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: One Reddit comment from 2022 described blocklist.de as intermittently
+          unavailable ("extremely flaky"), though this predates the current site structure.
+          Broader sysadmin commentary in early 2025 expressed general caution about
+          relying on lesser-curated blocklists, noting occasional false positives
+          require ad-hoc allowlisting — applicable to any feed of this type rather
+          than specific to blocklist.de.
+        engagement: Sparse public discussion. The feed is referenced neutrally in
+          a handful of firewall-configuration threads on Reddit (r/sysadmin 2012,
+          r/opnsense 2023, r/PFSENSE 2025) and mentioned as a pfBlockerNG feed option.
+          No dedicated threads discuss its reliability, false-positive rates, or removal
+          processes. The absence of community debate may reflect effective self-service
+          delisting rather than poor signal.
+      sources_consulted:
+      - url: https://www.blocklist.de/en/index.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.blocklist.de/en/delist.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.blocklist.de/en/contact.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.blocklist.de/
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: http://lists.blocklist.de/lists/ssh.txt
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://web.archive.org/web/20250108125337/http://www.blocklist.de/
+        document_date: '2025-01-08'
+        validation_date: '2026-05-16T00:00:00Z'

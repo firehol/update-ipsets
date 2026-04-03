@@ -1,0 +1,174 @@
+sources:
+  jamesbrine_bruteforce:
+    license: TLP:White; free non-commercial use, commercial use requires approval
+    redistributable: true
+    url: https://jamesbrine.com.au/csv
+    frequency: 240
+    ipv: ipv4
+    output: ipset
+    processor:
+    - extract_ipv4
+    processor_raw: extract_ipv4_from_any_file
+    category: intrusion
+    info: '[James Brine](https://jamesbrine.com.au/) brute-force IP feed from the
+      MISP default feed catalog. The current CSV is large and includes a malformed
+      non-IP row, so extraction intentionally keeps only IPv4 values.'
+    maintainer: James Brine
+    maintainer_url: https://jamesbrine.com.au/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T21:41:46Z'
+      official_name: James Brine Bruteforce IPs
+      official_url: https://jamesbrine.com.au/
+      short_description: Daily-updated list of IP addresses observed conducting brute-force
+        attacks, sourced from an internationally distributed honeynet and enriched
+        with open-source threat intelligence.
+      long_description: "James Brine operates an Australian cyber threat intelligence
+        platform that publishes daily feeds of malicious IP addresses observed conducting
+        brute-force attacks. The primary feed is a CSV-format list of IPs sourced
+        from an internationally distributed honeynet spanning both cloud and private
+        infrastructure, monitoring protocols including SSH, FTP, RDP, GIT, SNMP, and
+        REDIS. Data is additionally enriched against external open-source CTI sources.\n\
+        \nThe feed is updated daily, with the previous day's indicators also available
+        in STIX2 format. Beyond IP addresses, the platform publishes supplementary
+        indicators including suspicious URIs and newly registered domains assessed
+        as having a high probability of use in phishing campaigns.\n\nThe feed is
+        integrated into several major security platforms, including the MISP project
+        default feed catalog, OpenCTI via the Filigran integrations library, AlienVault
+        OTX, and PulseDive. The data is published under TLP:White, free for non-commercial
+        reuse; commercial use requires prior approval from the maintainer."
+      roles:
+      - role: maintainer
+        name: James Brine
+        organization_type: individual
+        official_url: https://jamesbrine.com.au/
+        contact_email: removals@jamesbrine.com.au
+        based_in: Australia
+        active_since: '2019'
+        notes: Cybersecurity researcher specializing in deception technology and CTI.
+          Operates the platform as an individual practitioner; feeds are in production
+          use by over 1,000 organizations including government, telecom, financial,
+          and healthcare sectors.
+      derivation:
+        type: original
+        description: 'First-party detection feed: IPs are captured by an internationally
+          distributed honeynet operated by the maintainer, supplemented by automated
+          passive OSINT collection. Captured indicators are then enriched against
+          external open-source CTI sources before publication.'
+        source_feeds: []
+      listing_policy:
+        summary: IPs are listed after being observed conducting brute-force or credential-stuffing
+          attacks against the maintainer's honeynet infrastructure. The honeynet monitors
+          inbound connections on SSH, FTP, RDP, GIT, SNMP, and REDIS. An IP qualifies
+          for inclusion after a successful or near-successful authentication attempt
+          is recorded. Dynamic residential IPs typically de-list naturally as ISPs
+          reassign addresses.
+        criteria:
+        - Observed conducting a brute-force or credential-stuffing attempt against
+          a honeynet service
+        - Successful or near-successful authentication attempt recorded by the sensor
+        - 'Target protocol: SSH, FTP, RDP, GIT, SNMP, or REDIS'
+      unlisting_policy:
+        summary: Removal requests are handled manually by email. The maintainer evaluates
+          each request individually, considering whether the IP is dynamically allocated
+          (which may result in natural de-listing as the ISP reassigns it) versus
+          statically allocated, the nature of the observed activity, and the time
+          elapsed since the last recorded event.
+        criteria:
+        - 'Dynamic/residential IP: may de-list naturally as ISP reassigns the address'
+        - 'Static IP: manual removal request required, evaluated case-by-case'
+        - 'Factors considered: IP type (dynamic/static), observed activity, time since
+          last event'
+      unlist_request:
+        url:
+        email: removals@jamesbrine.com.au
+        instructions: Send an email to removals@jamesbrine.com.au with the IP address(es)
+          to be removed. Requests are reviewed individually based on whether the IP
+          is dynamic or static, the observed activity, and the time since the last
+          logged event.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated daily, with the previous day's indicators published
+          each day.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods:
+        - active_scanning
+        description: IPs are captured by an internationally distributed network of
+          honeypots — decoy services that accept and log inbound connections — deployed
+          on both cloud and private infrastructure. The honeynet monitors SSH, FTP,
+          RDP, GIT, SNMP, and REDIS. Captured indicators are supplemented by automated
+          passive OSINT collection, then enriched against external open-source CTI
+          sources before publication.
+      scope_and_intent:
+        description: Daily threat intelligence feeds for malicious IP addresses observed
+          conducting brute-force attacks, sourced from globally distributed honeypots.
+          The feed is intended for use by defenders monitoring inbound authentication
+          attempts on internet-facing services.
+        intended_for:
+        - Blocking attacking IPs at network perimeter (firewall, border router)
+        - Enriching SIEM or threat intelligence platform with brute-force IOC data
+        - Feeding MISP, OpenCTI, or similar sharing platforms
+        - Detecting and responding to credential-stuffing attempts
+        not_intended_for:
+        - Blocking entire ISP allocation blocks or country-wide ranges
+        - Punitive action against specific individuals without verification of activity
+        - Commercial redistribution without prior written approval from the maintainer
+      license: TLP:White; free non-commercial use, commercial use requires approval
+      redistribution:
+        allowed: true
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Free for non-commercial use. Commercial use requires prior written
+          approval from the maintainer. Terms are subject to change at any time and
+          will be updated on the maintainer's site.
+      current_status:
+        state: active
+        description: Active and maintained as of mid-May 2026. The feed is listed
+          in the MISP default feed catalog, published on the GCA ACT portal, and integrated
+          into the OpenCTI marketplace. The maintainer operates an active public dashboard
+          and maintains social media presence.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: No substantive complaints or criticism were identified through
+          broad community research. One automated scanner (Scam-Detector) issued a
+          low trust score, but this is a documented false positive arising from the
+          scanner's inability to distinguish a threat-intelligence publication platform
+          from actual malicious infrastructure — the operator's professional identity
+          is verifiable. No genuine user complaints, legal challenges, or regulatory
+          actions were found.
+        engagement: The feed is included in the MISP Project default feed catalog,
+          the Global Cyber Alliance ACT toolkit portal, the OpenCTI Integrations Library
+          by Filigran, and the community-curated awesome-threat-intelligence GitHub
+          list. The maintainer reports the feeds are in production use by over 1,000
+          organizations spanning government, telecommunications, financial, and healthcare
+          sectors. Public discussion is otherwise sparse — no dedicated issue tracker,
+          forum, or mailing list is associated with the feed, and the maintainer operates
+          GitHub and Twitter/X presences but community participation beyond the integration
+          ecosystem is limited. The feed is adopted programmatically through MISP,
+          OpenCTI, AlienVault OTX, and PulseDive rather than through informal community
+          channels.
+      sources_consulted:
+      - url: https://www.misp-project.org/feeds/
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://jamesbrine.com.au/
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://jamesbrine.com.au/faq
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: 
+          https://act.globalcyberalliance.org/index.php/James_Brine_Threat_Intelligence_Feeds
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://github.com/hslatman/awesome-threat-intelligence
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: 
+          https://hub.filigran.io/cybersecurity-solutions/open-cti-integration-feeds/james-brine-threat-feed-endpoint
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'

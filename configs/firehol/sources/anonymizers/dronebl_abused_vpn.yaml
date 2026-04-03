@@ -1,0 +1,208 @@
+sources:
+  dronebl_abused_vpn:
+    license: DroneBL community data — software BSD-style (https://dronebl.org)
+    redistributable: true
+    url: artifact://dronebl?parts=abused_vpn_services
+    frequency: 0
+    ipv: ipv4
+    output: netset
+    processor:
+    - $CAT_CMD
+    processor_raw: $CAT_CMD
+    category: anonymizers
+    info: '[DroneBL.org](https://dronebl.org) IPs of abused VPN services. It includes
+      IPs for which DroneBL responds with 19.'
+    maintainer: DroneBL.org
+    maintainer_url: https://dronebl.org
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T18:41:57Z'
+      official_name: DroneBL
+      official_url: https://dronebl.org
+      short_description: A real-time DNS blocklist identifying IP addresses associated
+        with abused VPN services, drawn from automated scanning and community abuse
+        reports.
+      long_description: "This feed exposes DroneBL's category 19 (Abused VPN Service)
+        entries: IP addresses detected as running VPN or proxy software, or associated
+        with VPN service netblocks that have attracted subscriber-reported abuse.
+        Per the maintainer's category list, the trigger for category 19 is the VPN/proxy
+        software signature or the netblock association — confirmed abuse by the current
+        user is not required.\n\nThe broader DroneBL DNSBL is queried as `<reversed-IP>.dnsbl.dronebl.org`;
+        a category-19 listing is one of about 19 distinct threat-class responses the
+        zone can return. Per the maintainer's FAQ, listings are added in near-real-time
+        via RPC2 submissions from automated scanners and community reporters; removal
+        is initiated through the lookup page and reviewed by the contributor who added
+        the entry.\n\nA practical consequence specific to category 19 noted in community
+        reports is that commercial VPN exit nodes can accumulate listings even when
+        current users are not themselves the abuser, because the listing trigger does
+        not require the present occupant to be the source of abuse."
+      roles:
+      - role: maintainer
+        name: The DroneBL Team
+        organization_type: informal_collective
+        official_url: https://dronebl.org
+        contact_email: dronebl@tomaw.net
+        based_in:
+        active_since: '2004'
+        notes: 'A volunteer collective with no disclosed organizational structure.
+          Contact is via email to dronebl@tomaw.net or the #dronebl IRC channel on
+          irc.dronebl.org. Bug reports are preferred by email.'
+      - role: publisher
+        name: DroneBL community
+        organization_type: informal_collective
+        official_url:
+        contact_email:
+        based_in:
+        active_since: '2004'
+        notes: The data is copyrighted 2004-2026 the DroneBL user community per the
+          site footer. Infrastructure is privately colocated in Europe via a single
+          server sponsor.
+      derivation:
+        type: extraction
+        description: This feed is a static extraction of DroneBL's category 19 (Abused
+          VPN Service) entries from the full DroneBL dataset. The catalog downloads
+          the upstream artifact and filters it to category 19 only, outputting as
+          an IPv4-only netset. DroneBL's full dataset spans approximately 19 threat
+          categories (testing, open proxies, IRC drones, DDoS bots, brute-force attackers,
+          autorooting worms, and others) updated in near-real-time via RPC2 calls
+          from automated scanners and community reporters.
+        source_feeds: []
+      listing_policy:
+        summary: IPs are listed under category 19 when automated scanning detects
+          VPN or proxy software running on the host, or when the IP belongs to a VPN
+          service netblock that has accumulated abuse reports from DroneBL subscribers.
+          Actual confirmed abuse is not required for a listing to be created.
+        criteria:
+        - Automated port scan detects VPN or proxy software signatures running on
+          the target IP
+        - IP falls within a VPN service provider netblock that has attracted subscriber-reported
+          abuse
+        - Community subscriber submits an abuse report associating the IP with VPN-facilitated
+          malicious activity
+      unlisting_policy:
+        summary: Listings are reviewed manually by the subscriber or reporter who
+          added the IP. If the listing was added by an automated scanner, the scanner
+          operator reviews the removal request. IPs are not automatically expired
+          — some entries persist indefinitely until manually cleared. Users must follow
+          the instructions on the lookup page to initiate removal.
+        criteria:
+        - Submit a removal request via the DroneBL lookup page for the listed IP
+        - Demonstrate that the VPN or proxy software has been uninstalled or the netblock
+          no longer hosts the offending service
+        - Wait for the subscriber or scanner operator who added the entry to review
+          and approve the request
+        - 'If not removed within one week, seek assistance via the #dronebl IRC channel'
+      unlist_request:
+        url: https://dronebl.org/lookup
+        email:
+        instructions: 'Visit the DroneBL lookup page, enter the IP address to check
+          its listing, and follow the on-page instructions to submit a removal request.
+          Listings added by automated scanners are reviewed by the scanner operator,
+          not by DroneBL staff directly. If the request is not processed within one
+          week, assistance is available via the #dronebl IRC channel on irc.dronebl.org.'
+      update_frequency:
+        frequency:
+        human_readable: Near-real-time; entries are added via RPC2 calls from automated
+          scanners and community reporters as abuse is detected or reported. The maintainer
+          does not publish a discrete update interval for the static export.
+      detection_classification:
+        primary_method: mixed
+        secondary_methods:
+        - active_scanning
+        - user_submission
+        description: 'Detection combines automated port scanning — which probes target
+          IPs for open proxy and VPN software signatures — with community-driven abuse
+          reporting from DroneBL subscribers. Netblock-level association also occurs:
+          IPs in VPN provider ranges that accumulate abuse reports from multiple subscribers
+          are listed collectively.'
+      scope_and_intent:
+        description: 'Category 19 targets IP addresses associated with VPN services
+          that have been used to facilitate abuse — either because VPN or proxy software
+          was detected running on the host, or because the IP belongs to a VPN provider
+          netblock that has attracted abuse reports. The maintainer treats VPN services
+          similarly to open proxies: presence of the software or association with
+          an abusing netblock is sufficient for listing, regardless of whether the
+          current user participated in abuse.'
+        intended_for:
+        - Blocking IRC clients connecting from VPN exit nodes
+        - Filtering mail submissions from VPN-associated IP ranges
+        - Identifying anonymity-evading infrastructure used in conjunction with other
+          threat categories
+        not_intended_for:
+        - Permanent blocking of all VPN traffic (legitimate VPN users sharing exit
+          nodes will be blocked)
+        - Security decisions without supplementary context (listing alone does not
+          confirm malicious activity by the current IP occupant)
+      license: DroneBL community data — software BSD-style (per https://dronebl.org)
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required: Credit DroneBL.org
+        terms: The DroneBL data is free for all uses. Commercial integrators are asked
+          to contribute positively — for example, by hosting a DNSBL mirror or working
+          on the open-source backend code.
+      current_status:
+        state: active
+        description: Active. The DroneBL DNSBL zone continues to respond, and category
+          19 remains one of the maintainer's published threat classes. The maintainer's
+          blog history and project-wide outage record are out of scope for this feed
+          page; the engine's freshness and health classification cover availability
+          on this side.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "Specific to category 19: commercial VPN exit nodes shared among
+          many concurrent users can accumulate listings when any one user generates
+          abuse, so all current occupants of that IP can be listed even without personal
+          involvement in abuse. Community discussion of category 19 also notes that
+          the maintainer's policy — that uninstalling the software, not confirmation
+          of abuse, is required for delisting — has been described as overly broad
+          for shared-IP VPN scenarios."
+        engagement: No category-19-specific public discussion was found in third-party
+          forums beyond the bad-neighbor scenario noted in the criticism field. Category-19
+          questions surface mostly on VPN-user forums where listed users seek delisting
+          guidance; the maintainer directs them to the lookup page.
+      sources_consulted:
+      - url: https://dronebl.org/
+        document_date:
+        validation_date: '2026-05-17'
+      - url: https://dronebl.org/docs/what
+        document_date:
+        validation_date: '2026-05-17'
+      - url: https://dronebl.org/docs/faq
+        document_date:
+        validation_date: '2026-05-17'
+      - url: https://dronebl.org/docs/howtouse
+        document_date:
+        validation_date: '2026-05-17'
+      - url: https://dronebl.org/classes
+        document_date:
+        validation_date: '2026-05-17'
+      - url: https://dronebl.org/blog/42
+        document_date: '2025-07-10'
+        validation_date: '2026-05-17'
+      - url: https://dronebl.org/blog
+        document_date:
+        validation_date: '2026-05-17'
+      - url: https://dronebl.org/lookup
+        document_date:
+        validation_date: '2026-05-17'
+      - url: https://dronebl.org/docs/delisting
+        document_date:
+        validation_date: '2026-05-17'
+      - url: https://dronebl.org/docs/license
+        document_date:
+        validation_date: '2026-05-17'
+      - url: https://raw.githubusercontent.com/dronebl/dronebl.github.io/master/LICENSE
+        document_date: '2024'
+        validation_date: '2026-05-17'
+      - url: https://www.reddit.com/r/sysadmin/comments/4p1lf9/
+        document_date: '2016-07-21'
+        validation_date: '2026-05-17'
+      - url: https://www.reddit.com/r/sysadmin/comments/cheto5/
+        document_date: '2019-07-25'
+        validation_date: '2026-05-17'
+      - url: https://www.vpnusers.com/viewtopic.php?t=64682
+        document_date:
+        validation_date: '2026-05-17'

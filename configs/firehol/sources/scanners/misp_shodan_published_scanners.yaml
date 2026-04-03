@@ -1,0 +1,223 @@
+sources:
+  misp_shodan_published_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/shodan-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Shodan scanner
+      IP ranges. Informational - not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T00:11:21Z'
+      official_name: Shodan IP-Ranges, pot. used for Scanning
+      official_url: 
+        https://github.com/MISP/misp-warninglists/blob/main/lists/shodan-scanning/list.json
+      short_description: A curated set of IP ranges associated with Shodan's internet
+        scanning infrastructure, published by the MISP warninglists project as an
+        informational reference to flag legitimate reconnaissance activity and reduce
+        false positive alerts.
+      long_description: "The shodan-scanning warning list records IP ranges that Shodan
+        uses for its internet-wide scanning infrastructure — the search engine for
+        internet-connected devices that probes the entire IPv4 address space across
+        approximately 2,000 ports on a continuous basis.\n\nShodan's scanning methodology,
+        as described by Shodan representatives and corroborated by independent academic
+        research, uses a randomised IPv4 address selection paired with random port
+        selection, distributing scanners across multiple countries and autonomous
+        systems. The IPs in this list represent Shodan's own scanning probes — infrastructure
+        that legitimately contacts enterprise and cloud targets as part of systematic
+        internet mapping.\n\nWithin MISP, enabling this warning list causes an informational
+        or warning annotation to appear whenever an analyst reviews an event or attribute
+        containing one of these IPs. The list is not intended for use as a blocklist."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: informal_collective
+        official_url: https://github.com/MISP
+        contact_email:
+        based_in:
+        active_since: '2016'
+        notes: The MISP Project maintains the misp-warninglists repository housing
+          over 120 warning lists. The project's copyright is interlocked among all
+          contributors, preventing any single entity from restricting the software.
+          Core institutional support is provided by CIRCL (Computer Incident Response
+          Center Luxembourg).
+      - role: publisher
+        name: CIRCL
+        organization_type: government
+        official_url: https://circl.lu
+        contact_email:
+        based_in: Luxembourg
+        active_since:
+        notes: CIRCL (Computer Incident Response Center Luxembourg) is a core copyright
+          holder of the MISP software and provides practical training, hosting, and
+          institutional backing for the MISP Project ecosystem. CIRCL also contributes
+          scanner list updates via the Network Telescope program.
+      - role: original_author
+        name: Alexandre Dulaunoy
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Core copyright holder of the MISP Project (2015–present), co-author
+          of the AGPL-licensed MISP software and associated warninglists ecosystem.
+      - role: source_contributor
+        name: Paul Jung (Thanat0s)
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Contributor who authored the shodan-scanning list and maintains the
+          actively updated sibling list shodan-nt-scanning via CIRCL Network Telescope
+          analysis.
+      derivation:
+        type: partial_mirror
+        description: The shodan-scanning list is compiled from IPs associated with
+          Shodan's own documented scanning infrastructure. Shodan operates a globally
+          distributed network of scanners that probe the IPv4 address space across
+          approximately 2,000 ports on a continuous basis using randomized address
+          selection paired with random port selection. The resulting IPs are published
+          as a MISP warning list to flag legitimate reconnaissance activity. The list
+          does not consume other IP feeds; it represents first-party enumeration of
+          Shodan's own infrastructure. A companion list, shodan-nt-scanning, is independently
+          maintained via CIRCL Network Telescope analysis and updated monthly.
+        source_feeds: []
+      listing_policy:
+        summary: IPs are listed when they are associated with Shodan's own scanning
+          infrastructure — the IP addresses and ranges Shodan uses to conduct its
+          internet-wide reconnaissance. Shodan operates a distributed network of scanners
+          that probe the IPv4 address space across approximately 2,000 ports on a
+          continuous basis using randomized address selection. The list records Shodan's
+          own probe addresses as documented by the community and by Shodan itself.
+        criteria:
+        - IP or CIDR range is confirmed as a Shodan scanning probe address
+        - IP or CIDR range resolves to a Shodan-named hostname (e.g., census*.shodan.io,
+          *.census.shodan.io)
+        - IP is documented in Shodan's own infrastructure disclosures or community
+          research
+      unlisting_policy:
+        summary: Removal requests are handled through the GitHub pull request workflow.
+          Contributors may submit a PR removing or annotating entries, which is reviewed
+          and merged by project maintainers. There is no documented automatic expiration
+          or decay mechanism for this list.
+        criteria:
+        - IP is confirmed no longer associated with Shodan scanning infrastructure
+        - Submitted via GitHub pull request with justification
+        - Reviewed and merged by project maintainers
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/issues/new
+        email:
+        instructions: Submit a GitHub issue or pull request against the misp-warninglists
+          repository. Describe the IP or CIDR to be removed and the reason it no longer
+          represents Shodan scanning infrastructure. Project maintainers review and
+          merge valid changes.
+      update_frequency:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: "The list is a curated enumeration of IPs associated with Shodan's
+          own scanning infrastructure, published as a MISP warning list. Rather than
+          detecting malicious activity, it flags known non-malicious activity — Shodan's
+          own reconnaissance probes — to prevent false positive alerts. Within MISP,
+          the list triggers informational annotations at the event and attribute level
+          when a matching IP is encountered. This is a policy-assignment approach:
+          IPs are listed not because they attacked a sensor, but because they are
+          categorically associated with a legitimate scanning service."
+      scope_and_intent:
+        description: The shodan-scanning warning list marks IP addresses associated
+          with Shodan's internet scanning infrastructure as known non-malicious reconnaissance,
+          allowing security analysts to distinguish legitimate scanning activity from
+          genuine threats. It is designed to reduce alert fatigue and prevent false
+          positive attributions when Shodan probes an instrumented network.
+        intended_for:
+        - Reducing false positive alerts in security monitoring pipelines when Shodan
+          scanner IPs appear in logs
+        - Flagging Shodan reconnaissance in MISP events and attributes for analyst
+          awareness
+        - Enriching indicator context in threat intelligence workflows
+        not_intended_for:
+        - Inline blocking or deny-listing of Shodan scanner IPs
+        - Attributing Shodan scans as malicious activity
+        - Security enforcement at network perimeter devices
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal public domain dedication. The work is dedicated to
+          the public domain worldwide; users may copy, modify, distribute, and use
+          it for any purpose including commercial purposes, without asking permission.
+          No attribution is legally required, though users should not imply endorsement
+          by the author.
+      current_status:
+        state: active
+        description: Active. The shodan-scanning list is present in the misp-warninglists
+          repository at the published URL. Updates to the list itself are cadence-driven
+          by maintainer pull requests rather than telescope refreshes; the sibling
+          shodan-nt-scanning list receives more frequent CIRCL Network Telescope updates.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion of the shodan-scanning warninglist specifically
+          is sparse. Community discussion on Reddit reflects practitioner scepticism
+          toward blanket IP whitelisting of cloud provider ranges, with some noting
+          that blocking Shodan IPs is impractical when they route through shared hosting
+          providers. The broader misp-warninglists project is modestly referenced
+          in practitioner forums.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/shodan-scanning/list.json
+        document_date:
+        validation_date: '2026-05-19T00:11:21Z'
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-19T00:11:21Z'
+      - url: https://creativecommons.org/publicdomain/zero/1.0/
+        document_date:
+        validation_date: '2026-05-19T00:11:21Z'
+      - url: 
+          https://github.com/MISP/misp-warninglists/commits/main/lists/shodan-scanning/list.json
+        document_date: '2025-10-29'
+        validation_date: '2026-05-19T00:11:21Z'
+      - url: https://github.com/MISP/misp-warninglists/commits/main
+        document_date: '2026-05-04'
+        validation_date: '2026-05-19T00:11:21Z'
+      - url: https://github.com/MISP/misp-warninglists/pull/330
+        document_date: '2026-03-13'
+        validation_date: '2026-05-19T00:11:21Z'
+      - url: https://github.com/MISP/misp-warninglists/issues/74
+        document_date: '2018-07-10'
+        validation_date: '2026-05-19T00:11:21Z'
+      - url: https://github.com/MISP/PyMISPWarningLists
+        document_date: '2025-02-05'
+        validation_date: '2026-05-19T00:11:21Z'
+      - url: 
+          https://github.com/MISP/misp-warninglists/blob/main/lists/shodan-nt-scanning/list.json
+        document_date: '2026-05-04'
+        validation_date: '2026-05-19T00:11:21Z'
+      - url: https://github.com/MISP/misp-warninglists/tree/main/lists/shodan-scanning
+        document_date:
+        validation_date: '2026-05-19T00:11:21Z'
+      - url: https://github.com/MISP/misp-warninglists/pull/310
+        document_date: '2025-10-30'
+        validation_date: '2026-05-19T00:11:21Z'
+      - url: https://misp.gitbooks.io/misp-book/content/warninglists/
+        document_date:
+        validation_date: '2026-05-19T00:11:21Z'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/LICENSE
+        document_date:
+        validation_date: '2026-05-19T00:11:21Z'

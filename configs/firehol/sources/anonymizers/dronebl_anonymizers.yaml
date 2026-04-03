@@ -1,0 +1,225 @@
+sources:
+  dronebl_anonymizers:
+    license: DroneBL community data — software BSD-style (https://dronebl.org)
+    redistributable: true
+    url: 
+      artifact://dronebl?parts=http_proxies,socks_proxies,web_page_proxies,wingate_proxies,proxychains
+    frequency: 0
+    ipv: ipv4
+    output: netset
+    processor:
+    - $CAT_CMD
+    processor_raw: $CAT_CMD
+    category: anonymizers
+    info: '[DroneBL.org](https://dronebl.org) List of open proxies. It includes IPs
+      which DroneBL categorizes as SOCKS proxies (8), HTTP proxies (9), web page proxies
+      (11), WinGate proxies (14), proxy chains (10).'
+    maintainer: DroneBL.org
+    maintainer_url: https://dronebl.org
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T18:33:47Z'
+      official_name: DroneBL
+      official_url: https://dronebl.org
+      short_description: A realtime DNS-based blacklist tracking open proxy servers
+        (SOCKS, HTTP, WinGate, proxy chains, and web page proxies) reported by automated
+        IRC proxy scanners and community contributors.
+      long_description: "This feed extracts the open-proxy classes from DroneBL's
+        combined DNSBL — Type 8 (SOCKS Proxy), Type 9 (HTTP Proxy), Type 10 (ProxyChain),
+        Type 11 (Web Page Proxy), and Type 14 (Open WinGate Proxy). It does not cover
+        Tor exit nodes or commercial VPN providers; the maintainer treats those as
+        distinct categories and does not list them under the proxy types.\n\nDetections
+        for these classes come from BOPM (Blitzed Open Proxy Monitor) and HOPM (Hybrid
+        Open Proxy Monitor) — IRC services modules that probe connecting users for
+        open proxy ports on common protocols (SOCKS on 1080, HTTP on 8080/3128/6588,
+        WinGate on 23, among others). When a scanner confirms an open proxy, it reports
+        the IP and threat-type code to DroneBL via an authenticated RPC2 call. Per
+        the maintainer's FAQ, listings in these classes do not auto-expire: active
+        entries persist until a removal request is filed and approved by a volunteer
+        reviewer, because the maintainer treats the listing itself as a proactive
+        deterrent against ISPs reassigning the same IP to a new client through the
+        same open relay.\n\nConsumers query the broader DroneBL DNSBL at `<reversed-IP>.dnsbl.dronebl.org`;
+        the A-record response octet encodes the threat-class code, which this extraction
+        filters to the proxy set. Programmatic access for security professionals is
+        available via the XML-RPC2 API at dronebl.org/RPC2."
+      roles:
+      - role: maintainer
+        name: The DroneBL Team
+        organization_type: informal_collective
+        official_url: https://dronebl.org
+        contact_email: dronebl@tomaw.net
+        based_in:
+        active_since: '2004'
+        notes: 'The DroneBL software was primarily written by William Pitcock and
+          Steve Church, with contributions from OUTsider of ScaryNet, Nick Davey,
+          and William Heimbigner. The service and DNSBL zone are maintained by a team
+          of volunteers. Contact: dronebl@tomaw.net or on IRC at irc.dronebl.org/#dronebl.'
+      - role: publisher
+        name: The DroneBL Community
+        organization_type: informal_collective
+        official_url:
+        contact_email:
+        based_in:
+        active_since: '2004'
+        notes: "Per the homepage footer: 'DroneBL data © 2004 – 2026, the DroneBL
+          user community.'"
+      derivation:
+        type: extraction
+        description: This feed is an extraction from DroneBL's combined DNSBL zone,
+          retaining IPs whose listing carries one of the proxy-related class codes
+          — Type 8 (SOCKS Proxy), Type 9 (HTTP Proxy), Type 10 (ProxyChain), Type
+          11 (Web Page Proxy), and Type 14 (Open WinGate Proxy). Source detections
+          in DroneBL flow from BOPM (Blitzed Open Proxy Monitor) and HOPM (Hybrid
+          Open Proxy Monitor) IRC services modules and from contributors with RPC
+          keys submitting via XML-RPC2. No third-party IP feeds are consumed by DroneBL
+          itself; the extraction simply filters the maintainer's own zone to the proxy-related
+          classes.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when DroneBL's automated proxy scanners (BOPM/HOPM)
+          detect an open relay responding on common proxy ports — SOCKS on port 1080,
+          HTTP on ports 8080/3128/6588, WinGate on port 23, among others — and confirm
+          the relay accepts connections without authentication. Community contributors
+          with RPC keys can also submit reports. The listing is tagged with a threat-type
+          code indicating the category of proxy detected.
+        criteria:
+        - 'Active open SOCKS proxy (Type 8): relay accepting connections on SOCKS
+          ports without authentication'
+        - 'Active open HTTP proxy (Type 9): relay accepting CONNECT requests on HTTP
+          proxy ports without authentication'
+        - 'Proxy chain (Type 10): chained or cascading proxy infrastructure'
+        - 'Web page proxy (Type 11): web-based proxy service accessible via HTTP'
+        - 'Open WinGate proxy (Type 14): Teleware / WinGate proxy accepting connections
+          without authentication'
+      unlisting_policy:
+        summary: Entries do not automatically expire. Per the maintainer's expiration
+          policy, active entries persist indefinitely until a manual removal request
+          is filed and approved by a volunteer reviewer. The request must be submitted
+          from the affected device itself (so the system verifies the connection originates
+          from the listed IP). The request is routed to the volunteer who supervised
+          the original listing. Processing time depends on volunteer availability;
+          the maintainer advises waiting approximately one week before seeking follow-up
+          on IRC.
+        criteria:
+        - 'Manual removal request required: entries do not auto-expire; a request
+          must be filed via the lookup page'
+        - 'Submitted from the listed IP: the request must originate from the listed
+          device so the system validates the connection matches the listed IP'
+        - 'Primary-user restriction: only the primary user of the IP can request removal
+          (residential ISP customer, not VPN or shared-server users)'
+        - 'Issue must be resolved: the underlying open proxy condition should be closed
+          before or concurrent with the request'
+        - 'Volunteer review: requests are routed to the supervising volunteer and
+          processed at their discretion'
+      unlist_request:
+        url: https://dronebl.org/lookup
+        email:
+        instructions: Visit the DroneBL lookup page at https://dronebl.org/lookup,
+          enter the listed IP address, and follow the presented removal instructions.
+          The request must be submitted from the listed IP itself (visit icanhazip.com
+          on the affected device to confirm the IP). If the listing is not removed
+          within approximately one week, join the DroneBL IRC channel at irc.dronebl.org/#dronebl
+          or use the web IRC bridge at https://webchat.alphachat.net/?nick=Listed?#dronebl
+          to follow up. VPN users, shared-server tenants, and public-Wi-Fi users should
+          contact their service provider rather than DroneBL directly.
+      update_frequency:
+        frequency:
+        human_readable: Near-real-time additions via RPC2 API calls; no fixed batch
+          schedule is published.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods:
+        - user_submission
+        description: Detection relies on BOPM (Blitzed Open Proxy Monitor) and HOPM
+          (Hybrid Open Proxy Monitor) — IRC services modules that actively probe connecting
+          users for open proxy ports. When a user connects to an IRC network running
+          BOPM or HOPM, the module attempts to establish a connection from the user's
+          IP to common proxy ports (SOCKS on 1080, HTTP on 8080/3128/6588, WinGate
+          on 23, among others) and sends a minimal protocol handshake to test whether
+          the port accepts unauthenticated relay connections. If the relay responds,
+          the IP is reported to DroneBL via an authenticated RPC2 API call. Community
+          contributors with RPC keys can additionally submit reports directly through
+          the RPC2 interface.
+      scope_and_intent:
+        description: DroneBL is scoped to IP addresses observed running open proxy
+          services — servers that forward network connections for third parties without
+          adequate access controls, enabling anonymization of abusive traffic. The
+          maintainer explicitly intends the service for use by IRC networks, mail
+          servers, and other platforms to block connections from listed IPs. The maintainer
+          also encourages use in IDS and network routing equipment.
+        intended_for:
+        - IRC networks blocking connecting clients running open proxies
+        - Mail servers screening inbound connections
+        - IDS and network routing equipment for inline blocking
+        - Services preventing ban evasion via open proxy relays
+        not_intended_for:
+        - Permanent IP blocking without periodic review (entries persist indefinitely
+          until manually removed)
+        - VPN or residential proxy categorization (DroneBL tracks open proxies, not
+          VPN exit nodes)
+      license: 'DroneBL data: © 2004–2026 the DroneBL user community (permissive,
+        no formal license stated). DroneBL software: permissive BSD-style license.'
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Attribution appreciated ('Powered by DroneBL') but not
+          formally required
+        terms: Free for both commercial and non-commercial use. Commercial users are
+          asked to contribute positively to the DroneBL ecosystem. The data is copyrighted
+          to the DroneBL user community but no formal redistribution prohibition is
+          stated.
+      current_status:
+        state: active
+        description: Active and maintained as of May 2026. Updates are posted continuously
+          via RPC2 API calls. The homepage shows recent activity log entries from
+          May 2026. The DroneBL Team can be reached at dronebl@tomaw.net or on IRC.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: These proxy classes are the original use case the BOPM/HOPM IRC
+          services modules were built to feed, and they are integrated into multiple
+          IRC daemon ecosystems (ircd-hybrid/hopm, azzurra/bopm, and downstream forks).
+          Public discussion specific to the proxy classes — rather than DroneBL as
+          a whole — is sparse.
+      sources_consulted:
+      - url: https://dronebl.org
+        document_date:
+        validation_date: '2026-05-17T18:33:47Z'
+      - url: https://dronebl.org/?faq/docs/what
+        document_date:
+        validation_date: '2026-05-17T18:33:47Z'
+      - url: https://dronebl.org/?faq/docs/howtouse
+        document_date:
+        validation_date: '2026-05-17T18:33:47Z'
+      - url: https://dronebl.org/?faq/docs/faq
+        document_date:
+        validation_date: '2026-05-17T18:33:47Z'
+      - url: https://dronebl.org/?faq/docs/opensource
+        document_date:
+        validation_date: '2026-05-17T18:33:47Z'
+      - url: https://dronebl.org/blog/34
+        document_date:
+        validation_date: '2026-05-17T18:33:47Z'
+      - url: https://dronebl.org/lookup
+        document_date:
+        validation_date: '2026-05-17T18:33:47Z'
+      - url: https://dronebl.org/?faq/breakdown
+        document_date:
+        validation_date: '2026-05-17T18:33:47Z'
+      - url: https://github.com/pirc-pl/utils
+        document_date:
+        validation_date: '2026-05-17T18:33:47Z'
+      - url: https://github.com/kabaka/weechat-dronebl-script
+        document_date:
+        validation_date: '2026-05-17T18:33:47Z'
+      - url: https://github.com/JeffResc/DroneBL-Node.js
+        document_date:
+        validation_date: '2026-05-17T18:33:47Z'
+      - url: https://github.com/ircd-hybrid/hopm
+        document_date:
+        validation_date: '2026-05-17T18:33:47Z'
+      - url: https://github.com/azzurra/bopm
+        document_date:
+        validation_date: '2026-05-17T18:33:47Z'

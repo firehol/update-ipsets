@@ -1,0 +1,3 @@
+defaults:
+  asn_provider: iptoasn
+  geo_provider: dbip_country

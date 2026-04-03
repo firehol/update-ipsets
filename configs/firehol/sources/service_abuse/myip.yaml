@@ -1,0 +1,172 @@
+sources:
+  myip:
+    attribution: https://www.myip.ms/
+    license: MyIP.ms attribution required
+    redistributable: true
+    url: http://www.myip.ms/files/blacklist/csf/latest_blacklist.txt
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: service_abuse
+    info: '[myip.ms](http://www.myip.ms/info/about) IPs identified as web bots in
+      the last 10 days, using several sites that require human action'
+    maintainer: MyIP.ms
+    maintainer_url: http://myip.ms/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T02:36:00Z'
+      official_name: MyIP.ms
+      official_url: https://myip.ms/
+      short_description: IP addresses detected masquerading as human visitors by MyIP.ms
+        over a 10-day rolling window, identified through a registration-form honeypot
+        trap.
+      long_description: "MyIP.ms is an IP intelligence and blacklist lookup service
+        that maintains a live database of IP addresses identified as web bots or crawlers
+        masquerading as human visitors. The detection approach uses a registration-form
+        honeypot: visitors who browse 10–20 pages and repeatedly encounter a free-registration
+        gate are counted; bots that ignore the gate instruction and continue crawling
+        are flagged and their IPs added to the blacklist. Legitimate bots that identify
+        themselves in the User-Agent string (such as Google Bot, Yahoo Bot, or Bing
+        Bot) are excluded from listing.\n\nThe feed distributed for firewall consumption
+        covers IPs detected within a rolling 10-day window. Entries represent addresses
+        that triggered the honeypot during that period. The service also accepts user-submitted
+        IP reports, expanding the dataset beyond the automated detection layer.\n\n\
+        The maintainer describes the feed as compatible with cPanel and ConfigServer
+        Security & Firewall (CSF Firewall), with the file format designed for direct
+        import into the csf.deny file. Both IPv4 and IPv6 addresses are included."
+      roles:
+      - role: maintainer
+        name: MyIP.ms
+        organization_type: unknown
+        official_url: https://myip.ms/
+        contact_email:
+        based_in:
+        active_since: '2012'
+        notes: Operates the IP intelligence platform including the live blacklist
+          database. Per the site footer, copyright is held as 'MyIP.ms, 2012–2026,
+          All rights reserved.'
+      derivation:
+        type: original
+        description: "The feed is produced from MyIP.ms's own detection infrastructure.
+          The primary method is a registration-form honeypot that counts visits from
+          each IP against a free-registration gate: IPs that browse 10–20 pages and
+          repeatedly trigger the gate without registering are flagged as bots and
+          added to the blacklist. A secondary contribution layer accepts user-submitted
+          IP reports from visitors. No external IP feeds are consumed in producing
+          this list."
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when the maintainer's registration-form honeypot
+          detects that the visitor ignores the free-registration gate instruction
+          and continues making page requests after seeing 10–20 pages of the registration
+          form. The honeypot counts repeated gate-display events per IP; after 100–200
+          such events with no registration, the IP is classified as a bot masking
+          as a human and added to the blacklist. Legitimate bots that identify themselves
+          in the User-Agent string (such as Google Bot, Yahoo Bot, or Bing Bot) are
+          excluded. User-submitted IP reports also contribute entries.
+        criteria:
+        - Repeatedly triggering the registration-form honeypot gate without registering
+          after viewing 10–20 pages
+        - Continuing to crawl after encountering the registration gate (ignoring the
+          instruction to register or revisit after 24 hours)
+        - Absence of bot-identifying strings in the User-Agent (bots that self-identify
+          are not listed)
+        - User-submitted IP reports from MyIP.ms visitors
+      unlisting_policy:
+        summary: No public self-service delisting portal is documented. The maintainer
+          provides a contact form accessible only to registered, logged-in users for
+          removal requests. No automated expiry mechanism or documented appeal procedure
+          was found in public sources.
+        criteria:
+        - No automated self-service delisting portal
+        - Removal requests submitted via a logged-in contact form only
+        - No documented automatic expiry timeline for listed IPs
+      unlist_request:
+        url:
+        email:
+        instructions: Removal requests must be submitted through the MyIP.ms contact
+          form, which is accessible only to registered, logged-in users. There is
+          no public self-service delisting portal, no direct email address published
+          for unlisting requests, and no automated removal mechanism documented. To
+          submit a request, create a MyIP.ms account, log in, navigate to the contact
+          form, and provide the IP address and justification for removal consideration.
+      update_frequency:
+        frequency: 1440m
+        human_readable: The feed covers IPs detected within a rolling 10-day window,
+          per the maintainer's feed file header.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods:
+        - user_submission
+        description: The primary detection method is a registration-form honeypot.
+          MyIP.ms presents a free-registration gate to all visitors; bots that ignore
+          the instruction and continue crawling after seeing 10–20 pages of the registration
+          form are counted. After 100–200 such gate-display events from the same IP
+          with no registration, the address is classified as a bot masquerading as
+          a human and added to the blacklist. A secondary layer accepts user-submitted
+          IP reports from site visitors. Bots that self-identify in the User-Agent
+          string (Google Bot, Bing Bot, Yahoo Bot, etc.) are explicitly excluded.
+      scope_and_intent:
+        description: The feed targets IP addresses identified as web bots or crawlers
+          that mask as human visitors — specifically unknown spam bots, scrapers,
+          and crawlers that do not self-identify in their User-Agent string. Known
+          legitimate crawlers (Google Bot, Yahoo Bot, Bing Bot) are excluded by design.
+        intended_for:
+        - Network administrators blocking malicious web crawlers and scrapers at the
+          firewall level
+        - CSF Firewall / cPanel operators importing deny-lists
+        - Identifying automated traffic masquerading as human visitors
+        not_intended_for:
+        - Email security / SMTP sender filtering (no SMTP-context metadata is included)
+        - Blocking known search engine crawlers (these are explicitly excluded from
+          listing)
+      license: MyIP.ms attribution required
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required: Credit MyIP.ms with a link to the MyIP.ms website
+        terms: Quoting or reproducing the information is permitted provided the source
+          is properly disclosed with a link to MyIP.ms. No separate redistribution
+          terms beyond the attribution requirement were found in public sources.
+      current_status:
+        state: active
+        description: Active as of 19 May 2026. The feed file was last generated on
+          19 May 2026 (02:01 UTC) and the maintainer site is reachable. The service
+          has operated continuously since 2012.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "The primary documented friction with MyIP.ms is access-related
+          rather than listing-related: the site's aggressive human-verification walls
+          and CAPTCHA gates have generated user complaints about being unable to reach
+          the service. No documented false-positive dispute cases were found in public
+          sources. The absence of a public self-service delisting portal has been
+          noted by community members as a gap compared to larger blocklist operators."
+        engagement: 'Public community discussion about MyIP.ms is sparse. The service
+          has a minimal documented presence on third-party platforms: 2 reviews on
+          Trustpilot with a score of 3.5/5 (as of May 2026), with the negative review
+          citing access barriers rather than listing accuracy. No dedicated false-positive
+          threads were found on Reddit, ServerFault, or webmaster forums. Integrations
+          with CSF Firewall and downstream aggregators are documented, but these represent
+          technical integration rather than community engagement.'
+      sources_consulted:
+      - url: https://myip.ms/
+        document_date: '2026-05-19'
+        validation_date: '2026-05-19T02:00:00Z'
+      - url: https://myip.ms/files/blacklist/csf/latest_blacklist.txt
+        document_date: '2026-05-19'
+        validation_date: '2026-05-19T02:00:00Z'
+      - url: https://www.trustpilot.com/review/myip.ms
+        document_date:
+        validation_date: '2026-05-19T02:00:00Z'
+      - url: https://perishablepress.com/automatic-ip-blacklist/
+        document_date: 2024-06
+        validation_date: '2026-05-19T02:00:00Z'
+      - url: https://myip.ms/browse/contact/Contact_Us.html
+        document_date:
+        validation_date: '2026-05-19T02:00:00Z'

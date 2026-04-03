@@ -1,0 +1,133 @@
+merges:
+  firehol_level4:
+    license: Composite of component feed licenses
+    redistributable: false
+    frequency: 5
+    ipv: ipv4
+    output: netset
+    category: intrusion
+    info: An ipset made from blocklists that track attacks, but may include a large
+      number of false positives.
+    maintainer: FireHOL
+    maintainer_url: http://iplists.firehol.org/
+    sources:
+    - blocklist_net_ua
+    - botscout_30d
+    - cybercrime
+    - iblocklist_hijacked
+    - iblocklist_spyware
+    - iblocklist_webexploit
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-27T06:30:35Z'
+      official_name: FireHOL Level 4
+      official_url:
+      short_description: Broadest FireHOL aggregate merge — highest coverage, highest
+        FP exposure.
+      long_description: "The broadest of the FireHOL composite merges. Combines the
+        level3 set with additional broad-coverage feeds for maximum aggregate size.
+        Expect non-trivial false-positive exposure: this is the aggregate-of-aggregates
+        tier, not a curated low-FP list. Intended for research, retrospective analysis,
+        and detection environments where breadth matters more than precision. Component
+        feeds drive all listing decisions.\n\nComponents: blocklist_net_ua, botscout_30d,
+        cybercrime, iblocklist_hijacked, iblocklist_spyware, iblocklist_webexploit."
+      roles:
+      - role: maintainer
+        name: FireHOL catalog project
+        organization_type: informal_collective
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Maintained by the FireHOL catalog project as a public reference / aggregate.
+          This page is generated deterministically from the catalog YAML; the agent-based
+          enrichment used for third-party feeds does not run on FireHOL-maintained
+          feeds.
+      derivation:
+        type: aggregate_merge
+        description: Additive union of 6 component feed(s). The merge applies no scoring,
+          threshold, or filter beyond the union and the optional subtraction; all
+          listing decisions are inherited from the component feeds. Component feeds
+          are recomposed on each catalog refresh.
+        source_feeds:
+        - identifier: blocklist_net_ua
+          relationship: aggregate_component
+          notes:
+        - identifier: botscout_30d
+          relationship: aggregate_component
+          notes:
+        - identifier: cybercrime
+          relationship: aggregate_component
+          notes:
+        - identifier: iblocklist_hijacked
+          relationship: aggregate_component
+          notes:
+        - identifier: iblocklist_spyware
+          relationship: aggregate_component
+          notes:
+        - identifier: iblocklist_webexploit
+          relationship: aggregate_component
+          notes:
+      listing_policy:
+        summary: An IP appears in this merge if it appears in any of the 6 additive
+          component feed(s) listed below. The merge does not add IPs of its own.
+        criteria:
+        - 'IP appears in one or more of the additive component feeds: blocklist_net_ua,
+          botscout_30d, cybercrime, iblocklist_hijacked, iblocklist_spyware, iblocklist_webexploit.'
+      unlisting_policy:
+        summary: Inherited from the component feeds. The merge does not maintain its
+          own whitelisting or per-entry unlist process. When a component feed removes
+          an IP, the next merge refresh drops the IP unless another component still
+          lists it.
+        criteria:
+        - All component feeds that previously listed the IP have removed it.
+      unlist_request:
+        url:
+        email:
+        instructions: 'This is an aggregate merge of component feeds; the merge does
+          not maintain its own unlist channel. To request that an IP be removed, identify
+          which component feed(s) list it and submit the removal request directly
+          to that maintainer. Component feeds: blocklist_net_ua, botscout_30d, cybercrime,
+          iblocklist_hijacked, iblocklist_spyware, iblocklist_webexploit.'
+      update_frequency:
+      detection_classification:
+        primary_method: mixed
+        secondary_methods: []
+        description: 'This merge inherits detection methodology from its 6 additive
+          component feed(s). See each component for its specific detection method
+          (honeypot, sandbox, reputation aggregation, etc.). Component feeds: blocklist_net_ua,
+          botscout_30d, cybercrime, iblocklist_hijacked, iblocklist_spyware, iblocklist_webexploit.'
+      scope_and_intent:
+        description: 'The broadest of the FireHOL composite merges. Combines the level3
+          set with additional broad-coverage feeds for maximum aggregate size. Expect
+          non-trivial false-positive exposure: this is the aggregate-of-aggregates
+          tier, not a curated low-FP list. Intended for research, retrospective analysis,
+          and detection environments where breadth matters more than precision. Component
+          feeds drive all listing decisions.'
+        intended_for:
+        - Retrospective forensic search (was this IP ever flagged anywhere?)
+        - Research and overlap analysis across the broader feed ecosystem
+        not_intended_for:
+        - Inline blocking
+        - Operator decisions sensitive to false positives
+      license: Composite of component feed licenses
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms: One or more additive or subtractive component feeds are marked non-redistributable
+          in the catalog. Raw redistribution of this merge is disabled conservatively;
+          component-feed license terms continue to apply.
+      current_status:
+        state: active
+        description: Maintained by FireHOL as a public catalog merge. Recomposed automatically
+          on each catalog refresh from the live state of the component feeds. Component
+          feeds that go offline or are archived are dropped from the merge by the
+          catalog engine.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement:
+      sources_consulted: []

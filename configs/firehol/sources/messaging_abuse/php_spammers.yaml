@@ -1,0 +1,207 @@
+sources:
+  php_spammers:
+    license: Project Honey Pot Terms of Use — All Rights Reserved
+    redistributable: false
+    url: http://www.projecthoneypot.org/list_of_ips.php?t=s&rss=1
+    frequency: 60
+    history:
+    - 1440
+    - 10080
+    - 43200
+    ipv: ipv4
+    output: ipset
+    processor:
+    - xml_rss_title
+    processor_raw: parse_php_rss
+    category: messaging_abuse
+    info: '[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) spam servers
+      (IPs used by spammers to send messages) (this list is composed using an RSS
+      feed)'
+    maintainer: ProjectHoneypot.org
+    maintainer_url: http://www.projecthoneypot.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T02:58:34Z'
+      official_name: Spam Server IPs
+      official_url: http://www.projecthoneypot.org/list_of_ips.php?t=s
+      short_description: IPv4 addresses of servers observed sending spam to email
+        addresses planted across Project Honey Pot's distributed honeypot network.
+      long_description: "The Spam Server IPs feed (`t=s`) publishes IPv4 addresses
+        of mail-sending servers observed delivering unsolicited messages to uniquely
+        tagged email addresses planted by the Project Honey Pot honeypot network.
+        Listing is a closed-loop confirmation: the trap address is first harvested
+        from a participating webpage (tying the harvest event to a specific visiting
+        IP and timestamp), and the IP that subsequently delivers email to that address
+        is logged as a confirmed spam server.\n\nEach entry in the RSS document carries
+        the total count of bad events recorded for that IP, first and most recent
+        sighting dates, and a classification code indicating the type of malicious
+        activity detected. Public access shows the top entries sorted by most recent
+        bad event; full access requires logging in to the Project Honey Pot member
+        area. The maintainer notes on the feed page that being listed does not necessarily
+        mean the IP is owned by a spammer — it may have been hijacked from its true
+        owner or routed through a compromised relay.\n\nThis feed is distinct from
+        the maintainer's sibling Comment Spammers feed (`t=c`), which derives from
+        web-form submissions rather than mail-delivery events, and from the Dictionary
+        Attackers feed (`t=d`), which targets bots probing common username patterns
+        rather than confirmed spam delivery."
+      roles:
+      - role: maintainer
+        name: Unspam Technologies, Inc.
+        organization_type: commercial
+        official_url: http://www.unspam.com/
+        contact_email:
+        based_in: United States
+        active_since: '2004'
+        notes: Anti-spam technology company headquartered in the United States with
+          a documented mailing address in Utah. Operates Project Honey Pot as its
+          flagship community-defence platform. Also offers the HTTP:BL DNS-based threat
+          intelligence API and the IP Monitor service.
+      derivation:
+        type: original
+        description: The feed is produced from the maintainer's own distributed honeypot
+          network. Participating webmasters embed honeypot pages on their websites;
+          these pages expose uniquely tagged decoy email addresses. When a robot harvests
+          an address and unsolicited email subsequently arrives at that address, the
+          sender's IP is logged as a confirmed spam server and published to the Spam
+          Server IPs feed. No external IP feeds are consumed in producing this list.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when Project Honey Pot's honeypot email addresses
+          receive unsolicited messages and the sender's IP can be identified. The
+          honeypot system plants uniquely tagged addresses on participating websites;
+          each address encodes the time and IP of the visitor who first encountered
+          it. If that address later receives email, the sender's IP is confirmed as
+          a spam server. The threat score per IP reflects the volume and frequency
+          of observed malicious activity across the honeypot network.
+        criteria:
+        - Sending unsolicited email to a honeypot email address that was harvested
+          from a Project Honey Pot instrumented webpage
+        - The sender's IP address must be identifiable from the email envelope or
+          headers
+        - Higher threat scores correlate with greater volumes of confirmed bad activity
+          across multiple honeypot observations
+      unlisting_policy:
+        summary: IPs auto-delist after approximately three months with no further
+          observed bad activity. Manual removal is available via the whitelist request
+          form, which requires the requester to submit from the listed IP itself along
+          with a CAPTCHA response. After approval, propagation takes roughly one hour.
+          Repeat offenders face an escalating cooldown delay starting at five seconds
+          per whitelist event, increasing exponentially each time bad activity resumes
+          from that IP.
+        criteria:
+        - Automatic expiry after approximately three months of inactivity (no further
+          bad events observed from that IP)
+        - Manual removal via the online whitelist form submitted from the listed IP,
+          requiring CAPTCHA verification
+        - Re-listing occurs immediately upon resumed bad activity; each subsequent
+          delisting multiplies the cooldown delay
+      unlist_request:
+        url: http://www.projecthoneypot.org/white_list.php
+        email:
+        instructions: 'Submit a whitelist request at the Project Honey Pot whitelist
+          form. The request must be made from the IP address seeking removal (the
+          site detects the connecting IP automatically). Complete the CAPTCHA challenge,
+          select a reason from the dropdown (Belongs to a Search Engine, Hit by a
+          virus or trojan, Mistaken Listing, Owner of a Dynamic IP Address, or Other),
+          optionally add notes, agree to the Terms of Service, and submit. Approved
+          requests propagate within approximately one hour. Note: the whitelist form
+          is the sole documented removal channel; no email address is published for
+          this purpose.'
+      update_frequency:
+        frequency:
+        human_readable: The maintainer does not publish a specific update interval
+          for this RSS feed. Monitoring reports are processed several times a day
+          per the FAQ, with a maximum lag of 24 hours from suspicious activity to
+          notification.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: "The feed is built from a distributed honeynet. Participating
+          websites embed honeypot pages containing uniquely tagged decoy email addresses.
+          Each address encodes the timestamp and IP of the visitor who first encountered
+          it. When unsolicited email arrives at that address, Project Honey Pot confirms
+          the sender's IP as a spam server. This is a closed-loop confirmation: the
+          IP is only listed after both the harvest event (first contact) and the spam
+          delivery event (reply email) are observed, reducing but not eliminating
+          false positives from misconfigured or compromised relay servers."
+      scope_and_intent:
+        description: The Spam Server IPs feed targets operators deploying email filtering,
+          MTA access controls, or network-edge blocking who need to deny known spam-sending
+          infrastructure. The maintainer explicitly cautions that listing does not
+          equate to ownership — many listed IPs belong to compromised or hijacked
+          hosts whose owners are victims, not spammers.
+        intended_for:
+        - Email gateway filtering and SMTP access control
+        - Network-edge blocking of confirmed spam-sending infrastructure
+        - Security monitoring and alerting
+        not_intended_for:
+        - Permanent indefinite blocking of all traffic from a listed IP without review
+          (collateral impact on shared hosting tenants and dynamic IP pools)
+        - Determining spam authorship or attributing malicious intent to the IP's
+          registered owner without further investigation
+      license: Project Honey Pot Terms of Use — All Rights Reserved
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The Terms of Use prohibit reproducing, downloading (beyond browser
+          page caching), modifying, or reselling any content from the Project Honey
+          Pot website without express written consent of Unspam Technologies. Commercial
+          use of the data is explicitly disallowed. No redistribution right is granted
+          by default.
+      current_status:
+        state: active
+        description: The Project Honey Pot website is reachable and actively serving
+          data. The Spam Server IPs feed page loads normally, the RSS feed returns
+          valid XML, and the honeypot network statistics on the homepage show live
+          counters. No discontinuation, merger, or migration announcement was found.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "Operators of email gateways consume this feed and frequently encounter
+          the spam-relay attribution problem: a listed IP may belong to a misconfigured
+          open relay, a compromised mail server, or a NAT gateway shared by many downstream
+          senders. The maintainer's caveat that listings do not equal ownership is
+          widely echoed in operator discussions, where the recurring guidance is to
+          treat the feed as a high-confidence reactive signal for currently-active
+          spam infrastructure rather than as a permanent denylist input. Headless
+          mail server operators face an additional friction: the whitelist removal
+          form must be submitted from the listed IP, which is impractical when the
+          listed host has no browser."
+        engagement: Public discussion of the Spam Server IPs feed specifically is
+          sparse. Most third-party PHP/HTTP:BL coverage on community forums and Q&A
+          sites centres on the HTTP:BL DNS lookup API (which queries multiple PHP
+          datasets at once) rather than evaluating the spam-server list as a standalone
+          data product. Positive operator reports describe the system effectively
+          reducing inbound spam volume shortly after deployment in front of an SMTP
+          gateway.
+      sources_consulted:
+      - url: http://www.projecthoneypot.org/
+        document_date: '2026'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://www.projecthoneypot.org/list_of_ips.php?t=s&rss=1
+        document_date: '2026-05-17'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://www.projecthoneypot.org/terms_of_use.php
+        document_date: '2007-04-15'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://www.projecthoneypot.org/faq.php
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://www.projecthoneypot.org/white_list.php
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://www.projecthoneypot.org/httpbl_api.php
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://www.projecthoneypot.org/httpbl.php
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://www.projecthoneypot.org/contact_us.php
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://www.projecthoneypot.org/services_overview.php
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

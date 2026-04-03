@@ -1,0 +1,200 @@
+sources:
+  datacenters:
+    license: MIT License
+    redistributable: true
+    url: https://raw.githubusercontent.com/client9/ipcat/master/datacenters.csv
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - parse_client9_ipcat_datacenters
+    processor_raw: parse_client9_ipcat_datacenters
+    category: provider_infrastructure
+    info: '[Nick Galbreath](https://github.com/client9/ipcat) This is a list of IPv4
+      address that correspond to datacenters, co-location centers, shared and virtual
+      webhosting providers. In other words, ip addresses that end web consumers should
+      not be using.'
+    maintainer: Nick Galbreath
+    maintainer_url: https://github.com/client9/ipcat
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T14:16:20+00:00'
+      official_name: ipcat
+      official_url: https://github.com/client9/ipcat
+      short_description: A curated list of IPv4 address ranges belonging to datacenters,
+        co-location centers, and shared or virtual webhosting providers, maintained
+        as a freely downloadable CSV.
+      long_description: "ipcat is an open-source dataset created by Nick Galbreath
+        in 2011 that categorizes IPv4 addresses by the infrastructure provider that
+        owns or leases them. The dataset covers datacenters, co-location facilities,
+        and shared or virtual webhosting companies — in short, IP space allocated
+        to machines rather than to end consumers on residential or mobile networks.\n\
+        \nPer the maintainer's README, the data is assembled through a combination
+        of manual submissions from users and proprietary discovery algorithms. Each
+        entry records a start IP, end IP (inclusive, in dotted notation), the provider's
+        name, and a provider URL. Ranges are non-overlapping and stored in sorted
+        order, enabling binary-search lookups. The maintainer notes that many reseller
+        providers are listed under their parent company's ranges, and that geographic
+        coverage for Africa, Latin America, Korea, and Japan was documented as incomplete
+        as of 2011.\n\nThe project was archived and made read-only on 2 February 2023.
+        The maintainer invited the community to fork and continue editing. Active
+        community forks have since emerged that auto-synchronize with the publicly
+        published IP ranges of major cloud providers including Amazon Web Services,
+        Microsoft Azure, Google Cloud, Cloudflare, Fastly, Akamai, and DigitalOcean."
+      roles:
+      - role: maintainer
+        name: Nick Galbreath
+        organization_type: individual
+        official_url: https://github.com/client9
+        contact_email:
+        based_in:
+        active_since: '2011'
+        notes: Operating under the GitHub handle client9. Also maintains a personal
+          site at client9.com. The project was his individual initiative, created
+          in 2011 and archived in 2023.
+      derivation:
+        type: original
+        description: "The dataset is built from two complementary inputs: manual submissions
+          reported by users through the project's GitHub issue tracker, and automated
+          processing through proprietary discovery algorithms. The maintainer does
+          not disclose the specifics of the discovery algorithms. Reseller hosting
+          providers are typically listed under their parent company's IP allocations
+          rather than as separate entries. No external IP feeds are consumed as inputs."
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when it falls within address space allocated to a
+          datacenter, co-location facility, or a shared or virtual webhosting provider.
+          The maintainer's stated intent is to identify IP addresses that originate
+          from machines rather than from end consumers on residential or mobile connections.
+          Crawlers, bots, and scrapers commonly operate from this class of infrastructure,
+          making the list useful for traffic filtering.
+        criteria:
+        - IP address space allocated to a physical datacenter or co-location facility
+        - IP address space allocated to a shared or virtual webhosting provider
+        - IP address space allocated to a cloud infrastructure provider (AWS, Azure,
+          GCP, and similar)
+      unlisting_policy:
+        summary: Removal is handled through GitHub issues. When an IP range has been
+          reassigned away from a qualifying provider, a user can open an issue requesting
+          its removal. Historical evidence shows that at least one false-positive
+          batch (Bing spider IP ranges misclassified as Azure) was investigated and
+          resolved by a contributor in 2018. However, the repository has been archived
+          since February 2023 and is now read-only, meaning no new issues can be acted
+          upon by the original maintainer.
+        criteria:
+        - IP range has been reassigned to a non-datacenter owner (e.g., reallocated
+          by the RIR to a residential ISP)
+        - IP range was incorrectly classified to begin with
+      unlist_request:
+        url: https://github.com/client9/ipcat/issues/new
+        email:
+        instructions: Submit a GitHub issue at the project repository describing the
+          IP range and the reason for removal (e.g., reallocation or misclassification).
+          Note that the repository was archived and made read-only on 2 February 2023,
+          so new issues cannot be acted upon by the original maintainer. Community
+          members are invited to fork the project and submit pull requests with corrections.
+      update_frequency:
+        frequency:
+        human_readable: No regular update schedule was stated by the maintainer. The
+          repository received its last commits on 2 February 2023 and was subsequently
+          archived and made read-only.
+      detection_classification:
+        primary_method: mixed
+        secondary_methods:
+        - user_submission
+        description: 'The maintainer combines two detection approaches: user-submitted
+          reports through the GitHub issue tracker, and automated processing through
+          undisclosed proprietary discovery algorithms. The secondary_methods array
+          reflects the user_submission component explicitly named in the README. The
+          primary_method is set to mixed because the README describes both manual
+          and automated mechanisms as co-equal inputs.'
+      scope_and_intent:
+        description: The maintainer describes the dataset as a tool for identifying
+          non-consumer network connections. Traffic originating from datacenter IP
+          space is statistically more likely to be automated (bots, crawlers, scrapers)
+          than traffic from residential endpoints, making the list useful for filtering
+          low-quality or non-human traffic from analytics and measurement pipelines.
+        intended_for:
+        - Filtering bot and crawler traffic from web analytics
+        - Podcast measurement specifications (discarding datacenter-origin requests)
+        - Ad-fraud detection pipelines
+        - Identifying unauthorized VPN usage in corporate environments
+        - Enriching IP intelligence with infrastructure-type context
+        not_intended_for:
+        - Labeling datacenter IPs as inherently malicious (the maintainer explicitly
+          notes that datacenter IPs are not necessarily harmful)
+        - Real-time or near-real-time tracking (the dataset is a static CSV; staleness
+          is inherent)
+      license: MIT License
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Copyright notice and permission notice must be included
+          in all copies or substantial portions of the Software.
+        terms: 'The MIT License permits free use, copying, modification, merging,
+          publishing, distribution, sublicensing, and selling of copies. Commercial
+          use is permitted. Attribution is required: the copyright notice and MIT
+          permission notice must be preserved in all redistributed copies or substantial
+          portions.'
+      current_status:
+        state: discontinued
+        description: The project was archived and made read-only on 2 February 2023.
+          The maintainer invited the community to fork and continue editing. As of
+          the archival date, no successor feed was announced. Active community forks
+          exist that auto-synchronize with major cloud providers.
+        successor:
+          name: growlfm/ipcat (community fork)
+          url: https://github.com/growlfm/ipcat
+        announcement_date: '2023-02-02'
+      community:
+        awards:
+        criticism: Community discussion has surfaced several recurring concerns. The
+          dataset's completeness has been questioned — a 2018 Reddit post acknowledged
+          ipcat as a usable starting point but noted it lacked full IPv4 coverage.
+          Geographic gaps for Africa, Latin America, Korea, and Japan were documented
+          as early as 2011 and remained unaddressed at archival. Multiple GitHub issues
+          reported stale or reallocated IP ranges; at least one pending pull request
+          for removing reallocated ranges (demos.ru and thorn.net) was never merged
+          before archival. The maintainer's response to false-positive reports sometimes
+          declined removal on scope-policy grounds, leaving some reporters without
+          resolution. The project went 3+ years without updates before archival, prompting
+          the community fork.
+        engagement: 'The repository has accumulated 528 stars and 131 forks on GitHub
+          (as of May 2026). Discussion is concentrated in the GitHub issue tracker
+          rather than in public forums; Reddit mentions are sparse. The project is
+          referenced in academic literature (ad-fraud detection, BotLab 2017) and
+          in podcast measurement specifications (Open Downloads / IAB). Library ports
+          exist in Ruby, PHP, Go, and Python. All 25 open GitHub issues remain unresolved
+          due to archival. Community response to the archival has been constructive:
+          at least one actively maintained fork (growlfm/ipcat) auto-synchronizes
+          with major cloud providers via GitHub Actions.'
+      sources_consulted:
+      - url: https://github.com/client9/ipcat
+        document_date: '2023-02-02'
+        validation_date: '2026-05-18'
+      - url: https://raw.githubusercontent.com/client9/ipcat/master/datacenters.csv
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://raw.githubusercontent.com/client9/ipcat/master/LICENSE
+        document_date: '2023-02-02'
+        validation_date: '2026-05-18'
+      - url: https://github.com/client9/ipcat/issues/136
+        document_date: '2018-04-25'
+        validation_date: '2026-05-18'
+      - url: https://github.com/client9/ipcat/issues/147
+        document_date: '2018-12-18'
+        validation_date: '2026-05-18'
+      - url: https://github.com/client9/ipcat/pull/155
+        document_date: '2020-05-22'
+        validation_date: '2026-05-18'
+      - url: https://upstart.chrishic.com/ipcat-updated/
+        document_date: 2022-10
+        validation_date: '2026-05-18'
+      - url: 
+          https://incolumitas.com/2022/03/09/find-out-if-an-ip-address-belongs-to-a-hosting-provider/
+        document_date: '2022-03-09'
+        validation_date: '2026-05-18'
+      - url: https://botlab.io/wp-content/uploads/2017/08/v1_anonymous_no_tags-1.pdf
+        document_date: 2017-08
+        validation_date: '2026-05-18'

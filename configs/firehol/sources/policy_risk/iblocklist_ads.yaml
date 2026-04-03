@@ -1,0 +1,174 @@
+sources:
+  iblocklist_ads:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=dgxtneitpuvgqqcpfulq&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Advertising trackers and a short list of bad/intrusive porn sites.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T05:16:21Z'
+      official_name: Ads and Trackers
+      official_url: https://www.iblocklist.com/lists
+      short_description: Advertising and tracking domains compiled by Squidblacklist
+        and distributed via iBlocklist.com, formatted for PeerBlock, PeerGuardian,
+        and compatible applications.
+      long_description: This feed publishes advertising and tracking domains under
+        the 'Ads and Trackers' category, authored by Squidblacklist and distributed
+        by iBlocklist.com. According to a surviving blog post from Squidblacklist,
+        their blacklists were produced by aggregating and refining data from open-source
+        threat intelligence sources. The primary Squidblacklist.org domain has been
+        defunct since approximately 2020 and is currently registered to an unrelated
+        party. The archived downloads page records the Ads list as containing several
+        hundred entries targeting known advertising and tracker domains. iBlocklist.com
+        distributes the feed in multiple formats (P2P, DAT, CIDR, hosts) compatible
+        with PeerBlock, PeerGuardian, Vuze, Transmission, uTorrent, Tixati, and pfBlocker.
+        The service is operated by iblocklist, LLC. The maintainer does not publish
+        a stated update cadence, a documented listing or unlisting policy, or a public
+        removal-request channel for this specific feed.
+      roles:
+      - role: maintainer
+        name: Squidblacklist
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Original author of the Ads and Trackers list. The Squidblacklist.org
+          domain has been defunct since approximately 2020 and is currently registered
+          to an unrelated party. The operator's identity is not publicly confirmed
+          beyond the project name.
+      - role: publisher
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: Distributes the feed and operates the subscription and download infrastructure.
+          Governs the Terms of Service applicable to all downstream consumers.
+      derivation:
+        type: derivative
+        description: The feed is compiled by Squidblacklist from aggregated open-source
+          threat intelligence sources, then redistributed by iBlocklist.com. Per a
+          surviving Squidblacklist blog post, the methodology is multi-source aggregation
+          and refinement of openly available feeds. Specific upstream sources are
+          not individually enumerated in surviving documentation. iBlocklist.com acts
+          as a distribution intermediary, applying format conversions for delivery.
+        source_feeds: []
+      listing_policy:
+        summary: The maintainer does not publish a documented listing policy for this
+          feed. Based on surviving documentation, entries were added through aggregation
+          of open-source threat intelligence feeds rather than primary detection or
+          manual curation.
+        criteria:
+        - Entries originate from aggregated open-source threat intelligence feeds
+        - No publicly documented minimum threshold, confidence score, or manual review
+          process
+      unlisting_policy:
+        summary: The maintainer does not publish a documented unlisting or expiry
+          policy for this feed. No automatic decay mechanism, manual review process,
+          or TTL is stated.
+        criteria:
+        - No documented automatic expiry or decay mechanism
+        - No documented manual removal request process
+      unlist_request:
+      update_frequency:
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: The feed is built by aggregating and refining entries from open-source
+          threat intelligence sources. Per a surviving Squidblacklist blog post, the
+          methodology relies on consuming existing open feeds, deduplicating overlaps,
+          and republishing in multiple formats. No primary honeypot, sandbox, or active
+          scanning is documented. The approach is classified as reputation aggregation
+          given its reliance on third-party feeds rather than first-party detection.
+      scope_and_intent:
+        description: The feed targets advertising networks and web tracking domains
+          associated with intrusive or unwanted online content. Intended for desktop
+          and network-level blocking applications.
+        intended_for:
+        - Desktop ad-blocking applications (PeerBlock, PeerGuardian)
+        - Network firewall and gateway blocking (pfBlocker, pfSense)
+        - Peer-to-peer client privacy guards (Vuze, Transmission, uTorrent, Tixati)
+        not_intended_for:
+        - Commercial deployments — the Terms of Service prohibit any commercial purpose
+          or public display
+        - Automated enterprise security pipelines — redistribution is not permitted
+      license: iBlocklist Terms of Service — personal / non-commercial use only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Downloaded materials may be used for personal use only. Redistribution,
+          commercial use, and public display (commercial or non-commercial) are prohibited
+          under the iBlocklist Terms of Service.
+      current_status:
+        state: altered_scope
+        description: iBlocklist.com remains operational as of 2026 with a copyright
+          notice for iblocklist, LLC. However, the primary author of this feed — Squidblacklist
+          — has been defunct since approximately 2020, with the squidblacklist.org
+          domain currently registered to an unrelated party. An academic survey (arXiv,
+          2026) classifies Squidblacklist as outdated or discontinued. The feed continues
+          to be distributed through the iBlocklist.com platform, but its authoring
+          source is no longer active.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: A 2020 Reddit post documented Squidblacklist incorrectly categorizing
+          a user account under a pornography category, attributed to automated username
+          pattern-matching. No resolution or official response from the Squidblacklist
+          operator was found in that case.
+        engagement: Public community discussion specific to the Ads and Trackers list
+          is sparse. The Squidblacklist.org domain is defunct, eliminating any upstream
+          community channel for this list. No notable third-party recognition or industry
+          endorsement was found for this list.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://www.iblocklist.com/support
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://squidblacklist.org/
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://forum.mikrotik.com/viewtopic.php?t=157978
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://www.reddit.com/r/pfBlockerNG/comments/iwpcs2/
+        document_date: '2020-08-21'
+        validation_date: '2026-05-19'
+      - url: https://www.reddit.com/r/PFSENSE/comments/5vqlnt/
+        document_date: '2017-02-23'
+        validation_date: '2026-05-19'
+      - url: https://www.reddit.com/r/PFSENSE/comments/4k35pa/
+        document_date: '2016-05-19'
+        validation_date: '2026-05-19'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://arxiv.org/html/2605.02982v1
+        document_date: '2026'
+        validation_date: '2026-05-19'
+      - url: https://web.archive.org/web/2024/https://www.squidblacklist.org/downloads.html
+        document_date:
+        validation_date: '2026-05-19'

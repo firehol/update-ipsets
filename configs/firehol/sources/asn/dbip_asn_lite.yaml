@@ -1,0 +1,161 @@
+sources:
+  dbip_asn_lite:
+    label: DB-IP ASN
+    url: https://download.db-ip.com/free/dbip-asn-lite-{YYYY}-{MM}.mmdb.gz
+    frequency: 43200
+    category: asn
+    info: '[DB-IP Lite ASN](https://db-ip.com/db/download/ip-to-asn-lite) — monthly
+      IP-to-ASN database released under CC BY 4.0. Free, no registration.'
+    license: CC BY 4.0
+    redistributable: true
+    attribution: IP Geolocation by DB-IP (https://db-ip.com)
+    maintainer: DB-IP
+    maintainer_url: https://db-ip.com/
+    hidden: true
+    use: [asn]
+    format: dbip_asn_lite_mmdb
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T12:49:26Z'
+      official_name: DB-IP Lite ASN
+      official_url: https://db-ip.com/db/download/ip-to-asn-lite
+      short_description: A free monthly IP-to-ASN mapping database mapping IPv4 and
+        IPv6 addresses to their associated autonomous system numbers and ISP names.
+      long_description: "DB-IP Lite ASN is a free, downloadable IP-to-ASN mapping
+        database produced by DB-IP (Eris Networks S.A.S., France) since 2010. It maps
+        IPv4 and IPv6 addresses to their associated autonomous system numbers (ASN)
+        and registered ISP names, enabling applications to identify the network operator
+        behind any IP address.\n\nThe database covers the full IPv4 and IPv6 address
+        space and is updated and released monthly. DB-IP builds its datasets from
+        BGP routing data, Whois records, regional internet registry allocations, and
+        its own ongoing research, growing to over 46 million address blocks tracked.
+        Tens of thousands of records are added or updated daily internally; the free
+        Lite edition is packaged and released on a monthly cycle.\n\nThe Lite edition
+        is explicitly described as a subset of the commercial IP-to-ISP database with
+        reduced coverage and accuracy. Per the maintainer's product page, it contains
+        approximately 463,000 records versus over 13 million in the paid version.
+        An independent accuracy benchmark published by ipapi.is (January 2026) ranked
+        DB-IP 7th of 10 providers for metropolitan-area accuracy (67.1%) and city-level
+        accuracy (41.5%), with 97.4% country-level correctness. The data is distributed
+        in MaxMind-compatible MMDB format for straightforward integration with existing
+        tooling."
+      roles:
+      - role: maintainer
+        name: Eris Networks S.A.S.
+        organization_type: commercial
+        official_url: https://db-ip.com/
+        contact_email:
+        based_in: France
+        active_since: '2010'
+        notes: French Societe par Actions Simplifiee (LLC-equivalent) operating the
+          DB-IP brand. Provides both free and commercial IP geolocation databases.
+          Contact via website form or postal mail at 62 boulevard Jean Mermoz, 22700
+          Perros-Guirec, France.
+      derivation:
+        type: original
+        description: First-party IP-to-ASN database assembled from BGP routing data,
+          Whois records, regional internet registry (RIR) allocation data, and DB-IP's
+          own ongoing research. Tens of thousands of records are added or updated
+          daily; the free Lite edition is packaged and released monthly.
+        source_feeds: []
+      listing_policy:
+        summary: Not applicable. This is a geolocation and network-intelligence database,
+          not a blocklist or threat-intelligence feed. There is no listing or removal
+          process for IP addresses — the database records whatever associations DB-IP's
+          research determines from BGP routing data, Whois records, and RIR allocations.
+        criteria: []
+      unlisting_policy:
+        summary: Not applicable. As a geolocation database recording factual network
+          registrations, there is no unlisting mechanism for IP addresses. Individual
+          data corrections (such as an IP mapped to the wrong ISP) can be submitted
+          through the general contact form.
+        criteria: []
+      unlist_request:
+      update_frequency:
+        frequency: 30d
+        human_readable: Updated and released monthly
+      detection_classification:
+        primary_method: mixed
+        secondary_methods: []
+        description: Mixed-method assembly drawing on BGP routing data (published
+          routing tables showing which AS paths traffic traverses), Whois records
+          (registered administrative and technical contacts for netblocks), regional
+          internet registry (RIR) allocation data (AFRINIC, APNIC, ARIN, RIPENCC,
+          LACNIC records documenting delegated address space), and DB-IP's own ongoing
+          research and data collection. The resulting database maps each IP address
+          block to its registered ISP name and ASN.
+      scope_and_intent:
+        description: Maps IP addresses to their registered autonomous system numbers
+          (ASN) and ISP names, enabling applications to identify the network operator
+          behind any IP address. Intended for any application requiring IP-to-ASN
+          lookups, including network analytics, fraud prevention, ad targeting, and
+          compliance workflows.
+        intended_for:
+        - IP-to-ASN and ISP-name lookups
+        - Network analytics and traffic segmentation
+        - Fraud prevention and risk scoring
+        - Ad targeting and audience segmentation
+        - Compliance and regulatory reporting
+        not_intended_for:
+        - Blocking or deny-listing threats (this is a mapping database, not a blocklist)
+      license: CC BY 4.0
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit DB-IP.com (https://db-ip.com) must be given.
+          For web applications, a hyperlink back to DB-IP.com must be included on
+          pages displaying or using results from the database.
+        terms: Under CC BY 4.0, you may share and adapt the material for any purpose,
+          including commercially, as long as you give appropriate credit and provide
+          a link to the license.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026. DB-IP releases monthly updates
+          to its Lite databases and continues daily internal data collection across
+          its 46-million-block dataset.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: 'Independent accuracy benchmarking places DB-IP mid-tier among
+          providers: 67.1% metropolitan-area accuracy and 41.5% city-level accuracy
+          in a January 2026 study of 1,449 residential IPs, ranking it 7th of 10 providers
+          tested. The free Lite edition carries lower coverage and accuracy than the
+          commercial version, a trade-off the maintainer discloses openly. Some community
+          members have noted that monthly update cycles lag behind competitors offering
+          daily or twice-weekly releases.'
+        engagement: Public community discussion referencing DB-IP specifically is
+          sparse. Broader IP geolocation database discussions on developer and sysadmin
+          forums acknowledge DB-IP as a credible mid-market provider, with one comparison
+          post noting DB-IP aligned with official RIPE NCC data for a contested IP
+          address. Dedicated DB-IP discussion threads, issue trackers, or fan communities
+          were not identified.
+      sources_consulted:
+      - url: https://db-ip.com/
+        document_date:
+        validation_date: '2026-05-16T12:49:26Z'
+      - url: https://db-ip.com/db/download/ip-to-asn-lite
+        document_date: '2026-02-01'
+        validation_date: '2026-05-16T12:49:26Z'
+      - url: https://db-ip.com/db/?ref=free-asn
+        document_date:
+        validation_date: '2026-05-16T12:49:26Z'
+      - url: https://download.db-ip.com/free/dbip-asn-lite-2026-05.mmdb.gz
+        document_date:
+        validation_date: '2026-05-16T12:49:26Z'
+      - url: https://db-ip.com/contact
+        document_date:
+        validation_date: '2026-05-16T12:49:26Z'
+      - url: https://db-ip.com/privacy.php
+        document_date:
+        validation_date: '2026-05-16T12:49:26Z'
+      - url: https://creativecommons.org/licenses/by/4.0/
+        document_date:
+        validation_date: '2026-05-16T12:49:26Z'
+      - url: https://ipapi.is/blog/ip-geolocation-accuracy.html
+        document_date: '2026-01-01'
+        validation_date: '2026-05-16T12:49:26Z'
+      - url: 
+          https://www.reddit.com/r/selfhosted/comments/1gb97ei/most_reliable_geo_ip_database/
+        document_date: '2024-10-01'
+        validation_date: '2026-05-16T12:49:26Z'

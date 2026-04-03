@@ -1,0 +1,185 @@
+sources:
+  misp_rapid7_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/rapid7-nt-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Rapid7 Sonar
+      non-threat scanning IPs. Informational — not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T23:19:10Z'
+      official_name: Rapid7 IP Ranges Used for Scanning
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: A MISP warninglist of IP ranges used by Rapid7 Project Sonar's
+        internet-wide scanning infrastructure, extracted from CIRCL Network Telescope
+        passive darknet observations, for recognizing and filtering false positives
+        in threat intelligence.
+      long_description: "This warninglist records IP address ranges allocated to Rapid7
+        Project Sonar — a long-running internet-wide scanning initiative that probes
+        public networks to identify exposed services, collect SSL certificates, and
+        study DNS records. Rapid7 states it operates from AWS EC2 instances across
+        multiple subnets and follows established ethical scanning practices, explicitly
+        declining to access non-public-facing systems.\n\nThe specific IP ranges in
+        this list are not identified by Rapid7 directly; instead, they are extracted
+        by CIRCL (Computer Incident Response Center Luxembourg) from passive observations
+        made by their Network Telescope. A Network Telescope monitors traffic directed
+        at unused (darknet) IP address space — traffic arriving there is inherently
+        anomalous since no legitimate services should originate it. By observing which
+        source IPs send probes to the darknet, CIRCL can identify the scanning infrastructure
+        of known participants like Rapid7 without active involvement.\n\nThe list
+        is formatted as CIDR blocks compatible with MISP's matching engine and is
+        intended for informational alerting within MISP, not for inline blocking.
+        When an analyst encounters one of these IPs in their environment, the warninglist
+        causes MISP to display an informational notice identifying the source as a
+        recognised benign scanner rather than escalating it as a potential compromise."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://github.com/MISP/misp-warninglists
+        contact_email:
+        based_in: Luxembourg
+        active_since:
+        notes: Hosts and curates the warninglists repository. Accepts contributions
+          via GitHub pull requests. Governed by the MISP community.
+      - role: source_contributor
+        name: CIRCL Luxembourg
+        organization_type: research_institution
+        official_url: https://www.circl.lu
+        contact_email: info@circl.lu
+        based_in: Luxembourg
+        active_since:
+        notes: Operates the Network Telescope that provides the passive darknet observations
+          used to identify Rapid7's scanning IP ranges. CIRCL is the national CERT
+          for Luxembourg.
+      derivation:
+        type: extraction
+        description: The list is produced by extracting Rapid7's allocated scanning
+          subnets from CIRCL's passive Network Telescope observations. CIRCL operates
+          sensors monitoring darknet (unused) IP address space; traffic arriving there
+          is anomalous by definition. By recording which source IPs probe the darknet,
+          CIRCL identifies the scanning infrastructure of known participants. The
+          resulting IP ranges are converted to CIDR notation and published as a MISP
+          warninglist. The list does not consume other IP feeds; it is a first-party
+          extraction from CIRCL's own sensor data.
+        source_feeds: []
+      listing_policy:
+        summary: IP addresses are added when CIRCL's Network Telescope passively observes
+          scanning probes originating from Rapid7's allocated scanning subnets. The
+          Network Telescope monitors darknet address space — any traffic arriving
+          there is inherently anomalous since no legitimate services should originate
+          it. Source IPs observed probing the darknet are attributed to Rapid7 Project
+          Sonar based on their known scanning characteristics and timing patterns.
+          The list records the CIDR blocks allocated to Rapid7's scanning infrastructure,
+          not individual scanning events.
+        criteria:
+        - IP address space allocated to Rapid7 Project Sonar's scanning infrastructure
+        - Identified through passive darknet observation by CIRCL Network Telescope
+        - Converted to CIDR blocks covering Rapid7's allocated scanning subnets
+      unlisting_policy:
+        summary: There is no automatic expiration or decay mechanism. Because this
+          is an informational warninglist rather than a blocklist, entries do not
+          expire on a fixed schedule. Rather, the list is updated when CIRCL re-extracts
+          the current Rapid7 scanning subnets from fresh Network Telescope observations.
+          If an IP range is no longer used by Rapid7's scanning infrastructure, it
+          will be absent from subsequent versions of the list.
+        criteria:
+        - Absence from CIRCL's most recent Network Telescope extraction
+        - Manual removal via GitHub pull request to the MISP warninglists repository
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/pull/new/main
+        email:
+        instructions: Submit a GitHub pull request to the MISP/misp-warninglists repository.
+          Delete or modify the unwanted CIDR entries from lists/rapid7-nt-scanning/list.json,
+          increment the version number, and describe the reason for the change in
+          the PR body. Per the CIRCL user guide, the standard contribution path for
+          adding, removing, or modifying entries is a fork-and-PR workflow.
+      update_frequency:
+        frequency:
+        human_readable: The maintainer does not publish a stated update interval.
+          The list is updated when CIRCL re-extracts the current Rapid7 scanning subnets
+          from fresh Network Telescope observations; the version number encodes the
+          extraction date (YYMMDDNN format).
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: "The list is built from CIRCL's Network Telescope — a passive
+          darknet observation system. CIRCL deploys sensors on darknet (unused) IP
+          address space allocated by partner organizations. Any traffic arriving at
+          these unused addresses is inherently anomalous since no legitimate services
+          should originate it. By recording which source IPs probe the darknet and
+          attributing them based on scanning characteristics and timing patterns,
+          CIRCL identifies the infrastructure of known participants including Rapid7
+          Project Sonar. This is fundamentally different from active probing: the
+          telescope listens, it does not transmit."
+      scope_and_intent:
+        description: The list identifies IP ranges used by Rapid7 Project Sonar's
+          internet-wide scanning infrastructure. Its purpose is to help analysts recognize
+          when observed IPs originate from a legitimate, non-malicious vulnerability
+          scanning campaign rather than from an adversary.
+        intended_for:
+        - Reducing false positives in threat intelligence and SIEM pipelines
+        - Informational alerting within MISP when Rapid7 scanning IPs are encountered
+        - Correlating scanning source attribution in incident investigations
+        not_intended_for:
+        - Inline network blocking or firewall deny-listing
+        - Security enforcement actions based solely on the presence of these IPs
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal (Public Domain Dedication) — no rights reserved.
+          The data may be used, copied, modified, and redistributed for any purpose,
+          including commercial purposes, without attribution requirement.
+      current_status:
+        state: active
+        description: Active. The rapid7-nt-scanning list is present in the misp-warninglists
+          repository and is refreshed through periodic CIRCL Network Telescope update
+          PRs.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion specific to this list is sparse. A GitHub search
+          for 'rapid7' across the MISP/misp-warninglists repository returned zero
+          open or closed issues mentioning the term. Maintenance touches the list
+          as part of bulk Network Telescope scanner-list updates rather than rapid7-specific
+          PRs. Broader community discussion about MISP warninglists focuses on the
+          general framework rather than individual lists.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/rapid7-nt-scanning/list.json
+        document_date: '2026-05-04'
+        validation_date: '2026-05-18T23:19:10Z'
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T23:19:10Z'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-18T23:19:10Z'
+      - url: https://www.circl.lu/projects/scanning/
+        document_date:
+        validation_date: '2026-05-18T23:19:10Z'
+      - url: https://www.circl.lu/doc/misp/warninglists/
+        document_date: '2024-10-02'
+        validation_date: '2026-05-18T23:19:10Z'
+      - url: https://github.com/MISP/misp-warninglists/pull/330
+        document_date: '2026-03-13'
+        validation_date: '2026-05-18T23:19:10Z'
+      - url: https://www.rapid7.com/research/project-sonar/
+        document_date:
+        validation_date: '2026-05-18T23:19:10Z'

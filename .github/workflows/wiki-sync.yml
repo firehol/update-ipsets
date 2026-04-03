@@ -1,0 +1,53 @@
+name: Sync docs to Wiki
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'docs/**'
+      - '.github/workflows/wiki-sync.yml'
+  workflow_dispatch:
+
+jobs:
+  sync-wiki:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout main repo
+        uses: actions/checkout@v6
+
+      - name: Checkout wiki repo
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+
+          repo_url="https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
+          git clone "$repo_url" wiki
+
+      - name: Sync docs to wiki
+        run: |
+          set -euo pipefail
+
+          # Remove old wiki content. The wiki is destination-only.
+          find wiki -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+
+          # Copy docs content to the wiki root. GitHub treats Home.md
+          # and _Sidebar.md specially.
+          cp -R docs/. wiki/
+
+      - name: Commit and push to wiki
+        run: |
+          set -euo pipefail
+
+          cd wiki
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Sync wiki from docs/ ($(date -u +%Y-%m-%d))"
+            git push origin HEAD:master
+          fi

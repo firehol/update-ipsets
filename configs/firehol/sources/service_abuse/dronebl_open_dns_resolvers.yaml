@@ -1,0 +1,166 @@
+sources:
+  dronebl_open_dns_resolvers:
+    license: DroneBL community data — software BSD-style (https://dronebl.org)
+    redistributable: true
+    url: artifact://dronebl?parts=open_dns_resolvers
+    frequency: 0
+    ipv: ipv4
+    output: netset
+    processor:
+    - $CAT_CMD
+    processor_raw: $CAT_CMD
+    category: service_abuse
+    info: '[DroneBL.org](https://dronebl.org) IPs of open DNS resolvers. It includes
+      IPs for which DroneBL responds with 12.'
+    maintainer: DroneBL.org
+    maintainer_url: https://dronebl.org
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T02:00:33Z'
+      official_name: DroneBL — Open DNS Resolver
+      official_url: https://dronebl.org
+      short_description: Realtime DNS-based blocklist identifying IPs running open
+        DNS resolvers that accept recursive queries from any internet client, enabling
+        DNS amplification abuse.
+      long_description: "This feed exposes IPs classified under DroneBL type 12 —
+        `Open DNS Resolver`. The class targets DNS servers that accept recursive DNS
+        queries from arbitrary internet clients rather than restricting queries to
+        authorised requesters. Such open resolvers are exploitable as amplifiers in
+        DNS amplification DDoS attacks, where an attacker spoofs the victim's source
+        IP and elicits large DNS responses directed at the target.\n\nListings under
+        type 12 enter via DroneBL's standard RPC2 add() submission path; contributors
+        with RPC keys report observed open-resolver IPs along with the type code.
+        The maintainer's documentation describes both automated detection (via the
+        project's contributor reporting infrastructure) and manual volunteer submissions
+        feeding the class. The wider DroneBL DNSBL is queryable as `<reversed-IP>.dnsbl.dronebl.org`;
+        an A-record response with the code 12 octet indicates an Open DNS Resolver
+        listing, which this extraction filters to."
+      roles:
+      - role: maintainer
+        name: The DroneBL Team
+        organization_type: informal_collective
+        official_url: https://dronebl.org
+        contact_email: dronebl@tomaw.net
+        based_in:
+        active_since: '2004'
+        notes: A volunteer team maintaining the DroneBL service and DNSBL zone. Per
+          the FAQ, the software was originally written and primarily maintained by
+          William Pitcock and Steve Church, with additional contributions from OUTsider
+          of ScaryNet, Nick Davey, and William Heimbigner.
+      derivation:
+        type: extraction
+        description: This feed is a filtered extraction from the full DroneBL DNSBL,
+          retaining only entries classified as type 12 (Open DNS Resolver). The full
+          DroneBL database is assembled from multiple detection channels — BOPM/HOPM
+          IRC monitoring bots submitting proxy and drone reports, volunteer-contributed
+          RPC submissions, and automated sensor systems. Entries carry a numeric threat
+          class code; type 12 denotes a DNS server that accepts recursive queries
+          from arbitrary internet clients.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed as an open DNS resolver when automated or volunteer
+          detection determines that the IP runs a DNS nameserver accepting recursive
+          queries from any internet client, not merely queries for domains the server
+          is authoritative for. Listings originate from BOPM/HOPM IRC monitoring bots,
+          volunteer RPC submissions, and automated sensor systems. The threat class
+          code assigned is 12.
+        criteria:
+        - The IP runs a DNS nameserver that accepts recursive DNS queries from arbitrary
+          internet sources
+        - Detection occurs via BOPM/HOPM IRC monitoring, volunteer RPC reports, or
+          automated sensor submissions
+        - A DroneBL RPC key is required to submit new reports
+      unlisting_policy:
+        summary: Removal requests are initiated through the DroneBL IP lookup page.
+          The request must be submitted from the listed IP itself. The request is
+          forwarded to whichever contributor or system originally reported the listing;
+          removal is granted only after the reporter approves. If the listing is not
+          resolved within approximately one week, the requester may seek assistance
+          via IRC. Some listings expire automatically if re-checked and cleared by
+          the originating reporter.
+        criteria:
+        - The requester must be the primary user of the listed IP (e.g., the ISP-assigned
+          subscriber for residential connections)
+        - The request must be submitted from the listed IP itself via the lookup page
+        - Approval is at the discretion of the original reporting contributor or system
+        - Some listings auto-expire upon re-check and clearance
+      unlist_request:
+        url: https://dronebl.org/howto.php/lookup
+        email: dronebl@tomaw.net
+        instructions: Visit the DroneBL IP lookup page and enter the listed IP address.
+          Submit the removal request from the listed IP itself. The request is forwarded
+          to the original reporting contributor for approval. If not resolved within
+          approximately one week, contact the DroneBL team via IRC (#dronebl on irc.dronebl.org)
+          or email.
+      update_frequency:
+      detection_classification:
+        primary_method: mixed
+        secondary_methods:
+        - honeypot
+        - user_submission
+        description: DroneBL uses multiple complementary detection channels. Primary
+          contributors include BOPM/HOPM IRC monitoring bots, which passively observe
+          IRC networks for clients connecting from listed IPs and can be configured
+          to submit new proxy and drone reports directly to DroneBL via RPC. Volunteers
+          with an RPC key submit reports manually. The maintainer does not publish
+          a single dominant detection method — the mixed classification reflects the
+          plural sourcing model described in the documentation.
+      scope_and_intent:
+        description: DroneBL tracks IPs exhibiting automated abusive behavior to allow
+          downstream services to preemptively block them. The Open DNS Resolver feed
+          specifically targets DNS servers exploitable for DNS amplification DDoS
+          attacks.
+        intended_for:
+        - IRC network operators blocking drones and spambots
+        - Mail server operators screening connecting clients
+        - Network operators and firewall administrators blocking abusable IPs at the
+          perimeter
+        - IDS and network routing equipment improving security posture
+        not_intended_for:
+        - Permanent blocking of end-user residential IPs — dynamic addressing means
+          listings may reflect a previous occupant of the IP address
+        - Blocking without periodic re-validation — the maintainer advises services
+          to re-check listings at scheduled intervals
+      license: DroneBL community data — software BSD-style
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: Free for both commercial and non-commercial use. Commercial users are
+          asked — but not legally required — to contribute positively to the DroneBL
+          ecosystem, for example by hosting a DNSBL mirror or configuring BOPM reporting.
+          Attribution is welcomed but not mandated.
+      current_status:
+        state: active
+        description: Active and maintained as of research time (May 2026). The DroneBL
+          service continues to operate, with the DNSBL zone at dnsbl.dronebl.org responding
+          to queries and the lookup interface accessible. The project is maintained
+          by a volunteer team.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion specific to type 12 (Open DNS Resolver)
+          is sparse. Operators tracking DNS amplification typically rely on dedicated
+          open-resolver scanners or specialist feeds rather than DroneBL's type-12
+          subset, so class-12 listings rarely surface in operator forums.
+      sources_consulted:
+      - url: https://dronebl.org
+        document_date:
+        validation_date: '2026-05-19T02:00:33Z'
+      - url: https://dronebl.org/docs/
+        document_date:
+        validation_date: '2026-05-19T02:00:33Z'
+      - url: https://dronebl.org/docs/howtouse
+        document_date:
+        validation_date: '2026-05-19T02:00:33Z'
+      - url: https://dronebl.org/docs/faq
+        document_date:
+        validation_date: '2026-05-19T02:00:33Z'
+      - url: https://dronebl.org/howto.php/lookup
+        document_date:
+        validation_date: '2026-05-19T02:00:33Z'
+      - url: https://dronebl.org/breakdown
+        document_date:
+        validation_date: '2026-05-19T02:00:33Z'

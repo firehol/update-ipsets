@@ -1,0 +1,209 @@
+sources:
+  critical_soft_cloudflare_edge:
+    license: Provider-published public IP ranges
+    redistributable: true
+    label: Cloudflare edge ranges
+    url: https://www.cloudflare.com/ips-v4
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: primary
+    info: Cloudflare-published IPv4 edge/proxy ranges. Reference feed, not a threat
+      indicator.
+    maintainer: Cloudflare
+    maintainer_url: https://www.cloudflare.com/ips/
+    enabled_by_all: true
+    use: [critical_infrastructure]
+    critical:
+      tier: soft
+      role: cdn_edge
+      source_type: authoritative_plain_text
+      source_quality: A
+      rationale: Cloudflare edge ranges host shared CDN, proxy, DNS, and security
+        services for many sites; overlap should be reviewed because broad blocking
+        can cause large collateral impact.
+
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T12:00:36Z'
+      official_name: Cloudflare IP Ranges
+      official_url: https://www.cloudflare.com/ips/
+      short_description: Cloudflare's officially published autonomous IP ranges covering
+        the company's global edge network, which delivers CDN, proxy, DNS, and security
+        services for millions of domains.
+      long_description: "Cloudflare publishes the IP address ranges allocated to and
+        announcing from its global network, available as plain-text files at cloudflare.com/ips/
+        — one list for IPv4 and one for IPv6. Together they span the address space
+        Cloudflare uses for CDN caching, HTTP(S) proxying, authoritative DNS, DDoS
+        mitigation, Web Application Firewall (WAF) processing, and other edge services.\n\
+        \nSite operators use these ranges primarily to restrict origin servers to
+        accept traffic exclusively from Cloudflare — preventing attackers from connecting
+        directly to an origin IP and bypassing the CDN layer. Security tools including
+        pfBlockerNG, CrowdSec, and firewall distributions consume these feeds to automate
+        allowlist maintenance. The ranges are also used to identify incoming connections
+        bearing Cloudflare-assigned IPs, configure WAF rules scoped to Cloudflare
+        infrastructure, and attribute traffic sources.\n\nPer the maintainer's update
+        history, changes to the ranges are infrequent — the last modification was
+        on 28 September 2023, when one IPv6 prefix was added. Earlier changes date
+        to 2017. Because these ranges host shared services for a very large number
+        of domains simultaneously, blocking them causes collateral impact across many
+        unrelated sites. The catalog classifies this feed as soft critical infrastructure
+        precisely for this reason: broad exclusion can disrupt legitimate access to
+        numerous properties at once."
+      roles:
+      - role: maintainer
+        name: Cloudflare
+        organization_type: commercial
+        official_url: https://www.cloudflare.com/
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: Cloudflare, Inc., a United States-based internet infrastructure and
+          security company, publishes and maintains these ranges as part of its public
+          documentation suite. The ranges reflect IP address space allocated to Cloudflare
+          by regional internet registries and announced from Cloudflare's own global
+          network.
+      derivation:
+        type: original
+        description: "This feed is an original publication: Cloudflare publishes the
+          IP address space the company has allocated from regional internet registries
+          and announces from its own global Anycast network. No other IP feeds contribute
+          to this list — it is the authoritative record of Cloudflare's own infrastructure
+          addressing. The ranges are available as plain text (one CIDR per line) and
+          also via the Cloudflare API."
+        source_feeds: []
+      listing_policy:
+        summary: This is not a threat intelligence feed. Entries are not listed based
+          on observed malicious activity — they are the IP address blocks that regional
+          internet registries have allocated to Cloudflare and that Cloudflare announces
+          from its own global Anycast network. An IP appears on this list simply because
+          Cloudflare uses it for edge services.
+        criteria:
+        - IP address space allocated to Cloudflare by a regional internet registry
+          (RIR)
+      unlisting_policy:
+        summary: Entries are removed when Cloudflare ceases using an IP block for
+          edge services. Per the maintainer's update history, removals occur infrequently
+          — for example, one historical range was removed in June 2017 and one larger
+          range was replaced with two smaller ranges in April 2021. There is no manual
+          delisting mechanism because entries are not threat indicators — they are
+          infrastructure assignments.
+        criteria:
+        - Cloudflare no longer announces the IP block from its network
+      unlist_request:
+      update_frequency:
+        frequency:
+        human_readable: Changes are infrequent; the maintainer records individual
+          update events rather than committing to a fixed schedule. The last documented
+          change was on 28 September 2023.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: "Entries are produced by administrative assignment: Cloudflare
+          allocates IP address space from regional internet registries and configures
+          its network equipment to announce those ranges from its global Anycast infrastructure.
+          There is no honeypot, sandbox, sensor network, malware analysis, or community-report
+          component. The feed is a direct enumeration of the maintainer's own infrastructure
+          addressing, maintained as a public service for site operators."
+      scope_and_intent:
+        description: The feed covers all IPv4 and IPv6 address space Cloudflare uses
+          for its edge network globally. This encompasses CDN caching edges, HTTP(S)
+          proxy (orange-clouded) connections, authoritative DNS resolvers, DDoS scrubbing
+          centers, WAF inspection points, and other Cloudflare edge services.
+        intended_for:
+        - Restricting origin servers to accept connections only from Cloudflare, preventing
+          direct origin access
+        - Configuring firewall allowlists and WAF rules scoped to Cloudflare infrastructure
+        - Identifying traffic that has passed through Cloudflare's proxy layer
+        - Attributing connection sources in server-side logging and analytics
+        not_intended_for:
+        - Blocking Cloudflare-protected sites — blocking these ranges disconnects
+          all traffic flowing through Cloudflare for every downstream domain simultaneously
+        - Threat indicator use — entries represent shared infrastructure, not observed
+          malicious actors
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: Published as publicly accessible plain text without stated redistribution
+          restrictions. Cloudflare encourages use — the page describes the data as
+          'handy' for applications and host providers and offers API access.
+      current_status:
+        state: active
+        description: Active. Maintained as of May 2026; the last documented change
+          on cloudflare.com/ips/ was on 28 September 2023. The ranges are served continuously
+          at cloudflare.com/ips-v4 and cloudflare.com/ips-v6.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "Community discussion documents several pain points. First, false
+          positive blocking: when an IP is added to Cloudflare's threat-feed blocklists,
+          the operator is effectively blocked from every Cloudflare-protected site
+          simultaneously — a cascading effect with limited recourse. Second, government
+          blocking mandates: Spanish ISPs have blocked specific Cloudflare Anycast
+          IPs pursuant to La Liga anti-piracy court orders, causing legitimate sites
+          behind Cloudflare to become unreachable for users in affected regions; Italian
+          authorities have similarly ordered ISPs to block Cloudflare IPs. Third,
+          documentation gaps: the official ranges page does not include Cloudflare
+          WARP (consumer VPN) IP ranges, which are not allocated to the CDN but are
+          used by Cloudflare's consumer product — operators who whitelist the official
+          ranges may inadvertently allow WARP traffic they did not intend to permit.
+          Fourth, support access: paid Cloudflare customers blocked by Cloudflare's
+          own systems have reported difficulty reaching support, with resolution sometimes
+          requiring direct outreach to executive contacts."
+        engagement: Discussion is active across multiple communities. The ranges are
+          consumed by firewall tools including pfBlockerNG, CrowdSec, and firewall
+          distributions for automated allowlist management — operators share updated
+          feed URLs and JSON endpoints in security and self-hosted communities. Hacker
+          News threads on Cloudflare IP blocking span 2020–2026, reflecting sustained
+          community attention to false-positive and collateral-damage issues. The
+          Spanish ISP blocking scenario (December 2025 – January 2026) generated multiple
+          concurrent reports with detailed diagnostics. The maintainer does not publish
+          a public issue tracker or community forum specifically for the IP ranges
+          page.
+      sources_consulted:
+      - url: https://www.cloudflare.com/ips/
+        document_date: '2023-09-28'
+        validation_date: '2026-05-21'
+      - url: https://www.cloudflare.com/ips-v4
+        document_date:
+        validation_date: '2026-05-21'
+      - url: https://www.cloudflare.com/ips-v6
+        document_date:
+        validation_date: '2026-05-21'
+      - url: https://www.cloudflare.com/terms
+        document_date:
+        validation_date: '2026-05-21'
+      - url: 
+          https://reddit.com/r/pfBlockerNG/comments/qdxj4f/ipv4ipv6_whitelist_feeds_for_some_popular_web/
+        document_date: '2021-10-22'
+        validation_date: '2026-05-21'
+      - url: 
+          https://reddit.com/r/CloudFlare/comments/1ravs79/spanish_isps_blocking_cloudflare_ips_188114965975/
+        document_date: 2025-12
+        validation_date: '2026-05-21'
+      - url: 
+          https://reddit.com/r/selfhosted/comments/1rm0m8x/crowdsec_catching_ips_that_cloudflare_should_have/
+        document_date: 2025-07
+        validation_date: '2026-05-21'
+      - url: https://news.ycombinator.com/item?id=40778965
+        document_date: 2024-06
+        validation_date: '2026-05-21'
+      - url: https://news.ycombinator.com/item?id=33742563
+        document_date: 2022-11
+        validation_date: '2026-05-21'
+      - url: https://news.ycombinator.com/item?id=39522226
+        document_date: 2024-02
+        validation_date: '2026-05-21'
+      - url: https://news.ycombinator.com/item?id=47738883
+        document_date: 2026-04
+        validation_date: '2026-05-21'
+      - url: https://news.ycombinator.com/item?id=44759765
+        document_date: 2024-05
+        validation_date: '2026-05-21'

@@ -1,0 +1,173 @@
+sources:
+  dronebl_irc_drones:
+    license: DroneBL community data — software BSD-style (https://dronebl.org)
+    redistributable: true
+    url: artifact://dronebl?parts=irc_drones
+    frequency: 0
+    ipv: ipv4
+    output: netset
+    processor:
+    - $CAT_CMD
+    processor_raw: $CAT_CMD
+    category: messaging_abuse
+    info: '[DroneBL.org](https://dronebl.org) List of IRC spam drones (litmus/sdbot/fyle).
+      It includes IPs for which DroneBL responds with 3.'
+    maintainer: DroneBL.org
+    maintainer_url: https://dronebl.org
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T02:31:41Z'
+      official_name: IRC spam drone (litmus/sdbot/fyle)
+      official_url: https://dronebl.org/classes
+      short_description: IP addresses detected running IRC spam bot malware (Litmus,
+        SDbot, or Fyle variants), reported by IRC network scanners and volunteer contributors.
+      long_description: "This feed exposes DroneBL's class 3 — `IRC spam drone (litmus/sdbot/fyle)`.
+        The class name lists the three IRC-bot malware families the maintainer targets
+        with this category: Litmus, SDbot, and Fyle. Historically these families were
+        used to hijack machines for relay of IRC-based spam and to coordinate other
+        automated abuse on IRC.\n\nDetection for class 3 comes from BOPM (Blitzed
+        Open Proxy Monitor) and HOPM (Hybrid Open Proxy Monitor) — IRC services modules
+        deployed by IRC network operators that examine connecting clients for known
+        behavioural signatures of these bot families. Confirmed detections are reported
+        to DroneBL via the authenticated RPC2 interface with class code 3. Volunteer
+        contributors with RPC keys can also submit confirmed drone IPs manually.\n\
+        \nPer the maintainer's FAQ, listings in this class do not auto-expire; removal
+        is initiated through the lookup page and forwarded to the contributor who
+        reported the IP for review. Operators consuming class 3 should note the maintainer's
+        caveat that the listing applies to the IP, not the device — a subsequent occupant
+        of a dynamically-assigned residential IP may inherit a class-3 listing from
+        an earlier infected occupant."
+      roles:
+      - role: maintainer
+        name: The DroneBL Team
+        organization_type: informal_collective
+        official_url: https://dronebl.org
+        contact_email: dronebl@tomaw.net
+        based_in:
+        active_since: '2006'
+        notes: A volunteer collective. Historical primary authors include William
+          Pitcock and Steve Church. Per the FAQ, the service is currently maintained
+          by a team of volunteers and contributors.
+      derivation:
+        type: extraction
+        description: This feed is an extraction from DroneBL's combined DNSBL zone,
+          retaining IPs classified under class 3 (IRC spam drone, covering Litmus,
+          SDbot, and Fyle bot families). Source detections in DroneBL come from BOPM
+          (Blitzed Open Proxy Monitor) and HOPM (Hybrid Open Proxy Monitor) IRC services
+          modules that examine connecting clients for known behavioural signatures
+          of these IRC bot families, and from contributors with RPC keys submitting
+          via XML-RPC2. The extraction filters the maintainer's own zone to class
+          3; the maintainer does not offer a bulk-download artifact for class 3 specifically
+          — direct programmatic access is via DNSBL query (`<reversed-IP>.dnsbl.dronebl.org`)
+          or the authenticated RPC2 API with lookups capped at 1,000 results per call.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed in the IRC spam drone category when DroneBL's IRC
+          network scanners (BOPM/HOPM) detect behavioral signatures characteristic
+          of Litmus, SDbot, or Fyle IRC bot malware on a connecting client, or when
+          a volunteer contributor submits a confirmed drone IP via the authenticated
+          RPC2 interface. Listings are not automatic — they require confirmation by
+          a scanner or validated submission by a contributor with an RPCKey.
+        criteria:
+        - Detection of a connecting IRC client exhibiting behavioral fingerprints
+          of Litmus, SDbot, or Fyle IRC bot malware by BOPM/HOPM scanners deployed
+          on IRC networks
+        - Validated RPC2 submission by a contributor with an RPCKey, including the
+          threat type (class 3) and a port or comment
+        - Confirmation by a DroneBL volunteer contributor before activation
+      unlisting_policy:
+        summary: Removal requires submitting a delist request from the affected IP
+          via dronebl.org/lookup. The request is forwarded to the contributor who
+          originally listed the IP and is processed manually — removal occurs only
+          after the contributor verifies the underlying issue is resolved (e.g., the
+          IRC bot malware has been cleaned or the compromised service has been secured).
+          There is no automatic expiry; IPs persist until a contributor approves the
+          removal. Processing time is variable and can extend to weeks.
+        criteria:
+        - The request must be submitted from the listed IP itself (to verify primary
+          occupancy)
+        - The underlying IRC bot infection or proxy condition must be remediated before
+          submission
+        - The original contributor must approve the removal after review
+        - No automatic time-based delisting — persistence is indefinite until manual
+          approval
+      unlist_request:
+        url: https://dronebl.org/lookup
+        email:
+        instructions: Visit dronebl.org/lookup from the affected device. The page
+          auto-populates the current IP address. Click the removal-request button
+          to submit. If the listing persists beyond a week, join the DroneBL IRC channel
+          to follow up.
+      update_frequency:
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods:
+        - user_submission
+        description: Detection relies on BOPM (Blitzed Open Proxy Monitor) and HOPM
+          (Hybrid Open Proxy Monitor) — IRC services modules deployed on IRC networks
+          that examine connecting clients. For class 3 specifically, the modules look
+          for behavioural fingerprints associated with the Litmus, SDbot, and Fyle
+          IRC-bot malware families. Detections are reported to the DroneBL RPC2 service
+          via authenticated calls with class code 3. Secondary detection comes from
+          volunteer contributors who submit confirmed drone IPs through the RPC2 interface.
+      scope_and_intent:
+        description: Per the maintainer, DroneBL's purpose is to track IP addresses
+          of devices that have engaged in automated abusive behavior, enabling network
+          operators to filter connections from known compromised or abused machines.
+          This specific feed covers only the IRC spam drone category (class 3).
+        intended_for:
+        - IRC server operators screening incoming client connections
+        - Email administrators blocking mail submission from listed IRC spam relays
+        - Network operators implementing null-route blocks for confirmed drones
+        not_intended_for:
+        - General-purpose threat intelligence unrelated to IRC bot activity
+        - Real-time detection of currently-active C2 infrastructure
+        - Replacement for broader abuse feeds covering proxy, VPN, or DDoS categories
+      license: BSD-style (permissive, exact variant unspecified)
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: Free for both commercial and non-commercial use, per the maintainer's
+          FAQ. Attribution via 'Powered by DroneBL' is welcomed but not required.
+      current_status:
+        state: active
+        description: Active. DroneBL continues to accept and serve class-3 listings
+          via the DNSBL zone and the RPC2 lookup interface; the maintainer's classes
+          page still lists `IRC spam drone (litmus/sdbot/fyle)` as class 3.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Class-3-specific public discussion is sparse. The Litmus/SDbot/Fyle
+          bot families predate most current operator memory, and class 3 is rarely
+          the subject of an operator-visible dispute in modern threads — most current
+          DroneBL discussion centres on classes covering open proxies, compromised
+          routers, and mail/DNS hostname patterns rather than IRC bot signatures from
+          earlier eras.
+        engagement: Class 3 is the original use case BOPM and HOPM were built around,
+          so it is integrated into the IRC daemon ecosystems those modules ship with
+          (Charybdis, InspIRCd, UnrealIRCd, ircd-hybrid). Public discussion specific
+          to class 3 in current forums is rare.
+      sources_consulted:
+      - url: https://dronebl.org
+        document_date:
+        validation_date: '2026-05-18T02:31:41Z'
+      - url: https://dronebl.org/docs/what
+        document_date:
+        validation_date: '2026-05-18T02:31:41Z'
+      - url: https://dronebl.org/docs/howtouse
+        document_date:
+        validation_date: '2026-05-18T02:31:41Z'
+      - url: https://dronebl.org/docs/faq
+        document_date:
+        validation_date: '2026-05-18T02:31:41Z'
+      - url: https://dronebl.org/classes
+        document_date:
+        validation_date: '2026-05-18T02:31:41Z'
+      - url: https://dronebl.org/breakdown
+        document_date:
+        validation_date: '2026-05-18T02:31:41Z'
+      - url: https://dronebl.org/blog/42
+        document_date:
+        validation_date: '2026-05-18T02:31:41Z'

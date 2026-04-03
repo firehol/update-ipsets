@@ -1,0 +1,187 @@
+sources:
+  iblocklist_yoyo_adservers:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=zhogegszwduurnvsyhdf&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: pgl.yoyo.org ad servers
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T13:13:01Z'
+      official_name: Yoyo Adservers
+      official_url: https://www.iblocklist.com/lists
+      short_description: A curated list of IP addresses associated with advertising,
+        tracking, spyware, and malware servers, maintained by manual review and weekly
+        automated DNS validation.
+      long_description: "This feed distributes IP addresses associated with advertising,
+        tracking, and related server-side technologies. The list originates from Peter
+        Lowe's pgl.yoyo.org project, which has been maintained since at least 2001.
+        Per the maintainer's documented policy, entries are added only after manual
+        review, and the full roster undergoes automated DNS validation every Friday
+        at midday UTC. Entries that fail DNS resolution are hidden immediately; those
+        that remain unreachable for six consecutive validation cycles are permanently
+        removed.\n\nThe direct upstream for this catalog entry is iBlocklist.com,
+        which repackages the Yoyo list along with dozens of other blocklists in P2P,
+        DAT, and CIDR formats compatible with PeerBlock, PeerGuardian, and similar
+        applications. iBlocklist.com's Terms of Service grant a personal-use-only
+        license and prohibit commercial use.\n\nDownstream integrators including Pi-hole,
+        AdGuard Home, CombinedPrivacyBlockLists, and Blokada incorporate the Yoyo
+        list as a primary source. The maintainer permits redistribution and mixing
+        with other lists without requiring formal attribution."
+      roles:
+      - role: publisher
+        name: iBlocklist.com
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Distributes this feed alongside approximately 40 other blocklists in
+          P2P, DAT, and CIDR formats. Acts as the direct upstream for this catalog
+          entry. Platform-wide community criticism of iBlocklist (auto-renewal billing,
+          support responsiveness, frozen-list complaints) applies at the publisher
+          level; the underlying Yoyo Adservers list on pgl.yoyo.org is not implicated
+          in those concerns and remains actively maintained by Peter Lowe.
+      - role: original_author
+        name: Peter Lowe
+        organization_type: individual
+        official_url: https://pgl.yoyo.org/adservers/
+        contact_email: pgl@yoyo.org
+        based_in:
+        active_since: '2001'
+        notes: Creates and curates the underlying Yoyo Adservers list. Reviews submissions
+          manually before adding entries. Conducts automated weekly DNS validation
+          every Friday at 12:00 UTC.
+      derivation:
+        type: partial_mirror
+        description: iBlocklist.com repackages the Yoyo Adservers list from pgl.yoyo.org
+          into P2P format for distribution through its own hosted feeds. The underlying
+          list is sourced directly from Peter Lowe's project and reformatted for PeerBlock,
+          PeerGuardian, and similar P2P-compatible applications. No additional scoring,
+          merging, or filtering is applied by iBlocklist.com.
+        source_feeds: []
+      listing_policy:
+        summary: Only apex (top-level) domains are eligible — for example, doubleclick.net
+          qualifies but ad.doubleclick.net does not. Submitted hostnames are reviewed
+          manually by the maintainer before being added. Automatically, all entries
+          undergo weekly DNS resolution checks every Friday at 12:00 UTC; entries
+          that fail lookup are hidden immediately.
+        criteria:
+        - Ad servers — servers primarily used for serving advertisements
+        - Tracking servers — servers primarily used for tracking user actions or enabling
+          tracking
+        - Malware servers — servers contacted by viruses, spyware, or other hostile
+          software
+        - Anti-adblock servers — servers used to detect or block ad-blocker technologies
+        - Spam servers — servers causing high-volume spam (added rarely)
+        - Other nasty stuff — at maintainer discretion, anything negatively impacting
+          users
+      unlisting_policy:
+        summary: 'Automatic: hostnames that fail DNS resolution are hidden from the
+          public list immediately. After six consecutive weekly failures, the entry
+          is permanently deleted from the database. Manual: send an email to the maintainer
+          with the affected hostname or IP address.'
+        criteria:
+        - 'Automatic removal: six consecutive weekly DNS lookup failures'
+        - 'Immediate hiding: any single DNS lookup failure'
+        - 'Manual request: email to the maintainer at pgl@yoyo.org'
+      unlist_request:
+        url:
+        email: pgl@yoyo.org
+        instructions: Send an email to pgl@yoyo.org with the hostname or IP address
+          to be removed and a brief explanation. The maintainer reviews requests manually.
+          Response times may extend to months per their published policy.
+      update_frequency:
+        frequency:
+        human_readable: The maintainer validates entries every Friday at 12:00 UTC.
+          Publication of additions is described as sporadic, with gaps of weeks between
+          updates.
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods:
+        - active_scanning
+        description: The list is built from user-submitted hostnames that the maintainer
+          reviews manually before adding. Separately, an automated script runs DNS
+          resolution checks against all existing entries every Friday at 12:00 UTC
+          — entries that resolve to a different address than expected are flagged
+          for review, and entries that fail completely for six consecutive cycles
+          are removed. This combines a human-curation gate (user submissions) with
+          active DNS probing (weekly automated validation).
+      scope_and_intent:
+        description: Blocks advertising, tracking, spyware, and malware server infrastructure
+          at the network or endpoint level by redirecting blocked hostnames to localhost
+          or returning NXDOMAIN responses.
+        intended_for:
+        - Network-level ad and tracker blocking via DNS sinkholing
+        - Endpoint-level ad blocking via hosts file or browser extension
+        - Integration into privacy-focused blocklist aggregators
+        not_intended_for:
+        - Email security or SMTP sender filtering
+        - Threat intelligence or C2 detection
+        - Commercial deployment under iBlocklist.com's personal-use-only license
+      license: iBlocklist.com Terms of Service — personal use only, commercial use
+        prohibited
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: iBlocklist.com's Terms of Service prohibit redistribution in any form
+          — commercial or non-commercial, public or private. The license is explicitly
+          non-transferable.
+      current_status:
+        state: active
+        description: Listed as actively maintained on iBlocklist.com as of May 2026.
+          The underlying Yoyo Adservers list on pgl.yoyo.org was last validated on
+          15 May 2026.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "Feed-specific criticism of this redistribution channel concerns
+          whether the iBlocklist copy reflects the upstream's Friday validation cycles
+          in a timely way. Where this matters: the Yoyo project explicitly relies
+          on weekly DNS-based pruning to remove dead entries, so a stale iBlocklist
+          copy can carry hostnames whose IPs have already been reclaimed by unrelated
+          parties — increasing false-positive risk against the upstream's own quality
+          controls. The underlying Yoyo Adservers list on pgl.yoyo.org is itself actively
+          maintained and the criticism applies to this redistribution layer, not the
+          original source."
+        engagement: The Yoyo Adservers list is incorporated as a primary source by
+          multiple downstream privacy projects including Pi-hole, AdGuard Home, CombinedPrivacyBlockLists,
+          Blokada, and Avast Adblock. Community discussion about this iBlocklist redistribution
+          of the list specifically is sparse; the broader privacy-blocklist conversation
+          typically references Peter Lowe's pgl.yoyo.org directly as the canonical
+          source.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://pgl.yoyo.org/adservers/
+        document_date: '2026-05-15'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://pgl.yoyo.org/adservers/policy.php
+        document_date: '2026-05-15'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date: '2016-08-01'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.trustpilot.com/review/www.iblocklist.com
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

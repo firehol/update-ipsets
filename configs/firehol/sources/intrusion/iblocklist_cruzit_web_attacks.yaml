@@ -1,0 +1,180 @@
+sources:
+  iblocklist_cruzit_web_attacks:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=czvaehmjpsnwwttrdoyl&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: intrusion
+    provenance: secondary_upstream
+    info: CruzIT IP list with individual IP addresses of compromised machines scanning
+      for vulnerabilities and DDOS attacks.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T22:13:44Z'
+      official_name: CruzIT web attacks
+      official_url: https://www.iblocklist.com/list?list=czvaehmjpsnwwttrdoyl
+      short_description: Individual IP addresses of compromised machines identified
+        conducting vulnerability scans and DDoS attacks, sourced from honeypot and
+        darknet telescope detection.
+      long_description: "The CruzIT web attacks list tracked individual IP addresses
+        of compromised machines identified conducting automated vulnerability scans
+        and DDoS attacks. The list was sourced from honeypot and darknet telescope
+        infrastructure operated by CruzIT, which detected scanning signatures and
+        attack traffic patterns over time.\n\nCruzIT maintained the list for over
+        two decades. On May 31, 2024, CruzIT announced permanent discontinuation,
+        stating on the cruzit.com homepage: 'This list is going offline very soon.
+        Over 20 years and almost no donations or help, the list cannot be maintained
+        any longer.' The original cruzit.com domain is now inactive (evidence_id 6).
+        Archived copies continue to circulate through mirrors including iBlocklist.com
+        and CrowdSec, but these mirrors contain the last published dataset from September
+        2023 and are not actively updated from a live source.\n\nPer the iBlocklist.com
+        Terms of Service, the list is licensed for personal, non-commercial use only.
+        Commercial deployment is not permitted under these terms."
+      roles:
+      - role: original_author
+        name: CruzIT
+        organization_type: individual
+        official_url: https://www.cruzit.com
+        contact_email:
+        based_in:
+        active_since: '2003'
+        notes: Created and maintained the web attacks list for over 20 years. Domain
+          cruzit.com is now inactive as of May 2024.
+      - role: publisher
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: Distributes the CruzIT web attacks list via iblocklist.com in P2P blocklist
+          format. Operates under iBlocklist Terms of Service restricting use to personal,
+          non-commercial purposes.
+      derivation:
+        type: derivative
+        description: iBlocklist.com republished the CruzIT web attacks list in P2P
+          blocklist format. The original detection infrastructure was CruzIT's own
+          honeypot and darknet telescope network, which passively observed scanning
+          and attack traffic targeting internet-exposed services. iBlocklist.com distributed
+          the resulting IP list without applying additional scoring or filtering.
+        source_feeds: []
+      listing_policy:
+        summary: IPs were listed when CruzIT's detection infrastructure identified
+          a machine as compromised and participating in automated vulnerability scanning
+          or DDoS attack activity. The specific detection thresholds and observation
+          windows were not publicly documented by CruzIT.
+        criteria:
+        - Machine identified as compromised by CruzIT's honeypot or darknet telescope
+          sensors
+        - Observed conducting automated vulnerability scanning against internet-exposed
+          services
+        - Participating in or relaying DDoS attack traffic
+      unlisting_policy:
+        summary: No documented unlisting policy was found for the CruzIT web attacks
+          list. Removal requests submitted through iBlocklist.com's general support
+          channel have no published SLA or guaranteed response.
+        criteria:
+        - 'Automatic expiration: not documented'
+        - 'Manual removal: no dedicated process found; general iblocklist.com support
+          form is the only identified channel'
+      unlist_request:
+        url: https://www.iblocklist.com/support.php
+        email:
+        instructions: Submit a request through the iBlocklist.com support web form
+          at https://www.iblocklist.com/support.php. No direct email address or published
+          SLA is available for removal requests. Responses are not guaranteed.
+      update_frequency:
+        frequency: 12h
+        human_readable: Historically updated every 12 hours, per archived mirror metadata
+          reflecting the maintainer's stated cadence.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods:
+        - network_telescope
+        description: The list was built from CruzIT's honeypot and darknet telescope
+          sensor infrastructure. Honeypots are intentionally vulnerable services deployed
+          to attract and log automated scanning and exploitation attempts. Darknet
+          telescopes observe unused IP address space (darknet) to capture attack probe
+          traffic directed at non-existent addresses. Compromised machines identified
+          through these sensors were listed by IP address.
+      scope_and_intent:
+        description: The CruzIT web attacks list tracked individual IP addresses of
+          compromised machines conducting automated vulnerability scans and DDoS attacks.
+          Entries were individual IPv4 addresses representing hosts that CruzIT's
+          sensors identified as compromised and participating in malicious scanning
+          or attack activity.
+        intended_for:
+        - Blocking automated vulnerability scanning traffic at the network perimeter
+        - Enriching security logs with context about scanning source IPs
+        - Personal use for home network or small-office protection
+        not_intended_for:
+        - Commercial deployments of any kind
+        - High-precision blocking where false positives are unacceptable — all IP
+          blocklists suffer from false positives caused by dynamic IP address reuse
+        - Legal or regulatory compliance purposes
+      license: iBlocklist Terms of Service — personal use only, no commercial use
+        permitted
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: iBlocklist.com Terms of Service prohibit redistribution for commercial
+          or public display purposes. Personal use within a household is permitted;
+          sharing outside the immediate household or for commercial purposes is not
+          permitted.
+      current_status:
+        state: discontinued
+        description: "The CruzIT web attacks list was permanently discontinued on
+          May 31, 2024. CruzIT announced on cruzit.com: 'This list is going offline
+          very soon. Over 20 years and almost no donations or help, the list cannot
+          be maintained any longer.' The original cruzit.com domain is now inactive.
+          Mirrors continue to circulate archived data, but no active source updates
+          are being published."
+        successor:
+        announcement_date: '2024-05-31'
+      community:
+        awards:
+        criticism: 'The CruzIT list attracted historical reliability concerns from
+          network administrators. A 2016 discussion on the Netgate forum questioned
+          whether the iblocklist.com service was active or trustworthy. The list suffered
+          from the inherent false-positive challenge common to all IP blocklists:
+          dynamic IP address reuse means that IPs released by attackers and reassigned
+          to legitimate users could remain blocked until the next list refresh. No
+          dedicated false-positive removal process was documented, limiting recourse
+          for affected users.'
+        engagement: Public community discussion about the CruzIT web attacks list
+          is sparse. No notable Reddit threads, security blog coverage, or independent
+          reviews were found. The CrowdSec blocklist integration for this feed shows
+          approximately 122,000 subscribers (as of research time), indicating substantial
+          automated consumption through the CrowdSec platform rather than deliberate
+          feed selection by individual operators. The list's discontinuation in May
+          2024 generated minimal public commentary, suggesting a small active user
+          base.
+      sources_consulted:
+      - url: https://www.iblocklist.com/list?list=czvaehmjpsnwwttrdoyl
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.iblocklist.com/tos.php
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://web.archive.org/web/2024*/cruzit.com
+        document_date: '2024-05-31'
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.iblocklist.com/list?list=czvaehmjpsnwwttrdoyl
+        document_date: '2023-09-23'
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://app.crowdsec.net/blocklists/65a56c0b0469607d9badb812
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.cruzit.com
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'

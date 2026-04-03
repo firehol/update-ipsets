@@ -1,0 +1,160 @@
+sources:
+  blocklist_de_sip:
+    license: public feed
+    redistributable: true
+    url: http://lists.blocklist.de/lists/sip.txt
+    frequency: 15
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: service_abuse
+    info: '[Blocklist.de](https://www.blocklist.de/) All IP addresses that tried to
+      login in a SIP, VOIP or Asterisk Server and are included in the IPs list from
+      infiltrated.net'
+    maintainer: Blocklist.de
+    maintainer_url: https://www.blocklist.de/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T00:45:09Z'
+      official_name: Blocklist.de SIP/VOIP/Asterisk
+      official_url: https://www.blocklist.de/en/download.html
+      short_description: IPv4 addresses observed making unauthorized login attempts
+        against SIP, VOIP, and Asterisk servers.
+      long_description: "The Blocklist.de SIP/VOIP/Asterisk feed collects IPv4 addresses
+        from which unauthorized login attempts have been observed against SIP accounts,
+        VOIP services, and Asterisk PBX servers. The maintainer's reporting taxonomy
+        covers the asterisk, voip, sip, asterisk-iptables, voip-voip, asterisk-udp,
+        and recidive jail categories.\n\nReported IPs are retained internally for
+        up to 14 days from the last observed attack (each new attack resets the timer),
+        but the published sip.txt export is limited to IPs that have generated an
+        attack within the preceding 48 hours. For the broader Blocklist.de reporter-network
+        model, the X-ARF abuse-reporting pipeline, the infiltrated.net contribution
+        noted on the maintainer's terms page, and the automatic data sharing with
+        stopforumspam.com and abuseipdb.com for Reg-Bot/BadBot categories, see the
+        parent `blocklist_de` feed page."
+      roles:
+      - role: maintainer
+        name: Blocklist.de
+        organization_type: individual
+        official_url: https://www.blocklist.de/
+        contact_email: webmaster@blocklist.de
+        based_in:
+        active_since:
+        notes: Described on the homepage as a 'Fraud/Abuse-specialist' operating the
+          service voluntarily. No individual name is published.
+      derivation:
+        type: original
+        description: "The feed is built from two sources: (1) the maintainer's own
+          sensor and reporting infrastructure — registered users submit attack logfiles
+          via the blocklist.de web interface, which are processed automatically and
+          correlated across submissions, and (2) data contributed by the infiltrated.net
+          network. Per the terms page, data classified as 'Reg-Bot' or 'BadBot' is
+          also forwarded automatically to stopforumspam.com and abuseipdb.com. The
+          export list for this feed is limited to IPs with at least one logged attack
+          in the preceding 48 hours."
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when the maintainer's reporting infrastructure detects
+          an unauthorized login attempt against a SIP account, VOIP service, or Asterisk
+          server submitted by a registered reporter. Per the terms page, the IP address
+          of the attacker is displayed publicly for up to 14 days; each new attack
+          from the same IP resets the 14-day counter. The export list (sip.txt) is
+          limited to IPs with at least one logged attack in the preceding 48 hours.
+        criteria:
+        - Observed unauthorized login attempt against SIP, VOIP, or Asterisk server
+        - Attack report submitted by a registered blocklist.de user with accompanying
+          logfile evidence
+        - Submission passes automated format validation (correct return-path, required
+          fields present)
+      unlisting_policy:
+        summary: Listings expire automatically after 14 days of no further detected
+          attacks from the same IP; each new attack resets the timer. Manual unlisting
+          is available at any time upon request, contingent on the security risk having
+          been remediated (removal of malware, securing of scripts/web servers, or
+          disabling of the IP).
+        criteria:
+        - Automatic expiry after 14 consecutive days without a new attack report
+        - Manual unlisting available upon request after remediation of the security
+          issue
+      unlist_request:
+        url: https://www.blocklist.de/en/contact.html
+        email: webmaster@blocklist.de
+        instructions: Submit a whitelist request through the contact form at blocklist.de/en/contact.html.
+          Enter the IP address in the 'IP (Mailserver)' field. The maintainer notes
+          that Gmail addresses should not be used for sender address, as Gmail rejects
+          DKIM-signed replies from blocklist.de's abuse-reporting infrastructure.
+      update_frequency:
+        frequency:
+        human_readable: Attacks are reported and processed in near-real time; the
+          maintainer reports more than 70,000 attacks every 12 hours across all monitored
+          services. The export list for this feed is limited to IPs with at least
+          one logged attack in the preceding 48 hours.
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods: []
+        description: Detection is driven by user-submitted attack reports. Registered
+          blocklist.de reporters submit logfiles via a web interface; submissions
+          are validated automatically (return-path check, required fields) and correlated
+          across the network. The maintainer also receives contributions from the
+          infiltrated.net sensor network. This is a user-submission model, not a honeypot
+          or active-scan model.
+      scope_and_intent:
+        description: The feed is scoped to IPs observed making unauthorized login
+          attempts against SIP, VOIP, and Asterisk servers. It is part of a family
+          of attack-report feeds covering SSH, mail, FTP, web, MySQL, and other services.
+        intended_for:
+        - Blocking SIP/VOIP/Asterisk brute-force and unauthorized login sources at
+          the network perimeter
+        - Feeding intrusion-detection and fail2ban systems targeting telephony infrastructure
+        not_intended_for:
+        - General-purpose internet blocking unrelated to telephony services
+        - As sole mitigation for SIP fraud — intended as one layer in a defense-in-depth
+          strategy
+      license: public feed
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: Free for personal and commercial use as a reporter; no formal redistribution
+          license is stated. Large-volume downloads are excluded from the free tier.
+      current_status:
+        state: active
+        description: Active and maintained. The Blocklist.de website is reachable,
+          the contact form is operational, and the maintainer continues to serve the
+          sip.txt file from lists.blocklist.de.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: No discussion specifically about the sip.txt variant was identified
+          in the surveyed Reddit threads or operator forums; no false-positive incident
+          reports for the SIP feed specifically were found. Maintainer-wide integration
+          signal (Blocklist.de feeds appearing as standard options in pfBlockerNG
+          and OPNsense, Fail2Ban automation) is recorded on the parent `blocklist_de`
+          feed page and is not duplicated here.
+      sources_consulted:
+      - url: https://www.blocklist.de/
+        document_date:
+        validation_date: '2026-05-19T00:40:00Z'
+      - url: https://www.blocklist.de/en/terms.html
+        document_date:
+        validation_date: '2026-05-19T00:41:00Z'
+      - url: https://www.blocklist.de/en/download.html
+        document_date:
+        validation_date: '2026-05-19T00:42:00Z'
+      - url: https://www.blocklist.de/en/contact.html
+        document_date:
+        validation_date: '2026-05-19T00:43:00Z'
+      - url: https://lists.blocklist.de/lists/sip.txt
+        document_date:
+        validation_date: '2026-05-19T00:44:00Z'
+      - url: https://reddit.com/r/PFSENSE/comments/1o5jf64/
+        document_date: '2025-06-17'
+        validation_date: '2026-05-19T00:44:00Z'
+      - url: https://reddit.com/r/selfhosted/comments/1pbijys/
+        document_date: '2025-07-01'
+        validation_date: '2026-05-19T00:44:00Z'

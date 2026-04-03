@@ -1,0 +1,198 @@
+sources:
+  blocklist_de_bots:
+    license: public feed
+    redistributable: true
+    url: http://lists.blocklist.de/lists/bots.txt
+    frequency: 15
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been
+      reported within the last 48 hours as having run attacks on the RFI-Attacks,
+      REG-Bots, IRC-Bots or BadBots (BadBots = it has posted a Spam-Comment on a open
+      Forum or Wiki).'
+    maintainer: Blocklist.de
+    maintainer_url: https://www.blocklist.de/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T20:14:32Z'
+      official_name: blocklist.de bots
+      official_url: https://www.blocklist.de/en/export.html
+      short_description: IP addresses reported within the last 48 hours as having
+        run RFI attacks, REG-Bots, IRC-Bots, or BadBots (spam-comments on open forums
+        or wikis), sourced from Fail2Ban and DenyHost reports submitted by the service's
+        partner network.
+      long_description: "The bots.txt feed aggregates IPs associated with four categories
+        of automated abuse that the Blocklist.de partner network has reported in the
+        preceding 48-hour window: RFI (Remote File Inclusion) attacks targeting web
+        applications, REG-Bots attempting fraudulent registrations, IRC-Bots participating
+        in IRC-based botnets, and BadBots posting spam-comments on open forums or
+        wikis. All listings expire automatically after 48 hours from the last observed
+        attack; each new attack from the same IP resets the timer.\n\nPer the maintainer's
+        export page, the feed file is regenerated every 30 minutes and distributed
+        as plain text with an MD5 checksum, provided 'as-is, to be used at your own
+        risk.' For the shared Blocklist.de sensor-network model, X-ARF reporting pipeline,
+        whitelist cross-checks (dnswl.org, spamhauswhitelist.org, torproject.org),
+        and the maintainer's broader mission, see the parent `blocklist_de` feed page."
+      roles:
+      - role: maintainer
+        name: Martin Schiftan
+        organization_type: individual
+        official_url: https://www.blocklist.de/
+        contact_email: webmaster@blocklist.de
+        based_in:
+        active_since: '2007'
+        notes: Describes himself as a fraud and abuse specialist. Operates the service
+          voluntarily, collecting attack reports from his own servers and those of
+          registered partners, and routing abuse reports to ISPs via WHOIS, RIPE Abuse-Finder,
+          and abusix.com.
+      derivation:
+        type: original
+        description: The feed is built from Fail2Ban and DenyHost attack reports submitted
+          by the service's own servers and over 2,710 registered partner servers.
+          Incoming reports are validated for a valid Return-Path address, log file
+          presence, and correct service designation — invalid submissions receive
+          an automated error reply. Validated IPs are cross-checked against whitelists
+          from dnswl.org and spamhauswhitelist.org, and Tor exit node IPs from torproject.org
+          are separately excluded. The bots.txt feed isolates IPs reported under the
+          RFI-Attacks, REG-Bots, IRC-Bots, and BadBots jail categories. All listed
+          IPs expire automatically after 48 hours from the last observed attack; each
+          new attack resets the timer. The feed regenerates every 30 minutes and is
+          distributed as plain text with MD5 checksums. No external IP feeds are consumed
+          as inputs — the data originates entirely from the partner-report network.
+        source_feeds: []
+      listing_policy:
+        summary: 'An IP is listed when a partner server running Fail2Ban or DenyHost
+          submits a validated attack report under one of four jail categories: RFI-Attacks
+          (Remote File Inclusion attempts), REG-Bots (automated registration bots),
+          IRC-Bots (IRC-based botnet clients), or BadBots (posting spam-comments on
+          open forums or wikis). Incoming reports must include a valid Return-Path
+          address, log files, and a correct service designation — submissions failing
+          these checks receive an automated error reply. Reported IPs are cross-checked
+          against whitelists from dnswl.org and spamhauswhitelist.org to reduce false
+          positives. Tor exit node IPs from torproject.org are separately excluded.
+          Users can also define per-server IP whitelists to prevent their own infrastructure
+          from being reported.'
+        criteria:
+        - A partner server must be running Fail2Ban or DenyHost and submit a report
+          in X-ARF format
+        - The submission must include a valid Return-Path/From address
+        - The submission must include log files documenting the attack
+        - The submission must specify the correct service designation
+        - The IP must not appear on dnswl.org or spamhauswhitelist.org whitelists
+        - The IP must not be a known Tor exit node (torproject.org blacklist is applied
+          separately)
+      unlisting_policy:
+        summary: All IPs expire automatically 48 hours after the last observed attack
+          from that IP; each new attack resets the timer. For early removal before
+          the automatic expiry, the maintainer provides a web-based delist form at
+          blocklist.de/en/delist.html where an operator can enter an IP address and
+          request deletion. The change takes effect within 60 minutes at the next
+          list regeneration cycle. The maintainer states the prerequisite that the
+          underlying problem on the server should be resolved first, though no automated
+          verification is enforced.
+        criteria:
+        - 'Automatic: IP expires 48 hours after the last observed attack (timer resets
+          on each new attack)'
+        - 'Manual: Submit IP via the web delist form at /en/delist.html — removal
+          within 60 minutes at next regeneration'
+      unlist_request:
+        url: https://www.blocklist.de/en/delist.html
+        email:
+        instructions: Enter the IP address in the single-field form on the delist
+          page and click 'Delete.' The IP is removed within 60 minutes at the next
+          list regeneration cycle. The maintainer advises resolving the underlying
+          problem on the server first, though no automated verification is enforced.
+      update_frequency:
+        frequency: 30m
+        human_readable: Lists regenerate every 30 minutes, per the maintainer's export
+          page. Individual IPs expire automatically 48 hours after the last observed
+          attack.
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods: []
+        description: "The feed is built entirely from attack reports submitted by
+          the service's partner network. Partner servers run Fail2Ban or DenyHost
+          and submit reports in X-ARF (Extended Abuse Reporting Format) to blocklist.de.
+          Submitted reports are validated for a valid Return-Path address, log file
+          presence, and correct service designation before the IP is listed. Cross-checks
+          against dnswl.org and spamhauswhitelist.org whitelists are applied to reduce
+          false positives. Tor exit node IPs are separately excluded. This is a community-report
+          model: the accuracy of the feed depends on the diligence of the submitting
+          partners and the effectiveness of the whitelist filters."
+      scope_and_intent:
+        description: 'The bots.txt feed tracks four categories of automated abuse:
+          RFI (Remote File Inclusion) attacks targeting web applications, REG-Bots
+          attempting fraudulent registrations on websites, IRC-Bots participating
+          in IRC-based botnets, and BadBots posting spam-comments on open forums or
+          wikis. The parent service spans over 40 attack types across SSH, mail, FTP,
+          IMAP/POP3, SIP/VoIP, web attacks, brute-force logins, and MySQL authentication.'
+        intended_for:
+        - Edge firewall blocking — rejecting connections from IPs associated with
+          automated web abuse, botnet recruitment, and forum spam
+        - Fail2Ban and DenyHost integration — feeding blocklists into partner security
+          tooling
+        - ISP abuse notification — the service routes abuse reports to responsible
+          providers so they can disable infected hosts
+        - Security operations — correlating automated abuse signatures across multiple
+          sources
+        not_intended_for:
+        - Email filtering — the service explicitly states it does not block emails
+          or requests, and third-party administrators bear sole responsibility for
+          any rejections they configure
+        - Long-term blocking — IPs expire after 48 hours by design; the strongips.txt
+          feed exists separately for persistent heavy attackers
+        - Guaranteed blocking — data is provided 'as-is, to be used at your own risk'
+      license: public feed
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: No redistribution restriction is stated. Data is provided 'as-is, to
+          be used at your own risk,' with no warranty or guarantee. The maintainer
+          disclaims responsibility for any rejections third parties configure based
+          on the feed.
+      current_status:
+        state: active
+        description: The service is maintained as of 2026. The homepage copyright
+          reads 'Martin Schiftan -2024.' The export page documents the feed with current
+          MD5 checksums. The service continues to accept new partner registrations
+          and route abuse reports. No discontinuation announcement has been found.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: A documented incident involved a Google Cloud IP being falsely
+          listed as a BadBot — investigation revealed the instance had been recruited
+          into a botnet, making the listing legitimate. No widespread or unresolved
+          false-positive complaints were found in the searched corpus. The service's
+          reliance on partner-submitted Fail2Ban reports means listing accuracy depends
+          on reporter diligence; the maintainer mitigates this with dnswl.org and
+          spamhauswhitelist.org whitelist cross-checks.
+        engagement: Public discussion is sparse. The service is referenced in operational
+          security contexts — documented integrations include Python scripts pulling
+          the feed into iptables, OPNsense firewall configurations, and bidirectional
+          Fail2Ban workflows. Reddit discussions spanning 2016–2025 show consistent
+          operational use with no systematic complaints about the removal process.
+          The service is consumed by stopforumspam.com and abuseipdb.com via automatic
+          downstream sharing.
+      sources_consulted:
+      - url: https://www.blocklist.de/
+        document_date: '2024'
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.blocklist.de/en/export.html
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.blocklist.de/en/delist.html
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.blocklist.de/en/rbldns.html
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: http://lists.blocklist.de/
+        document_date: '2023-06-12'
+        validation_date: '2026-05-17T00:00:00Z'

@@ -1,0 +1,191 @@
+sources:
+  netmountains_curated:
+    license: public feed
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/NETMOUNTAINS/Curated-IP-Blocklist/main/ip-blacklist.list
+    frequency: 30
+    ipv: ipv4
+    output: netset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[NETMOUNTAINS/Curated-IP-Blocklist](https://github.com/NETMOUNTAINS/Curated-IP-Blocklist)
+      curated list of attacker IPs and CIDR ranges (mix of /32 and larger blocks).
+      ~88K entries, refreshed daily.'
+    maintainer: NETMOUNTAINS
+    maintainer_url: https://github.com/NETMOUNTAINS/Curated-IP-Blocklist
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T21:44:09Z'
+      official_name: NETMOUNTAINS® Curated IPv4 Blocklist
+      official_url: https://github.com/NETMOUNTAINS/Curated-IP-Blocklist
+      short_description: A curated IPv4 blocklist compiled from multiple threat-intelligence
+        sources, updated every 30 minutes with false-positive filtering applied.
+      long_description: "NETMOUNTAINS Curated IPv4 Blocklist is a threat-intelligence
+        resource that aggregates malicious IPv4 addresses from multiple detection
+        engines. The Combinator engine downloads and merges various publicly available
+        blocklists. The ASN-Blocker engine flags entire autonomous system numbers
+        (ASNs) with a consistently poor reputation track record. The Honeypot engine
+        captures attacking IPs observed by IDS/IPS sensors deployed in NETMOUNTAINS
+        datacenters. An FP-Filter removes false positives by excluding known-good
+        IP ranges belonging to major cloud and internet companies. A manual Whitelist
+        process handles false-positive reports submitted to the datacenter team.\n\
+        \nThe list is actively monitored: regenerated automatically every 30 minutes
+        and reviewed manually each day for additions and removals. Two file variants
+        are published — a granular list containing individual IPs and CIDR blocks
+        of varying sizes, and a /24-prefix-only variant for environments that prefer
+        uniform block sizes. The maintainer offers an unlisting channel via email
+        for operators whose IPs are incorrectly listed."
+      roles:
+      - role: maintainer
+        name: NETMOUNTAINS® Group GmbH
+        organization_type: commercial
+        official_url: https://github.com/NETMOUNTAINS
+        contact_email: datacenter@netmountains.de
+        based_in: Germany
+        active_since: '2017'
+        notes: German IT services company operating Tier III/IV datacenters across
+          Germany. Operates ASN AS57575. Founded by Alexander Hanke and Stephan Reugels,
+          headquartered in Velbert, North Rhine-Westphalia.
+      derivation:
+        type: aggregate_merge
+        description: "Aggregates malicious IPs from four detection pipelines: (1)
+          a Combinator engine that downloads and merges multiple publicly available
+          blocklists, (2) an ASN-Blocker engine that flags IPs belonging to ASNs with
+          consistently poor reputations, (3) a Honeypot engine that captures attacking
+          IPs observed by IDS/IPS sensors in NETMOUNTAINS datacenters, and (4) a manual
+          whitelist process for false-positive reports. The outputs are deduplicated,
+          filtered through an FP-Filter that excludes known-good IP ranges from major
+          companies, and published as two file variants — a granular list and a /24-prefix-only
+          list. The Combinator sources are not enumerated in the maintainer's documentation."
+        source_feeds: []
+      listing_policy:
+        summary: IPs are listed through three automated detection pipelines. The Combinator
+          engine adds IPs found in upstream public blocklists. The ASN-Blocker engine
+          adds all IPs belonging to an autonomous system number (ASN) that has accumulated
+          a sufficiently poor reputation — this can result in broad CIDR blocks covering
+          thousands of IPs from a single AS. The Honeypot engine adds IPs observed
+          attacking IDS/IPS sensors in NETMOUNTAINS datacenters. An FP-Filter then
+          removes IPs belonging to known-good ASNs from major cloud and internet companies
+          to reduce false positives.
+        criteria:
+        - Present in one or more upstream public blocklists (Combinator engine)
+        - Belongs to an ASN with a consistently poor reputation track record (ASN-Blocker
+          engine — may cover entire ASN ranges)
+        - Observed attacking IDS/IPS sensors in NETMOUNTAINS datacenters (Honeypot
+          engine)
+      unlisting_policy:
+        summary: Operators whose IPs are incorrectly listed can submit a removal request
+          by email to the datacenter team. Requests are reviewed manually, and confirmed
+          false positives are removed via the whitelist file. The maintainer states
+          they will explain the listing reason upon request.
+        criteria:
+        - Submit removal request by email to datacenter@netmountains.de
+        - Provide the affected IP or CIDR range
+        - Await manual review and whitelist addition by the datacenter team
+      unlist_request:
+        url:
+        email: datacenter@netmountains.de
+        instructions: Send an email to datacenter@netmountains.de specifying the IP
+          address or CIDR range that should be investigated or removed. The datacenter
+          team reviews requests manually and adds confirmed false positives to the
+          whitelist file.
+      update_frequency:
+        frequency: 30m
+        human_readable: Regenerated automatically every 30 minutes; manually reviewed
+          daily for additions and removals
+      detection_classification:
+        primary_method: mixed
+        secondary_methods:
+        - honeypot
+        - reputation_aggregation
+        description: The feed uses three distinct detection approaches simultaneously.
+          The Combinator engine aggregates IPs from multiple upstream public blocklists
+          (reputation aggregation). The ASN-Blocker engine flags IPs based on the
+          reputation of their originating autonomous system number (also reputation
+          aggregation). The Honeypot engine captures attacking IPs observed by IDS/IPS
+          sensors in NETMOUNTAINS datacenters (honeypot detection). An FP-Filter then
+          removes known-good IP ranges from major companies. Because the majority
+          of listed IPs originate from the Combinator and ASN-Blocker engines rather
+          than first-party sensors, the primary method is classified as reputation
+          aggregation with honeypot as a secondary contributor.
+      scope_and_intent:
+        description: A firewall and intrusion-prevention blocklist for network operators
+          who want to block known-malicious IPv4 addresses at the network perimeter.
+        intended_for:
+        - Edge firewall blocklist (dropping inbound connections from listed IPs)
+        - IDS/IPS enhancement (correlating alerts against known-bad sources)
+        - Bunny CDN Shield Access Lists (integrated threat feed)
+        not_intended_for:
+        - IPv6-only networks (feed is IPv4 only)
+        - Legal or law-enforcement purposes (maintainer disclaims responsibility for
+          misuse)
+        - As sole threat-intelligence source (recommended as one input among several)
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: The direct upstream is publicly available on GitHub with no stated
+          redistribution restriction. The README contains only a warranty disclaimer.
+          Operators redistributing the feed should note that the underlying Combinator
+          sources are unnamed, and some of those upstreams may carry their own redistribution
+          restrictions.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026. The blocklist regenerates
+          every 30 minutes and is manually reviewed daily. The GitHub repository received
+          a push on May 16, 2026.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Sparse public discussion. The GitHub repository has zero open
+          and zero closed issues, seven stars, and no forks (as of May 2026). No Reddit
+          mentions, forum threads, or third-party blog posts discussing the blocklist
+          service were found. The feed is integrated into the Bunny CDN Shield Access
+          Lists at the Advanced tier alongside other public threat feeds, and is listed
+          in the public FilterLists directory. The maintainer's Trustpilot presence
+          (4.3/5, seven reviews) covers their broader datacenter services rather than
+          the blocklist specifically. The absence of public issue trackers suggests
+          either a small user base or effective bilateral resolution of complaints
+          via the direct email channel.
+      sources_consulted:
+      - url: https://github.com/NETMOUNTAINS/Curated-IP-Blocklist
+        document_date: '2026-05-16'
+        validation_date: '2026-05-16T21:30:00Z'
+      - url: 
+          https://raw.githubusercontent.com/NETMOUNTAINS/Curated-IP-Blocklist/main/README.md
+        document_date:
+        validation_date: '2026-05-16T21:30:00Z'
+      - url: 
+          https://raw.githubusercontent.com/NETMOUNTAINS/Curated-IP-Blocklist/main/ip-blacklist.list
+        document_date:
+        validation_date: '2026-05-16T21:30:00Z'
+      - url: 
+          https://raw.githubusercontent.com/NETMOUNTAINS/Curated-IP-Blocklist/main/ip-whitelist.list
+        document_date:
+        validation_date: '2026-05-16T21:30:00Z'
+      - url: https://github.com/NETMOUNTAINS/Curated-IP-Blocklist/issues
+        document_date:
+        validation_date: '2026-05-16T21:30:00Z'
+      - url: https://docs.bunny.net/shield/access-lists
+        document_date:
+        validation_date: '2026-05-16T21:30:00Z'
+      - url: https://de.trustpilot.com/review/netmountains.de
+        document_date:
+        validation_date: '2026-05-16T21:30:00Z'
+      - url: https://github.com/collinbarrett/FilterLists/issues/4078
+        document_date:
+        validation_date: '2026-05-16T21:30:00Z'
+      - url: https://www.peeringdb.com/asn/57575
+        document_date:
+        validation_date: '2026-05-16T21:30:00Z'
+      - url: https://webwhois.denic.de/?lang=en&query=netmountains.de
+        document_date:
+        validation_date: '2026-05-16T21:30:00Z'

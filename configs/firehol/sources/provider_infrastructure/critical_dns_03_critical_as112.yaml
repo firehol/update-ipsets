@@ -1,0 +1,118 @@
+sources:
+  critical_as112:
+    license: Public RFC references (RFC 7534 and RFC 7535)
+    redistributable: false
+    label: AS112 DNS sink infrastructure
+    static:
+    - 192.175.48.0/24
+    - 192.31.196.0/24
+    frequency: 0
+    ipv: ipv4
+    output: netset
+    processor:
+    - passthrough
+    processor_raw: passthrough
+    category: provider_infrastructure
+    provenance: primary
+    info: Curated IPv4 service prefixes for AS112 nameserver operations documented
+      in RFC 7534 and RFC 7535. Reference feed, not a threat indicator.
+    maintainer: FireHOL
+    maintainer_url: https://iplists.firehol.org/
+    enabled_by_all: true
+    use: [critical_infrastructure]
+    critical:
+      tier: hard
+      role: dns_sink_infrastructure
+      source_type: authoritative_rfc
+      source_quality: C
+      rationale: AS112 absorbs leaked reverse-DNS queries for private and special-use
+        address space; blocking its service prefixes can disrupt public DNS hygiene
+        and diagnostics.
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-27T06:30:35Z'
+      official_name: AS112 DNS sink infrastructure
+      official_url:
+      short_description: The IPv4 service prefixes for AS112 nameserver operations,
+        per RFC 7534 and RFC 7535.
+      long_description: A curated reference list of IPv4 service prefixes documented
+        in RFC 7534 and RFC 7535 for AS112 nameserver operations. AS112 absorbs leaked
+        reverse-DNS queries for private and special-use address space; blocking these
+        prefixes can disrupt public DNS hygiene and diagnostics. This is a reference
+        feed, not a threat indicator.
+      roles:
+      - role: maintainer
+        name: FireHOL catalog project
+        organization_type: informal_collective
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Maintained by the FireHOL catalog project as a public reference / aggregate.
+          This page is generated deterministically from the catalog YAML; the agent-based
+          enrichment used for third-party feeds does not run on FireHOL-maintained
+          feeds.
+      derivation:
+        type: original
+        description: Static curated reference data published as part of the FireHOL
+          catalog. Entries are explicit, hand-curated, and change only when the underlying
+          authoritative source (provider documentation, IANA registry, or cited RFC)
+          changes.
+        source_feeds: []
+      listing_policy:
+        summary: Curated reference. An entry appears in this list when the underlying
+          authoritative source (provider documentation, IANA registry, or cited RFC)
+          names it as part of the relevant infrastructure class.
+        criteria:
+        - Entry is published by the authoritative source as part of the feed's stated
+          scope.
+      unlisting_policy:
+        summary: Entries are removed only when the underlying authoritative source
+          (provider documentation, IANA registry, RFC) removes them. The catalog does
+          not maintain its own per-entry unlist process.
+        criteria:
+        - Authoritative source removes the entry from its published scope.
+      unlist_request:
+        url:
+        email:
+        instructions: This is a static curated reference feed. The catalog does not
+          operate a per-entry unlist channel. If an entry should not be in this list,
+          the change must occur at the authoritative source (provider documentation,
+          IANA registry, or relevant RFC); the catalog will then reflect it on next
+          refresh.
+      update_frequency:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: Curated policy-defined reference data. Entries are not derived
+          from observation, scanning, or honeypot detection; they are the explicit
+          allocations or service addresses published by the relevant authority.
+      scope_and_intent:
+        description: "Curated IPv4 service prefixes for AS112 nameserver operations
+          documented in RFC 7534 and RFC 7535. Reference feed, not a threat indicator.\n\
+          \nAS112 absorbs leaked reverse-DNS queries for private and special-use address
+          space; blocking its service prefixes can disrupt public DNS hygiene and
+          diagnostics."
+        intended_for:
+        - Whitelisting from edge block lists
+        - Excluding from anti-bot rules at DNS infrastructure
+        not_intended_for:
+        - Threat blocking — this is legitimate DNS hygiene infrastructure
+      license: Public RFC references (RFC 7534 and RFC 7535)
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms:
+      current_status:
+        state: active
+        description: Static curated reference; published as part of the FireHOL catalog.
+          Entries change only when the underlying authoritative source publishes a
+          change.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement:
+      sources_consulted: []

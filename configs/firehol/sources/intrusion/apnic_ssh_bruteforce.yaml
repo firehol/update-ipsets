@@ -1,0 +1,202 @@
+sources:
+  apnic_ssh_bruteforce:
+    license: public feed
+    redistributable: true
+    url: https://feeds.honeynet.asia/bruteforce/latest-sshbruteforce-unique.csv
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - csv_column:
+        index: "1"
+    - filter_ip4
+    processor_raw: csv_comma_first_column
+    category: intrusion
+    info: '[APNIC Community Honeynet Project](https://feeds.honeynet.asia/) SSH brute-force
+      source IPs from the MISP default feed catalog. CSV feed with the observed IP
+      in the first column.'
+    maintainer: APNIC Community Honeynet Project
+    maintainer_url: https://feeds.honeynet.asia/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T04:12:42Z'
+      official_name: SSH Bruteforce IPs
+      official_url: https://feeds.honeynet.asia/bruteforce/
+      short_description: Daily deduplicated list of source IP addresses observed attempting
+        SSH brute-force logins against Cowrie honeypot sensors operated by the APNIC
+        Community Honeynet Project across the Asia-Pacific region and beyond.
+      long_description: "The APNIC Community Honeynet Project operates a distributed
+        network of more than 200 Cowrie honeypot sensors spanning the Asia-Pacific
+        region with additional nodes in Central and South America, the United States,
+        and Europe. Cowrie is a medium-interaction SSH and Telnet honeypot that emulates
+        a Debian-based UNIX system, logging every authentication attempt — both failed
+        and successful — along with the username, password, and SSH client banner
+        submitted by the attacking client.\n\nThe feed distributed at feeds.honeynet.asia/bruteforce/
+        aggregates data from this sensor network daily. The catalog subscribes to
+        the deduplicated variant (latest-sshbruteforce-unique.csv), in which each
+        source IP appears at most once per daily file regardless of how many login
+        attempts it made. The CSV format carries a timestamp column followed by the
+        source IP address in the first data column; the catalog processor extracts
+        that IP column.\n\nPer the maintainer's infrastructure documentation, the
+        collection pipeline routes honeypot logs through hpfeeds (a lightweight publish-subscribe
+        protocol), enriches them with the ELK stack, correlates observables via TheHive
+        and Cortex, and maps them to MITRE ATT&CK tactics and techniques. The resulting
+        daily files are published around 23:58 UTC each evening.\n\nThe project was
+        launched by APNIC in 2019 and has been continuously producing feeds since
+        February 2021. An empirical deployment at the University of Dhaka recorded
+        over 63,000 attack events from more than 4,200 unique source IPs within a
+        12-day window, with the first attack arriving within one hour of sensor activation
+        — illustrating the near-constant automated scanning pressure on publicly reachable
+        SSH services."
+      roles:
+      - role: maintainer
+        name: APNIC Community Honeynet Project
+        organization_type: non_profit
+        official_url: https://feeds.honeynet.asia/
+        contact_email: project@honeynet.asia
+        based_in: Australia
+        active_since: '2019'
+        notes: Launched in 2019 to improve visibility into malicious activity targeting
+          networks in the Asia-Pacific region. Operates the Community Honeynet Network
+          (CHN) platform for deploying and managing distributed honeypot sensors.
+          Parent organization is APNIC (Asia-Pacific Network Information Centre),
+          the regional internet registry for the Asia-Pacific region.
+      - role: publisher
+        name: APNIC Community Honeynet Project
+        organization_type: non_profit
+        official_url: https://feeds.honeynet.asia/
+        contact_email: project@honeynet.asia
+        based_in: Australia
+        active_since: '2019'
+        notes: Serves the feed artifacts via feeds.honeynet.asia, an HTTP directory-listing
+          server that publishes daily timestamped CSV files around 23:58 UTC each
+          evening.
+      derivation:
+        type: original
+        description: The feed is built from first-party Cowrie honeypot data collected
+          by the APNIC Community Honeynet Network (CHN). More than 200 Cowrie honeypot
+          sensors — deployed across partner organizations in the Asia-Pacific region
+          and extended globally — capture SSH authentication attempts and forward
+          logs via hpfeeds to a central ELK stack (Elasticsearch, Logstash, Kibana,
+          Filebeats). Suricata adds network-intrusion context. TheHive and Cortex
+          correlate observables against threat intelligence databases. Daily aggregation
+          produces timestamped CSV files; the '-unique' variant applies deduplication
+          so each source IP appears at most once per daily file. No upstream IP feeds
+          are consumed — this is first-party sensor data.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when it connects to a Cowrie honeypot sensor and
+          attempts SSH authentication — regardless of whether the login succeeds or
+          fails. The '-unique' daily variant additionally deduplicates entries so
+          that each source IP appears at most once per daily file, even if it made
+          dozens of login attempts that day.
+        criteria:
+        - Connection to a Cowrie honeypot sensor on port 22 (SSH)
+        - Submission of a username and password pair in an SSH authentication attempt
+        - "Deduplication: each unique source IP retained once per daily file (for
+          the '-unique' variant)"
+      unlisting_policy:
+        summary: "The feed has no manual unlisting mechanism. Entries are managed
+          through automatic daily deduplication: the '-unique' daily file retains
+          each source IP at most once per calendar day, naturally expiring IPs that
+          are not re-observed on subsequent days. There is no publicly documented
+          process for requesting removal of a specific IP."
+        criteria:
+        - "Automatic daily expiry: IPs not re-observed on a given day do not appear
+          in subsequent '-unique' files"
+        - No manual delisting channel documented
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated once daily, with daily aggregation files published
+          around 23:58 UTC per the maintainer's documented schedule.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: The feed is built from Cowrie, a medium-interaction SSH honeypot.
+          Cowrie emulates a Debian-based UNIX system with a fake filesystem, logging
+          every SSH authentication attempt (username, password, source IP, timestamp,
+          and SSH client banner) without forwarding traffic to any real backend. Sensors
+          are deployed across the APNIC Community Honeynet Network (CHN) — more than
+          200 nodes spanning the Asia-Pacific region with additional presence in the
+          Americas and Europe.
+      scope_and_intent:
+        description: The feed is intended for identifying and blocking SSH brute-force
+          attack sources at the network perimeter. It captures IPs actively attempting
+          unauthorized SSH authentication against publicly reachable services.
+        intended_for:
+        - Blocking SSH brute-force source IPs at network firewalls or SSH daemons
+        - Enriching SSH connection logs with threat intelligence context
+        - Security monitoring and alerting on brute-force activity patterns
+        not_intended_for:
+        - Attributing attacks to specific actors (honeypot data reflects scanning
+          infrastructure, not targeted campaigns)
+        - Legal or forensic proceedings (data is observational from decoy systems,
+          not attribution-quality)
+        - Identifying compromised end-user machines versus scanning infrastructure
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: No redistribution terms are stated by the direct upstream. The feed
+          is publicly accessible via unauthenticated HTTP download.
+      current_status:
+        state: active
+        description: Maintained as of May 2026. Daily files confirmed updated through
+          18 May 2026 at approximately 23:58 UTC. Historical data spans February 2021
+          through May 2026. The project has been in continuous operation since its
+          launch in 2019.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion about feeds.honeynet.asia specifically is sparse.
+          The broader SSH honeypot ecosystem generates moderate discussion on forums
+          such as Reddit, where operators document high attack volumes and credential
+          patterns. The APNIC Community Honeynet Project has a modest public profile
+          — participation is primarily institutional via APNIC member organizations
+          deploying CHN sensors. The project presented at the Honeynet Workshop Conference
+          2025 in Prague. No notable third-party awards or widespread community pain
+          points specific to this feed were found in public research.
+      sources_consulted:
+      - url: https://feeds.honeynet.asia/
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://feeds.honeynet.asia/bruteforce/
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.apnic.net/community/security/honeynet
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://blog.apnic.net/2024/02/05/update-on-the-apnic-honeynet-network
+        document_date: '2024-02-05'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: 
+          https://blog.apnic.net/2020/07/09/apnic-community-honeynet-project-behind-the-scenes
+        document_date: '2020-07-09'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://blog.apnic.net/2021/08/23/what-is-hitting-our-honeypots
+        document_date: '2021-08-23'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.misp-project.org/feeds
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: 
+          https://blog.apnic.net/2026/01/14/what-we-learned-from-63000-attacks-in-12-days-on-apnic-honeynet-sensors-at-university-of-dhaka
+        document_date: '2026-01-14'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://github.com/cowrie/cowrie
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://gsmaragd.github.io/publications/IMC2025-Honeynet/IMC2025-Honeynet.pdf
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://feeds.honeynet.asia/LICENSE
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://feeds.honeynet.asia/README
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'

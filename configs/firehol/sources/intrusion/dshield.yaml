@@ -1,0 +1,213 @@
+sources:
+  dshield:
+    license: CC BY-NC-SA 2.5
+    redistributable: true
+    url: https://feeds.dshield.org/block.txt
+    frequency: 10
+    history:
+    - 1440
+    - 10080
+    - 43200
+    ipv: ipv4
+    output: netset
+    processor:
+    - dshield_format
+    processor_raw: dshield_parser
+    category: intrusion
+    info: '[DShield.org](https://dshield.org/) top 20 attacking class C (/24) subnets
+      over the last three days'
+    maintainer: DShield.org
+    maintainer_url: https://dshield.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T18:28:12Z'
+      official_name: DShield.org Recommended Block List
+      official_url: https://feeds.dshield.org/block.txt
+      short_description: The top 20 most active hostile /24 subnetworks observed over
+        the last three days, aggregated from firewall logs submitted by a global volunteer
+        sensor network.
+      long_description: "DShield.org is the data-collection arm of the SANS Internet
+        Storm Center (ISC), a free threat-intelligence service founded in 2001 and
+        operated by the SANS Technology Institute. The Recommended Block List distills
+        firewall and intrusion-detection logs submitted by thousands of volunteer
+        sensors worldwide into a focused list of the 20 most active hostile /24 subnetworks
+        observed over the trailing three days.\n\nEach listed /24 is ranked by the
+        number of distinct submitters who reported attacks originating from that netblock
+        — a proxy for breadth of victim exposure. Entries carry optional fields for
+        the network name, country code, and abuse-contact email, enabling operators
+        to investigate or petition removal directly.\n\nThe feed updates roughly every
+        ten minutes and is served as a plain-text, tab-delimited file. DShield explicitly
+        distinguishes its block list from raw research feeds: it removes certain common
+        false-positive patterns before publishing and will delist networks upon verified
+        request without adjudicating the merits of the listing. By contrast, DShield's
+        raw IP feeds carry a standing warning that they are not suitable for automated
+        blocking."
+      roles:
+      - role: maintainer
+        name: SANS Internet Storm Center
+        organization_type: research_institution
+        official_url: https://isc.sans.edu
+        contact_email: handlers@isc.sans.edu
+        based_in: United States
+        active_since: '2001'
+        notes: Operates DShield.org as the data-collection platform for the Internet
+          Storm Center, a free service of the SANS Technology Institute. Volunteer
+          incident handlers monitor submitted firewall logs and publish the Recommended
+          Block List along with daily diaries, podcasts, and other threat-intelligence
+          content.
+      derivation:
+        type: original
+        description: 'Original first-party feed. Data originates from a global volunteer
+          sensor network: thousands of participants worldwide submit anonymized firewall
+          and intrusion-detection logs to the DShield distributed intrusion-detection
+          system. Human analysts and automated processes scan the aggregated dataset
+          for anomalous trends. The Recommended Block List ranks /24 netblocks by
+          the count of distinct submitters reporting attacks from each range, applies
+          pre-filtering to suppress common false-positive patterns (such as research
+          scans and P2P traffic), and publishes the top 20. No upstream IP feeds are
+          consumed.'
+        source_feeds: []
+      listing_policy:
+        summary: A /24 netblock enters the list when it ranks among the 20 most-reported
+          ranges over the trailing three days. Ranking is determined by the count
+          of distinct DShield submitters who logged attacks originating from that
+          netblock — a measure of victim breadth rather than raw packet volume. Reports
+          must come from at least two independent submitters; single-source attributions
+          are excluded. Common false-positive patterns (research scans, P2P network
+          hosts, mail servers, load balancers, DNS servers, and web crawlers) are
+          filtered before the ranking is computed.
+        criteria:
+        - /24 netblock (Class C) size — smaller or larger ranges are not eligible
+          for this feed
+        - Appears in the top 20 by submitter-count ranking over the rolling three-day
+          window
+        - Attacks reported by at least two independent DShield sensor submissions
+        - Does not match known false-positive patterns (research scans, P2P, mail
+          servers, load balancers, DNS servers, crawlers)
+      unlisting_policy:
+        summary: Removal is granted on request without adjudication. If a network
+          operator contacts DShield and confirms they are listed, the netblock is
+          delisted as soon as possible. DShield will not evaluate whether the listing
+          is warranted — the mere fact of a verified removal request is sufficient
+          grounds.
+        criteria:
+        - Operator submits a removal request via the contact channels below
+        - DShield verifies the request originates from the listed network or its authorized
+          representative
+        - Delisting is applied without review of the listing's merit
+      unlist_request:
+        url:
+        email: systems@isc.sans.edu
+        instructions: Send an email to systems@isc.sans.edu identifying the listed
+          netblock(s) and requesting removal. No justification is required; DShield
+          will delist upon verified request as soon as possible.
+      update_frequency:
+        frequency: 10m
+        human_readable: Updated approximately every 10 minutes.
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods:
+        - reputation_aggregation
+        description: The feed is built from firewall and intrusion-detection logs
+          voluntarily submitted by thousands of participant sensors worldwide. Submitted
+          logs are aggregated, deduplicated, and filtered through a three-stage pre-processing
+          pipeline (bogon filtering, whitelisting of known measurement/crawler infrastructure,
+          and heuristic port-based filtering) before the ranking is computed. The
+          resulting top-20 list represents a reputation aggregation — netblocks ranked
+          by the breadth of victim reporting, not by any single sensor's observation.
+      scope_and_intent:
+        description: 'Designed for perimeter-firewall enforcement: blocking inbound
+          connections from widely-reported hostile netblocks and preventing compromised
+          internal hosts from reaching known-malicious infrastructure. The list is
+          intentionally narrow (~20 entries) to minimize false-positive surface while
+          catching internet-wide scanners and widespread botnet command-and-control
+          nodes.'
+        intended_for:
+        - Inbound blocking at network perimeter firewalls
+        - Egress blocking to prevent compromised LAN hosts from contacting listed
+          infrastructure
+        - Integration with firewall platforms (pfSense/pfBlockerNG, OPNsense, FortiGate,
+          MikroTik, Firewalla, Pi-hole)
+        not_intended_for:
+        - Blocking against targeted attacks (the list covers only broad, internet-wide
+          scanning activity)
+        - IPv6 traffic (the feed is IPv4-only)
+        - Automated blocking of raw DShield research feeds (topips.txt and all-source
+          feeds are explicitly marked 'DO NOT USE AS BLOCKLIST')
+      license: CC BY-NC-SA 2.5
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit 'SANS Technology Institute, Internet Storm Center,
+          https://isc.sans.edu' (format may be adjusted per your guidelines)
+        terms: Free redistribution with attribution. Resale is prohibited. Commercial
+          uses beyond resale are permitted. For uses outside the CC BY-NC-SA 2.5 scope,
+          contact handlers@isc.sans.edu.
+      current_status:
+        state: active
+        description: Active and maintained as of May 2026. The feed file carried a
+          timestamp of 2026-05-02, confirming recent updates. DShield continues to
+          accept log submissions, publish diaries, and serve the block list from its
+          primary URL.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Documented false-positive incidents have occurred — notably Plex
+          media server ports and gaming consoles triggering blocks on consumer networks.
+          DShield acknowledges false positives explicitly and notes that 'research
+          scans' may appear in the list. Community members have also raised concerns
+          about low trigger frequency despite active deployment, and sporadic uncertainty
+          about feed-maintenance continuity. The feed consolidates into a single blocklist
+          (previously tiered Low/Medium/High domain feeds were merged), which initially
+          caused confusion.
+        engagement: Public discussion is moderate in density. DShield is mentioned
+          frequently as a component in multi-feed firewall configurations but rarely
+          generates dedicated threads. Response to issues tends to be handled through
+          official channels (email to systems@isc.sans.edu) rather than public forums.
+          The ISC diary series provides ongoing maintainer-authored commentary. Academic
+          research (USENIX) has validated the related Highly Predictive Blocklist
+          algorithm, lending peer-review credibility to the broader DShield methodology.
+      sources_consulted:
+      - url: https://feeds.dshield.org/block.txt
+        document_date: '2026-05-02'
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.dshield.org/
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.dshield.org/about.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.dshield.org/feeds_doc.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.dshield.org/xml.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://isc.sans.edu/diary/21453
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.dshield.org/howto.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: 
+          https://www.reddit.com/r/opnsense/comments/1qokhgw/what_ip_block_lists_do_you_use/
+        document_date: '2025-03-27'
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: 
+          https://www.reddit.com/r/CyberSecurityAdvice/comments/1d5il2m/traffic_from_dshielddropsslbl_how_much_is_normal/
+        document_date: '2024-01-31'
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://community.ui.com/questions/Block-DDShield/
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.reddit.com/r/pihole/comments/kj5btc/
+        document_date: 2025-12
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.reddit.com/r/firewalla/comments/1swtew6/
+        document_date: 2025-04
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.usenix.org/system/files/login/articles/259-zhang.pdf
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'

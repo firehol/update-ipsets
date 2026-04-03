@@ -1,0 +1,231 @@
+sources:
+  stopforumspam_30d:
+    license: CC BY-NC-ND 3.0 (modified)
+    redistributable: true
+    url: http://www.stopforumspam.com/downloads/listed_ip_30.zip
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - unzip
+    processor_raw: unzip_and_extract
+    category: messaging_abuse
+    info: '[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers
+      (last 30 days)'
+    maintainer: StopForumSpam.com
+    maintainer_url: http://www.stopforumspam.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T03:29:55Z'
+      official_name: Stop Forum Spam
+      official_url: https://stopforumspam.com/
+      short_description: A community-reported database of IP addresses associated
+        with forum, blog, and wiki spam, scoped to entries with recent activity within
+        the last 30 days.
+      long_description: "Stop Forum Spam is a free, community-reported database of
+        spam activity targeting forums, blogs, and wikis. Forum operators submit confirmed
+        spam incidents — each submission requires a verified email address (confirmed
+        by the spammer via a reply challenge), the actual origin IP used to contact
+        the forum, a username, and optionally spam content as evidence. Per the FAQ,
+        submissions must be triggered by a human exercising judgment; automated bot
+        decisions are explicitly excluded. The maintainer also supplements submissions
+        with data gathered from honeypot traps designed to capture spammers.\n\nThe
+        service calculates a confidence score using the Wilson Score algorithm (a
+        binomial proportion confidence interval), factoring in the last-seen date
+        and the number of independent sightings across reporting sources. The score
+        is expressed as a percentage representing the likelihood that the reported
+        entity would produce unwanted activity. The 30-day feed narrows the dataset
+        to IPs with recent spam associations, intended to reduce exposure to stale
+        listings from reassigned or dynamic IP addresses.\n\nThe maintainer cautions
+        that blocking based on a single listing that is months old is unreliable,
+        and that carrier-grade NAT environments can mean a single IP serves hundreds
+        of unrelated users. Being listed does not imply the current occupant sent
+        spam — the IP may have been previously used by a spammer, or the address may
+        have been borrowed by malware."
+      roles:
+      - role: maintainer
+        name: StopForumSpam.com
+        organization_type: individual
+        official_url: https://stopforumspam.com/
+        contact_email:
+        based_in:
+        active_since: '2006'
+        notes: Per the license page, the copyright holder is 'the owner/operator of
+          this site.' No individual name is published. The project has operated since
+          at least 2006, per the project's stated longevity.
+      derivation:
+        type: original
+        description: The feed is built from community submissions by forum, blog,
+          and wiki operators who report confirmed spam incidents. Submissions require
+          a verified email address, the actual origin IP, a username, and optional
+          evidence. The maintainer additionally gathers data from honeypot traps.
+          No external IP feeds are consumed. Each entry is scored using the Wilson
+          Score confidence algorithm, combining last-seen date and the number of independent
+          sightings into a percentage likelihood score.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added when a forum, blog, or wiki operator submits a
+          confirmed spam incident through the StopForumSpam web form or API. The submitter
+          must hold a registered API key and provide a verified email address (the
+          spammer must respond to a challenge email to confirm control), the actual
+          origin IP used to contact the forum, a username, and optionally the spam
+          content as evidence. Proxies and reverse proxies (such as Cloudflare) require
+          the submitter to capture the true origin IP. The maintainer also supplements
+          submissions with data from honeypot traps. No automated threshold triggers
+          a listing — every addition requires human judgment.
+        criteria:
+        - A human forum/blog/wiki operator initiates the submission and exercises
+          judgment
+        - The spammer's email address must be verified by responding to a challenge
+          message sent by the service
+        - The actual origin IP must be captured — reverse-proxy setups require the
+          true client IP
+        - 'Optional but recommended: the spam content itself as evidence'
+        - Honeypot trap data gathered by the maintainer supplements community submissions
+      unlisting_policy:
+        summary: IP addresses are not automatically expired — listings persist indefinitely
+          and decay only through a declining confidence score as the last-seen date
+          ages. The maintainer states they 'never whitelist IP addresses.' Removals
+          are handled through a semi-automated review queue with a stated turnaround
+          of up to 24 hours. VPN-based removal requests are automatically deleted
+          without action. Entries submitted by the reporter themselves can be removed
+          directly from the 'My Spammers' page. Toxic email domains are permanent
+          and are never unblocked.
+        criteria:
+        - Single-report entries without evidence are likely to be removed automatically
+          upon challenge
+        - Multi-report entries with evidence undergo manual review in a non-public
+          queue
+        - VPN-based removal requests are automatically rejected
+        - Disposable email addresses are not accepted for removal requests
+        - Legal threats result in a permanent pause of the request
+        - Self-submitted entries can be removed directly via the reporter's 'My Spammers'
+          page
+      unlist_request:
+        url: https://stopforumspam.com/removal
+        email:
+        instructions: Submit a removal request through the web form at stopforumspam.com/removal.
+          You must use a real (non-disposable) email address — the service will send
+          a confirmation code to continue. Your request enters a non-public review
+          queue and is cross-referenced against other databases. Turnaround is stated
+          as up to 24 hours. VPN-based requests are automatically rejected. If you
+          self-submitted the entry, remove it directly from your 'My Spammers' page
+          instead of using the removal form.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated once per day, per the maintainer's downloads page.
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods:
+        - honeypot
+        description: 'The primary detection method is user submission: forum, blog,
+          and wiki operators submit confirmed spam incidents through the StopForumSpam
+          web form or API. Each submission requires a verified email address, the
+          actual origin IP, a username, and optionally spam content as evidence. The
+          maintainer also gathers data from honeypot traps. Secondary data from honeypots
+          is incorporated alongside human reports. The Wilson Score confidence algorithm
+          converts last-seen date and sighting frequency into a percentage score representing
+          the likelihood of unwanted activity.'
+      scope_and_intent:
+        description: Stop Forum Spam is designed to help forum, blog, and wiki operators
+          block suspected spammers before they gain access. The service provides searchable
+          data and downloadable feeds so operators can check new registrations or
+          comments against the database and deny access based on a positive match.
+        intended_for:
+        - Proactively blocking suspected spammers from registering or posting on forums,
+          blogs, and wikis
+        - Checking new user registrations against the database before granting access
+        - General messaging abuse prevention on community websites
+        not_intended_for:
+        - Automatically blocking all matched entries without review — the maintainer
+          recommends threshold-based filtering
+        - Blocking individual users by username alone — username-only matches are
+          strongly discouraged as prone to false positives
+        - Blocking dynamic or residential IP addresses without additional context
+          — these IPs may serve hundreds of unrelated users
+        - Blocking based on a single old listing — confidence decays over time and
+          a stale match is unreliable
+      license: CC BY-NC-ND 3.0 (modified)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit StopForumSpam.com
+        terms: StopForumSpam states a modified CC BY-NC-ND 3.0 license that permits
+          copying and distribution with attribution while prohibiting resale, ownership
+          claims, derivatives, and automated mirroring/scraping. Redistribution is
+          allowed with those restrictions.
+      current_status:
+        state: active
+        description: Active. The service is maintained with daily updates to the IP
+          feeds. Regular maintenance and bug-response activity is documented on the
+          official forum.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Community discussion documents several categories of false positive
+          concerns. Shared IP addresses from residential ISPs and VPN exit nodes have
+          resulted in legitimate users being blocked — one documented case involved
+          a VPN user's exit node IP carrying 40+ prior spam listings from previous
+          occupants. Popular usernames have triggered unintended blocks. A January
+          2025 code bug caused a two-hour global false positive event affecting all
+          email checks site-wide; the maintainer patched it within four minutes and
+          implemented preventive database triggers. Low barriers to submission have
+          enabled documented abuse where competitors or trolls could report innocent
+          users. The removal process has a stated 24-hour turnaround, and VPN-based
+          requests are automatically rejected without review. The maintainer has addressed
+          bugs and implemented fixes; the underlying structural risks from shared
+          IP infrastructure remain a documented community concern.
+        engagement: Public discussion is active across multiple forums and communities.
+          The service is integrated into forum software including phpBB, vBulletin,
+          XenForo, WordPress, Drupal, and many others. The project claims adoption
+          by over 200,000 forums. Community members on Hacker News and XenForo forums
+          have reported miss rates estimated around 33–50% for IP-only checks, recommending
+          email-match checks as the preferred detection channel to reduce false positives.
+          Two Trustpilot reviews (as of 2023–2024) gave ratings of 1–2 stars citing
+          false positive impacts.
+      sources_consulted:
+      - url: https://stopforumspam.com/
+        document_date:
+        validation_date: '2026-05-18T03:29:55Z'
+      - url: https://stopforumspam.com/faq
+        document_date:
+        validation_date: '2026-05-18T03:29:55Z'
+      - url: https://stopforumspam.com/usage
+        document_date:
+        validation_date: '2026-05-18T03:29:55Z'
+      - url: https://stopforumspam.com/downloads
+        document_date:
+        validation_date: '2026-05-18T03:29:55Z'
+      - url: https://stopforumspam.com/license
+        document_date:
+        validation_date: '2026-05-18T03:29:55Z'
+      - url: https://stopforumspam.com/removal
+        document_date:
+        validation_date: '2026-05-18T03:29:55Z'
+      - url: https://stopforumspam.com/forum/viewtopic.php?id=9572
+        document_date:
+        validation_date: '2026-05-18T03:29:55Z'
+      - url: https://stopforumspam.com/forum/viewtopic.php?id=9530
+        document_date:
+        validation_date: '2026-05-18T03:29:55Z'
+      - url: https://stopforumspam.com/forum/viewtopic.php?id=9195
+        document_date:
+        validation_date: '2026-05-18T03:29:55Z'
+      - url: https://forums.blurbusters.com/viewtopic.php?t=3242
+        document_date:
+        validation_date: '2026-05-18T03:29:55Z'
+      - url: 
+          https://xenforo.com/community/threads/whats-the-false-positive-rate-of-stopforumspam.79183/
+        document_date:
+        validation_date: '2026-05-18T03:29:55Z'
+      - url: https://news.ycombinator.com/item?id=4809007
+        document_date:
+        validation_date: '2026-05-18T03:29:55Z'
+      - url: https://www.reddit.com/r/VPN/comments/2aani0/
+        document_date:
+        validation_date: '2026-05-18T03:29:55Z'
+      - url: https://brooke.codes/2025/12/02/quick-tip-stop-forum-spam
+        document_date:
+        validation_date: '2026-05-18T03:29:55Z'

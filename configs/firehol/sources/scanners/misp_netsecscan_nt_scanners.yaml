@@ -1,0 +1,182 @@
+sources:
+  misp_netsecscan_nt_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/netsecscan-nt-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Netsecscan
+      scanner ranges extracted from CIRCL network telescope analysis. Informational
+      - not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T22:38:38Z'
+      official_name: Netsecscan IP Ranges Used for Scanning
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: IP ranges associated with Netsecscan internet scanning activity,
+        identified through passive darknet observation by CIRCL Luxembourg, published
+        as an informational false-positive marker in the MISP warninglists ecosystem.
+      long_description: "The netsecscan-nt-scanning warninglist marks IP addresses
+        and CIDR ranges associated with Netsecscan internet scanning infrastructure,
+        identified through passive analysis of CIRCL Luxembourg's Network Telescope
+        — a darknet that monitors routed-but-unused address space. All traffic arriving
+        at darknet space is inherently unexpected, giving the telescope visibility
+        into internet-wide scanning campaigns without generating any traffic toward
+        targets.\n\nThe list is served as a standard MISP warninglist JSON file with
+        CIDR-type matching, compatible with the MISP platform's warninglist engine.
+        Per the maintainer's documentation, warninglists are informational markers:
+        they flag that an IP belongs to a known scanning service so analysts can account
+        for that context rather than treating the contact as malicious reconnaissance.
+        The maintainer does not recommend using this list for inline blocking."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: informal_collective
+        official_url: https://github.com/MISP
+        contact_email:
+        based_in:
+        active_since: '2016'
+        notes: The MISP Project develops and maintains the MISP warninglists repository
+          on GitHub, reviewing and merging pull requests for new and updated warninglists.
+          Alexandre Dulaunoy is credited as a primary contributor on recent commits.
+      - role: source_contributor
+        name: CIRCL Luxembourg
+        organization_type: research_institution
+        official_url: https://www.circl.lu
+        contact_email:
+        based_in: Luxembourg
+        active_since:
+        notes: CIRCL Luxembourg operates the Network Telescope darknet infrastructure
+          from which the IP ranges in this warninglist are extracted. The organization
+          also publishes the broader MISP warninglists documentation.
+      derivation:
+        type: extraction
+        description: The feed extracts CIDR ranges from CIRCL Luxembourg's Network
+          Telescope passive observation data. The Network Telescope monitors routed-but-unused
+          darknet address space — all inbound traffic reaching this space is inherently
+          unexpected, providing visibility into internet-wide scanning without generating
+          any outbound probes. When the telescope observes scanning behavior from
+          IP addresses belonging to Netsecscan infrastructure, those addresses are
+          flagged for inclusion in this warninglist. The maintainer converts individual
+          IPs observed in telescope data into compact CIDR representations for efficient
+          matching in the MISP platform.
+        source_feeds: []
+      listing_policy:
+        summary: IPs are added to the warninglist when CIRCL Luxembourg's Network
+          Telescope darknet observes scanning behavior originating from Netsecscan
+          infrastructure. A Network Telescope is a block of routed but unused IP address
+          space; all traffic reaching it is inherently unexpected, making any observed
+          source IP a candidate for analysis. The maintainer reviews telescope observations,
+          identifies IPs associated with Netsecscan scanning campaigns, and converts
+          them into CIDR ranges for inclusion.
+        criteria:
+        - IP observed initiating scanning behavior against CIRCL's darknet address
+          space
+        - Scanning behavior attributed to Netsecscan infrastructure through signature
+          or pattern analysis
+        - IP converted to CIDR representation for MISP warninglist compatibility
+      unlisting_policy:
+        summary: 'There is no documented automatic expiration or decay mechanism.
+          Removals are processed through GitHub pull requests: a contributor submits
+          a change removing or narrowing the affected CIDR range, and the maintainer
+          merges the update after review.'
+        criteria:
+        - Contributor identifies an IP as no longer associated with Netsecscan scanning
+          activity
+        - Pull request submitted with the revised CIDR list
+        - Maintainer reviews and merges the change, incrementing the version number
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/pull/new/main
+        email:
+        instructions: Fork the MISP warninglists repository on GitHub, locate the
+          `lists/netsecscan-nt-scanning/list.json` file, edit the CIDR list to remove
+          or narrow the affected range, and submit a pull request against the main
+          branch. Increment the `version` number in the JSON before submitting. Alternatively,
+          open a GitHub issue describing the IP in question and why it should be removed.
+      update_frequency:
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: The feed is built from passive observation of darknet address
+          space monitored by CIRCL Luxembourg's Network Telescope. A network telescope
+          is a block of IP address space that is routed but carries no legitimate
+          services; all traffic reaching it is inherently unexpected. By observing
+          which source IPs contact the darknet, the telescope captures internet-wide
+          scanning campaigns, DDoS backscatter, and worm propagation without generating
+          any outbound probes toward targets. When IPs in telescope observations are
+          attributed to Netsecscan scanning infrastructure, they are extracted and
+          published in this warninglist.
+      scope_and_intent:
+        description: The warninglist marks IPs associated with Netsecscan internet
+          scanning activity, enabling analysts to contextualize these contacts as
+          known benign scanning rather than malicious reconnaissance. As a MISP warninglist,
+          its primary function is informational flagging within the MISP platform
+          — alerting analysts that an IP belongs to a recognized scanning service
+          when it appears in an event or attribute.
+        intended_for:
+        - Flagging known scanning infrastructure IPs in MISP events to reduce analyst
+          false-positive fatigue
+        - Providing context that an observed contact originates from a legitimate
+          internet scanning service
+        - Threat intelligence enrichment and indicator triage
+        not_intended_for:
+        - Inline blocking or deny-listing at network perimeter devices
+        - Automated firewall rule generation
+        - Security enforcement actions
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: Under CC0 1.0 Universal (Public Domain Dedication), the work is placed
+          in the public domain with no restrictions on use, modification, or redistribution.
+          No attribution is required.
+      current_status:
+        state: active
+        description: Active. The netsecscan-nt-scanning list is present in the MISP
+          warninglists repository and is refreshed through periodic CIRCL Network
+          Telescope update PRs.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: The MISP warninglists repository has 30 open issues and active
+          regular commits, with the most recent push in May 2026. Public community
+          discussion specifically about the netsecscan-nt-scanning list is sparse;
+          broader MISP warninglists discussion in security forums confirms the project's
+          role in reducing false-positive fatigue. Community members engage via GitHub
+          issues and pull requests for contribution and feedback.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/netsecscan-nt-scanning/list.json
+        document_date: '2025-12-10'
+        validation_date: '2026-05-18T22:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-18T22:00:00Z'
+      - url: https://www.circl.lu/doc/misp/warninglists
+        document_date: '2024-10-02'
+        validation_date: '2026-05-18T22:00:00Z'
+      - url: https://www.circl.lu/services/
+        document_date:
+        validation_date: '2026-05-18T22:00:00Z'
+      - url: https://www.circl.lu/projects/scanning/
+        document_date:
+        validation_date: '2026-05-18T22:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/issues/317
+        document_date: '2025-12-09'
+        validation_date: '2026-05-18T22:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/issues/330
+        document_date: '2026-03-13'
+        validation_date: '2026-05-18T22:00:00Z'

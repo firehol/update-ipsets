@@ -1,0 +1,171 @@
+sources:
+  iblocklist_isp_suddenlink:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=psaoblrwylfrdsspfuiq&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Suddenlink IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T09:16:40Z'
+      official_name: Suddenlink
+      official_url: https://www.iblocklist.com/list?list=psaoblrwylfrdsspfuiq
+      short_description: A blocklist of all Suddenlink ISP IP ranges, published by
+        iBlocklist.com for use with PeerBlock, PeerGuardian, and similar P2P privacy
+        applications.
+      long_description: The Suddenlink ISP list is a first-party feed published by
+        iBlocklist.com, distributing all IP address ranges allocated to Suddenlink
+        Communications. The list is freely available without a paid subscription and
+        is distributed in P2P format for use with PeerBlock, PeerGuardian, iplist,
+        Vuze, uTorrent, Tixati, pfBlocker, and related privacy-focused applications.
+        The maintainer explicitly warns that the list is not recommended for Suddenlink
+        subscribers themselves, advising that users who apply it against this guidance
+        do so at their own risk and should not seek support for resulting issues.
+        Suddenlink Communications was acquired by Altice USA in 2017 and officially
+        rebranded to the Optimum brand in August 2022; the list retains the Suddenlink
+        branding, meaning operators are looking at a snapshot of a brand-name that
+        no longer exists as a customer-facing identity. The list entry page shows
+        several technical metadata fields (TLS, IPv6, file format, archive format,
+        update URL) as blank. The feed URL is gated behind a human verification challenge,
+        preventing fully automated retrieval.
+      roles:
+      - role: maintainer
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: iblocklist, LLC operates iBlocklist.com as a commercial IP blocklist
+          distribution service, aggregating and redistributing lists from multiple
+          third-party authors in standardized formats. The company also offers a companion
+          VPN service called PhantomPeer. Across the broader iBlocklist.com service,
+          recent Trustpilot reviews describe unauthorized auto-renewal charges, non-responsive
+          or hostile customer support, and billing disputes requiring credit-card
+          company intervention; older Web of Trust reviews from earlier years were
+          more favorable about the product's utility for PeerBlock and PeerGuardian
+          users.
+      derivation:
+        type: original
+        description: The Suddenlink ISP list is a first-party feed assembled and published
+          by iBlocklist.com. The maintainer does not publicly document the sourcing
+          methodology for how Suddenlink IP ranges are identified or updated. The
+          list is freely available without a paid subscription.
+        source_feeds: []
+      listing_policy:
+        summary: The list aims to include all IP address ranges allocated to Suddenlink
+          Communications. The maintainer does not publish a written listing policy
+          or criteria for this specific feed; the list entry page contains no criteria
+          documentation.
+        criteria:
+        - IP ranges belonging to Suddenlink Communications, per the maintainer's description
+      unlisting_policy:
+        summary: The maintainer does not publish an unlisting policy or automatic
+          expiration mechanism for this feed. No removal request process is documented
+          on the site.
+        criteria: []
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated daily, per the catalog YAML configuration.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: 'The feed assigns all Suddenlink Communications IP ranges to
+          a blocklist category. This is a policy-assignment approach: IPs are listed
+          based on institutional affiliation (ISP ownership) rather than individually
+          observed malicious activity. The maintainer does not describe a detection
+          mechanism; IPs enter the list by virtue of their allocation to the named
+          ISP.'
+      scope_and_intent:
+        description: The feed is intended to allow users of P2P privacy applications
+          to filter connections from Suddenlink ISP IP addresses. The maintainer explicitly
+          advises Suddenlink subscribers not to use this list, and states that users
+          who apply it against this guidance do so at their own risk without recourse.
+        intended_for:
+        - Users of PeerBlock, PeerGuardian, and similar P2P privacy applications who
+          wish to avoid connections from Suddenlink ISP IP addresses
+        - Filtering in firewall applications compatible with P2P-format blocklists
+        not_intended_for:
+        - Subscribers of Suddenlink ISP — the maintainer explicitly advises against
+          this use
+        - Commercial deployment — the Terms of Service prohibit commercial use of
+          all iBlocklist content
+      license: iBlocklist Terms of Service — personal use only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution is not addressed in standalone terms; the Terms of Service
+          grants a personal-use-only license that implicitly prohibits redistribution.
+          Commercial use is expressly prohibited. Account sharing with persons outside
+          the immediate household is prohibited.
+      current_status:
+        state: active
+        description: Listed as active on iBlocklist.com. The Suddenlink ISP list remains
+          in the ISP category and the XML feed. Several technical metadata fields
+          on the list entry page (TLS, IPv6, file format, archive format, update URL)
+          are blank, and the download endpoint is gated behind a human verification
+          challenge. Suddenlink Communications was rebranded to Optimum by Altice
+          USA in August 2022. No discontinuation announcement has been issued for
+          this specific list.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: The Suddenlink list specifically is affected by the 2022 Suddenlink-to-Optimum
+          rebrand, meaning the IP ranges retain obsolete branding even though the
+          underlying network is now operated under the Optimum identity.
+        engagement: Public discussion specific to the Suddenlink list is sparse. The
+          iBlocklist.com support page contains no contact information, no ticket system,
+          and no community forum. No removal-request threads were found in community
+          discussions, consistent with the service not being designed for IP-owner
+          interaction.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/lists.php/1000?category=isp
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/list?list=psaoblrwylfrdsspfuiq
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/lists.xml
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/subscribe
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.iblocklist.com/support
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.mywot.com/scorecard/iblocklist.com
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://en.wikipedia.org/wiki/Suddenlink_Communications
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

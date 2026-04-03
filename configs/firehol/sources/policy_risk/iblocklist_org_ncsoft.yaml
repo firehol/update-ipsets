@@ -1,0 +1,158 @@
+sources:
+  iblocklist_org_ncsoft:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=mwjuwmebrnzyyxpbezxu&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: NCsoft IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T11:28:37Z'
+      official_name: NCsoft
+      official_url: https://www.iblocklist.com/list?list=ncsoft
+      short_description: IP addresses registered to NCsoft, the South Korean game
+        publisher behind titles including Lineage, Guild Wars 2, Aion, and Blade &
+        Soul.
+      long_description: "The NCsoft list is published by iBlocklist.com and targets
+        internet protocol addresses registered to NCsoft Corporation, the South Korean
+        developer and publisher of massively multiplayer online role-playing games
+        including Lineage, Lineage II, Guild Wars 2, Aion, Blade & Soul, and Throne
+        & Liberty. The list is distributed in multiple formats — P2P, DAT, CIDR, and
+        hosts — for use with PeerBlock, PeerGuardian, pfBlocker, and similar firewall
+        or P2P-client blocklist tools.\n\nPer the maintainer's description, entries
+        consist of IP netblocks allocated to NCsoft's game servers and corporate infrastructure.
+        The compilation approach is registry-record lookup of NCsoft-owned netblocks
+        rather than active threat detection. The service does not publicly document
+        a quality-control process, update-verification methodology, or false-positive
+        handling procedure for this feed."
+      roles:
+      - role: maintainer
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: "Operates the iBlocklist.com distribution platform and compiles this
+          feed. Also distributes feeds from Bluetack, Squidblacklist, Spamhaus, CINS
+          Army, and other third-party authors in normalized formats. Service-level
+          community signal across iBlocklist.com (not specific to any single feed):
+          Netgate forum users described lists as 'horribly out of date' with timestamps
+          refreshed without content updates; Trustpilot reviews document autorenewal
+          disputes; users of PeerBlock with iBlocklist feeds reported blocked connections
+          to Battle.net and Blizzard game servers."
+      derivation:
+        type: original
+        description: The NCsoft list is compiled by iBlocklist.com from publicly available
+          IP netblock registrations (regional internet registries such as ARIN and
+          APNIC). Entries represent IP address ranges allocated to NCsoft Corporation.
+          No external IP feeds, threat intelligence APIs, or third-party blocklists
+          are consumed as inputs for this specific list. The compilation approach
+          is manual lookup of NCsoft-owned netblocks rather than automated aggregation
+          or active scanning.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added when an IP address or subnet is identified as registered
+          to NCsoft Corporation or its game-server infrastructure, based on regional
+          internet registry (RIR) allocation records.
+        criteria:
+        - IP address or subnet registered to NCsoft Corporation in public RIR records
+          (ARIN, APNIC, or other regional registry)
+      unlisting_policy:
+        summary: No formal unlisting or delisting policy is documented on the iBlocklist.com
+          website for any feed, including the NCsoft list. The Terms of Service does
+          not describe a removal-request mechanism.
+        criteria: []
+      unlist_request:
+      update_frequency:
+        frequency: 1440m
+        human_readable: Daily updates, per the catalog configuration
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: 'Entries are assigned to this list based on administrative registration
+          records — specifically, IP netblocks allocated to NCsoft Corporation in
+          regional internet registry (RIR) databases. This is a policy-based classification:
+          an IP qualifies for the list by virtue of its registered organizational
+          allocation, not by observed malicious activity, honeypot detections, or
+          community reports.'
+      scope_and_intent:
+        description: The NCsoft list targets IP addresses allocated to NCsoft Corporation
+          for use in blocking or restricting connections to or from the publisher's
+          game-server infrastructure. The maintainer frames it within the Organizations
+          category on the iBlocklist catalog.
+        intended_for:
+        - Blocking NCsoft game-server infrastructure in P2P clients (PeerBlock, PeerGuardian,
+          Vuze, uTorrent)
+        - Firewall-based exclusion of NCsoft corporate or game-server netblocks in
+          network-edge security appliances
+        not_intended_for:
+        - Commercial environments or enterprise security deployments (expressly prohibited
+          by the Terms of Service)
+        - Primary threat-intelligence or incident-response workflows (the list does
+          not track malicious activity)
+      license: iBlocklist Terms of Service — personal / non-commercial use only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution is not addressed as a separate permission in the Terms
+          of Service. The license grants personal use only; public display (commercial
+          or non-commercial) is explicitly prohibited. There is no commercial licensing
+          tier, no enterprise exemption, and no provision for further redistribution.
+      current_status:
+        state: unknown
+        description: The NCsoft list page on iblocklist.com loads dynamic content
+          that did not render in research, preventing confirmation of current update
+          activity. Community discussion documents longstanding service-quality concerns
+          including outdated list content, download failures, and unresponsive support
+          dating back several years. No explicit discontinuation announcement was
+          found on the maintainer site.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: The NCsoft-specific list has not generated independent community
+          discussion. Service-level community signal across iBlocklist.com is recorded
+          in the maintainer role notes.
+        engagement: Public discussion about the NCsoft feed specifically is sparse.
+          No GitHub repository, changelog, or transparency report exists for this
+          feed.
+      sources_consulted:
+      - url: https://www.iblocklist.com/list?list=ncsoft
+        document_date:
+        validation_date: '2026-05-18T11:20:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18T11:20:00Z'
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T11:20:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-18T11:20:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-18T11:20:00Z'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-18T11:20:00Z'
+      - url: 
+          https://reddit.com/r/starcraft/comments/hmw1y/ask_starcreddit_how_do_i_run_peerblockutorrent/
+        document_date: '2011-05-29'
+        validation_date: '2026-05-18T11:20:00Z'
+      - url: 
+          https://reddit.com/r/bladeandsoul/comments/42fzr4/ncsoft_please_do_not_limit_the_blocklist/
+        document_date: '2016-01-24'
+        validation_date: '2026-05-18T11:20:00Z'

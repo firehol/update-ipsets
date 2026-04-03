@@ -1,0 +1,184 @@
+sources:
+  dataplane_sshclient:
+    license: Dataplane.org — non-commercial use only, redistribution prohibited
+    redistributable: false
+    url: https://dataplane.org/sshclient.txt
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - dataplane_column3
+    processor_raw: dataplane_column3
+    category: scanners
+    info: '[DataPlane.org](https://dataplane.org/) IP addresses that has been seen
+      initiating an SSH connection to a remote host. This report lists hosts that
+      are suspicious of more than just port scanning.  These hosts may be SSH server
+      cataloging or conducting authentication attack attempts.'
+    maintainer: DataPlane.org
+    maintainer_url: https://dataplane.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T19:02:48Z'
+      official_name: SSH client
+      official_url: https://dataplane.org/signals.html
+      short_description: IP addresses observed performing SSH client protocol negotiations,
+        identified by DataPlane.org's distributed passive sensor network.
+      long_description: "DataPlane.org is a 501(c)(3) nonprofit organization founded
+        in 2016 by John Kristoff, operating a distributed sensor network described
+        as over 300 nodes across 65 metropolitan areas on 6 continents. The SSH client
+        signal is produced by passively observing SSH client protocol negotiations
+        — the initiator side of an SSH connection — rather than by responding to inbound
+        traffic. Per the maintainer's file header, entries represent source IP addresses
+        that have been identified as performing SSH client protocol negotiations,
+        and these hosts may be engaged in SSH server cataloging or conducting authentication
+        attack attempts.\n\nEach feed entry records five fields: autonomous system
+        number (ASN), AS network name, IPv4 address, last-seen timestamp in UTC, and
+        the fixed category tag `sshclient`. Entries are deduplicated by IP address
+        and sorted by originating ASN. The maintainer explicitly states in the file
+        header that the report is informational, not a block list, and advises that
+        deriving malicious or benign intent for individual entries can be difficult
+        given NATs, address spoofing, and legitimate survey activity. The feed is
+        provided on an as-is basis with no expressed warranty or guarantee of accuracy.\n\
+        \nThe maintainer cooperates with other community alert sources including the
+        DenyHosts project and the SSH blacklist (sshbl.org), referencing these as
+        complementary sources of IP addresses they identify as malicious."
+      roles:
+      - role: maintainer
+        name: DataPlane.org NFP
+        organization_type: non_profit
+        official_url: https://dataplane.org/
+        contact_email: info@dataplane.org
+        based_in:
+        active_since: '2016'
+        notes: A 501(c)(3) nonprofit organization founded by John Kristoff. Operates
+          the distributed sensor network that produces this feed and other signals
+          including DNS, NTP, SIP, SMTP, Telnet, VNC, and IP protocol 41.
+      - role: source_contributor
+        name: John Kristoff
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since: '2016'
+        notes: Founder of DataPlane.org, credited in the organization's founding narrative
+          and in conference presentations describing the sensor network methodology.
+      derivation:
+        type: original
+        description: The feed is produced by DataPlane.org's own distributed sensor
+          network, comprising over 300 nodes across 65 metropolitan areas on 6 continents.
+          Sensors employ passive packet capture (pcap) or firewall log-based monitoring
+          to observe SSH client protocol negotiations. Custom or standard listeners
+          run with minimal daemons logging to syslog. No active probing is involved.
+          The feed is not derived from or aggregated from other public IP feeds.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when DataPlane.org's distributed passive sensors
+          observe it performing SSH client protocol negotiations — that is, initiating
+          an outbound SSH connection as a client rather than responding to inbound
+          traffic. The maintainer does not publish quantitative thresholds (e.g.,
+          minimum connection count or observation window) for listing.
+        criteria:
+        - Passive observation of an IP performing SSH client protocol negotiations
+          at a DataPlane.org sensor node
+        - No minimum observation count or time window is publicly specified by the
+          maintainer
+        - The maintainer does not distinguish between intentional credential attacks
+          and incidental SSH client behavior in the published listing criteria
+      unlisting_policy:
+        summary: There is no formal manual unlisting process. Per the maintainer's
+          contact page, IPs decay from the signal naturally once the problematic activity
+          is no longer observed by their sensors. The maintainer advises that listed
+          parties should resolve the underlying device behavior causing the listing,
+          after which the IP will exit the signal as it ages out.
+        criteria:
+        - 'Natural decay: IPs exit the signal when the observed SSH client negotiation
+          behavior ceases to be detected'
+        - No formal appeal, ticket, or manual removal process is documented
+        - The maintainer does not publish a retention window or maximum time-on-list
+          figure
+      unlist_request:
+        url:
+        email: info@dataplane.org
+        instructions: 'The maintainer offers three contact channels for disputes:
+          email to info@dataplane.org, a Mastodon direct message to @dataplane@noc.social,
+          or the DataPlane.org GitHub repository. Per the contact page, the recommended
+          approach is to resolve the underlying device behavior — once the activity
+          is no longer observed, the IP decays from the signal naturally. No formal
+          ticketing system or SLA is documented.'
+      update_frequency:
+        frequency: 1h
+        human_readable: Updated hourly, per the maintainer's signals page.
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: The feed is produced by DataPlane.org's distributed passive sensor
+          network using network telescope methodology — sensors passively observe
+          SSH client protocol negotiations without sending any traffic. Sensors employ
+          passive packet capture (pcap) or firewall log-based monitoring with minimal
+          daemons logging to syslog. No active probing is involved.
+      scope_and_intent:
+        description: The feed identifies IP addresses performing SSH client protocol
+          negotiations, intended as an observational signal for network trend analysis
+          and anomaly detection. The maintainer explicitly frames this as informational
+          data, not a block list, and cautions that deriving malicious or benign intent
+          for individual entries is difficult given NATs, address spoofing, and legitimate
+          survey or research activity.
+        intended_for:
+        - Network trend analysis and anomaly detection
+        - Security research and threat awareness
+        - Correlation with other signals and intelligence sources
+        not_intended_for:
+        - Inline blocking or deny-listing at network perimeter
+        - Automated enforcement actions without local review
+        - Definitive attribution of malicious intent to individual IP addresses
+      license: Non-commercial use only, redistribution prohibited
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Free for non-commercial use only. Commercial redistribution requires
+          express written permission from DataPlane.org.
+      current_status:
+        state: active
+        description: Active as of May 2026. The maintainer's website is reachable,
+          the signals page discusses the SSH client signal, and the feed file continues
+          to be published with regular updates.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: The primary area of friction is the gap between the feed's observational
+          design and how some operators use it — as a de facto block list. DataPlane.org
+          explicitly disclaims this use case and accepts no responsibility for organizations
+          that block based on the signal. Because IPs are listed passively based on
+          observed behavior and decay is the sole unlisting mechanism, dynamic IP
+          reassignment can cause legitimate subsequent occupants of an address to
+          inherit a listing. No formal removal SLA, appeal process, or automated delisting
+          channel is documented.
+        engagement: Public community discussion of the sshclient feed specifically
+          is sparse. The feed is referenced academically in a study of public IP blocklists.
+          No dedicated issue tracker, forum, or mailing list focused solely on this
+          feed was identified.
+      sources_consulted:
+      - url: https://dataplane.org/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/signals.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/contact.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/jtk/talks/firsteu2023-dataplane.pdf
+        document_date: '2023-02-02'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/sshclient.txt
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/dataplane
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/analysis/sshpwauth-tac.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

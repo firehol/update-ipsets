@@ -1,0 +1,36 @@
+# FireHOL IP Lists
+
+> Public cybercrime IP feed observatory for discovering, comparing, and consuming maintained IP blocklists.
+
+This file is a concise, public-only map of the site for AI agents. It links to human pages, public APIs, methodology, and feed artifacts. It does not describe private or operator-only surfaces.
+
+## Primary Pages
+
+- [Homepage and feed explorer](https://iplists.firehol.org): Main public surface for IP lookup and feed discovery.
+- [Countries](https://iplists.firehol.org/countries): Country index for public feed matches.
+- [ASNs](https://iplists.firehol.org/asns): ASN index for public feed matches.
+- [Maintainers](https://iplists.firehol.org/maintainers): Maintainer index for public feeds.
+- [Methodology](https://iplists.firehol.org/methodology): Explanations of feed metrics, health, overlap, retention, geography, ASN attribution, and insights.
+
+## Public APIs
+
+- [Service status](https://iplists.firehol.org/api/v1/status): High-level public service state.
+- [Categories](https://iplists.firehol.org/api/v1/categories): Public category registry.
+- [Feed catalog](https://iplists.firehol.org/api/v1/sets): Public feed inventory.
+- [Global IP search](https://iplists.firehol.org/api/v1/search?ip=1.1.1.1): Query public feed membership for one IP address.
+- [Countries API](https://iplists.firehol.org/api/v1/countries): Published country summaries.
+- [ASNs API](https://iplists.firehol.org/api/v1/asns): Published ASN summaries.
+- [Maintainers API](https://iplists.firehol.org/api/v1/maintainers): Public maintainer summaries.
+- [Methodology API](https://iplists.firehol.org/api/v1/methodology): Machine-readable methodology index.
+- [Compose API example](https://iplists.firehol.org/api/v1/compose?include=sample&format=single): Public feed composition endpoint using include/exclude query parameters.
+
+## Feed Surfaces
+
+- [Legacy feed catalog JSON](https://iplists.firehol.org/all-ipsets.json): Bash-compatible public feed catalog.
+- [Public feed API index](https://iplists.firehol.org/api/v1/sets): Canonical API entry point for feed metadata.
+- [Example feed detail](https://iplists.firehol.org/ipsets/sample): Example public feed page; use the feed catalog for the full list.
+
+## Optional
+
+- [Sitemap](https://iplists.firehol.org/sitemap.xml): XML sitemap for public pages.
+- [robots.txt](https://iplists.firehol.org/robots.txt): Crawler policy and sitemap pointer.

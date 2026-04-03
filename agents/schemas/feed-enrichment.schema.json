@@ -1,0 +1,370 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Feed Enrichment v2 (2026-05-15)",
+  "description": "Structured enrichment for one iplists.firehol.org feed. Every section is mandatory. Each section has a public 'value' (rendered on the website) and internal verification fields (maintainer_quotes, evidence_ids, confidence, assistant_reasoning) that exist for our audit and are NOT shown to users. The classification scope rule (license, redistribution reflect ONLY the direct upstream) is enforced field-by-field through descriptions and the operating prompt.",
+  "type": "object",
+  "required": [
+    "feed_name",
+    "enrichment_schema_version",
+    "run_at",
+    "evidence",
+    "official_name",
+    "official_url",
+    "short_description",
+    "long_description",
+    "roles",
+    "derivation",
+    "listing_policy",
+    "unlisting_policy",
+    "unlist_request",
+    "update_frequency",
+    "detection_classification",
+    "scope_and_intent",
+    "license",
+    "redistribution",
+    "current_status",
+    "community"
+  ],
+  "additionalProperties": false,
+  "properties": {
+
+    "feed_name": { "type": "string" },
+    "enrichment_schema_version": { "const": 2 },
+    "run_at": { "type": "string", "format": "date-time" },
+
+    "evidence": {
+      "type": "array",
+      "description": "Internal bibliography. Every URL the agent fetched during research. Each section references entries here via evidence_ids. The website MAY expose the `url` field as a 'Sources consulted' footer for transparency; the `description` is internal context for our audit.",
+      "items": {
+        "type": "object",
+        "required": ["id", "url", "description"],
+        "additionalProperties": false,
+        "properties": {
+          "id":              { "type": "integer", "minimum": 1, "description": "Stable integer ID referenced by sections via evidence_ids. Sequential from 1." },
+          "url":             { "type": "string", "format": "uri", "description": "The fetched URL. May appear publicly as part of a Sources footer." },
+          "description":     { "type": "string", "description": "INTERNAL. The agent's own short note on what this source is (e.g., 'Spamhaus DROP FAQ', 'GitHub issue #42 from October 2024')." },
+          "document_date":   { "type": ["string", "null"], "format": "date", "description": "When the source itself was authored or last updated, if discoverable." },
+          "validation_date": { "type": ["string", "null"], "format": "date-time", "description": "When the agent fetched the source during this run." }
+        }
+      }
+    },
+
+    "official_name":      { "$ref": "#/$defs/ScalarStringClaim" },
+    "official_url":       { "$ref": "#/$defs/ScalarUrlClaim" },
+    "short_description":  { "$ref": "#/$defs/ScalarStringClaim", "description": "One tight sentence for catalog list views and tooltips. Plain English; explain or avoid specialty terms. NEVER include: entry counts, IP counts, file sizes (the engine publishes these); the substring 'firehol' (no attribution); 'currently'/'as of <recent date>' temporal language. Follow directions: state-dont-interpret, engine-vs-enrichment-streams, attribute-not-assert, no-firehol-self-reference." },
+    "long_description":   { "$ref": "#/$defs/ScalarStringClaim", "description": "One to three paragraphs of inline markdown (no headings). Cover origin, sourcing methodology, intended use, and caveats the maintainer emphasizes. 'Scope' here means *what kind of threats the feed covers*, NOT how many entries it contains. NEVER include: entry counts, IP counts, file sizes ('approximately N entries', 'inspection of the file reveals N IPs', 'N CIDR ranges' — engine territory regardless of source); the substring 'firehol' in any form except as a tool-stack noun ('uses iprange'); 'currently'/'now'/'presently'/'at the moment' temporal language. Follow directions: state-dont-interpret, engine-vs-enrichment-streams, attribute-not-assert, no-firehol-self-reference." },
+
+    "roles": {
+      "type": "object",
+      "required": ["value", "evidence_ids", "maintainer_quotes", "confidence", "assistant_reasoning"],
+      "additionalProperties": false,
+      "description": "People or organizations who RUN this feed: maintainer, publisher, sensor-network operator, named individual contributors when the feed itself credits them, funder/sponsor when prominently disclosed. Do NOT use roles for upstream IP feeds (those belong in derivation.source_feeds[] or derivation.description), external services/APIs the feed consumes (AbuseIPDB, ipinfo.io, GeoIP — describe in derivation.description), or users/customers of the feed. Roles describe responsibility, not dependencies. Follow directions: state-dont-interpret, no-firehol-self-reference, attribute-not-assert.",
+      "properties": {
+        "value": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["role", "name"],
+            "additionalProperties": false,
+            "properties": {
+              "role":              { "type": "string", "enum": ["maintainer", "publisher", "aggregator", "source_contributor", "original_author", "successor"] },
+              "name":              { "type": "string", "description": "PUBLIC. The party's name as the maintainer publicly identifies them. Use a handle if that is the public identity; do not surface real names found by sleuthing." },
+              "organization_type": { "type": ["string", "null"], "enum": ["non_profit", "commercial", "research_institution", "government", "individual", "informal_collective", "unknown", null] },
+              "official_url":      { "type": ["string", "null"], "format": "uri" },
+              "contact_email":     { "type": ["string", "null"], "format": "email", "description": "PUBLIC. Only emails the party publicly offered for this purpose; never emails found by sleuthing." },
+              "based_in":          { "type": ["string", "null"], "description": "Country/region, only if publicly stated by the party." },
+              "active_since":      { "type": ["string", "null"] },
+              "notes":             { "type": ["string", "null"], "description": "PUBLIC. Site-voice, inline markdown allowed, no headings. Follow directions: state-dont-interpret, no-firehol-self-reference, attribute-not-assert." }
+            }
+          }
+        },
+        "evidence_ids":         { "$ref": "#/$defs/EvidenceIds" },
+        "maintainer_quotes":    { "$ref": "#/$defs/MaintainerQuotes" },
+        "confidence":           { "$ref": "#/$defs/Confidence" },
+        "assistant_reasoning":  { "$ref": "#/$defs/AssistantReasoning" }
+      }
+    },
+
+    "derivation": {
+      "type": "object",
+      "required": ["value", "evidence_ids", "maintainer_quotes", "confidence", "assistant_reasoning"],
+      "additionalProperties": false,
+      "description": "How this feed relates to other public feeds. For bulk aggregations describe the aggregation strategy here (operator wants to know the shape; enumerating every upstream feed is not the answer).",
+      "properties": {
+        "value": {
+          "type": "object",
+          "required": ["type", "description"],
+          "additionalProperties": false,
+          "properties": {
+            "type":         { "type": "string", "enum": ["original", "derivative", "extraction", "partial_mirror", "aggregate_merge", "reformat", "fork", "unknown"] },
+            "description":  { "type": "string", "description": "PUBLIC. Site-voice prose describing the build strategy: what is consumed (feeds, sensors, APIs, enrichment services), what scoring or filtering is applied, with what thresholds. External services and APIs (AbuseIPDB API, ipinfo.io, GeoIP) are described here, not listed in roles. NEVER include: entry counts or file sizes ('contributes approximately N IPs', 'over N million seed entries' — engine territory regardless of who publishes the number); the substring 'firehol' in any form except as a tool-stack noun. Follow directions: state-dont-interpret, no-firehol-self-reference (absolute override: any non-tool 'firehol' mention is removed even when context is lost), engine-vs-enrichment-streams (live counts never appear in prose, period), attribute-not-assert." },
+            "source_feeds": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["identifier"],
+                "additionalProperties": false,
+                "properties": {
+                  "identifier":   { "type": "string", "description": "Feed name, project name, or URL of the upstream source." },
+                  "relationship": { "type": ["string", "null"], "enum": ["subset", "superset", "filtered", "enriched", "mirror", "aggregate_component", "fork", null] },
+                  "notes":        { "type": ["string", "null"] }
+                }
+              }
+            }
+          }
+        },
+        "evidence_ids":         { "$ref": "#/$defs/EvidenceIds" },
+        "maintainer_quotes":    { "$ref": "#/$defs/MaintainerQuotes" },
+        "confidence":           { "$ref": "#/$defs/Confidence" },
+        "assistant_reasoning":  { "$ref": "#/$defs/AssistantReasoning" }
+      }
+    },
+
+    "listing_policy":   { "$ref": "#/$defs/PolicyClaim" },
+    "unlisting_policy": { "$ref": "#/$defs/PolicyClaim" },
+
+    "unlist_request": {
+      "type": "object",
+      "required": ["value", "evidence_ids", "maintainer_quotes", "confidence", "assistant_reasoning"],
+      "additionalProperties": false,
+      "description": "How a third party can request unlisting of an IP. Only surface contact channels the maintainer publicly offered for THIS purpose. Personal emails found via WHOIS or commit logs do NOT belong here.",
+      "properties": {
+        "value": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "url":          { "type": ["string", "null"], "format": "uri" },
+            "email":        { "type": ["string", "null"], "format": "email" },
+            "instructions": { "type": ["string", "null"], "description": "PUBLIC. Inline markdown allowed. Site-voice prose describing the process. Follow directions: state-dont-interpret, attribute-not-assert." }
+          }
+        },
+        "evidence_ids":         { "$ref": "#/$defs/EvidenceIds" },
+        "maintainer_quotes":    { "$ref": "#/$defs/MaintainerQuotes" },
+        "confidence":           { "$ref": "#/$defs/Confidence" },
+        "assistant_reasoning":  { "$ref": "#/$defs/AssistantReasoning" }
+      }
+    },
+
+    "update_frequency": {
+      "type": "object",
+      "required": ["value", "evidence_ids", "maintainer_quotes", "confidence", "assistant_reasoning"],
+      "additionalProperties": false,
+      "description": "What the maintainer says about update cadence. NOT what the engine observes; that's a separate page field. Set value to null with confidence=no-information if the maintainer doesn't state a cadence.",
+      "properties": {
+        "value": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "frequency":      { "type": ["string", "null"], "pattern": "^(\\d+[mhdw])$", "description": "Compact form: 'Xm' minutes, 'Xh' hours, 'Xd' days, 'Xw' weeks (e.g. '30m', '1h', '1d'). Null only if maintainer doesn't state ANY cadence." },
+            "human_readable": { "type": ["string", "null"], "description": "PUBLIC. The maintainer's stated cadence in site-voice phrasing, e.g. 'Updated every 30 minutes per the maintainer's FAQ'. This is the maintainer's claim; the engine separately measures observed cadence. Follow directions: attribute-not-assert, engine-vs-enrichment-streams." }
+          }
+        },
+        "evidence_ids":         { "$ref": "#/$defs/EvidenceIds" },
+        "maintainer_quotes":    { "$ref": "#/$defs/MaintainerQuotes" },
+        "confidence":           { "$ref": "#/$defs/Confidence" },
+        "assistant_reasoning":  { "$ref": "#/$defs/AssistantReasoning" }
+      }
+    },
+
+    "detection_classification": {
+      "type": "object",
+      "required": ["value", "evidence_ids", "maintainer_quotes", "confidence", "assistant_reasoning"],
+      "additionalProperties": false,
+      "description": "How THIS SPECIFIC FEED is built. Pick primary_method from the closed enum based on the maintainer's stated sourcing for this feed only, not the maintainer's broader operation. The 'description' field must explain technical terms (e.g., if you write 'Rogue Packet score', also explain what it is and how it's computed).",
+      "properties": {
+        "value": {
+          "type": "object",
+          "required": ["primary_method", "description"],
+          "additionalProperties": false,
+          "properties": {
+            "primary_method":    { "type": "string", "enum": ["honeypot", "network_telescope", "active_scanning", "user_submission", "malware_analysis", "reputation_aggregation", "policy_assignment", "commercial_threat_intel", "mixed", "unknown"] },
+            "secondary_methods": { "type": "array", "items": { "type": "string", "enum": ["honeypot", "network_telescope", "active_scanning", "user_submission", "malware_analysis", "reputation_aggregation", "policy_assignment", "commercial_threat_intel"] } },
+            "description":       { "type": "string", "description": "PUBLIC. Site-voice prose. Explain technical terms in plain language; assume the operator doesn't know what 'Rogue Packet score' or similar specialty terms mean. Follow directions: state-dont-interpret (state the methodology, do not characterize it as 'sophisticated' or 'limited'), attribute-not-assert." }
+          }
+        },
+        "evidence_ids":         { "$ref": "#/$defs/EvidenceIds" },
+        "maintainer_quotes":    { "$ref": "#/$defs/MaintainerQuotes" },
+        "confidence":           { "$ref": "#/$defs/Confidence" },
+        "assistant_reasoning":  { "$ref": "#/$defs/AssistantReasoning" }
+      }
+    },
+
+    "scope_and_intent": {
+      "type": "object",
+      "required": ["value", "evidence_ids", "maintainer_quotes", "confidence", "assistant_reasoning"],
+      "additionalProperties": false,
+      "description": "What the maintainer says the feed is FOR.",
+      "properties": {
+        "value": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "description":      { "type": ["string", "null"], "description": "PUBLIC. Site-voice prose summarizing the maintainer's stated purpose. Follow directions: state-dont-interpret, attribute-not-assert." },
+            "intended_for":     { "type": "array", "items": { "type": "string" }, "description": "PUBLIC. Each item is a use case the maintainer recommends. Use the maintainer's own framing; do not infer use cases the maintainer did not state." },
+            "not_intended_for": { "type": "array", "items": { "type": "string" }, "description": "PUBLIC. Each item is a use case the maintainer explicitly cautions against. Maintainer-stated cautions only; do not invent cautions." }
+          }
+        },
+        "evidence_ids":         { "$ref": "#/$defs/EvidenceIds" },
+        "maintainer_quotes":    { "$ref": "#/$defs/MaintainerQuotes" },
+        "confidence":           { "$ref": "#/$defs/Confidence" },
+        "assistant_reasoning":  { "$ref": "#/$defs/AssistantReasoning" }
+      }
+    },
+
+    "license": {
+      "type": "object",
+      "required": ["value", "evidence_ids", "maintainer_quotes", "confidence", "assistant_reasoning"],
+      "additionalProperties": false,
+      "description": "License of the DIRECT UPSTREAM only. The classification rule: only the direct upstream's terms govern this field. Upstream-of-upstream terms (e.g. AbuseIPDB's ToS when the direct upstream is borestad's GitHub mirror) belong in assistant_reasoning, not here. Default 'Public, no stated license' when the direct upstream is publicly available (unauthenticated HTTP GET works) AND silent on licensing.",
+      "properties": {
+        "value":                { "type": "string", "description": "PUBLIC. The license string. Use 'Public, no stated license' as the default when the direct upstream is publicly available and silent." },
+        "evidence_ids":         { "$ref": "#/$defs/EvidenceIds" },
+        "maintainer_quotes":    { "$ref": "#/$defs/MaintainerQuotes" },
+        "confidence":           { "$ref": "#/$defs/Confidence" },
+        "assistant_reasoning":  { "$ref": "#/$defs/AssistantReasoning" }
+      }
+    },
+
+    "redistribution": {
+      "type": "object",
+      "required": ["value", "evidence_ids", "maintainer_quotes", "confidence", "assistant_reasoning"],
+      "additionalProperties": false,
+      "description": "Redistribution terms of the DIRECT UPSTREAM only. Same scope rule as license. When direct upstream is publicly available and silent on redistribution, default allowed=true.",
+      "properties": {
+        "value": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "allowed":                { "type": ["boolean", "null"], "description": "PUBLIC. Defaults to true when the direct upstream is publicly available and silent. Null only when the direct upstream is not publicly available AND we can't determine." },
+            "commercial_use_allowed": { "type": ["boolean", "null"] },
+            "attribution_required":   { "type": ["string", "null"], "description": "PUBLIC. The attribution requirement, if any (e.g., 'Credit Spamhaus.org')." },
+            "terms":                  { "type": ["string", "null"], "description": "PUBLIC. Direct upstream's stated terms in site-voice prose. Quote verbatim when terms are short and unambiguous; paraphrase only when verbatim would be confusing. Follow direction: state-dont-interpret (do not characterize terms as 'restrictive' or 'permissive')." }
+          }
+        },
+        "evidence_ids":         { "$ref": "#/$defs/EvidenceIds" },
+        "maintainer_quotes":    { "$ref": "#/$defs/MaintainerQuotes" },
+        "confidence":           { "$ref": "#/$defs/Confidence" },
+        "assistant_reasoning":  { "$ref": "#/$defs/AssistantReasoning" }
+      }
+    },
+
+    "current_status": {
+      "type": "object",
+      "required": ["value", "evidence_ids", "maintainer_quotes", "confidence", "assistant_reasoning"],
+      "additionalProperties": false,
+      "description": "Maintainer-stated lifecycle status. Default 'active' when maintainer pages are reachable and discuss the feed — maintainers don't announce activity, they announce changes. Set 'discontinued', 'merged', 'forked', 'reformatted', or 'altered_scope' ONLY on explicit maintainer evidence. Set 'unknown' only when we genuinely cannot tell (e.g., maintainer site dead, no successor info). The engine's last_observed_update is separate and shown on the page alongside this; do NOT infer status from update timing here.",
+      "properties": {
+        "value": {
+          "type": "object",
+          "required": ["state", "description"],
+          "additionalProperties": false,
+          "properties": {
+            "state":             { "type": "string", "enum": ["active", "discontinued", "merged", "forked", "reformatted", "altered_scope", "unknown"] },
+            "description":       { "type": "string", "description": "PUBLIC. Site-voice prose. This is the ONE public field where temporal language ('currently', 'as of <date>') is appropriate — it carries lifecycle state by design. For 'active', a brief line is fine ('Maintained as of <date>, regular updates'). For other states, explain what happened, when, and whether a successor exists. The engine's health classification handles upstream availability; this field handles maintainer-announced lifecycle events. Follow directions: state-dont-interpret, attribute-not-assert." },
+            "successor": {
+              "type": ["object", "null"],
+              "additionalProperties": false,
+              "properties": {
+                "name": { "type": ["string", "null"] },
+                "url":  { "type": ["string", "null"], "format": "uri" }
+              }
+            },
+            "announcement_date": { "type": ["string", "null"], "format": "date", "description": "When the maintainer announced the lifecycle change. Null for 'active'." }
+          }
+        },
+        "evidence_ids":         { "$ref": "#/$defs/EvidenceIds" },
+        "maintainer_quotes":    { "$ref": "#/$defs/MaintainerQuotes" },
+        "confidence":           { "$ref": "#/$defs/Confidence" },
+        "assistant_reasoning":  { "$ref": "#/$defs/AssistantReasoning" }
+      }
+    },
+
+    "community": {
+      "type": "object",
+      "required": ["value", "evidence_ids", "confidence", "assistant_reasoning"],
+      "additionalProperties": false,
+      "description": "Third-party community signal, synthesized into three public paragraphs. The agent's RAW findings (URLs, dates, verbatim quotes from posts/issues) belong in assistant_reasoning for audit — they are NOT shown to users. Only the three synthesized paragraphs are public.",
+      "properties": {
+        "value": {
+          "type": "object",
+          "required": ["awards", "criticism", "engagement"],
+          "additionalProperties": false,
+          "properties": {
+            "awards":     { "type": ["string", "null"], "description": "PUBLIC. Markdown paragraph. Named third-party recognition the feed has received: specific awards (with date), paper citations (with verifiable paper title), named industry rankings, documented endorsements from named organizations/individuals. Marketing-style superlatives ('widely deployed', 'industry-leading', 'gold standard') are NOT awards. Most feeds will have null — sparse is honest. Adoption, integrations, and inclusion in aggregators belong in engagement, not awards. Follow directions: awards-are-received-not-claimed, state-dont-interpret, attribute-not-assert." },
+            "criticism":  { "type": ["string", "null"], "description": "PUBLIC. Markdown paragraph. Historically-framed: past complaints, pain points, weaknesses surfaced by the community. Neutral tone, respectful of the maintainer. Include the resolution pattern (quick fixes / unresolved / etc.) per the resolution-as-signal principle. Null if no notable criticism. NEVER include: IPv4 or IPv6 addresses, even when an FP-incident report centers on a well-known public IP (Cloudflare 1.1.1.1, Google DNS 8.8.8.8, etc.) — paraphrase using the named service ('Cloudflare public DNS was reported listed'), see The IP rule section in the prompt; the substring 'firehol' in any form (no attribution as alternative, historical actor, or anything else); 'currently' or 'as of <recent date>' temporal language except for date-stamped community-traction metrics. Follow directions: state-dont-interpret (describe what happened, do not judge), engine-vs-enrichment-streams (no current sizes / counts / live state — those rot), no-firehol-self-reference (absolute override)." },
+            "engagement": { "type": ["string", "null"], "description": "PUBLIC. Markdown paragraph. How the community engages with this feed: discussion density, response patterns, who participates, integrations into named third-party products/aggregators. 'Sparse public discussion' is a valid neutral observation. Null if no engagement signal at all. Community-traction numbers (GitHub stars, forks, follower counts, integration counts) must be date-stamped with '(as of <month> <year>)' so staleness is visible — see direction engine-vs-enrichment-streams. Follow directions: state-dont-interpret, engine-vs-enrichment-streams, no-firehol-self-reference (do not attribute FireHOL as an input or supplier when an upstream aggregator names it; tool mentions are fine)." }
+          }
+        },
+        "evidence_ids":         { "$ref": "#/$defs/EvidenceIds" },
+        "confidence":           { "$ref": "#/$defs/Confidence" },
+        "assistant_reasoning":  { "$ref": "#/$defs/AssistantReasoning", "description": "INTERNAL — the agent's audit trail for community research. Use full markdown including headings. List each finding here with its URL, date, source type, and verbatim text from the source. The three public paragraphs are synthesized from these notes; the notes themselves are the evidence." }
+      }
+    }
+  },
+
+  "$defs": {
+    "Confidence": {
+      "type": "string",
+      "enum": ["explicitly-stated", "clearly-implied", "reasonable", "no-information"],
+      "description": "INTERNAL. The agent's calibration of evidence type: explicitly-stated = the maintainer's own docs say so verbatim; clearly-implied = strongly suggested by maintainer-controlled content; reasonable = inferred from multiple independent sources; no-information = could not find supporting evidence (the value should be null in this case)."
+    },
+    "EvidenceIds": {
+      "type": "array",
+      "items": { "type": "integer", "minimum": 1 },
+      "description": "INTERNAL. References into the top-level evidence[] bibliography by id."
+    },
+    "MaintainerQuotes": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "INTERNAL — verification only, NOT rendered to users. Verbatim quotes from the maintainer's own documentation that back up the section's value. May contain operational data (IPs, CIDRs, emails) that the public value field should not contain. Used for audit and for future re-runs to verify our enrichment against fresh evidence."
+    },
+    "AssistantReasoning": {
+      "type": "string",
+      "description": "INTERNAL — verification only, NOT rendered to users. The agent's narrative for why this value was chosen: which evidence weighed most, what tensions in the data the agent resolved and how, why confidence is what it is. Full markdown including headings is welcome since this is admin-only. For empty/null sections, explain what was searched and why nothing was found — null is a valid output but requires honest reasoning."
+    },
+    "ScalarStringClaim": {
+      "type": "object",
+      "required": ["value", "evidence_ids", "maintainer_quotes", "confidence", "assistant_reasoning"],
+      "additionalProperties": false,
+      "properties": {
+        "value":                { "type": ["string", "null"], "description": "PUBLIC. The fact, in site-voice. Null when confidence=no-information." },
+        "evidence_ids":         { "$ref": "#/$defs/EvidenceIds" },
+        "maintainer_quotes":    { "$ref": "#/$defs/MaintainerQuotes" },
+        "confidence":           { "$ref": "#/$defs/Confidence" },
+        "assistant_reasoning":  { "$ref": "#/$defs/AssistantReasoning" }
+      }
+    },
+    "ScalarUrlClaim": {
+      "type": "object",
+      "required": ["value", "evidence_ids", "maintainer_quotes", "confidence", "assistant_reasoning"],
+      "additionalProperties": false,
+      "properties": {
+        "value":                { "type": ["string", "null"], "format": "uri", "description": "PUBLIC. The URL. Null when confidence=no-information." },
+        "evidence_ids":         { "$ref": "#/$defs/EvidenceIds" },
+        "maintainer_quotes":    { "$ref": "#/$defs/MaintainerQuotes" },
+        "confidence":           { "$ref": "#/$defs/Confidence" },
+        "assistant_reasoning":  { "$ref": "#/$defs/AssistantReasoning" }
+      }
+    },
+    "PolicyClaim": {
+      "type": "object",
+      "required": ["value", "evidence_ids", "maintainer_quotes", "confidence", "assistant_reasoning"],
+      "additionalProperties": false,
+      "description": "Listing or unlisting policy. The 'summary' field must explain in plain terms; if it references specialty terms like 'Rogue Packet score' or 'X-ARF format', the agent must research and explain those terms within the summary. Operators should not need prior knowledge to understand it.",
+      "properties": {
+        "value": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "summary":   { "type": "string", "description": "PUBLIC. Site-voice prose, inline markdown allowed. Self-contained — explain technical terms in plain language. Follow directions: state-dont-interpret, attribute-not-assert, engine-vs-enrichment-streams." },
+            "criteria":  { "type": "array", "items": { "type": "string" }, "description": "PUBLIC. Each item is one inclusion (or exclusion, for unlisting) criterion in site-voice. Follow directions: state-dont-interpret, attribute-not-assert." }
+          }
+        },
+        "evidence_ids":         { "$ref": "#/$defs/EvidenceIds" },
+        "maintainer_quotes":    { "$ref": "#/$defs/MaintainerQuotes" },
+        "confidence":           { "$ref": "#/$defs/Confidence" },
+        "assistant_reasoning":  { "$ref": "#/$defs/AssistantReasoning" }
+      }
+    }
+  }
+}

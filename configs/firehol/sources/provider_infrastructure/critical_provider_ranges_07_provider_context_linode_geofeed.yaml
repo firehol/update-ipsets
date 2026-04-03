@@ -1,0 +1,176 @@
+sources:
+  provider_context_linode_geofeed:
+    license: Provider-published RFC 8805 geofeed
+    redistributable: false
+    label: Linode/Akamai Cloud provider context
+    url: https://geoip.linode.com/
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: primary
+    info: Linode/Akamai Cloud-published RFC 8805 geofeed IPv4 ranges. Provider context
+      feed, not a threat indicator and not a critical-infrastructure warning source.
+    maintainer: Akamai Cloud Computing
+    maintainer_url: https://geoip.linode.com/
+    enabled_by_all: true
+    use: [provider_context]
+    attributes:
+      context_role: cloud_customer_hosting
+      context_source_type: authoritative_geofeed_csv
+      context_source_quality: B
+      context_rationale: Linode/Akamai Cloud ranges are customer-hosting infrastructure;
+        overlap should be interpreted with operator policy and local service dependencies.
+
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T14:32:22Z'
+      official_name: Linode GeoIP
+      official_url: https://geoip.linode.com/
+      short_description: Linode/Akamai Cloud's self-published IP geolocation feed,
+        mapping the provider's allocated IPv4 and IPv6 address space to geographic
+        locations using RFC 8805 format.
+      long_description: "Linode GeoIP is a self-published IP geolocation feed operated
+        by Akamai Connected Cloud (formerly Linode), mapping the provider's allocated
+        address space to geographic locations. The feed follows RFC 8805 — a standardized
+        format for network operators to publish IP-prefix-to-geolocation mappings
+        for consumption by geolocation database operators and network tooling.\n\n\
+        The CSV file contains five columns: ip_prefix (CIDR notation), alpha2code
+        (ISO 3166-1 country code), region (ISO 3166-2 subdivision code), city (free-text
+        name), and postal_code (optional, deprecated). Entries cover Linode data centers
+        across more than 35 countries and territories including the United States,
+        Canada, the United Kingdom, Germany, Japan, Singapore, Australia, Brazil,
+        the Netherlands, Sweden, France, India, Indonesia, New Zealand, Colombia,
+        Mexico, Chile, and others.\n\nAkamai acquired Linode in February 2022; the
+        geofeed is now served from Akamai infrastructure under the Akamai Connected
+        Cloud brand. Per the Akamai position paper presented at the IAB IP-Geo Workshop,
+        publishing accurate provider geolocation data is characterized as an intentional
+        contribution to the broader IP geolocation ecosystem. The maintainer does
+        not frame this as a threat-intelligence or security feed — it is infrastructure-context
+        data for use in geolocation enrichment pipelines."
+      roles:
+      - role: maintainer
+        name: Akamai Connected Cloud
+        organization_type: commercial
+        official_url: https://www.akamai.com/products/cloud-computing
+        contact_email:
+        based_in: United States
+        active_since: '2022'
+        notes: Formerly Linode. Akamai acquired Linode in February 2022; Linode now
+          operates as Akamai Connected Cloud, a division of Akamai Technologies, Inc.
+          The geofeed is published as part of Akamai's public IP:Geo initiative.
+      derivation:
+        type: original
+        description: The feed is generated from Linode's own IP address allocations
+          and infrastructure records. Entries represent the provider's allocated address
+          space paired with the geographic location of the data center or infrastructure
+          hosting each prefix. No external IP feeds, threat intelligence sources,
+          or third-party geolocation databases are consumed. The maintainer updates
+          entries when new IP space is allocated, when infrastructure location changes,
+          or when address space is reclaimed.
+        source_feeds: []
+      listing_policy:
+        summary: This is a geolocation feed, not a threat indicator feed. Listings
+          are not threat-based verdicts — each entry represents a geographic location
+          assignment for an IP prefix that Linode manages. An entry is added when
+          Linode allocates IP space to a data center or other facility, and updated
+          when the geographic association of a prefix changes. Entries are removed
+          when the address space is reclaimed from service.
+        criteria:
+        - IP prefix is allocated to Linode/Akamai Cloud infrastructure
+        - Geographic location of the hosting facility is known and assigned to the
+          prefix
+        - Entry is removed upon address-space reclamation
+      unlisting_policy:
+        summary: There is no formal unlisting process analogous to threat-feed delisting,
+          because this is geolocation data rather than an abuse or threat feed. Entries
+          reflect current infrastructure assignments; an entry naturally ceases to
+          be accurate when the address space is reclaimed. Requests to correct inaccurate
+          geolocation data can be submitted through Linode support channels.
+        criteria:
+        - Address space is no longer allocated to Linode — entry reflects reclaimed
+          space and becomes stale
+        - Geographic location of the hosting facility changes — entry updated to reflect
+          new location
+        - No standing manual-removal mechanism; corrections handled via support
+      unlist_request:
+        url:
+        email:
+        instructions: Requests to correct inaccurate geolocation data in the Linode
+          GeoIP feed can be submitted through Linode's standard support channels at
+          https://www.linode.com/support/. There is no dedicated unlisting form for
+          this feed.
+      update_frequency:
+        frequency: 1d
+        human_readable: Regenerated when Linode's IP allocation inventory changes;
+          the maintainer does not publish a fixed update schedule. Per the catalog
+          YAML, the nominal interval is approximately once per day.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: Authoritative geofeed data sourced directly from the provider's
+          own IP address allocation records and data-center infrastructure inventory.
+          Each entry is the provider's factual record of where a given IP prefix is
+          geographically hosted — not a detection signal, behavioral score, or third-party
+          report. This is the provider assigning their own infrastructure geography,
+          which RFC 8805 classifies as the most reliable form of IP geolocation data.
+      scope_and_intent:
+        description: The feed maps Linode/Akamai Cloud's allocated IP address space
+          to geographic locations for consumption by geolocation database operators,
+          network operators, and security tooling that benefits from accurate provider-level
+          IP geolocation.
+        intended_for:
+        - Correcting or supplementing third-party IP geolocation databases
+        - Network operations and routing analysis requiring provider-level geolocation
+        - Security tooling that incorporates provider geolocation context
+        - Compliance workflows requiring accurate IP-to-location attribution
+        not_intended_for:
+        - Threat indicator or abuse-blocking use cases
+        - Critical infrastructure warning systems
+        - Blocking decisions without supplemental context
+      license: Public, no stated license
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms: The geofeed file itself does not state redistribution terms. Akamai's
+          general Acceptable Use Policy restricts customers from reselling or distributing
+          Akamai services to third parties without written consent. Organizations
+          considering redistribution should verify with Akamai.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026. The geofeed file was last
+          modified on 2026-05-21, confirming ongoing updates.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion specific to the Linode GeoIP geofeed
+          is sparse. The broader IP geolocation community recognizes provider-published
+          geofeed data as a valuable but underutilized resource for improving geolocation
+          accuracy. No dedicated forum, issue tracker, or social media presence was
+          found for this specific feed.
+      sources_consulted:
+      - url: https://geoip.linode.com/
+        document_date: '2026-05-21'
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: https://datatracker.ietf.org/doc/html/rfc8805
+        document_date:
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: https://www.akamai.com/legal/msa
+        document_date:
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: https://www.linode.com/community/questions/19247/list-of-linodes-ip-ranges
+        document_date:
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: 
+          https://www.ietf.org/slides/slides-ipgeows-paper-akamai-position-paper-for-iab-workshop-on-ip-address-geolocation-ip-geo-00.pdf
+        document_date:
+        validation_date: '2026-05-21T14:00:00Z'
+      - url: https://www.akamai.com/legal/acceptable-use-policy
+        document_date:
+        validation_date: '2026-05-21T14:00:00Z'

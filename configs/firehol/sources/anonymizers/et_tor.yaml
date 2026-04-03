@@ -1,0 +1,229 @@
+sources:
+  et_tor:
+    license: BSD-3-Clause (Emerging Threats Open)
+    redistributable: true
+    url: http://rules.emergingthreats.net/blockrules/emerging-tor.rules
+    frequency: 720
+    ipv: ipv4
+    output: ipset
+    processor:
+    - snort_rules
+    processor_raw: snort_alert_rules_to_ipv4
+    category: anonymizers
+    provenance: secondary_upstream
+    info: '[EmergingThreats.net TOR list](http://doc.emergingthreats.net/bin/view/Main/TorRules)
+      of TOR network IPs'
+    maintainer: Emerging Threats
+    maintainer_url: http://www.emergingthreats.net/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T18:45:53+00:00'
+      official_name: Emerging Threats TOR Rules
+      official_url: https://doc.emergingthreats.net/bin/view/Main/TorRules
+      short_description: A blocklist of IP addresses belonging to known Tor exit nodes,
+        compiled from upstream feeds and distributed as Snort/Suricata IDS rules.
+      long_description: "The Emerging Threats TOR Rules are a blocklist of IP addresses
+        that belong to known Tor exit nodes, maintained by Proofpoint under the Emerging
+        Threats Intelligence brand. The rules are compiled from two upstream sources:
+        the Dan.me.uk public Tor exit node list and the Tor Project's official bulk
+        exit list API. Two rule file formats are published — emerging-tor.rules (Snort-compatible)
+        and emerging-tor.suricata.rules (Suricata-compatible).\n\nPer the maintainer's
+        documentation, the rules are provided for environments where Tor exit node
+        traffic is considered a suspicious vector of communication. The maintainer
+        notes explicitly that 'their use of Tor isn't necessarily a hostile act,'
+        acknowledging that listing a Tor exit node does not imply malicious activity
+        by the operator.\n\nThe ET Open ruleset is governed by a BSD license. The
+        project traces its roots to the original Emerging Threats open-source community,
+        acquired by Proofpoint in 2012."
+      roles:
+      - role: maintainer
+        name: Proofpoint, Inc.
+        organization_type: commercial
+        official_url: 
+          https://www.proofpoint.com/us/products/advanced-threat-protection/et-intelligence
+        contact_email:
+        based_in: United States
+        active_since: '2012'
+        notes: Proofpoint acquired the Emerging Threats open-source community in 2012
+          and continues to publish the ET Open ruleset under the Emerging Threats
+          Intelligence brand. The corporate product page confirms Proofpoint's ownership
+          and operation of the ET Intelligence suite.
+      - role: publisher
+        name: Emerging Threats / Proofpoint
+        organization_type: commercial
+        official_url: https://rules.emergingthreats.net/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Rule files are hosted at rules.emergingthreats.net. The blockrules
+          directory listing confirms all files are served from this domain.
+      - role: source_contributor
+        name: Dan.me.uk (Daniel Austin)
+        organization_type: individual
+        official_url: https://www.dan.me.uk/torlist/
+        contact_email:
+        based_in:
+        active_since:
+        notes: One of two upstream sources for the ET TOR rules. Provides a publicly
+          downloadable Tor exit node list refreshed every 30 minutes from the live
+          Tor network.
+      - role: source_contributor
+        name: The Tor Project
+        organization_type: non_profit
+        official_url: https://check.torproject.org/
+        contact_email:
+        based_in:
+        active_since:
+        notes: One of two upstream sources for the ET TOR rules. Distributes the official
+          bulk exit list via cgi-bin/TorBulkExitList.py, updated from live Tor network
+          directory data.
+      derivation:
+        type: aggregate_merge
+        description: "The TOR rules are compiled from two upstream feeds: the Dan.me.uk
+          public Tor exit node list and the Tor Project's official bulk exit list
+          API. Both upstream sources are refreshed from live Tor network directory
+          data. The resulting IPs are encoded as Snort/Suricata alert rules — each
+          rule fires when traffic originates from a known Tor exit node IP address.
+          The ET Open ruleset overall is updated once daily on weekdays with occasional
+          out-of-band updates for critical threats."
+        source_feeds:
+        - identifier: Dan.me.uk TOR exit node list
+          relationship: aggregate_component
+          notes: 'Refreshed every 30 minutes from the live Tor network. Automatic-only
+            removal: IPs are dropped when the node ceases to run, with a maximum delay
+            of one hour.'
+        - identifier: Tor Project Bulk Exit List
+          relationship: aggregate_component
+          notes: Distributed via check.torproject.org/cgi-bin/TorBulkExitList.py.
+            Updated from live Tor network directory data. No opt-out mechanism.
+      listing_policy:
+        summary: 'An IP enters the ET TOR rules when it appears in either of two upstream
+          feeds: the Dan.me.uk Tor exit node list or the Tor Project bulk exit list.
+          Both upstream sources derive their listings from the live Tor network directory
+          — an IP is listed as soon as the Tor directory reports it as an active exit
+          node, and automatically removed when it ceases to appear in the directory.'
+        criteria:
+        - Appears in the Dan.me.uk public Tor exit node list (refreshed every 30 minutes
+          from live Tor network)
+      unlisting_policy:
+        summary: Removal is driven entirely by the upstream feeds. There is no manual
+          delist or exemption process within the ET TOR rules themselves. An IP leaves
+          the list automatically when it no longer appears in the upstream Tor network
+          directory — typically within one hour of the exit node ceasing operation.
+          Until the upstream drops the IP, ET will continue to include it on every
+          sync cycle.
+        criteria:
+        - Node ceases operation and disappears from the live Tor network directory
+          (automatic, upstream-driven)
+      unlist_request:
+        url: https://community.emergingthreats.net/c/feedback-support/8
+        email: support@emergingthreats.net
+        instructions: 'No formal delist procedure exists for the TOR rules. The only
+          available channels are the general ET community Feedback & Support forum
+          and the support email address. A reporter can raise a false-positive concern,
+          but the practical resolution path is limited: ET can suppress an IP locally
+          only until the next sync from upstream restores it. The durable fix requires
+          the upstream source (Dan.me.uk or Tor Project) to drop the IP, which occurs
+          automatically when the node stops running.'
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated once daily on weekdays, with occasional out-of-band
+          updates for critical threats, per the official ET Open download instructions.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: 'The feed is built by aggregating two upstream reputation feeds:
+          the Dan.me.uk Tor exit node list and the Tor Project bulk exit list. Both
+          upstream sources derive their listings from the live Tor network directory.
+          ET encodes the resulting IP set as Snort/Suricata alert rules — each rule
+          fires when traffic originates from a known Tor exit node IP address. No
+          active probing, sandboxing, or manual threat assessment is involved in building
+          the ET TOR rules specifically.'
+      scope_and_intent:
+        description: "The feed is intended for environments where Tor exit node traffic
+          is considered a suspicious communication vector. The maintainer explicitly
+          frames this as an optional blocklist: 'their use of Tor isn't necessarily
+          a hostile act, but in some environments that would be a very suspicious
+          way to communicate.' The feed covers Tor exit node IPs only — non-exit relays
+          (guard relays and middle relays carrying encrypted Tor cells) are not exit
+          nodes and do not originate connections to the public internet."
+        intended_for:
+        - Identifying Tor exit node traffic in network environments where such traffic
+          is policy-relevant
+        - Optional perimeter blocking for environments with elevated sensitivity to
+          anonymized outbound connections
+        not_intended_for:
+        - Blocking Tor relay traffic generally — non-exit relays (guard/middle relays)
+          do not originate connections to the public internet and are architecturally
+          distinct from exit nodes
+        - Indicating malicious activity — the maintainer explicitly notes that Tor
+          exit node use is not necessarily hostile
+      license: BSD-3-Clause (Emerging Threats Open)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Retain copyright notices; do not use the Emerging Threats
+          name to endorse derived products without prior written permission
+        terms: BSD License — permits redistribution in source and binary forms, with
+          or without modification. No copyleft obligations apply to the TOR rules
+          (which fall within the BSD-licensed SID range). Commercial bundling is permitted.
+      current_status:
+        state: active
+        description: Active. Maintained by Proofpoint under the Emerging Threats Intelligence
+          brand. Rule files on the blockrules server were last modified on 2026-05-15
+          (revision 4262). The ET Open ruleset is updated once daily on weekdays with
+          occasional out-of-band updates.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: 'The ET TOR rules flag ALL known Tor relay IPs — including non-exit
+          relays (guard relays and middle relays) that carry only encrypted Tor cells
+          and do not originate connections to the public internet. Community reports
+          document false positive alerts firing on legitimate local network traffic
+          when devices contact Tor relay IPs during routine operations. The architectural
+          limitation is that there is no manual delist procedure: IPs are removed
+          only when the upstream Tor network directory drops them, which occurs automatically
+          when the node stops running. For exit node operators who believe their nodes
+          were incorrectly listed, there is no recourse beyond ceasing operation.'
+        engagement: Public discussion specific to the ET TOR rules is sparse. The
+          broader ET community forum (community.emergingthreats.net) maintains active
+          ruleset update threads and a Feedback & Support category where false-positive
+          reports are addressed. The ET team has a documented track record of revising
+          rules when presented with evidence of problematic patterns. General Tor
+          exit node false-positive discussions appear in third-party forums (Ubiquiti,
+          Reddit) where users report ET TOR rule alerts firing on legitimate traffic.
+      sources_consulted:
+      - url: https://doc.emergingthreats.net/bin/view/Main/TorRules
+        document_date: '2020-07-23'
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: https://rules.emergingthreats.net/blockrules/
+        document_date:
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: https://community.emergingthreats.net/t/frequently-asked-questions/56
+        document_date:
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: https://rules.emergingthreats.net/OPEN_download_instructions.html
+        document_date:
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: https://www.dan.me.uk/dnsbl
+        document_date:
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: https://community.emergingthreats.net/c/feedback-support/8
+        document_date:
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: 
+          https://www.proofpoint.com/us/products/advanced-threat-protection/et-intelligence
+        document_date:
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: https://github.com/EmergingThreats
+        document_date:
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: 
+          https://community.emergingthreats.net/t/ruleset-update-summary-2025-11-26-v11071/3119
+        document_date: '2025-11-26'
+        validation_date: '2026-05-17T00:00:00+00:00'
+      - url: https://rules.emergingthreats.net/blockrules/TORrev
+        document_date:
+        validation_date: '2026-05-17T00:00:00+00:00'

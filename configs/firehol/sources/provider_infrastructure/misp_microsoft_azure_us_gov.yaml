@@ -1,0 +1,194 @@
+sources:
+  misp_microsoft_azure_us_gov:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/microsoft-azure-us-gov/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Microsoft
+      Azure US Government cloud datacenter IP ranges. Provider infrastructure reference,
+      not a threat indicator.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T06:47:25Z'
+      official_name: List of known Microsoft Azure US Government Cloud Datacenter
+        IP Ranges
+      official_url: https://github.com/MISP/misp-warninglists/tree/main/lists/microsoft-azure-us-gov
+      short_description: CIDR-format list of Microsoft Azure US Government sovereign
+        cloud datacenter IP ranges, used to suppress false-positive alerts when Azure
+        US Government infrastructure appears in threat intelligence.
+      long_description: The microsoft-azure-us-gov list covers the IP address ranges
+        allocated to Microsoft Azure US Government, a sovereign cloud deployment designed
+        to meet US federal regulatory requirements including FedRAMP High and DoD
+        Impact Level 5 certifications. It is the US-federal-specific sibling to Microsoft's
+        public Azure cloud, Azure China (operated by 21Vianet), and the now-retired
+        Azure Germany sovereign cloud — each tracked by its own MISP warninglist.
+        The list is sourced from Microsoft's publicly available Azure IP range data
+        for the US Government cloud and is formatted as CIDR blocks compatible with
+        MISP's ip-src, ip-dst, and domain|ip attribute matching. Per the project README,
+        warning lists are integrated into MISP to display an informational or warning
+        box whenever a matching indicator is encountered, and are usable at the API
+        level to filter false positives programmatically.
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://github.com/MISP
+        contact_email:
+        based_in: Luxembourg
+        active_since: '2012'
+        notes: The MISP Project develops and maintains the MISP Threat Intelligence
+          Sharing Platform and its associated sub-projects including warning lists,
+          taxonomies, galaxies, and modules. The project's copyright is held jointly
+          among all contributors under an interlocked license preventing any single
+          organization from changing the open-source license or model. Key contributors
+          include Alexandre Dulaunoy, Andras Iklody, Christophe Vandeplas, Christian
+          Studer, Sami Mokaddem, Andreas Ziegler, Steve Clement, and Jakub Onderka.
+      - role: publisher
+        name: CIRCL
+        organization_type: government
+        official_url: https://www.circl.lu/
+        contact_email:
+        based_in: Luxembourg
+        active_since:
+        notes: The Computer Incident Response Center Luxembourg (CERT for the private
+          sector, communes, and NGOs in Luxembourg) hosts and promotes the MISP Project.
+          CIRCL provides practical training sessions for MISP users and contributes
+          to ongoing development.
+      derivation:
+        type: derivative
+        description: The list is a derivative extraction from Microsoft's publicly
+          available Azure IP range data for the US Government sovereign cloud. The
+          maintainer processes Microsoft's published IP ranges into a MISP-compatible
+          JSON format with CIDR-type matching. The list.json declares matching_attributes
+          of ip-src, ip-dst, domain|ip, ip-src|port, and ip-dst|port, enabling MISP
+          to match against any IP-related attribute type. The catalog's processor
+          extracts individual IPv4 addresses from CIDR ranges for the netset output
+          format.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added or updated whenever Microsoft publishes revised
+          IP allocation data for the Azure US Government cloud. The maintainer does
+          not independently assess the listed ranges as threatening — the list is
+          a reference of known infrastructure, not a threat indicator.
+        criteria:
+        - IP range falls within Microsoft's officially published Azure US Government
+          cloud allocation
+        - Range is published by Microsoft as part of their sovereign cloud IP address
+          disclosure
+        - New or changed allocations trigger a list revision
+      unlisting_policy:
+        summary: Ranges are removed when Microsoft retires or reallocates the corresponding
+          IP space from the Azure US Government cloud. Because this is a reference
+          list of known infrastructure rather than a threat list, there is no concept
+          of false-positive unlisting requests for individual entries — only corrections
+          when Microsoft's published data changes.
+        criteria:
+        - Microsoft removes the range from its published Azure US Government IP allocation
+        - Microsoft reclassifies the range as belonging to a different sovereign cloud
+        - The maintainer corrects erroneous data sourced from Microsoft's publications
+      unlist_request:
+        url:
+        email:
+        instructions: Because the list reflects Microsoft's publicly published IP
+          allocations rather than a threat assessment, unlisting requests are not
+          applicable in the traditional sense. Corrections to the list (such as an
+          incorrect range) can be submitted as a GitHub issue or pull request to the
+          MISP/misp-warninglists repository. Changes are incorporated when Microsoft's
+          published data is corrected or updated.
+      update_frequency:
+        frequency: 1440m
+        human_readable: Updated approximately once per day (1440 minutes), per the
+          maintainer's stated frequency. In practice, the commit history shows updates
+          roughly monthly, tracking Microsoft's sovereign cloud IP range publication
+          cadence.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: 'The list is built by policy assignment — entries are included
+          solely because Microsoft publishes them as the allocated IP space for Azure
+          US Government. The maintainer does not independently assess the listed IPs
+          as malicious or suspicious. This contrasts with threat-intelligence feeds
+          that derive listings from honeypot observations, user reports, or active
+          scanning. The list functions as a negative-match reference: analysts suppress
+          alerts when an IP matches this list, treating it as known cloud infrastructure
+          rather than an indicator of compromise.'
+      scope_and_intent:
+        description: The list identifies IP ranges allocated to Microsoft Azure US
+          Government, a sovereign cloud deployment designed to meet US federal regulatory
+          requirements. Analysts use the list to distinguish legitimate Azure US Government
+          infrastructure from potentially malicious activity in their environment.
+        intended_for:
+        - Suppressing false-positive alerts when Azure US Government IPs appear in
+          intrusion detection systems
+        - Filtering Azure US Government infrastructure from threat intelligence correlations
+        - Enriching MISP events with contextual warnings when analysts encounter Azure
+          US Government IPs
+        - SIEM and SOC workflows where Azure US Government cloud traffic is expected
+          but generates alert noise
+        not_intended_for:
+        - Blocking or blacklisting Azure US Government IP ranges — the list is a reference,
+          not a threat feed
+        - Identifying malicious activity — entries are known benign infrastructure
+        - General Azure (non-government) cloud detection — use the separate microsoft-azure
+          list for public cloud ranges
+        - China or Germany sovereign cloud ranges — separate lists exist for those
+          deployments
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 places no restrictions on use, redistribution, modification,
+          or commercialization. The data is released to the public domain to the fullest
+          extent permitted by law.
+      current_status:
+        state: active
+        description: Actively maintained as of December 2024; the list received an
+          update on December 3, 2024, and the commit history shows regular updates
+          approximately monthly since July 2023.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion specifically about the microsoft-azure-us-gov
+          list is sparse. No GitHub issues, Reddit threads, or third-party blog posts
+          were found discussing this list directly. Issues raised against sibling
+          lists (e.g. the general microsoft-azure list) do not extend to the US Government
+          variant, which appears to function quietly as a specialist reference for
+          analysts working with US federal Azure workloads.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/microsoft-azure-us-gov/list.json
+        document_date: '2024-12-03'
+        validation_date: '2026-05-19T06:47:25Z'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-19T06:47:25Z'
+      - url: 
+          https://github.com/MISP/misp-warninglists/commits/main/lists/microsoft-azure-us-gov
+        document_date: '2024-12-03'
+        validation_date: '2026-05-19T06:47:25Z'
+      - url: https://github.com/MISP/PyMISP
+        document_date:
+        validation_date: '2026-05-19T06:47:25Z'
+      - url: https://www.circl.lu/
+        document_date:
+        validation_date: '2026-05-19T06:47:25Z'
+      - url: https://www.microsoft.com/en-us/download/details.aspx?id=56519
+        document_date:
+        validation_date: '2026-05-19T06:47:25Z'
+      - url: https://github.com/MISP/misp-warninglists/issues?q=azure
+        document_date:
+        validation_date: '2026-05-19T06:47:25Z'

@@ -1,0 +1,188 @@
+sources:
+  dataplane_dnsrdany:
+    license: Dataplane.org — non-commercial use only, redistribution prohibited
+    redistributable: false
+    url: https://dataplane.org/dnsrdany.txt
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - dataplane_column3
+    processor_raw: dataplane_column3
+    category: scanners
+    info: '[DataPlane.org](https://dataplane.org/) IP addresses that have been identified
+      as sending recursive DNS IN ANY queries to a remote host. This report lists
+      addresses that may be cataloging open DNS resolvers for the purpose of later
+      using them to facilitate DNS amplification and reflection attacks.'
+    maintainer: DataPlane.org
+    maintainer_url: https://dataplane.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T18:36:07Z'
+      official_name: DNS Recursion Desired IN ANY
+      official_url: https://dataplane.org/dnsrdany.txt
+      short_description: IPv4 addresses observed sending recursive DNS IN ANY queries,
+        indicating potential DNS amplification reflector cataloguing activity.
+      long_description: "The DNS Recursion Desired IN ANY signal is produced by DataPlane.org,
+        a 501(c)(3) nonprofit organisation founded in 2016 by network researchers.
+        The feed records IPv4 source addresses observed sending recursive DNS IN class
+        ANY queries toward remote hosts — a query pattern commonly associated with
+        DNS amplification reflector discovery. Per the maintainer's documentation,
+        the underlying sensing is performed by the fdns daemon, a lightweight Perl
+        DNS server that passively logs incoming DNS query metadata (source IP, destination
+        IP, protocol, query class, query type, query name, and full DNS header fields)
+        before returning a truncated response. The daemon runs on a globally distributed
+        sensor network that the maintainer describes as over 300 nodes across 65 metropolitan
+        areas on 6 continents. Each feed entry maps the observed IP to its route-originating
+        autonomous system number and network name using the PyASN IP-to-ASN mapping
+        service. Entries are sorted by originating ASN, and each IP is listed only
+        once even when multiple origin AS (MOAS) announcements cover the prefix. The
+        maintainer explicitly states the feed is informational and not a block list:
+        due to NAT, address spoofing, and legitimate survey research, deriving malicious
+        or benign intent for individual entries is difficult. Entries naturally expire
+        when the observed behaviour ceases."
+      roles:
+      - role: maintainer
+        name: DataPlane.org NFP
+        organization_type: non_profit
+        official_url: https://dataplane.org/
+        contact_email: info@dataplane.org
+        based_in: United States
+        active_since: '2016'
+        notes: "A 501(c)(3) charitable nonprofit (EIN 882177476) registered in the
+          United States, operated by a team of three: John Kristoff (internet infrastructure
+          researcher, ICANN research fellow), Matthew Kemp (technologist), and Bill
+          Eaheart (infrastructure architect). The organisation's stated motto is 'For
+          operators, by operators.'"
+      derivation:
+        type: original
+        description: The feed is built from DataPlane.org's own globally distributed
+          sensor network. Sensors run the fdns daemon (a Perl DNS server) listening
+          on UDP and TCP port 53. When a DNS IN ANY query arrives, the daemon logs
+          the full query metadata to syslog — source IP, source port, destination
+          IP, protocol, complete DNS header fields, EDNS details, query class, query
+          type, and query name — then returns a truncated response to minimise backscatter.
+          Logged events feed into a nightly aggregation pipeline that maps each observed
+          source IP to its route-originating ASN using the PyASN IP-to-ASN mapping
+          service. Duplicate IPs are deduplicated (each IP listed once per reporting
+          period even under MOAS prefixes), and entries are sorted by originating
+          ASN before publication.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when DataPlane.org's distributed sensor network observes
+          it sending a DNS query with IN class and ANY type (a recursive DNS query
+          requesting all available record types for a given domain name). The fdns
+          daemon logs the query upon receipt and returns a truncated response. Listings
+          persist for the duration of the reporting period and naturally expire when
+          the observed behaviour ceases — there is no minimum threshold or manual
+          review step.
+        criteria:
+        - The source IP sends a DNS query classified as IN class, ANY type
+        - The query is received by a DataPlane.org fdns sensor node
+        - The query is logged in the sensor's syslog output
+      unlisting_policy:
+        summary: There is no manual unlisting mechanism. Entries expire naturally
+          when the observed source ceases sending DNS IN ANY queries — once the reporting
+          period closes without a renewed detection, the IP drops from subsequent
+          publications. The maintainer does not offer a self-service removal portal
+          or email-based delisting process.
+        criteria:
+        - Automatic expiry when the source IP stops sending DNS IN ANY queries
+        - No manual unlisting channel is offered
+      unlist_request:
+        url:
+        email: info@dataplane.org
+        instructions: The maintainer does not publish a dedicated unlisting channel.
+          Requests may be directed to the general contact address info@dataplane.org;
+          however, the maintainer does not guarantee a response or commit to manual
+          removals, as entries are expected to expire automatically when the observed
+          behaviour ceases.
+      update_frequency:
+        frequency: 1h
+        human_readable: Hourly updates, per the maintainer's signals listing page.
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: 'Passive network telescope: DataPlane.org deploys fdns daemon
+          instances on over 300 globally distributed sensor nodes. Each daemon listens
+          on UDP and TCP port 53, logs all incoming DNS query metadata to syslog,
+          and returns a truncated response. The logged events are aggregated nightly
+          to produce the published feed. This is a passive, non-probing methodology
+          — the sensors observe traffic directed at them rather than actively probing
+          external addresses.'
+      scope_and_intent:
+        description: The feed is intended as an observational signal for DNS amplification
+          reflector discovery and open-resolver cataloguing activity. It is explicitly
+          not a block list.
+        intended_for:
+        - DNS amplification reflector monitoring and threat awareness
+        - Correlation with other network anomaly signals
+        - Security research and internet infrastructure analysis
+        not_intended_for:
+        - Automatic ingress blocking without investigation
+        - Attribution of malicious intent to individual listed IPs
+      license: Non-commercial use only; redistribution in whole or in part without
+        express permission is prohibited.
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Free for non-commercial use. Commercial use requires express written
+          permission from DataPlane.org. Redistribution in whole or in part without
+          express permission is prohibited.
+      current_status:
+        state: active
+        description: Active. The maintainer's site is reachable, the feed file is
+          published, and the signals listing page lists the DNSRDANY feed with hourly
+          updates. No discontinuation or migration notice has been issued.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion of the DNSRDANY feed is sparse. No
+          Reddit threads, forum posts, or GitHub issues specifically discussing this
+          feed were found. DataPlane.org data has been cited in an APNIC Blog case
+          study on source address spoofing (April 2024), and the organisation's feeds
+          are integrated into IntelMQ via a published parser module. The maintainer
+          publishes a Substack newsletter and maintains an active Mastodon presence
+          (@dataplane@fosstodon.org). No formal public mailing list or issue tracker
+          dedicated to this feed was identified.
+      sources_consulted:
+      - url: https://dataplane.org/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/dnsrdany.txt
+        document_date: '2026-01-14'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/about.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/contact.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/signals.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/Dataplane
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/dataplane/fdns
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/jtk/talks/firsteu2023-dataplane.pdf
+        document_date: '2023'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://blog.apnic.net/2024/04/19/destination-adjacent-source-address-spoofing/
+        document_date: '2024-04-19'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://docs.intelmq.org/3.5.0/user/feeds
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://dataplane.org/statistics/dnsrdany.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://lowendbox.com/blog/surveying-the-global-internet-landscape-dataplane-org
+        document_date: '2023-07-27'
+        validation_date: '2026-05-18T00:00:00Z'

@@ -1,0 +1,195 @@
+sources:
+  misp_onyphe_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/onyphe-nt-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Onyphe commercial
+      scanner IPs. Informational — not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T22:46:13+00:00'
+      official_name: Onyphe IP Ranges Used for Scanning
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: CIDR ranges of Onyphe commercial internet-scanning infrastructure,
+        extracted from CIRCL Luxembourg darknet telescope analysis and packaged as
+        a MISP warninglist for false-positive identification.
+      long_description: "This warninglist identifies IP address ranges used by Onyphe,
+        a French commercial Attack Surface Management and Cyber Threat Intelligence
+        platform founded in 2017. Onyphe performs systematic internet-wide scanning
+        to discover exposed assets and collect banners and DNS records at scale.\n\
+        \nThe specific CIDR ranges in this list were identified by CIRCL Luxembourg
+        through their Network Telescope darknet analysis. A darknet telescope monitors
+        traffic directed at unused IP address space (addresses with no legitimate
+        services); any external host that contacts a sufficient number of these darknet
+        addresses within a short time window is classified as a scanner. The originating
+        ranges are aggregated into CIDR blocks and published.\n\nThe MISP warninglists
+        project curates these ranges into a standardized JSON warninglist for use
+        within the MISP threat-sharing platform. The list is intended as an informational
+        reference — alerting analysts when Onyphe scanning infrastructure appears
+        in their event data — rather than as a blocklist for automated enforcement."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: non_profit
+        official_url: https://github.com/MISP/misp-warninglists
+        contact_email:
+        based_in: Europe
+        active_since: '2016'
+        notes: Coordinates the MISP warninglists repository. Top contributor is Alexandre
+          Dulaunoy (@adulau) with 564 commits. The project is hosted as a GitHub organization
+          repository and distributes warninglists via the export-lists target for
+          Earthly builds and PyMISPWarningLists for Python integration.
+      - role: source_contributor
+        name: CIRCL Luxembourg
+        organization_type: research_institution
+        official_url: https://www.circl.lu/
+        contact_email:
+        based_in: Luxembourg
+        active_since:
+        notes: Operates the Network Telescope darknet infrastructure from which the
+          Onyphe scanner CIDR ranges are extracted. Conducts non-intrusive scanning
+          of publicly accessible services under the NIS2 Directive mandate. Also operates
+          HoneyBot low-interaction honeypot sensors integrated into the D4 Project.
+      - role: source_contributor
+        name: Paul Jung (Thanat0s)
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Contributor credited with the May 2026 Network Telescope update that
+          produced the current list version (26050407).
+      derivation:
+        type: extraction
+        description: The list is produced by extracting CIDR ranges from CIRCL Luxembourg's
+          Network Telescope darknet analysis. A darknet telescope monitors unsolicited
+          inbound traffic directed at unused IP address space; external hosts that
+          contact darknet addresses are classified as scanners and aggregated into
+          CIDR blocks. The MISP warninglists project incorporates Onyphe-attributed
+          ranges into a CIDR-type warninglist with matching_attributes covering ip-src,
+          ip-dst, domain|ip, ip-dst|port, and ip-src|port for MISP event correlation.
+        source_feeds: []
+      listing_policy:
+        summary: An IP address is listed when CIRCL's Network Telescope darknet infrastructure
+          detects scanning behaviour attributable to Onyphe's scanning infrastructure.
+          Originating ranges are aggregated into CIDR blocks and incorporated into
+          the warninglist as new infrastructure is identified through ongoing telescope
+          monitoring.
+        criteria:
+        - External source contacts at least 25 unique darknet destination addresses
+          on the same port or protocol within a 5-minute sliding window
+        - Traffic originates from Onyphe's commercial internet-scanning infrastructure
+          IP ranges
+        - Identified IP addresses are aggregated into CIDR blocks for publication
+      unlisting_policy:
+        summary: The list is regenerated from CIRCL's updated Network Telescope analysis
+          on a periodic schedule. As Onyphe's scanning infrastructure IP allocations
+          change over time, older CIDR ranges that are no longer active are dropped
+          from subsequent versions. There is no documented manual unlisting request
+          channel specific to this warninglist; removals are handled through the natural
+          regeneration cycle driven by updated telescope data.
+        criteria:
+        - CIDR ranges are removed when CIRCL's updated Network Telescope analysis
+          no longer associates them with active Onyphe scanning infrastructure
+        - Periodic regeneration replaces the previous version with an updated set
+          reflecting current telescope observations
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/issues
+        email:
+        instructions: Submit a GitHub issue on the MISP warninglists repository describing
+          the IP or CIDR range and the context in which it should be reconsidered.
+          Alternatively, submit a pull request with an updated list.json incorporating
+          the correction.
+      update_frequency:
+        frequency: 30d
+        human_readable: Updated approximately monthly, per the observed cadence of
+          Network Telescope analysis updates reflected in the list's version field
+          (encoded as YYMMDDHH) and git commit history.
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: The feed is built from CIRCL Luxembourg's Network Telescope darknet
+          analysis — a passive observation system monitoring unsolicited inbound traffic
+          to unused IP address space. External sources that contact a sufficient number
+          of darknet addresses are statistically identified as internet-wide scanners
+          rather than targeted attackers. Source ranges attributed to Onyphe scanning
+          are aggregated into CIDR blocks and incorporated into the warninglist.
+      scope_and_intent:
+        description: The list identifies CIDR ranges allocated to Onyphe's commercial
+          internet-scanning infrastructure, enabling analysts to recognize these IPs
+          as legitimate scanning activity when they appear in MISP event data. It
+          is packaged as a MISP warninglist — a category of indicator lists designed
+          to surface potential false positives rather than confirmed threats.
+        intended_for:
+        - False-positive identification in MISP threat-sharing events when Onyphe
+          scanning IPs appear in analyst data
+        - Contextual enrichment for incident responders investigating scanning alerts
+        - 'Attribution aid: recognizing commercial scanning infrastructure vs. attacker
+          recon activity'
+        not_intended_for:
+        - Automated blocking or inline denial of Onyphe scanning infrastructure
+        - Threat-enforcement actions based solely on appearance in this warninglist
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal Public Domain Dedication imposes no restrictions
+          on use, redistribution, reproduction, modification, or commercial use. No
+          attribution is legally required, though crediting the MISP Project and CIRCL
+          Luxembourg is customary practice.
+      current_status:
+        state: active
+        description: Active. The onyphe-nt-scanning list is present in the misp-warninglists
+          repository and is refreshed through periodic CIRCL Network Telescope update
+          pull requests.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion referencing Onyphe.io is concentrated in OSINT
+          and security-tool compilation posts, where it appears consistently alongside
+          Shodan, Censys, and GreyNoise as a recognised internet-scanning reconnaissance
+          tool. No substantive community discussion specifically critiquing the MISP
+          warninglist version of the Onyphe scanner ranges — false-positive rate complaints,
+          data quality concerns, or update cadence issues — was found across searched
+          forums.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/onyphe-nt-scanning/list.json
+        document_date: '2026-05-04'
+        validation_date: '2026-05-18T22:30:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T22:25:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/tree/main/lists/onyphe-nt-scanning
+        document_date:
+        validation_date: '2026-05-18T22:35:00+00:00'
+      - url: https://www.circl.lu/projects/scanning
+        document_date:
+        validation_date: '2026-05-18T22:38:00+00:00'
+      - url: https://www.onyphe.io/
+        document_date:
+        validation_date: '2026-05-18T22:28:00+00:00'
+      - url: https://www.onyphe.io/about/
+        document_date:
+        validation_date: '2026-05-18T22:28:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/graphs/contributors
+        document_date:
+        validation_date: '2026-05-18T22:42:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T22:44:00+00:00'

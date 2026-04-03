@@ -1,0 +1,1003 @@
+{
+  "version": 1,
+  "scope": [
+    "cmd/**/*.go",
+    "internal/**/*.go",
+    "pkg/**/*.go",
+    "tools/**/*.go except nested modules",
+    "ui/src/**/*.{ts,tsx}"
+  ],
+  "excluded_paths": [
+    ".agents/",
+    ".git/",
+    ".playwright-mcp/",
+    "pkg/web/static/",
+    "ui/dist/",
+    "ui/node_modules/"
+  ],
+  "nested_modules_excluded": [
+    "tools/dronebl2ipsets"
+  ],
+  "thresholds": {
+    "review_file_lines": 500,
+    "new_large_file_lines": 800,
+    "review_function_lines": 120,
+    "new_large_function_lines": 200
+  },
+  "source": {
+    "files": 547,
+    "lines": 115106,
+    "max_file": {
+      "path": "pkg/config/catalog_verify_test.go",
+      "lines": 1677
+    }
+  },
+  "packages": [
+    {
+      "package": "main",
+      "path": "cmd/update-ipsets",
+      "files": 8,
+      "lines": 525,
+      "direct_imports": 15,
+      "project_imports": 3,
+      "transitive_deps": 482
+    },
+    {
+      "package": "fileutil",
+      "path": "internal/fileutil",
+      "files": 2,
+      "lines": 250,
+      "direct_imports": 6,
+      "project_imports": 1,
+      "transitive_deps": 426
+    },
+    {
+      "package": "observability",
+      "path": "internal/observability",
+      "files": 3,
+      "lines": 540,
+      "direct_imports": 28,
+      "project_imports": 0,
+      "transitive_deps": 425
+    },
+    {
+      "package": "telemetry",
+      "path": "internal/telemetry",
+      "files": 2,
+      "lines": 175,
+      "direct_imports": 3,
+      "project_imports": 0,
+      "transitive_deps": 46
+    },
+    {
+      "package": "asnloc",
+      "path": "pkg/asnloc",
+      "files": 8,
+      "lines": 1176,
+      "direct_imports": 11,
+      "project_imports": 1,
+      "transitive_deps": 218
+    },
+    {
+      "package": "cache",
+      "path": "pkg/cache",
+      "files": 7,
+      "lines": 3250,
+      "direct_imports": 14,
+      "project_imports": 2,
+      "transitive_deps": 428
+    },
+    {
+      "package": "config",
+      "path": "pkg/config",
+      "files": 18,
+      "lines": 7006,
+      "direct_imports": 19,
+      "project_imports": 1,
+      "transitive_deps": 434
+    },
+    {
+      "package": "downloader",
+      "path": "pkg/downloader",
+      "files": 7,
+      "lines": 2088,
+      "direct_imports": 21,
+      "project_imports": 3,
+      "transitive_deps": 445
+    },
+    {
+      "package": "engine",
+      "path": "pkg/engine",
+      "files": 136,
+      "lines": 36941,
+      "direct_imports": 51,
+      "project_imports": 7,
+      "transitive_deps": 466
+    },
+    {
+      "package": "feedhealth",
+      "path": "pkg/feedhealth",
+      "files": 2,
+      "lines": 532,
+      "direct_imports": 3,
+      "project_imports": 3,
+      "transitive_deps": 438
+    },
+    {
+      "package": "geoloc",
+      "path": "pkg/geoloc",
+      "files": 3,
+      "lines": 792,
+      "direct_imports": 16,
+      "project_imports": 1,
+      "transitive_deps": 221
+    },
+    {
+      "package": "insights",
+      "path": "pkg/insights",
+      "files": 24,
+      "lines": 2649,
+      "direct_imports": 5,
+      "project_imports": 0,
+      "transitive_deps": 68
+    },
+    {
+      "package": "iprange",
+      "path": "pkg/iprange",
+      "files": 55,
+      "lines": 10952,
+      "direct_imports": 26,
+      "project_imports": 0,
+      "transitive_deps": 216
+    },
+    {
+      "package": "kernel",
+      "path": "pkg/kernel",
+      "files": 3,
+      "lines": 208,
+      "direct_imports": 8,
+      "project_imports": 0,
+      "transitive_deps": 111
+    },
+    {
+      "package": "markdown",
+      "path": "pkg/markdown",
+      "files": 15,
+      "lines": 2630,
+      "direct_imports": 12,
+      "project_imports": 1,
+      "transitive_deps": 82
+    },
+    {
+      "package": "output",
+      "path": "pkg/output",
+      "files": 2,
+      "lines": 556,
+      "direct_imports": 11,
+      "project_imports": 1,
+      "transitive_deps": 428
+    },
+    {
+      "package": "processor",
+      "path": "pkg/processor",
+      "files": 17,
+      "lines": 5032,
+      "direct_imports": 23,
+      "project_imports": 2,
+      "transitive_deps": 437
+    },
+    {
+      "package": "runreason",
+      "path": "pkg/runreason",
+      "files": 1,
+      "lines": 39,
+      "direct_imports": 0,
+      "project_imports": 0,
+      "transitive_deps": 0
+    },
+    {
+      "package": "scheduler",
+      "path": "pkg/scheduler",
+      "files": 17,
+      "lines": 3914,
+      "direct_imports": 21,
+      "project_imports": 5,
+      "transitive_deps": 467
+    },
+    {
+      "package": "systemd",
+      "path": "pkg/systemd",
+      "files": 2,
+      "lines": 122,
+      "direct_imports": 6,
+      "project_imports": 1,
+      "transitive_deps": 71
+    },
+    {
+      "package": "web",
+      "path": "pkg/web",
+      "files": 40,
+      "lines": 9744,
+      "direct_imports": 41,
+      "project_imports": 6,
+      "transitive_deps": 480
+    },
+    {
+      "package": "main",
+      "path": "tools/archposture",
+      "files": 7,
+      "lines": 917,
+      "direct_imports": 15,
+      "project_imports": 0,
+      "transitive_deps": 81
+    }
+  ],
+  "large_files": [
+    {
+      "path": "pkg/config/catalog_verify_test.go",
+      "lines": 1677
+    },
+    {
+      "path": "pkg/cache/cache_test.go",
+      "lines": 1443
+    },
+    {
+      "path": "pkg/engine/output.go",
+      "lines": 1372
+    },
+    {
+      "path": "pkg/scheduler/scheduler_test.go",
+      "lines": 1337
+    },
+    {
+      "path": "pkg/engine/integrity_test.go",
+      "lines": 1207
+    },
+    {
+      "path": "pkg/engine/critical_test.go",
+      "lines": 1205
+    },
+    {
+      "path": "ui/src/lib/api-types.ts",
+      "lines": 1045
+    },
+    {
+      "path": "pkg/web/admin.go",
+      "lines": 1041
+    },
+    {
+      "path": "pkg/engine/home_entity_builders.go",
+      "lines": 1029
+    },
+    {
+      "path": "pkg/engine/entity_integrity.go",
+      "lines": 1028
+    },
+    {
+      "path": "pkg/web/feature_test.go",
+      "lines": 1000
+    },
+    {
+      "path": "pkg/engine/critical.go",
+      "lines": 993
+    },
+    {
+      "path": "pkg/engine/entity_surgical.go",
+      "lines": 982
+    },
+    {
+      "path": "pkg/config/config.go",
+      "lines": 955
+    },
+    {
+      "path": "pkg/config/config_coverage_test.go",
+      "lines": 928
+    },
+    {
+      "path": "pkg/engine/engine_test.go",
+      "lines": 1053
+    },
+    {
+      "path": "pkg/engine/download_stage.go",
+      "lines": 864
+    },
+    {
+      "path": "pkg/config/config_test.go",
+      "lines": 829
+    },
+    {
+      "path": "pkg/engine/runtime_ledger_cache.go",
+      "lines": 829
+    },
+    {
+      "path": "pkg/engine/entity_artifacts.go",
+      "lines": 798
+    },
+    {
+      "path": "pkg/engine/helpers.go",
+      "lines": 780
+    },
+    {
+      "path": "pkg/engine/home_detail_test.go",
+      "lines": 761
+    },
+    {
+      "path": "pkg/config/validate.go",
+      "lines": 749
+    },
+    {
+      "path": "pkg/engine/entity_feed_sidecar.go",
+      "lines": 742
+    },
+    {
+      "path": "ui/src/components/feed-sidebar.tsx",
+      "lines": 713
+    },
+    {
+      "path": "pkg/markdown/context_feed.go",
+      "lines": 825
+    },
+    {
+      "path": "pkg/engine/pipeline_integrity_scenario_test.go",
+      "lines": 680
+    },
+    {
+      "path": "pkg/engine/output_test.go",
+      "lines": 665
+    },
+    {
+      "path": "ui/src/lib/explorer-state.ts",
+      "lines": 633
+    },
+    {
+      "path": "pkg/web/server.go",
+      "lines": 613
+    },
+    {
+      "path": "pkg/engine/query.go",
+      "lines": 601
+    },
+    {
+      "path": "pkg/processor/edge_cases_test.go",
+      "lines": 598
+    },
+    {
+      "path": "pkg/processor/stream_test.go",
+      "lines": 597
+    },
+    {
+      "path": "pkg/downloader/downloader.go",
+      "lines": 594
+    },
+    {
+      "path": "pkg/engine/feed_body_stage_test.go",
+      "lines": 593
+    },
+    {
+      "path": "pkg/engine/insights.go",
+      "lines": 577
+    },
+    {
+      "path": "pkg/iprange/bench_test.go",
+      "lines": 577
+    },
+    {
+      "path": "ui/src/test/page-scenarios.ts",
+      "lines": 573
+    },
+    {
+      "path": "pkg/engine/fileset_helpers_test.go",
+      "lines": 564
+    },
+    {
+      "path": "pkg/engine/integrity.go",
+      "lines": 559
+    },
+    {
+      "path": "pkg/processor/primitives.go",
+      "lines": 553
+    },
+    {
+      "path": "pkg/cache/entry_lifecycle.go",
+      "lines": 550
+    },
+    {
+      "path": "ui/src/components/feed-detail/section-retention.tsx",
+      "lines": 550
+    },
+    {
+      "path": "pkg/iprange/range6.go",
+      "lines": 549
+    },
+    {
+      "path": "pkg/engine/home_aggregates.go",
+      "lines": 548
+    },
+    {
+      "path": "pkg/iprange/iter_ops_test.go",
+      "lines": 547
+    },
+    {
+      "path": "pkg/engine/public.go",
+      "lines": 546
+    },
+    {
+      "path": "pkg/processor/processor.go",
+      "lines": 541
+    },
+    {
+      "path": "ui/src/components/ip-search/ip-search-results.tsx",
+      "lines": 538
+    },
+    {
+      "path": "pkg/web/admin_unification_test.go",
+      "lines": 521
+    },
+    {
+      "path": "pkg/engine/engine.go",
+      "lines": 511
+    },
+    {
+      "path": "pkg/iprange/fileset_safety_test.go",
+      "lines": 511
+    },
+    {
+      "path": "ui/src/components/feed-detail/section-critical-infrastructure.tsx",
+      "lines": 511
+    },
+    {
+      "path": "pkg/web/routes.go",
+      "lines": 510
+    },
+    {
+      "path": "ui/src/components/feed-detail/section-comparison.tsx",
+      "lines": 509
+    },
+    {
+      "path": "pkg/engine/file_contract_test.go",
+      "lines": 505
+    }
+  ],
+  "large_functions": [
+    {
+      "path": "pkg/engine/entity_integrity.go",
+      "name": "(*Engine).CheckEntityArtifactsIntegrity",
+      "start_line": 189,
+      "lines": 449,
+      "complexity": 61
+    },
+    {
+      "path": "pkg/iprange/cli.go",
+      "name": "runCLIV4",
+      "start_line": 25,
+      "lines": 381,
+      "complexity": 115
+    },
+    {
+      "path": "pkg/iprange/cli6.go",
+      "name": "runCLIV6",
+      "start_line": 10,
+      "lines": 374,
+      "complexity": 115
+    },
+    {
+      "path": "pkg/config/catalog_verify_test.go",
+      "name": "TestCatalogSourcesComplete",
+      "start_line": 643,
+      "lines": 314,
+      "complexity": 9
+    },
+    {
+      "path": "pkg/config/config_test.go",
+      "name": "TestValidateCriticalMetadataContract",
+      "start_line": 459,
+      "lines": 299,
+      "complexity": 32
+    },
+    {
+      "path": "pkg/engine/output.go",
+      "name": "(*Engine).writeComparisonFiles",
+      "start_line": 320,
+      "lines": 296,
+      "complexity": 55
+    },
+    {
+      "path": "pkg/engine/entity_artifacts.go",
+      "name": "(*Engine).writeEntityArtifacts",
+      "start_line": 394,
+      "lines": 290,
+      "complexity": 78
+    },
+    {
+      "path": "pkg/web/feature_test.go",
+      "name": "TestCriticalInfrastructureRouteServesOnlyPublishedArtifacts",
+      "start_line": 628,
+      "lines": 276,
+      "complexity": 44
+    },
+    {
+      "path": "pkg/engine/entity_surgical.go",
+      "name": "(*Engine).refreshEntityArtifactsForFeedUpdates",
+      "start_line": 65,
+      "lines": 267,
+      "complexity": 68
+    },
+    {
+      "path": "pkg/web/server_test.go",
+      "name": "TestAPIEndpointsAndCORS",
+      "start_line": 16,
+      "lines": 250,
+      "complexity": 49
+    },
+    {
+      "path": "pkg/web/feature_test.go",
+      "name": "TestMiddlewareFeaturesAndOverrides",
+      "start_line": 252,
+      "lines": 240,
+      "complexity": 54
+    },
+    {
+      "path": "pkg/downloader/downloader.go",
+      "name": "(*Client).Fetch",
+      "start_line": 111,
+      "lines": 234,
+      "complexity": 47
+    },
+    {
+      "path": "pkg/engine/home_entity_builders.go",
+      "name": "(*Engine).buildASNDetailSidecar",
+      "start_line": 643,
+      "lines": 231,
+      "complexity": 44
+    },
+    {
+      "path": "pkg/config/catalog_verify_test.go",
+      "name": "TestCatalogMatchesLegacyExtraction",
+      "start_line": 1456,
+      "lines": 222,
+      "complexity": 22
+    },
+    {
+      "path": "pkg/web/admin_manifest.go",
+      "name": "buildFeedManifest",
+      "start_line": 131,
+      "lines": 216,
+      "complexity": 29
+    },
+    {
+      "path": "pkg/web/feature_test.go",
+      "name": "TestAdminAuthAndActions",
+      "start_line": 19,
+      "lines": 216,
+      "complexity": 34
+    },
+    {
+      "path": "pkg/engine/home_entity_builders.go",
+      "name": "(*Engine).buildCountryDetailSidecar",
+      "start_line": 429,
+      "lines": 213,
+      "complexity": 42
+    },
+    {
+      "path": "pkg/config/validate.go",
+      "name": "Validate",
+      "start_line": 273,
+      "lines": 191,
+      "complexity": 83
+    },
+    {
+      "path": "pkg/engine/file_contract_test.go",
+      "name": "TestBashCompatibleHistoryChangesetAndRetentionFiles",
+      "start_line": 17,
+      "lines": 187,
+      "complexity": 43
+    },
+    {
+      "path": "pkg/web/server.go",
+      "name": "Run",
+      "start_line": 194,
+      "lines": 176,
+      "complexity": 34
+    },
+    {
+      "path": "pkg/engine/entity_feed_sidecar.go",
+      "name": "(*Engine).buildSingleFeedEntitySidecar",
+      "start_line": 373,
+      "lines": 171,
+      "complexity": 53
+    },
+    {
+      "path": "pkg/engine/home_globe_test.go",
+      "name": "TestHomeGlobeAggregatesSelectedCategories",
+      "start_line": 12,
+      "lines": 171,
+      "complexity": 19
+    },
+    {
+      "path": "pkg/engine/stress_test.go",
+      "name": "TestEndToEndMultiFeedBatch",
+      "start_line": 17,
+      "lines": 165,
+      "complexity": 21
+    },
+    {
+      "path": "pkg/processor/stream_test.go",
+      "name": "TestStreamEquivalence",
+      "start_line": 19,
+      "lines": 162,
+      "complexity": 7
+    },
+    {
+      "path": "pkg/engine/integrity.go",
+      "name": "(*Engine).CheckIntegrityWithOptions",
+      "start_line": 110,
+      "lines": 156,
+      "complexity": 36
+    },
+    {
+      "path": "pkg/engine/pipeline_integrity_scenario_test.go",
+      "name": "newPipelineIntegrityScenario",
+      "start_line": 236,
+      "lines": 156,
+      "complexity": 4
+    },
+    {
+      "path": "pkg/config/expand.go",
+      "name": "ExpandDerivatives",
+      "start_line": 56,
+      "lines": 154,
+      "complexity": 19
+    },
+    {
+      "path": "pkg/processor/checklist_test.go",
+      "name": "TestChecklistProcessorsExecute",
+      "start_line": 14,
+      "lines": 151,
+      "complexity": 4
+    },
+    {
+      "path": "pkg/engine/metadata.go",
+      "name": "(*Engine).writeMetadataFiles",
+      "start_line": 16,
+      "lines": 150,
+      "complexity": 28
+    },
+    {
+      "path": "pkg/web/home_entity_api_test.go",
+      "name": "TestCountryAndASNAPIEndpointsServePrecomputedArtifacts",
+      "start_line": 17,
+      "lines": 149,
+      "complexity": 20
+    },
+    {
+      "path": "pkg/engine/bootstrap_entries_test.go",
+      "name": "TestNewBootstrapsRestoredFeedFromDisk",
+      "start_line": 15,
+      "lines": 146,
+      "complexity": 30
+    },
+    {
+      "path": "pkg/engine/pipeline_integrity_scenario_test.go",
+      "name": "TestPipelineIntegrityScenarioCoreBranches",
+      "start_line": 49,
+      "lines": 142,
+      "complexity": 6
+    },
+    {
+      "path": "pkg/engine/retention.go",
+      "name": "(*Engine).updateRetention",
+      "start_line": 57,
+      "lines": 142,
+      "complexity": 32
+    },
+    {
+      "path": "pkg/engine/engine_test.go",
+      "name": "TestRunOnceAndQuery",
+      "start_line": 17,
+      "lines": 139,
+      "complexity": 20
+    },
+    {
+      "path": "pkg/engine/entity_artifacts.go",
+      "name": "(*Engine).refreshEntityArtifactsForHealthTransitions",
+      "start_line": 176,
+      "lines": 137,
+      "complexity": 34
+    },
+    {
+      "path": "pkg/engine/runtime.go",
+      "name": "resolveRuntime",
+      "start_line": 81,
+      "lines": 134,
+      "complexity": 32
+    },
+    {
+      "path": "pkg/web/home_search_api_test.go",
+      "name": "TestHomeGlobeEndpoint",
+      "start_line": 222,
+      "lines": 132,
+      "complexity": 20
+    },
+    {
+      "path": "pkg/engine/home_detail_test.go",
+      "name": "TestRefreshEntityArtifactsForFeedUpdatesSurgicallyPatchesAggregates",
+      "start_line": 322,
+      "lines": 131,
+      "complexity": 49
+    },
+    {
+      "path": "pkg/engine/critical.go",
+      "name": "(*Engine).writeCriticalInfrastructureForFeed",
+      "start_line": 503,
+      "lines": 130,
+      "complexity": 26
+    },
+    {
+      "path": "pkg/downloader/internal.go",
+      "name": "fetchInternal",
+      "start_line": 119,
+      "lines": 128,
+      "complexity": 16
+    },
+    {
+      "path": "pkg/engine/output.go",
+      "name": "(*Engine).buildSetMetadataFromEffectiveEntryInDirWithResolver",
+      "start_line": 139,
+      "lines": 126,
+      "complexity": 26
+    },
+    {
+      "path": "pkg/engine/output_test.go",
+      "name": "TestWritePublicMetadataFilesBuildsSitemapIndexAndDetailShards",
+      "start_line": 480,
+      "lines": 124,
+      "complexity": 14
+    },
+    {
+      "path": "pkg/engine/operator_status.go",
+      "name": "OperatorStatusMeaning",
+      "start_line": 23,
+      "lines": 123,
+      "complexity": 35
+    },
+    {
+      "path": "pkg/engine/entity_feed_sidecar.go",
+      "name": "(*Engine).buildSelectedEntityDetailSidecarsFromFeedSidecars",
+      "start_line": 545,
+      "lines": 122,
+      "complexity": 39
+    },
+    {
+      "path": "pkg/engine/asn.go",
+      "name": "(*Engine).processASNDatabases",
+      "start_line": 39,
+      "lines": 121,
+      "complexity": 22
+    },
+    {
+      "path": "pkg/engine/empty_update_test.go",
+      "name": "TestRunOnceEmptyUpdateReplacesPreviousSet",
+      "start_line": 16,
+      "lines": 121,
+      "complexity": 19
+    },
+    {
+      "path": "pkg/engine/finalize.go",
+      "name": "(*Engine).finalize",
+      "start_line": 14,
+      "lines": 121,
+      "complexity": 17
+    }
+  ],
+  "cache": {
+    "production_entry_calls": 31,
+    "test_entry_calls": 86,
+    "production_field_writes": 29,
+    "test_field_writes": 342,
+    "production_entry_replacements": 0,
+    "test_entry_replacements": 0,
+    "production_mutation_files": [
+      {
+        "path": "pkg/cache/legacy.go",
+        "count": 29
+      }
+    ],
+    "test_mutation_files": [
+      {
+        "path": "pkg/cache/cache_test.go",
+        "count": 48
+      },
+      {
+        "path": "pkg/engine/integrity_test.go",
+        "count": 34
+      },
+      {
+        "path": "pkg/engine/public_test.go",
+        "count": 30
+      },
+      {
+        "path": "pkg/engine/merge_inputs_test.go",
+        "count": 27
+      },
+      {
+        "path": "pkg/engine/home_aggregates_test.go",
+        "count": 26
+      },
+      {
+        "path": "pkg/engine/output_test.go",
+        "count": 24
+      },
+      {
+        "path": "pkg/engine/effective_entry_test.go",
+        "count": 23
+      },
+      {
+        "path": "pkg/engine/feed_body_stage_test.go",
+        "count": 20
+      },
+      {
+        "path": "pkg/engine/legacy_failure_bootstrap_test.go",
+        "count": 18
+      },
+      {
+        "path": "pkg/engine/home_detail_test.go",
+        "count": 17
+      },
+      {
+        "path": "pkg/engine/bootstrap_entries_test.go",
+        "count": 16
+      },
+      {
+        "path": "pkg/engine/public_categories_test.go",
+        "count": 15
+      },
+      {
+        "path": "pkg/engine/home_globe_test.go",
+        "count": 11
+      },
+      {
+        "path": "pkg/web/integrity_test.go",
+        "count": 11
+      },
+      {
+        "path": "pkg/engine/critical_test.go",
+        "count": 7
+      },
+      {
+        "path": "pkg/web/admin_unification_test.go",
+        "count": 5
+      },
+      {
+        "path": "cmd/update-ipsets/cache_merge_test.go",
+        "count": 3
+      },
+      {
+        "path": "pkg/engine/bogons_test.go",
+        "count": 3
+      },
+      {
+        "path": "pkg/engine/dronebl_test.go",
+        "count": 2
+      },
+      {
+        "path": "pkg/engine/engine_test.go",
+        "count": 2
+      }
+    ]
+  },
+  "semantic_shortcut_matches": [
+    {
+      "path": "pkg/engine/critical.go",
+      "line": 846,
+      "text": "if strings.HasSuffix(base, \"_critical_infrastructure\") {"
+    },
+    {
+      "path": "pkg/engine/critical.go",
+      "line": 847,
+      "text": "feed := strings.TrimSuffix(base, \"_critical_infrastructure\")"
+    },
+    {
+      "path": "pkg/engine/engine_test.go",
+      "line": 725,
+      "text": "if !strings.Contains(text, `\"commit_history\": \"\"`) {"
+    },
+    {
+      "path": "pkg/engine/integrity_payloads.go",
+      "line": 73,
+      "text": "case strings.HasSuffix(relPath, \"_comparison.json\"):"
+    },
+    {
+      "path": "pkg/engine/integrity_payloads.go",
+      "line": 75,
+      "text": "case strings.HasSuffix(relPath, \"_retention.json\"):"
+    },
+    {
+      "path": "pkg/engine/integrity_payloads.go",
+      "line": 77,
+      "text": "case strings.HasSuffix(relPath, \"_insights.json\"):"
+    },
+    {
+      "path": "pkg/engine/integrity_payloads.go",
+      "line": 104,
+      "text": "if strings.HasSuffix(relPath, \"_history.csv\") {"
+    },
+    {
+      "path": "pkg/engine/integrity_test.go",
+      "line": 682,
+      "text": "if strings.Contains(file, \"_critical_\") {"
+    },
+    {
+      "path": "pkg/engine/output.go",
+      "line": 811,
+      "text": "if entry.IsDir() || !strings.HasSuffix(name, \"_comparison.json\") {"
+    },
+    {
+      "path": "pkg/web/server.go",
+      "line": 409,
+      "text": "case strings.HasSuffix(rel, \"_history.csv\"):"
+    },
+    {
+      "path": "pkg/web/server.go",
+      "line": 410,
+      "text": "return strings.TrimSuffix(rel, \"_history.csv\"), true"
+    },
+    {
+      "path": "pkg/web/server.go",
+      "line": 413,
+      "text": "case strings.HasSuffix(rel, \"_retention.json\"):"
+    },
+    {
+      "path": "pkg/web/server.go",
+      "line": 414,
+      "text": "return strings.TrimSuffix(rel, \"_retention.json\"), true"
+    },
+    {
+      "path": "pkg/web/server.go",
+      "line": 415,
+      "text": "case strings.HasSuffix(rel, \"_comparison.json\"):"
+    },
+    {
+      "path": "pkg/web/server.go",
+      "line": 416,
+      "text": "return strings.TrimSuffix(rel, \"_comparison.json\"), true"
+    },
+    {
+      "path": "pkg/web/server.go",
+      "line": 417,
+      "text": "case strings.HasSuffix(rel, \"_insights.json\"):"
+    },
+    {
+      "path": "pkg/web/server.go",
+      "line": 418,
+      "text": "return strings.TrimSuffix(rel, \"_insights.json\"), true"
+    },
+    {
+      "path": "pkg/web/server.go",
+      "line": 490,
+      "text": "if strings.HasSuffix(base, \"_critical_infrastructure\") {"
+    },
+    {
+      "path": "pkg/web/server.go",
+      "line": 491,
+      "text": "feed := strings.TrimSuffix(base, \"_critical_infrastructure\")"
+    },
+    {
+      "path": "pkg/web/server.go",
+      "line": 580,
+      "text": "if strings.HasSuffix(base, \"_critical_infrastructure\") {"
+    },
+    {
+      "path": "pkg/web/server.go",
+      "line": 581,
+      "text": "return strings.TrimSuffix(base, \"_critical_infrastructure\"), true"
+    }
+  ],
+  "web_routes": {
+    "mux_handle_func_calls": 51,
+    "mux_handle_calls": 3
+  },
+  "generation": {
+    "command": "go run ./tools/archposture -root . \u003e tools/archposture/testdata/posture_baseline.json",
+    "note": "Update the baseline only when a SOW explicitly accepts the posture change."
+  }
+}

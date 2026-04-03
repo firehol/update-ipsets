@@ -1,0 +1,185 @@
+sources:
+  maxmind_geolite2_asn:
+    label: MaxMind GeoLite2 ASN
+    url: 
+      https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-ASN&license_key=${MAXMIND_LICENSE_KEY}&suffix=tar.gz
+    frequency: 1440
+    category: asn
+    info: '[MaxMind GeoLite2 ASN](https://dev.maxmind.com/geoip/geolite2-free-geolocation-data)
+      — free, weekly-updated IP-to-ASN database. Requires a free MaxMind license key.'
+    license: GeoLite2 EULA + CC BY-SA 4.0
+    redistributable: true
+    attribution: This product includes GeoLite Data created by MaxMind, available
+      from https://www.maxmind.com
+    maintainer: MaxMind
+    maintainer_url: https://www.maxmind.com/
+    attributes:
+      public_url: 
+        https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-ASN&license_key=LICENSE_KEY&suffix=tar.gz
+    hidden: true
+    use: [asn]
+    format: maxmind_asn_mmdb_tar_gz
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T12:53:33Z'
+      official_name: GeoLite2 ASN Database
+      official_url: https://dev.maxmind.com/geoip/docs/databases/asn
+      short_description: A free, daily-updated IP-address-to-autonomous-system-number
+        mapping database, providing the ASN and organization name for given IP addresses.
+      long_description: "GeoLite2 ASN is a free database from MaxMind that maps IP
+        address ranges to their originating autonomous system number (ASN) and the
+        organization that owns that ASN. It ships in two formats: a binary MaxMind
+        DB (.mmdb) file for use with MaxMind's official reader libraries, and CSV
+        archives with separate IPv4 and IPv6 block files for import into SQL databases
+        or custom tooling.\n\nThe ASN database is refreshed daily, a faster cadence
+        than MaxMind's sibling GeoLite2 Country and City databases. ASN entries are
+        sourced from routing-registry data — primarily BGP announcements and WHOIS
+        records held by the regional internet registries — rather than from the geolocation
+        inference pipelines MaxMind uses for country/city assignment. As a result,
+        this database answers a different question (which network owns this IP) and
+        is not bound by the city/state accuracy limits MaxMind documents for the geolocation
+        databases.\n\nAccess requires a free MaxMind account and a generated license
+        key. The license key is used with MaxMind's official geoip-update tool or
+        community-maintained alternatives to automate downloads on a schedule."
+      roles:
+      - role: maintainer
+        name: MaxMind, Inc.
+        organization_type: commercial
+        official_url: https://www.maxmind.com
+        contact_email: support@maxmind.com
+        based_in: United States
+        active_since: '2002'
+        notes: MaxMind is a commercial IP intelligence and fraud-detection company.
+          Their GeoIP products are used by over 100,000 businesses worldwide according
+          to their homepage. They operate one of the largest fraud-detection networks
+          in the industry and offer both free (GeoLite) and commercial (GeoIP2) database
+          tiers.
+      derivation:
+        type: original
+        description: MaxMind builds the GeoLite2 ASN database from BGP routing data,
+          WHOIS records held by regional internet registries (RIPE, ARIN, APNIC, AFRINIC,
+          LACNIC), and direct relationships with upstream network operators. The database
+          maps IP address blocks to their announcing autonomous system and the organization
+          name registered for that ASN.
+        source_feeds: []
+      listing_policy:
+        summary: Not applicable — this is a passive mapping database, not an active
+          blocklist. Entries represent IP address blocks mapped to their originating
+          autonomous system number and organization, reflecting routing registry data.
+          There are no threat indicators; the database is informational.
+        criteria:
+        - IP address blocks are mapped to the ASN that originates them in global BGP
+          routing tables
+        - Organization names are drawn from WHOIS registrations filed with regional
+          internet registries
+        - Newly allocated or transferred IP blocks may lag until the next database
+          update cycle
+      unlisting_policy:
+        summary: Not applicable — corrections to IP-to-ASN mappings are submitted
+          to MaxMind for incorporation in a future database update, rather than removed
+          from an existing entry. The database is replaced wholesale on each update
+          cycle.
+        criteria:
+        - Incorrect ASN assignments are corrected in the next scheduled database update
+        - Organizations that transfer IP blocks between ASNs are reflected when MaxMind's
+          data is refreshed
+        - There is no per-entry removal mechanism; the entire database is superseded
+          on each update
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated daily — the GeoLite2 ASN database is rebuilt and published
+          once per day, faster than the GeoLite2 City and Country databases which
+          refresh twice weekly.
+      detection_classification:
+        primary_method: policy_assignment
+        description: MaxMind compiles the GeoLite2 ASN database by aggregating routing
+          registry data — primarily BGP routing tables and WHOIS records filed with
+          regional internet registries (RIPE, ARIN, APNIC, AFRINIC, LACNIC) — along
+          with direct relationships with network operators. The resulting database
+          maps IP address blocks to the autonomous system that announces them and
+          the organization registered for that ASN. Unlike honeypot or user-submission
+          feeds, this is a curated registry product where entries reflect authoritative
+          allocation records rather than reactive threat detections.
+        secondary_methods: []
+      scope_and_intent:
+        description: The GeoLite2 ASN database maps IP address blocks to their originating
+          autonomous system number and owning organization, enabling analytics, network
+          forensics, and security tooling that groups traffic by network operator
+          rather than geography alone.
+        intended_for:
+        - Analytics and reporting grouped by autonomous system
+        - Network forensics and incident response
+        - Firewall and IDS allowlist/denylist rules by ASN
+        - Identifying cloud provider versus residential ISP traffic
+        - Enriching log data with ASN context
+        not_intended_for:
+        - Establishing a consumer's eligibility for credit (FCRA)
+        - Employment screening or personnel decisions (FCRA)
+        - Insurance underwriting decisions (FCRA)
+        - Government license or benefit determinations (FCRA)
+        - Identifying or locating a specific individual or street address
+        - Consumer profiling or sale of data to third parties without MaxMind consent
+      license: GeoLite2 End User License Agreement + Creative Commons Attribution-ShareAlike
+        4.0
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required: "Credit MaxMind — example: 'This product includes GeoLite
+          Data created by MaxMind, available from https://www.maxmind.com'"
+        terms: Permitted with attribution. The EULA restricts disclosure to third
+          parties without MaxMind's prior written consent except as the Creative Commons
+          license permits. FCRA-prohibited uses are barred regardless of redistribution
+          context.
+      current_status:
+        state: active
+        description: Active and maintained as of May 2026. The GeoLite2 ASN database
+          is updated daily and the download endpoint is available with a valid MaxMind
+          license key.
+        successor:
+        announcement_date:
+      community:
+        awards: Widely cited as the standard free IP-to-ASN reference for log enrichment,
+          firewall rules, and security tooling. GoAccess and r/networking threads
+          explicitly recommend GeoLite2 ASN as the go-to free ASN lookup source for
+          analytics and security/firewall use cases.
+        criticism: ASN-specific criticism is limited. Community threads about ASN
+          lookup quality occasionally point to alternatives such as IPinfo Lite and
+          IPLocate, motivated more by curiosity about choice and by pricing concerns
+          for upgrade paths to other MaxMind products than by ASN data quality complaints.
+        engagement: ASN-specific community discussion is narrower than discussion
+          of MaxMind's geolocation databases — operators tend to surface ASN questions
+          in security-tooling and network-operations forums (r/networking, GoAccess,
+          pfBlockerNG threads) rather than in geolocation-accuracy contexts. MaxMind
+          employees participate in those Reddit discussions and respond to user questions.
+      sources_consulted:
+      - url: https://dev.maxmind.com/geoip/docs/databases/asn
+        document_date: '2024-09-12'
+        validation_date: '2026-05-16'
+      - url: https://www.maxmind.com/en/geolite2/eula
+        document_date: '2026-02-12'
+        validation_date: '2026-05-16'
+      - url: https://dev.maxmind.com/geoip/geolite2-free-geolocation-data
+        document_date:
+        validation_date: '2026-05-16'
+      - url: https://support.maxmind.com/knowledge-base/articles/maxmind-geolocation-accuracy
+        document_date:
+        validation_date: '2026-05-16'
+      - url: https://www.maxmind.com
+        document_date:
+        validation_date: '2026-05-16'
+      - url: 
+          https://reddit.com/r/sysadmin/comments/ede22q/significant_changes_to_accessing_and_using/
+        document_date: '2019-12-20'
+        validation_date: '2026-05-16'
+      - url: 
+          https://reddit.com/r/networking/comments/1kofal7/looking_for_free_ip_info_api_with_usage_typetype/
+        document_date: '2025-05-16'
+        validation_date: '2026-05-16'
+      - url: 
+          https://reddit.com/r/selfhosted/comments/1s5f4wu/is_there_any_way_to_get_maxmind_geoip_paid/
+        document_date: '2025-01-24'
+        validation_date: '2026-05-16'
+      - url: https://github.com/allinurl/goaccess/issues/2386
+        document_date: '2024'
+        validation_date: '2026-05-16'

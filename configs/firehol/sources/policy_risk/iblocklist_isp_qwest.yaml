@@ -1,0 +1,150 @@
+sources:
+  iblocklist_isp_qwest:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    url: 
+      http://list.iblocklist.com/?list=jezlifrpefawuoawnfez&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Qwest IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T09:11:50Z'
+      official_name: Qwest ISP
+      official_url: https://www.iblocklist.com/lists
+      short_description: IPv4 address ranges formerly allocated to Qwest Communications,
+        a U.S. telecommunications provider acquired by CenturyLink in 2011, packaged
+        as a subscription blocklist by iBlocklist.com.
+      long_description: The Qwest ISP feed distributes IPv4 address ranges that were
+        originally allocated to Qwest Communications Company, a telecommunications
+        provider that operated primarily in the western United States before its acquisition
+        by CenturyLink (now Lumen) in April 2011. The feed is maintained and distributed
+        by iBlocklist.com as part of their subscription service, formatted for use
+        with PeerBlock, PeerGuardian, iplist, and compatible firewall tools. Per the
+        maintainer's Terms of Service, the feed is licensed for personal, non-commercial
+        use only; commercial deployment requires a separate arrangement with the maintainer.
+        Because Qwest as an independent entity no longer exists, the feed represents
+        a fixed historical snapshot of Qwest-allocated address space rather than an
+        actively curated list of current ISP routing data.
+      roles:
+      - role: maintainer
+        name: iBlocklist.com
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: iblocklist, LLC operates the iBlocklist.com subscription service distributing
+          IP blocklists in P2P, DAT, and CIDR formats. Subscriptions are priced at
+          $9.99 per year, granting access to all subscription-tier lists and custom
+          list creation tools.
+      derivation:
+        type: original
+        description: The feed maps Qwest Communications Company's historical IPv4
+          address allocations — the IP space formally assigned to Qwest by regional
+          Internet registries — into a blocklist formatted for peer-to-peer blocklist
+          clients and firewalls. The maintainer does not describe consuming other
+          IP feeds as inputs; the sourcing is derived from registry allocation data
+          mapped to the Qwest organizational identity.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when it falls within an IPv4 range that was formally
+          allocated to Qwest Communications Company by a regional Internet registry.
+          Because Qwest as an independent entity was acquired by CenturyLink in 2011,
+          the feed represents a fixed historical snapshot of Qwest's registered address
+          space rather than an ongoing detection-driven list.
+        criteria:
+        - IP falls within a regional Internet registry allocation belonging to Qwest
+          Communications Company
+      unlisting_policy:
+        summary: The feed is a static historical snapshot of Qwest Communications
+          Company's registered IP allocations. IPs are not dynamically unlisted; the
+          list would be regenerated from the underlying registry data only if the
+          maintainer chose to refresh it. No automatic expiration window is documented
+          for this specific feed.
+        criteria:
+        - Static snapshot — no dynamic unlisting mechanism documented
+      unlist_request:
+        url:
+        email:
+        instructions: iBlocklist.com does not publish a dedicated unlisting channel
+          for the Qwest ISP feed. General support inquiries can be submitted through
+          the maintainer's support page at https://www.iblocklist.com/support. Because
+          the feed represents historical registry allocations rather than active threat
+          data, unlisting requests are unlikely to result in changes to the feed contents.
+      update_frequency:
+        frequency: 1d
+        human_readable: Listed as updated daily, per the maintainer's feed configuration.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The feed assigns policy flags to IPs based on their presence
+          within Qwest Communications Company's registered IPv4 allocation ranges.
+          This is a registry-allocation-based classification — IPs are categorized
+          by organizational ownership rather than by observed malicious behavior,
+          honeypot detections, or community reports.
+      scope_and_intent:
+        description: The feed is intended to identify or block traffic originating
+          from IP addresses within Qwest Communications Company's historical address
+          space. Because Qwest was acquired by CenturyLink in 2011, the listed ranges
+          are now part of Lumen's (formerly CenturyLink's) autonomous systems, meaning
+          current traffic from these IPs originates from Lumen infrastructure rather
+          than Qwest-branded services.
+        intended_for:
+        - Identifying traffic from legacy Qwest IP allocations
+        - Peer-to-peer privacy applications (PeerBlock, PeerGuardian)
+        - Firewall rules targeting ISP-level allocations
+        not_intended_for:
+        - Real-time threat detection — the list is a static historical snapshot, not
+          driven by current abuse reports
+        - Accurate attribution of current ISP-level activity — ownership has changed
+          since acquisition
+      license: iBlocklist Terms of Service — personal / non-commercial only
+      redistribution:
+        allowed:
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Per the iBlocklist.com Terms of Service, the materials may be downloaded
+          and used for personal use only. Commercial use and any public display (commercial
+          or non-commercial) are expressly prohibited. The license grant does not
+          transfer title. Violation may result in automatic termination without refund.
+      current_status:
+        state: active
+        description: iBlocklist.com continues to operate and distribute the Qwest
+          ISP feed as part of its subscription service. The maintainer's website is
+          reachable and the subscription portal is functional. No discontinuation
+          announcement was issued by the maintainer for this feed.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion referencing the Qwest ISP feed specifically
+          is sparse. Broader iBlocklist.com service discussion in security and network-administration
+          forums (2015–2020 era) focused on PeerBlock integration and pfBlockerNG
+          configuration. No recent forum threads addressing this feed's maintenance
+          or currency were found.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T08:50:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18T08:51:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date: '2018-06-07'
+        validation_date: '2026-05-18T08:52:00Z'
+      - url: https://www.iblocklist.com/subscribe
+        document_date:
+        validation_date: '2026-05-18T08:50:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-18T08:50:00Z'

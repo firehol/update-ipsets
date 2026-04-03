@@ -1,0 +1,167 @@
+sources:
+  socks_proxy:
+    license: Didsoft Ltd — proprietary, free tier (https://socks-proxy.net/)
+    redistributable: true
+    url: http://www.socks-proxy.net/
+    frequency: 10
+    history:
+    - 1440
+    - 10080
+    - 43200
+    ipv: ipv4
+    output: ipset
+    processor:
+    - extract_ipv4
+    processor_raw: extract_ipv4_from_any_file
+    category: anonymizers
+    info: '[socks-proxy.net](http://www.socks-proxy.net/) open SOCKS proxies'
+    maintainer: Didsoft Ltd
+    maintainer_url: https://www.didsoft.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T11:39:17Z'
+      official_name: Free Socks5 and Socks4 Proxy List
+      official_url: https://socks-proxy.net/
+      short_description: A free, publicly scraped list of SOCKS4 and SOCKS5 proxy
+        servers maintained by Didsoft Ltd, updated roughly every 30 minutes.
+      long_description: "socks-proxy.net publishes free SOCKS4 and SOCKS5 proxy lists
+        scraped from publicly accessible internet servers. Each entry is a SOCKS relay
+        the operators observed responding on the public internet during the most recent
+        cycle.\n\nProxies are checked and refreshed every 30 minutes; working proxies
+        are added and dead ones are removed on each cycle. The maintainer openly acknowledges
+        that these free public proxies are datacenter-hosted, inherently unstable,
+        and typically slow — suited for users who rotate through many IPs for short
+        sessions rather than needing sustained connections.\n\nAll listed proxies
+        are presented as highly anonymous with HTTPS/SSL support. The site offers
+        a free tier alongside paid subscription plans (SOCKS 8200, SOCKS 4100, SOCKS
+        1100) that provide additional capacity and features beyond what this free
+        feed exposes."
+      roles:
+      - role: maintainer
+        name: Didsoft Ltd
+        organization_type: commercial
+        official_url: https://www.didsoft.com/
+        contact_email: support@didsoft.com
+        based_in: Hong Kong
+        active_since: '2005'
+        notes: Operates socks-proxy.net alongside free-proxy-list.net, MyIPHide, Elite
+          Proxy Switcher, and related proxy tools. Founded in 2005.
+      derivation:
+        type: original
+        description: Probes publicly accessible internet servers to identify open
+          SOCKS proxies, then republishes working endpoints in a structured list updated
+          every 30 minutes.
+        source_feeds: []
+      listing_policy:
+        summary: Open SOCKS proxy servers detected on the public internet are added
+          to the list. Working proxies are retained; proxies that fail verification
+          on an update cycle are removed. No human review or application is involved
+          — inclusion is automatic based solely on connectivity.
+        criteria:
+        - The server must accept SOCKS4 or SOCKS5 connections on a publicly accessible
+          address
+        - The server must respond to connectivity checks during the update cycle
+        - No application, nomination, or human approval process exists
+      unlisting_policy:
+        summary: Because socks-proxy.net discovers and republishes open SOCKS relays
+          found on the public internet — rather than maintaining a blocklist — there
+          is no formal unlisting procedure. If a server operator closes their open
+          SOCKS relay, the IP naturally disappears from subsequent update cycles as
+          it will no longer respond to probes.
+        criteria:
+        - Closing the open SOCKS relay so it stops responding causes automatic removal
+          within the next update cycle (~30 minutes)
+        - No manual delisting request channel is offered by the maintainer
+      unlist_request:
+        url:
+        email:
+        instructions: No dedicated unlisting channel exists. Closing or hardening
+          the open SOCKS relay so it no longer accepts unauthenticated connections
+          will result in automatic removal within the next update cycle (~30 minutes).
+          General technical support is available at support@didsoft.com, though it
+          is not specifically designated for removal requests.
+      update_frequency:
+        frequency: 30m
+        human_readable: Updated every 30 minutes
+      detection_classification:
+        primary_method: active_scanning
+        secondary_methods: []
+        description: Actively probes internet address space to discover open SOCKS
+          relay servers, then verifies reachability on recurring update cycles. Working
+          proxies are added; non-responsive ones are dropped.
+      scope_and_intent:
+        description: Provides rotating SOCKS4 and SOCKS5 proxy endpoints for automated
+          traffic tools. The maintainer explicitly targets SEO, web scraping, and
+          botting workflows that require many short-lived IP addresses.
+        intended_for:
+        - SEO and traffic automation tools (scrapers, bots)
+        - Users who need to rotate through many IP addresses for short sessions
+        not_intended_for:
+        - Accessing major websites like Google, Instagram, or Craigslist (free tier
+          does not support these)
+        - Production workloads requiring stable, high-speed connections
+        - Sensitive or security-critical applications — free public proxies carry
+          documented TLS interception and content-manipulation risks
+      license: Didsoft Ltd — proprietary, free tier (https://socks-proxy.net/)
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: No explicit direct-upstream prohibition on redistribution, copying,
+          mirroring, or public sharing was found in the reviewed direct page or related
+          Didsoft terms. Proprietary/free-tier terms should be passed through rather
+          than inferred as a redistribution ban.
+      current_status:
+        state: active
+        description: The site is operational, serves live proxy tables, and continues
+          to offer paid proxy plans alongside the free list. No discontinuation, migration,
+          or archival notices were found.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Independent benchmarks of free public SOCKS proxy lists (which
+          include socks-proxy.net in their comparison set) report very low working-proxy
+          rates — around a 2% validator pass rate per Olostep testing — and extreme
+          latency, making them unsuitable for production workloads. Academic research
+          analyzing over 640,000 free proxies found that 92% of advertised open proxies
+          were entirely unresponsive and that a significant subset actively deployed
+          TLS interception or manipulated in-flight content. The maintainer transparently
+          discloses that free proxies are 'unstable and usually slow,' do not support
+          major websites such as Google, Instagram, or Craigslist, and are datacenter-hosted.
+        engagement: Public discussion of socks-proxy.net specifically is sparse —
+          no Reddit threads, Stack Exchange posts, or dedicated forum discussions
+          were found despite broad searching. The feed appears in third-party proxy-aggregator
+          comparison articles but generates little independent commentary of its own.
+      sources_consulted:
+      - url: https://socks-proxy.net/
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://socks-proxy.net/faq.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://socks-proxy.net/about.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.didsoft.com/terms.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.didsoft.com/contact.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.didsoft.com/
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.scamadviser.com/check-website/didsoft.com
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://tickcoupon.com
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.olostep.com/blog/best-free-proxy-lists-web-scraping
+        document_date: '2026-03-01'
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://socks-proxy.net.siteindices.com/
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'

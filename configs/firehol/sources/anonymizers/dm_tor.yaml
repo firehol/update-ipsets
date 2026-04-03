@@ -1,0 +1,179 @@
+sources:
+  dm_tor:
+    license: public feed
+    redistributable: true
+    url: https://www.dan.me.uk/torlist/
+    frequency: 30
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: anonymizers
+    info: '[dan.me.uk](https://www.dan.me.uk) dynamic list of TOR nodes'
+    maintainer: dan.me.uk
+    maintainer_url: https://www.dan.me.uk/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T18:32:29Z'
+      official_name: TOR Exit Node List
+      official_url: https://www.dan.me.uk/torlist/
+      short_description: A plain-text list of IPv4 addresses currently running as
+        TOR exit nodes, refreshed every 30 minutes from the live TOR network consensus.
+      long_description: "The dan.me.uk TOR Exit Node List is a personal project by
+        Daniel Austin MBCS that publishes the IPv4 addresses of machines currently
+        operating as TOR exit nodes. The list is rebuilt automatically every 30 minutes
+        by querying the live TOR network consensus — the authoritative directory of
+        all active TOR relays — and extracting the subset that advertise exit permissions.
+        Two feeds are offered: the full nodelist (all entry, transit, and exit relays)
+        and the exit-only list (relays that permit outbound connections to the internet).
+        The exit-only variant is the one served at the torlist endpoint.\n\nEach listed
+        IP represents a machine that has voluntarily joined the TOR network as an
+        exit relay. The maintainer also operates complementary DNSBL zones: torexit.dan.me.uk
+        returns a positive response for any listed exit node, enabling real-time lookups
+        via standard DNS queries. The DNSBL responses are DNSSEC-signed with a full
+        chain from root to individual entries.\n\nThe maintainer describes the service
+        as a tool within a broader personal site offering network utilities (AS prefix
+        lookup, BGP filter generation, IP information, subnet calculation). The copyright
+        notice on the site reads 'Copyright © 2026 Daniel Austin MBCS.' No formal
+        license or terms of use page exists; the /terms URL returns a 404."
+      roles:
+      - role: maintainer
+        name: Daniel Austin MBCS
+        organization_type: individual
+        official_url: https://www.dan.me.uk/
+        contact_email:
+        based_in: United Kingdom
+        active_since:
+        notes: System and network administrator based in the UK, operating dan.me.uk
+          as a personal site. Also co-owns and operates an ISP acquired via management
+          buyout in 2017. Has contributed source code to utilities shipped with FreeBSD.
+      derivation:
+        type: original
+        description: The list is produced by polling the live TOR network consensus
+          directory every 30 minutes and extracting the subset of relays that advertise
+          exit permissions. No human review is involved — inclusion is automatic and
+          driven entirely by the TOR network's own directory protocol. The maintainer
+          additionally offers a DNSSEC-signed DNSBL zone (torexit.dan.me.uk) providing
+          real-time DNS-based lookups of the same exit-node dataset.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when it appears in the live TOR network consensus
+          directory as an active relay advertising exit permissions. No human review
+          is involved — inclusion is automatic and driven entirely by the TOR network's
+          own directory protocol.
+        criteria:
+        - The IP must be running an active TOR relay registered in the TOR consensus
+          directory
+        - The relay must advertise exit permissions (permit outbound connections to
+          external destinations)
+        - The relay must be flagged as Running ('R') and Valid ('V') in the TOR consensus
+      unlisting_policy:
+        summary: Unlisting is entirely automatic. When a TOR exit node ceases operation,
+          it disappears from the next consensus update and drops off the dan.me.uk
+          list within at most one hour. There is no manual removal request, no complaint
+          procedure, and no appeal process.
+        criteria:
+        - 'Automatic: the relay stops communicating with the TOR network directory
+          authorities'
+        - The next consensus update removes the relay's record
+        - 'Maximum lag from shutdown to removal: one hour'
+      unlist_request:
+        url:
+        email:
+        instructions: No manual unlisting process exists. Per the maintainer's policy,
+          an IP is automatically removed within one hour of the associated TOR exit
+          node ceasing operation. There is no web form, email address, or support
+          channel for removal requests. If you operate a TOR exit node and need to
+          be delisted, shut down the relay — the list will update on the next 30-minute
+          cycle. High-volume consumers (thousands of queries per hour) may contact
+          the maintainer via the email icon in the site footer to request zone-file
+          transfers; this channel is not for removal requests.
+      update_frequency:
+        frequency: 30m
+        human_readable: Refreshed every 30 minutes from the live TOR network consensus,
+          per the maintainer's DNSBL page.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: "The feed is built by polling the live TOR network consensus
+          directory every 30 minutes and extracting the subset of relays that advertise
+          exit permissions. This is a reputation-aggregation model: the TOR network
+          itself acts as a distributed sensor network, and dan.me.uk mirrors that
+          real-time registry. No honeypots, sandboxes, or active scanning are involved.
+          The maintainer applies no additional scoring or weighting — the list reflects
+          the consensus's own Running and Valid flags verbatim."
+      scope_and_intent:
+        description: Identifying traffic originating from or routed through TOR exit
+          nodes. Intended for operators who need to flag, monitor, or restrict anonymized
+          connections — such as mail servers, IRC networks, fraud-prevention systems,
+          and security monitoring platforms.
+        intended_for:
+        - Mail server access control (blocking anonymized SMTP connections)
+        - IRC network spam and abuse mitigation
+        - Fraud prevention (flagging anonymized checkout sessions)
+        - Security monitoring and incident response (context enrichment for suspicious
+          traffic)
+        - Firewall allowlist decisions
+        not_intended_for:
+        - Permanent blocking of TOR users (dynamic IP reuse by ISPs causes false positives
+          against legitimate end-user traffic)
+        - Identifying malicious actors (TOR is used for legitimate privacy-preserving
+          communication)
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: No redistribution terms are stated. The direct upstream is publicly
+          downloadable without authentication, and no license or terms of use page
+          exists on the site.
+      current_status:
+        state: active
+        description: Active as of May 2026. Updates are published every 30 minutes
+          to https://www.dan.me.uk/torlist/. The DNSBL zones remain operational and
+          DNSSEC-signed.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "The primary community concern is false positives arising from
+          dynamic IP reuse: when a TOR exit node shuts down and its IP address is
+          reassigned by the ISP to a new customer, that customer's legitimate traffic
+          appears to originate from a listed exit node until the next 30-minute update
+          cycle removes the IP. A secondary concern involves commercial VPN providers
+          that lease servers also used as TOR exit nodes — VPN users may be incorrectly
+          flagged as TOR users. No manual unlisting mechanism exists to resolve these
+          cases rapidly. The maintainer does not offer a public issue tracker or complaint
+          channel for these reports."
+        engagement: Public discussion is moderate. The feed is referenced in production
+          by SANS Internet Storm Center (a practitioner diary describing Splunk integration)
+          and widely consumed across the security tooling ecosystem — documented in
+          over 1,000 GitHub repositories (as of May 2026) including IntelOwl, maltrail,
+          CAPEv2, CERT-Polska n6, InspIRCd, CIDRAM, and AdGuard Home. No public issue
+          tracker or dedicated discussion forum exists for the feed; community feedback
+          takes the form of informal blog comments and third-party documentation sites.
+      sources_consulted:
+      - url: https://www.dan.me.uk/
+        document_date: '2026'
+        validation_date: '2026-05-17T18:30:00Z'
+      - url: https://www.dan.me.uk/torlist/
+        document_date:
+        validation_date: '2026-05-17T18:30:00Z'
+      - url: https://www.dan.me.uk/dnsbl
+        document_date: '2026'
+        validation_date: '2026-05-17T18:31:00Z'
+      - url: https://isc.sans.edu/diary/21103
+        document_date:
+        validation_date: '2026-05-17T18:31:00Z'
+      - url: 
+          https://github.com/luids-io/xlist-database/blob/master/sources/dan-me-uk-tor.json
+        document_date:
+        validation_date: '2026-05-17T18:31:00Z'
+      - url: https://www.suped.com/learn/blocklists/danmeuk-dan-torexit-dns-blacklist
+        document_date:
+        validation_date: '2026-05-17T18:31:00Z'
+      - url: https://www.mxtoolbox.com/problem/blacklist/dan-torexit
+        document_date:
+        validation_date: '2026-05-17T18:31:00Z'

@@ -1,0 +1,173 @@
+sources:
+  misp_microsoft_azure_china:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/microsoft-azure-china/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Microsoft
+      Azure China datacenter IP ranges. Provider infrastructure reference, not a threat
+      indicator.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T06:36:22Z'
+      official_name: List of known Microsoft Azure China Datacenter IP Ranges
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: A MISP warninglist of Microsoft Azure China datacenter IP
+        ranges (IPv4 and IPv6 CIDRs), enabling analysts to identify and suppress false
+        positives from known cloud provider infrastructure during threat intelligence
+        analysis.
+      long_description: "This warninglist contains IPv4 and IPv6 CIDR ranges allocated
+        to Microsoft Azure China datacenters — the sovereign Azure cloud operated
+        under Chinese regulatory rules by 21Vianet, separate from Microsoft's global
+        Azure public cloud. The ranges cover Azure regions in Beijing, Shanghai, and
+        adjacent geographies.\n\nPer the generator script (`tools/generate-microsoft-azure.py`),
+        the list is produced by downloading Microsoft's public Azure Service Tags
+        JSON file, parsing the `addressPrefixes` fields for China-region service tags,
+        and consolidating overlapping networks into non-overlapping CIDR blocks. The
+        resulting list is formatted as a MISP warninglist with `type: cidr` and matching
+        attributes covering `ip-src`, `ip-dst`, `domain|ip`, `ip-src|port`, and `ip-dst|port`.\n\
+        \nThe list is classified as provider infrastructure reference data — it identifies
+        known, legitimate cloud provider address space and is explicitly not a threat
+        indicator feed. It is intended for use during alert triage and correlation
+        workflows to contextualize observed IPs as belonging to Azure China infrastructure
+        rather than treating them as suspicious. Separate sibling lists cover the
+        public Azure cloud, Azure Germany, and Azure US Government."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: informal_collective
+        official_url: https://github.com/MISP/
+        contact_email:
+        based_in: Luxembourg
+        active_since: '2012'
+        notes: The MISP Project is a community-driven open-source initiative led by
+          a volunteer core team. Financially and resource-supported by CIRCL (Computer
+          Incident Response Center Luxembourg). The warninglists sub-project is maintained
+          collectively by the core team; individual commits to the microsoft-azure-china
+          list are credited to adulau (Alexandre Dulaunoy).
+      derivation:
+        type: extraction
+        description: The list is produced by extracting IP address prefixes from Microsoft's
+          public Azure Service Tags JSON file (downloaded at runtime by the generator
+          script). The script parses the JSON, selects address prefixes belonging
+          to Azure China service tags, and passes them through a network-consolidation
+          step that merges overlapping CIDR ranges into a minimal non-overlapping
+          set. No other IP feeds are consumed; the sole upstream is Microsoft's official
+          Service Tags publication. The resulting list is a filtered, consolidated
+          extraction of one cloud provider's published infrastructure ranges.
+        source_feeds: []
+      listing_policy:
+        summary: "Entries are added or removed by re-running the generator script
+          against Microsoft's current Azure Service Tags JSON file. Because the list
+          tracks known cloud provider infrastructure rather than threats, there is
+          no threat-scoring or analyst review step: the maintainer's policy is to
+          reflect Microsoft's current published allocation for Azure China regions.
+          Any IP range that Microsoft publishes under a China-region service tag at
+          the time of generation is included; any range no longer present is excluded."
+        criteria:
+        - The IP range must appear in Microsoft's published Azure Service Tags JSON
+          under a China-region service tag
+        - Both IPv4 and IPv6 prefixes published for Azure China are included
+        - Overlapping prefixes are consolidated into a minimal non-overlapping CIDR
+          set
+      unlisting_policy:
+        summary: Because the list is a reflection of Microsoft's published infrastructure
+          rather than a threat list, there is no manual unlisting mechanism. Entries
+          are removed passively when a subsequent run of the generator script no longer
+          finds the range in Microsoft's current Service Tags JSON — meaning Microsoft
+          has retired or reallocated that address space. There is no manual removal
+          request channel.
+        criteria:
+        - Ranges are removed when Microsoft's current Service Tags JSON no longer
+          includes them under a China-region service tag
+        - No manual removal requests are processed — the list reflects live infrastructure
+          allocation
+      unlist_request:
+      update_frequency:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The list is a policy-assignment reference list, not a threat-detection
+          source. It assigns a known, benign classification to IP ranges belonging
+          to Microsoft Azure China, signaling to analysts that traffic to or from
+          these addresses is expected infrastructure communication rather than a threat
+          indicator. MISP displays a warning box when an attribute matches this list,
+          helping analysts suppress false positives during alert triage. No active
+          probing, honeypot sensing, malware analysis, or user submissions contribute
+          to this list.
+      scope_and_intent:
+        description: The list identifies IP address space allocated to Microsoft Azure
+          China datacenters, enabling security analysts to recognize this infrastructure
+          during alert investigation and avoid incorrectly flagging legitimate cloud
+          provider traffic as suspicious.
+        intended_for:
+        - False positive reduction during IP-based alert triage in MISP and compatible
+          platforms
+        - Contextualizing observed IPs as known Microsoft Azure China infrastructure
+          during threat intelligence analysis
+        - Marking or filtering alerts involving Azure China egress/ingress as expected
+          cloud provider traffic
+        not_intended_for:
+        - Inline blocking or deny-listing of Azure China IP ranges
+        - Threat indicator detection — the list contains exclusively known-benign
+          infrastructure
+        - Security control enforcement at network perimeter devices
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: Under CC0 1.0, the list may be freely reproduced, modified, redistributed,
+          and used for any purpose, including commercial use, without requiring attribution.
+      current_status:
+        state: active
+        description: Maintained as of December 3, 2024 (commit 8fe422d by adulau).
+          The list is actively updated through periodic regeneration against Microsoft's
+          Azure Service Tags JSON. No discontinuation, merger, or scope-reduction
+          announcement has been issued by the maintainer.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: 'Public community discussion about this specific list is sparse.
+          GitHub issue #42 (opened November 2017, closed December 2017 by adulau)
+          was the originating request for adding Azure China ranges; no subsequent
+          issues or pull requests specific to this list were found. The broader MISP
+          warninglists project is widely adopted across the MISP ecosystem — 123 warninglists
+          are maintained — but this particular list functions as a quiet, specialist
+          utility for analysts working with Azure China workloads. No notable controversy,
+          false-positive complaints, or community pain points were identified during
+          research.'
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/microsoft-azure-china/list.json
+        document_date: '2024-12-03'
+        validation_date: '2026-05-19T06:30:00Z'
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-19T06:28:00Z'
+      - url: https://github.com/MISP/misp-warninglists/tree/main/lists/microsoft-azure-china
+        document_date: '2024-12-03'
+        validation_date: '2026-05-19T06:32:00Z'
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/tools/generate-microsoft-azure.py
+        document_date:
+        validation_date: '2026-05-19T06:34:00Z'
+      - url: https://github.com/MISP/misp-warninglists/issues/42
+        document_date: '2017-12-29'
+        validation_date: '2026-05-19T06:33:00Z'
+      - url: https://github.com/MISP/misp-warninglists/tree/main/lists
+        document_date:
+        validation_date: '2026-05-19T06:35:00Z'

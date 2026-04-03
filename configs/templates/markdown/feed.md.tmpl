@@ -1,0 +1,321 @@
+# {{.Name}}
+
+{{if .OfficialName}}{{if ne .OfficialName .Name}}{{.OfficialName}}
+
+{{end}}{{end}}{{if .ShortDescription}}{{.ShortDescription}}
+
+{{end}}
+{{if .Category}}**{{.Category}}** · {{end}}{{if .Maintainer}}by [{{.Maintainer}}]({{.MaintainerURL}}){{end}}
+
+**{{comma .IPs}}** unique IPs across {{comma .Entries}} entries
+{{if .Frequency}} · Updated every {{mins .Frequency}}{{end}}
+{{if .HealthClass}} · Health: **{{.HealthClass}}**{{end}}
+
+Tracked since {{date .Started}} ({{relTime .Started}}) · Last update {{relTime .Updated}}
+
+---
+{{if .HealthStatus}}
+## Status: {{statusLabel .HealthClass}}
+
+**{{statusLead .HealthClass}}** {{.HealthStatus}}
+
+---
+{{end}}{{if .Enrichment}}{{with .Enrichment.CurrentStatus}}{{if ne .State "active"}}
+## Status: {{statusLabel .State}}
+
+**{{statusLead .State}}** {{.Description}}
+{{with .Successor}}{{if .Name}}
+Successor: `{{.Name}}`{{if .URL}} ({{.URL}}){{end}}
+{{else if .URL}}
+Successor: {{.URL}}
+{{end}}{{end}}{{if .AnnouncementDate}}
+Announced {{.AnnouncementDate}}.
+{{end}}
+---
+{{end}}{{end}}{{end}}
+## Insights
+
+{{if .Insights}}{{range .Insights}}- **{{.Headline}}** ({{.Section}})
+{{end}}{{else}}No insights available for this feed.
+{{end}}
+
+---
+
+## About
+
+{{if .Enrichment}}{{if .Enrichment.LongDescription}}{{.Enrichment.LongDescription}}{{else if .Info}}{{.Info}}{{else}}No description available.{{end}}
+
+{{if .Enrichment.Roles}}### Maintainer and publisher
+
+{{range .Enrichment.Roles}}- **{{.Role}}**: {{.Name}}{{if .OfficialURL}} — {{.OfficialURL}}{{end}}
+{{end}}{{end}}
+
+### How this feed is built
+
+{{.Enrichment.Derivation.Description}}
+
+{{if .Enrichment.Derivation.SourceFeeds}}Source feeds:
+{{range .Enrichment.Derivation.SourceFeeds}}- `{{.Identifier}}`{{if .Relationship}} ({{.Relationship}}){{end}}{{if .Notes}} - {{.Notes}}{{end}}
+{{end}}{{end}}
+
+Detection method: **{{.Enrichment.DetectionClassification.PrimaryMethod}}**
+
+{{.Enrichment.DetectionClassification.Description}}
+
+{{with .Enrichment.ScopeAndIntent}}{{if .Description}}{{.Description}}
+{{end}}{{if .IntendedFor}}Intended for:
+{{range .IntendedFor}}- {{.}}
+{{end}}{{end}}{{end}}
+
+## Listing rules and removal
+
+{{with .Enrichment.ListingPolicy}}### Listing policy
+
+{{.Summary}}
+{{if .Criteria}}{{range .Criteria}}- {{.}}
+{{end}}{{end}}{{end}}
+
+{{with .Enrichment.UnlistingPolicy}}### Unlisting policy
+
+{{.Summary}}
+{{if .Criteria}}{{range .Criteria}}- {{.}}
+{{end}}{{end}}{{end}}
+
+{{with .Enrichment.UnlistRequest}}### Removal request
+
+{{if .Instructions}}{{.Instructions}}{{end}}
+{{if .URL}}URL: {{.URL}}
+{{end}}{{if .Email}}Email: {{.Email}}
+{{end}}{{end}}
+
+{{with .Enrichment.UpdateFrequency}}### Maintainer-stated cadence
+
+{{if .HumanReadable}}{{.HumanReadable}}{{else if .Frequency}}{{.Frequency}}{{end}}
+{{end}}
+
+{{else}}{{if .Info}}{{.Info}}{{else}}No description available.{{end}}{{end}}
+{{if .Critical}}
+
+---
+
+## Critical Infrastructure
+
+**{{comma .Critical.CriticalIPs}}** IPs ({{pct .Critical.Percent}}) overlap with critical infrastructure.
+
+> Critical infrastructure overlap is collateral-impact context, not proof that the feed is wrong. Review hard tiers first; soft and contextual tiers mean blocking may affect shared provider infrastructure or customer-controlled workloads.
+
+{{if .Critical.Tiers}}| Tier | Critical IPs | Share | Providers |
+|:-----|-------:|------:|--------:|
+{{range .Critical.Tiers}}| {{.Tier}} | {{comma .CriticalIPs}} | {{pct .Percent}} | {{.Providers}} |
+{{end}}
+{{end}}{{if .Critical.Providers}}| Provider | Critical IPs | Share |
+|:---------|-------:|------:|
+{{range .Critical.Providers}}| {{.Name}} | {{comma .CriticalIPs}} | {{pct .Percent}} |
+{{end}}
+{{end}}{{if .Critical.ASNContext}}
+### ASN Context
+
+Provider: {{.Critical.ASNContext.Provider}} · {{comma .Critical.ASNContext.IPs}} IPs ({{pct .Critical.ASNContext.Percent}})
+
+| ASN | Name | Tier | Role | IPs | Share |
+|:----|:-----|:-----|:-----|----:|------:|
+{{range .Critical.ASNContext.Matches}}| {{.ASN}} | {{.Name}} | {{.Tier}} | {{.Role}} | {{comma .IPs}} | {{pct .Percent}} |
+{{end}}
+{{end}}{{end}}
+{{if .ASN}}
+
+---
+
+## AS Composition
+
+{{range .ASN}}### {{.Provider}}
+
+{{comma .AttributedIPs}} attributed IPs ({{comma .BogonIPs}} bogon, {{comma .UnknownIPs}} unknown)
+
+> ASN attribution maps IPs to network operators using this provider's data. It helps identify hosting concentration and attribution gaps; it does not identify the actor behind the traffic.
+
+| ASN / Name | IPs |
+|:-----------|---:|
+{{range .TopASNs.Rows}}| {{.Name}} | {{comma .Value}} |
+{{end}}{{if .TopASNs.Other}}| **Other** | {{comma .TopASNs.Other}} |
+{{end}}
+{{end}}{{end}}
+{{if .GEO}}
+
+---
+
+## Geographic Coverage
+
+{{range .GEO}}### {{.Provider}}
+
+{{comma .TotalMapped}} mapped IPs
+
+> Geographic coverage is provider attribution for IP address space. It is useful for coverage and concentration analysis, but it is not reliable evidence of attacker location.
+
+| Country | IPs |
+|:--------|---:|
+{{range .TopCountries.Rows}}| {{.Name}} | {{comma .Value}} |
+{{end}}{{if .TopCountries.Other}}| **Other** | {{comma .TopCountries.Other}} |
+{{end}}
+{{end}}{{end}}
+{{if .Bogons}}
+
+---
+
+## Bogon Addresses
+
+{{range .Bogons}}### {{.Provider}}
+
+{{comma .BogonIPs}} bogon IPs ({{pct .Percent}} of feed)
+
+> Bogon overlap indicates addresses that should not normally appear on the public Internet according to this reference provider. Treat provider-specific results carefully: stale or overly broad reference feeds can create misleading bogon counts.
+
+{{if .Ranges}}| CIDR | Name | RFC | IPs |
+|:-----|:-----|:----|----:|
+{{range .Ranges}}| {{.CIDR}} | {{.Name}} | {{.RFC}} | {{comma .Count}} |
+{{end}}{{end}}
+{{end}}{{end}}
+{{if .Activity}}
+
+---
+
+## Behavior
+
+How the list moves over time.
+
+> This section follows the website behavior view. It uses the bounded public history and changeset artifacts, normally the last recorded-run window, not a fixed calendar period and not a full lifetime ledger. Use **Tracked since** above for monitoring start; do not infer first publication from this table.
+
+History samples in artifact: **{{.Activity.HistorySamples}}** · Changeset samples in artifact: **{{.Activity.RawChanges}}** · Latest IPs: {{comma .Activity.LatestIPs}}
+
+### Churn and Added/Removed Updates
+
+Resolution: **{{.Activity.Resolution}}**
+
+> {{.Activity.WindowNote}}
+{{if .Activity.RollupNote}}> {{.Activity.RollupNote}}
+{{end}}
+{{if .Activity.Rows}}
+
+| Date | IPs | Entries | Added | Removed | Churn |
+|:-----|---:|--------:|------:|--------:|------:|
+{{range .Activity.Rows}}| {{.Timestamp.Format "2006-01-02 15:04 UTC"}} | {{comma .IPs}} | {{comma .Entries}} | {{comma .Added}} | {{comma .Removed}} | {{printf "%.1f" .ChurnPct}}% |
+{{end}}
+{{else}}No content-changing updates are available in the published changeset artifact.
+{{end}}
+{{if .Cadence}}
+
+### Cadence Between Updates
+
+> Cadence is measured from published history timestamps. It describes content-changing publications observed by this service, not every source check or HTTP request. Duplicate or backward timestamps are ignored.
+
+| Interval | Updates |
+|:---------|--------:|
+{{range .Cadence}}| {{.Interval}} | {{.Count}} |
+{{end}}{{end}}{{end}}
+{{if .Retention}}
+
+---
+
+## Retention
+
+Current age distribution (median {{printf "%.1f" .Retention.CurrentRetentionDays}} d) vs past ({{printf "%.1f" .Retention.PastRetentionDays}} d).
+
+> Current age is the age of IPs still listed now. Past age is how long removed IPs were listed before the maintainer dropped them. Past retention covers observed removals only; it is not complete lifetime ground truth for IPs that predate local tracking.
+
+> The following tables show per-day retention for 1 full year (365 days). Days missing have zero IP count.
+
+| Age (days) | Current IPs |
+|:-----------|----------:|
+{{range .Retention.CurrentSeries}}| {{.Label}} | {{comma .IPs}} |
+{{end}}
+
+| Age (days) | Past IPs |
+|:-----------|--------:|
+{{range .Retention.PastSeries}}| {{.Label}} | {{comma .IPs}} |
+{{end}}
+{{end}}
+{{if .Comparison}}
+
+---
+
+## Overlap with Other Feeds
+
+> `This %` is the percentage of common IPs compared to the total IPs in this feed. `Their %` is the percentage of common IPs compared to the total IPs in the feed shown on that row.
+
+| Feed | Category | IPs | Common | This % | Their % | Related |
+|:-----|:---------|---:|-------:|-------:|--------:|:-------:|
+{{range .Comparison}}| {{.Name}} | {{.Category}} | {{comma .IPs}} | {{comma .Common}} | {{pct .ThisPercent}} | {{pct .TheirPercent}} | {{if .Related}}yes{{end}} |
+{{end}}
+{{end}}
+
+---
+
+## Technical Specifications
+
+> Technical specifications describe how the feed is acquired, normalized, and published by this service. They are operational context, not quality scores.
+
+| Property | Value |
+|:---------|:------|
+| Name | {{.Name}} |
+{{if .DisplayFormat}}| Format | {{.DisplayFormat}} |
+{{end}}| IP Version | {{.IPV}} |
+| Aggregation | {{.Aggregation}} |
+| Hash | `{{.Hash}}` |
+{{if .Processor}}| Processor | {{.Processor}} |
+{{end}}{{if .Downloader}}| Downloader | {{.Downloader}} |
+{{end}}{{if .Source}}| Source | {{.Source}} |
+{{end}}{{if .License}}| License | {{.License}} |
+{{end}}{{if .AvgUpdateMins}}| Avg Update | {{mins .AvgUpdateMins}} |
+{{end}}{{if .MinUpdateMins}}| Min Update | {{mins .MinUpdateMins}} |
+{{end}}{{if .MaxUpdateMins}}| Max Update | {{mins .MaxUpdateMins}} |
+{{end}}| Entries Range | {{comma .EntriesMin}} — {{comma .EntriesMax}} |
+| IPs Range | {{comma .IPsMin}} — {{comma .IPsMax}} |
+{{if .UsedFor}}| Used For | {{range $i, $u := .UsedFor}}{{if $i}}, {{end}}{{$u}}{{end}} |
+{{end}}| Health | {{.HealthClass}} |
+{{if .RotationSamples}}| Rotation Median | {{pct .RotationMedian}} |
+| Rotation P75 | {{pct .RotationP75}} |
+| Rotation Samples | {{.RotationSamples}} |
+{{end}}{{if .ChangeRatioSamples}}| Change Ratio Median | {{pct .ChangeRatioMedian}} |
+| Change Ratio P75 | {{pct .ChangeRatioP75}} |
+{{end}}{{if .MergeIncluded}}
+### Merge Composition
+
+| Input | Role | Health | Enabled |
+|:------|:-----|:-------|:-------:|
+{{range .MergeIncluded}}| {{.Name}} | {{.Role}} | {{.HealthClass}} | {{if .Enabled}}yes{{end}} |
+{{end}}{{end}}{{if .MergeSubtracted}}
+### Excluded Inputs
+
+| Input | Reason |
+|:------|:-------|
+{{range .MergeSubtracted}}| {{.Name}} | {{.Reason}} |
+{{end}}{{end}}{{if .DontRedistribute}}
+> This feed is **not redistributable**.
+{{end}}
+{{if .Enrichment}}{{if .Enrichment.Community}}{{if or .Enrichment.Community.Awards .Enrichment.Community.Criticism .Enrichment.Community.Engagement}}
+---
+
+## Reputation and community signals
+
+> Supplementary signals gathered while researching this feed. Not used for blocking decisions.
+
+{{with .Enrichment.Community.Awards}}### Positive signals
+
+{{.}}
+{{end}}{{with .Enrichment.Community.Criticism}}### Past complaints or limits
+
+{{.}}
+{{end}}{{with .Enrichment.Community.Engagement}}### Maintainer engagement
+
+{{.}}
+{{end}}{{end}}{{end}}{{if or .Enrichment.SourcesConsulted .Enrichment.RunAt}}
+---
+
+## Sources consulted
+
+> Auditable evidence behind the researched context above. Folded by default on the website; listed in full here for AI agents and operators.
+{{if .Enrichment.RunAt}}
+Last researched: {{.Enrichment.RunAt}}
+{{end}}
+{{range .Enrichment.SourcesConsulted}}- {{.URL}}{{if .DocumentDate}} ({{.DocumentDate}}){{end}}
+{{end}}{{end}}{{end}}

@@ -1,0 +1,183 @@
+sources:
+  misp_public_dns:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/public-dns-v4/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) public IPv4
+      DNS resolvers. Public service infrastructure reference, not a threat indicator.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T17:56:32Z'
+      official_name: List of known IPv4 public DNS resolvers
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: A MISP warninglist of known public IPv4 DNS resolvers, used
+        to tag DNS infrastructure as a known-good reference rather than a threat indicator
+        during threat intelligence analysis.
+      long_description: "The MISP Project maintains this warninglist as part of the
+        misp-warninglists collection, a set of reference datasets designed to suppress
+        false positives during threat intelligence analysis. Rather than listing malicious
+        indicators, these lists mark well-known infrastructure — public DNS resolvers,
+        cloud provider ranges, RFC address space — that frequently appears in network
+        traffic and analyst feeds but carries no threat signal on its own.\n\nPer
+        the generator script (tools/generate-publicdns.py), the list is assembled
+        from two crowdsourced upstream sources: public-dns.info/nameservers.csv and
+        the DNSCrypt resolvers CSV. The script parses both sources, extracts IPv4
+        addresses, deduplicates them, and writes the combined set to the list.json
+        file. Six well-known resolver IPs (Google Public DNS, Cloudflare, Quad9) are
+        unconditionally appended as hardcoded entries to ensure they are always present
+        regardless of upstream availability.\n\nThe list is formatted as CIDR-type
+        entries compatible with MISP's attribute matching, covering ip-src, ip-dst,
+        domain|ip, ip-src|port, and ip-dst|port attribute types. Organizations enable
+        or disable individual warninglists in MISP based on their operational practices."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://www.misp-project.org/
+        contact_email:
+        based_in: Luxembourg
+        active_since: '2016'
+        notes: The MISP Project develops and maintains the MISP threat intelligence
+          platform and its associated warninglists, modules, and taxonomy projects.
+          Per the project website, it is operated by CIRCL (Computer Incident Response
+          Center Luxembourg).
+      derivation:
+        type: aggregate_merge
+        description: The list is produced by a Python generator script (tools/generate-publicdns.py)
+          that downloads two crowdsourced CSV sources, parses and deduplicates IPv4
+          addresses from each, combines the sets, validates IP format, and writes
+          the resulting list to list.json. The two upstream sources are public-dns.info/nameservers.csv
+          (volunteer-enumerated DNS server IPs) and the DNSCrypt resolvers CSV (known
+          DNSCrypt-capable resolver IPs). After aggregation, six hardcoded resolver
+          IPs are unconditionally appended to ensure their presence regardless of
+          upstream availability.
+        source_feeds: []
+      listing_policy:
+        summary: 'Entries are added through automated aggregation from two crowdsourced
+          upstream sources: public-dns.info (volunteer-submitted DNS server IPs) and
+          the DNSCrypt resolvers list (resolver IPs advertising DNSCrypt support).
+          The generator script parses both CSVs, deduplicates, validates IP format,
+          and writes the combined set. Six well-known resolver IPs from Google, Cloudflare,
+          and Quad9 are unconditionally appended as hardcoded entries regardless of
+          upstream availability.'
+        criteria:
+        - Volunteer-submitted DNS server IP appearing in public-dns.info/nameservers.csv
+        - Resolver IP advertising DNSCrypt capability in the DNSCrypt resolvers CSV
+        - Six designated well-known resolver IPs (Google Public DNS, Cloudflare, Quad9)
+          unconditionally included
+      unlisting_policy:
+        summary: 'The maintainer does not document a manual unlisting process or automatic
+          expiry mechanism. Removals occur indirectly: when the generator script next
+          runs, it re-downloads the upstream CSVs and re-generates the list, so IPs
+          that are no longer present in the upstream sources will be absent from the
+          next published version. The maintainer has not stated a regeneration interval.'
+        criteria:
+        - 'Indirect removal: IP no longer present in upstream public-dns.info or DNSCrypt
+          CSVs at next regeneration'
+        - No documented manual unlisting channel
+      unlist_request:
+      update_frequency:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: This is a reference list of known public DNS infrastructure,
+          not a threat-detection feed. The list marks IPs that are known public DNS
+          resolvers so that analysts can suppress false positives when these IPs appear
+          in their feeds or network traffic. The list does not originate from honeypots,
+          sensors, malware analysis, or user submissions — it is assembled from crowdsourced
+          DNS enumeration data and maintained as a known-good reference.
+      scope_and_intent:
+        description: The list is intended as a false-positive suppressor for threat
+          intelligence workflows. When analysts encounter a public DNS resolver IP
+          in their feeds or network traffic, enabling this warninglist causes MISP
+          to display an informational or warning box tagging the IP as a known public
+          DNS resolver rather than treating it as a suspect indicator.
+        intended_for:
+        - Tagging public DNS resolver IPs as known-good infrastructure during threat
+          intelligence analysis
+        - Suppressing false positives when public DNS resolvers appear in analyst
+          feeds or network traffic
+        - Filtering at the MISP API level to exclude known public DNS resolvers from
+          automated IOC processing
+        not_intended_for:
+        - Blocking or filtering network traffic (this is a reference list, not a blocklist)
+        - Indicating malicious activity (entries represent public DNS infrastructure,
+          not threats)
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal (Public Domain Dedication) imposes no conditions
+          on reuse, redistribution, or commercial use. Attribution is permitted but
+          not required.
+      current_status:
+        state: active
+        description: "Active. The project homepage is reachable, the list is present
+          and regularly discussed in the repository, and the last commit to the public-dns-v4
+          list was made on June 15, 2024 (adulau: 'updated'). No discontinuation or
+          migration notice has been issued by the maintainer."
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "Two open issues document ongoing concerns about the list's scope.
+          Issue #49 (open since January 2018, labeled enhancement) raised by alexcpsec
+          noted that the list aggregates all submitted DNS servers including unverified
+          and potentially untrustworthy resolvers, effectively enumerating large swaths
+          of IPv4 address space rather than listing only established, reliable public
+          DNS providers; the maintainer acknowledged the concern and invited contributions
+          for a filtered subset, but no such subset has materialized. Issue #36 (open
+          since June 2017) reported that wildcard domain matching does not work correctly
+          in the warninglist system for entries in public-dns-v4. Both issues remain
+          open with no documented resolution timeline."
+        engagement: 'Public discussion is sparse. The repository tracks four issues
+          referencing the public-dns lists: two remain open (#36, #49) and two were
+          resolved and closed (#275 hostname typo fix, #208 Google secondary DNS confirmation).
+          Five pull requests touch the public-dns lists; three were merged (#6 original
+          creation, #10 Comodo DNS addition, #191 DNSCrypt IPs incorporation) and
+          one was closed without merge (#192 proposed Cloudflare/Google secondaries,
+          addressed via the generator script instead). The MISP warninglists project
+          overall is widely integrated into the MISP ecosystem and reused by multiple
+          open-source projects.'
+      sources_consulted:
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/public-dns-v4/list.json
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/tools/generate-publicdns.py
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/issues/49
+        document_date: '2018-01-25'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/issues/36
+        document_date: '2017-06-21'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/pull/191
+        document_date: '2021-09-15'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/pull/6
+        document_date: '2016-08-03'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/tree/main/lists/public-dns-v4
+        document_date: '2024-06-15'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

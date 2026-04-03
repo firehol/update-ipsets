@@ -1,0 +1,189 @@
+sources:
+  misp_bufferover_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/bufferover-nt-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Bufferover
+      non-threat scanning IPs. Informational — not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T20:13:58Z'
+      official_name: Bufferover IP Ranges Used for Scanning
+      official_url: https://github.com/MISP/misp-warninglists/tree/main/lists/bufferover-nt-scanning
+      short_description: A MISP warning list identifying IPs belonging to Bufferover,
+        a commercial internet scanning service, sourced from CIRCL's passive darknet
+        analysis of unsolicited inbound traffic.
+      long_description: "The bufferover-nt-scanning warning list identifies IP addresses
+        used by Bufferover, a commercial internet scanning and DNS discovery service,
+        by correlating observed scanning traffic against CIRCL's Network Telescope
+        darknet infrastructure. Per the maintainer's description embedded in the list.json
+        file, the Bufferover-attributed ranges are extracted from CIRCL Network Telescope
+        analysis and refreshed approximately monthly. Among the family of MISP -nt-scanning
+        lists, this one is specifically scoped to Bufferover's recognized scanning
+        fingerprint — the maintainers do not document a multi-source aggregation here.\n\
+        \nBufferover is positioned in this list as a known legitimate scanning service
+        rather than a threat actor, so the file annotates the source rather than directing
+        any automated blocking action."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: non_profit
+        official_url: https://www.misp-project.org
+        contact_email: info@misp-project.org
+        based_in: Luxembourg
+        active_since: '2013'
+        notes: The MISP Project develops and maintains the open-source MISP threat
+          intelligence platform and its associated taxonomies, galaxies, modules,
+          and warning lists. The warninglists repository is one of 96 public repos
+          under the MISP GitHub organization. Copyright holders include Alexandre
+          Dulaunoy (adulau), Christophe Vandeplas, and Andras Iklody, among others.
+      - role: source_contributor
+        name: CIRCL — Computer Incident Response Center Luxembourg
+        organization_type: government
+        official_url: https://www.circl.lu
+        contact_email:
+        based_in: Luxembourg
+        active_since:
+        notes: CIRCL operates the Network Telescope darknet infrastructure from which
+          the bufferover scanner IPs are identified. Contributor Paul Jung (handle
+          Th4nat0s) submits the monthly Network Telescope refresh pull requests.
+      derivation:
+        type: derivative
+        description: The list is a derivative of CIRCL's Network Telescope darknet
+          monitoring infrastructure. CIRCL operates instrumented darknet address space
+          and collects full-payload packet captures of unsolicited inbound traffic.
+          Statistical and behavioral analysis correlates source IPs by scanning characteristics
+          — traffic volume, targeted ports, protocol fingerprints, and temporal patterns
+          — to identify commercial scanning services. Bufferover is identified among
+          these services. The resulting IP set is formatted as a MISP warning list
+          JSON and submitted as a pull request to the MISP/misp-warninglists repository,
+          where it is reviewed and merged by the MISP Project maintainers.
+        source_feeds: []
+      listing_policy:
+        summary: "IPs are listed when CIRCL's Network Telescope analysis identifies
+          a source as belonging to Bufferover, a commercial internet scanning and
+          DNS discovery service. Detection is passive: CIRCL observes unsolicited
+          traffic arriving at its darknet address space and correlates source IPs
+          by behavioral fingerprinting — traffic volume, targeted port sets, protocol
+          signatures, and temporal patterns — to categorize the scanning entity. Bufferover
+          is one of several commercial and research scanning services tracked in the
+          MISP warninglists ecosystem."
+        criteria:
+        - Source IP observed generating unsolicited scanning traffic at CIRCL darknet
+          address space
+        - Behavioral fingerprint matches Bufferover's known scanning signature (port
+          targeting, protocol, cadence)
+        - Attribution confirmed via PTR records or AS-path correlation to Bufferover's
+          allocated address ranges
+      unlisting_policy:
+        summary: "IPs are removed when CIRCL's ongoing Network Telescope analysis
+          no longer attributes the address to Bufferover's active scanning infrastructure
+          — for example, when the IP range has been retired, reassigned, or reclassified.
+          Community corrections are accepted via GitHub pull request: fork the repository,
+          edit the list, and submit a pull request describing the removal rationale."
+        criteria:
+        - CIRCL analysis no longer associates the IP with active Bufferover scanning
+          infrastructure
+        - Community-submitted evidence demonstrating the IP is no longer in Bufferover's
+          active use
+        - Pull request reviewed and merged by MISP Project maintainers
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists
+        email:
+        instructions: 'Submit a GitHub pull request: fork the MISP/misp-warninglists
+          repository, locate lists/bufferover-nt-scanning/list.json, remove or modify
+          the affected IP entry, and open a pull request with a description of the
+          removal rationale. There is no dedicated false-positive reporting form or
+          email alias — the contribution pathway is the standard GitHub pull request
+          process described in the CIRCL MISP documentation.'
+      update_frequency:
+        frequency: 30d
+        human_readable: Refreshed approximately monthly, driven by CIRCL Network Telescope
+          analysis updates submitted as pull requests by CIRCL contributors
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: The IPs are identified through CIRCL's Network Telescope infrastructure
+          — a passive darknet monitoring system. CIRCL instruments routed but unused
+          IP address space; all unsolicited traffic arriving at that space is captured
+          and analyzed. Source IPs are correlated by behavioral fingerprints including
+          traffic volume, targeted port sets, protocol signatures, and temporal scanning
+          cadence. Bufferover's scanning signature is recognized among these fingerprints,
+          and its allocated IP ranges are extracted as a warning list. No active probes
+          are sent by CIRCL; the detection is entirely passive.
+      scope_and_intent:
+        description: 'The list annotates IPs observed conducting internet-wide scanning
+          on behalf of Bufferover, a commercial scanning and DNS discovery service.
+          Its purpose is informational: to alert MISP analysts when an indicator originates
+          from a known legitimate scanning service, preventing misattribution as malicious
+          activity.'
+        intended_for:
+        - Contextual annotation of MISP events and attributes — flagging IPs as known
+          scanning infrastructure rather than treating them as threats
+        - False-positive suppression in threat intelligence workflows — marking Bufferover-sourced
+          indicators as benign in origin
+        - Analyst awareness — informing triage decisions when Bufferover scan results
+          appear in ingested feeds
+        not_intended_for:
+        - Inline blocking or deny-listing at the network perimeter — the MISP Project
+          explicitly advises against using warning lists for automated blocking
+        - Threat scoring — the list identifies a known service, not a threat actor
+          or malicious infrastructure
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 is a public domain dedication license. There are no restrictions
+          on use, redistribution, modification, or incorporation into derivative works
+          — including commercial products. Attribution is not required but is customary
+          practice in the open-source security community.
+      current_status:
+        state: active
+        description: 'Actively maintained. PR #335, merging the Network Telescope
+          update for May 2026, was merged by MISP Project maintainer adulau on May
+          4, 2026. The bufferover-nt-scanning list is among approximately 20 scanner
+          and network-telescope lists refreshed on a monthly cadence by CIRCL contributor
+          Th4nat0s.'
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion specific to the bufferover-nt-scanning list
+          is sparse — a GitHub issues search returned zero open or recently closed
+          reports referencing bufferover IPs as false positives. Engagement around
+          this list flows almost entirely through the monthly Network Telescope refresh
+          pull requests rather than dedicated threads.
+      sources_consulted:
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/bufferover-nt-scanning/list.json
+        document_date: '2026-05-04'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.circl.lu/doc/misp/warninglists/
+        document_date: '2024-10-02'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/pull/335
+        document_date: '2026-05-04'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/issues?q=bufferover+OR+false+positive
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

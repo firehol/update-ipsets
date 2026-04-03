@@ -1,0 +1,189 @@
+sources:
+  misp_fastly:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/fastly/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Fastly IP
+      address ranges. Provider infrastructure reference, not a threat indicator.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T14:49:25+00:00'
+      official_name: List of known Fastly IP address ranges
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: A reference list of Fastly CDN IP address ranges, formatted
+        for MISP warninglist matching to prevent legitimate CDN egress traffic from
+        triggering false-positive threat indicators.
+      long_description: "The fastly warninglist is a CIDR list of the IP address ranges
+        allocated to Fastly's content delivery network. Per the list.json description,
+        the data is sourced from Fastly's public IP list API (api.fastly.com/public-ip-list).
+        Entries are stored in MISP warninglist JSON format with CIDR matching semantics
+        — the runtime checks whether an observed IP falls within any of the stored
+        ranges.\n\nIt matches against ip-src, ip-dst, domain|ip, ip-src|port, and
+        ip-dst|port attributes in MISP events, flagging Fastly CDN egress traffic
+        as known provider infrastructure rather than malicious activity. Updates are
+        applied as pull requests when Fastly changes its allocations or contributors
+        identify discrepancies; the commit history shows infrequent revisions reflecting
+        Fastly's stable allocation footprint."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://github.com/MISP
+        contact_email:
+        based_in: Luxembourg
+        active_since: '2016'
+        notes: The MISP Project develops and maintains the MISP Threat Intelligence
+          Platform and its associated warning lists, galaxies, and taxonomies. The
+          project is operated by CIRCL (Computer Incident Response Center Luxembourg),
+          a government-driven CSIRT mandated to respond to computer security incidents
+          affecting Luxembourg. CIRCL staff develop MISP software and curate the warning
+          lists repository.
+      - role: source_contributor
+        name: pettai
+        organization_type:
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Added the initial version of the Fastly IP list in November 2020, supplying
+          all Fastly IP address ranges to the repository.
+      - role: source_contributor
+        name: Jeroen Pinoy (Wachizungu)
+        organization_type:
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Updated the Fastly list in April 2024 to add ip-src|port and ip-dst|port
+          as matching attribute types, expanding the MISP attribute types the list
+          applies to.
+      derivation:
+        type: extraction
+        description: The list extracts IP address ranges from Fastly's public IP list
+          API endpoint and repackages them in MISP's standard warninglist JSON format
+          with CIDR matching semantics. No scoring, weighting, or threshold logic
+          is applied — the list is a direct representation of Fastly's current allocations.
+          Updates are applied on an as-needed basis via pull request when Fastly changes
+          its allocations or contributors identify discrepancies.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added when Fastly publishes a new IP allocation in its
+          public IP list API. The MISP warninglists project accepts additions or corrections
+          via GitHub pull request; community contributors identify infrastructure
+          owned by legitimate providers and propose the corresponding ranges for inclusion.
+        criteria:
+        - The IP range must be allocated to Fastly and published in Fastly's public
+          IP list API
+        - The range must represent Fastly-operated CDN infrastructure (edge nodes,
+          Anycast addresses, or service egress points)
+        - Submission is made via GitHub pull request to the misp-warninglists repository
+      unlisting_policy:
+        summary: Ranges are removed when Fastly retires an allocation and the change
+          is reflected in a subsequent update to the Fastly public IP list API. The
+          MISP warninglists project applies removals via pull request; contributors
+          or maintainers identify deprecated ranges and propose their deletion from
+          the list.
+        criteria:
+        - Fastly no longer advertises the range in its public IP list API
+        - A pull request removing the range is submitted and merged by a maintainer
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/issues/new
+        email:
+        instructions: Submit a GitHub issue or pull request to the MISP/misp-warninglists
+          repository describing the range to be corrected or removed and the rationale.
+          For inaccurate Fastly ranges, open an issue noting the discrepancy with
+          Fastly's current public IP list API.
+      update_frequency:
+        frequency:
+        human_readable: Updates are applied on an as-needed basis when Fastly changes
+          its public IP allocations or when contributors identify discrepancies. No
+          fixed update schedule is stated by the maintainer.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The list is not a threat detection feed — it is a reference list
+          of legitimate infrastructure allocations. Entries are derived from Fastly's
+          publicly documented IP address ranges and entered into MISP's warninglist
+          system, where they serve as exclusion markers. When an analyst encounters
+          an IP matching a Fastly range, MISP displays a warning box identifying the
+          IP as known Fastly infrastructure, signaling that the IP is likely legitimate
+          CDN traffic rather than a threat indicator.
+      scope_and_intent:
+        description: The fastly list marks IP addresses belonging to Fastly's content
+          delivery network so that analysts using MISP can recognize when observed
+          IPs are legitimate CDN infrastructure rather than indicators of compromise.
+          It prevents Fastly's Anycast edge nodes and service egress IPs from generating
+          false-positive threat reports.
+        intended_for:
+        - False-positive suppression in MISP-powered threat intelligence workflows
+        - Marking legitimate CDN egress traffic in SIEM and TIP integrations
+        - Contextual enrichment when investigating IP-based observables
+        not_intended_for:
+        - Inline blocking or deny-listing of Fastly IP ranges
+        - Threat indicator enrichment treating Fastly IPs as malicious
+        - Security enforcement at the network perimeter
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: Under CC0 1.0, the data is released to the public domain with no conditions.
+          Attribution is appreciated but not required.
+      current_status:
+        state: active
+        description: The MISP warninglists project is actively maintained, with the
+          fastly list last updated in April 2024 (no Fastly-specific changes since).
+          No discontinuation or migration notice has been issued.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: The MISP warninglists repository has accumulated 625 stars and
+          190 forks on GitHub (as of May 2026), with 31 watchers and 48 open issues.
+          The project is integrated into the broader MISP ecosystem — PyMISPWarningLists
+          provides Python API access, and Cortex analyzers expose warninglist matching
+          to TheHive/Cortex users. Community discussion on Reddit confirms MISP warninglists
+          are referenced by practitioners as a resource for IP whitelisting, though
+          practitioners caution against blanket whitelisting of entire CDN ranges
+          without understanding the operational risk. Public discussion specifically
+          about the fastly list is sparse; most engagement occurs through GitHub issues
+          and pull requests on the repository.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/fastly/list.json
+        document_date: '2024-04-22'
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://api.fastly.com/public-ip-list
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/commits/main/lists/fastly/list.json
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://api.github.com/repos/MISP/misp-warninglists
+        document_date: '2026-05-08'
+        validation_date: '2026-05-18'
+      - url: https://www.circl.lu
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.misp-project.org
+        document_date:
+        validation_date: '2026-05-18'

@@ -1,0 +1,31 @@
+# {{ .Name }}
+
+{{ if .URL }}> Website: [{{ .URL }}]({{ .URL }}){{ end }}
+
+> Threat intelligence IP feeds published by **{{ .Name }}**.
+
+---
+
+## Summary
+
+| Metric | Value |
+|--------|-------:|
+| Feeds | {{ .Totals.Feeds | comma }} |
+| Unique IPs | {{ .Totals.IPs | comma }} |
+| Categories | {{ .Totals.Categories | comma }} |
+
+---
+
+{{ if .FeedsByCategory }}
+## Feeds by Category
+
+{{ range $cat := sortedKeys .FeedsByCategory }}
+### {{ $cat }}
+
+| Feed | IPs | Health |
+|------|----:|--------|
+{{ range index $.FeedsByCategory $cat }}| {{ .Name }} | {{ .IPs | comma }} | {{ .Health }} |
+{{ end }}
+
+{{ end }}
+{{ end }}

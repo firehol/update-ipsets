@@ -1,0 +1,211 @@
+sources:
+  misp_shadowforce_scanners:
+    license: CC0 1.0 (MISP warninglists)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/shadowforce-nt-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) ShadowForce
+      non-threat scanning IPs. Informational — not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T23:48:35Z'
+      official_name: Shadowforce IP Ranges Used for Scanning
+      official_url: 
+        https://github.com/MISP/misp-warninglists/tree/main/lists/shadowforce-nt-scanning
+      short_description: A MISP warninglist of IP addresses associated with ShadowForce
+        commercial Internet scanning infrastructure, sourced from CIRCL Network Telescope
+        darknet analysis, intended as an informational false-positive indicator —
+        not for blocking.
+      long_description: "The shadowforce-nt-scanning warninglist identifies IP addresses
+        and CIDR ranges associated with ShadowForce's commercial Internet measurement
+        service. Per CIRCL's analysis, ShadowForce is operated by SHADOWFORCE Data
+        Acquisition and Threat Research (AS208583), and sits alongside established
+        scanners such as Censys, Shodan, Onyphe, and BinaryEdge as a Tier 1 commercial
+        scanner.\n\nThe IPs in this list were identified by CIRCL Luxembourg's Network
+        Telescope — a passive darknet sensor observing unused address space. The telescope
+        captures wide-area scanning traffic directed at unoccupied address space,
+        allowing CIRCL to observe Internet-wide scanning activity without generating
+        any outbound traffic.\n\nWhen an analyst encounters one of these IPs in MISP,
+        the platform displays an informational or warning box at the event and attribute
+        level, helping the analyst recognise the source as a legitimate commercial
+        scanning service and not malicious activity. The list carries a CIDR-type
+        matching profile, applicable to ip-src, ip-dst, domain|ip, ip-dst|port, and
+        ip-src|port attribute types in MISP."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://github.com/MISP/misp-warninglists
+        contact_email:
+        based_in: Luxembourg
+        active_since:
+        notes: The MISP Project develops and maintains the MISP warninglists collection.
+          The project is hosted by CIRCL Luxembourg (Computer Incident Response Center
+          Luxembourg). Warninglists are integrated into MISP instances to flag potential
+          false positives; the project accepts contributions via pull requests to
+          the GitHub repository.
+      - role: source_contributor
+        name: Paul Jung (Thanat0s)
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Primary contributor to the shadowforce-nt-scanning list. All five visible
+          commits to this list (December 2025 through May 2026) are attributed to
+          Paul Jung. Contributes Network Telescope analysis updates on behalf of CIRCL
+          Luxembourg.
+      - role: source_contributor
+        name: CIRCL Luxembourg
+        organization_type: research_institution
+        official_url: https://www.circl.lu
+        contact_email:
+        based_in: Luxembourg
+        active_since:
+        notes: Operates the Network Telescope darknet sensor that provides the underlying
+          scanning analysis data. CIRCL's /18 darknet telescope captures wide-area
+          scanning traffic, enabling identification of commercial and threat scanning
+          infrastructure. ShadowForce commercial scanner service is classified as
+          Tier 1 (high trust) in CIRCL's scanner taxonomy.
+      derivation:
+        type: derivative
+        description: The list is derived from CIRCL Luxembourg's Network Telescope
+          darknet analysis. CIRCL operates a passive darknet sensor capturing inbound
+          scanning traffic without generating any outbound probes. Traffic is analysed
+          to identify scanning hosts, classify their infrastructure (commercial vs.
+          questionable), and attribute them to known scanner families. The shadowforce-nt-scanning
+          list extracts IPs identified as belonging to the ShadowForce commercial
+          scanning service (AS208583). Updates are contributed by CIRCL personnel
+          and merged via pull request to the MISP warninglists repository. The list
+          does not consume other IP feeds as inputs.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when CIRCL's Network Telescope analysis identifies
+          it as belonging to the ShadowForce commercial scanning infrastructure. ShadowForce
+          is a Tier 1 commercial Internet measurement service (AS208583, SHADOWFORCE
+          Data Acquisition and Threat Research) that conducts SNMP reconnaissance
+          at Internet scale, comparable to Censys, Shodan, and Onyphe. The list captures
+          the specific IPs observed conducting scanning activity against CIRCL's darknet
+          sensor.
+        criteria:
+        - Observed conducting SNMP reconnaissance against CIRCL's darknet telescope
+        - Attributed to ShadowForce commercial scanning infrastructure (AS208583)
+        - PTR record pattern matching the ShadowForce naming scheme ([name]-[id].scan.shadowforce.io)
+      unlisting_policy:
+        summary: Entries are removed by submitting a pull request to the MISP warninglists
+          GitHub repository that edits the list.json file to remove the flagged IP
+          and increments the version number. There is no automatic expiration or decay
+          mechanism. At the instance level, MISP operators can enable or disable individual
+          warninglists independently, meaning this list can be turned off without
+          affecting other warninglists.
+        criteria:
+        - Submitter opens a pull request against the MISP/misp-warninglists repository
+        - The edit removes the flagged IP from list.json
+        - The version number in list.json is incremented
+        - The PR is reviewed and merged by a MISP Project maintainer
+      unlist_request:
+        url: 
+          https://github.com/MISP/misp-warninglists/edit/main/lists/shadowforce-nt-scanning/list.json
+        email:
+        instructions: To request removal of an IP from this list, submit a pull request
+          to the MISP/misp-warninglists GitHub repository editing the shadowforce-nt-scanning
+          list.json file. Remove the flagged IP from the list array, increment the
+          version number, and include a brief justification in the PR description.
+          The PR follows the standard GitHub review process and is merged by a MISP
+          Project maintainer. Operators who prefer not to submit a PR can disable
+          this specific warninglist at the MISP instance level via the warninglists
+          index page.
+      update_frequency:
+        frequency: 1440m
+        human_readable: Updated approximately monthly, per the maintainer's stated
+          frequency of once per day in the catalog configuration; the visible commit
+          history shows updates roughly every 4–6 weeks
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: The IPs are identified by CIRCL Luxembourg's Network Telescope
+          — a passive darknet sensor observing unused address space. Because the address
+          space is unoccupied, all traffic reaching it is unsolicited inbound scanning
+          from external sources; the telescope captures this traffic passively, without
+          generating any outbound probes. Traffic is analysed to identify scanner
+          hosts and attribute them to known scanner families. ShadowForce is identified
+          by its distinctive PTR naming pattern ([name]-[id].scan.shadowforce.io),
+          exclusive use of SNMPv1, and querying of the sysDescr OID.
+      scope_and_intent:
+        description: This list marks IPs associated with ShadowForce commercial Internet
+          scanning infrastructure as informational alerts within MISP, helping analysts
+          recognize that traffic from these sources represents legitimate commercial
+          Internet measurement activity rather than malicious scanning. It is not
+          a blocklist and should not be used to automatically block or filter traffic.
+        intended_for:
+        - Flagging commercial scanner IPs as informational alerts in MISP threat intelligence
+          operations
+        - Reducing false-positive analyst investigations when these IPs appear in
+          event data
+        - Enriching threat intelligence with context about legitimate Internet measurement
+          infrastructure
+        not_intended_for:
+        - Blocking or filtering traffic at the network perimeter
+        - Automatic interdiction or takedown actions
+        - Threat hunting as if these IPs represent malicious actors
+      license: CC0 1.0 Universal (CC0 1.0) — Public Domain Dedication
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal Public Domain Dedication places no restrictions on
+          use, redistribution, or modification. Credit to the MISP Project / CIRCL
+          Luxembourg is customary but not legally required.
+      current_status:
+        state: active
+        description: Active. The shadowforce-nt-scanning list is present in the MISP/misp-warninglists
+          repository and is refreshed through periodic CIRCL Network Telescope update
+          PRs.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion specifically about the shadowforce-nt-scanning
+          warninglist is sparse. No open GitHub issues requesting removal of ShadowForce
+          entries were found. ShadowForce is recognised as a Tier 1 trusted commercial
+          scanner in CIRCL's published taxonomy, alongside Censys, Shodan, and Onyphe.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/shadowforce-nt-scanning/list.json
+        document_date: '2026-05-04'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.circl.lu/doc/misp/warninglists
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://github.com/MISP/misp-warninglists/commits/main/lists/shadowforce-nt-scanning
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/pull/310
+        document_date: '2025-10-30'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://d4-project.org/2025/11/27/Learning-from-Large-Scale-IPv4-blackhole-behavioral-analysis-of-SNMP-traffic.html
+        document_date: '2025-11-27'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/pull/335
+        document_date: '2026-05-04'
+        validation_date: '2026-05-18T00:00:00Z'

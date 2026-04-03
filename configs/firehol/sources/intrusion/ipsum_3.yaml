@@ -1,0 +1,160 @@
+sources:
+  ipsum_3:
+    license: The Unlicense
+    redistributable: true
+    url: https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[IPsum](https://github.com/stamparm/ipsum) threat intelligence feed of
+      IPs appearing on at least 3 blacklists. Based on analysis of 30+ publicly available
+      blacklists updated daily. This is the recommended level for most use cases.'
+    maintainer: stamparm
+    maintainer_url: https://github.com/stamparm/ipsum
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T20:37:11+00:00'
+      official_name: IPsum
+      official_url: https://github.com/stamparm/ipsum
+      short_description: Daily-updated threat intelligence feed aggregating IPs that
+        appear on multiple public blacklists, ranked by how many source lists each
+        IP appears on.
+      long_description: "This feed is the `levels/3.txt` slice of the IPsum project
+        — IPs that appear on three or more of the 30+ upstream public blacklists IPsum
+        aggregates. The README uses this same threshold in its own example command
+        for generating a ready-to-deploy auto-ban list, making three-source consensus
+        the maintainer's stated baseline for inbound blocking.\n\nIPsum tallies how
+        many of its upstream blacklists list a given IP and emits one file per integer
+        threshold; this feed publishes the level-3 cut. The full feed is rebuilt daily
+        and sorted by occurrence count, highest first. The occurrence count is a rough
+        confidence signal — an IP flagged by three independent sources is more likely
+        to represent genuine malicious activity than one flagged by just one.\n\n\
+        Because IPsum is a pure aggregator — it does not generate its own detections
+        — an IP listed here was flagged by three or more upstream feeds. The maintainer
+        notes that higher-count IPs generally carry fewer false positives when used
+        for inbound blocking; operators who want stricter precision can move to `ipsum_4`
+        through `ipsum_8`."
+      roles:
+      - role: maintainer
+        name: stamparm
+        organization_type: individual
+        official_url: https://github.com/stamparm
+        contact_email:
+        based_in:
+        active_since:
+        notes: Volunteer researcher who maintains both IPsum and the related Maltrail
+          project. Handles IP removal requests through the GitHub issues tracker.
+      derivation:
+        type: aggregate_merge
+        description: Aggregates IP reputation data from more than thirty publicly
+          available threat-intelligence blacklists, retrieved and parsed daily. Each
+          IP in the output carries an occurrence count — how many of the source feeds
+          listed it — sorted highest-first. The levels/3.txt file extracts IPs present
+          on three or more source lists.
+        source_feeds: []
+      listing_policy:
+        summary: 'Inclusion is automatic and passive: an IP enters the feed whenever
+          it appears on three or more of the upstream source blacklists that IPsum
+          monitors. There is no active investigation or manual review — the maintainer
+          aggregates existing reputation data rather than generating new detections.'
+        criteria:
+        - Appears on at least 3 of the monitored upstream blacklists (for level-3
+          feed)
+      unlisting_policy:
+        summary: Manual unlisting is not available. Because IPsum is a passive aggregator
+          of upstream reputation data, an IP remains listed as long as it continues
+          to appear on the required number of source feeds. The maintainer will not
+          manually remove an IP on request.
+        criteria:
+        - Automatic removal when the IP drops below the threshold across all monitored
+          source feeds (natural decay)
+      unlist_request:
+        url: https://github.com/stamparm/ipsum/issues/new
+        email:
+        instructions: Submit a GitHub issue describing the IP and requesting removal.
+          Note that the maintainer has declined past removal requests, citing the
+          aggregated nature of the feed — an IP will only leave the list when it falls
+          below the occurrence threshold naturally across the upstream sources.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated daily — all source feeds are retrieved and reprocessed
+          every 24 hours.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: 'Reputation aggregation: the feed collects IP addresses from
+          more than thirty publicly available threat-intelligence blacklists, tallies
+          how many sources list each IP, and publishes those exceeding a configurable
+          threshold. The occurrence count across independent sources functions as
+          a de-duplication and confidence signal — an IP flagged by multiple independent
+          lists is more likely to represent genuine malicious activity.'
+      scope_and_intent:
+        description: Perimeter blocking and threat-enumeration. The maintainer positions
+          IPsum as a tool for blocking inbound connections from IPs with established
+          malicious reputations, noting that higher occurrence counts generally correlate
+          with lower false-positive rates in blocking scenarios.
+        intended_for:
+        - Inbound firewall or network-layer blocking at the perimeter
+        - Enriching SIEM or SOC workflows with reputation context
+        - Feeding blocklists on edge devices (OPNsense, pfSense, routers)
+        not_intended_for:
+        - Spam filtering or email reputation assessment
+        - Single-source decision-making (use alongside other signals)
+      license: The Unlicense
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: No redistribution restrictions. The Unlicense imposes no conditions
+          — the work is placed in the public domain. Users may freely copy, modify,
+          redistribute, and use the feed for any purpose, including commercial applications.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026. New issues are reviewed regularly
+          and the repository receives ongoing commits.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: False positives have been reported when specific IPs are listed
+          due to activity by prior owners of reassigned address space — an inherent
+          challenge for any IP-reputation feed. The maintainer has declined removal
+          requests, citing the aggregated nature of the feed, which has frustrated
+          some submitters. Occasional setup complexity noted in OPNsense/pfSense integration
+          threads.
+        engagement: Modest public discussion. Community engagement is concentrated
+          in firewall-operator subreddits (OPNsense, pfSense, CrowdSec) and GitHub
+          issues, where the IPsum project is positively referenced as a reliable daily-updated
+          aggregation source. The maintainer responds to issues personally. Broader
+          third-party discussion is sparse but consistently constructive when it appears.
+      sources_consulted:
+      - url: https://github.com/stamparm/ipsum
+        document_date:
+        validation_date: '2026-05-16T20:30:00+00:00'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/README.md
+        document_date:
+        validation_date: '2026-05-16T20:31:00+00:00'
+      - url: https://raw.githubusercontent.com/stamparm/ipsum/master/LICENSE
+        document_date:
+        validation_date: '2026-05-16T20:30:00+00:00'
+      - url: https://github.com/stamparm/ipsum/issues
+        document_date: '2018-12-25'
+        validation_date: '2026-05-16T20:33:00+00:00'
+      - url: https://github.com/stamparm/ipsum/issues/64
+        document_date: '2025-06-12'
+        validation_date: '2026-05-16T20:34:00+00:00'
+      - url: https://github.com/stamparm/ipsum/issues/83
+        document_date: '2025-11-26'
+        validation_date: '2026-05-16T20:34:00+00:00'
+      - url: https://github.com/stamparm/maltrail
+        document_date:
+        validation_date: '2026-05-16T20:32:00+00:00'
+      - url: https://github.com/stamparm/ipsum/tree/master/levels
+        document_date: '2016-01-27'
+        validation_date: '2026-05-16T20:36:00+00:00'

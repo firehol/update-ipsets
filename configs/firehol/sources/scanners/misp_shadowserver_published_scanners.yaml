@@ -1,0 +1,178 @@
+sources:
+  misp_shadowserver_published_scanners:
+    license: CC0 1.0 (MISP warninglists)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/shadowserver/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Shadowserver
+      IP ranges potentially associated with Shadowserver scans. Informational - not
+      for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T06:57:03+00:00'
+      official_name: Shadowserver IP-Ranges, pot. used for Scanning
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: CIDR ranges associated with Shadowserver's global scanning
+        infrastructure, published as an informational MISP warninglist to help analysts
+        recognise legitimate scanning activity rather than block it.
+      long_description: "This feed is a MISP warninglist — a JSON file of well-known
+        indicators that flag potential false positives in threat intelligence workflows.
+        Unlike blocklists, warninglists are purely informational: they display a warning
+        box in the MISP interface when a matching indicator is encountered, helping
+        analysts contextualise activity rather than preventing it from entering the
+        system.\n\nThe list records CIDR ranges associated with the Shadowserver Foundation's
+        scanning infrastructure. Shadowserver is a nonprofit organisation founded
+        in 2004 that conducts systematic daily scans of the entire public IPv4 internet
+        using a globally distributed sensor network spanning approximately 80 countries,
+        sending free daily remediation reports to network owners and national CSIRTs.
+        The IP ranges in this list were identified by querying BGP routing announcements
+        for routes carrying \"shadowserver\" in their origin data.\n\nPer the maintainer's
+        description, the list is intended to help analysts recognise when an observed
+        indicator originates from Shadowserver's legitimate scanning infrastructure
+        rather than from malicious actors. The maintainer explicitly marks the list
+        as informational and advises against using it for inline blocking. The list
+        covers both IPv4 and IPv6 prefixes and is maintained as part of the broader
+        MISP warninglists repository."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://github.com/MISP/misp-warninglists
+        contact_email:
+        based_in:
+        active_since:
+        notes: The MISP Project maintains the warninglists repository and reviews
+          pull requests. Core contributors including Alexandre Dulaunoy perform merges.
+          Individual community contributors submit lists via pull requests.
+      - role: source_contributor
+        name: HiS3
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: 'Individual contributor who authored and submitted the shadowserver
+          list via pull request #303, merged by MISP Project core team members.'
+      derivation:
+        type: original
+        description: The list is built by querying BGP routing data for announcements
+          carrying "shadowserver" in their origin AS data. The resulting IP prefixes
+          are packaged as a CIDR-matching warninglist compatible with MISP's warninglist
+          framework. No other IP feeds are consumed; the list is derived directly
+          from public BGP routing data published by regional internet registries.
+        source_feeds: []
+      listing_policy:
+        summary: IP ranges are listed when they appear in public BGP routing announcements
+          with "shadowserver" in the origin AS description, indicating the prefix
+          is routed to or originated by Shadowserver's infrastructure. The list uses
+          CIDR-block matching against MISP attributes.
+        criteria:
+        - Prefix appears in public BGP routing data with "shadowserver" in origin
+          AS description
+        - Prefix is routed to Shadowserver Foundation's autonomous system(s)
+      unlisting_policy:
+        summary: 'The maintainer does not publish a specific unlisting policy for
+          this list. Updates are governed by the general MISP warninglists contribution
+          workflow: proposed changes are submitted as pull requests and reviewed by
+          core maintainers before merging.'
+        criteria:
+        - No auto-decay or automatic expiry mechanism is described for this list
+        - Removal or correction of a CIDR range requires a pull request to the misp-warninglists
+          repository
+        - Core maintainers review and approve changes before merging
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/pulls
+        email:
+        instructions: Submit a pull request to the misp-warninglists repository removing
+          or correcting the relevant CIDR range, following the standard GitHub contribution
+          workflow. Core maintainers review and merge approved changes.
+      update_frequency:
+      detection_classification:
+        primary_method: active_scanning
+        secondary_methods: []
+        description: The list records IP ranges used by the Shadowserver Foundation's
+          active scanning infrastructure. Shadowserver operates a coordinated internet-wide
+          scanning network, systematically probing the entire public IPv4 internet
+          daily from a globally distributed sensor network. The IP ranges in this
+          list represent the announced routing paths to that scanning infrastructure,
+          identified through BGP routing data rather than through direct sensor observation
+          by the MISP Project.
+      scope_and_intent:
+        description: "The list is scoped to IP ranges associated with the Shadowserver
+          Foundation's active scanning infrastructure. Its intent is informational
+          only: to help analysts recognise when an observed indicator originates from
+          Shadowserver's legitimate scanning activity, preventing it from being misattributed
+          as malicious."
+        intended_for:
+        - False-positive identification in MISP threat intelligence workflows
+        - Analyst contextualisation when Shadowserver scanner IPs appear in events
+        - Attribution enrichment for indicators matching Shadowserver infrastructure
+        not_intended_for:
+        - Inline or automated blocking of network traffic
+        - Import rejection or quarantine of matching indicators in MISP
+        - Firewall rule generation or ACL enforcement
+      license: CC0 1.0 Universal (CC0 1.0) — Public Domain Dedication
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal public domain dedication imposes no restrictions
+          on reuse, modification, or redistribution. No attribution is required, though
+          it is welcomed by the maintainer.
+      current_status:
+        state: active
+        description: The list was added to the repository in August 2025 and has received
+          no subsequent modifications. The maintainer has not issued a deprecation
+          or sunset notice for this list.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion specifically about the shadowserver
+          list is sparse. The list was contributed by an individual community member
+          (HiS3) in August 2025 and merged without controversy; no subsequent GitHub
+          issues, Reddit threads, or third-party blog posts reference this list specifically.
+          Shadowserver's scanning infrastructure is broadly recognised across the
+          threat intelligence community, so the list functions primarily as a quiet
+          false-positive reference rather than a debated artifact.
+      sources_consulted:
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-19T06:55:00+00:00'
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/shadowserver/list.json
+        document_date:
+        validation_date: '2026-05-19T06:54:00+00:00'
+      - url: https://www.shadowserver.org/
+        document_date:
+        validation_date: '2026-05-19T06:54:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/commit/1c8b553
+        document_date: '2025-08-25'
+        validation_date: '2026-05-19T06:56:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/pull/303
+        document_date: '2025-08-27'
+        validation_date: '2026-05-19T06:56:00+00:00'
+      - url: https://www.circl.lu/doc/misp/warninglists/
+        document_date: '2024-10-02'
+        validation_date: '2026-05-19T06:57:00+00:00'
+      - url: https://github.com/MISP/MISP/issues/6173
+        document_date:
+        validation_date: '2026-05-19T06:56:00+00:00'
+      - url: https://github.com/MISP/MISP/issues/3104
+        document_date:
+        validation_date: '2026-05-19T06:56:00+00:00'
+      - url: https://www.reddit.com/r/blueteamsec/comments/azcvc2/
+        document_date: '2019-03-01'
+        validation_date: '2026-05-19T06:56:00+00:00'

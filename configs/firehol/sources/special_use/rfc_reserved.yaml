@@ -1,0 +1,103 @@
+sources:
+  rfc_reserved:
+    license: Public Domain (IANA / RFC)
+    redistributable: true
+    label: Authoritative bogons (RFC reserved)
+    url: internal://rfc_reserved
+    frequency: 0
+    ipv: ipv4
+    output: netset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: special_use
+    info: Hardcoded baseline of the 15 RFC-defined reserved IPv4 ranges (RFC 1918,
+      loopback, link-local, multicast, TEST-NET, etc).
+    maintainer: FireHOL
+    maintainer_url: https://iplists.firehol.org/
+    hidden: true
+    exclude_from_unmaintained: true
+    use: [bogons]
+    format: rfc_reserved_baseline
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-27T06:30:35Z'
+      official_name: RFC-defined reserved IPv4 ranges (baseline bogons)
+      official_url:
+      short_description: Hardcoded baseline of the 15 RFC-defined reserved IPv4 ranges
+        (RFC 1918 private, loopback, link-local, multicast, TEST-NET, and others).
+      long_description: A locally-generated baseline of the IPv4 ranges that the IETF/IANA
+        reserve for special use — RFC 1918 private networks, loopback, link-local
+        autoconfiguration, multicast, the documentation/TEST-NET ranges, the benchmark
+        range, the shared CGN range, and others. The list is bundled with the catalog
+        (internal source) and is intentionally static; entries change only when the
+        underlying RFCs do. It is intended as a stable bogons floor against which
+        observed traffic can be audited.
+      roles:
+      - role: maintainer
+        name: FireHOL catalog project
+        organization_type: informal_collective
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Maintained by the FireHOL catalog project as a public reference / aggregate.
+          This page is generated deterministically from the catalog YAML; the agent-based
+          enrichment used for third-party feeds does not run on FireHOL-maintained
+          feeds.
+      derivation:
+        type: original
+        description: Locally-generated baseline maintained inside the catalog. Entries
+          are explicit IPv4 ranges drawn from cited IETF/IANA documents. Not derived
+          from another IP feed.
+        source_feeds: []
+      listing_policy:
+        summary: Curated baseline. An entry appears here when an IETF/IANA document
+          reserves the range for special use (private, loopback, link-local, documentation,
+          benchmark, multicast, TEST-NET, shared CGN, etc.).
+        criteria:
+        - Range is reserved by RFC or IANA registry for special use.
+      unlisting_policy:
+        summary: Entries are removed only when the IETF or IANA changes the underlying
+          reservation. The catalog does not unlist on a per-entry basis.
+        criteria:
+        - IETF or IANA revises the relevant reservation.
+      unlist_request:
+        url:
+        email:
+        instructions: This is an internal baseline. The catalog does not operate a
+          per-entry unlist channel; the change must occur in the underlying RFC or
+          IANA registry.
+      update_frequency:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: Policy-defined reference data drawn from RFCs and IANA registries.
+          Not derived from observation.
+      scope_and_intent:
+        description: Hardcoded baseline of the 15 RFC-defined reserved IPv4 ranges
+          (RFC 1918, loopback, link-local, multicast, TEST-NET, etc).
+        intended_for:
+        - Bogon filtering on internet-facing routers
+        - Auditing for misconfigured or spoofed source addresses
+        - Excluding RFC-reserved space from threat lookups
+        not_intended_for:
+        - A complete bogon list (does not track allocated-but-unassigned RIR space
+          — see fullbogons for that)
+      license: Public Domain (IANA / RFC)
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms:
+      current_status:
+        state: active
+        description: Internal baseline maintained inside the catalog. Entries change
+          only when the underlying RFC or IANA reservation does.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement:
+      sources_consulted: []

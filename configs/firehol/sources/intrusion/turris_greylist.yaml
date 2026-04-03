@@ -1,0 +1,236 @@
+sources:
+  turris_greylist:
+    license: CC BY-NC-SA 4.0
+    redistributable: true
+    attribution: Turris Sentinel Greylist © CZ.NIC Association — https://view.sentinel.turris.cz/greylist-data/
+    url: https://view.sentinel.turris.cz/greylist-data/greylist-latest.csv
+    frequency: 1440
+    history:
+    - 1440
+    - 10080
+    - 43200
+    ipv: ipv4
+    output: ipset
+    processor:
+    - csv_column:
+        index: "1"
+    processor_raw: csv_comma_first_column
+    category: intrusion
+    info: '[Turris Sentinel](https://view.sentinel.turris.cz/greylist-data/) greylist
+      of IPs observed by the Turris router sensor network operated by CZ.NIC (the
+      .cz ccTLD registry). Tags per row include ssh, telnet, ftp, http, smtp, port_scan.
+      Licensed CC BY-NC-SA 4.0.'
+    maintainer: CZ.NIC Association
+    maintainer_url: https://www.turris.cz/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T22:51:24+00:00'
+      official_name: Turris Sentinel Greylist
+      official_url: https://www.turris.cz/en/greylist
+      short_description: A daily-published CSV of IPv4 and IPv6 addresses observed
+        attacking Turris Omnia routers worldwide, tagged by the protocol or technique
+        detected — smtp, telnet, ftp, http, port_scan, or haas.
+      long_description: 'The Turris Sentinel Greylist is a community-sourced threat
+        intelligence feed generated from traffic observed by Turris Omnia routers
+        deployed worldwide. Every day, the CZ.NIC Association receives millions of
+        packets blocked at Turris router firewalls; these are processed and classified
+        weekly, and IP addresses that exhibit sustained probing or attack behaviour
+        across a threshold number of routers are published in the greylist. Each listed
+        address carries one or more tags describing the observed activity: smtp (SMTP
+        brute-force attempts), telnet (Telnet login attempts), ftp (FTP login attempts),
+        http (HTTP probing), port_scan (port scanning), or haas (Host Access Alert
+        System — unauthorized SSH access attempts). The feed is published daily as
+        a CSV with Address and Tags columns, signed with PGP key 1087 6666 for integrity
+        verification. Historical snapshots are available in yearly archive directories
+        dating back to 2020. The maintainer explicitly advises that the greylist is
+        not a definitive blocklist and should be used for traffic analysis rather
+        than reflexive blocking, and accepts no liability for damages arising from
+        use of the data.'
+      roles:
+      - role: maintainer
+        name: CZ.NIC Association
+        organization_type: non_profit
+        official_url: https://www.nic.cz/
+        contact_email: info@turris.cz
+        based_in: Prague, Czech Republic
+        active_since: '1998'
+        notes: CZ.NIC (zájmové sdružení právnických osob) is a Czech nonprofit interest
+          association of legal entities founded in 1998 by leading Czech Internet
+          service providers. It administers the .cz country-code top-level domain,
+          operates the national CSIRT.CZ computer security incident response team,
+          and develops open-source Internet infrastructure software including FRED,
+          BIRD, Knot DNS, and Knot Resolver. CZ.NIC is ISO 27001 certified and headquartered
+          at Americká 23, Prague 2. For greylist-specific inquiries, the maintainer
+          designates greylist@turris.cz.
+      derivation:
+        type: original
+        description: 'The feed is generated entirely from the Turris Omnia router
+          sensor network operated by CZ.NIC. Every day, millions of packets blocked
+          at Turris router firewalls are collected centrally. These originate from
+          three detection subsystems: the Host Access Alert System (HaaS), which detects
+          unauthorised SSH login attempts; low-interaction minipot honeypots emulating
+          telnet, FTP, SMTP, and HTTP services; and firewall log monitoring, which
+          detects port scans. Data from all three subsystems are fed into a DynFW
+          scoring server that assigns each suspicious IP address a weighted score
+          based on attack type. Once the cumulative score reaches a defined threshold,
+          the address is published to participating routers and appended to the daily
+          greylist CSV. Real-time additions and removals are broadcast via a ZeroMQ/CURVE
+          pub-sub channel on sentinel.turris.cz port 7087 using dynfw/delta messages.
+          The feed does not incorporate any external IP feeds or commercial threat
+          intelligence sources.'
+        source_feeds: []
+      listing_policy:
+        summary: An IP address is listed when it has been observed attacking Turris
+          Omnia routers across a sufficient number of devices such that its cumulative
+          behavioural score, weighted by attack type, crosses a defined threshold.
+          The scoring system evaluates packets blocked at router firewalls weekly;
+          addresses that persistently probe multiple routers or attempt to gain access
+          to services (SSH via HaaS, telnet, FTP, SMTP, HTTP via minipot honeypots,
+          or conduct port scans) accumulate points. Once the threshold is met, the
+          address is published to routers and added to the daily greylist CSV. The
+          maintainer does not publish the exact numerical threshold or scoring weights.
+        criteria:
+        - Observed attacking or probing Turris Omnia routers (not arbitrary internet
+          hosts)
+        - Activity detected across a threshold number of distinct Turris routers
+        - Cumulative score meets or exceeds the maintainer's defined threshold, weighted
+          by attack type
+        - 'Attack types carrying scoring weight include: HaaS SSH events, minipot
+          events (telnet, FTP, SMTP, HTTP connect/login/invalid), and firewall-monitored
+          port scan events'
+      unlisting_policy:
+        summary: Addresses are removed from the greylist when their cumulative score
+          falls below the publication threshold — typically after ceasing to generate
+          suspicious events across the Turris router network. Removals are broadcast
+          in real time via dynfw/delta messages with a negative delta indicator. Manual
+          unlisting requests can be submitted by emailing greylist@turris.cz. The
+          maintainer does not publish the specific decay period or minimum inactivity
+          duration required for automatic removal.
+        criteria:
+        - 'Automatic: cumulative score drops below the publication threshold (address
+          ceases generating qualifying events across the Turris router sensor network)'
+        - 'Manual: email request to greylist@turris.cz with evidence demonstrating
+          the address should not be listed'
+      unlist_request:
+        url:
+        email: greylist@turris.cz
+        instructions: Submit an unlisting request by emailing greylist@turris.cz.
+          Include the IP address in question and evidence explaining why it should
+          not be listed (for example, that the address belongs to a legitimate service
+          that was mistakenly flagged). The maintainer reviews submissions and responds
+          via the same channel.
+      update_frequency:
+        frequency: 1d
+        human_readable: The greylist CSV is published daily, per the maintainer's
+          recommendation on their documentation page. Underlying classification runs
+          weekly, with real-time delta notifications sent to routers via ZeroMQ pub-sub.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods:
+        - network_telescope
+        description: 'The feed is built from three co-located detection systems running
+          on Turris Omnia routers: low-interaction honeypots emulating telnet, FTP,
+          SMTP, and HTTP services (capturing login attempts and invalid-command sequences);
+          the Host Access Alert System (HaaS) detecting unauthorised SSH access attempts;
+          and firewall log monitoring detecting inbound port scans. Together these
+          constitute a hybrid honeypot-and-telescope approach where every Turris router
+          functions as both a sensor and a lightweight honeypot. The scoring server
+          aggregates events from all participating routers globally and applies threshold-based
+          classification.'
+      scope_and_intent:
+        description: The Turris Sentinel Greylist is scoped to IP addresses observed
+          attacking or probing Turris Omnia routers specifically. It is not a general-purpose
+          internet blocklist. The maintainer explicitly frames it as a traffic analysis
+          resource rather than a definitive deny-list.
+        intended_for:
+        - Analysing traffic patterns in networks that observe similar probe activity
+        - Enriching security operations with context about IPs known to conduct router-targeted
+          reconnaissance
+        - Correlating with other threat intelligence sources for situational awareness
+        not_intended_for:
+        - Reflexive inline blocking — the maintainer explicitly advises against treating
+          the greylist as a blocklist
+        - Protecting non-router targets where the same IP may represent legitimate
+          traffic
+        - Automated enforcement without human review, given documented false positive
+          cases involving distributed services
+      license: Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International
+      redistribution:
+        allowed: true
+        commercial_use_allowed: false
+        attribution_required: Credit 'Turris Sentinel Greylist © CZ.NIC Association'
+        terms: Under CC BY-NC-SA 4.0, the feed may be shared and adapted for non-commercial
+          purposes provided that credit is given to CZ.NIC Association and any derivative
+          works are distributed under the same license. Commercial redistribution
+          or incorporation into commercial products requires a separate written agreement
+          — contact info@turris.cz.
+      current_status:
+        state: active
+        description: Active. The feed is maintained as of May 2026; the archive directory
+          shows continuous daily publications from 2020 through 2026, and the live
+          greylist CSV was accessible during this research run. CZ.NIC continues to
+          develop the Turris Sentinel ecosystem.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Documented false positive cases have arisen when distributed legitimate
+          services are observed attacking Turris routers — precisely because their
+          distributed nature causes them to hit multiple Turris sensors. The most
+          prominent case involves Let's Encrypt certificate validation servers, which
+          CZ.NIC developer miska acknowledged in March 2022 on the Turris forum, proposing
+          URL-based ACME challenge detection as a mitigation. A second case involved
+          UptimeRobot monitoring service IPs reported in September 2025, addressed
+          locally via UCI whitelist configuration with partial success. A third-party
+          integration issue arose in 2022 when CZ.NIC changed the CSV URL and format
+          (adding comment lines, removing Country/ASN columns) without advance notice,
+          breaking IntelMQ parsers — resolved after approximately 14 months. The maintainer
+          holds no liability for false positives and recommends local whitelisting
+          as the operative workaround.
+        engagement: 'Discussion is concentrated on the official Turris forum (forum.turris.cz)
+          and GitHub. Notable third-party integrations include: IntelMQ (TurrisGreylistParserBot,
+          Filip Pokorný, 2023, AGPL-3.0), a MikroTik RouterOS script converter (pschonmann/turrisgreylist2mikrotik),
+          a Fortinet FortiGate converter (72tlukas72/Sentinel), and a Go-based DynFW
+          real-time client (MatejLach/dynafire). The feed is consumed by the CZ.NIC-operated
+          Turris router dynamic firewall as its primary data source. Public discussion
+          is moderate in volume, driven largely by false positive incidents rather
+          than routine use.'
+      sources_consulted:
+      - url: https://view.sentinel.turris.cz/greylist-data/
+        document_date:
+        validation_date: '2026-05-17T22:47:00+00:00'
+      - url: https://view.sentinel.turris.cz/greylist-data/greylist-latest.csv
+        document_date:
+        validation_date: '2026-05-17T22:46:00+00:00'
+      - url: https://view.sentinel.turris.cz/greylist-data/LICENSE.txt
+        document_date:
+        validation_date: '2026-05-17T22:45:00+00:00'
+      - url: https://www.turris.cz/en/greylist
+        document_date:
+        validation_date: '2026-05-17T22:44:00+00:00'
+      - url: https://docs.turris.cz/basics/sentinel/dynfw/
+        document_date:
+        validation_date: '2026-05-17T22:43:00+00:00'
+      - url: https://en.wikipedia.org/wiki/CZ.NIC
+        document_date:
+        validation_date: '2026-05-17T22:42:00+00:00'
+      - url: https://podpora.nic.cz/en/about-the-association/
+        document_date:
+        validation_date: '2026-05-17T22:41:00+00:00'
+      - url: https://www.nic.cz/page/351/
+        document_date:
+        validation_date: '2026-05-17T22:40:00+00:00'
+      - url: https://forum.turris.cz/t/dynamic-firewall-blocks-lets-encrypt-renewals/16876
+        document_date:
+        validation_date: '2026-05-17T22:38:00+00:00'
+      - url: 
+          https://forum.turris.cz/t/uptimerobot-alerts-since-2025-09-26-some-of-their-ips-are-in-sentinel-greylist/22061
+        document_date:
+        validation_date: '2026-05-17T22:37:00+00:00'
+      - url: https://github.com/certtools/intelmq
+        document_date:
+        validation_date: '2026-05-17T22:36:00+00:00'
+      - url: https://github.com/pschonmann/turrisgreylist2mikrotik
+        document_date:
+        validation_date: '2026-05-17T22:35:00+00:00'

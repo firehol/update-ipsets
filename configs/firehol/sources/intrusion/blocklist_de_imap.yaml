@@ -1,0 +1,198 @@
+sources:
+  blocklist_de_imap:
+    license: public feed
+    redistributable: true
+    url: http://lists.blocklist.de/lists/imap.txt
+    frequency: 15
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been
+      reported within the last 48 hours for attacks on the Service imap, sasl, pop3,
+      etc.'
+    maintainer: Blocklist.de
+    maintainer_url: https://www.blocklist.de/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T15:41:55Z'
+      official_name: Blocklist.de IMAP
+      official_url: https://www.blocklist.de/en/rbldns.html
+      short_description: Free daily-updated list of IP addresses that recently attacked
+        IMAP, POP3, SASL, or webmail login services, sourced from fail2ban reports
+        targeting the maintainer's own infrastructure.
+      long_description: "The IMAP feed tracks IPs that attempted to authenticate against
+        IMAP, POP3, SASL, or webmail services on the Blocklist.de maintainer's infrastructure
+        or partner servers. Any IP observed attacking these services remains listed
+        for 48 hours before automatic expiry; each new attack resets the timer. The
+        Blocklist.de service applies whitelists from dnswl.org and spamhauswhitelist.org
+        and excludes known Tor exit nodes to reduce false positives for legitimate
+        mail clients.\n\nThe maintainer is explicit that the service does not block
+        email or filter spam content — the IMAP feed is an attacker-IP list for operators
+        who choose to integrate it into firewall, fail2ban, or MTA-level rules. For
+        the shared Blocklist.de sensor-network model, X-ARF abuse-reporting pipeline,
+        and the comparison to spamcop.net for non-spam attacks, see the parent `blocklist_de`
+        feed page."
+      roles:
+      - role: maintainer
+        name: Martin Schiftan
+        organization_type: individual
+        official_url: https://www.blocklist.de/
+        contact_email: webmaster@blocklist.de
+        based_in: Switzerland
+        active_since:
+        notes: Individual fraud and abuse specialist operating the service voluntarily.
+          Also reachable via support@blocklist.de and the online delist interface.
+      derivation:
+        type: original
+        description: "First-party detection: the maintainer's own fail2ban installations
+          monitor authentication attempts against IMAP, POP3, SASL, and webmail services
+          on their servers and partner infrastructure. Detected IPs are compiled into
+          the IMAP export list with a 48-hour rolling window. The service supplements
+          first-party alerts with partner-reported attacks and cross-checks against
+          dnswl.org and spamhauswhitelist.org whitelists to suppress false positives
+          before distribution."
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when it generates a fail2ban trigger — a failed authentication
+          attempt or attack signature — against IMAP, POP3, SASL, or webmail services
+          on the maintainer's servers or registered partner servers. The maintainer
+          applies whitelists from dnswl.org and spamhauswhitelist.org before publishing,
+          and excludes Tor exit nodes, to reduce false positives. Listed IPs expire
+          automatically after 48 hours.
+        criteria:
+        - Failed or suspicious IMAP, POP3, SASL, or webmail authentication attempt
+          detected by fail2ban on maintainer or partner infrastructure
+        - IP not present on dnswl.org or spamhauswhitelist.org whitelists
+        - IP not identified as a Tor exit node via torproject.org list
+        - IP has not used the delist link to request early removal
+      unlisting_policy:
+        summary: Listed IPs expire automatically after 48 hours. Earlier removal is
+          available via the online delist form — the IP is removed within 60 minutes
+          at the next list regeneration cycle. Users can also pause incoming reports
+          for their own IPs for up to 7 days.
+        criteria:
+        - Automatic expiry after 48 hours from last observed attack
+        - Manual removal via the delist page within approximately 60 minutes
+        - Temporary 7-day report pause available for IPs awaiting remediation
+      unlist_request:
+        url: https://www.blocklist.de/en/delist.html
+        email:
+        instructions: Visit the delist page and submit the IP address to be removed.
+          Removal takes effect within approximately 60 minutes at the next list regeneration
+          cycle. Alternatively, use the search page to check the status of an IP or
+          to pause reports for up to 7 days.
+      update_frequency:
+        frequency: 12h
+        human_readable: The underlying detection runs continuously in real time; the
+          export lists regenerate periodically, with IPs expiring after a 48-hour
+          rolling window.
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods: []
+        description: The maintainer operates fail2ban on their own mail servers and
+          partner infrastructure. When fail2ban detects a failed or suspicious authentication
+          attempt against IMAP, POP3, SASL, or webmail services, it triggers and the
+          IP is added to the corresponding export list. Fail2ban (Fail-to-Ban) is
+          an open-source intrusion prevention framework that scans log files, matches
+          patterns such as repeated failed login attempts, and dynamically blocks
+          offending IPs by updating firewall rules. In this feed's context, the triggering
+          events are failed IMAP/POP3/SASL/webmail authentication attempts that exceed
+          configurable thresholds.
+      scope_and_intent:
+        description: Blocklist.de is designed to notify abuse departments of ISPs
+          and hosting providers so they can contact and remediate customers whose
+          machines are being used in attacks. The IMAP feed specifically covers authentication
+          attacks against mail services — it is not a spam blocklist.
+        intended_for:
+        - Blocking attacking IPs at the mail transport agent level (Postfix, Exim,
+          etc.)
+        - Enriching fail2ban or deny-by-default firewall rules with community-reported
+          attack sources
+        - Identifying compromised mail servers participating in credential stuffing
+          or brute-force campaigns
+        not_intended_for:
+        - Filtering or blocking spam content — the service explicitly does not cover
+          spam
+        - Permanent blocking — IPs expire after 48 hours by design
+        - Blocking dynamic DNS users — the service cannot be used effectively from
+          dynamic IP ranges
+      license: public feed
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: The direct upstream (lists.blocklist.de) is publicly downloadable via
+          unauthenticated HTTP with no stated redistribution restrictions. The maintainer's
+          legal page disclaims warranty but does not prohibit redistribution. Redistribution
+          is therefore permissible as a practical matter, though no explicit permission
+          grant is documented.
+      current_status:
+        state: active
+        description: Active and maintained. The imap.txt feed file is served by the
+          maintainer and the Blocklist.de site is reachable; no discontinuation, merger,
+          or fork announcement was found.
+        successor:
+        announcement_date:
+      community:
+        awards: Operators on Reddit (r/sysadmin) and the DirectAdmin Forums describe
+          successful integration of the IMAP feed with Postfix and Exim mail servers
+          without blocking legitimate inbound email; one DirectAdmin Forums thread
+          documents an operator actively testing 'imap' and 'mail' from Blocklist.de
+          alongside psbl.surriel.com and reporting positive preliminary experience
+          with intent to deploy to other servers.
+        criticism:
+        engagement: Public discussion specifically about the IMAP variant is limited
+          to a handful of forum posts and Reddit comments. The maintainer offers a
+          searchable IP-status interface and a delist form but does not publish a
+          per-feed issue tracker or changelog. Maintainer-wide community signal is
+          recorded on the parent `blocklist_de` feed page.
+      sources_consulted:
+      - url: https://www.blocklist.de/
+        document_date:
+        validation_date: '2026-05-16T15:39:48Z'
+      - url: https://www.blocklist.de/en/faq.html
+        document_date:
+        validation_date: '2026-05-16T15:39:48Z'
+      - url: https://www.blocklist.de/en/about.html
+        document_date:
+        validation_date: '2026-05-16T15:39:48Z'
+      - url: https://www.blocklist.de/en/rbldns.html
+        document_date:
+        validation_date: '2026-05-16T15:39:48Z'
+      - url: https://www.blocklist.de/en/legal.html
+        document_date: '2018'
+        validation_date: '2026-05-16T15:39:48Z'
+      - url: https://www.blocklist.de/en/imprint.html
+        document_date:
+        validation_date: '2026-05-16T15:39:48Z'
+      - url: https://www.blocklist.de/en/terms.html
+        document_date:
+        validation_date: '2026-05-16T15:39:48Z'
+      - url: http://lists.blocklist.de/lists/imap.txt
+        document_date:
+        validation_date: '2026-05-16T15:39:48Z'
+      - url: https://www.reddit.com/r/sysadmin/comments/66vcwz/email_dns_blacklists/
+        document_date:
+        validation_date: '2026-05-16T15:39:48Z'
+      - url: 
+          https://forum.directadmin.com/threads/recommended-exim-blocklists-to-fight-spam-dns-rbl-blocklists.69798/
+        document_date:
+        validation_date: '2026-05-16T15:39:48Z'
+      - url: 
+          https://www.reddit.com/r/opnsense/comments/13hfl9v/which_ip_block_lists_do_you_apply_to_your_opnsense/
+        document_date:
+        validation_date: '2026-05-16T15:39:48Z'
+      - url: 
+          https://www.reddit.com/r/synology/comments/12o2qna/script_for_automatic_updating_blocklist_based_on/
+        document_date:
+        validation_date: '2026-05-16T15:39:48Z'
+      - url: https://www.reddit.com/r/selfhosted/comments/9rgaxt/under_constant_ssh_attack/
+        document_date:
+        validation_date: '2026-05-16T15:39:48Z'
+      - url: https://mxtoolbox.com/problem/blacklist/blocklist.de
+        document_date:
+        validation_date: '2026-05-16T15:39:48Z'

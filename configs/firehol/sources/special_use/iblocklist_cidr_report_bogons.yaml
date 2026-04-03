@@ -1,0 +1,191 @@
+sources:
+  iblocklist_cidr_report_bogons:
+    label: iBlocklist CIDR Report bogons
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=lujdnbasfaaixitgmxpp&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: special_use
+    provenance: secondary_upstream
+    info: cidr-report.org IP list of Unallocated address space.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    exclude_from_unmaintained: true
+    use: [bogons]
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T03:18:09Z'
+      official_name: CIDR Report bogons
+      official_url: https://www.iblocklist.com/list?list=lujdnbasfaaixitgmxpp
+      short_description: A list of unallocated and reserved IP address space compiled
+        from IANA and Regional Internet Registry allocation data, intended for filtering
+        bogus or unroutable source addresses at network boundaries.
+      long_description: The feed compiles IPv4 and IPv6 address prefixes that are
+        not currently allocated by IANA or the Regional Internet Registries (ARIN,
+        RIPE NCC, APNIC, LACNIC, AFRINIC), along with the standard reserved ranges
+        defined by RFC 3871 and RFC 8190. These include RFC 1918 private-use ranges,
+        loopback, link-local, documentation-test ranges, benchmark-testing space,
+        multicast, and 6to4 relay anycast. The underlying source is generated daily
+        from IANA's registry files and RIR stats/whois data, per the maintainer's
+        documentation. The data originates from cidr-report.org, operated by Geoff
+        Huston on APNIC Labs infrastructure. iBlocklist.com distributes the feed in
+        P2P format alongside dozens of other blocklists. The underlying freespace-prefix.txt
+        source file has not been refreshed since December 2024, meaning the feed's
+        content reflects the state of unallocated IPv4 space at that point in time.
+        Since IANA exhausted its free IPv4 pool in February 2011, the unallocated
+        IPv4 bogon space has been largely static, but the lack of ongoing regeneration
+        means newly allocated or returned prefixes are not reflected.
+      roles:
+      - role: source_contributor
+        name: cidr-report.org / Geoff Huston
+        organization_type: research_institution
+        official_url: https://www.cidr-report.org
+        contact_email:
+        based_in:
+        active_since:
+        notes: Originally founded by Tony Bates, later maintained by Dr. Philip Smith,
+          now operated by Geoff Huston on APNIC Labs infrastructure. Produces the
+          daily bogons report from IANA and RIR registry data.
+      - role: maintainer
+        name: iBlocklist.com
+        organization_type: commercial
+        official_url: https://www.iblocklist.com
+        contact_email:
+        based_in:
+        active_since:
+        notes: Distributes the cidr-report.org bogons feed in P2P format. Hosts the
+          feed at list.iblocklist.com and sets the applicable Terms of Service governing
+          use of the distributed file.
+      derivation:
+        type: partial_mirror
+        description: iBlocklist.com mirrors the freespace-prefix.txt file produced
+          by cidr-report.org, converting it from plain-text CIDR format into P2P archive
+          format for distribution. The source file lists IPv4 and IPv6 prefixes that
+          are not currently allocated by IANA or the RIRs, along with standard reserved
+          ranges. No additional scoring, filtering, or enrichment is applied by iBlocklist
+          beyond format conversion.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed if its address prefix falls within address space
+          that IANA has not allocated to any Regional Internet Registry, or within
+          address space reserved for special purposes by applicable RFCs. The determination
+          is made by comparing advertised or allocated prefixes against the IANA IPv4
+          Address Space registry and RIR stats files.
+        criteria:
+        - Address prefixes not allocated by IANA to any RIR (ARIN, RIPE NCC, APNIC,
+          LACNIC, AFRINIC)
+        - Private-use address space as defined by RFC 1918
+        - Loopback range
+        - Link-local addresses
+        - Documentation and test ranges defined by RFC 5737
+        - Benchmark testing range defined by RFC 2544
+        - Multicast and reserved class-D/E address space
+        - 6to4 relay anycast range defined by RFC 7526
+      unlisting_policy:
+        summary: No unlisting or delisting policy is stated by either cidr-report.org
+          or iBlocklist.com. Entries represent address space that is structurally
+          unroutable by definition; removals would only occur if IANA reallocated
+          previously unallocated space, which has been rare since the IPv4 free-pool
+          exhaustion in February 2011.
+        criteria: []
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: Daily regeneration of the source file, per cidr-report.org's
+          documentation. iBlocklist.com's Terms of Service state that no commitment
+          to update the materials is made.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: 'The feed is not produced by honeypots, sensors, or malware analysis.
+          Entries are determined by administrative policy: a prefix is listed if it
+          appears as unallocated in the IANA IPv4/IPv6 Address Space registry or falls
+          within ranges reserved by RFC 3871 and RFC 8190. This is a registry-compliance
+          classification, not an empirical detection.'
+      scope_and_intent:
+        description: 'The feed identifies IP address space that should not appear
+          in legitimate inbound internet traffic: unallocated prefixes that have no
+          valid place in global routing tables, and reserved ranges that are not globally
+          routable by design. It is used at network boundaries to detect and block
+          spoofed or bogus source addresses, identify anomalous routing advertisements,
+          and prevent traffic from address space that cannot legitimately originate
+          from the public internet.'
+        intended_for:
+        - Filtering bogus or spoofed source addresses at network ingress points
+        - Detecting anomalous or potentially hijacked BGP route advertisements
+        - Blocking traffic from unroutable address space at firewalls
+        - Network diagnostics identifying routing anomalies
+        not_intended_for:
+        - Blocking all traffic from ISP-assigned ranges — legitimate internal-network
+          traffic using reserved addressing will be incorrectly blocked if this feed
+          is applied without careful scope limiting
+        - Real-time threat intelligence — the feed tracks address-space allocation
+          status, not attacker infrastructure
+      license: iBlocklist Terms of Service — personal use only; commercial use prohibited
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: iBlocklist.com's Terms of Service prohibit redistribution for commercial
+          purposes or public display (commercial or non-commercial). Personal use
+          is permitted. The license terminates automatically upon violation of these
+          restrictions.
+      current_status:
+        state: active
+        description: iBlocklist.com continues to serve the feed and the service remains
+          operational as of the research date. The cidr-report.org bogons source file
+          (freespace-prefix.txt) has not been regenerated since December 2024, representing
+          approximately 17 months of staleness at research time. The main cidr-report.org
+          routing analysis reports remain actively generated daily.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Community reports across multiple platforms and firewall products
+          (pfBlockerNG on pfSense, FortiGate, TomatoFTW, Mikrotik) from 2015 through
+          2022 document recurring false positive complaints tied to this feed. Users
+          reported that enabling the bogon list broke connectivity to legitimate services
+          including major logistics providers. A 2016 Netgate Forum thread alleged
+          that iBlocklist.com updated file timestamps without refreshing list content,
+          producing frozen data labeled as current. Participants in the same thread
+          documented malformed CIDR entries in iBlocklist feeds — including a /1 prefix
+          that, when interpreted by firewall software, resulted in near-total network
+          blockage. Paying subscribers additionally reported receiving empty results
+          for paid-tier lists despite HTTP 200 responses, and described unresponsive
+          support over multiple weeks. No resolution or response from iBlocklist.com
+          was documented in the threads reviewed.
+        engagement: Public community discussion is sparse but substantive when it
+          occurs, concentrated on firewall-user forums (pfSense/Netgate, FortiGate,
+          TomatoFTW) rather than security-focused venues. The cidr-report.org source
+          itself does not maintain a public issue tracker or discussion forum. iBlocklist.com
+          provides no public blog, changelog, or status page — the support channel
+          redirects to a VPN product with no list-specific engagement visible.
+      sources_consulted:
+      - url: https://www.cidr-report.org/bogons/
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://reddit.com/r/pfBlockerNG/comments/x99o81
+        document_date: '2022-09-01'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235
+        document_date: '2016-08-01'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://blog.apnic.net/2026/03/24/the-why-and-what-of-the-cidr-report/
+        document_date: '2026-03-24'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.cidr-report.org/bogons/freespace-prefix.txt
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'

@@ -1,0 +1,226 @@
+sources:
+  dataplane_dnsrd:
+    license: Dataplane.org — non-commercial use only, redistribution prohibited
+    redistributable: false
+    url: https://dataplane.org/dnsrd.txt
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - dataplane_column3
+    processor_raw: dataplane_column3
+    category: scanners
+    info: '[DataPlane.org](https://dataplane.org/) IP addresses that have been identified
+      as sending recursive DNS queries to a remote host. This report lists addresses
+      that may be cataloging open DNS resolvers or evaluating cache entries.'
+    maintainer: DataPlane.org
+    maintainer_url: https://dataplane.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T18:56:27+00:00'
+      official_name: dnsrd
+      official_url: https://dataplane.org/signals.html
+      short_description: IP addresses observed sending recursive DNS queries (UDP
+        port 53 with the Recursion Desired flag set) to external resolvers, observed
+        by a distributed global sensor network.
+      long_description: "The dnsrd signal tracks IP addresses that send recursive
+        DNS queries — UDP port 53 messages with the Recursion Desired (RD) flag set
+        — to nameservers outside the originating network. The feed is produced by
+        DataPlane.org's own globally distributed sensor network, which the maintainer
+        describes as over 300 nodes spanning 65 metropolitan areas across 6 continents.
+        Sensors passively observe unsolicited inbound application-layer communications;
+        an IP is listed when the sensor detects it sending recursive queries to an
+        external resolver.\n\nEach entry is annotated with its originating Autonomous
+        System Number and network name, making the feed useful for correlating scanning
+        behavior to upstream network providers. Entries carry a last-seen timestamp
+        in UTC, enabling operators to assess recency.\n\nThe maintainer explicitly
+        states the report is informational only and not a block list. They note that
+        deriving malicious or benign intent from individual entries is difficult due
+        to NAT, address spoofing, and legitimate research activity. The maintainer
+        advises against using the signals as block lists and disclaims responsibility
+        for how downstream services use the data.\n\nDataPlane.org is a 501(c)(3)
+        nonprofit organization founded in 2016, operated by a small team of infrastructure
+        engineers. The project is funded by donations and a recommended minimum commercial
+        licensing fee of $1,000 per year."
+      roles:
+      - role: maintainer
+        name: DataPlane.org NFP
+        organization_type: non_profit
+        official_url: https://dataplane.org/
+        contact_email: info@dataplane.org
+        based_in: United States
+        active_since: '2016'
+        notes: "A 501(c)(3) charitable nonprofit (EIN: 88-2177476) based in Chicago,
+          Illinois. Operates a distributed sensor network across over 300 nodes in
+          65 metropolitan areas on 6 continents. Funded by donations and a recommended
+          minimum commercial licensing fee of $1,000 per year. The maintainer's signals
+          are consumed by over 20 downstream security platforms including Shadowserver,
+          Team Cymru, Recorded Future, IntelMQ, Maltrail, and MISP — this list applies
+          across the portfolio rather than to dnsrd in isolation."
+      - role: original_author
+        name: John Kristoff
+        organization_type: individual
+        official_url: https://www.netscout.com/asert/john-kristoff
+        contact_email:
+        based_in: United States
+        active_since: '2016'
+        notes: Founder of DataPlane.org. Principal Analyst at NETSCOUT ASERT, ICANN
+          Research Fellow, PhD candidate at University of Illinois Chicago, adjunct
+          faculty at DePaul University, NANOG Program Committee member, and Co-chair
+          of FIRST NETSEC-SIG.
+      - role: source_contributor
+        name: Matthew Kemp
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Listed as a team member on the DataPlane.org about page. Background
+          in various IT functions, focused on building systems and teams to meet technical
+          and business needs.
+      - role: source_contributor
+        name: Bill Eaheart
+        organization_type: individual
+        official_url:
+        contact_email:
+        based_in:
+        active_since: '2022'
+        notes: Joined the team in 2022 per the 2022 Year in Review newsletter. Infrastructure
+          architect with a collaborative approach to designing and delivering solutions.
+      derivation:
+        type: original
+        description: The feed is produced entirely from DataPlane.org's own globally
+          distributed sensor network — over 300 passive observation nodes deployed
+          across 65 metropolitan areas on 6 continents. Sensors listen for unsolicited
+          inbound application-layer communications; no external IP feeds are consumed.
+          When a sensor observes an IP sending a recursive DNS query (UDP port 53
+          with the RD flag set) to an external resolver, that IP is logged with a
+          last-seen timestamp and ASN annotation. Entries are aggregated into a weekly
+          report covering approximately seven-day windows, with the live feed updated
+          hourly. The maintainer uses PyASN for IP-address-to-ASN mapping.
+        source_feeds: []
+      listing_policy:
+        summary: An IP address is listed when a DataPlane.org sensor observes it sending
+          a DNS query with the Recursion Desired (RD) flag set — indicating the sender
+          is requesting recursive DNS resolution — to a nameserver outside the originating
+          network. The RD flag is a standard bit in the DNS query header; setting
+          it asks the receiving resolver to perform recursion on behalf of the client.
+          The maintainer does not distinguish benign from malicious recursive queries
+          in the listing criteria — the signal reflects behavior, not intent.
+        criteria:
+        - The IP sends a DNS query over UDP port 53 with the Recursion Desired (RD)
+          flag set to an external resolver
+        - The query is observed by one or more of DataPlane.org's distributed passive
+          sensors
+        - The sensor attributes the source IP to an autonomous system (via PyASN)
+      unlisting_policy:
+        summary: "There is no manual unlisting or opt-out mechanism. Listings decay
+          automatically when the sensor network no longer observes the listed behavior.
+          Per the maintainer's contact page FAQ: once the devices operating from the
+          listed IP are restored to expected behavior and activity is no longer observed,
+          the IP addresses will decay off the signals. The feed file header notes
+          that deriving intent from individual entries is difficult due to NAT, address
+          spoofing, and legitimate survey research, acknowledging the inherent ambiguity
+          in attribution."
+        criteria:
+        - 'Automatic decay: the sensor network ceases to observe recursive DNS query
+          behavior from the listed IP'
+        - No manual removal request is processed — the maintainer advises fixing the
+          underlying device behavior instead
+      unlist_request:
+        url:
+        email: info@dataplane.org
+        instructions: There is no formal unlisting submission process. The maintainer
+          advises ensuring the affected devices are operating as expected — once the
+          recursive DNS query behavior ceases and is no longer observed by the sensor
+          network, the IP will decay off the signal automatically. For urgent inquiries,
+          the maintainer accepts email at info@dataplane.org.
+      update_frequency:
+        frequency: 1h
+        human_readable: Updated hourly, per the maintainer's signals index page. The
+          feed is published as a weekly rolling report covering approximately seven-day
+          observation windows.
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: "Passive network telescope observation: DataPlane.org's distributed
+          sensor nodes listen for unsolicited inbound application-layer traffic without
+          initiating connections or sending probes. When a node receives a DNS query
+          with the RD flag set from a source IP, that IP is recorded. The maintainer
+          describes the methodology as observing 'unsolicited Internet application
+          communications' — the sensors are receivers, not initiators. This distinguishes
+          the approach from honeypots (which emulate services to elicit connections)
+          and from active scanning (which initiates probes)."
+      scope_and_intent:
+        description: The dnsrd signal is intended as a network observation and forensic
+          resource. It enables operators to identify hosts in their environment that
+          are sending recursive DNS queries externally — useful for detecting misconfigured
+          resolvers, compromised endpoints engaged in DNS tunneling or covert communication,
+          or unauthorized DNS proxy activity. The ASN annotation per entry supports
+          correlation to upstream network providers.
+        intended_for:
+        - Network forensics and incident response — identifying hosts sending recursive
+          DNS queries
+        - Threat hunting — flagging anomalous recursive DNS behavior from internal
+          endpoints
+        - Security research — studying DNS scanning patterns and attacker infrastructure
+        - Correlating scanning activity to upstream autonomous systems via ASN annotations
+        not_intended_for:
+        - Inline blocking or deny-listing — the maintainer explicitly states signals
+          are not block lists and advises against using them as such
+        - Attributing malicious intent to individual entries — the maintainer notes
+          that NAT, address spoofing, and legitimate research activity make per-entry
+          intent assessment unreliable
+      license: Non-commercial use only; redistribution in whole or in part without
+        express permission of DataPlane.org is prohibited
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Redistribution in whole or in part without express permission of DataPlane.org
+          is prohibited. Commercial use requires prior authorization by contacting
+          info@dataplane.org. The maintainer recommends a minimum donation of $1,000
+          USD per year for commercial deployments.
+      current_status:
+        state: active
+        description: Active. DataPlane.org continues to publish the dnsrd signal from
+          dataplane.org/dnsrd.txt. The maintainer's site is reachable, the signals
+          index page lists the feed, and the most recent report (examined 2026-05-18)
+          covers the period 2026-05-11 to 2026-05-18. The organization is a functioning
+          501(c)(3) nonprofit with regular newsletter publications and an active GitHub
+          presence.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion of the dnsrd feed specifically is sparse — no
+          dedicated Reddit threads, GitHub issues, or forum posts were found during
+          research. The broader DataPlane.org project is referenced in the awesome-threat-intelligence
+          list as a community-powered threat intel resource. The maintainer publishes
+          quarterly newsletters via Substack and maintains a Mastodon presence; downstream-platform
+          adoption is a property of the maintainer's portfolio rather than this feed
+          specifically (see roles[].notes).
+      sources_consulted:
+      - url: https://dataplane.org/
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://dataplane.org/about.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://dataplane.org/contact.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://dataplane.org/signals.html
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://dataplane.org/dnsrd.txt
+        document_date: '2026-05-18'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://dataplane.substack.com/p/dataplaneorg-2024-q1-newsletter
+        document_date: '2024-03-26'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/hslatman/awesome-threat-intelligence
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'

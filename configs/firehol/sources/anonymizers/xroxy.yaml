@@ -1,0 +1,145 @@
+sources:
+  xroxy:
+    license: public feed
+    redistributable: true
+    url: http://www.xroxy.com/proxyrss.xml
+    frequency: 60
+    history:
+    - 1440
+    - 10080
+    - 43200
+    ipv: ipv4
+    output: ipset
+    processor:
+    - xml_rss_proxy
+    processor_raw: parse_rss_proxy
+    category: anonymizers
+    info: '[xroxy.com](http://www.xroxy.com) open proxies (this list is composed using
+      an RSS feed)'
+    maintainer: Xroxy.com
+    maintainer_url: http://www.xroxy.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T19:15:52+00:00'
+      official_name: XROXY.COM
+      official_url:
+      short_description: Free open proxy database delivering categorized proxy lists
+        via RSS, sortable by anonymity level, protocol type, port, country, and connection
+        latency.
+      long_description: XROXY.COM was a free online database of open proxy servers,
+        providing both a web interface and RSS feeds for consuming the proxy lists.
+        The service tracked HTTP, SOCKS, and CGI/PHP web proxies, categorizing them
+        by anonymity level (Anonymous, Distorting, Transparent), protocol variant
+        (SOCKS4, SOCKS5), port number, country of origin, and two latency/response
+        metrics. Per the maintainers archived description, a back-end checking system
+        periodically re-verified all proxies in the database to identify live ones.
+        Feeds were published by proxy type, country, port, and SSL capability. The
+        service also hosted a community forum called Xorum and offered a premium paid
+        proxy product. The site operated from approximately 2005 until early 2021,
+        with the domain later redirecting away from the proxy service and eventually
+        listed for sale.
+      roles:
+      - role: maintainer
+        name: XROXY.COM
+        organization_type: unknown
+        official_url:
+        contact_email: support@xroxy.com
+        based_in:
+        active_since:
+        notes: Copyright footer on the archived site reads 2016 XROXY.COM. No individual
+          person or named company was identified from the archived homepage. The premium
+          proxy service linked to ProxySolutions.net as an affiliate.
+      derivation:
+        type: original
+        description: The feed was produced from the maintainers own back-end scanning
+          system that periodically re-verified all proxies in the XROXY.COM database.
+          Proxies were classified by anonymity level, protocol variant, port, country,
+          and two latency metrics. No upstream feeds were consumed — the data was
+          first-party.
+        source_feeds: []
+      listing_policy:
+        summary: Proxies entered the database through the maintainers own scanning
+          system and remained listed as long as they continued responding to periodic
+          re-checks. No community submission mechanism was documented.
+        criteria:
+        - Detected as an open proxy by the maintainers scanning system
+        - Passes periodic re-verification checks (multiple times per day per the maintainers
+          stated cadence)
+      unlisting_policy:
+        summary: Entries were removed when the proxy stopped responding during the
+          maintainers periodic re-verification cycles. No manual delisting channel
+          was documented.
+        criteria:
+        - Fails to respond during scheduled re-verification checks
+      unlist_request:
+      update_frequency:
+        frequency: 60m
+        human_readable: The RSS feed specifies a 60-minute TTL, and the maintainer
+          states proxies are rechecked several times per day.
+      detection_classification:
+        primary_method: active_scanning
+        secondary_methods: []
+        description: The maintainers own scanning system actively probed IP addresses
+          and ports to identify open proxy servers. Proxies were then periodically
+          re-verified to confirm continued availability.
+      scope_and_intent:
+        description: XROXY.COM tracked open proxy servers for public use, covering
+          HTTP (including CONNECT proxies), SOCKS4, SOCKS5, and CGI/PHP web proxies.
+          Categorizations included anonymity level (Anonymous, Distorting, Transparent),
+          protocol variant, port number, country, SSL capability, and two latency
+          metrics. The service was aimed at users seeking to locate and filter open
+          proxies by these properties.
+        intended_for:
+        - Users seeking open proxy servers sorted by anonymity level, protocol type,
+          port, country, or latency
+        - Automated systems consuming proxy lists via RSS
+        not_intended_for: []
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms:
+      current_status:
+        state: discontinued
+        description: The XROXY.COM proxy service is discontinued. The domain now redirects
+          to chinasentry.com and displays a GoDaddy Domain for Sale landing page.
+          The last functional Wayback Machine capture of the active service dates
+          to January 2021; the RSS feed showed a lastBuildDate of October 2022. No
+          successor feed or migration path has been identified.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion about XROXY.COM is sparse. A single
+          Reddit reference from 2011 cited the service for accessing geo-restricted
+          content, reflecting use during the operational period. No notable third-party
+          criticism, issue reports, or resolution-pattern discussions were found in
+          available archives. The Xorum forum is preserved in web archives but shows
+          no active moderation threads.
+      sources_consulted:
+      - url: http://www.xroxy.com/
+        document_date: '2020-12-26'
+        validation_date: '2026-05-17'
+      - url: http://www.xroxy.com/proxyrss.xml
+        document_date: '2022-10-06'
+        validation_date: '2026-05-17'
+      - url: https://web.archive.org/web/20231220122928/http://www.xroxy.com/
+        document_date: '2023-12-20'
+        validation_date: '2026-05-17'
+      - url: 
+          https://web.archive.org/cdx/search/cdx?url=www.xroxy.com&output=json&limit=50&fl=timestamp,original,statuscode&sort=reverse
+        document_date:
+        validation_date: '2026-05-17'
+      - url: 
+          https://reddit.com/r/formula1/comments/gsvy5/need_your_f1_fix_heres_my_simpler_howto_watch/
+        document_date: '2011-04-18'
+        validation_date: '2026-05-17'
+      - url: https://xroxy.com/
+        document_date:
+        validation_date: '2026-05-17'
+      - url: https://web.archive.org/web/20201226000000/http://www.xroxy.com/docs/
+        document_date: '2019-03-10'
+        validation_date: '2026-05-17'

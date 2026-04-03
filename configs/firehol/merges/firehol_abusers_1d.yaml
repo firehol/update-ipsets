@@ -1,0 +1,131 @@
+merges:
+  firehol_abusers_1d:
+    license: Composite of component feed licenses
+    redistributable: true
+    frequency: 5
+    ipv: ipv4
+    output: netset
+    category: service_abuse
+    info: An ipset made from blocklists that track abusers in the last 24 hours.
+    maintainer: FireHOL
+    maintainer_url: http://iplists.firehol.org/
+    sources:
+    - botscout_1d
+    - php_commenters_1d
+    - php_dictionary_1d
+    - php_harvesters_1d
+    - php_spammers_1d
+    - stopforumspam_1d
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-27T06:30:35Z'
+      official_name: FireHOL Abusers (1-day window)
+      official_url:
+      short_description: Aggregate merge of recently-active abusive IP feeds across
+        a 1-day window.
+      long_description: "An aggregate merge of short-window abuser observations from
+        multiple component feeds. Reflects IPs that have been observed engaging in
+        abusive behavior within roughly the last day according to the component sources.
+        Intended for fresh-data use cases (detection, near-real-time blocking) where
+        stale history is less useful. Component feeds drive all listings.\n\nComponents:
+        botscout_1d, php_commenters_1d, php_dictionary_1d, php_harvesters_1d, php_spammers_1d,
+        stopforumspam_1d."
+      roles:
+      - role: maintainer
+        name: FireHOL catalog project
+        organization_type: informal_collective
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Maintained by the FireHOL catalog project as a public reference / aggregate.
+          This page is generated deterministically from the catalog YAML; the agent-based
+          enrichment used for third-party feeds does not run on FireHOL-maintained
+          feeds.
+      derivation:
+        type: aggregate_merge
+        description: Additive union of 6 component feed(s). The merge applies no scoring,
+          threshold, or filter beyond the union and the optional subtraction; all
+          listing decisions are inherited from the component feeds. Component feeds
+          are recomposed on each catalog refresh.
+        source_feeds:
+        - identifier: botscout_1d
+          relationship: aggregate_component
+          notes:
+        - identifier: php_commenters_1d
+          relationship: aggregate_component
+          notes:
+        - identifier: php_dictionary_1d
+          relationship: aggregate_component
+          notes:
+        - identifier: php_harvesters_1d
+          relationship: aggregate_component
+          notes:
+        - identifier: php_spammers_1d
+          relationship: aggregate_component
+          notes:
+        - identifier: stopforumspam_1d
+          relationship: aggregate_component
+          notes:
+      listing_policy:
+        summary: An IP appears in this merge if it appears in any of the 6 additive
+          component feed(s) listed below. The merge does not add IPs of its own.
+        criteria:
+        - 'IP appears in one or more of the additive component feeds: botscout_1d,
+          php_commenters_1d, php_dictionary_1d, php_harvesters_1d, php_spammers_1d,
+          stopforumspam_1d.'
+      unlisting_policy:
+        summary: Inherited from the component feeds. The merge does not maintain its
+          own whitelisting or per-entry unlist process. When a component feed removes
+          an IP, the next merge refresh drops the IP unless another component still
+          lists it.
+        criteria:
+        - All component feeds that previously listed the IP have removed it.
+      unlist_request:
+        url:
+        email:
+        instructions: 'This is an aggregate merge of component feeds; the merge does
+          not maintain its own unlist channel. To request that an IP be removed, identify
+          which component feed(s) list it and submit the removal request directly
+          to that maintainer. Component feeds: botscout_1d, php_commenters_1d, php_dictionary_1d,
+          php_harvesters_1d, php_spammers_1d, stopforumspam_1d.'
+      update_frequency:
+      detection_classification:
+        primary_method: mixed
+        secondary_methods: []
+        description: 'This merge inherits detection methodology from its 6 additive
+          component feed(s). See each component for its specific detection method
+          (honeypot, sandbox, reputation aggregation, etc.). Component feeds: botscout_1d,
+          php_commenters_1d, php_dictionary_1d, php_harvesters_1d, php_spammers_1d,
+          stopforumspam_1d.'
+      scope_and_intent:
+        description: An aggregate merge of short-window abuser observations from multiple
+          component feeds. Reflects IPs that have been observed engaging in abusive
+          behavior within roughly the last day according to the component sources.
+          Intended for fresh-data use cases (detection, near-real-time blocking) where
+          stale history is less useful. Component feeds drive all listings.
+        intended_for:
+        - Short-term blocklist refresh on edge filters
+        - Detection rule enrichment for recently-active sources
+        not_intended_for:
+        - Historical investigation (see firehol_abusers_30d for the longer window)
+      license: Composite of component feed licenses
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: Component-feed license terms continue to apply; users should consult
+          each component's license before commercial or redistribution use.
+      current_status:
+        state: active
+        description: Maintained by FireHOL as a public catalog merge. Recomposed automatically
+          on each catalog refresh from the live state of the component feeds. Component
+          feeds that go offline or are archived are dropped from the merge by the
+          catalog engine.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement:
+      sources_consulted: []

@@ -1,0 +1,183 @@
+sources:
+  blocklist_de_ftp:
+    license: public feed
+    redistributable: true
+    url: http://lists.blocklist.de/lists/ftp.txt
+    frequency: 15
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[Blocklist.de](https://www.blocklist.de/) All IP addresses which have been
+      reported within the last 48 hours for attacks on the Service FTP.'
+    maintainer: Blocklist.de
+    maintainer_url: https://www.blocklist.de/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T15:36:14Z'
+      official_name: Blocklist.de FTP Feed
+      official_url: https://www.blocklist.de/en/export.html
+      short_description: IPv4 addresses reported for FTP server attacks in the last
+        48 hours, contributed by Fail2Ban and DenyHost reports from blocklist.de's
+        partner network.
+      long_description: "The Blocklist.de FTP feed lists IPv4 addresses reported for
+        attacking FTP servers within the preceding 48 hours. Each listed IP represents
+        a source that sent authentication probes, brute-force attempts, or other exploit
+        traffic against an FTP daemon — the maintainer's reporting taxonomy covers
+        ProFTPD, vsftpd, Pure-FTPd, and compatible variants.\n\nThe feed is regenerated
+        every 30 minutes as a plain-text file with one IPv4 address per line and an
+        MD5 checksum for integrity verification. For the underlying Fail2Ban/DenyHost
+        partner-reporting model, the X-ARF abuse-reporting pipeline, the dnswl.org/spamhauswhitelist.org
+        allow-list cross-checks, the Tor exclusion, and the maintainer's mission of
+        routing abuse reports to ISPs, see the parent `blocklist_de` feed page."
+      roles:
+      - role: maintainer
+        name: Martin Schiftan
+        organization_type: individual
+        official_url: https://www.blocklist.de/
+        contact_email: webmaster@blocklist.de
+        based_in:
+        active_since: '2007'
+        notes: Operates blocklist.de as a voluntary fraud and abuse reporting service.
+          Identifies himself as the sole operator in the site metadata. Partners number
+          over 2,700 registered servers contributing attack reports.
+      derivation:
+        type: original
+        description: The FTP feed is built from Fail2Ban and DenyHost attack reports
+          submitted by blocklist.de's partner network of over 2,700 registered servers.
+          Reports are parsed for FTP-related service names (proftpd, ftp, vsftpd,
+          pure-ftpd, and 14 other variants), correlated against allow-lists from dnswl.org
+          and spamhauswhitelist.org, and filtered to exclude Tor exit nodes. The resulting
+          unique IPs are published as ftp.txt, regenerated every 30 minutes with a
+          48-hour rolling window.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when a Fail2Ban or DenyHost installation on a partner's
+          FTP server detects and reports an attack. Supported detection triggers include
+          FTP authentication failures, brute-force attempts, anonymous logins, and
+          known exploit patterns for ProFTPD, vsftpd, Pure-FTPd, and related daemons.
+          The IP remains listed for up to 48 hours from the first recorded attack;
+          each new attack resets the timer. Cross-checking against allow-lists from
+          dnswl.org and spamhauswhitelist.org reduces false positives from legitimate
+          FTP clients.
+        criteria:
+        - Fail2Ban or DenyHost reports a matched FTP-related service name on a partner
+          server
+        - The source IP is not on the dnswl.org or spamhauswhitelist.org allow-lists
+        - The source IP is not a known Tor exit node per torproject.org
+        - The attack occurred within the preceding 48 hours
+      unlisting_policy:
+        summary: IPs expire automatically after 48 hours if no new attack is reported.
+          For immediate removal, the attacker can submit the IP via the self-service
+          delist form on blocklist.de, which removes it within 60 minutes. Alternatively,
+          emailing webmaster@blocklist.de with proof that the security risk has been
+          remediated (malware removed, credentials changed, server secured) will result
+          in deletion. The terms state that deletion is permitted at any time upon
+          request after the security risk is resolved.
+        criteria:
+        - 'Automatic: no new attack reported within 48 hours → IP expires from the
+          export feed'
+        - 'Self-service: submit IP at the delist page → removed within 60 minutes'
+        - 'Email: webmaster@blocklist.de with remediation evidence → manual removal'
+        - "Contact form: select 'IP whitelist' subject for persistent allow-listing
+          consideration"
+      unlist_request:
+        url: https://www.blocklist.de/en/delist.html
+        email: webmaster@blocklist.de
+        instructions: For immediate self-service removal, visit the delist page and
+          enter the IP address — removal completes within 60 minutes. For email-based
+          requests, send to webmaster@blocklist.de noting the IP and confirming the
+          security issue has been remediated. Gmail addresses are rejected due to
+          DKIM compatibility issues; use another provider. For persistent allow-listing,
+          submit via the contact form selecting the 'IP whitelist' subject.
+      update_frequency:
+        frequency: 30m
+        human_readable: Regenerated every 30 minutes, reflecting attacks reported
+          in the preceding 48-hour rolling window.
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods: []
+        description: The FTP feed is compiled from Fail2Ban and DenyHost reports submitted
+          by blocklist.de's partner servers. When a partner's FTP daemon (ProFTPD,
+          vsftpd, Pure-FTPd, etc.) triggers a detection rule, Fail2Ban or DenyHost
+          sends a report to blocklist.de containing the attacking IP, the service
+          name, and log excerpts. Blocklist.de parses these reports using X-ARF format,
+          resolves the abuse contact for the attacking ISP via WHOIS/RIPE/Abusix,
+          and forwards the report. The IP enters the export feed if it passes the
+          whitelist cross-check and has been reported within 48 hours.
+      scope_and_intent:
+        description: The FTP feed is intended for operators who wish to block sources
+          of FTP server attacks at their network perimeter. It covers brute-force
+          authentication attempts, credential stuffing, and exploit probing against
+          FTP daemons.
+        intended_for:
+        - Edge firewall blocking of FTP attack sources
+        - Fail2Ban and DenyHost integration for automated banning and reporting
+        - Security monitoring and alerting on FTP attack trends
+        not_intended_for:
+        - Permanent long-term blocking — IPs expire after 48 hours by design
+        - Blocking of legitimate FTP client traffic — the allow-list cross-check reduces
+          but does not eliminate this risk
+        - As the sole source of threat intelligence — blocklist.de recommends combining
+          with other feeds
+      license: public feed
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: The feed is publicly downloadable with no stated restrictions. The
+          terms page carries a liability disclaimer but no redistribution prohibition.
+          As a practical norm, operators credit blocklist.de when incorporating the
+          feed into published configurations.
+      current_status:
+        state: active
+        description: Active and maintained. The service has operated continuously
+          since 2007 per the site copyright, and the ftp.txt file is served by the
+          maintainer with an MD5 checksum. No discontinuation, migration, or rename
+          notice was found on any maintainer-controlled page.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: No discussion specifically about the ftp.txt variant was identified
+          in the surveyed sources. Maintainer-wide community signal for Blocklist.de
+          (firewall integration posts, general curation preferences) is recorded on
+          the parent `blocklist_de` feed page and not duplicated here.
+      sources_consulted:
+      - url: https://www.blocklist.de/
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.blocklist.de/en/about.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.blocklist.de/en/export.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.blocklist.de/terms.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://www.blocklist.de/en/delist.html
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://lists.blocklist.de/lists/ftp.txt
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: 
+          https://www.reddit.com/r/opnsense/comments/13hfl9v/which_ip_block_lists_do_you_apply_to_your_opnsense/
+        document_date: '2023-05-08'
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: 
+          https://www.reddit.com/r/selfhosted/comments/1pbijys/python_i_built_an_automated_abuse_reporter_parse/
+        document_date: '2025-04-29'
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: 
+          https://www.reddit.com/r/PFSENSE/comments/1o5jf64/which_ip_dnsbl_lists_are_your_favorites/
+        document_date: '2025-01-20'
+        validation_date: '2026-05-16T00:00:00Z'
+      - url: https://glockapps.com/tutorials/delist-from-blocklist-de
+        document_date:
+        validation_date: '2026-05-16T00:00:00Z'

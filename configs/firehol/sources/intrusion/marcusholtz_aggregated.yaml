@@ -1,0 +1,210 @@
+sources:
+  marcusholtz_aggregated:
+    license: public feed
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MarcusHoltz/ipblocklist-geofiltered-aggregator/main/data/output/aggregated.txt
+    frequency: 240
+    ipv: ipv4
+    output: netset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[MarcusHoltz/ipblocklist-geofiltered-aggregator](https://github.com/MarcusHoltz/ipblocklist-geofiltered-aggregator)
+      aggregated attacker IPs from multiple upstream sources, with per-country geofilter
+      variants. This is the full merged list (~440K entries, including CIDR blocks).'
+    maintainer: Marcus Holtz
+    maintainer_url: https://github.com/MarcusHoltz/ipblocklist-geofiltered-aggregator
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T22:34:53+00:00'
+      official_name: Multi-Country IP Address Internet Blocklist Aggregator
+      official_url: https://github.com/MarcusHoltz/ipblocklist-geofiltered-aggregator
+      short_description: Automated aggregator that merges multiple public IP blocklists
+        into a single deduplicated list, then filters entries by geographic region
+        using a GeoIP dataset to produce per-country blocklist files for firewall
+        ingestion.
+      long_description: "The project automates the collection, deduplication, and
+        geographic filtering of public IP blocklists for use with pfSense, OPNsense,
+        and other iptables-compatible firewalls. It downloads entries from fifteen
+        upstream threat intelligence feeds, merges them into a single deduplicated
+        list, resolves each IP to a country using Datopian's GeoIP2 IPv4 dataset,
+        and collapses overlapping CIDR ranges to minimize firewall alias entry counts.
+        The pipeline outputs both a combined global file and per-country files for
+        six configured nations.\n\nThe aggregator is designed as a GitHub template:
+        operators fork the repository, configure their desired source feeds and target
+        countries in a .env file, and run the pipeline either via GitHub Actions (twice
+        daily on a cron schedule) or locally with Docker Compose. The maintainer describes
+        the motivation as addressing the desire for geographic threat mitigation without
+        exceeding default firewall table size limits, and without sharing connection
+        data with third-party services.\n\nThe maintainer notes on their security
+        blog that the solution targets servers and services that are not intended
+        to be accessed from certain geographic regions, and that VLSM optimization
+        keeps entry counts manageable for typical firewall hardware. IPv6 is not within
+        scope — the GeoIP dataset and all source feeds are IPv4-only."
+      roles:
+      - role: maintainer
+        name: Marcus Holtz
+        organization_type: individual
+        official_url: https://github.com/MarcusHoltz
+        contact_email:
+        based_in: Denver, CO, USA
+        active_since: '2025-08-19'
+        notes: Senior systems engineer with 11+ years of infrastructure and networking
+          experience. Operates the project as a personal open-source initiative; also
+          maintains a security blog covering pfSense and OPNsense tutorials. No commercial
+          entity or organization is associated with the project.
+      derivation:
+        type: aggregate_merge
+        description: The feed builds by downloading entries from fifteen upstream
+          threat intelligence sources, merging them into a single deduplicated list,
+          resolving each IP to a country via Datopian's GeoIP2 IPv4 dataset, and collapsing
+          overlapping CIDR ranges into optimal supernets. Per-country files are produced
+          alongside the combined output. The pipeline runs on a cron-triggered GitHub
+          Actions workflow twice daily.
+        source_feeds:
+        - identifier: Emerging Threats Block IPs
+          relationship: aggregate_component
+          notes: Proofpoint ET INT feed
+        - identifier: Abuse.ch Feodo Tracker
+          relationship: aggregate_component
+          notes: Botnet C2 blocklist, 15-minute refresh
+        - identifier: Spamhaus DROP
+          relationship: aggregate_component
+          notes: Do Not Route Or Peer list, daily refresh
+        - identifier: Spamhaus EDROP
+          relationship: aggregate_component
+          notes: Extended DROP, daily refresh
+        - identifier: stamparm/ipsum Level 3
+          relationship: aggregate_component
+          notes: Honeypot intelligence feed
+        - identifier: borestad/blocklist-abuseipdb
+          relationship: aggregate_component
+          notes: AbuseIPDB scored IPs, 30-day window
+        - identifier: romainmarcoux/malicious-ip
+          relationship: aggregate_component
+          notes: Four hourly scanner/brute-force aggregation files
+        - identifier: LittleJake/ip-blacklist
+          relationship: aggregate_component
+          notes: Consolidated blacklist
+        - identifier: CINS Score Bad Guys
+          relationship: aggregate_component
+          notes: CINS Army list
+        - identifier: Bitwire ipblocklist
+          relationship: aggregate_component
+          notes: Inbound/outbound aggregated feed, 2-hour interval
+      listing_policy:
+        summary: Entries are inherited directly from the fifteen upstream sources.
+          The aggregator performs no independent threat assessment — it does not add,
+          modify, or remove individual entries beyond geographic classification and
+          CIDR collapsing. Any given IP appears on this feed because at least one
+          upstream source listed it.
+        criteria:
+        - Listed by at least one upstream source feed
+        - Resolved to a configured target country via GeoIP dataset
+        - Deduplicated and CIDR-collapsed during aggregation
+      unlisting_policy:
+        summary: No independent unlisting mechanism exists. Entries expire when they
+          expire from the upstream sources that contributed them. The aggregator does
+          not conduct manual review or operate a complaint channel.
+        criteria:
+        - Expires when the originating upstream source removes the entry
+        - No manual removal request is processed by this project
+      unlist_request:
+      update_frequency:
+        frequency: 12h
+        human_readable: Runs twice daily at 02:17 AM UTC and 02:17 PM UTC via GitHub
+          Actions cron trigger, per the maintainer's documentation. Manual triggers
+          are also available through the GitHub Actions interface.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: The feed aggregates entries from fifteen upstream threat intelligence
+          sources that employ varied detection methodologies — honeypots, community
+          reports, sinkhole hits, blocklist votes, and commercial threat intelligence.
+          The aggregator itself performs no independent detection; it deduplicates
+          and classifies by geography. Geographic assignment uses Datopian's GeoIP2
+          IPv4 dataset, which maps IP address ranges to allocated country registries.
+      scope_and_intent:
+        description: The feed is designed for firewall administrators who want to
+          block malicious IPs originating from specific geographic regions, particularly
+          for services that are not intended to be accessed from those regions. The
+          maintainer emphasizes that the solution is sized for typical firewall hardware
+          — VLSM-optimized CIDR collapsing keeps entry counts within default table
+          size limits — and that the approach suits operators who prefer to self-host
+          their blocklist aggregation rather than share connection data with third-party
+          services.
+        intended_for:
+        - Geographic threat mitigation on pfSense and OPNsense firewalls
+        - Blocking malicious IPs from specific countries for services with regional
+          access requirements
+        - Self-hosted IP blocklist aggregation without third-party data sharing
+        not_intended_for:
+        - General-purpose all-country blocking without geographic targeting
+        - Environments where false positives affecting legitimate international users
+          are unacceptable
+        - IPv6 threat intelligence
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: No redistribution terms are stated by the direct upstream. The repository
+          has no LICENSE file and no README terms restricting reuse.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026. The repository received an
+          automated update commit on May 17, 2026. The maintainer operates the project
+          as a personal GitHub template repository and publishes regular updates via
+          GitHub Actions.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion is sparse. No GitHub issues have been
+          filed against the repository (zero open, zero closed). No Reddit mentions,
+          security blog references, or third-party deployment reports were found.
+          The project has accumulated 2 stars on GitHub (as of May 2026). The maintainer
+          operates the project as a personal template repository; operators are expected
+          to fork and self-host rather than engage with a central instance.
+      sources_consulted:
+      - url: https://github.com/MarcusHoltz/ipblocklist-geofiltered-aggregator
+        document_date: '2026-05-17'
+        validation_date: '2026-05-17T22:20:00+00:00'
+      - url: 
+          https://raw.githubusercontent.com/MarcusHoltz/ipblocklist-geofiltered-aggregator/main/README.md
+        document_date: '2026-05-17'
+        validation_date: '2026-05-17T22:20:00+00:00'
+      - url: https://api.github.com/repos/MarcusHoltz/ipblocklist-geofiltered-aggregator
+        document_date:
+        validation_date: '2026-05-17T22:20:00+00:00'
+      - url: 
+          https://raw.githubusercontent.com/MarcusHoltz/ipblocklist-geofiltered-aggregator/main/.env
+        document_date:
+        validation_date: '2026-05-17T22:25:00+00:00'
+      - url: 
+          https://raw.githubusercontent.com/MarcusHoltz/ipblocklist-geofiltered-aggregator/main/LICENSE
+        document_date:
+        validation_date: '2026-05-17T22:25:00+00:00'
+      - url: 
+          https://raw.githubusercontent.com/MarcusHoltz/ipblocklist-geofiltered-aggregator/main/run.sh
+        document_date:
+        validation_date: '2026-05-17T22:27:00+00:00'
+      - url: 
+          https://raw.githubusercontent.com/MarcusHoltz/ipblocklist-geofiltered-aggregator/main/Dockerfile
+        document_date:
+        validation_date: '2026-05-17T22:29:00+00:00'
+      - url: 
+          https://github.com/MarcusHoltz/ipblocklist-geofiltered-aggregator/tree/main/data/output
+        document_date: '2026-05-17'
+        validation_date: '2026-05-17T22:28:00+00:00'
+      - url: https://www.marcusholtz.com/index.html
+        document_date:
+        validation_date: '2026-05-17T22:28:00+00:00'
+      - url: https://blog.holtzweb.com/posts/custom-ipblocklist-aggregator-with-geofiltering/
+        document_date: '2025-08-18'
+        validation_date: '2026-05-17T22:28:00+00:00'

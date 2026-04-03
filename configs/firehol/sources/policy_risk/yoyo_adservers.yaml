@@ -1,0 +1,183 @@
+sources:
+  yoyo_adservers:
+    license: Free to combine and redistribute (no formal license)
+    redistributable: true
+    url: 
+      http://pgl.yoyo.org/adservers/iplist.php?ipformat=plain&showintro=0&mimetype=plaintext
+    frequency: 720
+    ipv: ipv4
+    output: ipset
+    processor:
+    - $CAT_CMD
+    processor_raw: $CAT_CMD
+    category: policy_risk
+    info: '[Yoyo.org](http://pgl.yoyo.org/adservers/) IPs of ad servers'
+    maintainer: Yoyo.org
+    maintainer_url: http://pgl.yoyo.org/adservers/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T13:47:24+00:00'
+      official_name: Peter Lowe's Ad and Tracking Server List
+      official_url: https://pgl.yoyo.org/adservers/
+      short_description: A curated list of advertising, tracking, and malware server
+        hostnames maintained by Peter Lowe, resolvable to IP addresses for DNS-level
+        blocking.
+      long_description: "Peter Lowe's Ad and Tracking Server List is one of the oldest
+        continuously maintained public blocklists, originating in May 1998. The list
+        collects hostnames of servers primarily used for delivering advertisements,
+        tracking user behaviour, or distributing malware, then makes them available
+        in 34 different formats for use with DNS-based blockers, browser extensions,
+        hosts files, and network proxies.\n\nThe maintainer adds only the highest-level
+        domain at which ad or tracking activity is observed — for example, doubleclick.net
+        is listed rather than ad.doubleclick.net or any subdomain beneath it. This
+        conservative approach keeps the total entry count modest but means that blocking
+        a parent domain also blocks all of its subdomains simultaneously. Submissions
+        from the public were accepted by email and a web form, but the maintainer
+        suspended incoming submissions citing overwhelming spam volume. Existing entries
+        are validated automatically every Friday at 12:00 GMT; entries that fail six
+        consecutive DNS checks are permanently removed.\n\nThe list is available as
+        pure hostnames (for DNS-based blockers) and as a resolved IP-address list
+        (for firewalls and ipset-based tools). Integrations exist for Pi-hole, AdGuard
+        Home, OpenWrt adblock, uBlock Origin, and numerous other ad-blocking platforms.
+        Peter Lowe operates the project as an individual without institutional backing,
+        supported by a Patreon account."
+      roles:
+      - role: maintainer
+        name: Peter Lowe
+        organization_type: individual
+        official_url: https://github.com/pgl
+        contact_email: pgl@yoyo.org
+        based_in:
+        active_since: '1998'
+        notes: Operates the project as an individual. Accepts Patreon support. Responds
+          to community issues on Reddit and via direct email.
+      derivation:
+        type: derivative
+        description: The maintainer discovers ad and tracking server hostnames through
+          user submissions and independent research, then makes them available as
+          a hostname list. The IP-address variant (the format the catalog downloads)
+          is produced by resolving those hostnames to IPv4 addresses via DNS lookup.
+          The maintainer does not consume other public IP feeds as inputs.
+        source_feeds: []
+      listing_policy:
+        summary: Only the highest-level domain at which advertising, tracking, or
+          malicious activity is observed qualifies for inclusion. Submissions for
+          subdomains beneath an already-listed parent domain are declined. The maintainer
+          reviews submissions manually before adding an entry; automated DNS checks
+          run every Friday to confirm continued validity.
+        criteria:
+        - The hostname must resolve to a live IP address via DNS
+        - The server must be primarily used for serving ads, tracking users, distributing
+          malware, enforcing anti-adblock walls, or generating spam
+        - Only the highest-level domain is listed (e.g., doubleclick.net, not ad.doubleclick.net)
+        - Subdomains beneath an already-listed domain are not added separately
+        - Entries are reviewed manually before initial inclusion
+        - Entries must pass automated DNS validation every Friday at 12:00 GMT to
+          remain listed
+      unlisting_policy:
+        summary: An entry is automatically removed if it fails DNS resolution for
+          six consecutive Friday validation cycles. Domain owners can also request
+          removal by contacting the maintainer directly.
+        criteria:
+        - Automatic removal after six consecutive weekly DNS lookup failures
+        - Manual removal on request via email to the maintainer
+      unlist_request:
+        url:
+        email: pgl@yoyo.org
+        instructions: Send an email to pgl@yoyo.org describing the domain or IP address
+          to be removed and the reason. The maintainer processes corrections directly.
+      update_frequency:
+        frequency:
+        human_readable: Validated every Friday at 12:00 GMT per the maintainer's policy
+          page; no fixed publication schedule is stated for new additions.
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods:
+        - malware_analysis
+        description: The maintainer receives user-submitted hostnames of suspected
+          ad, tracking, or malware servers, reviews them manually, and adds qualifying
+          entries. Automated DNS checks run every Friday to validate that existing
+          entries still resolve. The maintainer also identifies servers independently
+          — the policy page lists 'other nasty stuff at my discretion' as a catch-all
+          category.
+      scope_and_intent:
+        description: The list is intended for DNS-level or hosts-file-based blocking
+          of advertising, tracking, and malware delivery infrastructure at the network
+          perimeter or on individual devices.
+        intended_for:
+        - DNS-based ad and tracker blocking on home or office networks (Pi-hole, AdGuard
+          Home, OpenWrt adblock)
+        - Browser-extension-based ad blocking (uBlock Origin, AdBlock Plus)
+        - Hosts-file-based blocking on workstations and servers
+        - Network-proxy ACL blocking (Squid)
+        not_intended_for:
+        - Enterprise security monitoring or intrusion detection (the list targets
+          advertising infrastructure, not attacker infrastructure)
+        - Identifying compromised endpoints or C2 communications
+        - Email security or SMTP sender reputation
+      license: Free to combine and redistribute (no formal license)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: false
+        attribution_required: Credit Peter Lowe — pgl@yoyo.org — https://pgl.yoyo.org/
+        terms: Per the maintainer's main page, the list may be combined with other
+          lists and republished on the web. The governing license (McRae General Public
+          License v4.r53) prohibits commercial use or redistribution in any manner
+          that could be construed as generating revenue.
+      current_status:
+        state: active
+        description: Active and maintained as of May 2026. The maintainer continues
+          to publish regular updates and validate entries weekly on Fridays. User
+          submissions remain suspended due to spam volume.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Community members have noted that the list's root-domain blocking
+          policy can cause overblocking — blocking a parent domain also blocks all
+          of its subdomains, which occasionally affects legitimate services hosted
+          on shared infrastructure. A Reddit thread in August 2020 and subsequent
+          discussions characterised the list as 'overzealous' for this reason; the
+          maintainer responded by clarifying the policy rationale on the policy page.
+          Intermittent update failures were reported in January 2026 and were resolved
+          by the maintainer within days.
+        engagement: 'Public discussion is moderate. Peter Lowe engages directly with
+          users on Reddit and via email, typically responding to issue reports within
+          hours. The list is integrated into Pi-hole (with a known format-parsing
+          workaround documented in Pi-hole issue #5248, resolved in v5.16.2), AdGuard
+          Home, OpenWrt adblock packages, and uBlock Origin. Third-party mirrors exist
+          on GitHub under multiple projects. Sparse public criticism exists, concentrated
+          on the overblocking behaviour inherent to the root-domain policy.'
+      sources_consulted:
+      - url: https://pgl.yoyo.org/adservers/
+        document_date: '2026-03-29'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://pgl.yoyo.org/adservers/policy.php
+        document_date: '2026-05-15'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://pgl.yoyo.org/adservers/formats.php
+        document_date: '2026-05-15'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://pgl.yoyo.org/license/
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: 
+          https://www.reddit.com/r/uBlockOrigin/comments/1ql4iow/peter_low_ad_server_list_wont_update/
+        document_date: 2026-01-XX
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://news.ycombinator.com/item?id=17768274
+        document_date: 2020-08-XX
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/pi-hole/pi-hole/issues/5248
+        document_date: '2024'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/pgl
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://gist.github.com/LeiHao0/4a4235df0fb97d559f9876eab0ebb5a4
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/Ultimate-Hosts-Blacklist/yoyo.org_ips
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'

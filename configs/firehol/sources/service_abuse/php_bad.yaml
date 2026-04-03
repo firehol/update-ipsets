@@ -1,0 +1,209 @@
+sources:
+  php_bad:
+    license: Project Honey Pot Terms of Use — All Rights Reserved
+    redistributable: false
+    url: http://www.projecthoneypot.org/list_of_ips.php?t=b&rss=1
+    frequency: 60
+    history:
+    - 1440
+    - 10080
+    - 43200
+    ipv: ipv4
+    output: ipset
+    processor:
+    - xml_rss_title
+    processor_raw: parse_php_rss
+    category: service_abuse
+    info: '[projecthoneypot.org](http://www.projecthoneypot.org/?rf=192670) bad web
+      hosts (this list is composed using an RSS feed)'
+    maintainer: ProjectHoneypot.org
+    maintainer_url: http://www.projecthoneypot.org/
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T02:41:39Z'
+      official_name: Bad Web Host IPs
+      official_url: http://www.projecthoneypot.org/list_of_ips.php?t=b
+      short_description: IP addresses observed engaging in confirmed malicious web
+        behavior — harvesting email addresses, posting spam comments, or hosting phishing
+        and malware — sourced from Project Honey Pot's global honeypot network.
+      long_description: "The Bad Web Host IPs feed (`t=b`) publishes IPv4 addresses
+        observed exhibiting confirmed malicious HTTP behavior on websites participating
+        in the Project Honey Pot honeypot network — specifically email-address harvesting,
+        spam-comment posting to web forms, and hosting of phishing or malware pages.
+        This is the maintainer's union/composite feed across the confirmed-harm HTTP
+        categories; operators looking for a single combined web-side blocklist consume
+        this in place of the per-behavior feeds (`t=h` harvesters, `t=c` comment spammers).\n\
+        \nEach RSS entry carries one IP per item with associated behavioral tags (for
+        example, `SD` for Comment Spammer, `S` for Suspicious) and timestamps of first
+        and most recent bad events. A separate Suspicious feed tracks IPs with behavior
+        consistent with malicious bots where confirmed harm has not yet been observed;
+        the Bad Web Host IPs feed covers confirmed-harm categories only.\n\nPer the
+        maintainer's documentation, being listed does not imply the IP's owner is
+        a spammer — the IP may have been hijacked or compromised without the owner's
+        knowledge. The feed is targeted at website administrators, web application
+        firewalls, and edge security tooling making HTTP-traffic block or challenge
+        decisions; it is not intended for email-gateway filtering (the maintainer's
+        sibling `t=s` Spam Server IPs feed is the email-side product)."
+      roles:
+      - role: maintainer
+        name: Unspam Technologies, Inc.
+        organization_type: commercial
+        official_url: http://www.unspam.com/
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: Anti-spam company that created and operates Project Honey Pot. Governed
+          by the Project Honey Pot Terms of Use (dated April 15, 2007). Located at
+          P.O. Box 57265, Murray, UT 84157-0265, USA.
+      derivation:
+        type: original
+        description: The feed is produced directly from Project Honey Pot's distributed
+          honeypot network. Participating webmasters install PHP scripts that embed
+          uniquely tagged email addresses on their sites; any email received at those
+          addresses is attributed to the visiting IP and classified by behavior type.
+          No external IP feeds are consumed. The feed is packaged as an hourly-refreshed
+          RSS document.
+        source_feeds: []
+      listing_policy:
+        summary: "An IP is listed when Project Honey Pot's distributed honeypot network
+          detects confirmed malicious HTTP behavior originating from that IP. The
+          primary triggering behaviors are: harvesting email addresses from websites,
+          posting spam comments to web forms, and hosting phishing or malware pages.
+          A secondary 'Suspicious' category covers IPs exhibiting behavior consistent
+          with malicious bots but where confirmed harm has not yet been observed;
+          those are accessible through a separate feed. Threat severity is scored
+          on a 0–255 logarithmic scale based on the number of honey pots visited and
+          the damage done (addresses harvested or forms posted)."
+        criteria:
+        - Harvesting email addresses from websites instrumented with Project Honey
+          Pot trap addresses
+        - Posting spam comments to web forms on participating sites
+        - Hosting phishing or malware pages detected by the honeypot network
+        - Behavior consistent with a malicious bot contributing to a 'Suspicious'
+          classification (separate feed)
+      unlisting_policy:
+        summary: IPs are automatically removed from the list after a period of inactivity
+          with no detected bad events, per an official statement by the maintainer.
+          Additionally, IP owners can submit a self-service whitelisting request via
+          the Project Honey Pot website, provided they submit the request from an
+          IP within the same /24 range as the listed IP. Re-offending IPs face an
+          escalating whitelist delay — each subsequent delisting increases the waiting
+          period before a new whitelisting request takes effect.
+        criteria:
+        - Automatic expiry after an undocumented period of inactivity with no further
+          bad events
+        - Self-service whitelisting via the Project Honey Pot whitelisting form, submitted
+          from the same /24 network range
+        - Progressive whitelist delay penalty for IPs that re-offend after whitelisting
+      unlist_request:
+        url: http://www.projecthoneypot.org/white_list.php
+        email:
+        instructions: Visit the whitelisting form at projecthoneypot.org/white_list.php,
+          select the IP to whitelist, provide a reason from the dropdown (options
+          include 'Belongs to a Search Engine', 'Hit by a virus or trojan', 'Mistaken
+          Listing', 'Owner of a Dynamic IP Address', or 'Other'), optionally add notes,
+          and complete the human verification. The request must be submitted from
+          an IP within the same /24 range as the listed IP. Allow approximately one
+          hour for propagation. For cases where self-service whitelisting is unavailable
+          or unsuccessful, use the contact form at projecthoneypot.org/contact_us.php
+          — the maintainer advises first correcting the underlying issue that caused
+          the listing before contacting.
+      update_frequency:
+        frequency: 60m
+        human_readable: Refreshed every 60 minutes per the maintainer's stated update
+          interval.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods:
+        - user_submission
+        description: The feed is built from a distributed honeypot network. Participating
+          websites install PHP scripts that plant uniquely tagged email addresses;
+          any email received at those addresses is attributed to the visiting IP and
+          classified by behavior type. Secondary contributions come from user-submitted
+          IP reports via the Project Honey Pot lookup and commenting system.
+      scope_and_intent:
+        description: The Bad Web Host IPs feed covers IP addresses observed engaging
+          in confirmed malicious web behavior detected by the Project Honey Pot honeypot
+          network. The maintainer explicitly notes that listing does not imply the
+          IP's owner is a spammer — the IP may have been hijacked or compromised without
+          the owner's knowledge.
+        intended_for:
+        - Website administrators blocking malicious HTTP visitors
+        - Web application firewalls screening incoming traffic
+        - Security researchers correlating malicious IP activity
+        not_intended_for:
+        - Email gateway blocking (the HTTP:BL system is designed for HTTP traffic,
+          not email delivery decisions)
+        - Certification of an IP as non-malicious (NXDOMAIN responses mean only that
+          no malicious behavior has been observed, not that an IP is safe)
+      license: Project Honey Pot Terms of Use — All Rights Reserved
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms: The Project Honey Pot Terms of Use prohibit reproduction and redistribution
+          without written permission from Unspam Technologies. Resale of the service
+          is expressly prohibited. Operators consuming the feed should obtain their
+          own legal clearance directly from Unspam Technologies if redistribution
+          is planned.
+      current_status:
+        state: active
+        description: Maintained as of May 18, 2026. The feed was observed updating
+          on that date with a current pubDate timestamp. The maintainer's website
+          is reachable and the Bad Web Host IPs listing page is accessible.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Shared web hosting is the feed's most contested attribution context.
+          When a single tenant on a shared host gets compromised and used for harvesting
+          or comment-spam, the host's outbound IP is listed and every other tenant
+          on that IP can be blocked by downstream consumers — even though the affected
+          tenants have no operational control over the cause. The maintainer's whitelist
+          mechanism asks operators to 'correct the underlying issue', which is impossible
+          when the issue is a neighbour the operator cannot reach. Removal from this
+          feed also does not guarantee automatic removal from downstream blockers
+          that independently consume the data and cache stale listings.
+        engagement: Affected web operators surface this feed most often when their
+          site is blocked by a CDN or WAF that consumes the Bad Web Host IPs list
+          (directly or via a derivative). Public discussion is otherwise sparse and
+          concentrated on individual removal requests rather than substantive evaluation
+          of the feed's detection methodology or comparative quality.
+      sources_consulted:
+      - url: http://www.projecthoneypot.org/
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: http://www.projecthoneypot.org/about_us.php
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: http://www.projecthoneypot.org/httpbl_api.php
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: http://www.projecthoneypot.org/services_overview.php
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: http://www.projecthoneypot.org/list_of_ips.php?t=b
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://www.projecthoneypot.org/list_of_ips.php?t=b&rss=1
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: http://www.projecthoneypot.org/terms_of_use.php
+        document_date: '2007-04-15'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: http://www.projecthoneypot.org/white_list.php
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: http://www.projecthoneypot.org/contact_us.php
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: http://www.projecthoneypot.org/board/read.php?f=10&i=37&t=37
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: http://www.projecthoneypot.org/board/read.php?f=4&i=941&t=938
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: 
+          https://www.reddit.com/r/AskNetsec/comments/2z9v0x/project_honeypot_has_my_ip_on_its_blacklist/
+        document_date: '2015-03-22'
+        validation_date: '2026-05-19T00:00:00Z'

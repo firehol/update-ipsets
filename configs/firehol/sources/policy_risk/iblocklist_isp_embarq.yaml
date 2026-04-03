@@ -1,0 +1,164 @@
+sources:
+  iblocklist_isp_embarq:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=twdblifaysaqtypevvdp&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Embarq IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T08:51:02Z'
+      official_name: Embarq
+      official_url: https://www.iblocklist.com/lists.php/1000?category=isp
+      short_description: IP address ranges formerly allocated to Embarq Corporation,
+        a U.S. regional telephone carrier that merged into CenturyLink in 2009.
+      long_description: "This feed contains IP address ranges registered to Embarq
+        Corporation, a defunct U.S. regional carrier. Embarq Corporation was created
+        in 2006 when Sprint Nextel spun off its local telecommunications division;
+        at its peak it served approximately 1.5 million access lines across 18 U.S.
+        states. On July 1, 2009, CenturyTel completed its acquisition of Embarq, and
+        the combined entity adopted the name CenturyLink (now Lumen Technologies).
+        All Embarq IP allocations became part of CenturyLink's pool following the
+        merger, so this list is in practice a historical-snapshot of a defunct ISP's
+        former allocation footprint.\n\nThe maintainer explicitly warns against subscribers
+        of the ISP using this list, advising that doing so would block their own outbound
+        connectivity. The list was designed for use with PeerBlock and PeerGuardian,
+        applications that filter incoming connections at the application layer based
+        on a locally-maintained IP blocklist. The maintainer additionally instructs
+        users not to contact support regarding problems encountered when ignoring
+        this recommendation."
+      roles:
+      - role: maintainer
+        name: iBlocklist.com
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: iBlocklist.com (iblocklist, LLC) distributes IP blocklists in P2P,
+          DAT, and CIDR formats for use with PeerBlock, PeerGuardian, and compatible
+          applications. The service offers dozens of categorized lists including ISP-specific,
+          government, malware, and P2P-oriented feeds. Across the broader iBlocklist.com
+          service, third-party reviews and forum reports describe lists appearing
+          frozen with file timestamps updated independently of content, unauthorized
+          auto-renewal charges, and support requests going unanswered; the maintainer's
+          own guidance instructs affected users not to contact support, foreclosing
+          the resolution pathway.
+      derivation:
+        type: original
+        description: iBlocklist.com compiles ISP-specific blocklists by aggregating
+          IP address ranges registered to named organizations. For Embarq, the list
+          covers all allocations bearing the Embarq Corporation holder designation
+          at the relevant regional internet registry. The maintainer does not publicly
+          describe the specific data sources (ARIN records, routing registries, or
+          other) used to construct or refresh these lists.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when it falls within an allocation registered to
+          Embarq Corporation at the relevant regional internet registry. The maintainer
+          does not describe a minimum-age threshold, activity requirement, or adjudication
+          process; inclusion is automatic based on organizational affiliation.
+        criteria:
+        - IP falls within a block registered to Embarq Corporation at the regional
+          internet registry
+      unlisting_policy:
+        summary: The maintainer describes no formal unlisting policy or manual delisting
+          process. Given that Embarq Corporation ceased to exist as an independent
+          entity in 2009 and its IP allocations were transferred to CenturyLink, entries
+          theoretically rotate off as ARIN reallocates the ranges. The maintainer
+          instructs affected subscribers not to contact support.
+        criteria:
+        - Automatic expiry as IP allocations are reassigned by the regional internet
+          registry
+        - No documented manual delisting channel
+      unlist_request:
+        url:
+        email:
+        instructions: The maintainer does not publish a dedicated unlisting request
+          channel for this feed. The service's general support contact form is accessible
+          at https://www.iblocklist.com/support.php but community reports indicate
+          support requests frequently go unanswered. Affected subscribers are advised
+          not to contact support per the maintainer's own guidance.
+      update_frequency:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: 'The feed is constructed by policy assignment: all IP address
+          blocks registered to Embarq Corporation at the relevant regional internet
+          registry are included unconditionally. No behavioral detection, honeypot,
+          or user-submission component is involved. Entries represent organizational
+          IP allocations rather than observed malicious activity.'
+      scope_and_intent:
+        description: The feed is scoped to all IP address ranges registered to Embarq
+          Corporation, a U.S. regional telephone carrier. Its intended use is application-layer
+          blocking of inbound connections from Embarq subscriber endpoints, primarily
+          in PeerBlock and PeerGuardian clients.
+        intended_for:
+        - Blocking inbound connections from Embarq ISP endpoints in PeerBlock or PeerGuardian
+        - Preventing identification of one's own client IP address by Embarq network
+          observers
+        not_intended_for:
+        - Subscribers of Embarq ISP — using the list would block the subscriber's
+          own outbound connectivity
+        - Modern threat intelligence or network security operations — the list reflects
+          a defunct ISP's IP allocations and has not been meaningfully refreshed since
+          2009
+        - Commercial security deployments — the Terms of Service prohibit commercial
+          use
+      license: iBlocklist Terms of Service — personal / non-commercial use only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The Terms of Service restrict use to personal, non-commercial purposes
+          only. Sharing content outside one's household or allowing others to access
+          the service through one's account is prohibited. No redistribution right
+          is granted.
+      current_status:
+        state: active
+        description: The feed remains listed on iBlocklist.com and the download URL
+          resolves. The Embarq list reflects IP allocations from a corporation that
+          ceased independent existence in 2009, so it functions as a static historical-snapshot
+          rather than an actively curated list. No discontinuation announcement has
+          been issued by the maintainer.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion specific to the Embarq feed is sparse. No notable
+          third-party recognition, awards, or citations were found for this specific
+          feed.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T08:51:02Z'
+      - url: https://www.iblocklist.com/tos.php
+        document_date:
+        validation_date: '2026-05-18T08:51:02Z'
+      - url: https://www.iblocklist.com/lists.xml
+        document_date:
+        validation_date: '2026-05-18T08:51:02Z'
+      - url: https://www.iblocklist.com/lists.php/1000?category=isp
+        document_date:
+        validation_date: '2026-05-18T08:51:02Z'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-18T08:51:02Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-18T08:51:02Z'
+      - url: https://en.wikipedia.org/wiki/Embarq
+        document_date:
+        validation_date: '2026-05-18T08:51:02Z'

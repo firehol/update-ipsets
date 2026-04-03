@@ -1,0 +1,169 @@
+sources:
+  misp_apple:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/apple/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Apple IP
+      ranges. Provider infrastructure reference, not a threat indicator.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T14:46:14Z'
+      official_name: List of known Apple IP ranges
+      official_url: https://github.com/MISP/misp-warninglists/blob/main/lists/apple/list.json
+      short_description: A curated reference list of IP address ranges allocated to
+        Apple, sourced from ARIN registration data, used to flag Apple infrastructure
+        as known provider space rather than threat indicators.
+      long_description: "The apple warninglist is a static reference list of IP address
+        ranges registered to Apple Inc. Its purpose is the inverse of a threat-indicator
+        feed: it flags Apple infrastructure as known provider space so that security
+        tooling can recognise Apple-owned IPs encountered in network telemetry or
+        event data and avoid false-positive alerts.\n\nThe list is sourced from ARIN
+        (American Registry for Internet Numbers) registration data using Apple's organization
+        identifier (OrgId APPLEC-1-Z). Per the contribution that produced the most
+        recent revision, the maintainer queries ARIN's public registry to identify
+        IP allocations assigned to Apple, then commits the resulting CIDR ranges to
+        the warninglist JSON file. Updates are driven by community pull requests rather
+        than automated synchronization with ARIN; the most recent committed revision
+        reflects ARIN allocation data as of October 2024.\n\nA notable gap: Apple
+        operates iCloud Private Relay, whose egress IPs rotate dynamically and are
+        not covered by the static ARIN-sourced ranges. GitHub issue #260 (open since
+        January 2024) proposes integrating an iCloud Private Relay dynamic feed; no
+        implementation has followed."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://github.com/MISP
+        contact_email:
+        based_in: Luxembourg
+        active_since: '2016'
+        notes: 'The MISP Project maintains the misp-warninglists repository and reviews
+          and merges community contributions. Primary day-to-day maintainer is Alexandre
+          Dulaunoy (GitHub: adulau), who performs the reviews and merges. Community
+          contributors submit updates via pull requests.'
+      derivation:
+        type: original
+        description: The list is compiled from ARIN (American Registry for Internet
+          Numbers) public registration data, queried using Apple's organization identifier
+          (OrgId APPLEC-1-Z). The contributor looks up current IP allocations assigned
+          to Apple in the ARIN WHOIS database and commits the resulting CIDR ranges
+          to the warninglist JSON file. No automated pipeline or scheduled sync with
+          ARIN is used; updates are driven by community pull requests initiated when
+          someone notices a change in Apple's registered allocations. The list does
+          not consume other IP feeds as inputs.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed when it falls within an IP address range registered
+          to Apple Inc. in the ARIN registry under OrgId APPLEC-1-Z. The contributor
+          verifies the range against ARIN's public WHOIS or allocation database before
+          committing it to the warninglist. Version numbers must be incremented with
+          each update per MISP warninglists contribution requirements.
+        criteria:
+        - The IP range must be registered to Apple Inc. under ARIN OrgId APPLEC-1-Z
+        - The range must appear in ARIN's public allocation data
+        - CIDR notation is used; individual IPs are expressed as /32 ranges where
+          applicable
+        - The version field in the JSON must be incremented on each update
+      unlisting_policy:
+        summary: Ranges are removed when Apple no longer holds them in the ARIN registry
+          under OrgId APPLEC-1-Z, or when the community identifies an incorrectly
+          listed range via a GitHub pull request. There is no automatic expiration
+          or decay mechanism. Removal follows the same PR-based contribution workflow
+          as additions.
+        criteria:
+        - The range is no longer registered to Apple under ARIN OrgId APPLEC-1-Z
+        - A community contributor identifies an incorrectly listed range and submits
+          a PR to remove it
+        - The version field must be incremented on removal
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/issues/new
+        email:
+        instructions: Submit a pull request on GitHub to update the apple list.json
+          file, removing the incorrect range and incrementing the version field. Alternatively,
+          open a GitHub issue to report the incorrect range for community review.
+      update_frequency:
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: "The list classifies IP addresses by policy assignment: it marks
+          IPs that fall within Apple's ARIN-registered address ranges as known provider
+          infrastructure. This is not a detection method in the threat-detection sense—it
+          is a reference taxonomy used by MISP to suppress false-positive alerts when
+          Apple-owned IPs appear in event data. The classification is static and manually
+          maintained against ARIN registration records."
+      scope_and_intent:
+        description: The list is intended to identify IP addresses that belong to
+          Apple infrastructure, enabling analysts and automated systems to recognize
+          Apple as the source or destination rather than treating the IPs as unidentified
+          or potentially malicious. It functions as a reference whitelist within MISP's
+          warninglist subsystem.
+        intended_for:
+        - False-positive suppression in MISP when Apple-owned IPs appear in events
+        - Pre-filtering network telemetry to exempt known Apple provider infrastructure
+        - Enriching event data with provider-context labels for Apple IPs
+        not_intended_for:
+        - Blocking or denying traffic from Apple IP ranges
+        - Treating Apple IPs as threat indicators
+        - Real-time alerting on Apple IP sightings
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal Public Domain Dedication places the data in the public
+          domain with no restrictions. No attribution is required by the license terms.
+      current_status:
+        state: active
+        description: "Actively maintained. The apple list was last updated in October
+          2024 (PR #289, merged November 2024), reflecting current ARIN allocation
+          data for Apple. Community contributions are reviewed and merged by the MISP
+          Project maintainer. An open issue (#260) requesting integration of Apple's
+          iCloud Private Relay dynamic egress IP feed remains under consideration."
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: "Community engagement is moderate and concentrated on GitHub.
+          The apple list has received one community contribution (PR #289, October
+          2024) updating the ranges from ARIN data, merged promptly by the maintainer.
+          An open issue (#260) filed in January 2024 requests integration of Apple's
+          iCloud Private Relay dynamic egress IP feed; the maintainer self-assigned
+          the issue in January 2025 but no implementation has followed. The issue
+          highlights a gap in the current static, manual-PR update model: Apple's
+          dynamically rotating iCloud Private Relay egress IPs are not covered by
+          the static ARIN-sourced list and would require automated feed fetching to
+          integrate. No notable complaints about false positives, list quality, or
+          maintenance responsiveness were found in public discussion."
+      sources_consulted:
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T14:40:00Z'
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/apple/list.json
+        document_date: '2024-10-23'
+        validation_date: '2026-05-18T14:35:00Z'
+      - url: https://github.com/MISP/misp-warninglists/pull/289
+        document_date: '2024-11-04'
+        validation_date: '2026-05-18T14:38:00Z'
+      - url: https://github.com/MISP/misp-warninglists/issues/260
+        document_date: '2024-01-12'
+        validation_date: '2026-05-18T14:38:00Z'
+      - url: https://www.circl.lu/doc/misp/warninglists
+        document_date:
+        validation_date: '2026-05-18T14:44:00Z'
+      - url: https://github.com/MISP/misp-warninglists/releases
+        document_date: '2024-11-08'
+        validation_date: '2026-05-18T14:45:00Z'

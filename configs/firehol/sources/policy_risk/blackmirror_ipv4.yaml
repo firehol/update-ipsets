@@ -1,0 +1,190 @@
+sources:
+  blackmirror_ipv4:
+    license: public feed
+    redistributable: true
+    url: https://github.com/T145/black-mirror/releases/download/latest/BLOCK_IPV4.txt
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: policy_risk
+    provenance: secondary_upstream
+    info: '[T145/black-mirror](https://github.com/T145/black-mirror) latest IPv4 blocklist
+      release asset. Bitwire consumes `BLOCK_IPV4.txt`; the upstream release asset
+      was current during audit.'
+    maintainer: T145
+    maintainer_url: https://github.com/T145/black-mirror
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T04:42:46Z'
+      official_name: Black Mirror
+      official_url: https://github.com/T145/black-mirror
+      short_description: Aggregated IPv4 address blocklist combining cybercrime trackers,
+        threat intelligence feeds, and IP block providers, filtered through privacy,
+        security, and safety whitelists.
+      long_description: "Black Mirror is an open-source blocklist aggregator producing
+        unified IPv4 address lists from dozens of upstream threat intelligence and
+        IP-block sources. The project organises its methodology around three pillars:
+        **Privacy** — whitelisting trusted VPNs, Tor exits, and torrenting providers
+        while blacklisting deanonymised telemetry, data brokers, and stalkerware;
+        **Security** — whitelisting services that promote security and privacy while
+        blacklisting known malicious actors, illegal sites, and advertising (to mitigate
+        malvertising risk); and **Safety** — blacklisting deliberate misinformation,
+        irreputable news sources, propaganda, and harmful digital vices.\n\nPer the
+        maintainer's README, the BLOCK_IPV4 list is assembled by aggregating multiple
+        upstream cybercrime-tracker feeds, big-data reference lists (Alexa, Umbrella,
+        Statvoo, OpenPageRank, Quantcast, Tranco), and dedicated IP block providers
+        (openportstats, ipdeny, IPverse, IP2Location, Okean China CIDRs). Before publication,
+        the maintainer applies whitelists to all blacklists to reduce false positives.
+        Production attributes enforced on every build include: no trailing whitespace,
+        no scraper artefacts, Unix-line endings, no blank lines, and no comment lines.\n\
+        \nThe project ships BLOCK_IPV4 alongside nine other lists (domains, IPv6,
+        CIDR blocks, and corresponding allowlists) in formats compatible with hosts
+        files, Dnsmasq, Pi-hole, AdGuard, Unbound, and Docker containers. The maintainer
+        explicitly invites community scrutiny and source-contribution proposals via
+        GitHub issues and discussions."
+      roles:
+      - role: maintainer
+        name: T145
+        organization_type: individual
+        official_url: https://github.com/T145
+        contact_email:
+        based_in:
+        active_since: '2021'
+        notes: Individual developer maintaining the project since 2021. Actively engaged
+          in GitHub Discussions and responds to community source-proposal and whitelist
+          requests.
+      derivation:
+        type: aggregate_merge
+        description: "The BLOCK_IPV4 list is produced by aggregating and deduplicating
+          multiple upstream sources: cybercrime-tracker feeds (cybercriminal-tracker.net,
+          EMV, MalwareBazaar, virusbay, malpedia, manalyzer, malshare, Metasploit
+          CVEs, malarchive), big-data reference lists used as legitimacy baselines
+          (Alexa, Umbrella/OpenDNS, Statvoo, OpenPageRank, Quantcast, Tranco), and
+          dedicated IP block providers (openportstats, ipdeny, IPverse, IP2Location,
+          Okean China CIDRs). Additional upstream aggregators referenced in the project
+          include Covert.io threat intelligence, Filterlists.com, and Firebog.net.
+          Per the maintainer's stated methodology, proposed sources are evaluated
+          for overlap with existing inputs, false-positive rate, and licence compatibility
+          before incorporation. After aggregation, the maintainer applies whitelists
+          to all blacklists to reduce false positives, then generates unified lists
+          in hosts, Dnsmasq, CIDR, and domain formats."
+        source_feeds: []
+      listing_policy:
+        summary: "Entries are added based on alignment with the project's three pillars:
+          Privacy (deanonymised telemetry, data brokers, ad redirects, stalkerware),
+          Security (known malicious actors, illegal sites, malvertising vectors),
+          and Safety (deliberate misinformation exceeding 50% of site content, propaganda,
+          harmful digital vices). The maintainer evaluates proposed sources for overlap
+          with existing inputs, false-positive rate, and licence compatibility before
+          incorporating them."
+        criteria:
+        - 'Privacy violations: deanonymised telemetry, data brokers, ad redirects,
+          stalkerware'
+        - 'Security threats: known malicious actors, illegal/sketchy sites, malvertising'
+        - 'Safety harms: deliberate misinformation >50% of site content, propaganda,
+          harmful digital vices'
+        - 'Source-level evaluation: overlap with existing feeds, false-positive rate,
+          licence compatibility'
+      unlisting_policy:
+        summary: Users may request removal of incorrectly listed entries by opening
+          a GitHub issue. The maintainer monitors discussions and responds to whitelist
+          requests — community members have successfully proposed removals through
+          both the Ideas discussion category and direct issue reports.
+        criteria:
+        - 'False positive: legitimate service incorrectly blocked'
+        - Misalignment with stated pillars
+        - Over-blocking due to overly broad source feed
+      unlist_request:
+        url: https://github.com/T145/black-mirror/issues/new/choose
+        email:
+        instructions: 'Open a GitHub issue at the project repository. The maintainer
+          monitors the Issues tracker and responds to whitelist requests and false-positive
+          reports. For domain-related removals, label the issue `list: allow Hosts
+          to allow`.'
+      update_frequency:
+        frequency: 1d
+        human_readable: Once daily at approximately 1:27 AM UTC, per the maintainer's
+          README.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods:
+        - user_submission
+        description: 'The feed is built by aggregating and deduplicating multiple
+          upstream threat intelligence and IP-block sources. The maintainer additionally
+          incorporates community-submitted source proposals reviewed for overlap,
+          false-positive rate, and licence compatibility (per Discussion #48). Whitelists
+          are applied post-aggregation to suppress known-good IPs before publication.'
+      scope_and_intent:
+        description: The project targets internet users seeking to block privacy-invasive,
+          malicious, or harmful online destinations at the network level. The BLOCK_IPV4
+          list specifically covers IPv4 addresses associated with tracked threats
+          across cybercrime, telemetry, and malvertising categories.
+        intended_for:
+        - Network-level blocking via Pi-hole, Dnsmasq, Unbound, AdGuard, or hosts-file-based
+          firewalls
+        - Container-level blocking via Docker (ghcr.io/t145/black-mirror)
+        - Blocking privacy-invasive telemetry and stalkerware
+        - Blocking malvertising and known malicious actors
+        not_intended_for:
+        - Real-time intrusion prevention (latency-sensitive environments)
+        - Legal compliance blocking (the project acknowledges it cannot guarantee
+          legal neutrality)
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: The direct upstream (GitHub releases asset) is publicly downloadable
+          with no stated redistribution restriction. Operators redistributing should
+          independently verify that all upstream source feeds permit redistribution.
+      current_status:
+        state: active
+        description: Active. Regular daily builds at 1:27 AM UTC. Latest push to the
+          repository was on 2026-05-18 per GitHub API. Seven open feature/maintenance
+          issues and eight active GitHub Discussions demonstrate ongoing maintenance.
+          Dependency bumps and a V2 release (#104) are documented in the releases
+          changelog.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: 'The project has accumulated 215 stars and 12 forks on GitHub
+          (as of May 2026), per the GitHub API. Eight active GitHub Discussions threads
+          demonstrate regular community participation, covering source additions,
+          whitelist requests, and methodology debates. Discussion #48 shows substantive
+          exchange between the maintainer and community contributors on source evaluation
+          criteria. Seven open issues are all feature requests or maintenance tasks;
+          no false-positive complaints were found in the open issues. The maintainer
+          responds to community proposals and has accepted contributions from outside
+          developers. Public discussion outside GitHub is sparse — no notable Reddit
+          threads or third-party blog coverage were found during research.'
+      sources_consulted:
+      - url: https://github.com/T145/black-mirror
+        document_date:
+        validation_date: '2026-05-19T04:30:00Z'
+      - url: https://raw.githubusercontent.com/T145/black-mirror/master/README.md
+        document_date:
+        validation_date: '2026-05-19T04:30:00Z'
+      - url: https://api.github.com/repos/T145/black-mirror
+        document_date: '2021-05-28'
+        validation_date: '2026-05-19T04:38:00Z'
+      - url: https://github.com/T145/black-mirror/discussions
+        document_date:
+        validation_date: '2026-05-19T04:34:00Z'
+      - url: https://github.com/T145/black-mirror/discussions/48
+        document_date:
+        validation_date: '2026-05-19T04:40:00Z'
+      - url: https://github.com/T145/black-mirror/issues
+        document_date:
+        validation_date: '2026-05-19T04:35:00Z'
+      - url: https://github.com/T145/black-mirror/blob/master/AGENTS.md
+        document_date:
+        validation_date: '2026-05-19T04:33:00Z'
+      - url: https://github.com/T145/black-mirror/releases
+        document_date:
+        validation_date: '2026-05-19T04:31:00Z'

@@ -1,0 +1,172 @@
+sources:
+  griffinguard:
+    license: GriffinGuard — security research / monitoring only
+    redistributable: true
+    url: https://griffinguard.io/feeds/abuse7d_top10k.txt
+    frequency: 30
+    ipv: ipv4
+    output: ipset
+    processor:
+    - csv_column:
+        index: "1"
+    processor_raw: csv_comma_first_column
+    category: intrusion
+    info: '[GriffinGuard](https://griffinguard.io/) top 10K abusive IP addresses observed
+      over the last 7 days from more than 100,000 sensors. Includes mass-Internet
+      scanners and exploiters. IPs are classified as Malicious, Institutional, or
+      Suspicious.'
+    maintainer: GriffinGuard
+    maintainer_url: https://griffinguard.io/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T19:25:54Z'
+      official_name: GriffinGuard
+      official_url: https://griffinguard.io/
+      short_description: Real-time IP threat intelligence classifying observed attackers
+        as Malicious, Benign, or Unknown with confidence scores, sourced from a distributed
+        honeypot and sensor network.
+      long_description: "GriffinGuard delivers real-time IP threat intelligence drawn
+        from a globally distributed network of honeypots and sensors. Its core value
+        proposition is reducing SIEM alert fatigue by distinguishing genuine threats
+        from benign Internet scanning activity — search engines, security researchers,
+        and CDN ranges — that frequently trigger false positives on conventional blocklists.\n\
+        \nEach IP is classified into one of three tiers: Malicious (confirmed hostile
+        activity such as botnet node behavior, brute-force attempts, or command-and-control
+        signaling), Benign (verified non-threatening actors), or Unknown (insufficient
+        evidence, such as VPN exits or residential proxies). Every classification
+        carries a numeric confidence score enabling operators to tune thresholds to
+        their environment. Outputs are enriched with ASN, GeoIP, and organizational
+        data.\n\nThe platform offers a free tier providing web-based IP lookup and
+        limited API access for evaluation. Paid tiers scale to 500,000 lookups per
+        month (Professional) and unlimited lookups with dedicated sensors (Enterprise).
+        The feed formerly published at this URL has been migrated to authenticated
+        access; interested operators should email the maintainer to obtain credentials."
+      roles:
+      - role: maintainer
+        name: GriffinGuard Inc.
+        organization_type: commercial
+        official_url: https://griffinguard.io/
+        contact_email: info@griffinguard.io
+        based_in:
+        active_since:
+        notes: Commercial security intelligence company founded by an academic researcher.
+          Operates the distributed honeypot and sensor network underlying the feed.
+      derivation:
+        type: original
+        description: First-party detection from a globally distributed network of
+          honeypots and passive sensors operated by GriffinGuard Inc. Sensors observe
+          exploitation activity in real time and classify IPs as Malicious, Benign,
+          or Unknown with confidence scores. No third-party IP feeds are consumed.
+        source_feeds: []
+      listing_policy:
+        summary: IPs are listed based on observed exploitation activity detected by
+          GriffinGuard's distributed honeypot and sensor network. An IP enters the
+          feed when its observed behavior matches patterns consistent with hostile
+          intent — such as botnet node activity, credential brute-forcing, or exploit
+          launching — versus benign Internet scanning. Each entry carries a confidence
+          score reflecting the strength of observed evidence.
+        criteria:
+        - Observed exploitation activity from GriffinGuard's own sensor network
+        - Behavior patterns consistent with hostile intent (botnet node, brute-force,
+          exploit launch, C2 signaling)
+        - Sufficient observation volume to exceed the confidence scoring threshold
+      unlisting_policy:
+        summary: IPs are automatically reclassified as new evidence accumulates. An
+          IP previously flagged Malicious may be reclassified to Benign if subsequent
+          observation reveals the activity originated from a benign actor (such as
+          a miscategorized crawler or researcher). There is no self-service unlisting
+          portal; operators with contested IPs contact the maintainer directly.
+        criteria:
+        - Accumulation of contrary evidence through continued sensor observation
+        - Manual review upon operator-submitted dispute via email
+      unlist_request:
+        url:
+        email: info@griffinguard.io
+        instructions: Email info@griffinguard.io to request access to the relocated
+          feed or to dispute a classification. No self-service unlisting portal is
+          publicly documented.
+      update_frequency:
+        frequency:
+        human_readable: Real-time — threat signals are captured and classified within
+          milliseconds of observation.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods:
+        - network_telescope
+        description: GriffinGuard operates a globally distributed network of honeypots
+          and passive sensors that observe Internet exploitation activity the moment
+          it occurs. Honeypots actively solicit attack traffic by exposing vulnerable
+          services; passive telescopes monitor unsolicited probing. Observed behaviors
+          are matched against signatures for known threat patterns (Mirai botnet nodes,
+          SSH/RDP brute-forcers, C2 servers, exploit launchers). Each IP receives
+          a confidence score from 0 to 1 reflecting the weight of accumulated evidence.
+      scope_and_intent:
+        description: GriffinGuard is designed for SOC teams, threat hunters, and security
+          engineers who need to distinguish genuine threats from benign Internet scanning
+          activity in real time. The platform enriches IP observables with classification,
+          confidence scores, GeoIP, ASN, and historical activity timelines to support
+          alert triage, incident response, and automated blocking workflows.
+        intended_for:
+        - SOC alert triage — reduce false positives from benign crawlers and scanners
+        - Incident response — enrich forensic data with threat classification and
+          confidence scores
+        - Automated blocking and enrichment — SIEM, SOAR, and TIP integrations via
+          REST API
+        - Edge device and network protection — identify hostile IPs targeting networked
+          systems
+        not_intended_for:
+        - Bulk pre-emptive blocking of entire ASNs or countries without local risk
+          assessment
+        - Email spam filtering (distinct from IP-based intrusion detection)
+      license: Restricted — security research / monitoring only
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: No explicit direct-upstream prohibition on redistribution, copying,
+          mirroring, or public sharing was found. The source describes security research
+          and monitoring use; pass that use restriction through rather than marking
+          the feed non-redistributable.
+      current_status:
+        state: reformatted
+        description: The feed formerly available at this URL has been relocated to
+          authenticated access. The data continues to be maintained and is freely
+          available by emailing info@griffinguard.io. Regular updates continue; the
+          change affects access method, not feed availability.
+        successor:
+          name: GriffinGuard authenticated feed
+          url:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion of GriffinGuard is sparse. Extensive
+          searches across Reddit, cybersecurity forums, review platforms (Gartner
+          Peer Insights, G2, Capterra), and social media found no independent user
+          reviews, false-positive reports, or comparative evaluations. The platform
+          appears in at least one third-party threat intelligence resource list (Awesome
+          Threat Intelligence on GitHub), but no substantive community discourse about
+          reliability, accuracy, or operational experience was found.
+      sources_consulted:
+      - url: https://griffinguard.io/
+        document_date:
+        validation_date: '2026-05-16T19:20:00Z'
+      - url: https://griffinguard.io/pricing
+        document_date:
+        validation_date: '2026-05-16T19:22:00Z'
+      - url: https://griffinguard.io/privacy
+        document_date:
+        validation_date: '2026-05-16T19:21:00Z'
+      - url: https://griffinguard.io/about
+        document_date:
+        validation_date: '2026-05-16T19:21:00Z'
+      - url: https://griffinguard.io/use-cases
+        document_date:
+        validation_date: '2026-05-16T19:24:00Z'
+      - url: https://griffinguard.io/feeds/abuse7d_top10k.txt
+        document_date:
+        validation_date: '2026-05-16T19:20:00Z'
+      - url: https://griffinguard.io/contact
+        document_date:
+        validation_date: '2026-05-16T19:21:00Z'

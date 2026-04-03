@@ -1,0 +1,159 @@
+sources:
+  bogons:
+    label: Team Cymru bogons (aggregated)
+    license: Free — no restrictions stated on https://www.team-cymru.com/bogon-reference-http
+      ("Free. Forever.")
+    redistributable: true
+    url: https://team-cymru.org/Services/Bogons/bogon-bn-agg.txt
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: special_use
+    info: '[Team-Cymru.org](http://www.team-cymru.org) private and reserved addresses
+      defined by RFC 1918, RFC 5735, and RFC 6598 and netblocks that have not been
+      allocated to a regional internet registry'
+    maintainer: Team Cymru
+    maintainer_url: http://www.team-cymru.org/
+    enabled_by_all: true
+    exclude_from_unmaintained: true
+    use: [bogons]
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T02:48:23+00:00'
+      official_name: Team Cymru Bogons
+      official_url: https://www.team-cymru.com/bogon-reference-http
+      short_description: A curated list of special-use and reserved IP prefixes —
+        including RFC 1918 private addresses, documentation/test ranges, and unallocated
+        space — that should not appear in public internet traffic.
+      long_description: "This feed is the aggregated traditional bogons list from
+        Team Cymru, distributed as a plain-text file (bogon-bn-agg.txt) covering martian
+        and special-use IP address space that should not appear on the public internet
+        — including private addresses, loopback, link-local, documentation, benchmarking,
+        and multicast ranges defined by RFC 1918, RFC 5735, RFC 6598 and related RFCs.\n\
+        \nThe aggregated form collapses adjacent reserved ranges into the smallest
+        possible CIDR set, making the list compact and easy to apply at network borders.
+        Per the maintainer's documentation, the traditional bogon list is updated
+        as IANA makes new allocations to regional internet registries or as standards
+        bodies revise relevant RFCs, and the maintainer requests that automated fetchers
+        not poll more than once per day.\n\nThe maintainer explicitly warns that bogon
+        filtering is not a simple operation and that improper application — particularly
+        on LAN or DMZ interfaces — can cause an operator to lose access to their own
+        equipment. The service carries no warranties or guarantees of uptime or fitness
+        for a particular purpose."
+      roles:
+      - role: maintainer
+        name: Team Cymru
+        organization_type: commercial
+        official_url: http://www.team-cymru.org/
+        contact_email:
+        based_in: United States
+        active_since: '1998'
+        notes: A cybersecurity and threat intelligence company specializing in network
+          security research, founded in the late 1990s. Operates the bogons community
+          service alongside commercial threat intelligence products.
+      derivation:
+        type: original
+        description: The aggregated traditional bogons list is compiled from authoritative
+          standards documents — RFC 1918, RFC 5735, RFC 6598, and related RFCs defining
+          special-use and reserved IPv4 address space. The maintainer updates the
+          list manually as IANA makes new allocations to regional internet registries
+          or as standards bodies revise relevant RFCs; the aggregated form collapses
+          adjacent reserved ranges into the smallest possible CIDR set.
+        source_feeds: []
+      listing_policy:
+        summary: An IP prefix is listed when it falls within a category defined by
+          an applicable RFC as reserved for special use (private addressing, loopback,
+          link-local, documentation, benchmarking, multicast, or similarly restricted
+          scope). The maintainer monitors standards-body revisions and IANA's special-use
+          registry; additions and removals are driven by formal standards events rather
+          than user reports. The aggregated form collapses adjacent reserved ranges
+          into the smallest possible CIDR set.
+        criteria:
+        - Address space designated as reserved or special-use by an applicable RFC
+          (RFC 1918, RFC 5735, RFC 6598, RFC 3927, RFC 1122, RFC 5771, and related
+          RFCs)
+      unlisting_policy:
+        summary: An IP prefix is removed when a standards body retires or redefines
+          the special-use classification of a listed range, or when IANA's special-use
+          registry no longer treats the range as reserved. The maintainer processes
+          these changes manually as they occur in standards documents and registry
+          records.
+        criteria:
+        - A relevant RFC is revised to remove the special-use designation from a listed
+          range
+        - IANA's special-use registry removes the reserved status for the range
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated as IANA allocations and standards changes occur —
+          the maintainer requests automated fetchers not poll more than once per day
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: Entries are determined by policy assignment against authoritative
+          external standards — RFC definitions of reserved and special-use IPv4 address
+          space and IANA's special-use registry. No honeypot sensors, malware analysis,
+          or user submissions contribute to this feed.
+      scope_and_intent:
+        description: The feed identifies IP address space that should not normally
+          appear in public internet traffic, enabling operators to filter anomalous
+          or spoofed source addresses at network borders.
+        intended_for:
+        - Border router and edge gateway filtering on internet-facing interfaces
+        - Transit provider route filtering to prevent bogon route leakage
+        - DDoS mitigation by discarding traffic with obviously invalid source addresses
+        - Automated filter generation via BGP peering, scripting, or routing registry
+          import
+        not_intended_for:
+        - LAN or DMZ interface filtering, where applying bogon blocklists can cause
+          operators to lose access to their own equipment
+        - Inline deep-packet-inspection or application-layer security controls
+        - End-user device host-based blocking without an anti-lockout exception for
+          locally used RFC 1918 addresses
+      license: Free — no restrictions stated ("Free. Forever.")
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: No redistribution terms are stated by the maintainer. The service is
+          offered as free and openly available.
+      current_status:
+        state: active
+        description: Active community service maintained by Team Cymru as of May 2026.
+          Updates are published as IANA makes new allocations to RIRs or as relevant
+          RFCs are revised.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Network operators and transit providers have documented multi-year
+          use of the Team Cymru bogons service, particularly the BGP Route Server
+          variant, with positive operational reports on Reddit dating from 2010 to
+          2025. The service is cited as a standard component in transit operator security
+          postures. No notable sustained criticism or unresolved complaints were found
+          in public forums.
+      sources_consulted:
+      - url: https://www.team-cymru.com/bogon-reference-http
+        document_date:
+        validation_date: '2026-05-19T02:40:00+00:00'
+      - url: http://www.team-cymru.org/
+        document_date:
+        validation_date: '2026-05-19T02:40:00+00:00'
+      - url: https://team-cymru.org/Services/Bogons/bogon-bn-agg.txt
+        document_date:
+        validation_date: '2026-05-19T02:40:00+00:00'
+      - url: https://www.team-cymru.com/bogon-reference-bgp
+        document_date:
+        validation_date: '2026-05-19T02:45:00+00:00'
+      - url: 
+          https://reddit.com/r/networking/comments/s1fctn/does_anyone_use_team_cymru_for_bogon_updates/
+        document_date: '2022-01-11'
+        validation_date: '2026-05-19T02:44:00+00:00'
+      - url: 
+          https://reddit.com/r/networking/comments/1i79wkn/network_security_as_a_transit_operator/
+        document_date: '2025-01-22'
+        validation_date: '2026-05-19T02:44:00+00:00'

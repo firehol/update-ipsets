@@ -1,0 +1,214 @@
+sources:
+  iblocklist_ciarmy_malicious:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=npkuuhuxcsllnhoamkvm&fileformat=p2p&archiveformat=gz
+    frequency: 60
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: intrusion
+    provenance: secondary_upstream
+    info: ciarmy.com IP blocklist. Based on information from a network of Sentinel
+      devices deployed around the world, they compile a list of known bad IP addresses.
+      Sentinel devices are uniquely positioned to pick up traffic from bad guys without
+      requiring any type of signature-based or rate-based identification. If an IP
+      is identified in this way by a significant number of Sentinels, the IP is malicious
+      and should be blocked.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-16T19:56:07+00:00'
+      official_name: CINS Army
+      official_url: https://cinsarmy.com/
+      short_description: A free IP blocklist identifying malicious sources detected
+        by a global network of Sentinel intrusion-prevention devices.
+      long_description: "The CINS Army is a collaborative threat intelligence initiative
+        operated by Collective Intelligence Network Security (CINS), a system built
+        atop a global network of Sentinel inline intrusion-prevention devices deployed
+        on-premises, in front of firewalls, across protected networks worldwide. Sentinel
+        devices passively monitor background traffic on unused IP addresses across
+        all protected networks — not through traditional honeypot functions, but by
+        analyzing ambient network traffic that noise-cancelling approaches would otherwise
+        dismiss. Using DPAM (Distributed Pattern Analysis Methodology), each Sentinel
+        unit contributes to a shared threat intelligence stream; when an IP accumulates
+        a poor Rogue Packet score or trips trusted alerts across a significant number
+        of Sentinels, it is added to the CINS Army blocklist.\n\nThe list is capped
+        at approximately 15,000 IP addresses (as of September 2017) and is freely
+        distributed in plain text, STIX, Snort/Suricata rules, and peer-to-peer formats.
+        It is made available through the maintainer's own site, through Emerging Threats
+        as part of their Open Source Community, and through iBlocklist.com. Nomic
+        Networks (formerly Sentinel IPS) has maintained the feed for over a decade,
+        updating the underlying threat intelligence hourly."
+      roles:
+      - role: maintainer
+        name: CINSscore.com
+        organization_type: commercial
+        official_url: https://cinsscore.com/
+        contact_email: cins@sentinelips.com
+        based_in:
+        active_since:
+        notes: Operates the CINS (Collective Intelligence Network Security) system
+          and publishes the CINS Army blocklist. Partners with Emerging Threats for
+          Open Source Community distribution.
+      - role: publisher
+        name: iBlocklist.com
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: Distributes the CINS Army list in P2P, DAT, CIDR, and hosts formats.
+          Governs the direct upstream license (personal/non-commercial only) for downloads
+          from iblocklist.com.
+      derivation:
+        type: original
+        description: The CINS Army list is compiled from Sentinel inline intrusion-prevention
+          devices deployed globally. Each device passively monitors background traffic
+          on unused IP addresses across its protected network. An IP is added when
+          it receives a poor Rogue Packet score or trips trusted alerts across a significant
+          number of Sentinels. There are no upstream IP feeds; the detection is first-party,
+          from the Sentinel collective.
+        source_feeds: []
+      listing_policy:
+        summary: 'An IP is listed when it meets one of two criteria: (1) its recent
+          Rogue Packet score factor is very poor, indicating the IP sends malformed
+          or unexpected packets at abnormal rates relative to legitimate baseline
+          behavior; or (2) it has triggered a designated number of trusted alerts
+          across multiple Sentinel devices deployed globally. The Rogue Packet score
+          is a proprietary metric computed continuously from passive traffic analysis
+          across the Sentinel network, analogous to machine-learning behavioral profiling.'
+        criteria:
+        - Very poor recent Rogue Packet score — the IP sends anomalous or malformed
+          packets at rates inconsistent with legitimate traffic patterns
+        - Trusted-alert trigger across multiple Sentinels — the IP has been flagged
+          by a significant number of deployed Sentinel devices
+      unlisting_policy:
+        summary: Requests for IP removal are handled by the maintainer via direct
+          contact. There is no public self-service portal; operators must reach out
+          to the maintainer directly with their IP and justification.
+        criteria:
+        - Submit a removal request directly to the maintainer with the affected IP
+          address and reason for reconsideration
+      unlist_request:
+        url:
+        email: cins@sentinelips.com
+        instructions: Send an email to cins@sentinelips.com with the IP address(es)
+          to be removed and a brief explanation of why the listing is a false positive.
+          Phone support is also available at (972) 991-5005.
+      update_frequency:
+        frequency: 1h
+        human_readable: Updated every hour
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: Passive background-traffic monitoring across a global network
+          of Sentinel inline intrusion-prevention devices. Sentinel devices are installed
+          in-line on-premises, in front of firewalls, as undetectable promiscuous
+          Layer 2 bridges. Rather than inspecting attack payloads, they analyze ambient
+          traffic on unused IP addresses across all protected networks — what the
+          maintainer compares to the background noise that noise-cancelling headphones
+          eliminate. Continuous scoring of this traffic, using DPAM (Distributed Pattern
+          Analysis Methodology), builds behavioral profiles for each observed IP.
+          An IP enters the blocklist when its Rogue Packet score drops sharply or
+          when it triggers alerts across multiple Sentinels. This is not a traditional
+          honeypot; it is a distributed passive monitoring mesh.
+      scope_and_intent:
+        description: The CINS Army list is intended for use as a blocking or alerting
+          source in firewalls, IDS, and IPS systems. It is freely available to security
+          teams building threat intelligence on a budget.
+        intended_for:
+        - Firewall blocklists
+        - IDS and IPS signature generation
+        - Automated deep-packet inspection within network security tools
+        - Complementary use alongside other threat-intelligence feeds
+        not_intended_for:
+        - Standalone sole-protection solution — the maintainer recommends combining
+          with other blocklists
+        - Environments where any false positive blocking is unacceptable without local
+          review
+      license: iBlocklist Terms of Service — personal / non-commercial only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Downloads from iBlocklist.com are governed by the iBlocklist Terms
+          of Service, which restrict use to personal, non-commercial purposes only.
+          Public display and redistribution are not permitted under this license.
+      current_status:
+        state: active
+        description: Actively maintained as of 2025–2026. The underlying CINS threat
+          intelligence is updated hourly. The feed is distributed through iBlocklist.com,
+          Emerging Threats, and the maintainer's own site. Nomic Networks has published
+          the CINS Army Brief newsletter through April 2025.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Some operators have reported that the list, like all IP blocklists,
+          can produce false positives — legitimate exit nodes or shared hosting IPs
+          occasionally appear on the list. The maintainer does not publish a formal
+          false-positive rate or guarantee. Independent testing showed the list blocks
+          roughly 39% of attacks solo, rising to 50% when combined with other blocklists,
+          suggesting it is best used as one layer among several.
+        engagement: Public discussion of the CINS Army list is sparse. No dedicated
+          issue tracker or community forum is maintained by the project. Discussion
+          appears primarily in third-party security forums and comparisons rather
+          than direct maintainer engagement. The CINS Army list is included in the
+          Emerging Threats Open Source Community, referenced by the Global Cyber Alliance
+          as part of their I-Blocklist ACT initiative, and Fortinet documents native
+          integration support for CINS Score feeds. The maintainer accepts removal
+          requests by email and phone.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-16T19:56:07+00:00'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-16T19:56:07+00:00'
+      - url: https://cinsarmy.com/faqs/
+        document_date: '2017-08-30'
+        validation_date: '2026-05-16T19:56:07+00:00'
+      - url: https://cinsscore.com/
+        document_date:
+        validation_date: '2026-05-16T19:56:07+00:00'
+      - url: https://nomicnetworks.com/cins-community
+        document_date: '2024-10-04'
+        validation_date: '2026-05-16T19:56:07+00:00'
+      - url: 
+          https://nomicnetworks.com/blog/the-cins-army-sharing-cyber-threat-intelligence-for-10-years
+        document_date:
+        validation_date: '2026-05-16T19:56:07+00:00'
+      - url: https://act.globalcyberalliance.org/index.php/CI_Army_List
+        document_date:
+        validation_date: '2026-05-16T19:56:07+00:00'
+      - url: https://www.captaindns.com/en/blog/ip-blacklist-removal-guide
+        document_date:
+        validation_date: '2026-05-16T19:56:07+00:00'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-16T19:56:07+00:00'
+      - url: https://www.iblocklist.com/list?list=npkuuhuxcsllnhoamkvm
+        document_date:
+        validation_date: '2026-05-16T19:56:07+00:00'
+      - url: https://cinsarmy.com/active-threat-intelligence/
+        document_date: '2017-09-11'
+        validation_date: '2026-05-16T19:56:07+00:00'
+      - url: https://wilson-chua.medium.com/cins-blocklist-shines-for-syslogs-78bbb83cca48
+        document_date: '2023-03-01'
+        validation_date: '2026-05-16T19:56:07+00:00'
+      - url: https://cybersectools.com/compare/ci-army-list-vs-abusix-threat-intelligence
+        document_date:
+        validation_date: '2026-05-16T19:56:07+00:00'
+      - url: https://www.reddit.com/r/UNIFI/comments/mkzmwt/
+        document_date:
+        validation_date: '2026-05-16T19:56:07+00:00'
+      - url: 
+          https://www.linkedin.com/pulse/6-free-threat-intelligence-feeds-you-cant-live-without-63vuc
+        document_date: '2025'
+        validation_date: '2026-05-16T19:56:07+00:00'

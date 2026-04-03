@@ -1,0 +1,218 @@
+sources:
+  stopforumspam_365d:
+    license: CC BY-NC-ND 3.0 (modified)
+    redistributable: true
+    url: http://www.stopforumspam.com/downloads/listed_ip_365.zip
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - unzip
+    processor_raw: unzip_and_extract
+    category: messaging_abuse
+    info: '[StopForumSpam.com](http://www.stopforumspam.com) IPs used by forum spammers
+      (last 365 days)'
+    maintainer: StopForumSpam.com
+    maintainer_url: http://www.stopforumspam.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T03:41:56Z'
+      official_name: StopForumSpam
+      official_url: https://www.stopforumspam.com/
+      short_description: Community-reported database of IP addresses, email addresses,
+        and usernames associated with forum and blog spam, contributed by participating
+        webmasters and enriched with public Tor exit node data.
+      long_description: "The 365-day Listed IP feed is the year-long rolling-window
+        slice of the Stop Forum Spam database. It contains every IPv4 address whose
+        last-seen timestamp falls within the preceding 365 calendar days, distributed
+        at downloads/listed_ip_365.zip. It is the broadest rolling-window variant;
+        signal older than one year is filtered out, while every more aggressively-filtered
+        shorter window (1d, 7d, 30d, 90d, 180d) is a subset of this file.\n\nEntries
+        originate from human-judgment community reports (each report tied to a confirmed
+        spam incident with username, origin IP, and verified email) and from the maintainer's
+        honeypots. Tor exit node lists are incorporated as supplementary data. Country
+        and ASN annotation is drawn from IP registrars at lookup time. A separate
+        Toxic tier of CIDR-level permanent-abuse infrastructure (see stopforumspam_toxic)
+        is published in different files and does not participate in this rolling window.\n\
+        \nThe maintainer explicitly cautions that not all IPs are equal: carrier-grade
+        NAT in some regions means blocking a single IP can affect hundreds of legitimate
+        concurrent users sharing the same public address. The service does not operate
+        a firewall — it publishes information and leaves enforcement decisions to
+        each integrating site. Project history and maintainership live in the maintainer's
+        roles."
+      roles:
+      - role: maintainer
+        name: Russ
+        organization_type: individual
+        official_url: https://www.stopforumspam.com/about
+        contact_email:
+        based_in:
+        active_since: '2008'
+        notes: Founder and site owner. Maintains the service in spare time, per the
+          about page.
+      - role: maintainer
+        name: pedigree
+        organization_type: individual
+        official_url: https://www.stopforumspam.com/about
+        contact_email:
+        based_in:
+        active_since:
+        notes: Co-maintainer who joined shortly after founding. Worked on the database,
+          site speed, and bug fixes. Co-maintains in spare time, per the about page.
+      - role: publisher
+        name: dZone
+        organization_type: commercial
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Sponsor providing hosting infrastructure, per the about page.
+      derivation:
+        type: original
+        description: 'The feed is built from two primary sources: (1) community-submitted
+          spam reports — webmasters submit an IP address, email address, username,
+          and evidence of spam content, each triggered by human judgment — and (2)
+          publicly available Tor exit node lists incorporated as supplementary data.
+          Submissions are stored with timestamps; time-bounded exports filter to entries
+          last seen within the selected window. Country and ASN enrichment is drawn
+          from IP registrars. No third-party IP blocklists are merged into the dataset.'
+        source_feeds: []
+      listing_policy:
+        summary: An IP, email address, or username is listed after a participating
+          webmaster submits a spam report triggered by human judgment. The report
+          must include the offender's IP address (the actual origin IP, not a Cloudflare-proxied
+          address), a verified email address (confirmed by the spammer clicking a
+          confirmation link), and preferably evidence of the spam content. Spam is
+          broadly defined as content intended to promote a product or cause that is
+          clearly unsuitable for the forum. Suspicious registrations, hacking attempts,
+          and merely offensive posts are explicitly outside scope and cannot be submitted.
+        criteria:
+        - Human-judgment submission by a participating webmaster
+        - Verified email address (spammer clicked a confirmation link)
+        - Actual origin IP address (not a reverse-proxy address)
+        - Evidence of spam content promoting a product, service, or cause
+        - 'Optionally: username involved in the spam activity'
+      unlisting_policy:
+        summary: 'Listed parties can request removal via the removal page on the website.
+          The maintainer states that being listed does not imply guilt — many entries
+          originate from honeypots, recycled IPs, or IP spoofing — and encourages
+          polite engagement to investigate and resolve the cause. Automatic expiration
+          applies: IPs with no further spam reports beyond the selected time window
+          drop out of time-bounded exports such as the 365-day list.'
+        criteria:
+        - Removal request submitted via the removal page
+        - Polite engagement to investigate the source of the listing
+        - 'Automatic time-window expiration: IPs inactive beyond the selected window
+          are excluded from time-bounded exports'
+      unlist_request:
+        url: https://www.stopforumspam.com/removal.php
+        email:
+        instructions: Submit a removal request through the removal page at stopforumspam.com/removal.php.
+          The maintainer advises being polite in the request to facilitate investigation
+          of how the IP or email ended up in the database.
+      update_frequency:
+        frequency: 1d
+        human_readable: Daily updates, per the maintainer's downloads page
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods:
+        - reputation_aggregation
+        description: "The primary detection method is user submission: participating
+          webmasters submit spam reports triggered by human judgment, including the
+          offender's IP address, verified email address, username, and evidence of
+          spam content. A confidence score (percentage likelihood of unwanted activity)
+          is calculated from the number of reports and recency of the most recent
+          sighting. Public Tor exit node lists are incorporated as supplementary data."
+      scope_and_intent:
+        description: 'The feed is designed to help forum, blog, and wiki operators
+          identify and block spam registrations and postings before they occur. It
+          covers three data types: IP addresses, email addresses, and usernames associated
+          with spam activity. The maintainer explicitly frames this as informational
+          — the service does not operate a firewall and leaves enforcement to each
+          integrating site.'
+        intended_for:
+        - Forum and blog spam registration blocking
+        - Automated pre-registration screening via API
+        - Manual investigation of suspected spammers
+        not_intended_for:
+        - General network perimeter blocking (the API must not be queried on every
+          page load, which constitutes a denial-of-service against the API itself)
+        - Blocking based solely on username match without considering IP and email
+          context
+        - Hacking attempt mitigation (out of scope — suspicious registrations cannot
+          be submitted)
+      license: Creative Commons Attribution-NonCommercial-NoDerivatives 3.0 (modified)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: false
+        attribution_required: Attribution in the manner specified by the author or
+          licensor, without implying endorsement
+        terms: The data may be copied, distributed, and transmitted. Attribution is
+          required. Use on commercial sites is permitted for internal purposes only.
+          Reselling the data, claiming it as your own, and creating derivative works
+          are prohibited. Automated mirroring, scraping, or spidering is prohibited
+          unless permission is obtained. Terms may be waived upon written request
+          to the copyright holder.
+      current_status:
+        state: active
+        description: Active and maintained as of May 2026. Regular daily updates continue.
+          A confirmed code logic bug affecting email blacklist substring matching
+          was identified and patched within approximately 4 minutes on January 11,
+          2025.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Public discussion specific to the 365-day window is sparse — at
+          this window length, the file accumulates much older signal, which amplifies
+          the maintainer-wide false-positive patterns (IP recycling, CGNAT collateral,
+          inherited listings from prior occupants) because operators are matching
+          against entries that may be many months old. The full evidence — including
+          the January 11, 2025 substring-match bug, individual delisting incidents,
+          and the cautious-blocking advice from forum administrators — is documented
+          at the project level in the main stopforumspam feed's community section.
+        engagement: Public discussion of the 365-day variant specifically is sparse;
+          engagement happens at the project level (Reddit, official Stop Forum Spam
+          forum, XenForo, Discourse Meta, phpBB issue trackers). Project-wide responsiveness
+          signal — including the January 11, 2025 bug being patched within minutes
+          of report — is documented in the main stopforumspam feed.
+      sources_consulted:
+      - url: https://www.stopforumspam.com/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.stopforumspam.com/faq.php
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.stopforumspam.com/about
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.stopforumspam.com/downloads
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.stopforumspam.com/legal
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.stopforumspam.com/license
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://stopforumspam.com/forum/viewtopic.php?id=9572
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://stopforumspam.com/forum/viewtopic.php?id=9530
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://www.bleepingcomputer.com/forums/t/702623/my-real-name-ip-and-email-have-been-posted-on-stopforumspamcom/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.trustpilot.com/review/stopforumspam.com
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://github.com/stopforumspam
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://xenforo.com/community/threads/whats-the-false-positive-rate-of-stopforumspam.79183/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

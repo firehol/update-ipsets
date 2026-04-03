@@ -1,0 +1,201 @@
+sources:
+  critical_soft_github_services:
+    license: Provider-published public IP ranges
+    redistributable: false
+    label: GitHub service ranges
+    url: https://api.github.com/meta
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - json_paths:
+        paths: "$.hooks[*],$.web[*],$.api[*],$.git[*],$.packages[*],$.pages[*],$.copilot[*],$.importer[*],$.github_enterprise_importer[*]"
+    - filter_all4
+    processor_raw: json_paths
+    category: provider_infrastructure
+    provenance: primary
+    info: GitHub-published service ranges from the Meta API, excluding Actions runner
+      ranges so GitHub core services are not conflated with customer CI workloads.
+    maintainer: GitHub
+    maintainer_url: 
+      https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/about-githubs-ip-addresses
+    enabled_by_all: true
+    use: [critical_infrastructure]
+    critical:
+      tier: soft
+      role: developer_platform
+      source_type: authoritative_provider_api
+      source_quality: A
+      rationale: GitHub hosts source control, package distribution, webhooks, and
+        developer workflows; overlap with core service ranges can cause high operational
+        impact and should be reviewed.
+
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T13:05:02Z'
+      official_name: GitHub Meta API
+      official_url: 
+        https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/about-githubs-ip-addresses
+      short_description: Authoritative IP address ranges published by GitHub for its
+        core platform services, covering webhook delivery, Git operations, API traffic,
+        package hosting, Pages, Copilot, and repository import tooling.
+      long_description: "GitHub publishes the IP address ranges its platform uses
+        to serve content, authenticate API clients, deliver webhooks, handle Git clone
+        and push operations, distribute packages, host GitHub Pages sites, power Copilot
+        API access, and run the legacy and enterprise repository importers. The data
+        is served as JSON from the public Meta API endpoint, with ranges expressed
+        in CIDR notation for both IPv4 and IPv6.\n\nPer the official documentation,
+        the list is not guaranteed to be exhaustive — some services such as Git LFS
+        may use IP addresses not included in the response. GitHub additionally advises
+        that the ranges change from time to time and encourages operators who rely
+        on them to monitor the API regularly rather than maintaining indefinitely
+        static allowlist entries.\n\nThe feed tracked by this catalog entry covers
+        the core platform service categories (hooks, web, api, git, packages, pages,
+        copilot, importer, github_enterprise_importer) and deliberately excludes GitHub
+        Actions runner IP ranges. This separation prevents customer CI workloads from
+        being conflated with the platform's own infrastructure, which the YAML processor
+        achieves by omitting the actions and actions_macos keys from the JSON extraction."
+      roles:
+      - role: maintainer
+        name: GitHub
+        organization_type: commercial
+        official_url: https://github.com
+        contact_email:
+        based_in: United States
+        active_since: '2008'
+        notes: 'GitHub develops and operates the Meta API endpoint from which these
+          ranges are published. The company offers the endpoint as a public, unauthenticated
+          resource (allowPermissionlessAccess: true, per the REST API documentation)
+          to support firewall allowlisting by platform customers.'
+      derivation:
+        type: original
+        description: The feed is produced by querying GitHub's own Meta API endpoint,
+          which returns the IP address ranges allocated to GitHub's platform infrastructure.
+          No third-party feeds, external sensors, or community reports contribute
+          to this data — it originates from GitHub's internal infrastructure allocation
+          records and is made available through the public API as a customer-support
+          resource. The catalog processor extracts nine service-category arrays from
+          the JSON response (hooks, web, api, git, packages, pages, copilot, importer,
+          github_enterprise_importer) and deliberately omits the actions and actions_macos
+          keys, which represent GitHub-hosted CI runner IPs rather than core platform
+          infrastructure.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are determined by GitHub's internal infrastructure IP allocation
+          — no third-party submission, community report, or external voting mechanism
+          applies. An IP appears in the feed when GitHub has allocated it to one of
+          the covered platform services (webhook delivery, Git serving, API access,
+          package hosting, Pages hosting, Copilot API, or repository import tooling).
+          GitHub does not publish the criteria or thresholds it uses internally to
+          assign or retire allocations.
+        criteria:
+        - GitHub allocates the IP to a covered platform service (hooks, web, api,
+          git, packages, pages, copilot, importer, github_enterprise_importer)
+      unlisting_policy:
+        summary: Because the feed reflects GitHub's own infrastructure allocations,
+          removals from the feed correspond to GitHub retiring or reassigning an IP
+          internally — this is not a third-party opt-out process. There is no documented
+          manual unlisting channel. If an operator believes their own IP has been
+          incorrectly included (for example, a misallocated range), the resolution
+          path is to contact GitHub Support directly, not through any feed-specific
+          removal mechanism.
+        criteria:
+        - GitHub retires or reassigns the IP from the covered service internally
+        - No manual third-party unlisting channel is documented for this feed
+      unlist_request:
+      update_frequency:
+        frequency:
+        human_readable: GitHub states that IP address changes occur from time to time
+          without a published schedule, and encourages operators to monitor the API
+          regularly rather than relying on a static snapshot.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The feed is not built from honeypots, scanners, malware analysis,
+          or community reports. It consists of IP address ranges that GitHub has allocated
+          to its own platform infrastructure and publishes via the Meta API as a customer-support
+          resource. Each IP in the feed is present because GitHub assigned it to a
+          covered service — the presence is a direct consequence of infrastructure
+          allocation decisions, not a detection event in the threat-intelligence sense.
+      scope_and_intent:
+        description: 'The feed covers IP ranges GitHub uses to operate its core developer
+          platform: serving the github.com web UI, handling API requests, performing
+          Git clone/push operations, delivering webhooks, distributing packages, hosting
+          GitHub Pages, powering Copilot API access, and running the legacy and enterprise
+          repository importers.'
+        intended_for:
+        - Allowlisting GitHub platform IPs in firewalls, IDS/IPS systems, and cloud
+          security groups
+        - Verifying that incoming webhook deliveries originate from GitHub's known
+          infrastructure
+        - Auditing which IP space GitHub occupies for network inventory and asset
+          management purposes
+        - Configuring IP-based access controls for self-hosted systems that interact
+          with GitHub
+        not_intended_for:
+        - Blocking GitHub infrastructure — the ranges belong to a widely-used developer
+          platform and blocking them will disrupt legitimate access
+        - Exhaustive threat-intelligence correlation — the feed does not indicate
+          maliciousness, only GitHub's infrastructure footprint
+        - GitHub Actions runner IP management — those ranges are published separately
+          under the actions and actions_macos keys and change frequently
+        - Permanent static allowlisting without refresh automation — GitHub IPs change
+          without advance notice
+      license: Public, no stated license
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: GitHub's Terms of Service prohibit reproducing, duplicating, copying,
+          selling, reselling, or exploiting any portion of the Service without express
+          written permission. The API Terms reserve the right to offer subscription-based
+          access for uses involving resale of the Service. No carve-out permitting
+          redistribution of Meta API IP data is stated in the acceptable use policies.
+      current_status:
+        state: active
+        description: The Meta API endpoint is operational and actively maintained.
+          GitHub continues to publish IP ranges for all documented service categories
+          and has invested in ecosystem tooling including an official GitHub Actions
+          IP allow list automation (published on GitHub Marketplace) and a Terraform
+          provider data source.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: 'Public community discussion specific to the Meta API IP data
+          is sparse — operators typically engage with it programmatically rather than
+          in forums. Broader ecosystem integration is active: GitHub publishes an
+          official IP allow list automation action on the Marketplace (evidence 7),
+          HashiCorp maintains a Terraform provider data source exposing the ranges
+          (evidence 8), and community projects such as lord-alfred/ipranges mirror
+          the data daily (evidence 6). No notable third-party awards or formal recognitions
+          were found in research.'
+      sources_consulted:
+      - url: https://api.github.com/meta
+        document_date:
+        validation_date: '2026-05-21T13:00:00Z'
+      - url: 
+          https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/about-githubs-ip-addresses
+        document_date:
+        validation_date: '2026-05-21T13:00:00Z'
+      - url: https://docs.github.com/en/rest/meta
+        document_date:
+        validation_date: '2026-05-21T13:00:00Z'
+      - url: https://docs.github.com/en/site-policy/github-terms/github-terms-of-service
+        document_date:
+        validation_date: '2026-05-21T13:00:00Z'
+      - url: 
+          https://docs.github.com/en/site-policy/acceptable-use-policies/github-acceptable-use-policies
+        document_date:
+        validation_date: '2026-05-21T13:00:00Z'
+      - url: https://github.com/lord-alfred/ipranges
+        document_date:
+        validation_date: '2026-05-21T13:00:00Z'
+      - url: https://github.com/marketplace/actions/github-ip-allow-list-action
+        document_date:
+        validation_date: '2026-05-21T13:00:00Z'
+      - url: 
+          https://registry.terraform.io/providers/integrations/github/latest/docs/data-sources/ip_ranges
+        document_date:
+        validation_date: '2026-05-21T13:00:00Z'

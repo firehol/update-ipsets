@@ -1,0 +1,225 @@
+sources:
+  iblocklist_dshield:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=xpbqleszmajjesnzddhv&fileformat=p2p&archiveformat=gz
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: intrusion
+    provenance: secondary_upstream
+    info: known Hackers and such people.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T22:04:49Z'
+      official_name: Bluetack - dshield
+      official_url: https://www.iblocklist.com/list.php?list=bt_dshield
+      short_description: A P2P-format blocklist republishing DShield.org's top-attacking-subnet
+        feed, aimed at PeerBlock and PeerGuardian users seeking protection against
+        known malicious network observers.
+      long_description: "This feed compiles entries from DShield.org's firewall blocklist
+        — a dataset produced by the SANS Internet Storm Center from its globally distributed
+        honeypot and firewall sensor network. DShield.org aggregates the top 20 most
+        active attacking Class C (/24) subnets observed over a rolling 72-hour window,
+        automatically expelling entries as attacker profiles shift. The resulting
+        subnet list is made available by iBlocklist.com in multiple formats (P2P,
+        DAT, CIDR, hosts) for use with PeerBlock, PeerGuardian, and compatible filtering
+        software.\n\nPer the maintainer's listing, the feed is described as containing
+        known hackers and similar threat actors.\n\nA material caveat: iBlocklist.com's
+        Terms of Service explicitly state that the company 'does not make any commitment
+        to update the materials.' Community technical analyses have identified signs
+        of stagnation in several Bluetack-authored lists. Prospective users should
+        independently verify that the feed they receive reflects upstream DShield.org
+        data rather than a frozen snapshot."
+      roles:
+      - role: maintainer
+        name: iBlocklist.com
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in:
+        active_since:
+        notes: iBlocklist.com (iblocklist, LLC) repackages and distributes this feed
+          alongside approximately 40 other blocklists in P2P, DAT, CIDR, and hosts
+          formats through a paid subscription service. No contact email is published
+          on the support page. Platform-wide community criticism of iBlocklist's billing
+          practices and support responsiveness sits at the maintainer level rather
+          than being specific to this DShield-derived feed.
+      - role: source_contributor
+        name: Bluetack
+        organization_type: unknown
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: Original list author credited on the iBlocklist.com listing page. Community
+          assessments suggest the Bluetack-authored lists have not been actively updated
+          since approximately 2018.
+      - role: source_contributor
+        name: DShield.org / SANS Internet Storm Center
+        organization_type: research_institution
+        official_url: https://www.dshield.org/
+        contact_email: systems@isc.sans.edu
+        based_in: United States
+        active_since:
+        notes: The authoritative upstream source. DShield.org's ISC honeypot and firewall
+          sensor network produces the underlying blocklist data (top 20 attacking
+          /24 subnets over a 72-hour rolling window). The feed updates hourly at the
+          DShield.org level.
+      derivation:
+        type: reformat
+        description: iBlocklist.com takes DShield.org's blocklist feed — which aggregates
+          the top 20 most active attacking Class C (/24) subnets observed across the
+          SANS ISC global honeypot and firewall sensor network over a rolling 72-hour
+          window — and republishes it in P2P (.p2p), DAT (.dat), CIDR (.cidr), and
+          hosts-file formats for use with PeerBlock, PeerGuardian, and compatible
+          client software. iBlocklist.com does not appear to independently verify
+          or augment the DShield.org source data; the feed is a format conversion
+          rather than an enrichment. The DShield.org feed itself is produced passively
+          from firewall and honeypot sensor data submitted by the ISC's distributed
+          handler network.
+        source_feeds: []
+      listing_policy:
+        summary: "Entries enter the feed automatically when their Class C (/24) subnet
+          ranks among the top 20 most active attacking networks observed across DShield.org's
+          global honeypot and firewall sensor infrastructure over a rolling 72-hour
+          window. Subnets rotate out when their attack volume falls below the top-20
+          threshold. This is a network-aggregate threshold rather than an individual-hostile-IP
+          policy: an entire /24 range is listed if collectively it generates sufficient
+          attack volume relative to other observed subnets."
+        criteria:
+        - Subnet must rank among the top 20 most active attacking /24 subnets by volume
+          across the DShield.org sensor network
+        - Activity must be observed within the most recent 72-hour rolling window
+        - Subnets exit automatically when dropped from the top-20 ranking as attack
+          volume decreases
+      unlisting_policy:
+        summary: Entries leave the feed automatically when their subnet drops out
+          of the top-20 ranking within the 72-hour rolling window — no manual intervention
+          is required. DShield.org additionally states it will remove specific IPs
+          or subnets upon direct request, which may propagate to downstream republishers
+          including iBlocklist.com, though iBlocklist.com does not publish its own
+          manual unlisting procedure.
+        criteria:
+        - 'Passive expiry: subnet drops below the top-20 attack-volume threshold within
+          the rolling 72-hour window'
+        - 'Manual removal: DShield.org will honor unlisting requests sent to systems@isc.sans.edu'
+      unlist_request:
+        url:
+        email: systems@isc.sans.edu
+        instructions: Submit an unlisting request directly to DShield.org at systems@isc.sans.edu,
+          referencing the IP or subnet to be removed. DShield.org states it will act
+          'ASAP' upon verification. iBlocklist.com does not publish a separate unlisting
+          channel for this feed.
+      update_frequency:
+        frequency:
+        human_readable: iBlocklist.com does not publish an update frequency for this
+          feed. DShield.org, the upstream source, updates its blocklist once per hour
+          and requests that consumers not poll more frequently than once per hour.
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods:
+        - reputation_aggregation
+        description: "The feed draws from DShield.org's distributed honeypot and firewall
+          sensor network operated by the SANS Internet Storm Center. Sensors deployed
+          across participating networks submit firewall log data centrally, where
+          the ISC aggregates and ranks contributing /24 subnets by observed attack
+          volume. This is a passive reputation-aggregation model: subnets accumulate
+          listings by virtue of collective attack activity observed across many independent
+          reporting nodes, rather than by active probing or individual victim reports."
+      scope_and_intent:
+        description: The feed is intended for desktop users of PeerBlock, PeerGuardian,
+          and compatible P2P-client firewall applications who wish to block known
+          malicious network observers. The maintainer describes the list as containing
+          known hackers and similar threat actors — network entities that have been
+          observed conducting reconnaissance or attack activity against DShield.org's
+          sensor infrastructure.
+        intended_for:
+        - Desktop P2P client users (PeerBlock, PeerGuardian) seeking to block known
+          malicious network observers
+        - Individuals wanting to filter known attacking subnet ranges at the desktop
+          firewall level
+        not_intended_for:
+        - Enterprise perimeter security deployments requiring guaranteed update responsiveness
+        - Automated ingestion pipelines needing parseable structured data with consistent
+          field definitions
+        - Environments where false-positive blocking of legitimate subnets poses operational
+          risk
+      license: iBlocklist.com Terms of Service — personal / non-commercial use only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Access requires a paid iBlocklist.com subscription ($9.99/year). The
+          ToS permits use for personal purposes only and prohibits any commercial
+          use, public display, and account sharing outside the subscriber's household
+          or home router.
+      current_status:
+        state: active
+        description: iBlocklist.com appears operational — the website is reachable
+          and the subscription page is functional. The service continues to distribute
+          this feed in multiple formats. However, community technical analyses have
+          identified signs of stagnation in several Bluetack-authored lists, and the
+          iBlocklist ToS explicitly disclaims any commitment to update materials.
+          The DShield.org upstream itself remains actively maintained.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Community analyses specific to this feed have identified signs
+          that the iBlocklist-distributed copy of DShield may not be receiving the
+          upstream's hourly refreshes, with entries appearing unchanged over multi-year
+          periods despite DShield.org itself publishing new data each hour. The iBlocklist
+          ToS explicitly disclaims any obligation to update materials, which community
+          members have cited as inconsistent with a paid subscription model for a
+          feed whose value depends entirely on tracking a fast-moving upstream.
+        engagement: Public discussion about this specific feed is sparse. Community
+          members discussing DShield-derived IP blocklists generally recommend obtaining
+          the data directly from feeds.dshield.org rather than through this intermediary,
+          citing fresher data and lower latency between the SANS Internet Storm Center's
+          hourly publication and operator ingestion.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.iblocklist.com/list.php?list=bt_dshield
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.iblocklist.com/subscribe
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.iblocklist.com/support
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://www.dshield.org/feeds_doc.html
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://feeds.dshield.org/block.txt
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: https://github.com/fonic/ipfilter/issues/11
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'
+      - url: 
+          https://www.reddit.com/r/firewalla/comments/1swtew6/dshield_block_list_on_firewalla_is_it_effective/
+        document_date:
+        validation_date: '2026-05-17T00:00:00Z'

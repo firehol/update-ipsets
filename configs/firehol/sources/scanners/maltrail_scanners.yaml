@@ -1,0 +1,240 @@
+sources:
+  maltrail_scanners:
+    license: MIT License
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/stamparm/maltrail/master/trails/static/mass_scanner.txt
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - extract_ipv4
+    processor_raw: extract_ipv4_from_any_file
+    category: scanners
+    info: '[MalTrail](https://github.com/stamparm/maltrail) list of known mass-Internet
+      scanners. These IPs are known to perform large-scale scanning across the Internet.'
+    maintainer: stamparm
+    maintainer_url: https://github.com/stamparm/maltrail
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T19:38:53Z'
+      official_name: mass_scanner.txt
+      official_url: https://github.com/stamparm/maltrail/blob/master/trails/static/mass_scanner.txt
+      short_description: Curated list of IPv4 addresses belonging to known mass Internet
+        scanners — academic research networks and commercial scanning-as-a-service
+        platforms — maintained as a static trail by the Maltrail project.
+      long_description: "The mass_scanner.txt file is a curated static trail within
+        the Maltrail malicious traffic detection system. It contains IPv4 addresses
+        of known mass Internet scanners — automated systems that periodically sweep
+        large portions of the Internet to catalogue exposed services, check for vulnerabilities,
+        or identify DDoS-capable infrastructure. Sources represented in the list include
+        academic research ping networks (such as those operated by Colorado State
+        University, USC ISI, and UC Berkeley) and commercial internet-wide scanning
+        services (such as Censys). Each entry is annotated with a reverse-DNS hostname
+        identifying the owning organization.\n\nThe file is formatted as plain text
+        with one IP per line in the pattern IP_ADDRESS followed by a hostname, and
+        is distributed as part of the Maltrail repository under MIT license. It can
+        be loaded directly into ipset and iptables for network-level blocking of known
+        scanner traffic, as illustrated by the setup commands in the file header.\n\
+        \nMaltrail itself operates a Traffic -> Sensor -> Server -> Client architecture,
+        where sensors monitor network segments (via SPAN/mirroring ports or inline
+        bridges) for blacklisted trails and log matched events to a central server.
+        The mass_scanner.txt file serves as one of the static reference lists that
+        sensors compare traffic against. Beyond static matching, Maltrail also applies
+        heuristic detection for behaviors such as excessive connection attempts to
+        varied TCP ports, suspicious HTTP request patterns associated with web application
+        scanners, and DNS anomalies. Per the maintainer's FAQ, false positives can
+        occur and are handled through local whitelisting or community trail correction."
+      roles:
+      - role: maintainer
+        name: Miroslav Stampar
+        organization_type: individual
+        official_url: https://github.com/stamparm
+        contact_email:
+        based_in:
+        active_since: '2014'
+        notes: Primary developer and repository owner. Created the Maltrail repository
+          on December 4, 2014. Also maintains the IPsum daily feed and auxiliary Maltrail
+          data resources.
+      - role: source_contributor
+        name: Mikhail Kasimov
+        organization_type: individual
+        official_url: https://github.com/MikhailKasimov
+        contact_email:
+        based_in:
+        active_since:
+        notes: Major contributor to Maltrail, active committer, and author of the
+          official Wazuh decoder and rules integration.
+      derivation:
+        type: original
+        description: The mass_scanner.txt file is a curated static trail assembled
+          by the Maltrail maintainers from known mass scanner operators — organizations
+          that publicly document their scanning infrastructure and operate under published
+          terms of service. Entries are identified from the operators' own public
+          disclosures, registration records, and reverse-DNS footprints. The file
+          is not dynamically generated from live sensor hits; it is a reference denylist
+          of pre-identified scanning infrastructure. Maltrail's broader system also
+          consumes over 30 third-party threat intelligence feeds for other trail categories,
+          but mass_scanner.txt is maintained separately as a static curated list.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are added when an organization or service publicly operates
+          internet-wide scanning infrastructure and self-identifies through reverse-DNS
+          hostnames, public documentation, or published terms of service. The maintainers
+          curate entries from these public disclosures rather than from Maltrail sensor
+          detections alone.
+        criteria:
+        - Organization operates automated infrastructure that performs periodic internet-wide
+          scanning
+        - Scanning infrastructure is publicly documented or self-attributed through
+          reverse-DNS hostnames
+        - Service operates under a published terms of service or public Acceptable
+          Use Policy
+      unlisting_policy:
+        summary: There is no automated expiry or decay for entries in mass_scanner.txt.
+          Removal is handled by the scanner operator applying for exclusion directly
+          with the affected organization, or by submitting a pull request to the Maltrail
+          repository to correct the trail file.
+        criteria:
+        - Scanner operator submits proof that the scanning infrastructure has been
+          retired or reconfigured to no longer perform mass scanning
+        - Scanner operator demonstrates that the IP range has been transferred to
+          a different, non-scanning entity
+        - Community pull request corrects erroneous entries
+      unlist_request:
+        url: https://github.com/stamparm/maltrail/issues/new
+        email:
+        instructions: For mass_scanner.txt entries, the maintainer directs operators
+          to contact the scanner organization directly (per the scanner's own public
+          webpage) for exclusion from future scans. For local Maltrail deployments,
+          IPs can be added to the local whitelist.txt file. To propose a correction
+          to the upstream trail file, open a GitHub issue or submit a pull request
+          editing trails/static/mass_scanner.txt.
+      update_frequency:
+        frequency: 1d
+        human_readable: Updated daily, per the maintainer's default UPDATE_PERIOD
+          configuration of 86400 seconds
+      detection_classification:
+        primary_method: reputation_aggregation
+        description: The mass_scanner.txt file is built by aggregating IPs from organizations
+          that publicly operate internet-wide scanning infrastructure. The maintainers
+          identify these from the operators' own public disclosures, reverse-DNS registrations,
+          and published terms of service. This is a reputation-aggregation model —
+          entries are pre-identified known scanners, not dynamically detected threats.
+          Separately, Maltrail's broader system applies heuristic detection (excessive
+          TCP port connection attempts, anomalous DNS queries, suspicious HTTP request
+          patterns) to flag previously unseen scanning behavior, but that heuristic
+          layer feeds other trail categories, not mass_scanner.txt itself.
+      scope_and_intent:
+        description: The mass_scanner.txt file identifies known mass Internet scanner
+          infrastructure for optional network-level blocking. It is intended for operators
+          who want to deny traffic from automated scanning services that sweep the
+          Internet under published terms of service.
+        intended_for:
+        - Network-edge blocking of known mass Internet scanner IPs at the firewall
+          or IDS layer
+        - Supplementing intrusion detection logs with context about observed scanner
+          sources
+        - Research and threat intelligence workflows that track internet-wide scanning
+          activity
+        not_intended_for:
+        - Blocking malicious attack traffic (brute force, exploit attempts, C2 callbacks)
+          — those belong in other Maltrail trail categories
+        - Real-time threat detection — the file is a static reference list, not a
+          live feed
+        - Guaranteed blocking of all scanner traffic — only pre-identified operators
+          are listed
+      license: MIT License
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: MIT License permits reuse in both personal and commercial contexts,
+          with attribution and inclusion of the copyright notice. No additional redistribution
+          restrictions are stated by the maintainer.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026. The repository received its
+          latest release (v1.3) in March 2026. The mass_scanner.txt file is present
+          and current in the repository. Updates are published to the GitHub repository.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: "Historical GitHub issues document two areas of friction. Issue
+          #19249 (August 2024) reported an external IP being incorrectly listed in
+          Maltrail's blocklist, affecting other sites — the maintainer engaged and
+          the issue was closed. Issue #19196 (September 2023) reported that mass_scanner.txt
+          entries for BinaryEdge were outdated — the maintainer acknowledged and closed
+          the issue. Earlier issues (#16710, #19349) tracked memory and CPU performance
+          regressions in the broader Maltrail sensor on OPNSense, which the maintainers
+          addressed with the python-pcapy-ng fork. Community members on the OPNSense
+          subreddit noted that the BlocklistMaltrail firewall alias sometimes remains
+          empty despite accumulated detections, requiring manual intervention — this
+          is a deployment-configuration issue rather than a data-quality defect."
+        engagement: The Maltrail project has accumulated approximately 8,400 GitHub
+          stars and 1,300 forks (as of May 2026). It is integrated into OPNSense via
+          an official plugin, Wazuh via official decoders and rules (merged into the
+          Wazuh repository), Splunk via a third-party add-on on Splunkbase, and Palo
+          Alto Networks Cortex XSOAR via a published feed connector. On Reddit, a
+          Maltrail introduction post in r/blueteamsec attracted a skeptical comment
+          questioning its differentiation from Zeek and CrowdSec; an r/OPNsenseFirewall
+          discussion assessed Maltrail as useful supplementary security layering.
+          Public discussion specifically about mass_scanner.txt is sparse — most community
+          engagement focuses on the broader Maltrail sensor system. The maintainers
+          respond to GitHub issues and maintain an active FAQ wiki page (last edited
+          February 2024).
+      sources_consulted:
+      - url: https://github.com/stamparm/maltrail
+        document_date:
+        validation_date: '2026-05-18T19:00:00Z'
+      - url: https://raw.githubusercontent.com/stamparm/maltrail/master/README.md
+        document_date:
+        validation_date: '2026-05-18T19:00:00Z'
+      - url: 
+          https://raw.githubusercontent.com/stamparm/maltrail/master/trails/static/mass_scanner.txt
+        document_date: '2026-01-02'
+        validation_date: '2026-05-18T19:00:00Z'
+      - url: https://github.com/stamparm/maltrail/wiki/Trail-classes
+        document_date:
+        validation_date: '2026-05-18T19:00:00Z'
+      - url: https://github.com/stamparm/maltrail/wiki/Maltrail-trails-contribution
+        document_date:
+        validation_date: '2026-05-18T19:00:00Z'
+      - url: https://github.com/stamparm/maltrail/issues/19053
+        document_date:
+        validation_date: '2026-05-18T19:00:00Z'
+      - url: https://github.com/stamparm/maltrail/issues/19249
+        document_date: '2024-08-29'
+        validation_date: '2026-05-18T19:00:00Z'
+      - url: https://github.com/stamparm/maltrail/issues/19196
+        document_date: '2023-09-26'
+        validation_date: '2026-05-18T19:00:00Z'
+      - url: https://github.com/stamparm/maltrail/issues/16710
+        document_date:
+        validation_date: '2026-05-18T19:00:00Z'
+      - url: https://github.com/stamparm/maltrail/issues/19349
+        document_date:
+        validation_date: '2026-05-18T19:00:00Z'
+      - url: https://www.reddit.com/r/blueteamsec/comments/1b4n938/
+        document_date:
+        validation_date: '2026-05-18T19:00:00Z'
+      - url: https://www.reddit.com/r/OPNsenseFirewall/comments/zl5wv8/
+        document_date:
+        validation_date: '2026-05-18T19:00:00Z'
+      - url: https://splunkbase.splunk.com/app/7211
+        document_date: '2024-03-08'
+        validation_date: '2026-05-18T19:00:00Z'
+      - url: https://xsoar.pan.dev/docs/reference/integrations/github-maltrail-feed
+        document_date:
+        validation_date: '2026-05-18T19:00:00Z'
+      - url: https://github.com/opnsense/plugins/pull/1257
+        document_date:
+        validation_date: '2026-05-18T19:00:00Z'
+      - url: https://github.com/MikhailKasimov/maltrail-wazuh-decoder-and-rules
+        document_date:
+        validation_date: '2026-05-18T19:00:00Z'
+      - url: https://github.com/stamparm/maltrail/wiki/FAQ
+        document_date: '2024-02-11'
+        validation_date: '2026-05-18T19:00:00Z'

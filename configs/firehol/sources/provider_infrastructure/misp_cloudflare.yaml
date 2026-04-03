@@ -1,0 +1,173 @@
+sources:
+  misp_cloudflare:
+    license: CC0 1.0 (MISP warninglists)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/cloudflare/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Cloudflare
+      published IP ranges (https://www.cloudflare.com/ips/). CDN/proxy infrastructure
+      — informational, not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T14:47:19Z'
+      official_name: cloudflare
+      official_url: https://github.com/MISP/misp-warninglists/tree/main/lists/cloudflare
+      short_description: Known Cloudflare CDN and proxy IP address ranges, published
+        as a MISP warninglist for flagging CDN-proxied traffic as a potential false
+        positive during threat investigation.
+      long_description: "The cloudflare warninglist is a CIDR list of IP address ranges
+        allocated to Cloudflare's global network, sourced directly from Cloudflare's
+        official IP ranges page (cloudflare.com/ips/).\n\nThe list matches against
+        ip-src, ip-dst, domain|ip, ip-src|port, and ip-dst|port attribute types in
+        MISP events. It is generated automatically by a dedicated script (tools/generate-cloudflare.py)
+        that fetches the published ranges from Cloudflare's API; version bumps occur
+        periodically to reflect Cloudflare's allocation state. Because Cloudflare
+        operates as a reverse proxy and CDN for a large fraction of internet properties,
+        traffic originating from these IP ranges may appear in logs as the connecting
+        endpoint — the warninglist helps analysts recognise that the observed IP is
+        a CDN relay rather than the actual origin host. It is informational in intent;
+        it is not a blocklist."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: non_profit
+        official_url: https://github.com/MISP
+        contact_email: info@mispproject.org
+        based_in:
+        active_since: '2012'
+        notes: The MISP Project is a threat intelligence platform and standards body
+          hosted by CIRCL (Centre for Cybersecurity Luxembourg), a non-profit research
+          centre. Alexandre Dulaunoy is credited as the primary author of the warninglists
+          collection.
+      - role: source_contributor
+        name: Cloudflare
+        organization_type: commercial
+        official_url: https://www.cloudflare.com
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: Cloudflare publishes the authoritative IP ranges that feed into this
+          warninglist. The ranges are fetched automatically from Cloudflare's API.
+      derivation:
+        type: extraction
+        description: The list is produced by an automated generator script that fetches
+          the current IP ranges from Cloudflare's public API and writes them as a
+          versioned JSON file. No scoring, weighting, or cross-referencing with other
+          feeds is applied — the list is a direct extraction of Cloudflare's published
+          allocations, refreshed on a periodic version-bump cycle.
+        source_feeds: []
+      listing_policy:
+        summary: Entries are the IP address ranges Cloudflare publishes for its global
+          network on its official IP ranges page. No manual review or scoring is applied;
+          the list is a direct reflection of Cloudflare's published allocation state
+          at the time of the most recent version bump.
+        criteria:
+        - The IP range must appear on Cloudflare's official IP ranges page (cloudflare.com/ips/)
+        - The range must represent Cloudflare-assigned infrastructure, including both
+          IPv4 and IPv6 allocations
+      unlisting_policy:
+        summary: Because the list reflects Cloudflare's live IP allocations, entries
+          are removed when Cloudflare retires a range and the generator script picks
+          up the updated allocation state. There is no manual unlisting process; the
+          list is a snapshot of Cloudflare's current allocations at the time of the
+          most recent version bump.
+        criteria:
+        - An IP range is removed when it no longer appears on Cloudflare's official
+          IP ranges page
+        - No manual removal requests are processed — the list is an automated extraction
+      unlist_request:
+        url:
+        email:
+        instructions: The list is an automated extraction of Cloudflare's published
+          IP allocations and is not manually curated. Individual IP unlisting requests
+          are not applicable. If an IP is incorrectly present, the correction belongs
+          at Cloudflare's own IP ranges page (cloudflare.com/ips/), which propagates
+          to this list on the next version bump.
+      update_frequency:
+        frequency: 1d
+        human_readable: The list is version-bumped periodically; the maintainer does
+          not state a fixed interval, but version bumps have been observed approximately
+          quarterly (November, January, April), reflecting Cloudflare's relatively
+          stable allocation state.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The list is not produced by threat detection — it is a policy
+          assignment of known CDN/proxy infrastructure. Entries are the IP address
+          ranges that Cloudflare has officially allocated, as published on its own
+          authoritative page. The list serves as a reference dataset for identifying
+          proxied traffic, not for attributing malicious activity.
+      scope_and_intent:
+        description: The list covers IPv4 and IPv6 address ranges that Cloudflare
+          publishes for its global CDN and reverse-proxy network. Its intended use
+          is false-positive identification during threat intelligence analysis — when
+          an analyst encounters a connection from a Cloudflare IP, the warninglist
+          flags it as a known CDN relay so the analyst looks for the actual origin
+          in forwarded headers rather than treating the CDN endpoint as the source.
+        intended_for:
+        - Flagging CDN-proxied connections as potential false positives in intrusion
+          detection and threat intelligence workflows
+        - Enriching MISP events and attributes with context about known CDN/proxy
+          infrastructure
+        - Filtering automated IOC ingestion pipelines to suppress alerts on known
+          CDN endpoints
+        not_intended_for:
+        - Automated ingress blocking or deny-listing of Cloudflare IP ranges
+        - Attributing malicious activity to Cloudflare infrastructure itself
+        - Replacing threat intelligence feeds that track malicious use of CDN infrastructure
+      license: CC0 1.0 Universal (CC0 1.0) — Public Domain Dedication
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal — Public Domain Dedication. The licensor dedicates
+          the work to the public domain to the fullest extent permitted by applicable
+          law, with no conditions placed on reuse, modification, or redistribution.
+      current_status:
+        state: active
+        description: Active. Maintained as part of the MISP warninglists project;
+          version-bumped periodically to reflect Cloudflare's current IP allocation
+          state.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion specific to the Cloudflare warninglist is sparse.
+          No GitHub Issues, Pull Requests, or Discussion threads referencing the Cloudflare
+          list were found. The list is maintained programmatically via a dedicated
+          generator script and has not required manual intervention in recent history,
+          consistent with Cloudflare's stable allocation footprint. Broader MISP warninglists
+          community engagement occurs through the MISP Project's general channels.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/cloudflare/list.json
+        document_date: '2026-04-28'
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.cloudflare.com/ips/
+        document_date: '2025-09-28'
+        validation_date: '2026-05-18'
+      - url: https://github.com/MISP/misp-warninglists/tree/main/tools
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://misp.gitbooks.io/misp-book/content/warninglists/
+        document_date:
+        validation_date: '2026-05-18'
+      - url: 
+          https://github.com/MISP/misp-warninglists/commits/main/lists/cloudflare/list.json
+        document_date:
+        validation_date: '2026-05-18'

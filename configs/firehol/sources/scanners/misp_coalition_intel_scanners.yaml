@@ -1,0 +1,199 @@
+sources:
+  misp_coalition_intel_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/coalition-signals-intelligence-nt-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Coalition
+      Signals Intelligence non-threat scanning IPs. Informational — not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T20:38:10Z'
+      official_name: Coalition signals intelligence IP Ranges Used for Scanning
+      official_url: 
+        https://github.com/MISP/misp-warninglists/tree/main/lists/coalition-signals-intelligence-nt-scanning
+      short_description: Informational warninglist of IP addresses associated with
+        Coalition signals intelligence scanning infrastructure, sourced from CIRCL
+        passive darknet monitoring, for analyst context only — not for blocking.
+      long_description: "This warninglist marks IP addresses associated with what
+        CIRCL's network telescope analysis attributes to \"Coalition signals intelligence\"\
+        \ scanning infrastructure. \"Coalition signals intelligence\" is the label
+        embedded in the list.json description; the contributing CIRCL analyst applies
+        it to a set of observed scanning nodes that the analyst groups under that
+        identifier. Public sources do not return a single named standalone organization
+        called \"Coalition Signals Intelligence\", so unlike sibling -nt-scanning
+        lists (which name a clearly identifiable commercial scanner such as Censys,
+        Shodan, Onyphe, Rapid7, or Shadowserver), this entry's subject is defined
+        by CIRCL's internal attribution clustering rather than by an externally documented
+        vendor.\n\nThe entries are predominantly individual /32 host CIDRs spread
+        across multiple cloud provider allocations (such as DigitalOcean, Linode,
+        AWS, and Vultr) — consistent with rotating scan nodes spun up on commodity
+        cloud infrastructure for reconnaissance and asset discovery. Because operators
+        receive an attribution label they cannot independently look up on a vendor
+        website, this list is most useful in combination with CIRCL telescope context
+        rather than as a standalone vendor-known-scanner whitelist."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: research_institution
+        official_url: https://www.misp-project.org/
+        contact_email: info@misp-project.org
+        based_in: Luxembourg
+        active_since: '2012'
+        notes: The MISP Project (Malware Information Sharing Platform) is coordinated
+          by CIRCL (Computer Incident Response Center Luxembourg), Luxembourg's national
+          CERT. It maintains the misp-warninglists repository and all 133 warninglists,
+          including this one. The project began in 2012 and is a widely-used open-source
+          threat intelligence platform.
+      - role: source_contributor
+        name: Paul Jung (Thanat0s)
+        organization_type:
+        official_url:
+        contact_email:
+        based_in:
+        active_since:
+        notes: 'Contributor who submitted the May 2026 Network Telescope update via
+          pull request #335. The commit was merged by the MISP Project maintainer
+          (adulau).'
+      derivation:
+        type: derivative
+        description: The list is produced by CIRCL (Computer Incident Response Center
+          Luxembourg) extracting IP address ranges associated with Coalition signals
+          intelligence scanning nodes from CIRCL's Network Telescope passive darknet
+          observations. The Network Telescope monitors unsolicited inbound traffic
+          directed at unused IP address space (darknet), allowing CIRCL to identify
+          which IP addresses are actively scanning the internet. Identified scanner
+          ranges are packaged as a MISP warninglist JSON file with CIDR-type matching,
+          compatible with MISP attribute types ip-src, ip-dst, domain|ip, ip-dst|port,
+          and ip-src|port. The list is one of 22 non-threat scanning warninglists
+          maintained in the repository, each tracking a distinct scanning organization.
+        source_feeds: []
+      listing_policy:
+        summary: IPs are listed when CIRCL's Network Telescope analysis identifies
+          them as belonging to Coalition signals intelligence scanning infrastructure.
+          The Network Telescope passively observes unsolicited inbound traffic to
+          darknet address space; IPs whose scanning probes reach the telescope are
+          cross-referenced and attributed to Coalition scanning operations. The resulting
+          IP ranges are packaged as a warninglist for MISP integration.
+        criteria:
+        - IP addresses whose outbound scanning probes are observed by CIRCL's Network
+          Telescope darknet monitoring system
+        - Attribution of observed scanning source IPs to Coalition signals intelligence
+          scanning operations
+        - Aggregation of identified IPs into CIDR-format ranges for the warninglist
+      unlisting_policy:
+        summary: No formal standing unlisting mechanism is documented for this specific
+          warninglist. As an informational warninglist rather than a blocklist, removals
+          are handled through periodic updates to the list driven by changes in the
+          underlying scanning infrastructure. Contributors may propose modifications
+          via the standard MISP warninglists GitHub pull request workflow.
+        criteria:
+        - Periodic Network Telescope reanalysis by CIRCL identifies changes in Coalition
+          scanning node allocations
+        - Updated IP ranges reflecting current scanner infrastructure are submitted
+          via GitHub pull request
+        - The MISP Project maintainer reviews and merges proposed changes
+      unlist_request:
+        url: https://github.com/MISP/misp-warninglists/pulls
+        email:
+        instructions: 'No dedicated unlisting channel is publicly documented for this
+          warninglist. Requests for modification or removal of specific IPs should
+          be submitted as a GitHub pull request against the misp-warninglists repository,
+          following the standard contribution workflow: fork the repository, update
+          the list.json file with the desired changes (incrementing the version field),
+          run the validation scripts (./validate_all.sh and ./jq_all_the_things.sh),
+          and open a pull request against the main branch.'
+      update_frequency:
+        frequency:
+        human_readable: The maintainer does not publish a stated update cadence for
+          this specific list. Based on commit history, the list was updated in April
+          2026 and May 2026, suggesting approximately monthly refresh cycles driven
+          by CIRCL Network Telescope reanalysis.
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: Detection is performed by CIRCL's Network Telescope — a passive
+          darknet monitoring system that observes unsolicited inbound traffic directed
+          at unused IP address space (darknet). Unlike active scanning, the Network
+          Telescope does not send probes; it receives them. When Coalition signals
+          intelligence scanning nodes probe internet address ranges, some of those
+          probes reach CIRCL's darknet, revealing the source IP addresses. CIRCL cross-references
+          observed source IPs and attributes them to Coalition scanning operations,
+          producing the IP ranges packaged in this warninglist.
+      scope_and_intent:
+        description: The list is scoped to IP addresses associated with Coalition
+          signals intelligence scanning infrastructure. Its purpose is to inform analysts
+          that observed scanning activity originates from known, legitimate research
+          or reconnaissance operations rather than from threat actors. The list reduces
+          analyst fatigue by auto-flagging known benign scanning sources and helps
+          prevent false positives in automated threat intelligence workflows.
+        intended_for:
+        - Distinguishing legitimate Coalition signals intelligence scanning from malicious
+          reconnaissance in MISP events
+        - Reducing analyst false-positive fatigue when reviewing network event data
+        - Contextual enrichment in MISP threat intelligence workflows
+        - Filtering known benign scanning sources from automated export pipelines
+          via MISP's enforceWarninglist parameter
+        not_intended_for:
+        - Inline blocking or deny-listing of IP addresses
+        - Enforcement-oriented IDS/IPS rules
+        - Firewall block lists
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal (Public Domain Dedication) imposes no conditions
+          on redistribution or reuse. The data may be freely used, copied, modified,
+          and distributed without attribution, including for commercial purposes.
+      current_status:
+        state: active
+        description: Active as of May 2026. The list was updated on May 4, 2026 (version
+          26050407) via merge commit by the MISP Project maintainer, incorporating
+          the latest CIRCL Network Telescope analysis. The previous update was in
+          April 2026.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion about this specific warninglist is
+          sparse. The MISP warninglists project broadly is widely adopted — warninglists
+          are integrated into MISP instances globally and reused by numerous open-source
+          security projects. Discussion specific to the coalition-signals-intelligence-nt-scanning
+          list is limited to GitHub commit activity. No dedicated forum, mailing list
+          thread, or third-party blog posts addressing this list specifically were
+          found during research.
+      sources_consulted:
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/coalition-signals-intelligence-nt-scanning/list.json
+        document_date: '2026-05-04'
+        validation_date: '2026-05-18T20:00:00Z'
+      - url: 
+          https://github.com/MISP/misp-warninglists/tree/main/lists/coalition-signals-intelligence-nt-scanning
+        document_date: '2026-05-04'
+        validation_date: '2026-05-18T20:00:00Z'
+      - url: 
+          https://github.com/MISP/misp-warninglists/commit/13c085b66228485f28e6f609e5545be5efd66219
+        document_date: '2026-05-04'
+        validation_date: '2026-05-18T20:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-18T20:00:00Z'
+      - url: https://www.circl.lu/doc/misp/warninglists/
+        document_date: '2024-10-02'
+        validation_date: '2026-05-18T20:00:00Z'
+      - url: https://github.com/MISP/misp-warninglists/tree/main/lists
+        document_date:
+        validation_date: '2026-05-18T20:00:00Z'

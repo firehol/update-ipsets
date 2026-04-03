@@ -1,0 +1,193 @@
+sources:
+  cleanmx_phishing:
+    license: public feed
+    redistributable: true
+    url: 
+      http://support.clean-mx.de/clean-mx/xmlphishing?response=alive&format=csv&domain=
+    frequency: 30
+    ipv: ipv4
+    output: ipset
+    processor:
+    - parse_cvs_clean_mx_phishing
+    processor_raw: parse_cvs_clean_mx_phishing
+    category: messaging_abuse
+    info: '[Clean-MX.de](http://support.clean-mx.de/) IPs sending phishing messages'
+    maintainer: Clean-MX.de
+    maintainer_url: http://support.clean-mx.de/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T02:15:03+00:00'
+      official_name: Clean-MX Phishing Database
+      official_url: https://support.clean-mx.com/clean-mx/phishing.php
+      short_description: Phishing URL and associated IP feed compiled from email honeypots
+        and submitted reports, operated by NETpilot GmbH since 2006.
+      long_description: "Clean-MX is a phishing and malware URL intelligence service
+        operated by NETpilot GmbH, a Munich-based ISP founded in 1999. The phishing
+        database has been collecting and verifying phishing URIs since October 2006.
+        The service operates a multi-stage email filtering pipeline: incoming mail
+        passes through a sanity check (filtering senders who don't exist or attempt
+        to reach unknown recipients), a virus scan using commercial antivirus engines
+        with hourly signature updates, an intensive multi-pass spam filter, and a
+        manual quality-check stage for ambiguous cases. Phishing URLs and their associated
+        infrastructure (IP addresses, nameservers, abuse contacts, country codes,
+        AS numbers) are extracted and made available via a CSV-format API. The feed
+        includes metadata fields such as first-observation and last-observation timestamps,
+        the impersonated target domain, HTTP response codes, and manual review flags.
+        Some entries may represent phishing campaigns that have since been taken down
+        but are retained as fraud evidence; Firefox and Opera recognize entries as
+        fraudulent, and the Spam URI Realtime Blocklist (SURBL) honors the domain
+        names. Since 2024 the service has been significantly restricted: large-scale
+        DNS DDoS amplification attacks exceeding 200 Gbit/s forced the closure of
+        the public mailing list and the discontinuation of proactive alert emails
+        to abuse desks. Public programmatic access now requires approved user-agent
+        registration via email to abuse@clean-mx.de."
+      roles:
+      - role: maintainer
+        name: NETpilot GmbH
+        organization_type: commercial
+        official_url: https://www.netpilot.de/
+        contact_email: gerhard.recher@net4sec.com
+        based_in: Germany
+        active_since: '1999'
+        notes: Munich-based ISP and internet security service provider. Operates DNS
+          infrastructure via dns1.netpilot.net, dns2.netpilot.net, dns3.netpilot.net,
+          and ns4.netpilot.net. Donations are accepted via PayPal to gerhard.recher@net4sec.com;
+          the service is described as very expensive on the phishing page.
+      - role: maintainer
+        name: Gerhard W. Recher
+        organization_type: commercial
+        contact_email: abuse@clean-mx.de
+        based_in: Germany
+        active_since:
+        notes: Individual named as the service operator on the official phishing and
+          malware pages. Handles user-agent registration approvals and donation inquiries.
+      derivation:
+        type: original
+        description: "The feed is built from the maintainer's own detection infrastructure.
+          Incoming email is processed through a four-stage filtering pipeline: a sanity
+          check filtering invalid senders, a virus scan using commercial antivirus
+          engines with hourly signature updates, an intensive multi-pass spam filter
+          delivering legitimate mail immediately, and a manual quality-check stage
+          for ambiguous cases. Phishing URLs and their associated infrastructure (IP
+          addresses, nameservers, abuse contacts, country codes, AS numbers, HTTP
+          response codes, and target domains being impersonated) are extracted and
+          published via a CSV-format API. The feed does not consume other public IP
+          feeds as inputs."
+        source_feeds: []
+      listing_policy:
+        summary: IPs are listed when they host phishing content detected through the
+          maintainer's email filtering pipeline. Incoming email is evaluated through
+          a sanity check (invalid senders filtered), a virus scan (using commercial
+          antivirus engines with hourly signature updates), an intensive spam filter,
+          and a manual quality-review stage for ambiguous cases. Phishing URLs and
+          their associated infrastructure — IP address, nameservers, abuse contacts,
+          country code, AS number, HTTP response code, and target domain — are extracted
+          and published. Entries include a manual review flag indicating administrator
+          verification.
+        criteria:
+        - Hosting of phishing content detected via email honeypots or submitted reports
+        - Passes the sanity check (sender must exist and not be a known spammer)
+        - Survives virus scanning with commercial antivirus engines
+        - Identified as phishing by the multi-pass spam filter
+        - Confirmed or flagged for manual review by administrators
+      unlisting_policy:
+        summary: Entries are removed when the phishing campaign is no longer active.
+          The API parameter response=alive filters to only currently responding entries.
+          Some entries may represent phishing campaigns that have since been taken
+          down but are retained as historical fraud evidence.
+        criteria:
+        - Phishing campaign ceases to respond (filtered by response=alive API parameter)
+        - Campaign taken offline by the attacker or sinkholed by the registrar
+      unlist_request:
+        url:
+        email: abuse@clean-mx.de
+        instructions: "Send an email to abuse@clean-mx.de identifying the IP address
+          or URL to be removed and the reason for the request. Per the maintainer's
+          instructions on the phishing page, the preferred approach is to register
+          a user agent (feedbot mycompany contact: me@my.tld) and then contact abuse@clean-mx.de
+          for approval before accessing the feed programmatically."
+      update_frequency:
+        frequency: 1h
+        human_readable: Virus pattern updates are applied hourly; the phishing feed
+          is regenerated each time the API is queried, per the maintainer's documentation.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods:
+        - user_submission
+        description: The primary detection method is email honeypots — the service
+          operates sanity-checking email receivers that filter senders who don't exist,
+          are known spammers, or attempt to reach unknown recipients. Additionally,
+          user-submitted reports contribute to the dataset. Detected phishing URLs
+          and their associated infrastructure are enriched with country code, AS number,
+          nameserver records, abuse contacts, and HTTP response codes.
+      scope_and_intent:
+        description: Covers phishing URLs and their associated hosting infrastructure
+          — IP addresses, nameservers, abuse contacts, country codes, autonomous system
+          numbers, and target domains being impersonated. Intended for messaging abuse
+          teams, email security gateways, and threat intelligence platforms building
+          phishing detection rules.
+        intended_for:
+        - Messaging abuse teams blocking phishing sender infrastructure
+        - Email security gateways enriching reputation scores
+        - Threat intelligence platforms building phishing detection rules
+        - Security operations centers correlating phishing infrastructure
+        not_intended_for:
+        - Real-time inline blocking at network perimeter (entries represent phishing
+          infrastructure, not necessarily active scanning targets)
+        - As the sole source for phishing detection (intended as one input among multiple
+          threat intelligence feeds)
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms: The direct upstream is publicly accessible via unauthenticated HTTP
+          GET (with a registered user agent) and states no redistribution restrictions.
+          The maintainer accepts donations but does not impose redistribution conditions.
+      current_status:
+        state: altered_scope
+        description: The phishing database remains active, but public access has been
+          significantly restricted since 2024 due to sustained DNS DDoS amplification
+          attacks exceeding 200 Gbit/s. The mailing list has been closed and proactive
+          alert emails to abuse desks have been discontinued. Public programmatic
+          access now requires approved user-agent registration via email to abuse@clean-mx.de.
+          The underlying database continues to collect and verify phishing URIs.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: The service has faced criticism from users regarding the access
+          restrictions imposed after the 2024 DDoS attacks. User comments on the official
+          phishing page express disappointment that public programmatic access was
+          curtailed, though several commenters acknowledged the severity of the attacks
+          and pledged donations. No systematic false-positive complaints were found
+          in public forums.
+        engagement: Public community discussion is sparse. No notable discussions
+          were found on Reddit or general security forums. The service is referenced
+          in academic literature comparing phishing feeds and is integrated into threat
+          intelligence platforms including IntelMQ, AbuseIO, and CERT-SE Megatron.
+          The maintainer accepts donations via PayPal but does not publish a public
+          roadmap or changelog.
+      sources_consulted:
+      - url: https://support.clean-mx.com/clean-mx/phishing.php
+        document_date: '2024-05-10'
+        validation_date: '2026-05-18'
+      - url: https://support.clean-mx.com/clean-mx/viruses.php
+        document_date:
+        validation_date: '2026-05-18'
+      - url: 
+          https://github.com/certtools/intelmq-feeds-documentation/blob/master/CleanMX.de/Phishing.md
+        document_date:
+        validation_date: '2026-05-18'
+      - url: 
+          https://github.com/certtools/intelmq-feeds-documentation/blob/master/CleanMX.de/Malware.md
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://github.com/AbuseIO/parser-cleanmx/blob/master/config/Cleanmx.php
+        document_date:
+        validation_date: '2026-05-18'
+      - url: 
+          https://github.com/cert-se/megatron-java/blob/master/conf/job-type/clean-mx-phishing.properties
+        document_date:
+        validation_date: '2026-05-18'

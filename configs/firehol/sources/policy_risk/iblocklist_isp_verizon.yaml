@@ -1,0 +1,172 @@
+sources:
+  iblocklist_isp_verizon:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=cdmdbprvldivlqsaqjol&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Verizon IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T09:20:35Z'
+      official_name: Verizon
+      official_url: https://www.iblocklist.com/list?list=cdmdbprvldivlqsaqjol
+      short_description: A list of all IP address ranges allocated to Verizon Communications,
+        maintained by iBlocklist for use with PeerBlock, PeerGuardian, and compatible
+        firewall tools.
+      long_description: "This list aims to cover all IP address space allocated to
+        Verizon Communications, one of the largest U.S. telecommunications providers
+        and an operator of both consumer FiOS broadband and Verizon Wireless mobile
+        networks. It is published by iBlocklist and is authored by iBlocklist's own
+        compilation effort rather than mirrored from a separate upstream — entries
+        are drawn from ISP allocation data identifying Verizon-registered netblocks.\n\
+        \nThe list author includes an explicit caveat on the list page: the list is
+        not recommended for use by Verizon subscribers themselves, and the author
+        disclaims responsibility for any resulting problems. The service's Terms of
+        Service grant permission for personal use only and prohibit commercial use
+        or public display of the materials. The ToS also states that iBlocklist makes
+        no commitment to update the materials — meaning operators must treat the Verizon
+        allocation footprint as it appears in the feed rather than expect frequent
+        re-derivation against current ARIN records."
+      roles:
+      - role: maintainer
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in: United States
+        active_since: '2008'
+        notes: A commercial distribution service for IP blocklists, incorporated in
+          Delaware on April 6, 2011. Operates anonymously without a publicly named
+          individual founder. Also offers the PhantomPeer VPN service. Across the
+          broader iBlocklist.com service, reports from 2016 onward describe lists
+          as frozen at timestamps from years earlier despite apparently current compression-file
+          dates, customer support reported non-responsive across multiple independent
+          contacts, and Trustpilot reviews documenting unauthorized recurring charges
+          and hostile owner responses to billing disputes; the broader PeerGuardian
+          community has often recommended obtaining blocklists directly from origin
+          projects rather than through iBlocklist's distribution layer.
+      derivation:
+        type: original
+        description: iBlocklist publishes this list as its own authored work, drawing
+          on ISP-allocation data observable through the PeerGuardian community ecosystem.
+          The service acts as both author and publisher for its proprietary lists
+          while also distributing third-party lists from projects including Squidblacklist,
+          Bluetack, Spamhaus, and others. No external API or upstream feed is consumed
+          in building this specific list.
+        source_feeds: []
+      listing_policy:
+        summary: An IP is listed if it falls within IP address space allocated to
+          Verizon Communications by regional internet registries. The list aims for
+          comprehensive coverage of Verizon's allocated ranges rather than targeting
+          specific abusive behavior from those ranges.
+        criteria:
+        - IP falls within a netblock allocated to Verizon Communications by ARIN or
+          upstream registrants
+        - No minimum detection threshold or behavioral trigger is specified — inclusion
+          is based on ISP allocation membership
+      unlisting_policy:
+        summary: No documented unlisting or delisting policy is published on iblocklist.com.
+          The service does not operate a self-service removal portal, publishes no
+          criteria for removal, and states no automatic decay mechanism.
+        criteria: []
+      unlist_request:
+        url: https://www.iblocklist.com/support
+        email:
+        instructions: Submit an inquiry through the web-based contact form at iblocklist.com/support.
+          No direct email address is published on the site. No dedicated removal-request
+          page exists. Response to removal requests is not guaranteed — community
+          reports describe support as non-responsive.
+      update_frequency:
+        frequency:
+        human_readable: No update cadence is stated by the maintainer. The Terms of
+          Service explicitly disclaims any commitment to update the materials.
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: The list classifies IPs by ISP allocation membership rather than
+          by observed malicious behavior. An IP is included if it falls within address
+          space registered to Verizon Communications, regardless of whether any specific
+          activity has been observed from that IP. This is an allocation-scope approach
+          to reputation, distinct from honeypot-based, sandbox-based, or community-report-based
+          detection.
+      scope_and_intent:
+        description: The list is designed to block or allow traffic based on ISP affiliation,
+          primarily for users engaged in P2P file sharing who wish to filter or permit
+          traffic from specific ISPs.
+        intended_for:
+        - P2P privacy applications (PeerBlock, PeerGuardian, Vuze, uTorrent built-in
+          filtering)
+        - Firewall-based ISP-affiliation filtering via pfBlocker and comparable tools
+        - Identifying or blocking traffic originating from Verizon-allocated address
+          space
+        not_intended_for:
+        - Verizon ISP subscribers — the list author explicitly advises against use
+          by Verizon customers
+        - Commercial deployments — the Terms of Service prohibit commercial use of
+          the materials
+        - Security-focused threat intelligence — the list is scoped to ISP allocation,
+          not malicious-behavior detection
+      license: iBlocklist Terms of Service — personal use only, commercial use prohibited
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The Terms of Service grant permission for personal use only. Commercial
+          use and public display of the materials are explicitly prohibited. Redistribution
+          under the personal-use-only grant is not addressed; the ToS does not grant
+          redistribution rights broadly.
+      current_status:
+        state: active
+        description: The iBlocklist website remains operational and the ISP Verizon
+          list page is accessible. The service continues to serve list downloads and
+          accepts subscriptions. The Terms of Service explicitly disclaims any commitment
+          to update the materials. No discontinuation notice has been issued for this
+          specific feed.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion specific to the Verizon ISP list is sparse.
+          Broader discussion about ISP blocklists in security and networking forums
+          tends to favor allocation feeds drawn directly from registries (ARIN, RIPE)
+          and threat-intelligence feeds from Spamhaus, Emerging Threats, and Abuse.ch
+          over the iBlocklist distribution layer. No GitHub repository, integration
+          connector, or quantified ecosystem adoption metric was found for this specific
+          feed.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/list?list=cdmdbprvldivlqsaqjol
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.iblocklist.com/support
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-18'
+      - url: https://www.ipaddress.com/website/iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18'

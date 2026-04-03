@@ -1,0 +1,209 @@
+sources:
+  et_block:
+    license: BSD-3-Clause (Emerging Threats Open)
+    redistributable: true
+    url: http://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt
+    frequency: 720
+    ipv: ipv4
+    output: netset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    provenance: secondary_upstream
+    info: '[EmergingThreats.net](http://www.emergingthreats.net/) default blacklist
+      (at the time of writing includes spamhaus DROP, dshield and abuse.ch trackers,
+      which are available separately too - prefer to use the direct ipsets instead
+      of this, they seem to lag a bit in updates)'
+    maintainer: Emerging Threats
+    maintainer_url: http://www.emergingthreats.net/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T04:10:16Z'
+      official_name: Emerging Threats fwip rules
+      official_url: https://www.emergingthreats.net/
+      short_description: A firewall-oriented blocklist aggregating malicious IP addresses
+        reported by Spamhaus DROP, DShield Top Attackers, and Abuse.ch C&C trackers,
+        formatted for direct import into firewall and IDS rule engines.
+      long_description: "The Emerging Threats (ET) Block IPs feed is a raw IP blocklist
+        designed for direct import into firewall rule engines. Per the file header,
+        it aggregates IPs from three upstream sources: Spamhaus DROP (don't-route-or-peer
+        networks), DShield Top Attackers (distributed honeypot attack data), and Abuse.ch
+        C&C trackers (Feodo and Palevo botnet command-and-control trackers).\n\nThe
+        feed is organized under comment headers identifying the threat source or category
+        — entries are grouped under labels such as '# Abuse.ch C&C List', '# Feodo',
+        '# Palevo', '# Spamhaus DROP Nets', and '# Dshield Top Attackers'. Each group
+        contains raw IPv4 addresses and CIDR notation blocks.\n\nThe maintainer notes
+        in the file header that the direct upstream feeds (Spamhaus DROP, DShield,
+        Abuse.ch) are available separately and may receive updates faster than this
+        aggregated bundle. The feed presents the raw aggregated IPs without per-entry
+        scoring metadata or per-source confidence values."
+      roles:
+      - role: maintainer
+        name: Emerging Threats
+        organization_type: commercial
+        official_url: https://www.emergingthreats.net/
+        contact_email: support@emergingthreats.net
+        based_in:
+        active_since: '2003'
+        notes: Acquired by Proofpoint; continues to publish the community-accessible
+          ET Open ruleset alongside the commercial ET Pro Intelligence feed. Per the
+          file header, copyright is held by Emerging Threats (2003-2026).
+      derivation:
+        type: aggregate_merge
+        description: 'The feed merges IP addresses from three upstream sources: Spamhaus
+          DROP (bulletproof and exploited networks), DShield Top Attackers (aggregated
+          distributed honeypot attack data), and Abuse.ch C&C trackers (Feodo and
+          Palevo botnet command-and-control servers). The three sources are aggregated
+          without additional per-entry scoring — IPs are included as raw entries grouped
+          under source-category comment headers. The maintainer notes that the direct
+          upstream feeds may receive updates faster than the bundled aggregate.'
+        source_feeds:
+        - identifier: Spamhaus DROP
+          relationship: aggregate_component
+          notes: Don't Route Or Peer list — exploited networks and bulletproof hosting
+            providers
+        - identifier: DShield Top Attackers
+          relationship: aggregate_component
+          notes: Aggregated attack data from distributed honeypots; managed by the
+            SANS Institute
+        - identifier: Abuse.ch C&C Trackers
+          relationship: aggregate_component
+          notes: Feodo and Palevo botnet command-and-control server tracking
+      listing_policy:
+        summary: 'Entries enter the feed when they appear in one or more of the three
+          upstream source feeds: Spamhaus DROP (networks observed facilitating spam
+          or cybercrime hosting), DShield Top Attackers (IPs observed conducting attack
+          traffic in distributed honeypot data), or Abuse.ch C&C trackers (IPs associated
+          with active botnet command-and-control servers). The commercial ET Pro Intelligence
+          system assigns a 0-127 reputation score per behavioral category; the community
+          block IPs feed publishes all IPs from the named sources without applying
+          a separate scoring threshold.'
+        criteria:
+        - 'Presence in Spamhaus DROP: networks designated as exploited or bulletproof
+          hosting'
+        - 'Presence in DShield Top Attackers: IPs observed generating attack traffic
+          in distributed honeypot data'
+        - 'Presence in Abuse.ch C&C trackers: IPs associated with Feodo or Palevo
+          botnet command-and-control servers'
+      unlisting_policy:
+        summary: IPs are removed when they are no longer present in the originating
+          upstream source feed (Spamhaus DROP, DShield Top Attackers, or Abuse.ch
+          C&C trackers). The commercial ET Pro Intelligence system ages entries aggressively
+          — approximately 30% of the list turns over every three to four weeks as
+          scores decay below the publication threshold. Because this community aggregate
+          does not carry per-entry scoring metadata, unlisting timing is governed
+          by the upstream sources' update cycles rather than a fixed ET-maintained
+          expiry window.
+        criteria:
+        - Removal from the originating upstream source feed (Spamhaus, DShield, or
+          Abuse.ch)
+        - Decay of ET Pro reputation score below publication threshold (for entries
+          also tracked in the commercial feed)
+      unlist_request:
+        url:
+        email: support@emergingthreats.net
+        instructions: Submit removal requests by email to support@emergingthreats.net
+          or post to the emerging-sigs community mailing list. For IPs originating
+          from Spamhaus, DShield, or Abuse.ch, the upstream source may need to be
+          contacted directly — removal from the upstream feed will result in removal
+          from the ET aggregate on the next update cycle.
+      update_frequency:
+        frequency: 12h
+        human_readable: Updated approximately twice daily, per the directory listing
+          showing all /fwrules/ files synchronized to the same timestamp
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: 'The feed aggregates IPs from three upstream reputation and sensor
+          feeds: Spamhaus DROP (network-level blocklist of exploited and bulletproof
+          hosting), DShield Top Attackers (attack-source IPs aggregated from distributed
+          honeypots), and Abuse.ch C&C trackers (botnet command-and-control server
+          IPs). The detection approach is second-party aggregation — ET collects and
+          consolidates the outputs of established upstream detection systems rather
+          than operating its own sensors for this specific feed. The commercial ET
+          Pro Intelligence system beneath it assigns 0-127 reputation scores per behavioral
+          category based on observed activity volume and type, with scores aggressively
+          aged; the community block IPs feed publishes the raw aggregated IPs without
+          per-entry scoring.'
+      scope_and_intent:
+        description: The feed is intended as a raw firewall blocklist for perimeter
+          enforcement. It consolidates IPs associated with spam networks, attack sources,
+          and botnet C&C infrastructure into a single file formatted for direct import
+          into firewall rule engines.
+        intended_for:
+        - Firewall inbound blocklist (border router or perimeter gateway)
+        - IDS/IPS allowlist tuning
+        - SIEM enrichment correlating inbound connection attempts
+        not_intended_for:
+        - Inline deep-packet inspection rule authoring (use ET Suricata/Snort rulesets
+          instead)
+        - Fine-grained per-category threat scoring (the community block IPs feed carries
+          no per-entry scoring metadata)
+      license: BSD-3-Clause (Emerging Threats Open)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit 'Emerging Threats' in redistributed works
+        terms: Redistributions of source or binary form must retain the copyright
+          notice, the list of conditions, and the following disclaimer. Neither the
+          Emerging Threats name nor the names of its contributors may be used to endorse
+          or promote derived products without prior written permission.
+      current_status:
+        state: active
+        description: Actively maintained as of May 2026; all files in the /fwrules/
+          directory were last synchronized on 2026-05-18T04:30:02Z, confirming the
+          feed is being regenerated on the maintainer's current publishing schedule.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: Documented false positive cases have been reported by community
+          members across multiple platforms. A confirmed case involved a video game
+          server domain being blocked due to inclusion in the CINS list, requiring
+          users to manually whitelist the affected address in their firewall. Consumer
+          devices including smart speakers and mobile phones have triggered ET CINS
+          alerts during normal network activity. A rule update in 2022 introduced
+          elevated false positives and was subsequently backed out by maintainers.
+          The official ET community forum hosts a dedicated false-positives tag with
+          16 documented topics spanning 2023-2026, with maintainer staff participating
+          in resolution discussions.
+        engagement: Sparse but ongoing public discussion. The official community forum
+          (community.emergingthreats.net) hosts a false-positives tag with periodic
+          posts; maintainer staff (identified as rgonzalez, ishaughnessy, and trobinson667)
+          participate in threads. Third-party discussion appears on Reddit and pfSense/OpenSense
+          forums. The feed is referenced in production automation projects including
+          macOS-Fortress (essandess) and integrated into aggregators such as IPsum.
+          No GitHub star or fork count is available as Emerging Threats maintains
+          no official GitHub repository for this feed.
+      sources_consulted:
+      - url: https://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt
+        document_date:
+        validation_date: '2026-05-19T04:00:00Z'
+      - url: https://www.emergingthreats.net/
+        document_date:
+        validation_date: '2026-05-19T03:00:00Z'
+      - url: 
+          https://tools.emergingthreats.net/docs/ET%20Intelligence%20Rep%20List%20Tech%20Description.pdf
+        document_date: '2020-10-20'
+        validation_date: '2026-05-19T03:30:00Z'
+      - url: https://rules.emergingthreats.net/fwrules/
+        document_date: '2026-05-18'
+        validation_date: '2026-05-19T03:45:00Z'
+      - url: https://community.emergingthreats.net/tag/false-positives/23
+        document_date:
+        validation_date: '2026-05-19T04:05:00Z'
+      - url: https://reddit.com/r/thefinals/comments/1b931tn/
+        document_date: '2024-01-01'
+        validation_date: '2026-05-19T03:20:00Z'
+      - url: https://reddit.com/r/Ubiquiti/comments/1qjbtni/
+        document_date: '2024-05-01'
+        validation_date: '2026-05-19T03:20:00Z'
+      - url: 
+          https://forum.netgate.com/topic/173592/important-emerging-threats-rules-false-positive-announcement
+        document_date: '2022-07-01'
+        validation_date: '2026-05-19T03:20:00Z'
+      - url: https://github.com/essandess/macOS-Fortress
+        document_date:
+        validation_date: '2026-05-19T03:30:00Z'

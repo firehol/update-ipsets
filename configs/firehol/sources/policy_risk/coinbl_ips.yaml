@@ -1,0 +1,166 @@
+sources:
+  coinbl_ips:
+    license: AGPL-3.0
+    redistributable: true
+    url: https://zerodot1.gitlab.io/CoinBlockerLists/MiningServerIPList.txt
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: policy_risk
+    info: '[CoinBlockerLists](https://gitlab.com/ZeroDot1/CoinBlockerLists) Simple
+      lists that can help prevent cryptomining in the browser or other applications.
+      This list contains all IPs - An additional list for administrators to prevent
+      mining in networks. The maintainer''s file contains hostnames, which have been
+      DNS resolved to IP addresses.'
+    maintainer: CoinBlockerLists
+    maintainer_url: https://gitlab.com/ZeroDot1/CoinBlockerLists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T04:57:39Z'
+      official_name: CoinBlockerLists
+      official_url: https://zerodot1.gitlab.io/CoinBlockerListsWeb/
+      short_description: The maintainer's MiningServerIPList — a plain-text list of
+        cryptocurrency mining-server IP addresses for use with firewall and IP-table
+        tools.
+      long_description: "This feed is the maintainer's MiningServerIPList — the IP-address
+        variant of the CoinBlockerLists project, distinct from the sibling hosts/hosts_browser
+        files in that the maintainer publishes IPs directly rather than domains for
+        DNS resolution downstream. It is intended for firewall and IP-table tools
+        that block at the network layer rather than at DNS.\n\nThe maintainer described
+        entries as cryptocurrency mining-server IP addresses derived from community-reported
+        mining hostnames the maintainer resolved to IPs before adding to the list.
+        A companion white_list.txt file held known false-positive exemptions for the
+        hosts-file variants. The list was processed through PyFunceble for availability
+        checks, the same domain-validation tooling the maintainer used for the hosts
+        files.\n\nOn 15 January 2025, ZeroDot1 issued a statement announcing the lists
+        were no longer available and that further use was not recommended. On 19 January
+        2025, ZeroDot1 explicitly recommended complete removal of the lists from downstream
+        aggregators, citing the risk of outdated information leading to incorrect
+        operational decisions. The project was suspended indefinitely due to the maintainer's
+        health reasons and insufficient community and financial support."
+      roles:
+      - role: maintainer
+        name: ZeroDot1
+        organization_type: individual
+        official_url: https://gitlab.com/ZeroDot1
+        contact_email: zerodot1@bk.ru
+        based_in:
+        active_since: '2017'
+        notes: Individual researcher who created and maintained CoinBlockerLists.
+          Announced indefinite suspension on January 15, 2025 due to health reasons
+          and insufficient community support. Recommended complete removal of all
+          lists on January 19, 2025.
+      derivation:
+        type: original
+        description: The MiningServerIPList was built from community-reported cryptocurrency
+          mining server hostnames. Community members encountering active mining scripts
+          on websites reported the associated hostnames to the maintainer via GitLab
+          issue or email. The maintainer DNS-resolved these hostnames to IP addresses
+          and added confirmed entries to the MiningServerIPList. A companion white_list.txt
+          file held known false-positive exemptions. No third-party IP feeds were
+          consumed as inputs.
+        source_feeds: []
+      listing_policy:
+        summary: Entries were added upon community report of an active cryptocurrency
+          mining hostname. The maintainer reviewed submissions and DNS-resolved hostnames
+          to populate the MiningServerIPList. No automated vetting or third-party
+          validation process was documented.
+        criteria:
+        - Community member encounters an active browser-based cryptocurrency mining
+          script on a website
+        - Member reports the hostname to the maintainer via GitLab issue or email
+        - Maintainer reviews and DNS-resolves the hostname to an IP address
+        - Confirmed IP is added to the MiningServerIPList
+      unlisting_policy:
+        summary: No formal written unlisting policy existed. Removals were handled
+          informally via direct contact with the maintainer. A white_list.txt file
+          held known false-positive exemptions for the hosts-file variants; the equivalent
+          process for the MiningServerIPList was handled case-by-case via email.
+        criteria:
+        - Owner of a listed IP contacts the maintainer via email or GitLab issue
+        - Maintainer reviews the case and removes the entry if warranted
+      unlist_request:
+        url:
+        email: zerodot1@bk.ru
+        instructions: The maintainer's previously published contact channel for removal
+          requests was email to zerodot1@bk.ru. However, the project was suspended
+          indefinitely on January 15, 2025, and ZeroDot1 subsequently recommended
+          complete removal of all lists from downstream aggregators. Operators currently
+          consuming this feed should remove it entirely per the maintainer's own guidance,
+          rather than seek individual unlisting.
+      update_frequency:
+      detection_classification:
+        primary_method: user_submission
+        secondary_methods: []
+        description: The MiningServerIPList was built from community submissions.
+          Community members who encountered active cryptocurrency mining scripts on
+          websites reported the associated hostnames to the maintainer via GitLab
+          issues or email. The maintainer DNS-resolved these hostnames to IP addresses
+          and added confirmed entries to the list. No honeypots, sandboxes, or automated
+          scanning infrastructure was involved.
+      scope_and_intent:
+        description: CoinBlockerLists was designed to block cryptocurrency mining
+          in browsers and network applications. The MiningServerIPList specifically
+          targeted the IP addresses of mining infrastructure servers, enabling network-level
+          blocking at the firewall or DNS-sinkhole level.
+        intended_for:
+        - Browser-based cryptocurrency mining blocking via hosts-file-compatible blockers
+          (Pi-hole, pfSense, AdBlock, uBlock Origin)
+        - Network-level IP blocking via firewall rules for mining server IPs
+        not_intended_for:
+        - Production use after January 2025 — the maintainer explicitly recommended
+          complete removal due to data integrity risks from unmaintained data
+        - Blocking malware-based cryptocurrency miners (scope was browser-based cryptojacking,
+          not drive-by miner infections)
+      license: AGPL-3.0
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required: Credit ZeroDot1 / CoinBlockerLists required for modifications
+        terms: Under GPL-3.0, the lists may be freely redistributed. Modifications
+          and derivative works must be published under GPL-3.0. No warranty is provided.
+      current_status:
+        state: discontinued
+        description: Discontinued. ZeroDot1 announced on January 15, 2025 that the
+          CoinBlockerLists are no longer available and further use is not recommended.
+          On January 19, 2025, ZeroDot1 explicitly recommended complete removal of
+          all lists from downstream aggregators, citing the risk of outdated information
+          leading to incorrect operational decisions. The project was suspended indefinitely
+          due to the maintainer's health reasons and insufficient community funding.
+          Operators currently consuming this feed should remove it entirely per the
+          maintainer's own guidance.
+        successor:
+        announcement_date: '2025-01-15'
+      community:
+        awards:
+        criticism: Listing and unlisting were handled through informal email and GitLab-issue
+          contact with the maintainer; no formal written policy was published for
+          either. After discontinuation, ZeroDot1 recommended complete removal of
+          the lists rather than naming a successor or arranging a handover, citing
+          data integrity risks from stale entries.
+        engagement: During the active period (2018-2024), the CoinBlockerLists project
+          was discussed across r/pihole, r/pfBlockerNG, and r/PFSENSE and was integrated
+          into the Ultimate Hosts Blacklist aggregation project. After discontinuation
+          in January 2025, community members shared archived copies of the lists on
+          GitHub as a fallback for existing Pi-hole deployments.
+      sources_consulted:
+      - url: https://github.com/mitchellkrogza/CoinBlockerLists
+        document_date: '2017-10-23'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://github.com/WaLLy3K/wally3k.github.io/issues/215
+        document_date: '2025-01-19'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: 
+          https://www.reddit.com/r/pihole/comments/1iupcku/zerodot1_coinblockerlists_is_no_longer_mantained
+        document_date: '2025-02-21'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://github.com/Ultimate-Hosts-Blacklist/ZeroDot1_CoinBlockerLists
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://github.com/hoshsadiq/adblock-nocoin-list
+        document_date: '2025-12-30'
+        validation_date: '2026-05-19T00:00:00Z'

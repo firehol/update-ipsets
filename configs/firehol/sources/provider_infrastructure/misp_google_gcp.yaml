@@ -1,0 +1,159 @@
+sources:
+  misp_google_gcp:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/google-gcp/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) Google Cloud
+      Platform IP address ranges. Provider infrastructure reference, not a threat
+      indicator.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T15:26:03+00:00'
+      official_name: List of known GCP (Google Cloud Platform) IP address ranges
+      official_url: https://github.com/MISP/misp-warninglists
+      short_description: Google Cloud Platform IP address ranges published by Google,
+        formatted as a MISP warninglist for suppressing false positives when GCP infrastructure
+        IPs appear in threat intelligence.
+      long_description: "The MISP warninglists project provides curated collections
+        of well-known indicators that commonly generate false positives in threat
+        intelligence workflows. The google-gcp list is one such collection: it mirrors
+        the Google-published IP address ranges for Google Cloud Platform, sourced
+        from Google's public JSON endpoint. The list is integrated into the MISP platform
+        to display a warning box whenever a GCP IP address appears in an analyst's
+        event or attribute view, signaling that the IP belongs to a cloud provider
+        and may warrant additional context before escalation.\n\nPer the project README,
+        the list is categorized as a provider/infrastructure warninglist — distinct
+        from threat-indicator lists that track malicious activity. The entries are
+        CIDR blocks covering GCP regions worldwide, refreshed periodically by the
+        maintainer from Google's authoritative feed. The list supports matching on
+        ip-src, ip-dst, domain|ip, ip-src|port, and ip-dst|port attribute types.\n\
+        \nThe project is maintained by the MISP community with core contributions
+        from CIRCL Luxembourg and is released under CC0 1.0 (Public Domain Dedication).
+        The repository has accumulated 615 stars and 190 forks on GitHub (as of May
+        2026) and is reused by numerous open-source security projects."
+      roles:
+      - role: maintainer
+        name: MISP Project / CIRCL Luxembourg
+        organization_type: research_institution
+        official_url: https://www.circl.lu/
+        contact_email:
+        based_in: Luxembourg
+        active_since: '2016'
+        notes: The MISP Project is coordinated by CIRCL (Computer Incident Response
+          Center Luxembourg), mandated by the Luxembourg Ministry of Economy. Core
+          maintainers include Alexandre Dulaunoy (@adulau) and Andras Iklody (@iglocska).
+          The google-gcp list is updated exclusively by @adulau (97% of commits).
+      derivation:
+        type: extraction
+        description: The list is produced by extracting IPv4 CIDR blocks from Google's
+          publicly published cloud.json endpoint. The maintainer fetches the upstream
+          JSON, extracts the ipv4Prefix values from the prefixes array, formats them
+          as individual CIDR strings in the list.json list field, and increments the
+          version number. IPv6 prefixes are excluded — the list contains only IPv4
+          CIDRs. No scoring, weighting, or merging with other feeds is applied; the
+          entries are a direct representation of Google's published allocation.
+        source_feeds: []
+      listing_policy:
+        summary: This is a reference dataset, not a threat indicator feed. Entries
+          are not listed based on malicious activity — they represent IP address ranges
+          allocated to Google Cloud Platform. Additions follow Google's published
+          IP allocations; removals follow deprecation of those allocations in Google's
+          upstream JSON.
+        criteria:
+        - IP range is published by Google in https://www.gstatic.com/ipranges/cloud.json
+        - IP range falls within Google's documented GCP allocation space
+      unlisting_policy:
+        summary: Entries are removed when Google retires or reallocates the corresponding
+          IP range in its published cloud.json. The maintainer refreshes the list
+          periodically from the upstream source, removing ranges that no longer appear
+          in Google's published allocations.
+        criteria:
+        - IP range no longer appears in Google's published cloud.json
+        - Google formally deprecates the range in its public documentation
+      unlist_request:
+      update_frequency:
+        frequency: 30d
+        human_readable: Approximately monthly, per the maintainer's observed commit
+          cadence
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The list is classified as policy_assignment because entries are
+          determined by Google's published IP allocation policy, not by honeypot detections,
+          malware analysis, or community reports. Each CIDR represents a range officially
+          allocated to Google Cloud Platform. The maintainer's role is to faithfully
+          extract and republish these allocations in the MISP warninglist format.
+      scope_and_intent:
+        description: The google-gcp list is a reference dataset for suppressing false
+          positives in MISP when analyst-observed IPs happen to originate from Google
+          Cloud Platform. It is not a threat indicator feed and does not track malicious
+          activity.
+        intended_for:
+        - False positive suppression in MISP threat intelligence workflows
+        - Enriching analyst context when GCP IPs appear in events
+        - Filtering cloud provider egress IPs from outbound-alert pipelines
+        not_intended_for:
+        - Blocking or deny-listing GCP IP ranges at the network perimeter
+        - Attributing malicious activity to Google Cloud Platform as a class
+        - Security enforcement decisions based solely on IP presence in this list
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: Released under CC0 1.0 Universal (Public Domain Dedication). No rights
+          reserved. Copying, modifying, distributing, and performing the work — even
+          for commercial purposes — requires no permission.
+      current_status:
+        state: active
+        description: Active. Latest release tag 2026040500 (published April 5, 2026);
+          most recent commit to google-gcp/list.json on April 28, 2026. Updates are
+          published regularly.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: The repository has accumulated 615 stars and 190 forks on GitHub
+          (as of May 2026). Public practitioner discussion is sparse; Reddit threads
+          from August 2025 reference the misp-warninglists project positively as a
+          resource for false-positive suppression, with practitioners noting the importance
+          of combining cloud provider reference lists with contextual filtering rather
+          than blanket whitelisting. No dedicated issue tracker activity specific
+          to the google-gcp list was identified.
+      sources_consulted:
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/google-gcp/list.json
+        document_date: '2026-04-28'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://github.com/MISP/misp-warninglists/blob/main/README.md
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.gstatic.com/ipranges/cloud.json
+        document_date: '2026-05-18'
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: 
+          https://github.com/MISP/misp-warninglists/commits/main/lists/google-gcp/list.json
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.misp-project.org/who
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'
+      - url: https://www.circl.lu/doc/misp/warninglists/
+        document_date:
+        validation_date: '2026-05-18T00:00:00+00:00'

@@ -1,0 +1,172 @@
+sources:
+  coinbl_hosts_browser:
+    license: AGPL-3.0
+    redistributable: true
+    url: https://zerodot1.gitlab.io/CoinBlockerLists/hosts_browser
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - hphosts2ips
+    processor_raw: hphosts2ips
+    category: policy_risk
+    info: '[CoinBlockerLists](https://gitlab.com/ZeroDot1/CoinBlockerLists) Simple
+      lists that can help prevent cryptomining in the browser or other applications.
+      A hosts list to prevent browser mining only. The maintainer''s file contains
+      hostnames, which have been DNS resolved to IP addresses.'
+    maintainer: ZeroDot1
+    maintainer_url: https://gitlab.com/ZeroDot1/CoinBlockerLists
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T04:40:41Z'
+      official_name: CoinBlockerLists — hosts_browser
+      official_url: https://zerodot1.gitlab.io/CoinBlockerListsWeb/
+      short_description: A domain blocklist targeting browser-based cryptomining,
+        compiled from mining pool and mining server URLs and converted to IP addresses
+        via DNS resolution.
+      long_description: This feed is the IP-resolved form of the CoinBlockerLists
+        'hosts_browser' file — the maintainer's narrow variant covering only in-browser
+        cryptomining (cryptojacking) hostnames such as Coinhive-style page miners,
+        distinct from the broader 'hosts' file that also covers mining-pool infrastructure
+        and cryptocurrency fraud domains. The catalog fetches the maintainer's hosts_browser
+        file and DNS-resolves each domain to its current IPv4 addresses for use with
+        firewall and IP-blocking tools. The maintainer described the parent project
+        as designed for companies, universities, and other networks, as well as individuals,
+        and as usable with firewall solutions including pfSense and Pi-hole. On 15
+        January 2025, ZeroDot1 published an official statement discontinuing the project,
+        citing health reasons and insufficient community and financial support. The
+        maintainer recommended complete removal of all lists from downstream projects
+        due to data integrity risks, and the downloads and repository were taken offline
+        immediately.
+      roles:
+      - role: maintainer
+        name: ZeroDot1
+        organization_type: individual
+        official_url: https://gitlab.com/ZeroDot1
+        contact_email: zerodot1@bk.ru
+        based_in:
+        active_since: '2017'
+        notes: Individual researcher who started CoinBlockerLists in 2017. Maintains
+          a presence on Twitter (@zero_dot1) and Mastodon (mastodon.social/@katze).
+          Published the official discontinuation statement in January 2025.
+      derivation:
+        type: derivative
+        description: The feed is a derivative of the maintainer's own compiled domain
+          list. Hostnames associated with browser-based cryptomining are collected
+          from mining pool and mining server URLs, then processed through DNS resolution
+          to produce IP addresses. The catalog processes the hosts file through the
+          hphosts2ips tool to generate the IP set output.
+        source_feeds: []
+      listing_policy:
+        summary: Domains associated with browser-based cryptomining are added to the
+          list. The maintainer collects hostnames from mining pool and mining server
+          URLs and processes them through DNS resolution. No formal written criteria
+          were found in the accessible documentation; the maintainer encouraged direct
+          contact for additions.
+        criteria:
+        - Hostnames associated with browser-based cryptomining scripts or in-browser
+          miners
+        - Mining pool and mining server domains identified by the maintainer
+      unlisting_policy:
+        summary: No formal unlisting policy was documented. Before the project's discontinuation,
+          the maintainer reportedly stopped responding to false positive deletion
+          requests, advising users to add affected domains to their own local whitelists.
+        criteria:
+        - No formal auto-decay mechanism was described
+        - Manual removal requests were reportedly not honored before discontinuation
+      unlist_request:
+        url:
+        email: zerodot1@bk.ru
+        instructions: Before the project's discontinuation, the maintainer listed
+          zerodot1@bk.ru as the contact for additions. The maintainer advised against
+          relying on false positive deletions, recommending users maintain their own
+          local whitelists instead. The project is now discontinued and no unlisting
+          channel is active.
+      update_frequency:
+        frequency:
+        human_readable: Event-driven updates with new mining pool and mining server
+          URLs, per the maintainer's project page. No fixed schedule was stated.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: The maintainer compiles domains associated with browser-based
+          cryptomining from mining pool and mining server URLs. Entries are manually
+          reviewed and added by the maintainer. No honeypots, sandboxes, or community
+          reporting mechanisms were described in the accessible documentation.
+      scope_and_intent:
+        description: CoinBlockerLists targets browser-based cryptomining and cryptocurrency-related
+          scams. The maintainer described the intended audience as companies, universities,
+          and other networks, as well as individuals seeking to block cryptojacking
+          in browsers and other applications.
+        intended_for:
+        - Browser-based cryptomining (cryptojacking) protection
+        - Network-level blocking via pfSense and Pi-hole
+        - Companies, universities, and organizational networks
+        - Individuals protecting personal networks
+        not_intended_for:
+        - General-purpose malware blocking (scope is limited to cryptomining and cryptocurrency-related
+          threats)
+      license: AGPL-3.0
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required: Credit ZeroDot1 / CoinBlockerLists
+        terms: Under the GNU AGPLv3 license, redistribution and derivative works are
+          permitted provided source code is shared under the same license and attribution
+          is given.
+      current_status:
+        state: discontinued
+        description: Officially discontinued. On 15 January 2025, ZeroDot1 published
+          a statement citing health reasons and insufficient community and financial
+          support, suspending all work on the project. Downloads and the repository
+          were taken offline immediately. ZeroDot1 specifically recommended complete
+          removal of all lists from downstream projects due to data integrity risks.
+          The zerodot1.gitlab.io hosting is no longer accessible. No successor project
+          has been announced.
+        successor:
+        announcement_date: '2025-01-15'
+      community:
+        awards:
+        criticism: In February 2018, dnscrypt-proxy tested the browser-only variant
+          and found unrelated domains in it, prompting dnscrypt-proxy to disable the
+          CoinBlockerLists set by default. Before the project's discontinuation, the
+          maintainer reportedly stopped responding to false positive deletion requests,
+          advising users to whitelist affected domains locally instead. After the
+          January 2025 discontinuation, multiple downstream projects (WaLLy3K hosts
+          aggregator, Ultimate Hosts Blacklist) removed CoinBlockerLists per ZeroDot1's
+          recommendation.
+        engagement: Community adoption of CoinBlockerLists was documented across r/pihole,
+          r/pfBlockerNG, and r/PFSENSE from 2018 onward, with the project recommended
+          alongside other blocklists for cryptomining protection. The maintainer engaged
+          publicly on Reddit and via direct email before the discontinuation. Following
+          the shutdown announcement, community discussion centered on alternative
+          blocklists and preservation options.
+      sources_consulted:
+      - url: https://gitlab.com/ZeroDot1/CoinBlockerLists
+        document_date: '2024-03-04'
+        validation_date: '2026-05-19T04:35:00Z'
+      - url: https://zerodot1.gitlab.io/CoinBlockerListsWeb/
+        document_date: '2023-10-14'
+        validation_date: '2026-05-19T04:36:00Z'
+      - url: https://www.reddit.com/r/pfBlockerNG/comments/1i5th81/
+        document_date: '2025-01-19'
+        validation_date: '2026-05-19T04:37:00Z'
+      - url: https://github.com/WaLLy3K/wally3k.github.io/issues/215
+        document_date: '2025-01-15'
+        validation_date: '2026-05-19T04:38:00Z'
+      - url: https://www.reddit.com/r/pihole/comments/1i4g3dl/
+        document_date: '2025-01-18'
+        validation_date: '2026-05-19T04:37:00Z'
+      - url: https://www.reddit.com/r/pihole/comments/196nt7o/
+        document_date: '2023-10-29'
+        validation_date: '2026-05-19T04:37:00Z'
+      - url: 
+          https://raw.githubusercontent.com/c11umw/adblock/refs/heads/main/zerodot1.CoinBlockerLists
+        document_date:
+        validation_date: '2026-05-19T04:38:00Z'
+      - url: https://www.reddit.com/r/pfBlockerNG/comments/1i5th81/ma6h55a/
+        document_date: '2025-06-13'
+        validation_date: '2026-05-19T04:37:00Z'
+      - url: https://zerodot1.gitlab.io/CoinBlockerListsWeb/info.txt
+        document_date: '2025-01-15'
+        validation_date: '2026-05-19T04:38:00Z'

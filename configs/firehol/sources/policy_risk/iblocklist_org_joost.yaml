@@ -1,0 +1,134 @@
+sources:
+  iblocklist_org_joost:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=alxugfmeszbhpxqfdits&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Joost IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T10:56:20Z'
+      official_name: Joost
+      official_url: https://www.iblocklist.com/list.php?list=alxugfmeszbhpxqfdits
+      short_description: IP address ranges historically associated with the Joost
+        P2P-TV platform, now formally deprecated by the maintainer and not recommended
+        for use.
+      long_description: "The Joost IP list tracks address ranges historically associated
+        with the Joost P2P-TV platform, an internet television service co-founded
+        by Niklas Zennstrom and Janus Friis (the creators of Skype and Kazaa) that
+        launched in 2007 and was later acquired by Adconion Media Group in 2009. The
+        service subsequently shut down in 2012.\n\nPer the maintainer's own list page,
+        the feed is formally deprecated: the official notice reads 'This list has
+        been deprecated. It should no longer be used.' The list contains four subnets
+        dominated by a single exceptionally broad block covering the entirety of the
+        4.x.x.x address space, along with three smaller targeted subnets. Because
+        the Joost platform has been defunct since 2012, the original IP allocations
+        have almost certainly been reassigned to other networks and end users over
+        the intervening years.\n\nThe feed is distributed in P2P (Gnutella-format)
+        gzipped archive via the maintainer's subscription-accessible download endpoint."
+      roles:
+      - role: maintainer
+        name: iblocklist, LLC
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: 'iblocklist, LLC operates the iBlocklist.com service distributing IP
+          blocklists for personal-use subscribers. The company is incorporated in
+          the United States. Per the Terms of Service, the company does not commit
+          to updating materials and disclaims all warranties. Service-level community
+          signal across iBlocklist.com (not specific to any single feed): Netgate
+          forum users reported that subscription lists appeared frozen at past dates
+          with timestamps refreshed without corresponding content updates, and that
+          support requests went unanswered.'
+      derivation:
+        type: original
+        description: The feed is assembled and published directly by iblocklist, LLC.
+          The maintainer does not describe upstream inputs for this list. The list
+          is distributed in P2P Gnutella-format gzipped archive (.p2p.gz) via the
+          maintainer's subscription download endpoint.
+        source_feeds: []
+      listing_policy:
+        summary: The maintainer does not publicly describe the criteria for adding
+          IPs to the Joost list. The list is now formally deprecated and the maintainer's
+          own page advises it should no longer be used.
+        criteria: []
+      unlisting_policy:
+        summary: The maintainer does not describe any unlisting or expiration policy
+          for this feed. Independent monitoring by third-party observers has recorded
+          zero additions or removals from this list since August 2015, suggesting
+          an effectively permanent listing with no active maintenance.
+        criteria: []
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: Daily updates, per the catalog configuration.
+      detection_classification:
+        primary_method: unknown
+        secondary_methods: []
+        description: The maintainer does not describe how IPs are detected or selected
+          for inclusion in the Joost list. The feed is attributed to 'I-Blocklist'
+          as author, indicating it was assembled by the maintainer, but no sourcing
+          methodology is publicly documented.
+      scope_and_intent:
+        description: The feed tracks IP address ranges historically allocated to the
+          Joost P2P-TV platform. The maintainer's own page formally deprecates the
+          feed, advising it should no longer be used. Because the Joost service has
+          been defunct since 2012, the listed IP ranges have almost certainly been
+          reassigned to other networks.
+        intended_for: []
+        not_intended_for:
+        - Production security enforcement
+        - inline firewall blocking
+      license: iBlocklist Terms of Service — personal / non-commercial use only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: The Terms of Service grant permission for personal use only. Redistribution,
+          public display, and any commercial use are explicitly prohibited. The license
+          terminates automatically upon violation.
+      current_status:
+        state: discontinued
+        description: Formally deprecated. The maintainer's own Joost list page carries
+          the notice 'This list has been deprecated. It should no longer be used.'
+          The list has received no documented changes since monitoring began in 2015,
+          and the underlying source data predates June 2018.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism: No specific community complaints focused exclusively on the Joost
+          feed were found. The list is formally deprecated per the maintainer's own
+          page; service-level community signal across iBlocklist.com is recorded in
+          the maintainer role notes.
+        engagement: Public community discussion about the Joost feed specifically
+          is sparse — the feed is obscure and the maintainer has marked it deprecated.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date:
+        validation_date: '2026-05-18T10:56:20Z'
+      - url: https://www.iblocklist.com/lists
+        document_date:
+        validation_date: '2026-05-18T10:56:20Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-18T10:56:20Z'
+      - url: https://www.iblocklist.com/list.php?list=alxugfmeszbhpxqfdits
+        document_date:
+        validation_date: '2026-05-18T10:56:20Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-18T10:56:20Z'

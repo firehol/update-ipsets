@@ -1,0 +1,194 @@
+sources:
+  dataplane_sipquery:
+    license: Dataplane.org — non-commercial use only, redistribution prohibited
+    redistributable: false
+    url: https://dataplane.org/sipquery.txt
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+    - dataplane_column3
+    processor_raw: dataplane_column3
+    category: service_abuse
+    info: '[DataPlane.org](https://dataplane.org/) IP addresses that has been seen
+      initiating a SIP OPTIONS query to a remote host. This report lists hosts that
+      are suspicious of more than just port scanning. These hosts may be SIP server
+      cataloging or conducting various forms of telephony abuse.'
+    maintainer: DataPlane.org
+    maintainer_url: https://dataplane.org/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T01:52:49Z'
+      official_name: SIP query
+      official_url: https://dataplane.org/signals.html
+      short_description: IP addresses observed sending SIP OPTIONS queries to remote
+        hosts, indicating potential VoIP server enumeration or telephony reconnaissance
+        activity.
+      long_description: "The SIP query signal from Dataplane.org tracks IPv4 addresses
+        observed sending SIP OPTIONS requests — the standard Session Initiation Protocol
+        method used by clients to query a server's capabilities and availability.
+        Per the maintainer, hosts exhibiting this behavior are flagged as potentially
+        engaged in SIP server cataloging or broader telephony abuse beyond routine
+        port scanning.\n\nThe feed is produced by Dataplane.org, a US-based 501(c)(3)
+        nonprofit founded in 2016. The underlying sensor network spans over 300 distributed
+        nodes across 65 metropolitan areas on 6 continents, passively observing unsolicited
+        inbound application-layer communications. The signal file uses a pipe-delimited
+        format with five columns: originating ASN, ASN network name, IP address, last-seen
+        timestamp, and category tag. Entries are sorted by originating ASN and updated
+        hourly.\n\nThe maintainer explicitly states on their contact page and in each
+        signal file header that Signals are informational and are not block lists.
+        Address spoofing and NAT environments can make attribution ambiguous, and
+        the data is provided on an as-is basis with no warranty."
+      roles:
+      - role: maintainer
+        name: Dataplane.org NFP
+        organization_type: non_profit
+        official_url: https://dataplane.org/
+        contact_email: info@dataplane.org
+        based_in: United States
+        active_since: '2016'
+        notes: "Registered 501(c)(3) nonprofit (EIN: 882177476) headquartered in Chicago,
+          IL. Founded by John Kristoff, with Matthew Kemp as technologist and Bill
+          Eaheart as infrastructure architect. Operates a distributed sensor network
+          spanning over 300 nodes across 65 metropolitan areas on 6 continents. The
+          maintainer's about page lists over 20 downstream organizations consuming
+          the broader signal portfolio (Recorded Future, Team Cymru, Shadowserver,
+          MISP, and others); this applies across the maintainer's feeds rather than
+          to sipquery alone."
+      derivation:
+        type: original
+        description: The feed is produced from Dataplane.org's own distributed sensor
+          network of over 300 nodes spanning 65 metropolitan areas on 6 continents.
+          Sensors passively observe unsolicited inbound SIP OPTIONS requests directed
+          at remote hosts. Detected source IP addresses are mapped to their originating
+          ASN using PyASN IP-to-ASN lookup, enriched with ASN network name, and aggregated
+          into the hourly-published signal file. No upstream IP feeds are consumed;
+          the signal is first-party observational data.
+        source_feeds: []
+      listing_policy:
+        summary: An IP address enters the feed when Dataplane.org's distributed sensor
+          network observes it sending a SIP OPTIONS query to a remote host. The SIP
+          OPTIONS method is the standard Session Initiation Protocol operation used
+          by clients to query a server's supported features and presence — distinct
+          from INVITE (call initiation) or REGISTER (credential enrollment). A single
+          observed instance of this behavior is sufficient for inclusion; no minimum-count
+          threshold is stated.
+        criteria:
+        - Source IP sends a SIP OPTIONS query to a remote host, observed by Dataplane.org's
+          distributed sensor network
+        - Behavior is unsolicited/inbound from the perspective of the observed target
+        - Single-observation threshold — no minimum count stated by the maintainer
+      unlisting_policy:
+        summary: There is no manual delisting procedure. Per the maintainer's contact
+          page FAQ, IPs decay off the signal automatically once the observed SIP OPTIONS
+          behavior ceases and is no longer detected. The maintainer advises fixing
+          the root cause on the listed device; once the behavior stops, the entry
+          falls off during subsequent hourly aggregation cycles. No explicit decay-window
+          duration is published.
+        criteria:
+        - 'Automatic decay: the observed SIP OPTIONS behavior from the listed IP must
+          cease'
+        - No manual removal request form or expedited delisting channel exists
+        - No stated explicit decay window — removal timing is implicit in the hourly
+          update cycle once behavior stops
+      unlist_request:
+        url:
+        email: info@dataplane.org
+        instructions: No formal IP removal request form exists. Per the maintainer's
+          FAQ, the only documented path is to resolve the behavior on the listed device
+          — once the SIP OPTIONS activity ceases, the IP decays off automatically
+          during the next hourly update cycle. For questions or clarification, contact
+          info@dataplane.org. The API endpoint at api.dataplane.org can be used to
+          poll whether an IP still appears in the signal.
+      update_frequency:
+        frequency: 1h
+        human_readable: Updated every hour, per the maintainer's signals page.
+      detection_classification:
+        primary_method: honeypot
+        secondary_methods: []
+        description: Detection relies on Dataplane.org's distributed network of over
+          300 passive sensor nodes across 65 metropolitan areas on 6 continents. These
+          sensors observe unsolicited inbound SIP OPTIONS requests directed at them
+          — functioning as low-interaction honeypots that log the source IP of any
+          host attempting this SIP capability probe. The sensor architecture uses
+          libpcap-based packet capture to identify SIP OPTIONS messages, maps each
+          source IP to its originating autonomous system, and publishes the aggregated
+          result hourly.
+      scope_and_intent:
+        description: The SIP query signal is intended as network and security intelligence
+          — identifying hosts engaged in SIP infrastructure reconnaissance. The maintainer
+          explicitly cautions that Signals are not block lists and should not be used
+          as such, as address spoofing and NAT environments can confound attribution.
+          The data is provided on an as-is basis with no warranty.
+        intended_for:
+        - Network security monitoring and alerting — correlating SIP scanner source
+          IPs with intrusion detection events
+        - Threat intelligence enrichment — adding VoIP reconnaissance context to incident
+          investigations
+        - Security research — understanding SIP enumeration patterns and attacker
+          infrastructure
+        not_intended_for:
+        - Inline blocking or deny-listing at network perimeter — explicitly advised
+          against by the maintainer
+        - Automated enforcement actions without human review — due to spoofing and
+          NAT ambiguity
+        - Attribution of malicious intent — single-entry context insufficient without
+          additional investigation
+      license: Non-commercial use only. Redistribution in whole or in part without
+        express permission is expressly prohibited.
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms: Redistribution in whole or in part without express permission of Dataplane.org
+          is expressly prohibited. Commercial use requires direct inquiry at info@dataplane.org;
+          the maintainer has indicated a recommended minimum donation of $1,000 USD
+          per year for commercial systems.
+      current_status:
+        state: active
+        description: Active signal maintained by Dataplane.org. Updated hourly. The
+          maintainer's website is reachable and the signal file was observed with
+          a report period covering 2026-05-12 to 2026-05-19 at time of research.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion of the Dataplane.org SIP query signal specifically
+          is sparse. A single low-engagement Reddit post from December 2020 is the
+          only direct mention found. Broader SIP honeypot and VoIP abuse discussions
+          on Reddit and security forums concern independent projects (HoneySIP, SentryPeer,
+          Knock-Knock) rather than this feed. The sipquery feed is integrated into
+          IntelMQ via a published bot module, and the maintainer's own dataplane-sip
+          C library on GitHub (BSD-2-Clause, 1 star, 5 forks as of May 2026) is the
+          closest project-level codebase for SIP sensing. Maintainer-wide downstream
+          adoption is recorded in roles[].notes.
+      sources_consulted:
+      - url: https://dataplane.org/
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://dataplane.org/signals.html
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://dataplane.org/sipquery.txt
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://dataplane.org/contact.html
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://api.dataplane.org/
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://dataplane.substack.com/p/dataplaneorg-2024-q1-newsletter
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://github.com/Dataplane
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://dataplane.org/about.html
+        document_date:
+        validation_date: '2026-05-19'
+      - url: https://docs.intelmq.org/3.5.0/user/feeds
+        document_date:
+        validation_date: '2026-05-19'

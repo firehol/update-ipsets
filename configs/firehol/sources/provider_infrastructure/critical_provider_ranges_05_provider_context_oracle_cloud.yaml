@@ -1,0 +1,160 @@
+sources:
+  provider_context_oracle_cloud:
+    license: Provider-published public IP ranges
+    redistributable: false
+    label: Oracle Cloud provider context
+    url: https://docs.oracle.com/en-us/iaas/tools/public_ip_ranges.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: provider_infrastructure
+    provenance: primary
+    info: Oracle Cloud Infrastructure-published IPv4 ranges. Provider context feed,
+      not a threat indicator and not a critical-infrastructure warning source.
+    maintainer: Oracle Cloud Infrastructure
+    maintainer_url: https://docs.oracle.com/en-us/iaas/Content/General/Concepts/addressranges.htm
+    enabled_by_all: true
+    use: [provider_context]
+    attributes:
+      context_role: cloud_customer_hosting
+      context_source_type: authoritative_provider_json
+      context_source_quality: A
+      context_rationale: Oracle Cloud ranges include provider and customer-operated
+        workloads; overlap is contextual collateral-risk information.
+
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T14:23:51Z'
+      official_name: IP Address Ranges
+      official_url: https://docs.oracle.com/en-us/iaas/Content/General/Concepts/addressranges.htm
+      short_description: Oracle Cloud Infrastructure publishes its public IPv4 CIDR
+        blocks as a downloadable JSON file, organized by region and tagged by service
+        type (OCI virtual cloud networks, OSN Oracle Services Network, Object Storage),
+        for use in network allowlist configuration.
+      long_description: "Oracle Cloud Infrastructure publishes the authoritative list
+        of its public IPv4 address ranges as a machine-readable JSON file. The file
+        covers Oracle's commercial cloud regions worldwide and organizes CIDR blocks
+        by region, tagging each block with one or more service identifiers: OCI (Virtual
+        Cloud Network CIDR blocks assigned to customer compute workloads), OSN (Oracle
+        Services Network — ranges reserved for Oracle-managed platform services accessible
+        via the service gateway), and OBJECT_STORAGE (Object Storage service ranges).\n\
+        \nPer Oracle's documentation, the published ranges enable network administrators
+        to configure firewall allowlists for Oracle Cloud services without needing
+        to discover ranges through active scanning. The data is authoritative because
+        it reflects Oracle's actual allocated address space, not inferred or observed
+        traffic.\n\nOracle recommends polling the file at least weekly, noting that
+        ranges may be added as new regions launch or existing regions expand. The
+        JSON file includes a `last_updated_timestamp` field in ISO 8601 format. Oracle
+        does not publish this data as a threat intelligence feed; it is infrastructure
+        context — the ranges include both Oracle-operated platform services and customer-hosted
+        workloads, meaning overlap with the feed is contextual collateral-risk information
+        rather than a malicious-activity signal."
+      roles:
+      - role: publisher
+        name: Oracle Cloud Infrastructure
+        organization_type: commercial
+        official_url: https://www.oracle.com/cloud/
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: Oracle Cloud Infrastructure is the cloud computing division of Oracle
+          Corporation. It publishes the IP address ranges dataset as an official product
+          documentation resource, not as a dedicated threat-intelligence project.
+      derivation:
+        type: original
+        description: The feed is Oracle Cloud Infrastructure's own published allocation
+          data. Oracle allocates CIDR blocks from its registered address space to
+          cloud regions and subdivides them into service-role tags (OCI, OSN, Object
+          Storage). No external IP feeds, threat-intelligence sources, or third-party
+          aggregation contribute to this dataset.
+        source_feeds: []
+      listing_policy:
+        summary: Not applicable. This is a provider infrastructure context feed, not
+          a threat indicator list. Entries are Oracle's own allocated IPv4 CIDR blocks,
+          published proactively by Oracle as part of its cloud platform documentation.
+          There is no threat-based listing trigger; Oracle publishes its entire allocated
+          address space as a matter of platform transparency.
+        criteria:
+        - Oracle Cloud Infrastructure allocates a CIDR block from its registered address
+          space to a commercial cloud region
+        - 'The block is assigned to one or more platform services: OCI (customer VCN
+          workloads), OSN (Oracle-managed platform services), or Object Storage'
+      unlisting_policy:
+        summary: Not applicable. Oracle publishes its allocated address space as infrastructure
+          context; entries are not subject to removal based on threat assessment.
+          If a CIDR block is no longer allocated to Oracle Cloud, Oracle updates the
+          published JSON file at its discretion. Third parties cannot request removal
+          of Oracle's own allocated ranges from this dataset.
+        criteria:
+        - Oracle retires or reallocates a CIDR block from its cloud infrastructure
+        - Oracle Cloud exits a commercial region
+      unlist_request:
+      update_frequency:
+        frequency: 1d
+        human_readable: Oracle recommends polling the published JSON file at least
+          weekly, with a maximum polling interval of once every 24 hours per the maintainer's
+          documentation.
+      detection_classification:
+        primary_method: policy_assignment
+        secondary_methods: []
+        description: Entries are Oracle's own allocated IPv4 CIDR blocks, published
+          as a matter of platform transparency. Oracle assigns CIDR blocks to regions
+          and tags them by service role (OCI, OSN, Object Storage) based on its internal
+          network architecture and allocation decisions. No honeypot, sensor network,
+          malware analysis, or community reporting contributes to this dataset.
+      scope_and_intent:
+        description: Oracle publishes this dataset so that network administrators
+          can configure firewall allowlists for Oracle Cloud services without active
+          discovery. The ranges cover Oracle's global commercial cloud footprint across
+          dozens of regions.
+        intended_for:
+        - Firewall allowlist configuration for Oracle Cloud services
+        - Network access control list (ACL) population
+        - Identifying Oracle Cloud hosted workloads in network flow logs
+        - Service gateway and FastConnect public peering configuration
+        not_intended_for:
+        - Threat indicator blocking — the feed contains Oracle's own infrastructure
+          ranges, not malicious-activity signals
+        - Critical infrastructure warning — Oracle publishes this proactively as platform
+          documentation, not as a security incident response
+        - Real-time threat detection or incident alerting
+      license: Public, no stated license
+      redistribution:
+        allowed:
+        commercial_use_allowed:
+        attribution_required:
+        terms: Oracle does not publish explicit redistribution terms for the IP address
+          ranges JSON file. The catalog YAML marks this feed as non-redistributable,
+          reflecting Oracle's implied restriction rather than a stated license. Operators
+          wishing to redistribute Oracle's published IP ranges should consult Oracle's
+          Cloud Services Agreement or contact Oracle directly for guidance.
+      current_status:
+        state: active
+        description: Active. Oracle Cloud Infrastructure continues to publish IP address
+          ranges at the documented URL. The JSON file was last updated April 2026
+          and covers Oracle's global commercial cloud regions.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion about this dataset is sparse. Third-party
+          projects repackage Oracle's published JSON alongside other cloud providers'
+          ranges in CSV and Parquet formats for cross-provider allowlist tooling.
+          These community-maintained derivatives are noted for completeness; Oracle
+          itself does not engage in public discussion about this dataset as a collaborative
+          project.
+      sources_consulted:
+      - url: https://docs.oracle.com/en-us/iaas/Content/General/Concepts/addressranges.htm
+        document_date:
+        validation_date: '2026-05-21T14:20:00Z'
+      - url: https://docs.oracle.com/en-us/iaas/tools/public_ip_ranges.json
+        document_date:
+        validation_date: '2026-05-21T14:20:00Z'
+      - url: 
+          https://docs.oracle.com/en-us/iaas/Content/Network/Concepts/fastconnectpublicpeeringaddressranges.htm
+        document_date:
+        validation_date: '2026-05-21T14:20:00Z'

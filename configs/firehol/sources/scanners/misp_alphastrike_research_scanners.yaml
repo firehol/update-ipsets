@@ -1,0 +1,192 @@
+sources:
+  misp_alphastrike_research_scanners:
+    license: CC0 1.0 Universal (Public Domain Dedication)
+    redistributable: true
+    url: 
+      https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/alphastrike-research-nt-scanning/list.json
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - extract_ipv4_cidr
+    processor_raw: extract_ipv4_cidr_from_any_file
+    category: scanners
+    provenance: secondary_upstream
+    info: '[MISP warninglists](https://github.com/MISP/misp-warninglists) AlphaStrike
+      Research non-threat scanning IPs. Informational — not for blocking.'
+    maintainer: MISP Project
+    maintainer_url: https://github.com/MISP/misp-warninglists
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-18T19:50:57Z'
+      official_name: Alphastrike research IP Ranges Used for Scanning
+      official_url: 
+        https://github.com/MISP/misp-warninglists/tree/main/lists/alphastrike-research-nt-scanning
+      short_description: A MISP warning list identifying CIDR ranges used by Alpha
+        Strike Labs for internet-wide TCP SYN scanning research, sourced from CIRCL
+        Luxembourg's network telescope passive traffic analysis.
+      long_description: "This list identifies the IP ranges that CIRCL Luxembourg's
+        network telescope has passively observed scanning from Alpha Strike Labs GmbH
+        (AS208843, branded AlphaStrike), distinct from the sibling list that catalogues
+        AlphaStrike's self-disclosed commercial scanning ranges. AlphaStrike is a
+        European internet-wide scanning research platform that conducts TCP SYN port
+        scans across the entire IPv4 address space from their own infrastructure,
+        completing a full scan approximately every 4 hours; their scanning footprint
+        has been independently documented by CAIDA researchers and is classified as
+        a benign scanner by both GreyNoise and CrowdSec.\n\nThe scope is specifically
+        the research footprint detected via CIRCL's passive telescope (a block of
+        intentionally unused address space that receives only unsolicited inbound
+        traffic). Because CIRCL observes the scans without sending any probes back,
+        this variant captures AlphaStrike's actually-observed source IPs rather than
+        ranges the company publishes. Security teams ingesting CIRCL telescope data,
+        or MISP events derived from it, use this list to distinguish AlphaStrike research
+        probes from hostile scanning seen in the same telescope dataset."
+      roles:
+      - role: maintainer
+        name: MISP Project
+        organization_type: informal_collective
+        official_url: https://github.com/MISP/misp-warninglists
+        contact_email:
+        based_in:
+        active_since:
+        notes: The MISP Project maintains the misp-warninglists repository, a collection
+          of JSON-format warning lists used in MISP instances and shared tooling.
+          Individual lists within the collection may originate from named third parties;
+          the repository acts as the aggregating publisher and steward.
+      - role: source_contributor
+        name: CIRCL Luxembourg
+        organization_type: government
+        official_url: https://www.circl.lu
+        contact_email:
+        based_in: Luxembourg
+        active_since:
+        notes: CIRCL (Computer Incident Response Center Luxembourg) contributed the
+          list by extracting AlphaStrike scanning sources from their network telescope
+          passive traffic analysis. CIRCL is the national CERT for Luxembourg's private
+          sector and a government-driven cyber threat intelligence coordinator.
+      - role: source_contributor
+        name: Alpha Strike Labs GmbH
+        organization_type: commercial
+        official_url: https://www.alphastrike.io
+        contact_email: office@alphastrike.io
+        based_in: Germany
+        active_since: '2019'
+        notes: Alpha Strike Labs GmbH (AS208843) operates the AlphaStrike internet-wide
+          scanning platform whose probes CIRCL observes. They are classified as a
+          benign scanner by GreyNoise and CrowdSec.
+      derivation:
+        type: extraction
+        description: The list is produced by CIRCL Luxembourg extracting observed
+          AlphaStrike scanning source IPs from passive analysis of their network telescope
+          — a block of unused address space that receives only unsolicited inbound
+          traffic. By cataloging which source IPs appear in the telescope, CIRCL identifies
+          AlphaStrike's scanning infrastructure without sending any active probes.
+          The resulting CIDR ranges are formatted as a MISP warning list JSON file
+          and submitted to the misp-warninglists repository.
+        source_feeds: []
+      listing_policy:
+        summary: An IP or CIDR range is added to the list when CIRCL's network telescope
+          passively observes scanning traffic originating from Alpha Strike Labs'
+          registered address space. The list is updated as CIRCL's telescope analysis
+          identifies new or changed AlphaStrike scanning sources.
+        criteria:
+        - Observed scanning traffic detected by CIRCL's network telescope originating
+          from Alpha Strike Labs IP space
+        - Attribution to Alpha Strike Labs GmbH (AS208843) via BGP/WHOIS data
+      unlisting_policy:
+        summary: Entries are removed when CIRCL's periodic network telescope analysis
+          no longer detects scanning from the previously listed AlphaStrike IP ranges,
+          indicating a change in AlphaStrike's scanning infrastructure or address
+          allocation.
+        criteria:
+        - Absence of observed AlphaStrike scanning traffic in CIRCL's network telescope
+          over subsequent analysis periods
+        - Confirmation that the IP range is no longer attributed to Alpha Strike Labs
+          via BGP reassignment
+      unlist_request:
+      update_frequency:
+        frequency:
+        human_readable: Updated irregularly as CIRCL's network telescope analysis
+          identifies new AlphaStrike scanning sources; the list carries a date-stamped
+          version number reflecting the analysis date.
+      detection_classification:
+        primary_method: network_telescope
+        secondary_methods: []
+        description: The list is built from CIRCL Luxembourg's network telescope —
+          a block of unused address space that passively collects all unsolicited
+          inbound traffic (internet background radiation). By analyzing which source
+          IPs appear in the telescope, CIRCL identifies scanners operating on the
+          internet without actively probing anything. AlphaStrike's TCP SYN scanning
+          traffic hitting the telescope is captured, attributed to AS208843 via BGP/WHOIS
+          data, and converted into CIDR ranges for the warning list.
+      scope_and_intent:
+        description: The list marks Alpha Strike Labs' observed scanning IP ranges
+          as known benign research infrastructure. Its purpose is to prevent false
+          positive alerts when AlphaStrike scanning traffic appears in security monitoring
+          data — particularly in CIRCL's own telescope datasets and in MISP events
+          shared between organizations.
+        intended_for:
+        - False positive reduction in security monitoring and SIEM alerting
+        - Contextualizing AlphaStrike scanning traffic in MISP events and threat intelligence
+          sharing
+        - Filtering research scanner traffic from CIRCL network telescope analysis
+          datasets
+        not_intended_for:
+        - Inline blocking or firewall enforcement
+        - Identifying malicious activity — AlphaStrike is a documented benign research
+          scanner
+      license: CC0 1.0 Universal (Public Domain Dedication)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: CC0 1.0 Universal dedicates the content to the public domain with no
+          conditions. The data may be freely used, copied, modified, and redistributed
+          for any purpose, including commercial use, without attribution requirements.
+      current_status:
+        state: active
+        description: Active. The list is maintained in the MISP warninglists repository
+          with a version dated 2026/05/04, indicating a recent update. The MISP warninglists
+          project continues to publish and maintain the collection.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public discussion of this specific list is sparse. The MISP warninglists
+          repository shows no open issues addressing the alphastrike-research-nt-scanning
+          list. AlphaStrike's scanning activity generates abuse reports on AbuseIPDB
+          despite being classified as benign by GreyNoise and CrowdSec, indicating
+          that some operators initially flag the traffic as hostile before recognizing
+          it as research scanning. The companion list alphastrike-scanning (covering
+          AlphaStrike's commercial scan ranges) has broader awareness; this research-only
+          variant is primarily relevant to teams consuming CIRCL's network telescope
+          data.
+      sources_consulted:
+      - url: https://github.com/MISP/misp-warninglists
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://raw.githubusercontent.com/MISP/misp-warninglists/main/lists/alphastrike-research-nt-scanning/list.json
+        document_date: '2026-05-04'
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: 
+          https://github.com/MISP/misp-warninglists/tree/main/lists/alphastrike-research-nt-scanning
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.alphastrike.io/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://www.circl.lu/projects/scanning/
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://networksdb.io/autonomous-system/AS208843
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://docs.crowdsec.net/u/cti_api/taxonomy/benign
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'
+      - url: https://misp.github.io/misp-warninglists/lists/alphastrike-scanning/list.json
+        document_date:
+        validation_date: '2026-05-18T00:00:00Z'

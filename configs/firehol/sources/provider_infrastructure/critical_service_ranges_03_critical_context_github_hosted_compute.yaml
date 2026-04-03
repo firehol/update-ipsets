@@ -1,0 +1,193 @@
+sources:
+  critical_context_github_hosted_compute:
+    license: GitHub Terms of Service and Acceptable Use Policies (no dedicated IP
+      ranges license)
+    redistributable: false
+    label: GitHub hosted compute ranges
+    url: https://api.github.com/meta
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - json_paths:
+        paths: "$.actions[*],$.actions_macos[*],$.codespaces[*]"
+    - filter_all4
+    processor_raw: json_paths
+    category: provider_infrastructure
+    provenance: primary
+    info: GitHub-published Actions runner and Codespaces ranges from the Meta API.
+      Contextual reference feed because these ranges include ephemeral customer-controlled
+      compute workloads.
+    maintainer: GitHub
+    maintainer_url: 
+      https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/about-githubs-ip-addresses
+    enabled_by_all: true
+    use: [critical_infrastructure]
+    critical:
+      tier: contextual
+      role: developer_platform
+      source_type: authoritative_provider_api
+      source_quality: A
+      rationale: GitHub hosted compute ranges are operationally important for CI/CD
+        and development environments, but they contain tenant-controlled workloads;
+        overlap is context, not proof of bad feed quality.
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-21T12:17:24Z'
+      official_name: GitHub IP addresses
+      official_url: 
+        https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/about-githubs-ip-addresses
+      short_description: IP address ranges used by GitHub-hosted Actions runners,
+        Codespaces, and macOS runners, published by GitHub as a public API for firewall
+        allowlisting.
+      long_description: "GitHub publishes the IP address ranges used by its hosted
+        compute services — GitHub-hosted Actions runners, Codespaces, and macOS runners
+        — via a public JSON API endpoint at api.github.com/meta. The endpoint returns
+        CIDR ranges keyed by service type: the actions key covers Linux and Windows
+        GitHub-hosted runners, actions_macos covers macOS runners, and codespaces
+        covers cloud-based development environments.\n\nPer the official documentation,
+        GitHub-hosted runners operate on dynamically assigned, ephemeral virtual machines
+        that are provisioned per workflow run and torn down after completion. Because
+        these IP addresses are drawn from shared infrastructure pools, activity from
+        any tenant sharing the same range can influence third-party reputation scores
+        assigned to those addresses — meaning a neighboring customer's workload can
+        cause a GitHub IP to appear on a threat intelligence or firewall blocklist
+        even when no malicious activity has occurred.\n\nGitHub explicitly states
+        that the Meta API list is not intended to be exhaustive: IP addresses for
+        some services such as Git Large File Storage (LFS) and GitHub Packages are
+        not included. GitHub also notes it does not control third-party IP reputation
+        lists and cannot comment on their accuracy or update frequency. Operators
+        should treat presence on this feed as contextual reference information rather
+        than an indicator of malicious activity."
+      roles:
+      - role: maintainer
+        name: GitHub, Inc.
+        organization_type: commercial
+        official_url: https://github.com
+        contact_email: support@github.com
+        based_in: United States
+        active_since: '2008'
+        notes: GitHub publishes the Meta API endpoint and accompanying documentation
+          as the authoritative source for its infrastructure IP ranges. The company
+          has operated the platform since 2008 and is headquartered in San Francisco,
+          California.
+      derivation:
+        type: original
+        description: The feed is produced directly by GitHub and reflects the company's
+          own infrastructure allocation. IP ranges for GitHub-hosted Actions runners
+          (Linux and Windows), macOS runners, Codespaces instances, and webhook delivery
+          origins are published as JSON via the public Meta API endpoint. No third-party
+          feeds, sensors, or aggregation are involved — this is an authoritative provider
+          API.
+        source_feeds: []
+      listing_policy:
+        summary: "Entries are IP address ranges allocated to GitHub's own hosted compute
+          infrastructure. There is no submission or community-reporting mechanism
+          — GitHub determines allocations internally and publishes them via the Meta
+          API. GitHub explicitly notes the list is not exhaustive: IP addresses for
+          some services such as Git Large File Storage (LFS) and GitHub Packages are
+          intentionally excluded."
+        criteria:
+        - IP addresses allocated to GitHub-hosted Actions runner pools (Linux, Windows,
+          macOS)
+        - IP addresses allocated to GitHub Codespaces cloud-based development environments
+        - IP addresses used for incoming webhook delivery to customer repositories
+      unlisting_policy:
+        summary: This is an informational reference feed published by GitHub, not
+          a blocklist with an unlisting mechanism. Removal of an IP from this feed
+          corresponds to GitHub decommissioning or reassigning infrastructure — a
+          routine operational event outside the control of third parties. There is
+          no documented process for requesting removal of a specific IP address.
+        criteria:
+        - IP addresses are removed when GitHub retires or reassigns the underlying
+          infrastructure allocation
+        - No manual unlisting request channel is documented by the maintainer
+      unlist_request:
+      update_frequency:
+        frequency:
+        human_readable: GitHub states that changes to IP address ranges occur 'from
+          time to time' without committing to a specific cadence. The maintainer encourages
+          regular polling of the Meta API and directs operators to the API Changes
+          blog and the @GitHubAPI Twitter account for change notifications.
+      detection_classification:
+        primary_method: commercial_threat_intel
+        secondary_methods: []
+        description: The feed is classified as an authoritative provider API — GitHub
+          publishes its own infrastructure IP allocations directly, with no intermediate
+          detection or aggregation step. This is not a honeypot, sandbox, sensor network,
+          or community-reporting feed. The data represents the provider's own view
+          of which IP addresses it uses for hosted compute workloads.
+      scope_and_intent:
+        description: The feed is intended as an allowlist reference for operators
+          who need to permit GitHub's hosted compute services through firewalls or
+          network ACLs. It is not designed as a threat intelligence indicator — GitHub
+          explicitly warns against treating presence on this feed as evidence of malicious
+          activity.
+        intended_for:
+        - Allowlisting GitHub Actions outbound connections in firewalls and network
+          ACLs
+        - Allowlisting GitHub Codespaces inbound connections in corporate firewalls
+        - Identifying whether an inbound connection originated from GitHub-hosted
+          compute infrastructure
+        - Permitting webhook delivery from GitHub to customer endpoints
+        not_intended_for:
+        - Using GitHub IP ranges as indicators of malicious activity
+        - Treating presence on this feed as evidence that an IP is compromised or
+          attacker-controlled
+        - Blocking connections based solely on presence in GitHub IP ranges, due to
+          shared infrastructure effects on third-party reputation scores
+      license: GitHub Terms of Service and Acceptable Use Policies (no dedicated IP
+        ranges license)
+      redistribution:
+        allowed: false
+        commercial_use_allowed:
+        attribution_required:
+        terms: Redistribution is not permitted without express written permission
+          under GitHub Terms of Service and Acceptable Use Policies. Live API polling
+          is the documented compliant pattern for consumers that need current GitHub-hosted
+          compute ranges.
+      current_status:
+        state: active
+        description: Active and maintained. GitHub continues to operate and update
+          the Meta API endpoint. The company states it makes changes to IP address
+          ranges 'from time to time' and encourages operators to monitor the API regularly.
+          Subscriptions to the GitHub API Changes blog and the @GitHubAPI account
+          are the documented channels for change notifications.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion about GitHub IP ranges causing false
+          positive blocks is sparse. Multiple third-party tools consume the Meta API
+          via live polling — including Terraform providers, GitHub Actions integrations,
+          and community-maintained IP list aggregators — adopting the dynamic lookup
+          pattern GitHub itself recommends. No formal award recognitions were identified.
+      sources_consulted:
+      - url: https://api.github.com/meta
+        document_date:
+        validation_date: '2026-05-21'
+      - url: 
+          https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/about-githubs-ip-addresses
+        document_date:
+        validation_date: '2026-05-21'
+      - url: 
+          https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions
+        document_date:
+        validation_date: '2026-05-21'
+      - url: https://docs.github.com/site-policy/github-terms/github-terms-of-service
+        document_date:
+        validation_date: '2026-05-21'
+      - url: 
+          https://docs.github.com/en/site-policy/acceptable-use-policies/github-acceptable-use-policies
+        document_date:
+        validation_date: '2026-05-21'
+      - url: https://docs.github.com/en/rest/meta/meta
+        document_date:
+        validation_date: '2026-05-21'
+      - url: https://developer.github.com/changes/5/
+        document_date: 2013-04
+        validation_date: '2026-05-21'
+      - url: https://github.com/orgs/community/discussions/163528
+        document_date:
+        validation_date: '2026-05-21'

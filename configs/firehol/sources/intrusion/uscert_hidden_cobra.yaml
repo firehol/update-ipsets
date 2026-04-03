@@ -1,0 +1,188 @@
+sources:
+  uscert_hidden_cobra:
+    license: Public Domain (US Government Work)
+    redistributable: true
+    url: https://www.us-cert.gov/sites/default/files/publications/TA-17-164A_csv.csv
+    frequency: 1440
+    ipv: ipv4
+    output: ipset
+    processor:
+    - parse_uscert_csv
+    processor_raw: parse_uscert_csv
+    category: intrusion
+    info: Since 2009, HIDDEN COBRA actors have leveraged their capabilities to target
+      and compromise a range of victims; some intrusions have resulted in the exfiltration
+      of data while others have been disruptive in nature. Commercial reporting has
+      referred to this activity as Lazarus Group and Guardians of Peace. DHS and FBI
+      assess that HIDDEN COBRA actors will continue to use cyber operations to advance
+      their government’s military and strategic objectives. Tools and capabilities
+      used by HIDDEN COBRA actors include DDoS botnets, keyloggers, remote access
+      tools (RATs), and wiper malware. Variants of malware and tools used by HIDDEN
+      COBRA actors include Destover, Wild Positron/Duuzer and Hangman.
+    maintainer: US Cert
+    maintainer_url: https://www.us-cert.gov/ncas/alerts/TA17-164A
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T22:53:40Z'
+      official_name: HIDDEN COBRA – North Korea's DDoS Botnet Infrastructure
+      official_url: https://www.us-cert.gov/ncas/alerts/TA17-164A
+      short_description: A joint DHS–FBI advisory distributing historical indicators
+        of compromise for North Korean government DDoS botnet infrastructure linked
+        to the DeltaCharlie malware variant, intended for network-based detection.
+      long_description: "This joint Technical Alert was produced by the Department
+        of Homeland Security and the Federal Bureau of Investigation to disseminate
+        technical indicators of compromise for cyber operations conducted by the North
+        Korean government, collectively referred to by the U.S. Government as HIDDEN
+        COBRA. The alert focuses on the DeltaCharlie malware variant — a DDoS tool
+        capable of launching Domain Name System attacks, Network Time Protocol attacks,
+        and Carrier Grade NAT attacks — and the botnet command-and-control infrastructure
+        that operated it.\n\nThe downloadable IOC file (CSV) provides a structured
+        set of indicators organized across three columns — INDICATOR_VALUE, TYPE,
+        and ROLE — covering multiple IOC types: IPv4 addresses, MD5 hashes, SHA256
+        hashes, SHA1 hashes, and file paths. The companion STIX file offers a machine-readable
+        format for integration with security orchestration platforms.\n\nPer the alert's
+        Detection and Response section, these indicators are intended to supplement
+        — not replace — existing network defenses. The alert carries an explicit caveat
+        that the possibility of false positives always remains and that the indicators
+        should not be used as the sole basis for attributing activity to the North
+        Korean government."
+      roles:
+      - role: maintainer
+        name: Cybersecurity and Infrastructure Security Agency (CISA)
+        organization_type: government
+        official_url: https://www.cisa.gov
+        contact_email:
+        based_in: United States
+        active_since: '2018'
+        notes: CISA is the successor organization to the National Cybersecurity Communications
+          and Integration Center (NCCIC) and US-CERT, which originally authored this
+          advisory. CISA operates within the Department of Homeland Security.
+      - role: source_contributor
+        name: Federal Bureau of Investigation (FBI)
+        organization_type: government
+        official_url: https://www.fbi.gov
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: Co-author of the advisory. Contributed analytical intelligence and
+          attribution assessment alongside DHS/CISA.
+      derivation:
+        type: original
+        description: The indicators were produced through joint analytical efforts
+          by DHS and FBI, drawing on U.S. Government intelligence sources and technical
+          forensics from compromised systems. The resulting IOC set was packaged into
+          CSV and STIX formats for network defender consumption. No upstream IP feeds
+          are consumed; the feed is original first-party government intelligence.
+        source_feeds: []
+      listing_policy:
+        summary: Indicators are selected through a joint DHS–FBI analytical process
+          and attributed to North Korean government cyber operations. An IP qualifies
+          for inclusion when analysis determines it is part of the DeltaCharlie botnet
+          command-and-control infrastructure, assessed with high confidence as state-sponsored
+          activity.
+        criteria:
+        - Attribution to North Korean government cyber operations by DHS and FBI
+        - Association with the DeltaCharlie DDoS malware variant or its command-and-control
+          infrastructure
+        - Confirmation through U.S. Government intelligence sources or technical forensics
+      unlisting_policy:
+        summary: This advisory is a fixed historical publication; no mechanism for
+          requesting removal of individual IPs is documented. The IOC file is not
+          dynamically updated — it reflects the infrastructure picture as of the last
+          revision in August 2017. Operators who believe an IP was listed in error
+          should consult the alert's recommended mitigation section or contact CISA
+          through general channels.
+        criteria:
+        - No documented auto-decay mechanism — the advisory is a static historical
+          document
+        - No published unlisting or delist request channel
+        - IOCs remain available for download indefinitely unless the advisory is formally
+          superseded
+      unlist_request:
+        url:
+        email:
+        instructions: The advisory does not publish a dedicated unlisting channel.
+          General inquiries about CISA advisories can be directed through CISA's central
+          contact page, but no specific removal process for these IOCs is documented.
+      update_frequency:
+      detection_classification:
+        primary_method: mixed
+        secondary_methods: []
+        description: 'Indicators are produced through a combination of U.S. Government
+          intelligence collection and technical forensics on compromised systems.
+          The joint DHS–FBI analytical process integrates classified and unclassified
+          sources to attribute infrastructure to North Korean government actors. This
+          is a mixed-method approach: human intelligence-driven attribution combined
+          with malware reverse-engineering and forensic analysis of the DeltaCharlie
+          botnet.'
+      scope_and_intent:
+        description: The advisory disseminates IOCs for North Korean government cyber
+          operations targeting the media, aerospace, financial, and critical infrastructure
+          sectors. It is scoped to the DeltaCharlie DDoS botnet infrastructure and
+          associated malware. The U.S. Government collectively refers to these operations
+          as HIDDEN COBRA, a label that has subsequently been deprecated in favor
+          of group-specific names such as Lazarus Group.
+        intended_for:
+        - Network-based detection of North Korean government cyber operations
+        - Security logging and alerting enrichment
+        - Incident response triage for suspected state-sponsored intrusions
+        not_intended_for:
+        - Inline blocking as the sole control — the alert warns that false positives
+          are possible and indicators should not be used as the sole attribution basis
+        - Legal or diplomatic attribution — the alert explicitly states only the U.S.
+          Government can authorize attribution of cyber activity to nation-states
+        - Real-time blocking decisions — IOCs are historical and may overlap with
+          legitimate shared infrastructure
+      license: Public Domain (US Government Work)
+      redistribution:
+        allowed: true
+        commercial_use_allowed: true
+        attribution_required:
+        terms: US Government works may be reproduced without restriction. No redistribution
+          terms are imposed by the advisory.
+      current_status:
+        state: active
+        description: The advisory remains listed on CISA's website with no archived
+          or superseded banner as of the research date. The IOC CSV file is available
+          for download. The last substantive revision was August 23, 2017; no further
+          revisions have been documented. The HIDDEN COBRA branding has been deprecated
+          by CISA in favor of group-specific naming in subsequent advisories, but
+          this specific advisory has not been formally retired.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion of this advisory is sparse. As a government
+          technical alert rather than a community-driven threat intelligence project,
+          it does not maintain a public issue tracker or discussion forum. Practitioners
+          who have evaluated these IOCs have done so privately; no sustained public
+          debate about accuracy, coverage gaps, or operational utility was identified
+          in broad web searches.
+      sources_consulted:
+      - url: 
+          https://www.cisa.gov/news-events/alerts/2017/06/13/hidden-cobra-north-koreas-ddos-botnet-infrastructure
+        document_date: '2017-08-23'
+        validation_date: '2026-05-17'
+      - url: https://www.us-cert.gov/ncas/alerts/TA17-164A
+        document_date: '2017-08-23'
+        validation_date: '2026-05-17'
+      - url: https://www.cisa.gov/sites/default/files/publications/TA-17-164A_csv.csv
+        document_date:
+        validation_date: '2026-05-17'
+      - url: 
+          https://nsarchive.gwu.edu/document/15320-u-s-computer-emergency-readiness-team-alert-ta17
+        document_date: '2017-06-13'
+        validation_date: '2026-05-17'
+      - url: 
+          https://www.cisa.gov/news-events/alerts/2024/07/25/fbi-cisa-and-partners-release-advisory-highlighting-north-korean-cyber-espionage-activity
+        document_date: '2024-07-25'
+        validation_date: '2026-05-17'
+      - url: 
+          https://www.cisa.gov/news-events/alerts/2025/05/12/update-how-cisa-shares-cyber-related-alerts-and-notifications
+        document_date: '2025-05-12'
+        validation_date: '2026-05-17'
+      - url: https://attack.mitre.org/groups/G0032
+        document_date:
+        validation_date: '2026-05-17'

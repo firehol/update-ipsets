@@ -1,0 +1,150 @@
+sources:
+  iblocklist_isp_cablevision:
+    license: iBlocklist Terms of Service — personal / non-commercial only
+    redistributable: false
+    url: 
+      http://list.iblocklist.com/?list=dwwbsmzirrykdlvpqozb&fileformat=p2p&archiveformat=gz
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - p2p_blocklist
+    processor_raw: p2p_gz
+    category: policy_risk
+    provenance: secondary_upstream
+    info: Cablevision IPs.
+    maintainer: iBlocklist.com
+    maintainer_url: https://www.iblocklist.com/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-19T05:57:35Z'
+      official_name: Cablevision
+      official_url: https://www.iblocklist.com/list?list=dwwbsmzirrykdlvpqozb
+      short_description: A static roster of all IP address ranges allocated to Cablevision's
+        Optimum Online broadband service, formatted for use with PeerBlock, PeerGuardian,
+        and compatible P2P firewall applications.
+      long_description: "The Cablevision ISP blocklist is published by iBlocklist.com
+        and covers all IP address space allocated to Cablevision's Optimum Online
+        broadband service. The list is distributed in P2P format alongside DAT, CIDR,
+        and hosts formats, and is compatible with PeerBlock, PeerGuardian, iplist,
+        Vuze, Transmission, uTorrent, Tixati, and pfBlocker.\n\nThe maintainer's own
+        description includes a cautionary note advising against use by Cablevision
+        subscribers, who risk self-blocking their own internet access.\n\nThe download
+        endpoint for this list is gated behind a human verification challenge, and
+        direct unauthenticated access attempts return a CAPTCHA gate rather than the
+        list file."
+      roles:
+      - role: maintainer
+        name: iBlocklist.com
+        organization_type: commercial
+        official_url: https://www.iblocklist.com/
+        contact_email:
+        based_in: United States
+        active_since:
+        notes: Operated by iblocklist, LLC, registered in Ashburn, VA (per BBB profile).
+          The service distributes IP blocklists in P2P, DAT, and CIDR formats. The
+          company also offers a VPN and proxy service branded PhantomPeer.
+      derivation:
+        type: original
+        description: The list is compiled and published directly by iBlocklist.com.
+          The maintainer does not publicly document the sourcing methodology for ISP
+          blocklists or the process by which IP allocations are assembled into the
+          list. The list follows a template description shared across all ISP-category
+          feeds on the platform, suggesting automated generation from netblock registration
+          data rather than behavioral observation or threat reporting.
+        source_feeds: []
+      listing_policy:
+        summary: The maintainer does not publicly document any listing criteria, submission
+          process, or IP addition methodology for ISP blocklists. The list is described
+          as encompassing all IP address space allocated to Cablevision's Optimum
+          Online service, implying a scope defined by netblock registration data rather
+          than reactive threat reporting.
+        criteria:
+        - IP addresses allocated to Cablevision's Optimum Online broadband service
+          (by netblock registration)
+      unlisting_policy:
+        summary: The maintainer does not publish any unlisting policy, removal process,
+          or delist request channel for ISP blocklists. No submission interface, ticketing
+          system, or publicly documented review process was found on the iBlocklist.com
+          platform.
+        criteria: []
+      unlist_request:
+      update_frequency:
+      detection_classification:
+        primary_method: unknown
+        secondary_methods: []
+        description: The maintainer does not document the detection or compilation
+          methodology for ISP blocklists. The list's description ('all Optimum Online
+          ISP IPs') implies assembly from netblock registration data rather than active
+          probing, honeypot observation, or user-submitted reports, but the exact
+          method is not stated.
+      scope_and_intent:
+        description: The list covers all IP address space allocated to Cablevision's
+          Optimum Online broadband service. Its intended use is blocking inbound connections
+          from Cablevision cable internet subscribers, commonly employed by users
+          seeking to restrict connections from P2P networks or other sources associated
+          with Cablevision's subscriber base.
+        intended_for:
+        - Blocking inbound connections from Cablevision Optimum Online ISP subscribers
+        - P2P privacy applications (PeerBlock, PeerGuardian, and compatible software)
+        not_intended_for:
+        - Cablevision Optimum Online subscribers (who would block their own internet
+          access)
+        - Enterprise threat intelligence or security operations (the list is a static
+          ISP-range roster, not a threat feed)
+      license: iBlocklist Terms of Service — personal / non-commercial only
+      redistribution:
+        allowed: false
+        commercial_use_allowed: false
+        attribution_required:
+        terms: Prohibited. The Terms of Service explicitly bars public display and
+          redistribution of materials. The Developer API terms further prohibit redistribution
+          including private or internal redistribution without prior written permission.
+          Violation triggers blocked access and legal action to recover damages.
+      current_status:
+        state: active
+        description: The list remains listed on the iBlocklist.com platform and the
+          list URL resolves. The direct download URL is gated behind a human verification
+          challenge rather than serving the list file directly.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion specific to the Cablevision ISP blocklist
+          is sparse. Reddit yielded no threads addressing this list. The maintainer
+          does not operate a public issue tracker, changelog, or blog for this feed.
+      sources_consulted:
+      - url: https://www.iblocklist.com/
+        document_date: '2026'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/tos
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/developer
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://gist.github.com/johntyree/3331662
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.iblocklist.com/list?list=dwwbsmzirrykdlvpqozb
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://forum.netgate.com/topic/104235/iblocklist-com-is-either-dead-or-a-scam
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://www.trustpilot.com/review/iblocklist.com
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: 
+          https://reddit.com/r/PFSENSE/comments/4k35pa/pfblockerng_dnsbl_iblocklist_issues/
+        document_date: '2016-05-19'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: https://reddit.com/r/fortinet/comments/in0snq/free_iblocklists_in_fortigate/
+        document_date: '2020-09-05'
+        validation_date: '2026-05-19T00:00:00Z'
+      - url: 
+          https://www.bbb.org/us/va/ashburn/profile/computer-services/iblocklist-0241-236040259
+        document_date:
+        validation_date: '2026-05-19T00:00:00Z'

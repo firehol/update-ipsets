@@ -1,0 +1,179 @@
+sources:
+  ustc_blackip:
+    license: public feed
+    redistributable: true
+    url: https://blackip.ustc.edu.cn/list.php?txt
+    frequency: 1440
+    ipv: ipv4
+    output: netset
+    processor:
+    - remove_comments
+    processor_raw: remove_comments
+    category: intrusion
+    info: '[USTC IP Blacklist](https://blackip.ustc.edu.cn/) active blacklist feed.
+      The text endpoint contains IPv4, IPv4 CIDR, and IPv6 entries; this catalog tracks
+      the IPv4 portion and preserves IPv4 CIDR ranges.'
+    maintainer: University of Science and Technology of China (USTC)
+    maintainer_url: https://blackip.ustc.edu.cn/
+    enabled_by_all: true
+    enrichment:
+      enrichment_schema_version: 2
+      run_at: '2026-05-17T23:11:29Z'
+      official_name: USTC IP Blacklist
+      official_url: https://blackip.ustc.edu.cn/
+      short_description: An academic IP blacklist maintained by the University of
+        Science and Technology of China, aggregating multiple public threat intelligence
+        feeds for blocking malicious IPs on network devices and academic networks.
+      long_description: "The USTC IP Blacklist is an IP blacklist service operated
+        by the University of Science and Technology of China (USTC), a Chinese national
+        university based in Hefei. The project began integrating external public threat
+        intelligence feeds starting in July 2018, initially incorporating Spamhaus
+        DROP and EDROP, followed by additional feeds including Talos, FeodoTracker,
+        and Binary Defense. The maintainer describes the core purpose as protecting
+        academic networks by blocking clients from communicating with malicious IPs
+        that conduct scanning and credential-brute-force activities.\n\nThe feed aggregates
+        entries from multiple established public threat intelligence sources. Entries
+        are plain-text, one per line, covering IPv4 individual addresses, IPv4 CIDR
+        ranges, IPv6 individual addresses, and IPv6 CIDR ranges. No per-entry metadata
+        (threat category, confidence score, or source attribution) is embedded in
+        the feed file.\n\nThe maintainer offers three distribution mechanisms: a plain-text
+        download via the web interface, BGP-based automatic propagation to network
+        equipment (using BGP peering with AS 24362), and specialized blacklists targeting
+        DNS servers and mail servers. Configuration examples are provided for Cisco
+        IOS and Huawei VRP devices. Per the maintainer's intro page, approximately
+        ten Chinese universities currently deploy this blacklist. The maintainer credits
+        Tsinghua University's Network and Information Security Laboratory as a collaborating
+        institution in the system's development."
+      roles:
+      - role: maintainer
+        name: University of Science and Technology of China (USTC)
+        organization_type: research_institution
+        official_url: https://blackip.ustc.edu.cn/
+        contact_email: james@ustc.edu.cn
+        based_in: China
+        active_since:
+        notes: Operates the IP blacklist service from AS 24362. Publishes two BGP
+          peering endpoints for automatic distribution; see the maintainer intro page
+          for the current peer addresses.
+      - role: source_contributor
+        name: Tsinghua University Network and Information Security Laboratory
+        organization_type: research_institution
+        official_url:
+        contact_email:
+        based_in: China
+        active_since:
+        notes: Credited by USTC as a collaborating institution in the development
+          of the BGP-based IP blacklist distribution system.
+      derivation:
+        type: aggregate_merge
+        description: 'The feed aggregates entries from multiple established public
+          threat intelligence sources: Spamhaus DROP and EDROP (integrated July 2018),
+          Cisco Talos IP Blacklist (February 2019), Abuse.ch FeodoTracker blocklist
+          and recommended blocklist (April 2023), and Binary Defense Banlist (October
+          2023). Entries from these sources are merged into a single plain-text list
+          without per-entry source attribution. The maintainer does not describe internal
+          deduplication, scoring, or weighting logic applied to the merged inputs.'
+        source_feeds:
+        - identifier: Spamhaus DROP
+          relationship: aggregate_component
+          notes: Integrated July 2018 per the maintainer's intro page.
+        - identifier: Spamhaus EDROP
+          relationship: aggregate_component
+          notes: Integrated July 2018 per the maintainer's intro page.
+        - identifier: Cisco Talos IP Blacklist
+          relationship: aggregate_component
+          notes: Integrated February 2019 per the maintainer's intro page.
+        - identifier: Abuse.ch FeodoTracker
+          relationship: aggregate_component
+          notes: Integrated April 2023 per the maintainer's intro page.
+        - identifier: Binary Defense Banlist
+          relationship: aggregate_component
+          notes: Integrated October 2023 per the maintainer's intro page.
+      listing_policy:
+        summary: Entries are added when IPs have been observed conducting scanning
+          activities or credential-brute-force attempts (such as SSH and Telnet password
+          guessing). The maintainer does not publish specific quantitative thresholds
+          for what triggers a listing.
+        criteria:
+        - IPs observed launching scanning activities against network resources
+        - IPs observed conducting password-guessing or brute-force attempts against
+          services such as SSH, Telnet, or similar protocols
+      unlisting_policy:
+        summary: Manual removal upon request. The maintainer instructs requesters
+          to send an email to the contact address specifying their device IP address,
+          so the maintainer can identify the requester's BGP peer and remove the corresponding
+          route.
+        criteria:
+        - Removal is handled manually via email correspondence
+        - The requester must provide their device IP address so the maintainer can
+          identify the correct BGP peer session to terminate
+      unlist_request:
+        url:
+        email: james@ustc.edu.cn
+        instructions: Send an email to james@ustc.edu.cn requesting removal from the
+          blacklist. Include your device or router IP address in the message body
+          so the maintainer can identify the correct BGP peer session to disable.
+      update_frequency:
+        frequency: 1d
+        human_readable: Daily updates, per the maintainer's stated cadence
+      detection_classification:
+        primary_method: reputation_aggregation
+        secondary_methods: []
+        description: The feed is built by aggregating and merging entries from multiple
+          established public threat intelligence sources (Spamhaus, Talos, FeodoTracker,
+          Binary Defense). Each upstream source applies its own detection methodology;
+          the USTC feed itself does not operate independent honeypots, sandboxes,
+          or sensor networks. Entries carry no per-entry confidence score or threat-category
+          label in the published feed file.
+      scope_and_intent:
+        description: Designed to protect academic networks by blocking clients from
+          communicating with malicious IPs involved in scanning and credential-brute-force
+          activities. The maintainer provides specialized feeds for DNS server protection
+          and mail server protection in addition to the general IP blacklist.
+        intended_for:
+        - Blocking malicious IPs on network devices (routers, firewalls) in academic
+          and institutional networks
+        - BGP-based automatic blacklist distribution to network equipment
+        - Protecting DNS servers from clients making abnormal DNS requests
+        - Protecting mail servers from clients attempting IMAP, POP3, or SMTP password
+          attacks
+        not_intended_for: []
+      license: Public, no stated license
+      redistribution:
+        allowed: true
+        commercial_use_allowed:
+        attribution_required:
+        terms:
+      current_status:
+        state: active
+        description: Maintained as of May 2026; the main page displays current statistics
+          and daily update history.
+        successor:
+        announcement_date:
+      community:
+        awards:
+        criticism:
+        engagement: Public community discussion is sparse. The feed is referenced
+          in a Chaitin SafeLine community discussion thread (January 2024) and has
+          an independent GitHub mirror maintained by a third-party developer. No other
+          public discussion, issue trackers, or third-party evaluations were found
+          in English-language or widely-indexed sources.
+      sources_consulted:
+      - url: https://blackip.ustc.edu.cn/
+        document_date:
+        validation_date: '2026-05-17T23:00:00Z'
+      - url: https://blackip.ustc.edu.cn/intro.php
+        document_date:
+        validation_date: '2026-05-17T23:00:00Z'
+      - url: https://blackip.ustc.edu.cn/txt.php
+        document_date:
+        validation_date: '2026-05-17T23:00:00Z'
+      - url: https://blackip.ustc.edu.cn/list.php?txt
+        document_date:
+        validation_date: '2026-05-17T23:00:00Z'
+      - url: https://github.com/chaitin/SafeLine/discussions/637
+        document_date: '2024-01-17'
+        validation_date: '2026-05-17T23:00:00Z'
+      - url: https://github.com/LittleJake/ip-blacklist
+        document_date:
+        validation_date: '2026-05-17T23:00:00Z'
