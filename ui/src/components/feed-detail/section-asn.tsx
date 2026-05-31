@@ -54,9 +54,8 @@ export function SectionASN({
   const active = providers.some((p) => p.name === selectedProvider)
     ? selectedProvider
     : (providers[0]?.name ?? "");
-  // Default to treemap — it carries proportional information better
-  // than the bubble pack and matches the documented default
-  // composition view (docs/todo-history/TODO-UI-REWORK.md #21).
+  // Default to treemap because it carries proportional composition
+  // information better than the bubble pack.
   const [view, setView] = useState<"treemap" | "bubble" | "table">("treemap");
 
   if (providersQuery.isLoading) {

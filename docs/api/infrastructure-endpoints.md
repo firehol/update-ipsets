@@ -55,14 +55,16 @@ Returns the detailed overlap between one feed and one specific critical-infrastr
 Example:
 
 ```
-GET /api/v1/sets/firehol_level1/infrastructure/dns-root
+GET /api/v1/sets/firehol_level1/infrastructure/critical_dns_root_servers
 ```
 
 Key response fields: matched IPs, matched ranges, overlap percentages, provider-set identity.
 
 ## Stale artifact handling
 
-These endpoints serve precomputed overlap artifacts. When an artifact's `provider_set_id` does not match the current configured provider set, the endpoint returns `404 Not Found`. This prevents stale overlap totals from being served as current data.
+These endpoints are cache-first. They serve the published overlap artifacts that are present in the configured web artifact directory. Public requests do not regenerate missing or stale critical-infrastructure artifacts.
+
+The daemon checks critical-infrastructure artifact consistency during pipeline and integrity work. If the configured provider set changes, the operator-facing integrity/admin surfaces are the place to confirm repair status.
 
 ## Feeds without comparison targets
 

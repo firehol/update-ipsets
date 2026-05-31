@@ -18,7 +18,7 @@ This produces the `update-ipsets` binary in the project root.
 
 The install script:
 
-- Builds the binary if needed
+- Installs UI dependencies, rebuilds the UI bundle, and builds the Go binary
 - Copies it to the installation directory (default `/opt/update-ipsets/bin/`)
 - Deploys the configuration catalog
 - Installs or updates the systemd unit
@@ -46,10 +46,11 @@ Check that the new version is running:
 update-ipsets version
 ```
 
-Or check the running process:
+The public status endpoint does not expose the build version. To check that the
+daemon is running after restart:
 
 ```bash
-curl -s http://localhost:18888/api/v1/status | jq '.version'
+curl -s http://localhost:18888/api/v1/status | jq '{running: .engine.running, sources: .engine.source_count, uptime: .system.uptime}'
 ```
 
 ## Configuration backup
@@ -57,19 +58,19 @@ curl -s http://localhost:18888/api/v1/status | jq '.version'
 `install.sh` creates a timestamped backup of the previous configuration directory when it detects changes. Backups are stored alongside the active configuration:
 
 ```
-/opt/update-ipsets/etc/config.2025-05-01T120000/
+/opt/update-ipsets/etc/config.bak.20250501120000/
 ```
 
 To roll back the configuration:
 
 ```bash
 sudo rm -rf /opt/update-ipsets/etc/config
-sudo mv /opt/update-ipsets/etc/config.2025-05-01T120000 /opt/update-ipsets/etc/config
+sudo mv /opt/update-ipsets/etc/config.bak.20250501120000 /opt/update-ipsets/etc/config
 sudo systemctl restart update-ipsets
 ```
 
 ## Manual config edits
 
-Edits you make to files in `/opt/update-ipsets/etc/config/` survive reinstalls as long as the same files don't change in the upstream repository. If a file you edited changes upstream, the install script overwrites it but preserves the backup.
+When the installed config directory differs from the repository catalog, `install.sh` backs up the whole active config directory and replaces it with `configs/firehol/`.
 
-To preserve local edits across updates, keep a patch or a copy of your modified files outside the config directory.
+To preserve local edits across updates, keep a patch or a copy of your modified files outside the config directory, then reapply it after the reinstall.

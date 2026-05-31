@@ -5,15 +5,15 @@ You will learn how to build, install, and verify update-ipsets on a Linux server
 ## Prerequisites
 
 - Linux (amd64 or arm64)
-- Go 1.22 or later
+- Go 1.26 or later
 - pnpm (for building the web UI)
 ## Build from source
 
 Clone the repository and build:
 
 ```bash
-git clone https://github.com/firehol/firehol.git
-cd firehol/update-ipsets
+git clone https://github.com/firehol/update-ipsets.git
+cd update-ipsets
 make build
 ```
 
@@ -29,14 +29,14 @@ Run the installer:
 
 The installer does these things in order:
 
-1. Installs UI dependencies and builds the React app (`pnpm install` + `pnpm build` in `ui/`)
+1. Installs UI dependencies and builds the React app (`pnpm --dir ui install --frozen-lockfile` + `pnpm --dir ui build`)
 2. Copies the fresh UI bundle into the embedded static directory
 3. Builds the Go binary with the UI baked in
 4. Creates the directory tree under `/opt/update-ipsets/`
 5. Installs the binary to `/opt/update-ipsets/bin/update-ipsets`
 6. Deploys the feed catalog from `configs/firehol/` to `/opt/update-ipsets/etc/config/`
 7. Installs the systemd unit at `/etc/systemd/system/update-ipsets.service`
-8. Reloads systemd and restarts the service (if already running)
+8. Reloads systemd, restarts the service if it is active, starts it if it is enabled but inactive, or leaves it stopped if it is not enabled
 
 ### Custom install directory
 

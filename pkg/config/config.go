@@ -733,7 +733,7 @@ func rejectLegacyTopLevelBlocks(data []byte) error {
 		}
 		trimmed := strings.TrimRight(line, " \t\r")
 		if deprecated[trimmed] {
-			return fmt.Errorf("config has removed top-level block %q; the geolocation, asn, and bogons blocks have been folded into sources with `use: [...]`. See docs/todo-history/TODO-source-unification.md for the migration table", strings.TrimSuffix(trimmed, ":"))
+			return fmt.Errorf("config has removed top-level block %q; the geolocation, asn, and bogons blocks have been folded into sources with `use: [...]`. See docs/feeds/use-roles.md and docs/migration-from-bash.md", strings.TrimSuffix(trimmed, ":"))
 		}
 	}
 	return nil

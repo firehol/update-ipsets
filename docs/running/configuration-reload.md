@@ -7,13 +7,13 @@ You will learn how to reload the daemon configuration without restarting, what r
 Send `SIGHUP` to the daemon process. The daemon reads the updated YAML catalog and applies the new configuration.
 
 ```bash
-kill -HUP $(cat /run/update-ipsets.pid)
+systemctl kill -s HUP update-ipsets
 ```
 
-With systemd:
+If you run the daemon outside systemd, send `SIGHUP` to that specific process:
 
 ```bash
-systemctl reload update-ipsets
+kill -HUP <update-ipsets-pid>
 ```
 
 ## What reloads

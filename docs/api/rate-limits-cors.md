@@ -6,24 +6,26 @@ You will learn the rate limiting policy, CORS headers, and compression behavior 
 
 ### General API
 
-All public API endpoints (except `/healthz` and admin endpoints) are rate limited at **240 requests per minute per client**.
+Paths under `/api/` and the MCP endpoint are rate limited at **240 requests per minute per client**.
 
-This includes the MCP endpoint at `/mcp`. MCP tool calls (`find_feeds`, `fetch_analysis`) share this general limit because they read precomputed metadata, not scan live feed entries.
+This includes public API paths, admin API paths under `/api/v1/admin/*`, and the MCP endpoint at `/mcp`. MCP tool calls (`find_feeds`, `fetch_analysis`) share this general limit because they read precomputed metadata, not scan live feed entries.
 
 The rate limiter uses a token-bucket algorithm. Per-client state is tracked by source IP address.
 
 ### IP search
 
-IP search endpoints (`/api/v1/search`, `/api/v1/query`) have a separate rate limit of **10 requests per minute per client**.
+IP search endpoints (`/api/v1/search`, `/api/v1/query`) have an additional rate limit of **10 requests per minute per client**.
 
-This limit is independent of the general API limit. A client hitting the search endpoint 10 times in one minute still has 240 general API requests available.
+Search requests also pass through the general `/api/` limiter. The effective search limit is the stricter search bucket unless the client has already exhausted the general API bucket.
 
 ### Excluded from limits
 
-These endpoints are not rate limited:
+These paths are not rate limited:
 
 - `/healthz` — designed for high-frequency load balancer checks
-- All admin endpoints under `/admin` and `/api/v1/admin/*`
+- `/admin` and `/admin/*` — the admin SPA shell
+
+Admin API routes under `/api/v1/admin/*` are still under the general `/api/` rate limiter.
 
 ## Rate limit responses
 

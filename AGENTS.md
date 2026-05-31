@@ -157,7 +157,7 @@ Supporting docs:
 - `README.md` - CLI/build/deploy overview
 - `docs/*.md` - operator documentation, API usage, runbooks, and migration guidance
 - `docs/migration-from-bash.md` - operator migration from bash implementation
-- `docs/todo-history/*.md` - preserved design history, not current work control
+- `.agents/sow/todo-history/*.md` - preserved design history, not current work control
 - `pkg/web/static/methodology/*.md` - public methodology pages for end-user/operator interpretation of site signals; not implementation notes
 
 ### Repo Rules

@@ -26,6 +26,24 @@ Response (`text/plain`):
 192.168.1.1
 ```
 
+## Compatibility route
+
+```
+GET /{name}.{ipset|netset}
+```
+
+The daemon also serves direct root-level `.ipset` and `.netset` paths for compatibility
+with bash-era scripts and simple static-file consumers.
+
+Example:
+
+```
+GET /firehol_level1.netset
+```
+
+The eligibility rules and response body are the same as `/files/{name}.{ipset|netset}`.
+For new automation, prefer `/files/{name}.{ipset|netset}` or the API data endpoint.
+
 ## Eligibility
 
 Only public, redistributable, non-archived feeds are served. The endpoint returns 404 for:
@@ -48,6 +66,6 @@ The `/api/v1/sets/{name}/data` endpoint and `/files/{name}.{ext}` serve the same
 GET /all-ipsets.json
 ```
 
-Returns a JSON object mapping every public feed name to its current file content. This is a single-request way to fetch all feed data at once.
+Returns the legacy public feed catalog metadata as JSON. Each item identifies one public feed and includes fields such as feed name, category, maintainer, timestamps, current IP count, and error count.
 
-Use this for batch synchronization. The response can be large depending on the number and size of active feeds.
+Use this when existing automation expects the bash-era `all-ipsets.json` listing. It is metadata, not a bulk dump of every feed body. Download raw feed bodies through `/files/{name}.{ipset|netset}`, `/{name}.{ipset|netset}`, or `/api/v1/sets/{name}/data`.

@@ -60,7 +60,7 @@ update-ipsets enable --config /opt/update-ipsets/etc/config firehol_level1
 
 The `enable` command modifies enable markers on disk. The running daemon detects the change when:
 
-- The next scheduler evaluation runs (typically every `--interval` seconds)
+- The next scheduler evaluation runs (controlled by the daemon `--interval` duration)
 - You send SIGHUP to reload configuration
 - You restart the daemon
 

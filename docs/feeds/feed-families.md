@@ -1,8 +1,8 @@
 # Feed Families
 
-You will learn the five feed families, when to use each one, and how to decide which family fits your use case.
+You will learn the six feed families, when to use each one, and how to decide which family fits your use case.
 
-## The five families
+## The six families
 
 | Family | Description | Example |
 |--------|-------------|---------|
@@ -16,7 +16,7 @@ You will learn the five feed families, when to use each one, and how to decide w
 ## Decision guide
 
 **I have an upstream URL that publishes IPs or CIDRs.**
-Use a source feed. Set `url`, `frequency`, `output`, and `processors`.
+Use a source feed. Set `url`, `frequency`, `output`, and `processor`.
 
 **I have a small curated list that operators should customize.**
 Use a static feed. Set `static:` with the IP/CIDR list. Set `frequency: 0` for config-change-only updates.

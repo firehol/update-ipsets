@@ -318,8 +318,12 @@ In particular:
   themselves
 - v1 integrity MUST NOT report per-provider critical-overlap files as missing
   for configured providers that have not been materialized yet
-- startup/reload cleanup and public serving MUST reject stale critical-overlap
-  artifacts for feeds that are no longer comparable targets
+- startup/reload cleanup MUST remove critical-overlap artifacts for feeds that
+  are no longer comparable targets
+- feed-scoped critical-overlap API routes MUST reject feeds that are no longer
+  comparable targets, while direct static artifact routes remain cache-first
+  filename/path readers and MUST NOT enforce target eligibility or
+  `provider_set_id` equality at request time
 - transient in-flight work MUST NOT be reported as settled integrity failure
 
 ## In-flight tolerance

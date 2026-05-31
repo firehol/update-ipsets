@@ -1,82 +1,86 @@
-# Step by Step: Add a New Feed
+# Step by Step: Add a Feed
 
-You will learn how to add a new source feed to the catalog, from choosing the family to submitting the contribution.
+You will learn how to add a source feed to a catalog and validate it as an operator.
 
 ## Step 1: Choose the feed family
 
-Most new feeds are **plain source feeds** — they download an IP list from a URL.
+Most new feeds are **source feeds**: they download an IP or CIDR list from a URL.
 
-If your feed is instead:
+If your input is different:
 
-- A union or difference of existing feeds → add a **merge** in `merges/`
-- A time-windowed view of an existing feed → that's a **history derivative**, configured via the parent's `retention` field
-- A multi-part artifact that produces child feeds → add an **artifact parent** in `artifacts/`
+- A union or difference of existing feeds belongs in `merges/`.
+- A time-windowed view of an existing feed uses the parent's `history` field.
+- A multi-part upstream artifact belongs in `artifacts/` with child feeds using `artifact://`.
+- A small local list can use `static:` in a normal source definition.
 
-This guide covers the most common case: adding a plain source feed.
+## Step 2: Choose a category
 
-## Step 2: Create the YAML file
+Use a category that matches the feed's operational meaning:
 
-Create a file in the appropriate category directory:
+| Category | Use for |
+|----------|---------|
+| `intrusion` | Active hostile access attempts and exploitation traffic |
+| `malware_infrastructure` | Malware command-and-control and distribution infrastructure |
+| `messaging_abuse` | Spam and messaging abuse sources |
+| `service_abuse` | Abusive service behavior and bot activity |
+| `anonymizers` | Tor exits, VPN exits, relays, and open proxies |
+| `scanners` | Internet scanners and reconnaissance sources |
+| `policy_risk` | Policy-risk lists that may need local review before blocking |
+| `provider_infrastructure` | Provider and critical-infrastructure reference data |
+| `special_use` | Bogons, reserved ranges, and other special-use address space |
+
+## Step 3: Create the YAML file
+
+Place the file under the matching category directory:
 
 ```bash
 configs/firehol/sources/<category>/<feedname>.yaml
 ```
 
-Use lowercase, underscores for spaces, and no special characters. Choose a category that matches the feed's purpose:
+Use lowercase names with underscores. Avoid path separators, commas, control characters, and non-ASCII characters.
 
-| Category | Description |
-|----------|-------------|
-| `web_reputation` | Web security, phishing, malware distribution |
-| `abuse` | Spam, botnet command-and-control |
-| `attacks` | Active attack sources |
-| `malware` | Malware-related IPs |
-| `reputation` | General reputation scores |
-| `geolocation` | Geographic IP lists |
-| `bogons` | Bogon and reserved address space |
-
-If no category fits, use the closest match or discuss with maintainers.
-
-## Step 3: Write the configuration
-
-Here is a complete example for a typical source feed:
+## Step 4: Write the source definition
 
 ```yaml
-name: example_blocklist
-url: https://example.com/blocklist.txt
-frequency: 3600
-output: ipset
-category: web_reputation
-maintainer: [Example Security Team]
-homepage: https://example.com/blocklist
-license: CC-BY-4.0
-redistributable: true
-attribution: |
-  Data provided by Example Security Team under CC-BY-4.0.
-  Source: https://example.com/blocklist
-processors:
-  - strip_comments
-  - strip_blank_lines
+sources:
+  example_blocklist:
+    url: https://example.com/blocklist.txt
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    category: malware_infrastructure
+    maintainer: Example Security Team
+    maintainer_url: https://example.com/blocklist
+    license: CC-BY-4.0
+    redistributable: true
+    attribution: |
+      Data provided by Example Security Team under CC-BY-4.0.
+      Source: https://example.com/blocklist
+    info: '[Example Security Team](https://example.com/blocklist) malware infrastructure blocklist'
+    processor:
+      - remove_comments
+      - extract_ipv4_cidr
 ```
 
-### Key fields
+Key fields:
 
-| Field | Required | Description |
-|-------|----------|-------------|
-| `name` | Yes | Feed identity — lowercase, no spaces or special characters |
-| `url` | Yes | Download URL (`https://`, `http://`, or `file:///`) |
-| `frequency` | Yes | Update interval in seconds (0 = manual only) |
-| `output` | Yes | `ipset` (one IP per line) or `netset` (CIDR per line) |
-| `category` | Yes | Must match a category defined in `categories.yaml` |
-| `maintainer` | Yes | List of maintainer names |
-| `license` | Yes | SPDX identifier or freeform text |
-| `redistributable` | No | Defaults to `true`. Set to `false` only if terms explicitly forbid redistribution |
-| `attribution` | No | Required text that accompanies redistribution |
-| `processors` | No | List of processing steps to normalize the input |
-| `homepage` | No | Upstream project URL |
+| Field | Required | Meaning |
+|-------|----------|---------|
+| YAML key under `sources:` | Yes | Feed identity and URL slug |
+| `url` | Yes for downloaded feeds | Download URL |
+| `frequency` | Yes | Minutes between checks; `0` means no independent wall-clock cadence |
+| `ipv` | Yes | Use `ipv4` for current feed processing. IPv6 feed processing is not complete in this release. |
+| `output` | Yes | `ipset` for individual IPs, `netset` for CIDR ranges |
+| `category` | Yes | Existing category key |
+| `processor` | Usually | Normalization pipeline |
+| `maintainer` | Recommended | Upstream maintainer name |
+| `maintainer_url` | Recommended | Upstream maintainer or feed page |
+| `license` | Recommended | Direct upstream license or terms summary |
+| `redistributable` | Optional | Defaults to `true`; set `false` only when terms forbid republication |
 
-## Step 4: Test locally
+## Step 5: Test locally
 
-Start the daemon with the updated config:
+Start the daemon with the updated catalog:
 
 ```bash
 update-ipsets daemon --config configs/firehol --enable-all \
@@ -84,33 +88,25 @@ update-ipsets daemon --config configs/firehol --enable-all \
   --admin-auth-mode=disabled --allow-unauthenticated-admin
 ```
 
-Check the admin UI at `http://localhost:18888/admin`:
+In the admin UI:
 
-1. Find your feed in the feed table
-2. Verify it shows as enabled
-3. Trigger a recheck from the feed's action menu
-4. Wait for download and processing to complete
-5. Confirm the feed shows IPs and has a `healthy` status
+1. Find the feed in the feed table.
+2. Confirm it is enabled.
+3. Trigger a recheck.
+4. Wait for download and processing to complete.
+5. Confirm the feed has entries, unless it is intentionally empty.
 
-## Step 5: Validate
+## Step 6: Validate public behavior
 
-Confirm these points before submitting:
+```bash
+curl http://localhost:18888/api/v1/sets/example_blocklist
+curl http://localhost:18888/api/v1/sets/example_blocklist/data
+```
 
-- The feed downloads without errors
-- The feed produces a non-zero number of IPs (unless it is genuinely empty)
-- The feed appears in the public API: `curl http://localhost:18888/api/v1/sets/<name>`
-- The raw data is accessible: `curl http://localhost:18888/api/v1/sets/<name>/data`
+The raw data endpoint is expected to fail for hidden, archived, or non-redistributable feeds.
 
-## Step 6: Add license and attribution
+## Step 7: Check license and attribution
 
-If the upstream requires attribution, include the full text in the `attribution` field. Use SPDX license identifiers when possible (`MIT`, `CC-BY-4.0`, `Apache-2.0`, etc.).
+If the direct upstream requires attribution, include it in `attribution`. If redistribution is forbidden, set `redistributable: false`.
 
-See [License Requirements](license-requirements.md) for the full policy.
-
-## Step 7: Submit
-
-Push your changes and open a pull request. Include:
-
-- A short description of the feed
-- Confirmation that you tested it locally
-- Any notes about the upstream license or terms
+See [License Requirements](license-requirements.md).

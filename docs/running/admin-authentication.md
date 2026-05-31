@@ -41,7 +41,7 @@ Browser access prompts for username and password when you visit `/admin`.
 
 If `UPDATE_IPSETS_ADMIN_USER` or `UPDATE_IPSETS_ADMIN_PASSWORD` is missing when auth is required:
 
-- admin endpoints return 401 (Unauthorized)
+- admin endpoints return 503 (Service Unavailable)
 - admin access is denied — it does not fall back to open access
 
 The daemon does not guess, default, or silently disable authentication. A missing configuration variable is a hard deny, not a soft skip.
@@ -64,11 +64,10 @@ The `--allow-unauthenticated-admin` flag is a deliberate safety acknowledgment. 
 
 This prevents these common mistakes:
 
-- A typo in `--admin-auth-mode` that silently drops to disabled
 - Copy-pasting a command from documentation without noticing auth is off
-- Automation scripts that set the mode from a variable and get an empty or wrong value
+- Automation scripts that set the mode from a variable and accidentally request disabled auth
 
-The two-flag design means you have to explicitly say "I understand the risk" twice.
+The two-flag design means a disabled-auth deployment needs both the disabled mode and a separate risk acknowledgment.
 
 ## Bind address is not a safety signal
 

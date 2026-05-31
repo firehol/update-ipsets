@@ -63,7 +63,7 @@ Example:
 
 ```bash
 UPDATE_IPSETS_ADMIN_USER=admin \
-UPDATE_IPSETS_ADMIN_PASSWORD=secret \
+UPDATE_IPSETS_ADMIN_PASSWORD=change-this-secret \
 update-ipsets daemon \
   --config /opt/update-ipsets/etc/config \
   --listen :18888 \

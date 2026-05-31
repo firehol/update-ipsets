@@ -17,30 +17,30 @@ If either is missing when auth is required, admin access fails closed. The daemo
 
 These environment variables override filesystem paths. They are expanded from `configs/firehol/runtime.yaml` at startup.
 
-The installed systemd unit sets all of these. You normally do not need to change them unless you want a non-standard layout.
+The installed systemd unit sets the deployment paths under `/opt/update-ipsets`. You normally do not need to change them unless you want a non-standard layout.
 
-| Variable | Default (root) | Default (non-root) | Description |
+| Variable | Shipped catalog fallback when unset | Installed unit value | Description |
 |---|---|---|---|
-| `BASE_DIR` | `/etc/firehol/ipsets` | `$HOME/.update-ipsets/ipsets` | Root directory for committed ipset/netset output files. |
-| `CONFIG_FILE` | `/etc/firehol/update-ipsets` | `$HOME/.update-ipsets/config` | Path to the legacy bash config file. |
-| `RUN_PARENT_DIR` | `/var/run` | `$HOME/.update-ipsets/run` | Parent directory for lock and socket files. |
-| `CACHE_DIR` | `/var/cache/update-ipsets` | `$HOME/.cache/update-ipsets` | Download cache directory. |
-| `LIB_DIR` | `/var/lib/update-ipsets` | `$HOME/.local/share/update-ipsets` | Persistent library and state directory. |
-| `HISTORY_DIR` | `$BASE_DIR/history` | `$BASE_DIR/history` | Feed history storage. |
-| `ERRORS_DIR` | `$BASE_DIR/errors` | `$BASE_DIR/errors` | Feed error log storage. |
-| `TMP_DIR` | `/tmp` | `/tmp` | Temporary files directory. |
-| `WEB_DIR` | (empty, disabled) | (empty, disabled) | Published web artifacts directory. Set to enable the public website. |
-| `WEB_DIR_FOR_IPSETS` | (empty, disabled) | (empty, disabled) | Directory served for raw ipset/netset file downloads. |
+| `BASE_DIR` | `${HOME}/ipsets` | `/opt/update-ipsets/data` | Root directory for committed ipset/netset output files. |
+| `CONFIG_FILE` | `${HOME}/.update-ipsets/config` | not set; daemon uses `--config /opt/update-ipsets/etc/config` | Path to the legacy bash config file. |
+| `RUN_PARENT_DIR` | `${HOME}/.update-ipsets` | `/opt/update-ipsets/run` | Parent directory for the process lock. |
+| `CACHE_DIR` | `${HOME}/.update-ipsets/cache` | `/opt/update-ipsets/cache` | Scheduler/runtime cache directory. |
+| `LIB_DIR` | `${HOME}/.update-ipsets/lib` | `/opt/update-ipsets/lib` | Persistent library and state directory. |
+| `HISTORY_DIR` | `${BASE_DIR}/history` | `/opt/update-ipsets/data/history` | Feed history storage. |
+| `ERRORS_DIR` | `${BASE_DIR}/errors` | `/opt/update-ipsets/data/errors` | Feed error log storage. |
+| `TMP_DIR` | `/tmp` | `/opt/update-ipsets/tmp` | Temporary files directory. |
+| `WEB_DIR` | empty, disabled | `/opt/update-ipsets/web` | Published web artifacts directory. |
+| `WEB_DIR_FOR_IPSETS` | empty, disabled | `/opt/update-ipsets/web/files` | Directory served for raw ipset/netset file downloads. |
 
 ## Supplementary config directories
 
 These variables point to directories containing additional feed YAML files. They are merged with the built-in catalog at startup.
 
-| Variable | Default (root) | Description |
+| Variable | Shipped catalog fallback when unset | Description |
 |---|---|---|
-| `ADMIN_SUPPLIED_IPSETS` | `/etc/firehol/ipsets.d` | Admin-managed feed config overlays. |
-| `DISTRIBUTION_SUPPLIED_IPSETS` | `/usr/share/firehol/ipsets.d` | Distribution-packaged feed configs. |
-| `USER_SUPPLIED_IPSETS` | `$HOME/.update-ipsets/ipsets.d` | User-managed feed configs. |
+| `ADMIN_SUPPLIED_IPSETS` | `${FIREHOL_CONFIG_DIR}/ipsets.d` | Admin-managed feed config overlays. |
+| `DISTRIBUTION_SUPPLIED_IPSETS` | `${FIREHOL_SHARE_DIR}/ipsets.d` | Distribution-packaged feed configs. |
+| `USER_SUPPLIED_IPSETS` | `${HOME}/.update-ipsets/ipsets.d` | User-managed feed configs. |
 
 ## Web publishing variables
 
@@ -49,9 +49,9 @@ These are not path overrides but configure how published files are served.
 | Variable | Default | Description |
 |---|---|---|
 | `WEB_OWNER` | (none) | Filesystem owner for published web files. |
-| `WEB_URL` | (none) | Public website URL prefix. |
+| `WEB_URL` | `https://iplists.firehol.org/ipsets/` | Public website feed-detail URL prefix. |
 | `PUBLIC_BASE_URL` | (none) | Externally visible base URL. |
-| `LOCAL_COPY_URL` | (none) | Base URL for raw file downloads. |
+| `LOCAL_COPY_URL` | `https://iplists.firehol.org/files/` | Base URL for raw file downloads. |
 
 ## API key variables
 
@@ -63,16 +63,16 @@ These are not path overrides. They hold API keys used in URL templates for feeds
 | `IP2LOCATION_API_KEY` | IP2Proxy PX1LITE feed | API key for IP2Location downloads. |
 | `BLUELIV_API_KEY` | Blueliv Crimeserver feed | API key for Blueliv downloads. |
 
-Set these in `~/.update-ipsets.env` to avoid exposing them in the systemd unit. The daemon reads this file at startup and sets any unset environment variables from it.
+Set these in `$HOME/.update-ipsets.env` to avoid exposing them in the systemd unit. The daemon reads this file at startup and sets any unset environment variables from it. In the installed unit, `HOME=/opt/update-ipsets`, so the installed service reads `/opt/update-ipsets/.update-ipsets.env`.
 
 ## Legacy config file
 
 | Variable | Default | Description |
 |---|---|---|
-| `USER_AGENT` | `update-ipsets/...` | HTTP User-Agent header for upstream downloads. |
+| `USER_AGENT` | `FireHOL-Update-Ipsets/3.0 (linux-gnu) https://iplists.firehol.org/` | HTTP User-Agent header for upstream downloads. |
 | `UPDATE_IPSETS_LOCK_FILE` | `$RUN_PARENT_DIR/update-ipsets.lock` | Lock file path. `LOCK_FILE` is a legacy alias. |
-| `GITHUB_CHANGES_URL` | (none) | GitHub changes URL template. |
-| `GITHUB_SETINFO` | (none) | GitHub set info URL template. |
+| `GITHUB_CHANGES_URL` | `https://github.com/firehol/blocklist-ipsets/commits/master/` | GitHub changes URL template. |
+| `GITHUB_SETINFO` | `https://github.com/firehol/blocklist-ipsets/tree/master/` | GitHub set info URL template. |
 
 ## systemd drop-in variables
 
@@ -94,7 +94,7 @@ Environment="UPDATE_IPSETS_ADMIN_LISTEN_ARG=--admin-listen 127.0.0.1:18889"
 Environment="UPDATE_IPSETS_ADMIN_AUTH_ARG=--admin-auth-mode=required"
 Environment="UPDATE_IPSETS_ALLOW_UNAUTHENTICATED_ADMIN_ARG="
 Environment="UPDATE_IPSETS_ADMIN_USER=admin"
-Environment="UPDATE_IPSETS_ADMIN_PASSWORD=secret"
+Environment="UPDATE_IPSETS_ADMIN_PASSWORD=change-this-secret"
 ```
 
 After editing, reload and restart:

@@ -1,40 +1,41 @@
 # License Requirements
 
-You will learn when a feed can be redistributed, how to handle attribution, and how license policy works for merges.
+You will learn when a feed can be redistributed, how to handle attribution, and how license policy works for source feeds and merges.
 
-## Before submitting
+## Check the direct upstream
 
-Check the upstream feed's terms of service or license page. Look for:
+Use the terms of the URL the catalog actually downloads from. Look for:
 
-- An explicit license statement
-- Terms of use on the download page
-- Any restriction on copying or redistributing the data
+- an explicit license statement
+- terms of use on the download page
+- restrictions on copying or redistributing the data
+- attribution requirements
+
+Terms from an upstream-of-upstream are useful context, but they do not change the catalog fields unless they apply to the direct download source.
 
 ## Redistributable defaults
 
-By default, feeds are `redistributable: true`. You only need to mark a feed as non-redistributable when the terms explicitly forbid redistribution.
+By default, feeds are redistributable. You only need to set `redistributable: false` when the direct upstream terms explicitly forbid redistribution.
 
-The following do **not** make a feed non-redistributable:
+The following do not make a feed non-redistributable by themselves:
 
-- Attribution requirements (you must give credit)
-- Non-commercial use restrictions (the catalog is not commercial)
-- Warranty disclaimers ("use at your own risk")
-- Unknown license with no explicit anti-redistribution language
-
-If the terms say "free for any use" or "public domain" or have no restrictions at all, the feed is redistributable.
+- attribution requirements
+- non-commercial use restrictions
+- warranty disclaimers
+- no explicit license statement and no explicit anti-redistribution language
 
 ## When to mark non-redistributable
 
-Set `redistributable: false` only when the terms explicitly say:
+Set `redistributable: false` when the direct upstream terms say:
 
-- "You may not redistribute this data"
-- "Redistribution is prohibited"
-- "For personal use only — no republication"
-- The license requires a separate agreement for redistribution
+- redistribution is prohibited
+- republication requires a separate agreement
+- use is personal-only
+- copying the data into a public mirror is not allowed
 
 ## Attribution
 
-When the upstream requires attribution, include it in the `attribution` field:
+When the upstream requires attribution, include it in `attribution`:
 
 ```yaml
 attribution: |
@@ -43,7 +44,7 @@ attribution: |
   License: https://example.com/terms
 ```
 
-The attribution text accompanies the published feed data wherever it is served.
+The attribution text is carried with public metadata and feed pages.
 
 ## SPDX license identifiers
 
@@ -55,32 +56,29 @@ Use standard SPDX identifiers when the upstream license is recognized:
 - `Apache-2.0`
 - `BSD-3-Clause`
 
-For non-standard licenses, use a short descriptive string:
+For non-standard terms, use a short descriptive string:
 
 ```yaml
 license: "Custom - free for non-commercial use with attribution"
 ```
 
-## Merges and license inheritance
+## Merges
 
-Merges inherit license constraints from all their parents — including subtractive parents. If any parent is non-redistributable, the merge is also non-redistributable.
+Merges inherit redistribution constraints from all transitive parents, including subtractive parents. If any parent is non-redistributable, the merge is also non-redistributable.
 
-This is conservative by design. Subtractive parents influence the final set (by removing IPs), so their license terms apply to the derived output.
-
-When submitting a merge, verify that all parents are redistributable. If any are not, mark the merge as non-redistributable.
+This is conservative by design. Subtractive parents influence the derived output because they remove ranges from it.
 
 ## Critical infrastructure feeds
 
-Critical infrastructure reference feeds in the shipped catalog default to `redistributable: false`. These feeds are curated reference data and get a source-specific redistribution review before any change.
+Critical-infrastructure reference feeds in the shipped catalog default to `redistributable: false`. These feeds are curated reference data and need source-specific review before being republished.
 
 ## Quick reference
 
 | Situation | Action |
 |-----------|--------|
-| Upstream says "public domain" | `redistributable: true` |
-| Upstream says "CC-BY" with attribution | `redistributable: true`, include `attribution` |
-| Upstream says "free for any use" | `redistributable: true` |
-| Upstream says "no redistribution" | `redistributable: false` |
-| Upstream says "personal use only" | `redistributable: false` |
+| Direct upstream says "public domain" | `redistributable: true` |
+| Direct upstream says "CC-BY" with attribution | `redistributable: true`, include `attribution` |
+| Direct upstream says "free for any use" | `redistributable: true` |
+| Direct upstream says "no redistribution" | `redistributable: false` |
+| Direct upstream says "personal use only" | `redistributable: false` |
 | No license mentioned, no restrictions | `redistributable: true` |
-| Unsure after reading terms | Ask in the pull request — reviewers will help |

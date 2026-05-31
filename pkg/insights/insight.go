@@ -1,8 +1,8 @@
 // Package insights derives deterministic, factual observations about a
 // feed from the engine's existing per-feed data. It produces one-line
 // headlines backed by raw numbers; rules either fire or stay silent and
-// never publish hedged claims. See docs/todo-history/TODO-insights.md
-// for the complete design and rule catalog.
+// never publish hedged claims. The product contract lives in
+// .agents/sow/specs/processing-engine.md.
 package insights
 
 import (

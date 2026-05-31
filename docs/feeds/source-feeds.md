@@ -6,13 +6,15 @@ You will learn how to configure a direct upstream feed that downloads from HTTP,
 
 A source feed fetches content from an external URL on a fixed cadence, processes the raw download through a pipeline of transformations, and produces a normalized IP set.
 
+The current feed pipeline is IPv4-oriented. Use `ipv: ipv4` for source feeds in normal operation. The standalone `iprange` CLI has IPv6 mode, but public feed search, enrichment, and critical-infrastructure overlap are IPv4-only in this release.
+
 ## Key fields
 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `name` | yes (YAML key) | Unique feed identifier — used as filename, URL slug, and reference key |
 | `url` | yes | Download URL — `https://`, `http://`, or `file:///` |
-| `frequency` | yes | Seconds between automatic checks. `0` means not auto-scheduled. |
+| `frequency` | yes | Minutes between automatic checks. `0` means not auto-scheduled. |
 | `output` | yes | `ipset` (one IP per line) or `netset` (one CIDR per line) |
 | `category` | yes | Category key from `categories.yaml` |
 | `processor` | yes | List of transformation steps applied to the download |
@@ -34,9 +36,24 @@ Environment variable interpolation is supported in URLs:
 url: https://download.maxmind.com/app/geoip_download?edition_id=GeoLite2-ASN&license_key=${MAXMIND_LICENSE_KEY}&suffix=tar.gz
 ```
 
+If the real URL contains a secret, set `attributes.public_url` to the sanitized URL you want users and APIs to see.
+
+## Custom download options
+
+Most feeds use the default HTTP downloader. For form-style exports or APIs that require headers, set curl-like options under `attributes.downloader_options`:
+
+```yaml
+attributes:
+  downloader_options: >-
+    --data 'export_type=text'
+    --header 'Authorization: bearer ${API_TOKEN}'
+```
+
+Supported options are `--data`/`-d`, `--request`/`-X`, `--referer`, `--user`/`-u`, and `--header`/`-H`.
+
 ## Frequency
 
-`frequency` sets the number of seconds between automatic checks. Common values:
+`frequency` sets the number of minutes between automatic checks. Common values:
 
 | Value | Meaning |
 |-------|---------|

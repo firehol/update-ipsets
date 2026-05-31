@@ -297,6 +297,15 @@ equivalent to:
 - `GET /api/v1/methodology`
 - `GET /api/v1/methodology/{slug}`
 
+`GET /api/v1/compose` is a bounded dynamic composition endpoint over committed
+local feed bodies. It MUST require at least one included set, MUST cap include
+sets at 20, MUST cap exclude sets at 20, and MUST cap output at 32 MiB. It MUST
+apply the public raw-feed policy to every included and excluded set: the set
+must be public, redistributable, not archived, and backed by an available raw
+`.ipset` or `.netset` body. Supported output formats are CIDR/net notation,
+range notation, and single-IP notation. The route MUST NOT fetch upstream data
+or broad-recompute analytics during the request.
+
 `GET /api/v1/sets` feed entries MUST expose the short public enrichment
 summary when available: `official_name`, `short_description`, and
 `current_status_state`. `short_description` is treated as the feed's
@@ -340,8 +349,8 @@ The MCP endpoint:
 - MUST NOT expose admin operations, internal state, or configuration details
 - MUST serve pre-generated artifacts for `fetch_analysis` — not generate
   markdown on demand during the request
-- MAY add additional tools in future SOWs (compose, address-space overlap)
-  without changing the transport or security model
+- MUST remain limited to the registered `find_feeds` and `fetch_analysis`
+  tools until a later SOW explicitly changes the MCP tool contract
 
 The `find_feeds` tool MUST support full-text search across feed names,
 official names, maintainer names, short descriptions, and feed descriptions,

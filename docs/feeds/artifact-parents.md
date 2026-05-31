@@ -29,8 +29,8 @@ Key fields:
 | Field | Description |
 |-------|-------------|
 | `type` | Artifact family — controls how the download is parsed and split |
-| `frequency` | Seconds between automatic downloads |
-| `max_download_size` | Override the global max download size for this artifact |
+| `frequency` | Minutes between automatic downloads |
+| `max_download_size` | Override the global max download size for this artifact, in bytes |
 | `info` | Description for the admin UI |
 | `maintainer` | Artifact source attribution |
 

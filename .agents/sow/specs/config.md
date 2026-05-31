@@ -166,6 +166,13 @@ This release supports IPv4 critical-infrastructure reference feeds only; configs
 with `use: [critical_infrastructure]` and `ipv: ipv6` MUST fail validation until
 the IPv6 overlap writer is implemented.
 
+Current ordinary source and merge validation accepts `ipv: ipv6`, but this is
+not full public-pipeline IPv6 support. The shipped catalog is IPv4, public IP
+lookup is IPv4-only, and the feed-body preparation path currently uses the
+IPv4 canonical set parser. Treat `ipv: ipv6` as an accepted configuration value
+that requires further implementation before operators can rely on IPv6 feed
+processing end to end.
+
 ## Configuration responsibilities
 
 Configuration MUST define product behavior at the semantic level.

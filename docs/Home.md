@@ -15,7 +15,7 @@ This manual covers everything you need to deploy, configure, monitor, and mainta
 - **Monitoring** — OpenTelemetry, Netdata integration, log structure
 - **CLI tools** — iprange, query, and enable subcommands
 - **Troubleshooting** — common issues and how to fix them
-- **Contributing** — how to add new feeds to the catalog
+- **Catalog maintenance** — how operators add and validate local catalog feeds
 
 ## Reading order
 
@@ -25,18 +25,18 @@ New to update-ipsets? Start here:
 2. [Quick Start](quick-start.md) — get running in 5 minutes
 3. [Installation](installation/installation.md) — production deployment
 4. [Configuration Concepts](configuration/configuration-concepts.md) — how the catalog works
-5. [Feed Families](feeds/feed-families.md) — the five feed types
+5. [Feed Families](feeds/feed-families.md) — the six feed families
 6. [Pipeline Overview](pipeline/pipeline-overview.md) — how data flows
 
 Then branch to the sections you need.
 
-## For contributors
+## For catalog operators
 
-If you want to add a new feed to the catalog:
+If you maintain a local feed catalog:
 
 1. Read [Feed Families](feeds/feed-families.md) to pick the right type
 2. Follow [Step by Step: Add a Feed](contributing/step-by-step-add-feed.md)
-3. Check [License Requirements](contributing/license-requirements.md) before submitting
+3. Check [License Requirements](contributing/license-requirements.md) before publishing redistributed data
 
 ## Need help?
 

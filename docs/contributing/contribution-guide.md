@@ -1,98 +1,100 @@
-# Contribution Guide
+# Catalog Maintenance Guide
 
-You will learn how to contribute new feeds and improvements to the update-ipsets catalog.
+You will learn how to maintain a local update-ipsets catalog: where YAML files live, what to check before enabling a feed, and how to validate the result with the daemon.
 
-## Process overview
+## Maintenance workflow
 
-1. Fork the repository
-2. Add or modify YAML configuration files
-3. Test locally with the daemon
-4. Submit a pull request
+1. Add or modify YAML configuration files under the catalog directory.
+2. Validate the feed through the daemon and admin UI.
+3. Confirm public API and raw-download behavior.
+4. Record license and attribution details before publishing redistributed data.
 
-## What reviewers check
+## What to verify
 
-When you submit a new feed, reviewers verify:
+Before relying on a new or changed feed, verify:
 
-- The URL works and returns IP data
-- The feed produces valid IPs after processing
-- The license is compatible (see [License Requirements](license-requirements.md))
-- Attribution text is correct and complete
-- The YAML file is in the correct directory with correct fields
-- The feed does not duplicate an existing entry
-- Category and metadata are appropriate
+- The URL works and returns IP or CIDR data.
+- The configured processor pipeline produces valid IP ranges.
+- The category matches the feed's operational meaning.
+- The license and attribution fields match the direct upstream's terms.
+- The feed does not duplicate an existing catalog entry.
+- Public raw downloads are allowed only when `redistributable` is true.
 
 ## YAML file placement
 
-```
+```text
 configs/firehol/
-  sources/           # Direct source feeds
-    <category>/      # Category subdirectory (e.g., web_reputation, abuse)
-      <feed>.yaml    # One file per feed
-  merges/            # Merge feeds
-    <name>.yaml      # One file per merge
-  artifacts/         # Artifact parents
-    <name>.yaml      # One file per artifact
-  runtime.yaml       # Runtime settings
-  categories.yaml    # Category definitions
+  sources/
+    <category>/
+      <feed>.yaml
+  merges/
+    <name>.yaml
+  artifacts/
+    <name>.yaml
+  runtime.yaml
+  categories.yaml
 ```
 
-## Source feed fields
-
-A typical source feed YAML contains:
+## Source feed example
 
 ```yaml
-name: my_new_feed
-url: https://example.com/blocklist.txt
-frequency: 3600
-output: ipset
-category: web_reputation
-maintainer: [Example Corp]
-license: CC-BY-SA-4.0
-redistributable: true
-attribution: |
-  Data provided by Example Corp.
-  https://example.com/terms
-processors:
-  - strip_comments
-  - strip_blank_lines
-  - cidr_expand
-```
-
-## Merge feed fields
-
-```yaml
-name: my_merge
 sources:
-  - feed_a
-  - feed_b
-exclude:
-  - whitelist_feed
-frequency: 3600
-output: netset
-category: combined
-maintainer: [Curator Name]
-license: multiple
-redistributable: true
+  my_new_feed:
+    url: https://example.com/blocklist.txt
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    category: malware_infrastructure
+    maintainer: Example Corp
+    maintainer_url: https://example.com/
+    license: CC-BY-SA-4.0
+    redistributable: true
+    attribution: |
+      Data provided by Example Corp.
+      https://example.com/terms
+    info: '[Example Corp](https://example.com/) example blocklist'
+    processor:
+      - remove_comments
+      - extract_ipv4_cidr
 ```
 
-## Testing locally
+## Merge feed example
 
-1. Start the daemon with your config:
-   ```bash
-   update-ipsets daemon --config configs/firehol --enable-all --listen :18888 \
-     --admin-auth-mode=disabled --allow-unauthenticated-admin
-   ```
+```yaml
+merges:
+  my_merge:
+    frequency: 60
+    ipv: ipv4
+    output: netset
+    category: intrusion
+    maintainer: Local Catalog Operator
+    license: multiple
+    redistributable: true
+    sources:
+      - feed_a
+      - feed_b
+    exclude:
+      - whitelist_feed
+```
 
-2. Check the admin UI at `http://localhost:18888/admin`
-3. Verify the feed appears in the catalog
-4. Wait for the first download cycle or trigger a recheck from the admin UI
-5. Confirm the feed produces IPs and has a `healthy` status
+## Local validation
 
-## Submitting
+Start the daemon with your catalog:
 
-Push your changes to your fork and open a pull request. Include:
+```bash
+update-ipsets daemon --config configs/firehol --enable-all --listen :18888 \
+  --admin-auth-mode=disabled --allow-unauthenticated-admin
+```
 
-- The feed URL and what it contains
-- Why it is useful for the catalog
-- Any license or attribution notes
-- Confirmation that you tested it locally
+Then check:
+
+1. The feed appears in the admin UI at `http://localhost:18888/admin`.
+2. Recheck completes without download or processing errors.
+3. The feed appears in the public catalog: `curl http://localhost:18888/api/v1/sets/<name>`.
+4. Raw data is available only when redistribution is allowed: `curl http://localhost:18888/api/v1/sets/<name>/data`.
+
+## See also
+
+- [Step by Step: Add a Feed](step-by-step-add-feed.md)
+- [License Requirements](license-requirements.md)
+- [YAML Field Reference](../feeds/yaml-field-reference.md)

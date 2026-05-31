@@ -4,7 +4,7 @@ You will learn how to build update-ipsets from source, run it locally, and try i
 
 ## Prerequisites
 
-- Go 1.22 or later
+- Go 1.26 or later
 - Git
 - A terminal
 
@@ -55,7 +55,7 @@ Look up which feeds contain an IP address:
 Count unique IPs across CIDR ranges using the iprange subcommand:
 
 ```bash
-echo -e "1.0.0.0/8\n2.0.0.0/8" | ./update-ipsets iprange count-unique
+printf "1.0.0.0/8\n2.0.0.0/8\n" | ./update-ipsets iprange --count-unique
 ```
 
 Compose sets and test membership:
@@ -68,4 +68,4 @@ Compose sets and test membership:
 
 - [Installation](installation/installation.md) — production deployment with systemd, TLS, and memory planning
 - [Configuration Concepts](configuration/configuration-concepts.md) — how the YAML catalog works
-- [Feed Families](feeds/feed-families.md) — the five feed types and when to use each
+- [Feed Families](feeds/feed-families.md) — the six feed families and when to use each

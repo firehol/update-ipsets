@@ -1,9 +1,9 @@
 # Critical Infrastructure Reference Feeds
 
-This project models critical infrastructure as configurable reference feeds.
+update-ipsets models critical infrastructure as configurable reference feeds.
 
-Operators can add, remove, or override these sources in config without patching
-or rebuilding the Go binary.
+Operators can add, remove, or override these sources in YAML without rebuilding
+or reinstalling the binary.
 
 Broad provider and customer-hosting ranges are modeled separately with
 `use: [provider_context]`. They publish as normal context feeds but are not used
@@ -62,33 +62,20 @@ It is intentionally narrow and validation rejects known broad hyperscaler or
 customer-hosting ASNs. This signal is context, not a replacement for reference
 feed overlap.
 
-The current overlap implementation is IPv4-only. IPv6 critical-infrastructure
-sources must wait for the IPv6 overlap writer so the public artifacts do not
-claim unsupported coverage.
+Critical-overlap is currently IPv4-only. Do not assign `use:
+[critical_infrastructure]` to IPv6 sources; validation rejects them.
 
-## Generated Artifacts
+## Operational behavior
 
-For every comparable IPv4 public feed, processing writes:
+For every comparable public IPv4 feed, the daemon publishes critical-overlap
+data that the website and API read later. Public requests are cache-first: they
+serve already-published overlap data and do not fetch upstream data or rebuild
+overlap results on demand.
 
-- `<feed>_critical_infrastructure.json`
-- `<feed>_critical_<provider>.json` for each loaded provider
-
-The aggregate artifact includes a `provider_set_id`, `complete`, and
-`missing_providers` fields. Each per-provider artifact also includes the same
-`provider_set_id`.
-
-The provider-set ID is a fingerprint of the configured reference providers,
-their acquisition/processing-shape config, and their processed range content.
-When `critical_asn_context` is configured, it also fingerprints configured ASN
-provider source shape and processed content because aggregate payloads may
-include ASN-context matches. It intentionally excludes local processing
-timestamps and version counters so no-op refreshes do not create a scheduler
-loop. If a provider is added, removed, retagged, changes URL/static/processor
-configuration, or its processed ranges change, the next scheduler pass forces a
-provider refresh and regenerates critical-overlap artifacts. Public API and
-direct JSON routes reject files whose provider-set ID no longer matches the
-current config.
-Removed-provider JSON artifacts are deleted during the rebuild.
+When the configured reference-provider set changes, the scheduler marks the
+affected critical reference feeds due. The next processing pass refreshes the
+overlap data. Operators can watch this in the admin schedule, queue, and
+integrity views.
 
 Reference feeds do not get self-overlap artifacts.
 
@@ -102,7 +89,7 @@ without turning cloud/customer-hosting space into critical warning truth.
 - `/api/v1/sets/{name}/infrastructure/providers`
 - `/api/v1/sets/{name}/infrastructure/{provider}`
 
-These endpoints serve already-published files only.
+These endpoints serve already-published overlap data only.
 
 When a feed also matches configured critical ASN context and an ASN attribution
 artifact is available, the aggregate payload includes an `asn_context` object.
@@ -110,8 +97,8 @@ This object is a secondary hint and does not increase `critical_ips`.
 
 Critical reference provider metadata is public through the provider-list
 endpoint. Raw feed-body routes such as `/api/v1/sets/{provider}/data`,
-`/files/{provider}.netset`, `/{provider}.netset`, and `/api/v1/compose` must
-still enforce `redistributable`; the shipped catalog marks critical reference
+`/files/{provider}.netset`, `/{provider}.netset`, and `/api/v1/compose` still
+enforce `redistributable`; the shipped catalog marks critical reference
 providers non-redistributable by default.
 
 ## Operator Notes

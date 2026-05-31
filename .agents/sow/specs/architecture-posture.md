@@ -39,27 +39,34 @@ The posture baseline measures:
 - standalone-package invariants such as `pkg/iprange` importing no project
   packages
 
-Current baseline highlights after SOW-0030 Phase 3 scheduler decomposition:
+Current measured posture on 2026-05-31, from
+`go run ./tools/archposture -root .`:
 
-- source scope: 528 Go/TS/TSX files and 110,994 lines
+- source scope: 575 Go/TS/TSX files and 120,643 lines
 - largest files:
-  - `pkg/config/catalog_verify_test.go`: 1,677 lines
+  - `pkg/config/catalog_verify_test.go`: 1,587 lines
   - `pkg/cache/cache_test.go`: 1,443 lines
-  - `pkg/engine/output.go`: 1,372 lines
-  - `pkg/scheduler/scheduler_test.go`: 1,337 lines
-  - `pkg/web/feature_test.go`: 990 lines
+  - `pkg/engine/output.go`: 1,387 lines
+  - `pkg/scheduler/scheduler_test.go`: 1,338 lines
+  - `pkg/engine/integrity_test.go`: 1,207 lines
+  - `pkg/engine/critical_test.go`: 1,205 lines
+  - `pkg/engine/engine_test.go`: 1,056 lines
+  - `ui/src/lib/api-types.ts`: 1,045 lines
 - largest functions:
   - `pkg/engine/entity_integrity.go` `(*Engine).CheckEntityArtifactsIntegrity`: 449 lines
   - `pkg/iprange/cli.go` `runCLIV4`: 381 lines
   - `pkg/iprange/cli6.go` `runCLIV6`: 374 lines
   - `pkg/config/catalog_verify_test.go` `TestCatalogSourcesComplete`: 314 lines
   - `pkg/config/config_test.go` `TestValidateCriticalMetadataContract`: 299 lines
+  - `pkg/engine/output.go` `(*Engine).writeComparisonFiles`: 296 lines
+  - `pkg/web/feature_test.go` `TestCriticalInfrastructureRouteServesOnlyPublishedArtifacts`: 294 lines
+  - `pkg/engine/entity_artifacts.go` `(*Engine).writeEntityArtifacts`: 290 lines
 - core package dependency posture:
-  - `pkg/engine`: 133 files, 36,107 lines, 50 direct imports, 465 transitive dependencies
-  - `pkg/web`: 39 files, 9,378 lines, 41 direct imports, 479 transitive dependencies
-  - `pkg/scheduler`: 17 files, 3,838 lines, 21 direct imports, 466 transitive dependencies
-  - `pkg/cache`: 7 files, 3,250 lines, 14 direct imports, 428 transitive dependencies
-  - `pkg/iprange`: 0 project imports
+  - `pkg/engine`: 138 files, 37,582 lines, 53 direct imports, 467 transitive dependencies
+  - `pkg/web`: 40 files, 9,695 lines, 42 direct imports, 506 transitive dependencies
+  - `pkg/scheduler`: 17 files, 3,906 lines, 21 direct imports, 468 transitive dependencies
+  - `pkg/cache`: 7 files, 3,249 lines, 14 direct imports, 428 transitive dependencies
+  - `pkg/iprange`: 55 files, 10,950 lines, 27 direct imports, 0 project imports, 216 transitive dependencies
 
 Phase 4b reduced `pkg/engine/run.go` `(*Engine).RunOnce` below the
 large-function threshold by moving existing behavior into explicit phase helpers
@@ -70,10 +77,10 @@ decision.
 Phase 2 reduced `pkg/web/server.go` `newSurfaceHandler` below the
 large-function threshold by moving existing route registration behavior into
 explicit route-family helpers in `pkg/web/routes.go`. The public route
-inventory is unchanged at 51 `HandleFunc` registrations and 3 `Handle`
+inventory is 53 `HandleFunc` registrations and 3 `Handle`
 registrations. Future route changes MUST preserve public/admin listener
-separation, raw-feed safety, redistributability checks, and stale critical
-artifact rejection.
+separation, raw-feed safety, redistributability checks, cache-first
+critical-overlap serving, and admin-integrity-only provider-set drift handling.
 
 Phase 5 reduced the two largest admin UI files by moving existing behavior into
 local owner files:

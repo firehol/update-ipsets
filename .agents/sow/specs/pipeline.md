@@ -124,14 +124,14 @@ changes and static-body edits without hardcoding addresses in code.
 The provider-set identity MUST be based on configured provider metadata,
 provider acquisition/processing-shape config (`url`, `static`, `ipv`, `output`,
 `format`, `processor`, `processor_raw`, `attributes`, and typed `critical`
-metadata), and stable processed range content (`content_hash` plus
-cardinality), plus configured `critical_asn_context` entries. When
+metadata), plus configured `critical_asn_context` entries. When
 `critical_asn_context` is configured, the identity MUST also include configured
-ASN-provider source config and stable ASN-provider processed content because
-aggregate payloads may embed ASN-context matches. It MUST NOT
-include volatile local processing fields such as `processed_date` or `version`;
-otherwise every forced refresh can create a self-sustaining scheduler loop or
-miss a config-only processing change.
+ASN-provider source config because aggregate payloads may embed ASN-context
+matches. It MUST NOT include materialized cache state such as content hashes,
+entry counts, unique IP counts, on-disk paths, processed dates, version
+counters, or any other value that can fluctuate while the pipeline is running;
+otherwise a forced refresh can create a self-sustaining scheduler loop or miss
+a config-only processing change.
 
 When the processing engine runs only because the critical provider-set identity
 changed, it MUST regenerate critical-overlap artifacts and dependent insights

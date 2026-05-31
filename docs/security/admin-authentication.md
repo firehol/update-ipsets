@@ -48,13 +48,11 @@ The second flag acts as an explicit acknowledgment: you understand that the admi
 Setting `--admin-auth-mode=disabled` without `--allow-unauthenticated-admin`:
 
 ```bash
-# This does NOT open admin access
+# This does NOT start the daemon
 update-ipsets daemon --admin-auth-mode=disabled
-
-# Admin returns 401 because the second flag is missing
 ```
 
-You see 401 errors because the daemon treats this as a misconfiguration, not as an intentional choice.
+The daemon exits with a configuration error because it treats disabled auth without the second flag as a misconfiguration, not as an intentional choice.
 
 ## Bind address is not a security boundary
 

@@ -13,12 +13,13 @@ update-ipsets query 192.0.2.1
 Output lists every feed that includes this IP:
 
 ```
-firehol_level1
-firehol_level2
-tor_exits
+firehol_level1,firehol_level1.netset,combined,FireHOL
+tor_exits,tor_exits.ipset,anonymizers,Tor Project
 ```
 
-Add `--verbose` to see feed metadata alongside results. Add `--details` to show match context.
+Each line is comma-separated: `feed,file,category,maintainer`. No output means no public feed matched the IP.
+
+The command currently supports IPv4 lookups.
 
 ## Compose sets
 
@@ -43,7 +44,9 @@ Combine `--set` with an IP argument to test membership:
 update-ipsets query --set "firehol_level1 + firehol_level2 - tor_exits" 192.0.2.1
 ```
 
-Exit code 0 means the IP is in the set. Exit code 1 means it is not. Use `--silent` to suppress text output and rely only on the exit code.
+Exit code 0 means the IP is in the set. Exit code 1 means it is not.
+
+`--silent` reduces logging noise but does not suppress the normal stdout result.
 
 ## Output format
 
@@ -68,8 +71,8 @@ update-ipsets query --set "firehol_level1" --format single
 | `--set <expr>` | Composition expression with `+` and `-` |
 | `--ip <addr>` | IP address to look up (positional argument also works) |
 | `--format <fmt>` | Output format: `cidr`, `range`, or `single` |
-| `--silent` | Suppress text output; use exit code only |
-| `--verbose` | Show additional metadata and match details |
+| `--silent` | Log errors only |
+| `--verbose` | Enable verbose logging |
 
 ## Specifying the config path
 

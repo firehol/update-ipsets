@@ -48,7 +48,7 @@ You will learn where update-ipsets stores its files after installation, what eac
 │   └── critical_infrastructure/   # Critical reference state
 ├── web/
 │   ├── index.json                 # Public catalog index
-│   ├── all-ipsets.json            # Full public feed listing
+│   ├── all-ipsets.json            # Legacy public feed metadata listing
 │   ├── home/
 │   │   └── aggregates.json        # Homepage aggregate payload
 │   ├── {feed}.json                # Per-feed public metadata

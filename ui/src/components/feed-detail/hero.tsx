@@ -104,11 +104,8 @@ export function FeedHero({ feed }: { feed: FeedMetadata }) {
             </p>
 
             {/* CTAs. The download is the loudest call-to-action on the
-                page — a big solid primary button, not a thin underline
-                link. Decision P4 in docs/todo-history/TODO-website.md:
-                "big primary button in the hero — 'Download list' for
-                redistributable feeds, 'View metadata' for
-                non-redistributable". */}
+                page: a solid primary button for redistributable feeds,
+                and a metadata fallback for non-redistributable feeds. */}
             <div className="mt-10 flex flex-wrap items-center gap-4">
               <a
                 href={primaryHref}

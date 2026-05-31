@@ -56,12 +56,12 @@ index, or generated public surface, the implementation MUST define and validate:
   MUST also change where producer and repair paths publish
 
 Critical-infrastructure overlap artifacts are covered by this rule: their
-aggregate/per-provider JSON files MUST be precomputed, tied to the current
-`provider_set_id`, rejected as stale when the provider set changes, and never
-computed from a public request path.
-The public stale-artifact guard MUST compare artifact IDs against a cached
-engine provider-set ID, refreshed on reload and critical-provider processing,
-not rebuild the provider-set identity on every request.
+aggregate/per-provider JSON files MUST be precomputed and never computed from a
+public request path. The pipeline and admin integrity paths own the strict
+`provider_set_id` equality contract. Public routes remain cache-first readers:
+they serve structurally valid published artifacts that exist on disk regardless
+of their internal `provider_set_id`, and they do not surface provider-set drift
+as public editorial content.
 
 ## Dynamic-view exception
 
@@ -256,7 +256,12 @@ IP search endpoints (`/api/v1/search`, `/api/v1/query`) apply per-client rate li
 
 ### General API rate limiting
 
-All public API endpoints (excluding `/healthz` and admin endpoints) apply per-client rate limiting of 240 requests per minute. This is independent of the search-specific rate limit.
+The HTTP middleware applies per-client rate limiting of 240 requests per minute
+to all paths whose URL starts with `/api/` or `/mcp`. This includes public API
+routes, MCP, and authenticated admin API routes. `/healthz`, direct static or
+artifact routes, raw `/files/` downloads, and SPA/static routes outside `/api/`
+and `/mcp` are outside this limiter. This is independent of the search-specific
+rate limit.
 
 ## Admin visibility rule
 

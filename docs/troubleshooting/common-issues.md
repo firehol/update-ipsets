@@ -21,18 +21,18 @@ You will learn how to diagnose and fix the most common operational problems.
 
 **Fix:** Resolve the network issue. Feeds recover automatically once connectivity is restored.
 
-## Admin UI returns 401
+## Admin UI returns 401 or 503
 
-**Symptom:** Accessing `/admin` or `/api/v1/admin/*` returns HTTP 401 Unauthorized.
+**Symptom:** Accessing `/admin` or `/api/v1/admin/*` returns HTTP 401 Unauthorized or 503 Service Unavailable.
 
 **What to check:**
 
-1. Are admin credentials configured?
+1. Are admin credentials configured? Missing credentials return 503.
    ```bash
    systemctl show update-ipsets | grep Environment
    ```
    Look for `UPDATE_IPSETS_ADMIN_USER` and `UPDATE_IPSETS_ADMIN_PASSWORD`.
-2. Are you sending the correct credentials in the request?
+2. Are you sending the correct credentials in the request? Wrong credentials return 401.
 3. Are you hitting the correct listener? If `--admin-listen` is set, admin routes return 404 on the public listener.
 
 **Fix:** Set the credential environment variables and restart:

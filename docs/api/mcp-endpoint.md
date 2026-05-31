@@ -4,7 +4,7 @@ You will learn how to connect AI agents and MCP-compatible tools to the update-i
 
 ## Overview
 
-The update-ipsets service exposes a public MCP endpoint at `/mcp` using the Streamable HTTP transport (MCP specification 2025-03-26). This allows AI agents, IDE integrations, and MCP-compatible tools to programmatically discover and analyze threat intelligence IP blocklists.
+The update-ipsets service exposes a public MCP endpoint at `/mcp` using the Streamable HTTP transport. This allows MCP-compatible tools to programmatically discover and analyze threat intelligence IP blocklists.
 
 ## Connecting
 

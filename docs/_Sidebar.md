@@ -37,6 +37,7 @@
 - [History Derivatives](feeds/history-derivatives.md)
 - [Provider Databases](feeds/provider-databases.md)
 - [Use Roles](feeds/use-roles.md)
+- [Critical Infrastructure Reference Feeds](critical-infrastructure-reference-feeds.md)
 - [Legal Fields](feeds/legal-fields.md)
 - [Feed Visibility & Lifecycle](feeds/feed-visibility-lifecycle.md)
 - [YAML Field Reference](feeds/yaml-field-reference.md)
@@ -80,6 +81,7 @@
 - [Classification Endpoints](api/classification-endpoints.md)
 - [Methodology Endpoints](api/methodology-endpoints.md)
 - [Infrastructure Endpoints](api/infrastructure-endpoints.md)
+- [MCP Endpoint](api/mcp-endpoint.md)
 - [Metadata Files](api/metadata-files.md)
 - [Raw File Downloads](api/raw-file-downloads.md)
 - [Rate Limits & CORS](api/rate-limits-cors.md)
@@ -112,9 +114,9 @@
 - [Updating the Config Catalog](updating/updating-config.md)
 - [Migration from Bash](migration-from-bash.md)
 
-## Contributing
+## Catalog Maintenance
 
-- [Contribution Guide](contributing/contribution-guide.md)
+- [Catalog Maintenance Guide](contributing/contribution-guide.md)
 - [Step by Step: Add a Feed](contributing/step-by-step-add-feed.md)
 - [License Requirements](contributing/license-requirements.md)
 

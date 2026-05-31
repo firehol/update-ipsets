@@ -4,11 +4,18 @@ You will learn the public API structure, response formats, error handling, and v
 
 ## Base path
 
-All public API endpoints live under `/api/v1/`.
+Most public API endpoints live under `/api/v1/`.
+
+Two public utility endpoints sit outside that versioned prefix:
+
+- `/healthz` — lightweight service health check
+- `/mcp` — Model Context Protocol endpoint using Streamable HTTP transport
 
 ## Methods
 
-All public endpoints accept `GET` and `HEAD` only. Unsupported methods on known routes return `405 Method Not Allowed` with an `Allow` header.
+Public `/api/v1/` read endpoints accept `GET` and `HEAD`. Unsupported methods on known routes return `405 Method Not Allowed` with an `Allow` header.
+
+The MCP endpoint at `/mcp` accepts `GET`, `POST`, and `DELETE` for Streamable HTTP sessions.
 
 `OPTIONS` requests are handled by CORS middleware before route dispatch. See [Rate Limits and CORS](rate-limits-cors.md).
 
@@ -25,6 +32,7 @@ All public endpoints accept `GET` and `HEAD` only. Unsupported methods on known 
 The API uses standard HTTP status codes:
 
 - `200` — success
+- `400` — invalid request, bad parameter, or invalid feed/provider name
 - `404` — feed or resource not found
 - `405` — method not allowed
 - `429` — rate limit exceeded

@@ -457,7 +457,10 @@ When relevant providers are configured, the product also publishes:
 These are feed-facing published artifacts, but their content depends on the
 current committed provider datasets. Critical-infrastructure aggregate files
 and per-provider files MUST include the provider-set identity used to build
-them so public routes can reject stale files after operator config changes.
+them so admin integrity and pipeline repair can detect drift after operator
+config changes. Public routes MUST NOT reject a structurally valid published
+critical-overlap artifact solely because its `provider_set_id` differs from the
+engine's current provider-set identity.
 When critical ASN context is present, it is embedded in
 `web/{feed}_critical_infrastructure.json`; it does not create a separate
 sidecar file and does not change `critical_ips`.
@@ -466,9 +469,11 @@ The current critical provider-set identity is persisted at
 The current default-provider provider-set identity is persisted at
 `lib/provider_defaults/provider_set_id`. Both are runtime state, not source
 configuration.
-This marker records stable provider metadata, provider acquisition/processing
-shape, and processed range content. It MUST NOT encode volatile local
-timestamps or version counters.
+The critical provider-set marker records stable provider metadata, provider
+acquisition/processing shape, configured critical metadata, configured
+`critical_asn_context`, and configured ASN-provider source shape when critical
+ASN context is present. It MUST NOT encode materialized provider content,
+cardinality, content hashes, volatile local timestamps, or version counters.
 
 ### Entity reference artifacts
 

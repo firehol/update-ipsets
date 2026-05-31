@@ -6,6 +6,7 @@ on:
     paths:
       - 'docs/**'
       - '.github/workflows/wiki-sync.yml'
+      - 'scripts/build-wiki.mjs'
   workflow_dispatch:
 
 jobs:
@@ -30,12 +31,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          # Remove old wiki content. The wiki is destination-only.
-          find wiki -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
-
-          # Copy docs content to the wiki root. GitHub treats Home.md
-          # and _Sidebar.md specially.
-          cp -R docs/. wiki/
+          # GitHub Wiki renders Markdown pages from wiki-root filenames.
+          # Publishing nested docs paths directly makes links such as
+          # /wiki/api/api-overview.md open as raw markdown, so flatten and
+          # rewrite local docs links for the wiki destination.
+          node scripts/build-wiki.mjs docs wiki
 
       - name: Commit and push to wiki
         run: |

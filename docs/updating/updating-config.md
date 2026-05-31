@@ -46,7 +46,7 @@ sudo systemctl kill -s HUP update-ipsets
 Every time `install.sh` detects a configuration change, it creates a backup:
 
 ```
-/opt/update-ipsets/etc/config.2025-05-01T120000/
+/opt/update-ipsets/etc/config.bak.20250501120000/
 ```
 
 Multiple backups accumulate over time. Old backups are safe to delete manually.
@@ -56,7 +56,7 @@ Multiple backups accumulate over time. Old backups are safe to delete manually.
 You can edit files directly in `/opt/update-ipsets/etc/config/`:
 
 ```bash
-sudo vim /opt/update-ipsets/etc/config/sources/web_reputation/myfeed.yaml
+sudo vim /opt/update-ipsets/etc/config/sources/intrusion/myfeed.yaml
 ```
 
 After editing, reload or restart:
@@ -69,11 +69,11 @@ sudo systemctl kill -s HUP update-ipsets
 
 When you run `install.sh` again:
 
-- Files you edited that did not change upstream remain untouched
-- Files you edited that also changed upstream are overwritten by the upstream version
-- The backup directory preserves your previous version in either case
+- If the installed config directory is identical to `configs/firehol/`, it is left untouched
+- If the installed config directory differs from `configs/firehol/`, the whole active config directory is backed up and replaced with the repository catalog
+- The backup directory preserves your previous version
 
-To protect critical local edits, keep a copy outside the config directory or use a local patch file.
+To protect critical local edits, keep a copy outside the config directory or use a local patch file, then reapply it after the reinstall.
 
 ## Migration from bash
 

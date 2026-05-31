@@ -520,9 +520,11 @@ ledgers, cache state, or feed bodies on first request.
 
 Critical-infrastructure aggregate artifacts MUST identify the configured
 provider set used to build them and whether the build was complete. Public
-routes MUST reject stale aggregate artifacts whose provider-set identity no
-longer matches current config, and UI/API consumers MUST treat incomplete
-artifacts as incomplete rather than as evidence of no overlap.
+routes MUST serve structurally valid published aggregate artifacts even when
+their `provider_set_id` no longer matches current config, because the public
+surface is cache-first and provider-set drift is an admin integrity concern.
+UI/API consumers MUST treat incomplete artifacts as incomplete rather than as
+evidence of no overlap.
 
 Critical-infrastructure aggregate artifacts MAY include an `asn_context` section
 when configured critical ASN context matches the feed's ASN attribution payload.

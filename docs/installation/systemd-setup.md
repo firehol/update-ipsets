@@ -27,7 +27,7 @@ sudo mkdir -p /etc/systemd/system/update-ipsets.service.d
 
 ### Example: separate admin listener with authentication
 
-Create `/etc/systemd/system/update-ipsets/service.d/override.conf`:
+Create `/etc/systemd/system/update-ipsets.service.d/override.conf`:
 
 ```ini
 [Service]
@@ -36,7 +36,7 @@ Environment="UPDATE_IPSETS_ADMIN_LISTEN_ARG=--admin-listen 127.0.0.1:18889"
 Environment="UPDATE_IPSETS_ADMIN_AUTH_ARG=--admin-auth-mode=required"
 Environment="UPDATE_IPSETS_ALLOW_UNAUTHENTICATED_ADMIN_ARG="
 Environment="UPDATE_IPSETS_ADMIN_USER=admin"
-Environment="UPDATE_IPSETS_ADMIN_PASSWORD=secret"
+Environment="UPDATE_IPSETS_ADMIN_PASSWORD=change-this-secret"
 ```
 
 This places the public site on port 18888 and the admin dashboard on `127.0.0.1:18889` with basic auth.
@@ -78,6 +78,7 @@ sudo systemctl restart update-ipsets
 | Start | `sudo systemctl start update-ipsets` |
 | Stop | `sudo systemctl stop update-ipsets` |
 | Restart | `sudo systemctl restart update-ipsets` |
+| Reload catalog | `sudo systemctl kill -s HUP update-ipsets` |
 | Status | `systemctl status update-ipsets` |
 | Enable on boot | `sudo systemctl enable update-ipsets` |
 | View logs | `journalctl -u update-ipsets -f` |
@@ -88,7 +89,7 @@ sudo systemctl restart update-ipsets
 The daemon supports live configuration reload via SIGHUP. This re-reads the config directory without restarting the process.
 
 ```bash
-sudo systemctl reload update-ipsets
+sudo systemctl kill -s HUP update-ipsets
 ```
 
 Use reload when you changed feed configuration files in `/opt/update-ipsets/etc/config/` and want to pick up the changes without dropping in-flight work.

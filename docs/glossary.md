@@ -16,11 +16,11 @@ You will learn the key terms used throughout the update-ipsets documentation.
 
 **cache-first** — The serving model where public requests read precomputed artifacts from disk. Public requests do not trigger downloads, processing, or recomputation.
 
-**cadence** — The configured update interval for a feed. Expressed in seconds. Frequency 0 means manual-only scheduling.
+**cadence** — The configured update interval for a feed. Expressed in minutes. Frequency 0 means the feed does not own an independent wall-clock cadence.
 
 **canonical feed body** — The normalized, deduplicated IP set produced by the downloader from raw upstream material. The processing engine consumes only canonical feed bodies.
 
-**category** — A configuration-defined group for classifying feeds (e.g., web_reputation, abuse, malware). Categories have labels, descriptions, and colors.
+**category** — A configuration-defined group for classifying feeds, such as `intrusion`, `malware_infrastructure`, or `provider_infrastructure`. Categories have labels, descriptions, colors, ordering, and public visibility.
 
 **child feed** — A feed derived from an artifact parent or history derivative. Not an independent upstream download.
 
@@ -84,7 +84,7 @@ You will learn the key terms used throughout the update-ipsets documentation.
 
 **latest set** — The file-backed binary set snapshot stored at `lib/{name}/latest`. Used for fast lookups via mmap or pread.
 
-**lib directory** — The working directory where the daemon stores committed feed bodies, history, retention data, and binary sets. Default: `/opt/update-ipsets/data/lib/`.
+**lib directory** — The working directory where the daemon stores binary range snapshots, history ledgers, retention data, provider databases, entity sidecars, and other analysis state. Default install path: `/opt/update-ipsets/lib/`.
 
 ## M
 

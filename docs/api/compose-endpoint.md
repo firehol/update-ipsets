@@ -14,15 +14,18 @@ Compose takes existing public feeds, combines them using set operations, and ret
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|
-| `include` | Yes | Comma-separated list of feed names to include (union) |
-| `exclude` | No | Comma-separated list of feed names to exclude (subtraction) |
-| `format` | No | Output format: `cidr` (default), `range`, or `single` |
+| `include` | Yes | Comma-separated list of feed names to include (union). Maximum 20 names. |
+| `exclude` | No | Comma-separated list of feed names to exclude (subtraction). Maximum 20 names. |
+| `format` | No | Output format. Accepted values: `cidr`, `net`, `nets` (default CIDR output); `range`, `ranges`; `single`, `ip`, `ips`. |
 
 ## How it works
 
 The daemon opens the latest committed binary set for each named feed, performs the union of all included feeds, subtracts all excluded feeds, and streams the result.
 
 The compose operation runs entirely against local committed data. It does not trigger downloads or recomputation.
+
+The endpoint caps output at 32 MiB. Very large compositions return an error instead
+of streaming unbounded output.
 
 ## Output format
 

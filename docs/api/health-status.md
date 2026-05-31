@@ -31,20 +31,26 @@ Returns high-level public runtime facts as JSON.
 
 The response includes:
 
-- service availability state
-- uptime
-- catalog counts (number of public feeds, countries, ASNs)
-- basic service health indicators
+- engine run state
+- engine start/end timestamps
+- source and merge counts known to the engine
+- process uptime
 
 Example response (simplified):
 
 ```json
 {
-  "status": "running",
-  "uptime_seconds": 86400,
-  "feeds": 523,
-  "countries": 249,
-  "asns": 12480
+  "engine": {
+    "running": true,
+    "last_started": "2026-05-31T10:20:30Z",
+    "last_ended": "2026-05-31T10:21:45Z",
+    "source_count": 423,
+    "merge_count": 12
+  },
+  "system": {
+    "uptime_seconds": 86400,
+    "uptime": "24h0m0s"
+  }
 }
 ```
 
@@ -59,6 +65,26 @@ This endpoint is designed for public consumers. It does not expose:
 
 For detailed operational status, use the admin endpoints at `/api/v1/admin/status`.
 
+## Client IP utility
+
+```
+GET /api/v1/client-ip
+```
+
+Returns the client IPv4 address after the configured trusted-proxy policy is applied.
+
+Example response:
+
+```json
+{
+  "ip": "198.51.100.10"
+}
+```
+
+If the client address is unavailable or is not IPv4, the endpoint returns an empty
+string in the `ip` field. This endpoint is a public UI utility, not an authentication
+or identity signal.
+
 ## Categories
 
 ```
@@ -72,11 +98,11 @@ This endpoint serves the category index used by the public UI feed browser.
 ## Home page data
 
 ```
-GET /api/v1/home/globe
-GET /api/v1/home/summary
+GET /api/v1/home/globe?categories=intrusion,malware_infrastructure
+GET /api/v1/home/summary?categories=intrusion,malware_infrastructure&limit=10
 ```
 
 These endpoints serve precomputed data for the public homepage:
 
-- `globe` — geographic visualization data for the homepage globe widget
-- `summary` — aggregated summary statistics (total feeds, total IPs, recent activity)
+- `globe` — geographic visualization data for the homepage globe widget. The `categories` query parameter is required.
+- `summary` — aggregated summary statistics. `categories` is optional; when omitted, all public categories participate. `limit` optionally bounds top-N lists.

@@ -6,10 +6,8 @@ This document is procedural guidance.
 
 It explains how an operator should migrate from the historical FireHOL bash
 pipeline to the Go implementation while preserving state and minimizing
-surprises.
-
-The normative compatibility promises are defined in
-`.agents/sow/specs/compatibility.md`.
+surprises. This page is procedural; use the API, feed, and filesystem docs for
+the operator-visible compatibility surfaces.
 
 ## Purpose
 
@@ -101,8 +99,10 @@ aid, not as the long-term source of truth.
 
 If historical state continuity matters:
 
-- allow the Go product to import the legacy cache
+- use the canonical helper so it can import the legacy cache and preserve local-only Go cache entries
 - preserve legacy committed outputs long enough to compare results
+
+The helper uses the `cache-merge` subcommand internally when it finds a legacy `.cache` file. Operators normally run `scripts/sync-from-bash-version.sh` instead of invoking `cache-merge` directly.
 
 ### 5. Start the Go daemon
 

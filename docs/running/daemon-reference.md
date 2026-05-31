@@ -105,7 +105,23 @@ If not set, the daemon uses the default output directory derived from the instal
 
 ### `--web-files-dir` (path)
 
-Directory containing static web assets (HTML, JS, CSS for the public site and admin SPA).
+Directory containing downloadable raw `.ipset` and `.netset` files served from `/files/` and `/api/v1/sets/{name}/data`.
+
+This is not a static asset directory. The public and admin SPA assets are embedded in the binary.
+
+### `--trust-proxy-headers`
+
+Trust `X-Forwarded-For` and `X-Real-IP` when determining the client IP address for logging, search context, and rate limiting.
+
+Use this only when every request reaches the daemon through a trusted reverse proxy. If clients can reach the daemon directly, they can forge these headers.
+
+### `--trust-cloudflare-headers`
+
+Trust `CF-Connecting-IP` when determining the client IP address.
+
+Use this only when traffic reaches the daemon exclusively through Cloudflare or a trusted proxy that strips untrusted `CF-Connecting-IP` headers.
+
+When both proxy modes are enabled, Cloudflare's header has priority, then `X-Forwarded-For`, then `X-Real-IP`, then the TCP peer address.
 
 ### `--silent` and `--verbose`
 
@@ -125,6 +141,7 @@ The `daemon` subcommand is the main operating mode. Other subcommands handle spe
 | `iprange` | Standalone iprange-compatible mode. Compare, diff, intersect, combine IP sets. Supports CIDR, range, single-IP, and binary I/O. |
 | `query` | Look up which lists contain an IP, or compose sets and test membership. |
 | `enable` | Enable or disable source feeds. Use `--all` to enable everything, `--disable` to remove enable markers. |
+| `cache-merge` | Migration helper that merges legacy bash cache state with local Go cache state. |
 | `version` | Print the version string and exit. |
 
 ```bash
@@ -132,7 +149,7 @@ update-ipsets query 1.2.3.4
 update-ipsets query --set "firehol_level1 + firehol_level2 - firehol_webserver" 1.2.3.4
 update-ipsets enable --all
 update-ipsets enable --disable firehol_level1
-update-ipsets iprange compare file1.ipset file2.ipset
+update-ipsets iprange --compare file1.ipset file2.ipset
 ```
 
 ## Example: local development
@@ -159,7 +176,7 @@ Run the public site on a public port and the admin UI on localhost only, with au
 
 ```bash
 UPDATE_IPSETS_ADMIN_USER=admin \
-UPDATE_IPSETS_ADMIN_PASSWORD=secret \
+UPDATE_IPSETS_ADMIN_PASSWORD=change-this-secret \
 update-ipsets daemon \
   --config /opt/update-ipsets/etc/config \
   --listen :18888 \

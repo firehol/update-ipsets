@@ -87,6 +87,7 @@ DateTime,Entries,UniqueIPs
 
 ```
 GET /api/v1/sets/{name}/compare
+GET /api/v1/sets/{name}/comparison
 ```
 
 Returns a JSON object with pairwise overlap data between this feed and all other public feeds.
@@ -159,20 +160,6 @@ Example:
 
 ```
 GET /api/v1/sets/firehol_level1/search?ip=1.2.3.4
-```
-
-## Feed description
-
-```
-GET /api/v1/sets/about/{name}
-```
-
-Returns the rendered HTML description for a feed. This is the content from the feed's `info` YAML field, rendered as HTML. Used by the public UI to show the feed detail page.
-
-Example:
-
-```
-GET /api/v1/sets/about/firehol_level1
 ```
 
 ## Per-feed classification data

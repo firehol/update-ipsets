@@ -9,14 +9,16 @@ You will learn how rate limiting works on the public API and how to tune it for 
 | General API | 240 requests/minute per client IP |
 | IP search (`/api/v1/search`, `/api/v1/query`) | 10 requests/minute per client IP |
 
-These limits are independent. A client hitting the search endpoint at 10/minute can still make 240/minute of other API calls.
+Search requests also consume tokens from the general `/api/` bucket before the stricter search bucket is checked. For search/query traffic, the effective limit is the stricter search bucket unless the client has already exhausted the general API bucket.
 
 ## Excluded endpoints
 
 These endpoints are not rate-limited:
 
 - `/healthz` — health checks need to work unconditionally
-- All admin endpoints (`/admin`, `/api/v1/admin/*`) — admin has its own authentication layer
+- `/admin` and `/admin/*` — the browser shell is protected by admin authentication
+
+Admin API routes under `/api/v1/admin/*` are still under the general `/api/` rate limiter.
 
 ## Implementation
 
@@ -65,4 +67,4 @@ location /api/ {
 }
 ```
 
-Place the reverse proxy in front of the daemon and let it handle rate limiting. Disable the daemon's built-in rate limiting by configuring the reverse proxy to handle it instead.
+Place the reverse proxy in front of the daemon and let it enforce the deployment-specific limits you need. The daemon's built-in limits remain a backstop for `/api/` and `/mcp` requests.

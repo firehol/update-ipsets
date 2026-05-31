@@ -4,7 +4,9 @@ You will learn how to browse feeds by country, ASN, and maintainer through the p
 
 ## How these endpoints work
 
-Classification endpoints serve precomputed published artifacts. They do not aggregate data at request time. When an artifact is missing, the endpoint returns a service-unavailable or not-found response.
+Country and ASN endpoints serve precomputed published artifacts. They do not aggregate data at request time. When an artifact is missing, the endpoint returns a service-unavailable or not-found response.
+
+Maintainer endpoints are derived from the current public catalog state. They are still read-only and cheap, but they are not backed by country/ASN entity artifact files.
 
 ## Countries
 
@@ -26,7 +28,7 @@ GET /api/v1/countries/{code}
 
 Returns full detail for one country. Includes matching feeds grouped by category, ASN composition specific to that country, and summary statistics.
 
-The `{code}` parameter is a two-letter ISO country code.
+The `{code}` parameter is a two-letter ISO country code. Lowercase input is accepted and normalized.
 
 Example:
 
@@ -56,12 +58,13 @@ GET /api/v1/asns/{asn}
 
 Returns full detail for one ASN. Includes matching feeds grouped by category, country distribution, and summary statistics.
 
-The `{asn}` parameter is an ASN number (digits only, without the `AS` prefix).
+The `{asn}` parameter is an ASN number. The optional `AS` prefix is accepted and normalized.
 
 Example:
 
 ```
 GET /api/v1/asns/13335
+GET /api/v1/asns/AS13335
 ```
 
 Key response fields: ASN identity, ASN name, summary totals, feed composition by category, country distribution block.
@@ -76,7 +79,11 @@ GET /api/v1/maintainers
 
 Returns a list of all maintainers that have public feeds in the catalog.
 
-Unlike countries and ASNs, maintainer data is served from live engine state, not precomputed artifacts.
+Optional query parameters:
+
+| Parameter | Meaning |
+|---|---|
+| `categories` | Comma-separated public category names. Only maintainers with at least one feed in those categories are returned. |
 
 Key response fields per maintainer: `slug`, `name`, `feeds`, `categories`.
 

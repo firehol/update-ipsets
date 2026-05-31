@@ -1,6 +1,6 @@
 # Search and Query
 
-You will learn how to look up which feeds contain a given IP address, how to get detailed match info, and what `first_seen` means.
+You will learn how to look up which feeds contain a given IPv4 address, how to get detailed match info, and what `first_seen` means.
 
 ## Basic IP search
 
@@ -21,16 +21,7 @@ Response (simplified):
 ```json
 {
   "ip": "1.2.3.4",
-  "matches": [
-    {
-      "feed": "firehol_level1",
-      "first_seen": "2025-01-10T06:00:00Z"
-    },
-    {
-      "feed": "spamhaus_drop",
-      "first_seen": "2025-01-12T18:00:00Z"
-    }
-  ]
+  "matches": ["firehol_level1", "spamhaus_drop"]
 }
 ```
 
@@ -40,7 +31,7 @@ Response (simplified):
 GET /api/v1/search?ip=1.2.3.4&details=true
 ```
 
-Returns the same match list with additional context per match: feed metadata, category, health, maintainer, and current size.
+Returns structured match objects with feed metadata such as name, file, category, provenance, maintainer, health, and timestamps when available. The response may also include best-effort IP context from the configured default country, ASN, and critical-infrastructure providers.
 
 Use this when you need to present feed information alongside the match results without making separate requests for each feed.
 
@@ -60,6 +51,7 @@ This means:
 
 - the IP has been continuously present in the feed since that timestamp
 - it may have been in the feed earlier, left, and come back — `first_seen` only covers the current unbroken stay
+- the value is a Unix timestamp in seconds
 - the value comes from retention tracking, not from full historical scans
 
 ## Rate limiting
