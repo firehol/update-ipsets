@@ -110,7 +110,12 @@ func Run(ctx context.Context, steps []config.ProcessorStep, input []byte) ([]byt
 		if opErr != nil {
 			status = "error"
 		}
-		observability.Observe(ctx, "processor.run", 1, int64(len(input)), time.Since(started), attribute.String("processor.status", status), attribute.Int("processor.steps", len(steps)))
+		attrs := []attribute.KeyValue{
+			attribute.String("processor.mode", "memory"),
+			attribute.String("processor.status", status),
+		}
+		observability.Count(ctx, "processor.runs", 1, attrs...)
+		observability.Duration(ctx, "processor.run", time.Since(started), attrs...)
 		observability.End(span, opErr)
 	}()
 	if err := checkContext(ctx); err != nil {

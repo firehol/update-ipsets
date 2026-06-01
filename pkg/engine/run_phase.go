@@ -19,3 +19,18 @@ const (
 func (p RunPhase) Valid() bool {
 	return p != RunPhaseUnknown
 }
+
+func allRunPhases() []RunPhase {
+	return []RunPhase{
+		RunPhasePreflight,
+		RunPhaseSources,
+		RunPhaseGeoIP,
+		RunPhaseBogons,
+		RunPhaseCritical,
+		RunPhaseASN,
+		RunPhaseEntities,
+		RunPhaseMetadata,
+		RunPhaseInsights,
+		RunPhasePublish,
+	}
+}

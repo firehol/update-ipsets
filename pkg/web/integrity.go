@@ -6,9 +6,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/firehol/update-ipsets/internal/observability"
 	"github.com/firehol/update-ipsets/pkg/engine"
 	"github.com/firehol/update-ipsets/pkg/runreason"
 	"github.com/firehol/update-ipsets/pkg/scheduler"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -58,9 +61,10 @@ type entityIntegrityActionResult struct {
 }
 
 func buildIntegrityReport(eng *engine.Engine, includeArchived, enableAll bool, webDir string) integrityReport {
+	started := time.Now()
 	status := eng.StatusSnapshot()
 	if status.Running {
-		return sanitizeIntegrityReport(integrityReport{
+		out := sanitizeIntegrityReport(integrityReport{
 			IncludeArchived: includeArchived,
 			Status:          integrityStatusInProgress,
 			Running:         true,
@@ -68,6 +72,8 @@ func buildIntegrityReport(eng *engine.Engine, includeArchived, enableAll bool, w
 			LastEnded:       status.LastEnded,
 			Findings:        []engine.IntegrityFinding{},
 		})
+		observeIntegrityCheck("pipeline", out.Status, out.Count, time.Since(started))
+		return out
 	}
 
 	findings := eng.CheckIntegrityWithOptions(engine.IntegrityOptions{IncludeArchived: includeArchived, EnableAll: enableAll, WebDir: webDir})
@@ -87,7 +93,9 @@ func buildIntegrityReport(eng *engine.Engine, includeArchived, enableAll bool, w
 	if len(findings) > 0 {
 		out.Status = integrityStatusIssues
 	}
-	return sanitizeIntegrityReport(out)
+	out = sanitizeIntegrityReport(out)
+	observeIntegrityCheck("pipeline", out.Status, out.Count, time.Since(started))
+	return out
 }
 
 func handleAdminIntegrity(eng *engine.Engine, enableAll bool, webDir string) http.HandlerFunc {
@@ -103,12 +111,16 @@ func handleAdminIntegrity(eng *engine.Engine, enableAll bool, webDir string) htt
 
 func buildEntityIntegrityReport(eng *engine.Engine) (entityIntegrityReport, error) {
 	started := time.Now()
+	result := "error"
+	findingCount := 0
 	defer func() {
 		eng.ObserveOperation("admin.entity_integrity_check", time.Since(started))
 		eng.ObserveCounter("admin.entity_integrity_check", 1, 0)
+		observeIntegrityCheck("entity", result, findingCount, time.Since(started))
 	}()
 	status := eng.StatusSnapshot()
 	if entityIntegrityBusy(status) {
+		result = integrityStatusInProgress
 		return sanitizeEntityIntegrityReport(entityIntegrityReport{
 			Status:      integrityStatusInProgress,
 			Running:     true,
@@ -122,6 +134,7 @@ func buildEntityIntegrityReport(eng *engine.Engine) (entityIntegrityReport, erro
 	if err != nil {
 		return entityIntegrityReport{}, err
 	}
+	findingCount = len(findings)
 	out := entityIntegrityReport{
 		Status:      integrityStatusClean,
 		Running:     false,
@@ -133,6 +146,7 @@ func buildEntityIntegrityReport(eng *engine.Engine) (entityIntegrityReport, erro
 	if len(findings) > 0 {
 		out.Status = integrityStatusIssues
 	}
+	result = out.Status
 	return sanitizeEntityIntegrityReport(out), nil
 }
 
@@ -170,9 +184,11 @@ func handleAdminEntityIntegrityRebuildWithContext(ctx context.Context, eng *engi
 		if !eng.QueueEntityArtifactsRebuild(ctx, "operator_rebuild") {
 			report, err := buildEntityIntegrityReport(eng)
 			if err != nil {
+				observeAPIRecalculation(r, "admin", "entity_rebuild", "error", 0)
 				jsonError(w, http.StatusInternalServerError, err)
 				return
 			}
+			observeAPIRecalculation(r, "admin", "entity_rebuild", "in_progress", 0)
 			writeJSON(w, http.StatusOK, entityIntegrityActionResult{
 				Status:      integrityStatusInProgress,
 				Running:     true,
@@ -181,6 +197,8 @@ func handleAdminEntityIntegrityRebuildWithContext(ctx context.Context, eng *engi
 			})
 			return
 		}
+		observeAPIRecalculation(r, "admin", "entity_rebuild", "scheduled", 1)
+		observeIntegrityRecoveryTargets("entity", "rebuild", 1)
 		writeJSON(w, http.StatusAccepted, entityIntegrityActionResult{
 			Status: integrityStatusScheduled,
 		})
@@ -278,6 +296,7 @@ func handleAdminIntegrityReprocess(eng *engine.Engine, runner *scheduler.Runner,
 		includeArchived := includeArchivedQuery(r)
 		report := buildIntegrityReport(eng, includeArchived, runner.EnableAll(), webDir)
 		if report.Running {
+			observeAPIRecalculation(r, "admin", "integrity_reprocess", "in_progress", 0)
 			writeJSON(w, http.StatusOK, integrityReprocessResult{
 				IncludeArchived: includeArchived,
 				Status:          integrityStatusInProgress,
@@ -290,6 +309,7 @@ func handleAdminIntegrityReprocess(eng *engine.Engine, runner *scheduler.Runner,
 			return
 		}
 		if report.Count == 0 {
+			observeAPIRecalculation(r, "admin", "integrity_reprocess", "clean", 0)
 			writeJSON(w, http.StatusOK, integrityReprocessResult{
 				IncludeArchived: includeArchived,
 				Status:          integrityStatusClean,
@@ -303,6 +323,7 @@ func handleAdminIntegrityReprocess(eng *engine.Engine, runner *scheduler.Runner,
 
 		recheckNames, reprocessNames := eng.IntegrityRecoveryPlan(report.Findings)
 		if len(recheckNames) > 0 {
+			observeIntegrityRecoveryTargets("pipeline", "recheck", len(recheckNames))
 			runner.TriggerSources(scheduler.PendingAction{
 				Names:   recheckNames,
 				Recheck: true,
@@ -310,6 +331,7 @@ func handleAdminIntegrityReprocess(eng *engine.Engine, runner *scheduler.Runner,
 			})
 		}
 		if len(reprocessNames) > 0 {
+			observeIntegrityRecoveryTargets("pipeline", "reprocess", len(reprocessNames))
 			runner.TriggerSources(scheduler.PendingAction{
 				Names:     reprocessNames,
 				Reprocess: true,
@@ -317,6 +339,7 @@ func handleAdminIntegrityReprocess(eng *engine.Engine, runner *scheduler.Runner,
 			})
 		}
 		names := append(append([]string(nil), recheckNames...), reprocessNames...)
+		observeAPIRecalculation(r, "admin", "integrity_reprocess", "scheduled", len(names))
 		writeJSON(w, http.StatusAccepted, integrityReprocessResult{
 			IncludeArchived: includeArchived,
 			Status:          integrityStatusScheduled,
@@ -329,4 +352,40 @@ func handleAdminIntegrityReprocess(eng *engine.Engine, runner *scheduler.Runner,
 			Findings:        report.Findings,
 		})
 	}
+}
+
+func observeIntegrityCheck(kind, result string, findings int, dur time.Duration) {
+	if kind == "" {
+		kind = "unknown"
+	}
+	if result == "" {
+		result = "unknown"
+	}
+	attrs := []attribute.KeyValue{
+		attribute.String("integrity.kind", kind),
+		attribute.String("integrity.result", result),
+	}
+	ctx := observability.BackgroundContext()
+	observability.Count(ctx, "integrity.checks", 1, attrs...)
+	observability.Duration(ctx, "integrity.check", dur, attrs...)
+	observability.Gauge(ctx, "integrity.findings", int64(findings), attribute.String("integrity.kind", kind))
+}
+
+func observeIntegrityRecoveryTargets(kind, action string, targets int) {
+	if targets <= 0 {
+		return
+	}
+	if kind == "" {
+		kind = "unknown"
+	}
+	if action == "" {
+		action = "unknown"
+	}
+	observability.Count(
+		observability.BackgroundContext(),
+		"integrity.recovery.targets",
+		int64(targets),
+		attribute.String("integrity.kind", kind),
+		attribute.String("integrity.action", action),
+	)
 }

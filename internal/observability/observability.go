@@ -5,12 +5,15 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.opentelemetry.io/contrib/bridges/otelslog"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -21,6 +24,7 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
+	otelprom "go.opentelemetry.io/otel/exporters/prometheus"
 	logglobal "go.opentelemetry.io/otel/log/global"
 	"go.opentelemetry.io/otel/metric"
 	"go.opentelemetry.io/otel/propagation"
@@ -41,6 +45,102 @@ const (
 	otlpProtocolGRPC otlpProtocol = "grpc"
 )
 
+var ephemeralMetricAttributeKeys = []attribute.Key{
+	attribute.Key("engine.batch.size"),
+	attribute.Key("file.bytes"),
+	attribute.Key("iprange.sources"),
+	attribute.Key("processor.input.bytes"),
+	attribute.Key("processor.steps"),
+	attribute.Key("run.selected"),
+	attribute.Key("scheduler.waiting"),
+}
+
+var httpServerMetricAttributeKeys = []attribute.Key{
+	attribute.Key("http.route"),
+	attribute.Key("http.request.method"),
+	attribute.Key("http.response.status_code"),
+}
+
+var designedMetricNames = map[string]struct{}{
+	"api.recalculation.requests":          {},
+	"api.recalculation.targets":           {},
+	"background.tasks":                    {},
+	"background.worker.wait.duration_ms":  {},
+	"background.workers.active":           {},
+	"background.workers.limit":            {},
+	"config.load.duration_ms":             {},
+	"config.loads":                        {},
+	"daemon.up":                           {},
+	"download.errors":                     {},
+	"download.fetch.bytes":                {},
+	"download.fetch.duration_ms":          {},
+	"download.fetches":                    {},
+	"engine.phase.current":                {},
+	"engine.phase.duration_ms":            {},
+	"engine.run.duration_ms":              {},
+	"engine.running":                      {},
+	"engine.runs":                         {},
+	"feed.entries":                        {},
+	"feed.errors":                         {},
+	"feed.freshness.seconds":              {},
+	"feed.health.state":                   {},
+	"feed.last_success.timestamp":         {},
+	"feed.state":                          {},
+	"feed.unique_ips":                     {},
+	"http.server.request.duration":        {},
+	"integrity.check.duration_ms":         {},
+	"integrity.checks":                    {},
+	"integrity.findings":                  {},
+	"integrity.recovery.targets":          {},
+	"iprange.operations":                  {},
+	"iprange.operation.duration_ms":       {},
+	"processor.run.duration_ms":           {},
+	"processor.runs":                      {},
+	"processor.temp.write.duration_ms":    {},
+	"processor.temp.writes":               {},
+	"runtime.cache.operation.duration_ms": {},
+	"runtime.cache.operations":            {},
+	"scheduler.batch.duration_ms":         {},
+	"scheduler.batch.items":               {},
+	"scheduler.queue.admissions":          {},
+	"scheduler.queue.depth":               {},
+	"scheduler.work.completed":            {},
+	"scheduler.work.started":              {},
+	"web.artifact.cache.bytes":            {},
+	"web.artifact.cache.entries":          {},
+	"web.artifact.cache.evictions":        {},
+	"web.artifact.cache.lookups":          {},
+}
+
+var apiRecalculationSurfaces = map[string]struct{}{
+	"admin":  {},
+	"public": {},
+}
+
+var apiRecalculationActions = map[string]struct{}{
+	"artifact_recheck":    {},
+	"compose":             {},
+	"entity_rebuild":      {},
+	"feed_recheck":        {},
+	"feed_reprocess":      {},
+	"feed_search":         {},
+	"integrity_reprocess": {},
+	"run_due":             {},
+	"run_recheck":         {},
+	"run_reprocess":       {},
+	"search":              {},
+}
+
+var apiRecalculationResults = map[string]struct{}{
+	"clean":       {},
+	"conflict":    {},
+	"error":       {},
+	"in_progress": {},
+	"ok":          {},
+	"rejected":    {},
+	"scheduled":   {},
+}
+
 var (
 	meter  = otel.Meter(scopeName)
 	tracer = otel.Tracer(scopeName)
@@ -48,12 +148,14 @@ var (
 	instrumentsMu sync.Mutex
 	counters      = map[string]metric.Int64Counter{}
 	histograms    = map[string]metric.Float64Histogram{}
+	gauges        = map[string]metric.Int64Gauge{}
 )
 
 type Setup struct {
-	Enabled  bool
-	Logger   *slog.Logger
-	shutdown func(context.Context) error
+	Enabled           bool
+	Logger            *slog.Logger
+	PrometheusHandler http.Handler
+	shutdown          func(context.Context) error
 }
 
 func Init(ctx context.Context, serviceName, version string, baseLogger *slog.Logger) (*Setup, error) {
@@ -67,36 +169,9 @@ func Init(ctx context.Context, serviceName, version string, baseLogger *slog.Log
 		baseLogger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}))
 	}
 
-	if !enabledFromEnv() {
-		return &Setup{
-			Enabled: false,
-			Logger:  baseLogger,
-			shutdown: func(context.Context) error {
-				return nil
-			},
-		}, nil
-	}
-	protocol, err := protocolFromEnv()
-	if err != nil {
-		return nil, err
-	}
-	metricReaderOpts, err := metricReaderOptionsFromEnv()
-	if err != nil {
-		return nil, err
-	}
+	otlpEnabled := enabledFromEnv()
 
-	res, err := resource.New(ctx,
-		resource.WithFromEnv(),
-		resource.WithTelemetrySDK(),
-		resource.WithHost(),
-		resource.WithOS(),
-		resource.WithProcess(),
-		resource.WithAttributes(
-			semconv.ServiceName(serviceName),
-			semconv.ServiceNamespace("firehol"),
-			semconv.ServiceVersion(version),
-		),
-	)
+	metricRes, err := newResource(ctx, serviceName, version, false, false)
 	if err != nil {
 		return nil, err
 	}
@@ -107,42 +182,76 @@ func Init(ctx context.Context, serviceName, version string, baseLogger *slog.Log
 	))
 
 	var shutdowns []func(context.Context) error
-	if signalEnabled("traces", true) {
-		traceExporter, err := newTraceExporter(ctx, protocol)
+	var richRes *resource.Resource
+	if otlpEnabled && (signalEnabled("traces", true) || signalEnabled("logs", true)) {
+		richRes, err = newResource(ctx, serviceName, version, true, true)
 		if err != nil {
-			return nil, errors.Join(err, shutdownAll(ctx, shutdowns))
+			return nil, err
 		}
-		tracerProvider := sdktrace.NewTracerProvider(
-			sdktrace.WithResource(res),
-			sdktrace.WithBatcher(traceExporter),
-		)
-		otel.SetTracerProvider(tracerProvider)
-		tracer = otel.Tracer(scopeName)
-		shutdowns = append(shutdowns, tracerProvider.Shutdown)
 	}
 
-	if signalEnabled("metrics", true) {
-		metricExporter, err := newMetricExporter(ctx, protocol)
+	prometheusReader, prometheusHandler, err := newPrometheusMetrics()
+	if err != nil {
+		return nil, errors.Join(err, shutdownAll(ctx, shutdowns))
+	}
+	metricProviderOpts := []sdkmetric.Option{
+		sdkmetric.WithResource(metricRes),
+		sdkmetric.WithReader(prometheusReader),
+		sdkmetric.WithView(metricCardinalityView()),
+	}
+
+	var protocol otlpProtocol
+	if otlpEnabled {
+		protocol, err = protocolFromEnv()
 		if err != nil {
 			return nil, errors.Join(err, shutdownAll(ctx, shutdowns))
 		}
-		meterProvider := sdkmetric.NewMeterProvider(
-			sdkmetric.WithResource(res),
-			sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter, metricReaderOpts...)),
-		)
-		otel.SetMeterProvider(meterProvider)
-		meter = otel.Meter(scopeName)
-		shutdowns = append(shutdowns, meterProvider.Shutdown)
+
+		if signalEnabled("traces", true) {
+			traceExporter, err := newTraceExporter(ctx, protocol)
+			if err != nil {
+				return nil, errors.Join(err, shutdownAll(ctx, shutdowns))
+			}
+			tracerProvider := sdktrace.NewTracerProvider(
+				sdktrace.WithResource(richRes),
+				sdktrace.WithBatcher(traceExporter),
+			)
+			otel.SetTracerProvider(tracerProvider)
+			tracer = otel.Tracer(scopeName)
+			shutdowns = append(shutdowns, tracerProvider.Shutdown)
+		}
+
+		if signalEnabled("metrics", true) {
+			metricReaderOpts, err := metricReaderOptionsFromEnv()
+			if err != nil {
+				return nil, errors.Join(err, shutdownAll(ctx, shutdowns))
+			}
+			metricExporter, err := newMetricExporter(ctx, protocol)
+			if err != nil {
+				return nil, errors.Join(err, shutdownAll(ctx, shutdowns))
+			}
+			metricProviderOpts = append(metricProviderOpts, sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter, metricReaderOpts...)))
+		}
 	}
+	meterProvider := sdkmetric.NewMeterProvider(metricProviderOpts...)
+	otel.SetMeterProvider(meterProvider)
+	instrumentsMu.Lock()
+	meter = otel.Meter(scopeName)
+	counters = map[string]metric.Int64Counter{}
+	histograms = map[string]metric.Float64Histogram{}
+	gauges = map[string]metric.Int64Gauge{}
+	instrumentsMu.Unlock()
+	shutdowns = append(shutdowns, meterProvider.Shutdown)
+	Gauge(ctx, "daemon.up", 1)
 
 	logger := baseLogger
-	if signalEnabled("logs", true) {
+	if otlpEnabled && signalEnabled("logs", true) {
 		logExporter, err := newLogExporter(ctx, protocol)
 		if err != nil {
 			return nil, errors.Join(err, shutdownAll(ctx, shutdowns))
 		}
 		loggerProvider := sdklog.NewLoggerProvider(
-			sdklog.WithResource(res),
+			sdklog.WithResource(richRes),
 			sdklog.WithProcessor(sdklog.NewBatchProcessor(logExporter)),
 		)
 		logglobal.SetLoggerProvider(loggerProvider)
@@ -152,12 +261,138 @@ func Init(ctx context.Context, serviceName, version string, baseLogger *slog.Log
 	}
 
 	return &Setup{
-		Enabled: true,
-		Logger:  logger,
+		Enabled:           otlpEnabled,
+		Logger:            logger,
+		PrometheusHandler: prometheusHandler,
 		shutdown: func(ctx context.Context) error {
 			return shutdownAll(ctx, shutdowns)
 		},
 	}, nil
+}
+
+func newResource(ctx context.Context, serviceName, version string, includeProcess, includeVersion bool) (*resource.Resource, error) {
+	attrs := []attribute.KeyValue{
+		semconv.ServiceName(serviceName),
+		semconv.ServiceNamespace("firehol"),
+	}
+	if includeVersion {
+		attrs = append(attrs, semconv.ServiceVersion(version))
+	}
+	options := []resource.Option{
+		resource.WithFromEnv(),
+		resource.WithTelemetrySDK(),
+	}
+	if includeProcess {
+		options = append(options,
+			resource.WithHost(),
+			resource.WithOS(),
+		)
+		options = append(options, resource.WithProcess())
+	}
+	options = append(options, resource.WithAttributes(attrs...))
+	return resource.New(ctx, options...)
+}
+
+func metricCardinalityView() sdkmetric.View {
+	return metricPolicyView
+}
+
+func metricPolicyView(inst sdkmetric.Instrument) (sdkmetric.Stream, bool) {
+	switch {
+	case !designedMetricInstrument(inst.Name):
+		return metricStream(inst, nil, sdkmetric.AggregationDrop{}), true
+	case droppedMetricInstrument(inst.Name):
+		return metricStream(inst, nil, sdkmetric.AggregationDrop{}), true
+	case inst.Name == "http.server.request.duration":
+		return metricStream(inst, httpServerMetricAttributeFilter(), nil), true
+	default:
+		return metricStream(inst, metricAttributeFilterForInstrument(inst.Name), nil), true
+	}
+}
+
+func metricStream(inst sdkmetric.Instrument, filter attribute.Filter, aggregation sdkmetric.Aggregation) sdkmetric.Stream {
+	return sdkmetric.Stream{
+		Name:            inst.Name,
+		Description:     inst.Description,
+		Unit:            inst.Unit,
+		Aggregation:     aggregation,
+		AttributeFilter: filter,
+	}
+}
+
+func droppedMetricInstrument(name string) bool {
+	switch name {
+	case "http.server.request.body.size", "http.server.response.body.size":
+		return true
+	}
+	return apiAdHocMetricName(name)
+}
+
+func designedMetricInstrument(name string) bool {
+	_, ok := designedMetricNames[name]
+	return ok
+}
+
+func apiAdHocMetricName(name string) bool {
+	for _, prefix := range []string{
+		"http.admin_",
+		"http.compare_set.",
+		"http.entity_artifact.",
+		"http.home_",
+	} {
+		if strings.HasPrefix(name, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func metricAttributeFilter() attribute.Filter {
+	return attribute.NewDenyKeysFilter(ephemeralMetricAttributeKeys...)
+}
+
+func metricAttributeFilterForInstrument(name string) attribute.Filter {
+	switch {
+	case strings.HasPrefix(name, "api.recalculation."):
+		return attribute.NewAllowKeysFilter(attribute.Key("api.surface"), attribute.Key("api.action"), attribute.Key("api.result"))
+	case strings.HasPrefix(name, "web.artifact.cache."):
+		return attribute.NewAllowKeysFilter(attribute.Key("cache.result"), attribute.Key("cache.reason"))
+	case strings.HasPrefix(name, "feed."):
+		return attribute.NewAllowKeysFilter(attribute.Key("feed.name"))
+	case strings.HasPrefix(name, "scheduler."):
+		return attribute.NewAllowKeysFilter(attribute.Key("scheduler.queue"), attribute.Key("scheduler.result"))
+	case strings.HasPrefix(name, "download."):
+		return attribute.NewAllowKeysFilter(attribute.Key("download.downloader"), attribute.Key("download.status"))
+	case strings.HasPrefix(name, "processor."):
+		return attribute.NewAllowKeysFilter(attribute.Key("processor.mode"), attribute.Key("processor.status"), attribute.Key("processor.temp.kind"))
+	case strings.HasPrefix(name, "engine."):
+		return attribute.NewAllowKeysFilter(attribute.Key("run.reason"), attribute.Key("run.status"), attribute.Key("engine.phase"))
+	case strings.HasPrefix(name, "integrity."):
+		return attribute.NewAllowKeysFilter(attribute.Key("integrity.kind"), attribute.Key("integrity.result"), attribute.Key("integrity.action"))
+	case strings.HasPrefix(name, "background."):
+		return attribute.NewAllowKeysFilter(attribute.Key("background.component"), attribute.Key("background.result"))
+	case strings.HasPrefix(name, "config."):
+		return attribute.NewAllowKeysFilter(attribute.Key("config.result"))
+	case strings.HasPrefix(name, "runtime.cache."):
+		return attribute.NewAllowKeysFilter(attribute.Key("cache.operation"), attribute.Key("cache.result"))
+	case strings.HasPrefix(name, "iprange."):
+		return attribute.NewAllowKeysFilter(attribute.Key("ip.version"), attribute.Key("iprange.operation"))
+	default:
+		return metricAttributeFilter()
+	}
+}
+
+func httpServerMetricAttributeFilter() attribute.Filter {
+	return attribute.NewAllowKeysFilter(httpServerMetricAttributeKeys...)
+}
+
+func newPrometheusMetrics() (*otelprom.Exporter, http.Handler, error) {
+	registry := prometheus.NewRegistry()
+	exporter, err := otelprom.New(otelprom.WithRegisterer(registry))
+	if err != nil {
+		return nil, nil, err
+	}
+	return exporter, promhttp.HandlerFor(registry, promhttp.HandlerOpts{}), nil
 }
 
 func (s *Setup) Shutdown(ctx context.Context) error {
@@ -369,7 +604,44 @@ func Observe(ctx context.Context, name string, count, bytes int64, dur time.Dura
 	Duration(ctx, name, dur, attrs...)
 }
 
+func Gauge(ctx context.Context, name string, value int64, attrs ...attribute.KeyValue) {
+	if name == "" {
+		return
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	gauge, ok := gauge(name)
+	if !ok {
+		return
+	}
+	gauge.Record(ctx, value, metric.WithAttributes(attrs...))
+}
+
+func APIRecalculation(ctx context.Context, surface, action, result string, targets int64) {
+	attrs := []attribute.KeyValue{
+		attribute.String("api.surface", boundedMetricLabel(surface, apiRecalculationSurfaces)),
+		attribute.String("api.action", boundedMetricLabel(action, apiRecalculationActions)),
+		attribute.String("api.result", boundedMetricLabel(result, apiRecalculationResults)),
+	}
+	Count(ctx, "api.recalculation.requests", 1, attrs...)
+	if targets > 0 {
+		Count(ctx, "api.recalculation.targets", targets, attrs...)
+	}
+}
+
+func boundedMetricLabel(value string, allowed map[string]struct{}) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if _, ok := allowed[value]; ok {
+		return value
+	}
+	return "other"
+}
+
 func counter(name string) (metric.Int64Counter, bool) {
+	if !designedMetricInstrument(name) {
+		return nil, false
+	}
 	instrumentsMu.Lock()
 	defer instrumentsMu.Unlock()
 	if existing, ok := counters[name]; ok {
@@ -384,6 +656,9 @@ func counter(name string) (metric.Int64Counter, bool) {
 }
 
 func histogram(name string) (metric.Float64Histogram, bool) {
+	if !designedMetricInstrument(name) {
+		return nil, false
+	}
 	instrumentsMu.Lock()
 	defer instrumentsMu.Unlock()
 	if existing, ok := histograms[name]; ok {
@@ -394,5 +669,22 @@ func histogram(name string) (metric.Float64Histogram, bool) {
 		return nil, false
 	}
 	histograms[name] = created
+	return created, true
+}
+
+func gauge(name string) (metric.Int64Gauge, bool) {
+	if !designedMetricInstrument(name) {
+		return nil, false
+	}
+	instrumentsMu.Lock()
+	defer instrumentsMu.Unlock()
+	if existing, ok := gauges[name]; ok {
+		return existing, true
+	}
+	created, err := meter.Int64Gauge(name)
+	if err != nil {
+		return nil, false
+	}
+	gauges[name] = created
 	return created, true
 }

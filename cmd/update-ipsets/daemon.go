@@ -108,6 +108,7 @@ func runDaemon(args []string) int {
 		Interval:                  *interval,
 		EnableAll:                 *enableAll,
 		Logger:                    logger,
+		MetricsHandler:            otelSetup.PrometheusHandler,
 		CertFile:                  *tlsCert,
 		KeyFile:                   *tlsKey,
 		WebDir:                    *webDir,

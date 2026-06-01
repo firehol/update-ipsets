@@ -8,8 +8,14 @@ The daemon supports two modes, controlled by `--admin-auth-mode`:
 
 | Mode | Flag | Behavior |
 |---|---|---|
-| `required` (default) | `--admin-auth-mode=required` | Admin endpoints require HTTP Basic authentication. Missing or wrong credentials deny access. |
+| `required` (default) | `--admin-auth-mode=required` | Admin UI/API endpoints require HTTP Basic authentication. Missing or wrong credentials deny access. |
 | `disabled` | `--admin-auth-mode=disabled` | Admin endpoints skip authentication. Requires a second safety flag. |
+
+`GET /metrics` is the exception. It is an admin-surface Prometheus scrape
+endpoint and is intentionally served without basic authentication. In split mode
+it is available only on the admin listener. In shared-listener mode it is
+available on the shared listener, so protect that listener with bind address,
+firewall, or network policy.
 
 ## Required mode
 
@@ -41,7 +47,7 @@ Browser access prompts for username and password when you visit `/admin`.
 
 If `UPDATE_IPSETS_ADMIN_USER` or `UPDATE_IPSETS_ADMIN_PASSWORD` is missing when auth is required:
 
-- admin endpoints return 503 (Service Unavailable)
+- admin UI/API endpoints return 503 (Service Unavailable)
 - admin access is denied — it does not fall back to open access
 
 The daemon does not guess, default, or silently disable authentication. A missing configuration variable is a hard deny, not a soft skip.

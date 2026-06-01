@@ -2,6 +2,11 @@
 
 You will learn how to enable, configure, and disable OpenTelemetry export in update-ipsets.
 
+The admin surface also serves `GET /metrics` in Prometheus text format. This
+scrape endpoint is available without admin basic authentication and does not
+require OTLP export to be enabled. In split-listener deployments, expose only
+the admin listener to systems that should scrape it.
+
 ## Enabling export
 
 Set either of these to enable export:

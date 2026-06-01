@@ -19,6 +19,7 @@ func (e *Engine) RunOnce(ctx context.Context, opts RunOptions) (*Report, error) 
 	var runErr error
 	runReason := normalizeRunReason(opts)
 	runStarted := time.Now()
+	observability.Gauge(ctx, "engine.running", 1)
 	ctx, span := observability.Start(ctx, "engine.run",
 		attribute.String("run.reason", runReason.String()),
 		attribute.Bool("run.recheck", opts.Recheck),
@@ -32,11 +33,13 @@ func (e *Engine) RunOnce(ctx context.Context, opts RunOptions) (*Report, error) 
 		if runErr != nil {
 			status = "error"
 		}
-		observability.Observe(ctx, "engine.run", 1, 0, time.Since(runStarted),
+		attrs := []attribute.KeyValue{
 			attribute.String("run.reason", runReason.String()),
 			attribute.String("run.status", status),
-			attribute.Int("run.selected", len(opts.Selected)),
-		)
+		}
+		observability.Count(ctx, "engine.runs", 1, attrs...)
+		observability.Duration(ctx, "engine.run", time.Since(runStarted), attrs...)
+		observability.Gauge(ctx, "engine.running", 0)
 	}()
 	report := &Report{
 		StartedAt: e.now().UTC(),
@@ -218,6 +221,7 @@ func (e *Engine) markRunEnd(report *Report, err error) {
 	e.currentReason = runreason.ReasonUnknown
 	e.currentPhase = RunPhaseUnknown
 	e.activeFeeds = nil
+	observeEnginePhaseCurrent(RunPhaseUnknown)
 	if e.currentMetrics != nil {
 		e.currentMetrics.finish()
 		snap := e.currentMetrics.snapshot(false)

@@ -78,10 +78,12 @@ func (s *surfaceRoutes) handlePublicCompose() http.HandlerFunc {
 		exclude := parseList(r.URL.Query().Get("exclude"))
 		data, err := s.eng.PublicCompose(r.Context(), include, exclude, r.URL.Query().Get("format"))
 		if err != nil {
+			observeAPIRecalculation(r, "public", "compose", "error", 0)
 			status, msg := classifyError(err)
 			plainError(w, status, msg)
 			return
 		}
+		observeAPIRecalculation(r, "public", "compose", "ok", 0)
 		writePlain(w, http.StatusOK, data)
 	}
 }
@@ -267,6 +269,9 @@ func (s *surfaceRoutes) registerAdmin(mux *http.ServeMux) {
 	adminArtifactsRouter := wrapAdminAuth(s.opts, handleAdminArtifactsRouter(s.eng, s.runner))
 	adminFeedsRouter := wrapAdminAuth(s.opts, handleAdminFeedsRouter(s.eng, s.runner, s.opts))
 
+	if s.opts.MetricsHandler != nil {
+		mux.Handle("GET /metrics", s.opts.MetricsHandler)
+	}
 	mux.HandleFunc("GET /admin", wrapAdminAuth(s.opts, handleAdminPage))
 	mux.HandleFunc("GET /admin/", wrapAdminAuth(s.opts, handleAdminPage))
 	mux.HandleFunc("GET /api/v1/admin/status", wrapAdminAuth(s.opts, handleAdminStatus(s.eng, s.runner)))
@@ -315,6 +320,7 @@ func (s *surfaceRoutes) handleAdminRun() http.HandlerFunc {
 		recheck := r.URL.Query().Get("recheck") == "true"
 		reprocess := r.URL.Query().Get("reprocess") == "true"
 		if recheck {
+			observeAPIRecalculation(r, "admin", "run_recheck", "rejected", 0)
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "global recheck is not supported; use feed-level recheck or run due work now"})
 			return
 		}
@@ -328,6 +334,7 @@ func (s *surfaceRoutes) handleAdminRun() http.HandlerFunc {
 				Reprocess: reprocess,
 				Reason:    reason,
 			})
+			observeAPIRecalculation(r, "admin", "run_reprocess", "scheduled", 0)
 			writeJSON(w, http.StatusAccepted, map[string]string{
 				"status":    "scheduled",
 				"recheck":   fmt.Sprintf("%t", recheck),
@@ -339,9 +346,11 @@ func (s *surfaceRoutes) handleAdminRun() http.HandlerFunc {
 			RunDue: true,
 			Reason: runreason.ReasonManualRun,
 		}) {
+			observeAPIRecalculation(r, "admin", "run_due", "scheduled", 0)
 			writeJSON(w, http.StatusAccepted, map[string]string{"status": "scheduled"})
 			return
 		}
+		observeAPIRecalculation(r, "admin", "run_due", "conflict", 0)
 		writeJSON(w, http.StatusConflict, map[string]string{"error": "run already queued"})
 	}
 }
@@ -350,6 +359,7 @@ func registerPublicAdminBlock(mux *http.ServeMux) {
 	notFound := func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 	}
+	mux.HandleFunc("GET /metrics", notFound)
 	mux.HandleFunc("GET /admin", notFound)
 	mux.HandleFunc("GET /admin/", notFound)
 }

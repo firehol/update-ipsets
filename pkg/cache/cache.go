@@ -11,6 +11,8 @@ import (
 
 	"github.com/firehol/update-ipsets/internal/observability"
 	"github.com/firehol/update-ipsets/pkg/runreason"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const maxJSONUnixSeconds int64 = 253402300799
@@ -256,14 +258,14 @@ func Load(path string) (*State, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			observability.Observe(observability.BackgroundContext(), "cache.load", 1, 0, time.Since(started))
+			observeRuntimeCacheOperation("load", "empty", time.Since(started))
 			return New(), nil
 		}
-		observability.Observe(observability.BackgroundContext(), "cache.load.error", 1, 0, time.Since(started))
+		observeRuntimeCacheOperation("load", "error", time.Since(started))
 		return nil, err
 	}
 	defer func() {
-		observability.Observe(observability.BackgroundContext(), "cache.load", 1, int64(len(data)), time.Since(started))
+		observeRuntimeCacheOperation("load", "ok", time.Since(started))
 	}()
 
 	st := New()
@@ -303,14 +305,13 @@ func (st *State) MarshalJSON() ([]byte, error) {
 
 func Save(path string, st *State) error {
 	started := time.Now()
-	var bytes int
 	var opErr error
 	defer func() {
-		name := "cache.save"
+		result := "ok"
 		if opErr != nil {
-			name = "cache.save.error"
+			result = "error"
 		}
-		observability.Observe(observability.BackgroundContext(), name, 1, int64(bytes), time.Since(started))
+		observeRuntimeCacheOperation("save", result, time.Since(started))
 	}()
 	if st == nil {
 		st = New()
@@ -327,7 +328,6 @@ func Save(path string, st *State) error {
 		opErr = err
 		return err
 	}
-	bytes = len(data)
 
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		opErr = err
@@ -357,6 +357,22 @@ func Save(path string, st *State) error {
 	}
 	opErr = os.Rename(tmpName, path)
 	return opErr
+}
+
+func observeRuntimeCacheOperation(operation, result string, dur time.Duration) {
+	if operation == "" {
+		operation = "unknown"
+	}
+	if result == "" {
+		result = "unknown"
+	}
+	attrs := []attribute.KeyValue{
+		attribute.String("cache.operation", operation),
+		attribute.String("cache.result", result),
+	}
+	ctx := observability.BackgroundContext()
+	observability.Count(ctx, "runtime.cache.operations", 1, attrs...)
+	observability.Duration(ctx, "runtime.cache.operation", dur, attrs...)
 }
 
 // Entry returns the entry for name, creating it if absent.

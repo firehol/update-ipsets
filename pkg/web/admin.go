@@ -344,12 +344,14 @@ func handleAdminFeedsRouter(eng *engine.Engine, runner *scheduler.Runner, _ Opti
 					Recheck: true,
 					Reason:  runreason.ReasonManualRecheck,
 				})
+				observeAPIRecalculation(r, "admin", "feed_recheck", "scheduled", 1)
 				writeJSON(w, http.StatusAccepted, map[string]string{"status": "scheduled", "name": target, "action": "recheck"})
 			})
 
 		case "reprocess":
 			requirePOST(w, r, func() {
 				if !eng.HasLocalReprocessState(name) {
+					observeAPIRecalculation(r, "admin", "feed_reprocess", "conflict", 0)
 					writeJSON(w, http.StatusConflict, map[string]string{"error": "no staged or committed local input exists for reprocess"})
 					return
 				}
@@ -358,6 +360,7 @@ func handleAdminFeedsRouter(eng *engine.Engine, runner *scheduler.Runner, _ Opti
 					Reprocess: true,
 					Reason:    runreason.ReasonManualReprocess,
 				})
+				observeAPIRecalculation(r, "admin", "feed_reprocess", "scheduled", 1)
 				writeJSON(w, http.StatusAccepted, map[string]string{"status": "scheduled", "name": name, "action": "reprocess"})
 			})
 
@@ -429,6 +432,7 @@ func handleAdminArtifactsRouter(eng *engine.Engine, runner *scheduler.Runner) ht
 					Recheck: true,
 					Reason:  runreason.ReasonManualRecheck,
 				})
+				observeAPIRecalculation(r, "admin", "artifact_recheck", "scheduled", 1)
 				writeJSON(w, http.StatusAccepted, map[string]string{"status": "scheduled", "name": name, "action": "recheck"})
 			})
 

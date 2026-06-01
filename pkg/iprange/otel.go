@@ -2,6 +2,7 @@ package iprange
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 
@@ -48,25 +49,54 @@ func iprangeObserve(ctx context.Context, name string, count, bytes int64, dur ti
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	metricAttrs := iprangeMetricAttributes(name, attrs...)
 	if count != 0 {
-		if counter, ok := iprangeCounter(name); ok {
-			counter.Add(ctx, count, metric.WithAttributes(attrs...))
+		if counter, ok := iprangeCounter("iprange.operations"); ok {
+			counter.Add(ctx, count, metric.WithAttributes(metricAttrs...))
 		}
 	}
-	if bytes != 0 {
-		if counter, ok := iprangeCounter(name + ".bytes"); ok {
-			counter.Add(ctx, bytes, metric.WithAttributes(attrs...))
+	if bytes != 0 && count == 0 {
+		if counter, ok := iprangeCounter("iprange.operations"); ok {
+			counter.Add(ctx, 1, metric.WithAttributes(metricAttrs...))
 		}
 	}
 	if dur > 0 {
-		if histogram, ok := iprangeHistogram(name + ".duration_ms"); ok {
-			histogram.Record(ctx, float64(dur.Microseconds())/1000.0, metric.WithAttributes(attrs...))
+		if histogram, ok := iprangeHistogram("iprange.operation.duration_ms"); ok {
+			histogram.Record(ctx, float64(dur.Microseconds())/1000.0, metric.WithAttributes(metricAttrs...))
 		}
 	}
 }
 
 func iprangeCount(ctx context.Context, name string, count int64, attrs ...attribute.KeyValue) {
 	iprangeObserve(ctx, name, count, 0, 0, attrs...)
+}
+
+func iprangeMetricAttributes(name string, attrs ...attribute.KeyValue) []attribute.KeyValue {
+	out := make([]attribute.KeyValue, 0, 2)
+	for _, attr := range attrs {
+		if attr.Key == attribute.Key("ip.version") {
+			out = append(out, attr)
+			break
+		}
+	}
+	out = append(out, attribute.String("iprange.operation", iprangeMetricOperation(name)))
+	return out
+}
+
+func iprangeMetricOperation(name string) string {
+	op := strings.TrimSpace(name)
+	op = strings.TrimPrefix(op, "iprange.")
+	for _, suffix := range []string{".duration_ms", ".bytes", ".ops"} {
+		op = strings.TrimSuffix(op, suffix)
+	}
+	op = strings.TrimSuffix(op, ".searches")
+	op = strings.TrimSuffix(op, ".search")
+	op = strings.Trim(op, ".")
+	op = strings.ReplaceAll(op, ".", "_")
+	if op == "" {
+		return "unknown"
+	}
+	return op
 }
 
 func iprangeCounter(name string) (metric.Int64Counter, bool) {

@@ -2,6 +2,7 @@ package web
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -14,19 +15,29 @@ func TestSurfaceHandlerModesRegisterExpectedSurfaces(t *testing.T) {
 
 	eng, _ := testHandler(t, Options{EnableAll: true})
 	runner := scheduler.New(eng, true, nil)
-	opts := Options{EnableAll: true}
+	opts := Options{
+		EnableAll: true,
+		MetricsHandler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "text/plain; version=0.0.4")
+			_, _ = w.Write([]byte("update_ipsets_test_metric 1\n"))
+		}),
+	}
 
 	shared := newWebHTTPTestServer(t, newHandler(eng, opts, runner))
 	publicOnly := newWebHTTPTestServer(t, newPublicHandler(eng, opts, runner))
 	adminOnly := newWebHTTPTestServer(t, newAdminHandler(eng, opts, runner))
 
 	assertRouteStatus(t, shared, "/healthz", "", http.StatusOK)
+	assertRouteStatus(t, shared, "/metrics", "", http.StatusOK)
+	assertRouteStatus(t, shared, "/api/v1/admin/status", "", http.StatusUnauthorized)
 	assertRouteStatus(t, shared, "/api/v1/admin/status", "admin", http.StatusOK)
 	assertRouteStatus(t, publicOnly, "/healthz", "", http.StatusOK)
+	assertRouteStatus(t, publicOnly, "/metrics", "", http.StatusNotFound)
 	assertRouteStatus(t, publicOnly, "/admin", "admin", http.StatusNotFound)
 	assertRouteStatus(t, publicOnly, "/api/v1/admin/status", "admin", http.StatusNotFound)
 	assertRouteStatus(t, adminOnly, "/healthz", "", http.StatusNotFound)
 	assertRouteStatus(t, adminOnly, "/api/v1/status", "", http.StatusNotFound)
+	assertRouteStatus(t, adminOnly, "/metrics", "", http.StatusOK)
 	assertRouteStatus(t, adminOnly, "/admin", "admin", http.StatusOK)
 }
 
@@ -199,6 +210,59 @@ func TestAdminActionRoutesRejectHEAD(t *testing.T) {
 			t.Fatalf("HEAD %s status = %d, want 405", path, status)
 		}
 		assertAllowExactly(t, headers, http.MethodPost)
+	}
+}
+
+func TestTelemetryRouteNameNormalizesDynamicPaths(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		path string
+		want string
+	}{
+		{path: "/api/v1/status", want: "/api/v1/status"},
+		{path: "/api/v1/sets/firehol_level1", want: "/api/v1/sets/{name}"},
+		{path: "/api/v1/sets/firehol_level1/search", want: "/api/v1/sets/{name}/search"},
+		{path: "/api/v1/sets/firehol_level1/countries/ipinfo", want: "/api/v1/sets/{name}/countries/{provider}"},
+		{path: "/api/v1/sets/firehol_level1/infrastructure/providers", want: "/api/v1/sets/{name}/infrastructure/providers"},
+		{path: "/api/v1/ipsets/firehol_level1/asn/ipinfo", want: "/api/v1/ipsets/{name}/asn/{provider}"},
+		{path: "/api/v1/admin/feeds/firehol_level1/recheck", want: "/api/v1/admin/feeds/{name}/recheck"},
+		{path: "/api/v1/admin/feeds/firehol_level1/not-real", want: "/api/v1/admin/feeds/{name}/{action}"},
+		{path: "/api/v1/admin/artifacts/dronebl/recheck", want: "/api/v1/admin/artifacts/{name}/recheck"},
+		{path: "/api/v1/countries/GR", want: "/api/v1/countries/{code}"},
+		{path: "/api/v1/asns/12345", want: "/api/v1/asns/{asn}"},
+		{path: "/api/v1/unknown/random", want: "/api/v1/*"},
+		{path: "/files/firehol_level1.netset", want: "/files/{name}"},
+		{path: "/unknown/probe/path", want: "/*"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.path, func(t *testing.T) {
+			t.Parallel()
+			if got := telemetryRouteName(tt.path); got != tt.want {
+				t.Fatalf("telemetryRouteName(%q) = %q, want %q", tt.path, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestTelemetryRoutePatternMiddlewareOverridesServeMuxPattern(t *testing.T) {
+	t.Parallel()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/v1/sets/", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/sets/firehol_level1/search", nil)
+	rec := httptest.NewRecorder()
+	withTelemetryRoutePattern(mux).ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if got, want := req.Pattern, "/api/v1/sets/{name}/search"; got != want {
+		t.Fatalf("request pattern = %q, want %q", got, want)
 	}
 }
 

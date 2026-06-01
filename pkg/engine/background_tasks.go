@@ -4,8 +4,13 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/firehol/update-ipsets/internal/observability"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type BackgroundTaskSnapshot struct {
@@ -155,14 +160,18 @@ func (h *BackgroundTaskHandle) Finish() {
 }
 
 func (e *Engine) withBackgroundTask(name, trigger, stage, detail string, current, total int, fn func(task *BackgroundTaskHandle) error) error {
+	component := backgroundMetricComponent(name)
 	e.observeRunCounter("background.tasks.started", 1, 0)
+	observeBackgroundTask(component, "started")
 	task := e.beginBackgroundTask(name, trigger, "queued", "waiting for background worker", 0, 0)
 	if task == nil {
 		err := fn(nil)
 		if err != nil {
 			e.observeRunCounter("background.tasks.failed", 1, 0)
+			observeBackgroundTask(component, "failed")
 		} else {
 			e.observeRunCounter("background.tasks.completed", 1, 0)
+			observeBackgroundTask(component, "completed")
 		}
 		return err
 	}
@@ -171,18 +180,75 @@ func (e *Engine) withBackgroundTask(name, trigger, stage, detail string, current
 	if e.backgroundLimiter != nil {
 		waitStarted := time.Now()
 		e.backgroundLimiter.Acquire()
-		e.observeRunOperation("background.worker_wait", time.Since(waitStarted))
-		defer e.backgroundLimiter.Release()
+		wait := time.Since(waitStarted)
+		e.observeRunOperation("background.worker_wait", wait)
+		observeBackgroundWorkerWait(component, wait)
+		e.observeBackgroundWorkerGauges(component)
+		defer func() {
+			e.backgroundLimiter.Release()
+			e.observeBackgroundWorkerGauges(component)
+		}()
 	}
 
 	task.Update(stage, detail, current, total)
 	err := fn(task)
 	if err != nil {
 		e.observeRunCounter("background.tasks.failed", 1, 0)
+		observeBackgroundTask(component, "failed")
 	} else {
 		e.observeRunCounter("background.tasks.completed", 1, 0)
+		observeBackgroundTask(component, "completed")
 	}
 	return err
+}
+
+func backgroundMetricComponent(name string) string {
+	if strings.HasPrefix(name, "Entity artifacts ") {
+		return "entity_artifacts"
+	}
+	return "other"
+}
+
+func observeBackgroundTask(component, result string) {
+	if component == "" {
+		component = "other"
+	}
+	if result == "" {
+		result = "unknown"
+	}
+	observability.Count(
+		observability.BackgroundContext(),
+		"background.tasks",
+		1,
+		attribute.String("background.component", component),
+		attribute.String("background.result", result),
+	)
+}
+
+func observeBackgroundWorkerWait(component string, wait time.Duration) {
+	if component == "" {
+		component = "other"
+	}
+	observability.Duration(
+		observability.BackgroundContext(),
+		"background.worker.wait",
+		wait,
+		attribute.String("background.component", component),
+	)
+}
+
+func (e *Engine) observeBackgroundWorkerGauges(component string) {
+	if e == nil || e.backgroundLimiter == nil {
+		return
+	}
+	if component == "" {
+		component = "other"
+	}
+	limit, running := e.backgroundLimiter.Snapshot()
+	attr := attribute.String("background.component", component)
+	ctx := observability.BackgroundContext()
+	observability.Gauge(ctx, "background.workers.active", int64(running), attr)
+	observability.Gauge(ctx, "background.workers.limit", int64(limit), attr)
 }
 
 func (e *Engine) withEntityArtifactMutation(task *BackgroundTaskHandle, detail string, fn func() error) error {

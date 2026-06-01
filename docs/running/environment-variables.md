@@ -166,6 +166,10 @@ systemd sets these automatically when the service uses `Type=notify` and `Watchd
 
 The daemon can export traces, metrics, and logs through OTLP. See the [Monitoring](../monitoring/monitoring-overview.md) section for the full setup guide.
 
+The admin surface also serves `GET /metrics` for Prometheus scraping. The OTLP
+environment variables below control push export; they do not remove the admin
+Prometheus scrape endpoint.
+
 | Variable | Default | Description |
 |---|---|---|
 | `UPDATE_IPSETS_OTEL` | (empty) | Set to `1`, `true`, or `enabled` to enable export. Set to `0`, `false`, or `disabled` to force-disable even when endpoint variables are present. |
@@ -178,16 +182,23 @@ The daemon can export traces, metrics, and logs through OTLP. See the [Monitorin
 | `OTEL_METRIC_EXPORT_INTERVAL` | (none) | Metric export interval. Accepts integer milliseconds such as `10000` or duration strings such as `10s`. |
 | `UPDATE_IPSETS_OTEL_METRIC_INTERVAL` | (none) | Same as `OTEL_METRIC_EXPORT_INTERVAL`. Takes priority if both are set. |
 | `UPDATE_IPSETS_OTEL_TRACES` | (unset) | Set to `0`, `false`, `disabled`, `off`, or `none` to suppress trace export. |
-| `UPDATE_IPSETS_OTEL_METRICS` | (unset) | Set to `0`, `false`, `disabled`, `off`, or `none` to suppress metric export. |
+| `UPDATE_IPSETS_OTEL_METRICS` | (unset) | Set to `0`, `false`, `disabled`, `off`, or `none` to suppress OTLP metric export. |
 | `UPDATE_IPSETS_OTEL_LOGS` | (unset) | Set to `0`, `false`, `disabled`, `off`, or `none` to suppress log export. |
 | `OTEL_TRACES_EXPORTER` | (unset) | Set to `none` to disable traces. Standard OpenTelemetry variable. |
-| `OTEL_METRICS_EXPORTER` | (unset) | Set to `none` to disable metrics. Standard OpenTelemetry variable. |
+| `OTEL_METRICS_EXPORTER` | (unset) | Set to `none` to disable OTLP metric export. Standard OpenTelemetry variable. |
 | `OTEL_LOGS_EXPORTER` | (unset) | Set to `none` to disable logs. Standard OpenTelemetry variable. |
 
 The daemon also uses the standard OpenTelemetry SDK resource detector and OTLP
 exporters. These variables are read by the OpenTelemetry SDK when export is
 enabled. Signal-specific variants use `TRACES`, `METRICS`, or `LOGS` in place
 of `<SIGNAL>` and take priority for that signal.
+
+Metric export uses stable default resource identity. Automatic host, OS,
+process resource attributes and the daemon build version are not attached to
+metrics by default, so host/kernel churn, process IDs, and local dirty-build
+churn do not create new metric series. Operators can still add explicit
+resource attributes through the standard OpenTelemetry environment variables
+when that trade-off is intentional.
 
 | Variable | Default | Description |
 |---|---|---|

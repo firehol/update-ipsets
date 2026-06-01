@@ -17,16 +17,19 @@ type ipSearchResponse struct {
 
 func writeGlobalSearch(w http.ResponseWriter, r *http.Request, eng *engine.Engine, limiter *clientRateLimiter, resolver *clientIPResolver) {
 	if !allowSearch(w, r, limiter, resolver) {
+		observeAPIRecalculation(r, "public", "search", "rejected", 0)
 		return
 	}
 	apiNoCache(w)
 	ip := r.URL.Query().Get("ip")
 	if ip == "" {
+		observeAPIRecalculation(r, "public", "search", "rejected", 0)
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing ip query parameter"})
 		return
 	}
 	matches, err := eng.QueryIP(r.Context(), ip)
 	if err != nil {
+		observeAPIRecalculation(r, "public", "search", "error", 0)
 		status := http.StatusBadRequest
 		if engine.IsServerError(err) {
 			status = http.StatusInternalServerError
@@ -39,6 +42,7 @@ func writeGlobalSearch(w http.ResponseWriter, r *http.Request, eng *engine.Engin
 		for _, match := range matches {
 			names = append(names, match.Name)
 		}
+		observeAPIRecalculation(r, "public", "search", "ok", 0)
 		writeJSON(w, http.StatusOK, map[string]any{"ip": ip, "matches": names})
 		return
 	}
@@ -54,21 +58,25 @@ func writeGlobalSearch(w http.ResponseWriter, r *http.Request, eng *engine.Engin
 	if ctx, err := eng.LookupIPContext(ip); err == nil {
 		resp.Context = ctx
 	}
+	observeAPIRecalculation(r, "public", "search", "ok", 0)
 	writeJSON(w, http.StatusOK, resp)
 }
 
 func writeFeedScopedSearch(w http.ResponseWriter, r *http.Request, eng *engine.Engine, limiter *clientRateLimiter, resolver *clientIPResolver, name string) {
 	if !allowSearch(w, r, limiter, resolver) {
+		observeAPIRecalculation(r, "public", "feed_search", "rejected", 0)
 		return
 	}
 	apiNoCache(w)
 	ip := r.URL.Query().Get("ip")
 	if ip == "" {
+		observeAPIRecalculation(r, "public", "feed_search", "rejected", 0)
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "missing ip query parameter"})
 		return
 	}
 	match, found, err := eng.QueryFeedIP(r.Context(), name, ip)
 	if err != nil {
+		observeAPIRecalculation(r, "public", "feed_search", "error", 0)
 		status := http.StatusBadRequest
 		if engine.IsServerError(err) {
 			status = http.StatusInternalServerError
@@ -90,6 +98,7 @@ func writeFeedScopedSearch(w http.ResponseWriter, r *http.Request, eng *engine.E
 			resp.Context = ctx
 		}
 	}
+	observeAPIRecalculation(r, "public", "feed_search", "ok", 0)
 	writeJSON(w, http.StatusOK, resp)
 }
 

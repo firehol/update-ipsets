@@ -11,6 +11,9 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github.com/firehol/update-ipsets/internal/observability"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -122,10 +125,12 @@ func serveCachedFile(w http.ResponseWriter, r *http.Request, path string, entry 
 func (c *fileCache) load(path string, contentType string) (cachedFile, bool, error) {
 	info, err := os.Stat(path)
 	if err != nil || info.IsDir() {
+		observeWebArtifactCacheLookup("error")
 		return cachedFile{}, false, err
 	}
 	if info.Size() > c.maxFileBytes {
 		c.remove(path)
+		observeWebArtifactCacheLookup("oversize")
 		return cachedFile{}, false, nil
 	}
 
@@ -135,6 +140,7 @@ func (c *fileCache) load(path string, contentType string) (cachedFile, bool, err
 		c.order.MoveToFront(entry.elem)
 		out := *entry
 		c.mu.Unlock()
+		observeWebArtifactCacheLookup("hit")
 		return out, true, nil
 	}
 	if ok {
@@ -144,9 +150,11 @@ func (c *fileCache) load(path string, contentType string) (cachedFile, bool, err
 
 	data, err := os.ReadFile(path)
 	if err != nil {
+		observeWebArtifactCacheLookup("error")
 		return cachedFile{}, false, err
 	}
 	if int64(len(data)) > c.maxFileBytes {
+		observeWebArtifactCacheLookup("oversize")
 		return cachedFile{}, false, nil
 	}
 	if contentType == "" {
@@ -165,29 +173,35 @@ func (c *fileCache) load(path string, contentType string) (cachedFile, bool, err
 	c.files[path] = newEntry
 	c.bytes += newEntry.size
 	c.evictLocked()
+	c.observeStateLocked()
 	out := *newEntry
 	c.mu.Unlock()
+	observeWebArtifactCacheLookup("miss")
 	return out, true, nil
 }
 
 func (c *fileCache) loadRooted(rootDir, rel string, contentType string) (cachedFile, bool, string, error) {
 	cleanRel, ok := cleanRootedRel(rel)
 	if !ok {
+		observeWebArtifactCacheLookup("error")
 		return cachedFile{}, false, "", os.ErrInvalid
 	}
 	root, err := os.OpenRoot(rootDir)
 	if err != nil {
+		observeWebArtifactCacheLookup("error")
 		return cachedFile{}, false, "", err
 	}
 	defer func() { _ = root.Close() }()
 
 	info, err := root.Stat(cleanRel)
 	if err != nil || info.IsDir() {
+		observeWebArtifactCacheLookup("error")
 		return cachedFile{}, false, "", err
 	}
 	key := filepath.Join(filepath.Clean(rootDir), cleanRel)
 	if info.Size() > c.maxFileBytes {
 		c.remove(key)
+		observeWebArtifactCacheLookup("oversize")
 		return cachedFile{}, false, key, nil
 	}
 
@@ -197,6 +211,7 @@ func (c *fileCache) loadRooted(rootDir, rel string, contentType string) (cachedF
 		c.order.MoveToFront(entry.elem)
 		out := *entry
 		c.mu.Unlock()
+		observeWebArtifactCacheLookup("hit")
 		return out, true, key, nil
 	}
 	if ok {
@@ -206,9 +221,11 @@ func (c *fileCache) loadRooted(rootDir, rel string, contentType string) (cachedF
 
 	data, err := root.ReadFile(cleanRel)
 	if err != nil {
+		observeWebArtifactCacheLookup("error")
 		return cachedFile{}, false, key, err
 	}
 	if int64(len(data)) > c.maxFileBytes {
+		observeWebArtifactCacheLookup("oversize")
 		return cachedFile{}, false, key, nil
 	}
 	if contentType == "" {
@@ -227,8 +244,10 @@ func (c *fileCache) loadRooted(rootDir, rel string, contentType string) (cachedF
 	c.files[key] = newEntry
 	c.bytes += newEntry.size
 	c.evictLocked()
+	c.observeStateLocked()
 	out := *newEntry
 	c.mu.Unlock()
+	observeWebArtifactCacheLookup("miss")
 	return out, true, key, nil
 }
 
@@ -236,6 +255,7 @@ func (c *fileCache) remove(path string) {
 	c.mu.Lock()
 	if entry, ok := c.files[path]; ok {
 		c.removeLocked(path, entry)
+		c.observeStateLocked()
 	}
 	c.mu.Unlock()
 }
@@ -255,11 +275,25 @@ func (c *fileCache) removeLocked(path string, entry *cachedFile) {
 
 func (c *fileCache) evictLocked() {
 	for (len(c.files) > c.maxEntries || c.bytes > c.maxBytes) && c.order.Len() > 0 {
+		reason := "max_bytes"
+		if len(c.files) > c.maxEntries {
+			reason = "max_entries"
+		}
 		back := c.order.Back()
 		path, _ := back.Value.(string)
 		entry := c.files[path]
 		c.removeLocked(path, entry)
+		observability.Count(observability.BackgroundContext(), "web.artifact.cache.evictions", 1, attribute.String("cache.reason", reason))
 	}
+}
+
+func (c *fileCache) observeStateLocked() {
+	observability.Gauge(observability.BackgroundContext(), "web.artifact.cache.entries", int64(len(c.files)))
+	observability.Gauge(observability.BackgroundContext(), "web.artifact.cache.bytes", c.bytes)
+}
+
+func observeWebArtifactCacheLookup(result string) {
+	observability.Count(observability.BackgroundContext(), "web.artifact.cache.lookups", 1, attribute.String("cache.result", result))
 }
 
 func serveUncachedFile(w http.ResponseWriter, r *http.Request, path string, contentType string) bool {

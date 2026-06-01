@@ -184,7 +184,7 @@ func (m *runMetrics) advancePhaseLocked(now time.Time, next RunPhase) {
 	if m.currentPhase.Valid() && !m.phaseStartedAt.IsZero() {
 		dur := now.Sub(m.phaseStartedAt)
 		m.phaseTotals[m.currentPhase] += dur
-		observability.Observe(observability.BackgroundContext(), "engine."+string(m.currentPhase), 1, 0, dur, attribute.String("engine.phase", string(m.currentPhase)))
+		observability.Duration(observability.BackgroundContext(), "engine.phase", dur, attribute.String("engine.phase", string(m.currentPhase)))
 	}
 	m.currentPhase = next
 	m.phaseStartedAt = now

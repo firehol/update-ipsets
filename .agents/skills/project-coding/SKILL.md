@@ -74,6 +74,13 @@ description: "Go, React, config, and repo conventions for update-ipsets. MUST be
 - Return errors with context and wrap underlying failures with `%w` (example: `pkg/downloader/downloader.go`).
 - Use structured `log/slog` for daemon/operator logs (examples: `cmd/update-ipsets/daemon.go`, `pkg/scheduler/scheduler.go`).
 - Use OpenTelemetry helpers and existing telemetry counters/spans for material CPU, memory, network, and I/O operations (examples: `internal/observability/observability.go`, `pkg/downloader/downloader.go`, `pkg/processor/processor.go`).
+- OpenTelemetry metric labels must be bounded identity, not runtime
+  measurements. Do not add process IDs, queue depths, batch sizes,
+  selected-feed counts, byte counts, fan-in counts, or other ephemeral values
+  as metric attributes or metric resource attributes. Bounded labels such as
+  feed name, status, HTTP status code, processor step, and engine phase are
+  acceptable when they have direct operator value; put live quantities in metric
+  values, admin status, logs, or traces instead (from SOW-0096).
 - When deferring elapsed-time observation, defer a closure that calls
   `time.Since(started)` inside the closure; deferred direct-call arguments are
   evaluated immediately and will fail `go vet` (from SOW-0022).

@@ -115,23 +115,20 @@ func (c *Client) Fetch(ctx context.Context, req Request) (result *Result, err er
 		attribute.String("download.downloader", req.Downloader),
 	)
 	defer func() {
-		attrs := []attribute.KeyValue{
-			attribute.String("feed.name", req.Name),
-			attribute.String("download.downloader", req.Downloader),
-		}
+		attrs := []attribute.KeyValue{attribute.String("download.downloader", req.Downloader)}
 		status := "error"
 		var bytes int64
 		if result != nil {
 			status = string(result.Status)
 			bytes = result.BodySize
-			if result.HTTPCode > 0 {
-				attrs = append(attrs, attribute.Int("http.response.status_code", result.HTTPCode))
-				observability.Count(ctx, fmt.Sprintf("download.http_status.%d", result.HTTPCode), 1, attrs...)
-			}
 		}
 		attrs = append(attrs, attribute.String("download.status", status))
-		observability.Observe(ctx, "download.fetch", 1, bytes, time.Since(started), attrs...)
-		observability.Count(ctx, "download."+status, 1, attrs...)
+		observability.Count(ctx, "download.fetches", 1, attrs...)
+		observability.Bytes(ctx, "download.fetch", bytes, attrs...)
+		observability.Duration(ctx, "download.fetch", time.Since(started), attrs...)
+		if err != nil || status == string(StatusFailed) {
+			observability.Count(ctx, "download.errors", 1, attrs...)
+		}
 		observability.End(span, err)
 	}()
 	now := time.Now().UTC()

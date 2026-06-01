@@ -6,7 +6,6 @@ import (
 
 	"github.com/firehol/update-ipsets/internal/observability"
 	"github.com/firehol/update-ipsets/internal/telemetry"
-
 	"go.opentelemetry.io/otel/attribute"
 )
 
@@ -77,7 +76,10 @@ func (m *metricsState) recordDownloadEnqueue(waiting int) {
 	if m == nil {
 		return
 	}
-	observability.Count(observability.BackgroundContext(), "download.queued", 1, attribute.Int("scheduler.waiting", waiting))
+	observability.Count(observability.BackgroundContext(), "scheduler.queue.admissions", 1,
+		attribute.String("scheduler.queue", "download"),
+		attribute.String("scheduler.result", "queued"))
+	observability.Gauge(observability.BackgroundContext(), "scheduler.queue.depth", int64(waiting), attribute.String("scheduler.queue", "download"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.downloadEnqueued++
@@ -90,7 +92,9 @@ func (m *metricsState) recordDownloadDeferred() {
 	if m == nil {
 		return
 	}
-	observability.Count(observability.BackgroundContext(), "download.deferred", 1)
+	observability.Count(observability.BackgroundContext(), "scheduler.queue.admissions", 1,
+		attribute.String("scheduler.queue", "download"),
+		attribute.String("scheduler.result", "deferred"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.downloadDeferred++
@@ -100,7 +104,7 @@ func (m *metricsState) recordDownloadStart() {
 	if m == nil {
 		return
 	}
-	observability.Count(observability.BackgroundContext(), "download.started", 1)
+	observability.Count(observability.BackgroundContext(), "scheduler.work.started", 1, attribute.String("scheduler.queue", "download"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.downloadStarted++
@@ -110,7 +114,7 @@ func (m *metricsState) recordDownloadFinish() {
 	if m == nil {
 		return
 	}
-	observability.Count(observability.BackgroundContext(), "download.finished", 1)
+	observability.Count(observability.BackgroundContext(), "scheduler.work.completed", 1, attribute.String("scheduler.queue", "download"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.downloadFinished++
@@ -120,7 +124,10 @@ func (m *metricsState) recordProcessingEnqueue(waiting int) {
 	if m == nil {
 		return
 	}
-	observability.Count(observability.BackgroundContext(), "engine.queued", 1, attribute.Int("scheduler.waiting", waiting))
+	observability.Count(observability.BackgroundContext(), "scheduler.queue.admissions", 1,
+		attribute.String("scheduler.queue", "processing"),
+		attribute.String("scheduler.result", "queued"))
+	observability.Gauge(observability.BackgroundContext(), "scheduler.queue.depth", int64(waiting), attribute.String("scheduler.queue", "processing"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.processingEnqueued++
@@ -133,7 +140,10 @@ func (m *metricsState) recordProcessingRequeue(waiting int) {
 	if m == nil {
 		return
 	}
-	observability.Count(observability.BackgroundContext(), "engine.requeued", 1, attribute.Int("scheduler.waiting", waiting))
+	observability.Count(observability.BackgroundContext(), "scheduler.queue.admissions", 1,
+		attribute.String("scheduler.queue", "processing"),
+		attribute.String("scheduler.result", "requeued"))
+	observability.Gauge(observability.BackgroundContext(), "scheduler.queue.depth", int64(waiting), attribute.String("scheduler.queue", "processing"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.processingRequeued++
@@ -146,7 +156,8 @@ func (m *metricsState) recordBatchStart(size int) {
 	if m == nil {
 		return
 	}
-	observability.Count(observability.BackgroundContext(), "engine.batch.started", 1, attribute.Int("engine.batch.size", size))
+	observability.Count(observability.BackgroundContext(), "scheduler.work.started", 1, attribute.String("scheduler.queue", "processing"))
+	observability.Gauge(observability.BackgroundContext(), "scheduler.batch.items", int64(size), attribute.String("scheduler.queue", "processing"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.processingBatchesStarted++
@@ -158,7 +169,9 @@ func (m *metricsState) recordBatchComplete(size int, dur time.Duration) {
 	if m == nil {
 		return
 	}
-	observability.Observe(observability.BackgroundContext(), "engine.batch.completed", 1, 0, dur, attribute.Int("engine.batch.size", size))
+	observability.Count(observability.BackgroundContext(), "scheduler.work.completed", 1, attribute.String("scheduler.queue", "processing"))
+	observability.Duration(observability.BackgroundContext(), "scheduler.batch", dur, attribute.String("scheduler.queue", "processing"))
+	observability.Gauge(observability.BackgroundContext(), "scheduler.batch.items", int64(size), attribute.String("scheduler.queue", "processing"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.processingBatchesCompleted++

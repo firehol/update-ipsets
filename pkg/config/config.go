@@ -3,14 +3,11 @@ package config
 import (
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"slices"
 	"strings"
-	"time"
 
-	"github.com/firehol/update-ipsets/internal/observability"
 	"github.com/firehol/update-ipsets/pkg/enrichment"
+
 	yaml "go.yaml.in/yaml/v3"
 )
 
@@ -642,37 +639,6 @@ func New() *Config {
 	}
 }
 
-func LoadYAML(path string) (*Config, error) {
-	cfg, err := loadYAMLDocument(path)
-	if err != nil {
-		return nil, err
-	}
-	return finalizeLoadedConfig(cfg)
-}
-
-func loadYAMLDocument(path string) (*Config, error) {
-	started := time.Now()
-	data, err := os.ReadFile(path)
-	if err != nil {
-		observability.Observe(observability.BackgroundContext(), "config.load.error", 1, 0, time.Since(started))
-		return nil, err
-	}
-	defer func() {
-		observability.Observe(observability.BackgroundContext(), "config.load", 1, int64(len(data)), time.Since(started))
-	}()
-	// Detect the deprecated top-level blocks before yaml.Unmarshal so
-	// operators get a clear migration error instead of silently losing
-	// their geolocation/asn/bogon configuration.
-	if err := rejectLegacyTopLevelBlocks(data); err != nil {
-		return nil, err
-	}
-	cfg := New()
-	if err := yaml.Unmarshal(data, cfg); err != nil {
-		return nil, err
-	}
-	return cfg, nil
-}
-
 func finalizeLoadedConfig(cfg *Config) (*Config, error) {
 	if err := normalizeCatalogMetadata(cfg); err != nil {
 		return nil, err
@@ -747,20 +713,6 @@ func SaveYAML(w io.Writer, cfg *Config) error {
 		return err
 	}
 	return enc.Close()
-}
-
-func Load(path string) (*Config, error) {
-	if info, err := os.Stat(path); err == nil && info.IsDir() {
-		return LoadDirectory(path)
-	}
-	switch strings.ToLower(filepath.Ext(path)) {
-	case ".yaml", ".yml":
-		return LoadYAML(path)
-	case ".conf", "":
-		return LoadLegacy(path)
-	default:
-		return nil, fmt.Errorf("unsupported config format %q", path)
-	}
 }
 
 func SortedSourceNames(cfg *Config) []string {
@@ -893,75 +845,5 @@ func appendOrderedNames[T any](dst *[]string, existing map[string]T, preferred [
 		}
 		*dst = append(*dst, name)
 		seen[name] = struct{}{}
-	}
-}
-
-func LoadDirectory(dir string) (*Config, error) {
-	started := time.Now()
-	var files int
-	defer func() {
-		observability.Observe(observability.BackgroundContext(), "config.load_directory", int64(files), 0, time.Since(started))
-	}()
-	cfg := New()
-	if dir == "" {
-		return cfg, nil
-	}
-	info, err := os.Stat(dir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return cfg, nil
-		}
-		return nil, err
-	}
-	if !info.IsDir() {
-		return nil, fmt.Errorf("%s is not a directory", dir)
-	}
-
-	paths := make([]string, 0)
-	if err := filepath.WalkDir(dir, func(path string, entry os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if entry.IsDir() {
-			if entry.Name() == "." {
-				return nil
-			}
-			if strings.HasPrefix(entry.Name(), ".") {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if strings.HasPrefix(entry.Name(), ".") {
-			return nil
-		}
-		switch strings.ToLower(filepath.Ext(entry.Name())) {
-		case ".yaml", ".yml", ".conf":
-			paths = append(paths, path)
-		}
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-	slices.Sort(paths)
-
-	for _, path := range paths {
-		files++
-		extra, err := loadConfigFragment(path)
-		if err != nil {
-			return nil, err
-		}
-		cfg.Merge(extra)
-	}
-	return finalizeLoadedConfig(cfg)
-}
-
-func loadConfigFragment(path string) (*Config, error) {
-	switch strings.ToLower(filepath.Ext(path)) {
-	case ".yaml", ".yml":
-		return loadYAMLDocument(path)
-	case ".conf":
-		return ExtractLegacyScript(path, ExtractOptions{})
-	default:
-		return nil, fmt.Errorf("unsupported supplementary config format %q", path)
 	}
 }

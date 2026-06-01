@@ -279,7 +279,6 @@ func UnionIter(sources ...RangeSource) func(yield func(Range) bool) {
 			defer func() {
 				attrs := []attribute.KeyValue{
 					attribute.String("ip.version", "4"),
-					attribute.Int("iprange.sources", len(sources)),
 				}
 				iprangeObserve(iprangeBackground(), "iprange.union.ops", 1, 0, time.Since(started), attrs...)
 				iprangeObserve(iprangeBackground(), "iprange.merge.ops", 1, 0, time.Since(started), attrs...)

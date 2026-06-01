@@ -33,6 +33,7 @@ type Options struct {
 	Interval                  time.Duration
 	EnableAll                 bool
 	Logger                    *slog.Logger
+	MetricsHandler            http.Handler
 	CertFile                  string
 	KeyFile                   string
 	WebDir                    string
@@ -107,7 +108,7 @@ func validateRunOptions(eng *engine.Engine, opts Options) error {
 }
 
 func newHTTPServer(addr string, handler http.Handler) *http.Server {
-	instrumented := otelhttp.NewHandler(handler, "http.server",
+	instrumented := otelhttp.NewHandler(withTelemetryRoutePattern(handler), "http.server",
 		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
 			return r.Method + " " + telemetryRouteName(r.URL.Path)
 		}),
@@ -123,33 +124,66 @@ func newHTTPServer(addr string, handler http.Handler) *http.Server {
 	}
 }
 
+func withTelemetryRoutePattern(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		handler.ServeHTTP(w, r)
+		r.Pattern = telemetryRouteName(r.URL.Path)
+	})
+}
+
 func telemetryRouteName(path string) string {
 	switch {
 	case path == "":
 		return "/"
 	case path == "/" || path == "/healthz":
 		return path
-	case path == "/api/v1/status",
+	case path == "/mcp",
+		path == "/metrics",
+		path == "/admin",
+		path == "/api/v1/status",
+		path == "/api/v1/home/globe",
+		path == "/api/v1/home/summary",
 		path == "/api/v1/sets",
+		path == "/api/v1/ipsets",
 		path == "/api/v1/categories",
+		path == "/api/v1/client-ip",
+		path == "/api/v1/countries",
+		path == "/api/v1/asns",
+		path == "/api/v1/maintainers",
+		path == "/api/v1/query",
+		path == "/api/v1/search",
+		path == "/api/v1/compose",
+		path == "/api/v1/methodology",
 		path == "/api/v1/admin/status",
 		path == "/api/v1/admin/feeds",
 		path == "/api/v1/admin/artifacts",
+		path == "/api/v1/admin/schedule",
 		path == "/api/v1/admin/integrity",
-		path == "/api/v1/admin/integrity/entities":
+		path == "/api/v1/admin/integrity/entities",
+		path == "/api/v1/admin/integrity/entities/rebuild",
+		path == "/api/v1/admin/integrity/reprocess",
+		path == "/api/v1/admin/run":
 		return path
 	case strings.HasPrefix(path, "/api/v1/sets/"):
-		return "/api/v1/sets/{name}"
+		return telemetrySetRoute("/api/v1/sets/", path)
+	case strings.HasPrefix(path, "/api/v1/ipsets/"):
+		return telemetrySetRoute("/api/v1/ipsets/", path)
 	case strings.HasPrefix(path, "/api/v1/admin/feeds/"):
-		return "/api/v1/admin/feeds/{name}"
+		return telemetryAdminItemRoute("/api/v1/admin/feeds/", path)
 	case strings.HasPrefix(path, "/api/v1/admin/artifacts/"):
-		return "/api/v1/admin/artifacts/{name}"
+		return telemetryAdminItemRoute("/api/v1/admin/artifacts/", path)
 	case strings.HasPrefix(path, "/api/v1/countries/"):
 		return "/api/v1/countries/{code}"
 	case strings.HasPrefix(path, "/api/v1/asns/"):
 		return "/api/v1/asns/{asn}"
 	case strings.HasPrefix(path, "/api/v1/maintainers/"):
 		return "/api/v1/maintainers/{slug}"
+	case strings.HasPrefix(path, "/api/v1/methodology/"):
+		return "/api/v1/methodology/{slug}"
+	case strings.HasPrefix(path, "/api/v1/"):
+		return "/api/v1/*"
+	case strings.HasPrefix(path, "/files/"):
+		return "/files/{name}"
 	case strings.HasPrefix(path, "/ipsets/"):
 		return "/ipsets/{name}"
 	case strings.HasPrefix(path, "/countries/"):
@@ -162,9 +196,75 @@ func telemetryRouteName(path string) string {
 		return "/methodology/{slug}"
 	case strings.HasPrefix(path, "/static/"):
 		return "/static/*"
+	case strings.HasPrefix(path, "/world/"):
+		return "/world/*"
+	case strings.HasPrefix(path, "/admin/"):
+		return "/admin/*"
 	default:
-		return path
+		return "/*"
 	}
+}
+
+func telemetrySetRoute(prefix, path string) string {
+	parts := telemetryPathParts(strings.TrimPrefix(path, prefix))
+	if len(parts) == 0 {
+		return strings.TrimSuffix(prefix, "/")
+	}
+	base := strings.TrimSuffix(prefix, "/") + "/{name}"
+	if len(parts) == 1 {
+		return base
+	}
+
+	switch parts[1] {
+	case "search", "data", "history", "changesets", "retention", "insights", "countries", "asn", "bogons", "infrastructure":
+		if len(parts) == 2 {
+			return base + "/" + parts[1]
+		}
+	case "compare", "comparison":
+		return base + "/comparison"
+	default:
+		return base + "/{action}"
+	}
+
+	switch parts[1] {
+	case "countries", "asn", "bogons":
+		return base + "/" + parts[1] + "/{provider}"
+	case "infrastructure":
+		if len(parts) >= 3 && parts[2] == "providers" {
+			return base + "/infrastructure/providers"
+		}
+		return base + "/infrastructure/{provider}"
+	default:
+		return base + "/{action}"
+	}
+}
+
+func telemetryAdminItemRoute(prefix, path string) string {
+	parts := telemetryPathParts(strings.TrimPrefix(path, prefix))
+	if len(parts) == 0 {
+		return strings.TrimSuffix(prefix, "/")
+	}
+	base := strings.TrimSuffix(prefix, "/") + "/{name}"
+	if len(parts) == 1 {
+		return base
+	}
+	switch parts[1] {
+	case "disable", "enable", "manifest", "recheck", "reprocess":
+		return base + "/" + parts[1]
+	default:
+		return base + "/{action}"
+	}
+}
+
+func telemetryPathParts(path string) []string {
+	raw := strings.Split(strings.Trim(path, "/"), "/")
+	parts := raw[:0]
+	for _, part := range raw {
+		if part != "" {
+			parts = append(parts, part)
+		}
+	}
+	return parts
 }
 
 func serveServer(s namedServer, certFile, keyFile string) error {

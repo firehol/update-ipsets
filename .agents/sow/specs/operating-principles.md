@@ -314,6 +314,57 @@ Adding telemetry does not make waste acceptable. Counters exist to prove where
 work is happening, prioritize fixes, and verify that later changes reduce the
 operational profile.
 
+OpenTelemetry metric identity MUST be bounded and operationally meaningful.
+Bounded labels such as feed name, status, HTTP route, component, operation,
+engine phase, and static source/downloader type may be used when they provide
+direct diagnostic value. Ephemeral runtime quantities MUST NOT be metric labels
+or metric resource attributes. This includes process IDs, queue depths, batch
+sizes, selected-feed counts, processor-step counts, input byte counts, fan-in
+counts, and other values that are measurements or runtime state rather than
+stable identity.
+
+Default OpenTelemetry metric instruments MUST be allow-listed. Detailed
+internal operation timings may remain in admin snapshots, traces, or logs, but
+they MUST NOT automatically become Prometheus/OTLP metric families unless an
+area-specific metric model records the operator question, alerting use case,
+allowed labels, and cardinality impact.
+
+OpenTelemetry metrics MUST use a stable service resource identity by default.
+Automatic host, OS, process resource attributes, and service-version values MAY
+be present on traces and logs, but MUST NOT be attached to metrics unless the
+operator explicitly adds them through standard OpenTelemetry resource
+environment configuration. Host, process CPU, memory, file-descriptor, and I/O
+details remain available through admin status and host/process monitoring
+instead of metric identity labels.
+
+HTTP API metrics MUST follow a low-cardinality RED model. The default
+OpenTelemetry HTTP server metric is `http.server.request.duration`; it MUST
+keep only `http.route`, `http.request.method`, and
+`http.response.status_code` labels. HTTP routes MUST be normalized templates
+such as `/api/v1/sets/{name}/search` or
+`/api/v1/admin/feeds/{name}/recheck`, never raw feed names, provider names,
+client IPs, query strings, or arbitrary probe paths. Default OpenTelemetry
+export MUST drop HTTP request/response body-size instruments unless a later
+area-specific metric model reintroduces a bounded byte signal.
+
+API calls that trigger dynamic compute, recalculation, recheck, reprocess, or
+rebuild work MUST use bounded `api.recalculation.requests` and
+`api.recalculation.targets` metrics. Their labels are limited to
+`api.surface`, `api.action`, and `api.result`; target counts are metric values,
+not labels. Feed names, artifact names, provider names, search terms, client
+addresses, and target-count labels MUST NOT be attached.
+
+The daemon MUST expose `GET /metrics` on the admin surface as a Prometheus
+scrape endpoint without admin basic authentication. In split-listener mode,
+this route MUST be served only by the admin listener. In shared-listener mode,
+the shared listener exposes the route, so operators MUST treat listener binding
+and network access control as the protection boundary for this endpoint. The
+Prometheus endpoint MUST use the same OpenTelemetry metric views and stable
+metric resource identity as OTLP metric export. It SHOULD use an application
+registry rather than the process-global Prometheus registry so the scrape
+surface represents update-ipsets telemetry rather than unrelated runtime
+collectors.
+
 The daemon MUST provide OpenTelemetry-compatible export for traces, metrics, and
 logs. OpenTelemetry export is opt-in and MUST be enabled when either:
 
@@ -357,25 +408,19 @@ accepted. Individual OpenTelemetry signals MUST be suppressible with
 `UPDATE_IPSETS_OTEL_LOGS`, or the standard `OTEL_<SIGNAL>_EXPORTER=none`
 variables.
 
-Primitive operation counters MUST use stable names that can be diffed across
-admin snapshots and OpenTelemetry backends. The `iprange` namespace MUST include:
+Primitive operation metrics MUST collapse operation-specific names into a small
+stable surface. The default `iprange` OpenTelemetry namespace MUST include only
+`iprange.operations` and `iprange.operation.duration_ms`, with labels limited
+to `ip.version` and `iprange.operation`.
 
-- `iprange.load.text`
-- `iprange.load.binary`
-- `iprange.save.text`
-- `iprange.save.binary`
-- `iprange.merge.ops`
-- `iprange.compare.ops`
-- `iprange.diff.ops`
-- `iprange.binary.searches`
-- `iprange.<operation>.ops` for other supported set operations
+Queue and phase metrics MUST also use stable family names:
 
-Queue and phase counters MUST include:
-
-- `download.queued`
-- `download.<status>` for downloader outcomes
-- `engine.queued`
-- `engine.<phase>` for every engine run phase
+- scheduler queue admissions, starts, completions, depth, batch size values,
+  and batch latency use the `scheduler.*` metric families
+- downloader outcomes use `download.fetches`, `download.fetch.bytes`,
+  `download.fetch.duration_ms`, and `download.errors`
+- engine runs and phases use `engine.runs`, `engine.run.duration_ms`,
+  `engine.running`, `engine.phase.duration_ms`, and `engine.phase.current`
 
 Frequently polled HTTP handlers and background batch processors MUST be treated
 as hot paths. They MUST avoid duplicating full-cache snapshots inside per-row

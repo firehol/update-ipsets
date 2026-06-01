@@ -14,12 +14,44 @@ The admin status API and OpenTelemetry are related but not identical.
 | Admin engine counters | `engine.lifetime_metrics.counters` | Engine, downloader-status, public HTTP, admin HTTP, and entity counters |
 | Admin queue state | `queues` | Waiting, active, deferred, and recently transitioned work |
 | Admin system state | `system` | Go runtime, process, disk, CPU, I/O, and file-descriptor snapshots |
-| OpenTelemetry | OTLP metrics, traces, logs | Continuous cumulative counters, byte counters, duration histograms, spans, and logs |
+| Prometheus scrape | `GET /metrics` on the admin surface | Current OpenTelemetry metrics in Prometheus text format |
+| OpenTelemetry | OTLP metrics, traces, logs | Designed counters, gauges, duration histograms, spans, and logs |
 
-OpenTelemetry counters are cumulative. Any operation recorded with byte or duration data can also emit:
+OpenTelemetry counters are cumulative. Duration metrics use the
+`<operation>.duration_ms` histogram naming pattern. Byte counters are exported
+only for operations where byte volume is part of the designed metric surface.
 
-- `<metric>.bytes` as a cumulative byte counter.
-- `<metric>.duration_ms` as a duration histogram.
+## OpenTelemetry metric labels
+
+Metric labels are reserved for bounded identity that helps operators group
+series. update-ipsets keeps labels such as feed name, status, route, operation
+type, component, and engine phase where they have direct diagnostic value.
+
+Runtime quantities are values, not labels. Queue depth, batch size,
+selected-feed count, processor-step count, input bytes, fan-in counts, process
+ID, automatic host/OS identity, and service-version churn are not attached to
+OpenTelemetry metrics by default. Queue, host, and process details remain
+available through the admin status API, normal host/process monitoring, traces,
+logs, or explicit operator-provided resource attributes.
+
+HTTP API metrics use normalized route templates. The default HTTP duration
+metric keeps only `http.route`, `http.request.method`, and
+`http.response.status_code`. Raw feed names, provider names, query strings,
+client addresses, request paths, server addresses, and protocol details are
+not default HTTP metric labels.
+
+API-triggered recalculation and dynamic work uses only `api.surface`,
+`api.action`, and `api.result` labels. Target counts are recorded as metric
+values, not labels.
+
+The default OpenTelemetry metric surface is an allow-list. Ad hoc internal
+operation timings remain available in admin snapshots, traces, or logs, but
+they do not become default Prometheus/OTLP metric families.
+
+`GET /metrics` is intentionally not protected by admin basic authentication.
+When the daemon uses a separate admin listener, this route is available on that
+admin listener and not on the public listener. When the daemon uses one shared
+listener, `/metrics` is exposed on that listener.
 
 ## Admin scheduler counters
 
@@ -73,227 +105,194 @@ These fields appear under `system`. They are snapshots, not monotonic counters.
 | `proc_read_syscalls`, `proc_write_syscalls` | Process I/O syscall counters |
 | `open_fds` | Current open file descriptors |
 
-## Download metrics
+## Default OpenTelemetry Metrics
+
+The default OpenTelemetry surface is deliberately small. It currently contains
+48 designed instrument names before Prometheus expands counters and histograms
+into text-format sample names.
+
+Detailed engine, scheduler, metadata, entity, file, and processor timings still
+appear in admin status snapshots where they are useful for local diagnosis.
+They are not default OpenTelemetry metric families.
+
+## HTTP and API
+
+Default OpenTelemetry API metrics are intentionally small.
 
 | Metric | Surface | Meaning |
 |--------|---------|---------|
-| `download.queued` | Admin `metrics.download_enqueued`, OpenTelemetry | Items admitted to the scheduler download queue |
-| `download.deferred` | Admin `metrics.download_deferred`, OpenTelemetry | Items deferred because inputs are not ready |
-| `download.started` | Admin `metrics.download_started`, OpenTelemetry | Download worker starts |
-| `download.finished` | Admin `metrics.download_finished`, OpenTelemetry | Download worker completions |
-| `download.fetch` | OpenTelemetry | Downloader fetch attempts |
-| `download.fetch.bytes` | OpenTelemetry | Response bytes from downloader fetches |
-| `download.fetch.duration_ms` | OpenTelemetry | Downloader fetch duration histogram |
-| `download.ok` | OpenTelemetry | Fetches that returned new content |
-| `download.not_modified` | OpenTelemetry | Fetches where upstream returned not-modified |
-| `download.same` | OpenTelemetry | Fetches where content matched the current body |
-| `download.skipped` | OpenTelemetry | Fetches skipped by the downloader |
-| `download.failed` | OpenTelemetry | Fetches that produced a downloader failure result |
-| `download.error` | OpenTelemetry | Fetches that ended before a downloader result was available |
-| `download.http_status.<code>` | Admin engine counters, OpenTelemetry | HTTP response status counts |
-| `download.status.<status>` | Admin engine counters, OpenTelemetry | Scheduler decision status counts |
-| `download.processing_names` | Admin engine counters, OpenTelemetry | Number of processing names produced by download decisions |
+| `http.server.request.duration` | OpenTelemetry | RED metric for public and admin API requests. Use histogram count/sum/buckets for rate and latency; use `http.response.status_code` for errors. Labels are limited to route, method, and status. |
+| `api.recalculation.requests` | OpenTelemetry | Public or admin API calls that performed dynamic compute or requested recalculation/recovery work. |
+| `api.recalculation.targets` | OpenTelemetry | Number of feeds/artifacts queued by an API-triggered recalculation/recovery action. |
 
-`download.status.<status>` can include `skipped`, `disabled`, `failed`, `download_failed`, `missing_env`, `url_resolve_failed`, `not_modified`, `same`, `downloaded`, `empty`, `prepare_failed`, `history_snapshot_failed`, and `materializing`.
+`api.recalculation.requests` and `api.recalculation.targets` use these bounded
+labels:
 
-## Engine and scheduler metrics
+| Label | Meaning |
+|-------|---------|
+| `api.surface` | `public` or `admin` |
+| `api.action` | Bounded action such as `compose`, `search`, `feed_search`, `run_due`, `feed_recheck`, `feed_reprocess`, `artifact_recheck`, `integrity_reprocess`, or `entity_rebuild` |
+| `api.result` | Bounded result such as `ok`, `error`, `scheduled`, `conflict`, `rejected`, `in_progress`, or `clean` |
 
-| Metric | Surface | Meaning |
-|--------|---------|---------|
-| `engine.run` | OpenTelemetry | Processing runs |
-| `engine.run.duration_ms` | OpenTelemetry | End-to-end processing run duration |
-| `engine.queued` | Admin `metrics.processing_enqueued`, OpenTelemetry | Items admitted to the processing queue |
-| `engine.requeued` | Admin `metrics.processing_requeued`, OpenTelemetry | Items returned to the processing queue |
-| `engine.batch.started` | Admin `metrics.processing_batches_started`, OpenTelemetry | Processing batch starts |
-| `engine.batch.completed` | Admin `metrics.processing_batches_completed`, OpenTelemetry | Processing batch completions |
-| `engine.batch.completed.duration_ms` | OpenTelemetry | Processing batch duration histogram |
-| `snapshot_persist_errors` | Admin `metrics.snapshot_persist_errors` | Snapshot persistence failures |
-| `engine.latest_set.binary_open` | Admin engine counters/operations, OpenTelemetry | Latest binary set opens |
-| `engine.latest_set.text_parse` | Admin engine counters/operations, OpenTelemetry | Latest text set parses |
+Default OpenTelemetry export drops `http.server.request.body.size`,
+`http.server.response.body.size`, and ad hoc handler metrics under
+`http.admin_*`, `http.home_*`, `http.compare_set.*`, and
+`http.entity_artifact.*`.
 
-Phase metrics use `engine.<phase>` and `engine.<phase>.duration_ms`. Current phases are:
+Some detailed HTTP work counters still appear in admin engine snapshots for
+local operator inspection. They are not part of the default OpenTelemetry API
+metric surface unless a later area-specific metric design reintroduces them.
 
-- `engine.preflight`
-- `engine.sources`
-- `engine.geoip`
-- `engine.bogons`
-- `engine.critical_infrastructure`
-- `engine.asn`
-- `engine.entities`
-- `engine.metadata`
-- `engine.insights`
-- `engine.publish`
-
-## Processing operation timings
-
-These operation names appear in admin engine timing snapshots. Most also appear as OpenTelemetry duration histograms with `.duration_ms`.
-
-Aggregate comparison timings also emit the metric name as a counter and `<metric>.aggregate.duration_ms` as the OpenTelemetry duration histogram.
+## Feed State
 
 | Metric | Meaning |
 |--------|---------|
-| `sources.parse_feed_body` | Parse and normalize a downloaded feed body |
-| `sources.finalize` | Commit a processed source |
-| `sources.finalize.kernel_apply` | Apply kernel optimization during finalization |
-| `sources.finalize.write_latest` | Write latest committed source body |
-| `sources.finalize.write_text` | Write text output |
-| `sources.finalize.append_history` | Append source history |
-| `sources.finalize.observe_history` | Observe history statistics |
-| `sources.update_retention` | Update retention artifacts |
-| `sources.refresh_rotation` | Refresh rotation statistics |
-| `metadata.write_comparison_files` | Write comparison metadata files |
-| `metadata.comparison_prepare_sets` | Prepare sets for comparison work |
-| `metadata.comparison_pair_overlap` | Aggregate pair-overlap timing |
-| `metadata.comparison_pair_skipped` | Aggregate skipped-pair timing |
-| `metadata.comparison_merge_rows` | Aggregate comparison row merge timing |
-| `metadata.update_unique_shares` | Update unique-share metadata |
-| `metadata.write_public_metadata_files` | Write public metadata |
-| `metadata.write_per_feed_outputs` | Write per-feed public outputs |
-| `metadata.write_indexes` | Write public indexes |
-| `metadata.write_git_artifacts` | Write Git-oriented artifacts when enabled |
-| `metadata.write_home_aggregates` | Write homepage aggregate artifacts |
+| `feed.state` | Numeric current-state gauge per public feed |
+| `feed.health.state` | Numeric health-class gauge per public feed |
+| `feed.entries` | Current entry count per public feed |
+| `feed.unique_ips` | Current unique-IP count per public feed |
+| `feed.errors` | Current downloader failure count per public feed |
+| `feed.freshness.seconds` | Seconds since the feed was last processed |
+| `feed.last_success.timestamp` | Unix timestamp of the last successful processed output |
 
-## Comparison counters
+Feed metrics use only the `feed.name` label.
 
-These counters appear in admin engine counters and OpenTelemetry.
+`feed.state` values:
 
-| Metric | Meaning |
-|--------|---------|
-| `metadata.comparison_pair_candidates` | Candidate pairs considered for comparison |
-| `metadata.comparison_pair_overlap` | Pairs that produced overlap rows |
-| `metadata.comparison_pair_skipped` | Pairs skipped by comparison logic |
-| `metadata.comparison_pair_skipped_empty` | Pairs skipped because one side was empty |
-| `metadata.comparison_pair_skipped_range` | Pairs skipped by range filtering |
-| `metadata.comparison_pair_skipped_prefix` | Pairs skipped by prefix filtering |
-| `metadata.comparison_zero_rows_removed` | Zero-value comparison rows removed during cleanup |
+| Value | Meaning |
+|-------|---------|
+| `0` | Unknown or no explicit status |
+| `1` | Disabled |
+| `2` | Pending first observation |
+| `3` | Running |
+| `4` | Completed or otherwise known |
+| `5` | Degraded health |
+| `6` | Error or unavailable |
 
-## Entity artifact metrics
+`feed.health.state` values:
 
-These metrics cover country and ASN artifact refresh, repair, sidecar, and public detail work.
+| Value | Meaning |
+|-------|---------|
+| `0` | Unknown |
+| `1` | Healthy |
+| `2` | Delayed |
+| `3` | Risky |
+| `4` | Unavailable |
+| `5` | Archived |
+| `6` | Empty |
+| `7` | Unmaintained |
 
-| Metric or prefix | Meaning |
-|------------------|---------|
-| `entity.refresh.target_feeds` | Feeds selected for entity refresh |
-| `entity.refresh.full_rebuild_fallback` | Entity refreshes that fell back to a full rebuild |
-| `entity.refresh.affected_countries` | Countries touched by a refresh |
-| `entity.refresh.affected_asns` | ASNs touched by a refresh |
-| `entity.refresh.country_unchanged` | Country artifacts left unchanged |
-| `entity.refresh.asn_unchanged` | ASN artifacts left unchanged |
-| `entity.refresh.country_materialize` | Country artifact materialization duration |
-| `entity.refresh.asn_materialize` | ASN artifact materialization duration |
-| `entity.refresh.country_patch` | Country artifact patch duration |
-| `entity.refresh.asn_patch` | ASN artifact patch duration |
-| `entity.refresh.country_sidecar_read` | Country sidecar reads |
-| `entity.refresh.asn_sidecar_read` | ASN sidecar reads |
-| `entity.refresh.country_index_read` | Country index reads |
-| `entity.refresh.asn_index_read` | ASN index reads |
-| `entity.refresh.*_write` | Country, ASN, feed-sidecar, and index writes during refresh |
-| `entity.refresh.*_touch` | Mtime-only refresh touches for unchanged entity artifacts |
-| `entity.sidecar_build.*` | Per-feed sidecar build counters |
-| `entity.sidecar_stage.unchanged_feed` | Sidecar stage skipped unchanged feed |
-| `entity.sidecar_stage.unchanged_feed_touch` | Mtime-only touch for an unchanged sidecar-stage feed |
-| `entity.output_view.*` | Public country/ASN JSON cache, read, and decode counters |
-| `entity.repair.*` | Selected entity repair counters, writes, and touches |
-| `entity.repair_feed_scan.*` | Repair scan counters over entity sidecars |
-| `entity.integrity_startup_repair_deferred` | Startup integrity repair deferred to background work |
-| `entity.integrity_startup_repair_deferred_after_revalidation` | Startup repair deferred after the plan was revalidated |
-| `entity.integrity_repair.stale_plan_skipped` | Stale repair plans skipped |
-| `entity.writer_lock_wait` | Wait time for the entity writer lock |
-| `entity.writer_lock_hold` | Hold time for the entity writer lock |
-
-## Background task metrics
-
-These metrics appear in admin engine counters/operations and OpenTelemetry.
+## Artifact Cache
 
 | Metric | Meaning |
 |--------|---------|
-| `background.tasks.started` | Background tasks started |
-| `background.tasks.completed` | Background tasks completed |
-| `background.tasks.failed` | Background tasks failed |
-| `background.worker_wait` | Time spent waiting for a background worker slot |
+| `web.artifact.cache.lookups` | Artifact cache lookups by result |
+| `web.artifact.cache.evictions` | Artifact cache evictions by reason |
+| `web.artifact.cache.entries` | Current cached artifact entry count |
+| `web.artifact.cache.bytes` | Current cached artifact bytes |
 
-## HTTP and admin metrics
+Allowed labels are `cache.result` for lookups and `cache.reason` for evictions.
 
-These counters and timings appear in admin engine metrics and OpenTelemetry.
-
-| Metric | Meaning |
-|--------|---------|
-| `http.admin_status` | Admin status responses |
-| `http.admin_status.build` | Admin status build duration |
-| `http.admin_status.write_json` | Admin status JSON write duration |
-| `http.admin_status.total` | Total admin status request duration |
-| `http.admin_feeds` | Admin feeds-list responses |
-| `http.admin_feeds.build` | Admin feeds-list build duration |
-| `http.admin_feeds.write_json` | Admin feeds-list JSON write duration |
-| `http.admin_feeds.total` | Total admin feeds-list request duration |
-| `admin.entity_integrity_check` | Entity integrity check requests |
-| `http.home_summary.requests` | Home summary requests |
-| `http.home_summary.request` | Home summary request duration |
-| `http.home_summary.eligible_feeds` | Eligible feeds counted for home summary |
-| `http.home_summary.contributing_feeds` | Contributing feeds counted for home summary |
-| `http.home_globe.requests` | Home globe requests |
-| `http.home_globe.request` | Home globe request duration |
-| `http.home_globe.eligible_feeds` | Eligible feeds counted for home globe |
-| `http.home_globe.contributing_feeds` | Contributing feeds counted for home globe |
-| `http.home_aggregates.read` | Home aggregate file reads |
-| `engine.country_comparison_json_read` | Country comparison JSON reads |
-| `engine.country_comparison_json_load` | Country comparison JSON load duration |
-| `http.compare_set.requests` | Compare-set API requests |
-| `http.compare_set.request` | Compare-set request duration |
-| `http.compare_set.target_open` | Compare-set target opens |
-| `http.compare_set.candidates` | Compare-set candidates considered |
-| `http.compare_set.candidate_open` | Compare-set candidate opens |
-| `http.entity_artifact.country_index_hit` | Country index artifact cache hits |
-| `http.entity_artifact.country_index_miss` | Country index artifact cache misses |
-| `http.entity_artifact.country_detail_hit` | Country detail artifact cache hits |
-| `http.entity_artifact.country_detail_miss` | Country detail artifact cache misses |
-| `http.entity_artifact.asn_index_hit` | ASN index artifact cache hits |
-| `http.entity_artifact.asn_index_miss` | ASN index artifact cache misses |
-| `http.entity_artifact.asn_detail_hit` | ASN detail artifact cache hits |
-| `http.entity_artifact.asn_detail_miss` | ASN detail artifact cache misses |
-
-## Cache, config, processor, and file metrics
+## Scheduler
 
 | Metric | Meaning |
 |--------|---------|
-| `cache.load` | Cache load attempts |
-| `cache.load.error` | Cache load failures |
-| `cache.save` | Cache saves |
-| `cache.save.error` | Cache save failures |
-| `config.load` | Single config file loads |
-| `config.load.error` | Config load failures |
-| `config.load_directory` | Config directory loads |
-| `processor.run` | In-memory processor pipeline runs |
-| `processor.step` | In-memory processor steps |
-| `processor.stream` | Streaming processor pipeline runs |
-| `processor.stream.segment` | Streaming processor segment work |
-| `processor.stream.step` | Streaming processor steps |
-| `processor.temp.write` | Temporary processor writes |
-| `file.copy` | File copy operations |
-| `file.write_atomic` | Atomic file writes |
+| `scheduler.queue.admissions` | Queue admissions by queue and result |
+| `scheduler.work.started` | Work starts by queue |
+| `scheduler.work.completed` | Work completions by queue |
+| `scheduler.queue.depth` | Current queue depth by queue |
+| `scheduler.batch.items` | Current or latest processing batch size |
+| `scheduler.batch.duration_ms` | Processing batch duration histogram |
 
-## iprange metrics
+Allowed labels are `scheduler.queue` and `scheduler.result`. Queue depth and
+batch size are metric values, not labels.
+
+## Downloader
+
+| Metric | Meaning |
+|--------|---------|
+| `download.fetches` | Downloader fetch attempts by downloader and result status |
+| `download.fetch.bytes` | Response bytes from downloader fetches |
+| `download.fetch.duration_ms` | Downloader fetch duration histogram |
+| `download.errors` | Downloader fetch failures |
+
+Allowed labels are `download.downloader` and `download.status`.
+
+## Processor
+
+| Metric | Meaning |
+|--------|---------|
+| `processor.runs` | Processor pipeline runs by mode and status |
+| `processor.run.duration_ms` | Processor run duration histogram |
+| `processor.temp.writes` | Temporary processor writes by kind |
+| `processor.temp.write.duration_ms` | Temporary processor write duration histogram |
+
+Allowed labels are `processor.mode`, `processor.status`, and
+`processor.temp.kind`. Per-step processor timings remain admin snapshot or
+trace detail, not default metrics.
+
+## Engine
+
+| Metric | Meaning |
+|--------|---------|
+| `engine.runs` | Processing-engine runs by reason and status |
+| `engine.run.duration_ms` | End-to-end processing-engine run duration |
+| `engine.running` | Current engine running state, `1` or `0` |
+| `engine.phase.duration_ms` | Engine phase duration histogram |
+| `engine.phase.current` | Current engine phase gauge, `1` for active phase and `0` otherwise |
+
+Allowed labels are `run.reason`, `run.status`, and `engine.phase`.
+
+Current phases are `preflight`, `sources`, `geoip`, `bogons`,
+`critical_infrastructure`, `asn`, `entities`, `metadata`, `insights`, and
+`publish`.
+
+## Integrity
+
+| Metric | Meaning |
+|--------|---------|
+| `integrity.checks` | Integrity checks by kind and result |
+| `integrity.check.duration_ms` | Integrity check duration histogram |
+| `integrity.findings` | Current finding count by integrity kind |
+| `integrity.recovery.targets` | Recovery targets scheduled by kind and action |
+
+Allowed labels are `integrity.kind`, `integrity.result`, and
+`integrity.action`.
+
+## Background Work
+
+| Metric | Meaning |
+|--------|---------|
+| `background.tasks` | Background task starts/completions/failures by component |
+| `background.worker.wait.duration_ms` | Time spent waiting for a background worker slot |
+| `background.workers.active` | Active background workers by component |
+| `background.workers.limit` | Configured background worker limit by component |
+
+Allowed labels are `background.component` and `background.result`.
+
+## Config, Runtime Cache, and Daemon
+
+| Metric | Meaning |
+|--------|---------|
+| `config.loads` | Configuration load attempts by result |
+| `config.load.duration_ms` | Configuration load duration histogram |
+| `runtime.cache.operations` | Runtime cache load/save operations |
+| `runtime.cache.operation.duration_ms` | Runtime cache operation duration histogram |
+| `daemon.up` | Daemon liveness gauge, `1` while the process is scraping/exporting metrics |
+
+Allowed labels are `config.result`, `cache.operation`, and `cache.result`.
+
+## iprange
 
 These OpenTelemetry metrics track IP set primitive operations.
 
 | Metric | Meaning |
 |--------|---------|
-| `iprange.load.text` | Text-format set loads |
-| `iprange.load.binary` | Binary FileSet loads |
-| `iprange.save.text` | Text-format set writes |
-| `iprange.save.binary` | Binary FileSet writes |
-| `iprange.add.ops` | Address/range additions |
-| `iprange.optimize.ops` | Set optimization operations |
-| `iprange.merge.ops` | Union/merge operations |
-| `iprange.union.ops` | Union iterator operations |
-| `iprange.exclude.ops` | Exclude operations |
-| `iprange.intersect.ops` | Intersect operations |
-| `iprange.diff.ops` | Diff operations |
-| `iprange.compare.ops` | Pairwise comparison operations |
-| `iprange.overlap.ops` | Overlap-count operations |
-| `iprange.count_unique.ops` | Unique-IP counting operations |
-| `iprange.contains.ops` | Membership checks |
-| `iprange.binary.searches` | Binary-search lookups |
+| `iprange.operations` | IP range primitive operation counts |
+| `iprange.operation.duration_ms` | IP range primitive operation duration histogram |
+
+Allowed labels are `ip.version` and `iprange.operation`. Source type, compare
+mode, count mode, and bytes are not default metric labels.
 
 ## Computing rates
 
