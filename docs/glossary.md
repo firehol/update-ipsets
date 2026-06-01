@@ -100,7 +100,7 @@ You will learn the key terms used throughout the update-ipsets documentation.
 
 ## N
 
-**netset** — An output format where each CIDR prefix appears on its own line. Individual IPs render as `/32` prefixes.
+**netset** — An output format where CIDR networks appear as prefixes and single-host ranges appear as bare IP addresses.
 
 **not modified** — A download result where upstream confirmed the content has not changed (HTTP 304 or equivalent).
 
@@ -176,9 +176,9 @@ You will learn the key terms used throughout the update-ipsets documentation.
 
 ## U
 
-**unavailable** — A health class for feeds that have no successful local publication, or whose data is stale beyond recovery thresholds.
+**unavailable** — A health class for feeds that have no successful local publication, or are in a current download/provider failure or stale-data state beyond the recovery threshold.
 
-**unmaintained** — A health class for feeds that have been unhealthy long enough to consider them abandoned by their upstream provider.
+**unmaintained** — A health class for feeds that still have usable local data, but whose last observed change is older than the unmaintained threshold.
 
 **upstream** — The original source of a feed's data (a URL, file, or artifact).
 
@@ -186,4 +186,4 @@ You will learn the key terms used throughout the update-ipsets documentation.
 
 ## W
 
-**web directory** — The directory where published public artifacts are written for the web server to serve. Default: `/opt/update-ipsets/data/web/`.
+**web directory** — The directory where published public artifacts are written for the web server to serve. Default install path: `/opt/update-ipsets/web/`.

@@ -45,7 +45,14 @@ Invalid reloads leave the previous configuration in place. No reprocessing happe
 
 ## Critical infrastructure provider-set drift
 
-When the set of configured critical-infrastructure reference feeds changes (additions, removals, or content changes), the downloader forces a refresh of all `critical_infrastructure` sources. This ensures critical-overlap artifacts reflect the current provider set.
+When the configured critical-infrastructure reference set changes, the
+downloader forces a refresh of all `critical_infrastructure` sources. This
+includes additions, removals, and stable source-configuration changes that alter
+the provider-set identity.
+
+The provider-set identity deliberately excludes materialized feed content, entry
+counts, and unique-IP counts. Ordinary content updates flow through the normal
+download and processing paths.
 
 ## What is NOT a trigger
 

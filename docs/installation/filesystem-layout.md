@@ -12,6 +12,7 @@ You will learn where update-ipsets stores its files after installation, what eac
 │   └── update-ipsets              # The daemon binary (UI embedded)
 ├── etc/
 │   └── config/                    # Feed catalog (YAML files)
+│       └── templates/markdown/    # Public Markdown page templates
 ├── data/
 │   ├── .cache.json                # Feed state cache
 │   ├── {feed}.ipset               # Committed IP set files
@@ -52,15 +53,20 @@ You will learn where update-ipsets stores its files after installation, what eac
 │   ├── home/
 │   │   └── aggregates.json        # Homepage aggregate payload
 │   ├── {feed}.json                # Per-feed public metadata
+│   ├── {feed}.md                  # Per-feed public Markdown page
 │   ├── {feed}_history.csv         # Public history CSV
 │   ├── {feed}_comparison.json     # Pairwise overlap data
 │   ├── {feed}_insights.json       # Deterministic insights
 │   ├── countries/
 │   │   ├── index.json             # Country listing
-│   │   └── {CODE}.json            # Per-country detail
+│   │   ├── {CODE}.json            # Per-country detail
+│   │   └── {CODE}.md              # Per-country Markdown page
 │   ├── asns/
 │   │   ├── index.json             # ASN listing
-│   │   └── {ASN}.json             # Per-ASN detail
+│   │   ├── {ASN}.json             # Per-ASN detail
+│   │   └── {ASN}.md               # Per-ASN Markdown page
+│   ├── maintainers/
+│   │   └── {slug}.md              # Per-maintainer Markdown page
 │   ├── files/                     # Downloadable .ipset/.netset files
 │   ├── sitemap.xml                # Public sitemap
 │   ├── robots.txt                 # Crawler policy
@@ -81,6 +87,16 @@ Contains the single `update-ipsets` executable. The web UI is embedded at compil
 The YAML configuration directory that defines all feeds, sources, merges, and provider settings. The installer deploys this from the repository's `configs/firehol/` directory.
 
 On reinstall, the installer backs up the existing config (if changed) and deploys a fresh copy. Your customizations should go through the YAML catalog or drop-in environment variables — not by editing files that the installer overwrites.
+
+The installer also copies Markdown templates into `etc/config/templates/markdown/`.
+Those templates generate public feed, country, ASN, and maintainer Markdown
+artifacts under `web/`.
+
+Template updates are not covered by the catalog backup workflow. On reinstall,
+the installer leaves identical templates untouched, but overwrites differing
+repository template files in place under `etc/config/templates/markdown/`.
+Extra local template files are not removed. Keep local template customizations
+outside the installed template directory or reapply them after reinstalling.
 
 ### `data/` — feed bodies and state
 

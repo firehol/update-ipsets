@@ -19,9 +19,9 @@ For different feed families, recheck means:
 | Family | What recheck does |
 |---|---|
 | Plain feed | Fetches upstream, reparses, restages. |
-| History derivative | Recomputes from current parent body + retained snapshots. Does not trigger a parent fetch. |
+| History derivative | Recomputes from current parent body + retained snapshots. If local derivative inputs are not available, the action falls back to the parent. |
 | Merge | Recomposes from current local input bodies. |
-| Artifact child | Uses existing local materialized input. Does not trigger a parent fetch. |
+| Artifact child | Uses existing local materialized input when available. If no child input exists, the action targets the parent artifact. |
 | Provider database | Fetches the provider dataset. May trigger a broad reprocess wave. |
 
 If a child feed lacks local input, the recheck automatically targets the parent artifact instead of failing the child.
@@ -61,7 +61,7 @@ Use this when:
 
 ### Broad reprocess
 
-Force reprocess all feeds. This is a heavy operation.
+Force reprocess every eligible feed that has local staged or committed input. This is a heavy operation.
 
 Use this when:
 
@@ -69,6 +69,27 @@ Use this when:
 - You suspect widespread output corruption.
 
 The UI requires confirmation before running a broad reprocess because it affects every feed in the catalog.
+
+## Operator API
+
+The admin UI uses authenticated admin API endpoints for the same actions.
+These are useful for operational automation and incident runbooks:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/v1/admin/feeds` | List feeds with current admin state. |
+| `GET /api/v1/admin/feeds/{name}` | Return one feed detail record. |
+| `GET /api/v1/admin/feeds/{name}/manifest` | Return expected and actual local files for one feed. |
+| `POST /api/v1/admin/feeds/{name}/recheck` | Queue a feed recheck. Artifact children may resolve to their parent artifact. |
+| `POST /api/v1/admin/feeds/{name}/reprocess` | Queue local-only reprocessing for one feed. Returns conflict if no local input exists. |
+| `POST /api/v1/admin/feeds/{name}/enable` | Enable one feed. |
+| `POST /api/v1/admin/feeds/{name}/disable` | Disable one feed. |
+| `POST /api/v1/admin/run` | Run currently due work now. |
+| `POST /api/v1/admin/run?reprocess=true` | Queue broad reprocess for eligible feeds. |
+
+There is no global recheck endpoint. Use feed-level recheck or run currently
+due work instead. Action endpoints require `POST`; `GET` returns method not
+allowed.
 
 ## See also
 

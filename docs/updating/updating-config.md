@@ -12,13 +12,15 @@ The source catalog is in the repository at `configs/firehol/`. Each feed has its
 - Shared registries: `configs/firehol/runtime.yaml`, `categories.yaml`, etc.
 
 The installed active catalog is at `/opt/update-ipsets/etc/config/`.
+Installed Markdown templates live under
+`/opt/update-ipsets/etc/config/templates/markdown/`.
 
 ## Updating from the repository
 
 Pull the latest changes and re-run install:
 
 ```bash
-cd ~/src/firehol/update-ipsets
+cd /path/to/update-ipsets
 git pull
 ./install.sh
 ```
@@ -27,15 +29,27 @@ git pull
 
 - Updated files are deployed to `/opt/update-ipsets/etc/config/`
 - The previous config directory is preserved as a timestamped backup
-- The daemon picks up changes on restart
+- An active service is restarted by the installer unless you pass `--no-restart`
+
+Markdown templates are updated separately from the YAML catalog:
+
+- Repository templates are copied from `configs/templates/markdown/` into `/opt/update-ipsets/etc/config/templates/markdown/`
+- Identical installed templates are left untouched
+- Differing repository template files are overwritten in place
+- Extra local files under the installed template directory are not removed
+- Template changes need a service restart; SIGHUP does not reload templates
 
 ## Applying the update
+
+If `install.sh` restarted the active service, no extra action is needed. If you
+used `--no-restart`, or if you edited the installed catalog manually, restart:
 
 ```bash
 sudo systemctl restart update-ipsets
 ```
 
-Or reload without restart (if only feed definitions changed, not runtime settings):
+Or reload without restart when only YAML feed definitions changed, not runtime
+settings or Markdown templates:
 
 ```bash
 sudo systemctl kill -s HUP update-ipsets
@@ -65,6 +79,9 @@ After editing, reload or restart:
 sudo systemctl kill -s HUP update-ipsets
 ```
 
+Template edits under `templates/markdown/` require a service restart. A SIGHUP
+reload re-reads the YAML catalog, but it does not reload Markdown templates.
+
 ## How manual edits interact with upgrades
 
 When you run `install.sh` again:
@@ -74,6 +91,11 @@ When you run `install.sh` again:
 - The backup directory preserves your previous version
 
 To protect critical local edits, keep a copy outside the config directory or use a local patch file, then reapply it after the reinstall.
+
+For Markdown template edits, do not rely on the catalog backup as your only
+copy. Keep customized templates or patches outside
+`/opt/update-ipsets/etc/config/templates/markdown/`, then reapply them after
+running the installer.
 
 ## Migration from bash
 

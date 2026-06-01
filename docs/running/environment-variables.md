@@ -32,6 +32,20 @@ The installed systemd unit sets the deployment paths under `/opt/update-ipsets`.
 | `WEB_DIR` | empty, disabled | `/opt/update-ipsets/web` | Published web artifacts directory. |
 | `WEB_DIR_FOR_IPSETS` | empty, disabled | `/opt/update-ipsets/web/files` | Directory served for raw ipset/netset file downloads. |
 
+Those table values are the shipped YAML templates. When the daemon runs as a
+non-root user and those path settings are unset or still equal to the built-in
+defaults, runtime resolution moves the main state paths to user-owned locations:
+
+| Runtime path | Effective non-root default |
+|---|---|
+| `base_dir` | `$HOME/.update-ipsets/ipsets` |
+| `run_parent_dir` | `$HOME/.update-ipsets/run` |
+| `cache_dir` | `$HOME/.cache/update-ipsets` |
+| `lib_dir` | `$HOME/.local/share/update-ipsets` |
+
+Explicit YAML values or environment-variable overrides take priority over this
+non-root relocation.
+
 ## Supplementary config directories
 
 These variables point to directories containing additional feed YAML files. They are merged with the built-in catalog at startup.
@@ -41,6 +55,11 @@ These variables point to directories containing additional feed YAML files. They
 | `ADMIN_SUPPLIED_IPSETS` | `${FIREHOL_CONFIG_DIR}/ipsets.d` | Admin-managed feed config overlays. |
 | `DISTRIBUTION_SUPPLIED_IPSETS` | `${FIREHOL_SHARE_DIR}/ipsets.d` | Distribution-packaged feed configs. |
 | `USER_SUPPLIED_IPSETS` | `${HOME}/.update-ipsets/ipsets.d` | User-managed feed configs. |
+
+The `FIREHOL_CONFIG_DIR` and `FIREHOL_SHARE_DIR` names are legacy placeholders
+used by the shipped templates. If your environment does not set them, set
+`ADMIN_SUPPLIED_IPSETS` or `DISTRIBUTION_SUPPLIED_IPSETS` directly to the
+directory you want the daemon to load.
 
 ## Web publishing variables
 
@@ -64,6 +83,36 @@ These are not path overrides. They hold API keys used in URL templates for feeds
 | `BLUELIV_API_KEY` | Blueliv Crimeserver feed | API key for Blueliv downloads. |
 
 Set these in `$HOME/.update-ipsets.env` to avoid exposing them in the systemd unit. The daemon reads this file at startup and sets any unset environment variables from it. In the installed unit, `HOME=/opt/update-ipsets`, so the installed service reads `/opt/update-ipsets/.update-ipsets.env`.
+
+## Artifact credentials
+
+Some artifact parents need credentials that are not part of the YAML catalog.
+
+| Variable | Used by | Description |
+|---|---|---|
+| `DRONEBL_RSYNC_PASSWORD` | DroneBL `dronebl_buildzone` artifact parent | Preferred rsync password variable for the DroneBL buildzone fetch. |
+| `RSYNC_PASSWORD` | DroneBL `dronebl_buildzone` artifact parent | Fallback rsync password variable accepted when `DRONEBL_RSYNC_PASSWORD` is not set. |
+
+Store these in `$HOME/.update-ipsets.env` or in a protected systemd drop-in.
+Do not put real secrets in catalog YAML.
+
+## Outbound proxy variables
+
+HTTP and HTTPS feed downloads use Go's standard proxy environment handling. Set these in the service environment when the host must reach upstream feeds through a forward proxy:
+
+| Variable | Description |
+|---|---|
+| `HTTP_PROXY` / `http_proxy` | Proxy URL for HTTP feed downloads. |
+| `HTTPS_PROXY` / `https_proxy` | Proxy URL for HTTPS feed downloads. |
+| `NO_PROXY` / `no_proxy` | Comma-separated hosts, domains, or IP ranges that should bypass the proxy. |
+
+Example systemd drop-in:
+
+```ini
+[Service]
+Environment="HTTPS_PROXY=http://proxy.example:3128"
+Environment="NO_PROXY=127.0.0.1,localhost,.example.internal"
+```
 
 ## Legacy config file
 
@@ -104,6 +153,15 @@ systemctl daemon-reload
 systemctl restart update-ipsets
 ```
 
+## systemd notification variables
+
+systemd sets these automatically when the service uses `Type=notify` and `WatchdogSec=`. Operators normally should not set them in drop-ins or shell environments.
+
+| Variable | Set by | Description |
+|---|---|---|
+| `NOTIFY_SOCKET` | systemd | Socket used for readiness and watchdog notifications. |
+| `WATCHDOG_USEC` | systemd | Watchdog interval in microseconds. The daemon sends watchdog heartbeats at half this interval. |
+
 ## OpenTelemetry
 
 The daemon can export traces, metrics, and logs through OTLP. See the [Monitoring](../monitoring/monitoring-overview.md) section for the full setup guide.
@@ -111,14 +169,37 @@ The daemon can export traces, metrics, and logs through OTLP. See the [Monitorin
 | Variable | Default | Description |
 |---|---|---|
 | `UPDATE_IPSETS_OTEL` | (empty) | Set to `1`, `true`, or `enabled` to enable export. Set to `0`, `false`, or `disabled` to force-disable even when endpoint variables are present. |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | (none) | OTLP collector endpoint. For gRPC, include the scheme: `http://127.0.0.1:4317`. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | (none) | OTLP collector endpoint. With the default `http/protobuf` protocol, use an OTLP/HTTP endpoint such as `http://127.0.0.1:4318`. For plaintext gRPC, set `UPDATE_IPSETS_OTEL_PROTOCOL=grpc` and include the scheme, for example `http://127.0.0.1:4317`. |
+| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | (none) | Signal-specific OTLP traces endpoint. Setting it also enables export unless `UPDATE_IPSETS_OTEL` disables export. |
+| `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | (none) | Signal-specific OTLP metrics endpoint. Setting it also enables export unless `UPDATE_IPSETS_OTEL` disables export. |
+| `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` | (none) | Signal-specific OTLP logs endpoint. Setting it also enables export unless `UPDATE_IPSETS_OTEL` disables export. |
 | `UPDATE_IPSETS_OTEL_PROTOCOL` | `http/protobuf` | Export protocol: `http/protobuf` or `grpc`. Falls back to `OTEL_EXPORTER_OTLP_PROTOCOL` if not set. |
-| `OTEL_METRIC_EXPORT_INTERVAL` | (none) | Metric export interval in milliseconds. `10000` means 10 seconds. |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | (none) | Standard OTLP protocol variable. Used when `UPDATE_IPSETS_OTEL_PROTOCOL` is unset. |
+| `OTEL_METRIC_EXPORT_INTERVAL` | (none) | Metric export interval. Accepts integer milliseconds such as `10000` or duration strings such as `10s`. |
 | `UPDATE_IPSETS_OTEL_METRIC_INTERVAL` | (none) | Same as `OTEL_METRIC_EXPORT_INTERVAL`. Takes priority if both are set. |
-| `UPDATE_IPSETS_OTEL_TRACES` | (unset) | Set to `0` or `false` to suppress trace export. |
-| `UPDATE_IPSETS_OTEL_METRICS` | (unset) | Set to `0` or `false` to suppress metric export. |
-| `UPDATE_IPSETS_OTEL_LOGS` | (unset) | Set to `0` or `false` to suppress log export. |
+| `UPDATE_IPSETS_OTEL_TRACES` | (unset) | Set to `0`, `false`, `disabled`, `off`, or `none` to suppress trace export. |
+| `UPDATE_IPSETS_OTEL_METRICS` | (unset) | Set to `0`, `false`, `disabled`, `off`, or `none` to suppress metric export. |
+| `UPDATE_IPSETS_OTEL_LOGS` | (unset) | Set to `0`, `false`, `disabled`, `off`, or `none` to suppress log export. |
 | `OTEL_TRACES_EXPORTER` | (unset) | Set to `none` to disable traces. Standard OpenTelemetry variable. |
+| `OTEL_METRICS_EXPORTER` | (unset) | Set to `none` to disable metrics. Standard OpenTelemetry variable. |
+| `OTEL_LOGS_EXPORTER` | (unset) | Set to `none` to disable logs. Standard OpenTelemetry variable. |
+
+The daemon also uses the standard OpenTelemetry SDK resource detector and OTLP
+exporters. These variables are read by the OpenTelemetry SDK when export is
+enabled. Signal-specific variants use `TRACES`, `METRICS`, or `LOGS` in place
+of `<SIGNAL>` and take priority for that signal.
+
+| Variable | Default | Description |
+|---|---|---|
+| `OTEL_SERVICE_NAME` | SDK default | Service name resource attribute. |
+| `OTEL_RESOURCE_ATTRIBUTES` | (none) | Comma-separated resource attributes, such as `deployment.environment=prod`. |
+| `OTEL_EXPORTER_OTLP_HEADERS` / `OTEL_EXPORTER_OTLP_<SIGNAL>_HEADERS` | (none) | Key-value headers or gRPC metadata sent with OTLP exports. |
+| `OTEL_EXPORTER_OTLP_TIMEOUT` / `OTEL_EXPORTER_OTLP_<SIGNAL>_TIMEOUT` | `10000` | Export timeout in milliseconds. |
+| `OTEL_EXPORTER_OTLP_COMPRESSION` / `OTEL_EXPORTER_OTLP_<SIGNAL>_COMPRESSION` | (none) | OTLP payload compression. `gzip` is supported. |
+| `OTEL_EXPORTER_OTLP_INSECURE` / `OTEL_EXPORTER_OTLP_<SIGNAL>_INSECURE` | `false` | Disables transport security for exporter endpoint forms that support it. Prefer explicit `http://` or `https://` endpoints. |
+| `OTEL_EXPORTER_OTLP_CERTIFICATE` / `OTEL_EXPORTER_OTLP_<SIGNAL>_CERTIFICATE` | (none) | Trusted server certificate path for TLS verification. |
+| `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE` / `OTEL_EXPORTER_OTLP_<SIGNAL>_CLIENT_CERTIFICATE` | (none) | Client certificate path for mTLS. |
+| `OTEL_EXPORTER_OTLP_CLIENT_KEY` / `OTEL_EXPORTER_OTLP_<SIGNAL>_CLIENT_KEY` | (none) | Client private key path for mTLS. |
 
 The installed systemd unit defaults to local Netdata export:
 

@@ -8,7 +8,9 @@ You will learn the feed-related API endpoints, what each returns, and how to use
 GET /api/v1/sets
 ```
 
-Lists all public feeds with summary metadata. Each entry includes feed name, category, IP version, current size, health state, maintainer, and critical-infrastructure overlap tiers where applicable.
+Lists all public feeds with summary metadata. Each entry includes feed name,
+category, IP family, current size, health state, maintainer, redistribution
+state, and critical-infrastructure overlap tiers where applicable.
 
 Example:
 
@@ -16,7 +18,23 @@ Example:
 GET /api/v1/sets
 ```
 
-Key response fields per feed: `name`, `category`, `ip_version`, `entries`, `unique_ips`, `health`, `maintainer`.
+Key response fields per feed:
+
+- Identity and provenance: `name`, `official_name`, `short_description`,
+  `category`, `provenance`, `maintainer`, `maintainer_url`, `license`,
+  `redistributable`, and `info`.
+- Source and output: `ipv`, `url`, `public_url`, `file`, `source`, and `hash`.
+- Timestamps: `started_date`, `source_date`, `processed_date`, and
+  `checked_date`.
+- Size and cadence: `entries`, `unique_ips`, `entries_min`, `entries_max`,
+  `ips_min`, `ips_max`, `frequency_minutes`, `average_update_mins`,
+  `min_update_mins`, and `max_update_mins`.
+- Change and uniqueness metrics: `rotation_median_pct`, `rotation_p75_pct`,
+  `rotation_samples`, `change_ratio_median_pct`, `change_ratio_p75_pct`,
+  `change_ratio_samples`, `unique_share_pct`, and `unique_share_samples`.
+- Status and risk signals: `health`, `current_status_state`, `last_status`,
+  `last_error`, `download_failures`, `version`, `critical`, and
+  `critical_overlap_tiers`.
 
 ## Feed detail
 
@@ -32,7 +50,24 @@ Example:
 GET /api/v1/sets/firehol_level1
 ```
 
-Key response fields: `name`, `category`, `maintainer`, `license`, `redistributable`, `ip_version`, `entries`, `unique_ips`, `health`, `tracked`, `updated`, `processed`, `source_timestamp`.
+Key response fields:
+
+- Identity and ownership: `name`, `category`, `provenance`, `maintainer`,
+  `maintainer_url`, `license`, `attribution`, `official_name`,
+  `short_description`, `current_status`, `enrichment`, and `info`.
+- Output metadata: `entries`, `entries_min`, `entries_max`, `ips`, `ips_min`,
+  `ips_max`, `ipv`, `hash`, `frequency`, `aggregation`, `source`, `file`,
+  `file_local`, `output`, `format`, and `version`.
+- Timestamps and cadence: `started`, `updated`, `processed`, `checked`,
+  `clock_skew`, `average_update`, `min_update`, `max_update`,
+  `rotation_median_pct`, `rotation_p75_pct`, `rotation_samples`,
+  `change_ratio_median_pct`, `change_ratio_p75_pct`, and
+  `change_ratio_samples`.
+- Published related artifacts: `history`, `comparison`, `commit_history`,
+  `geo`, and provider-specific classification routes.
+- Operational state: `health`, `errors`, `downloader`, `processor`,
+  `pre_processor`, `used_for`, `hidden`, `dont_redistribute`,
+  `merge_included`, `merge_subtracted`, and `merge_excluded`.
 
 ## Raw IP list
 
@@ -67,6 +102,7 @@ GET /api/v1/sets/{name}/history
 Returns feed history as CSV with columns: `DateTime`, `Entries`, `UniqueIPs`.
 
 Each row represents one historical snapshot of the feed's size. Snapshots are sparse — they exist only for observed successful updates.
+`DateTime` is a Unix timestamp in seconds.
 
 Example:
 
@@ -78,9 +114,9 @@ Response:
 
 ```csv
 DateTime,Entries,UniqueIPs
-2025-01-15T06:00:00Z,142,9834
-2025-01-15T12:00:00Z,145,10012
-2025-01-15T18:00:00Z,139,9756
+1736920800,142,9834
+1736942400,145,10012
+1736964000,139,9756
 ```
 
 ## Pairwise comparison
@@ -100,7 +136,7 @@ Example:
 GET /api/v1/sets/firehol_level1/compare
 ```
 
-Key response fields: array of `{ peer, common_ips, common_pct_self, common_pct_peer }` objects.
+Key response fields: array of comparison rows with `name`, `category`, `ips`, `common`, and optional `related`.
 
 ## Retention analysis
 
@@ -108,7 +144,7 @@ Key response fields: array of `{ peer, common_ips, common_pct_self, common_pct_p
 GET /api/v1/sets/{name}/retention
 ```
 
-Returns a JSON summary of IP retention patterns. Shows how long IPs tend to remain in the feed based on observed additions and removals.
+Returns a JSON summary of IP retention patterns. Shows how many IPs are in past and current age buckets based on observed additions and removals.
 
 Example:
 
@@ -116,7 +152,8 @@ Example:
 GET /api/v1/sets/firehol_level1/retention
 ```
 
-Key response fields: retention distribution buckets, median retention, age of oldest current IP.
+Key response fields: `ipset`, `started`, `updated`, `incomplete`, `past`, and `current`.
+The `past` and `current` objects each contain aligned `hours` and `ips` arrays plus a `total` count.
 
 ## Deterministic insights
 
@@ -154,7 +191,7 @@ Key response fields: array of changeset entries with added/removed IP counts and
 GET /api/v1/sets/{name}/search?ip=1.2.3.4
 ```
 
-Returns whether the given IP address is present in this specific feed. This is a scoped version of the global search endpoint — it checks only one feed instead of all public feeds.
+Returns whether the given IP address is present in this specific feed. This is a scoped version of the global search endpoint — it checks only one feed instead of all public feeds. The response includes `scope: "feed"`, `searched_feed`, and a structured `matches` array; a miss returns HTTP 200 with an empty `matches` array.
 
 Example:
 
@@ -173,7 +210,10 @@ GET /api/v1/sets/{name}/countries
 GET /api/v1/sets/{name}/countries/{provider}
 ```
 
-Returns the list of geo providers for this feed, or country comparison data for a specific provider.
+The provider-list route returns configured GeoIP providers in default-first
+order. It does not prove that every provider has a materialized artifact for
+this feed. Request a specific `{provider}` to retrieve that provider's
+precomputed country comparison data; missing provider artifacts return `404`.
 
 ### ASN
 
@@ -182,7 +222,10 @@ GET /api/v1/sets/{name}/asn
 GET /api/v1/sets/{name}/asn/{provider}
 ```
 
-Returns the list of ASN providers, or ASN data for a specific provider.
+The provider-list route returns configured ASN providers in default-first order.
+It does not prove that every provider has a materialized artifact for this
+feed. Request a specific `{provider}` to retrieve that provider's precomputed
+ASN attribution data; missing provider artifacts return `404`.
 
 ### Bogons
 
@@ -191,7 +234,11 @@ GET /api/v1/sets/{name}/bogons
 GET /api/v1/sets/{name}/bogons/{provider}
 ```
 
-Returns the list of bogon providers, or bogon overlap data for a specific provider.
+The provider-list route returns configured bogon providers. Hidden bogon
+providers can appear here because the route describes reference data, not
+navigable feed pages. Request a specific `{provider}` to retrieve that
+provider's precomputed bogon overlap data; missing provider artifacts return
+`404`.
 
 ### Infrastructure
 

@@ -11,10 +11,16 @@ You enable and disable feeds and artifact parents separately. Disabling a feed d
 When you disable a feed:
 
 - The scheduler removes it from the download queue.
-- No new downloads or compositions happen.
-- No processing happens.
+- Automatic downloads or compositions stop.
+- Automatic processing stops.
 - Existing published artifacts remain in place.
 - The feed still appears in the admin UI with its disabled state visible.
+
+Manual feed actions are explicit operator requests. Feed-level **Recheck** and
+**Reprocess** can still force the selected feed's own enable marker for that
+one action when local prerequisites exist. Parent constraints still apply: an
+artifact-backed child still needs its artifact parent enabled, and a history
+derivative still needs an enabled parent.
 
 ## Effect on merges
 
@@ -27,7 +33,7 @@ Merges compose from their enabled inputs. Disabling an input changes merge behav
 
 A subtractive input that is disabled, archived, unmaintained, or missing causes the merge to fail rather than producing a broader set than intended.
 
-Inputs that are `unmaintained` or `archived` are also excluded from merge composition, same as disabled inputs.
+Health exclusion is role-sensitive: archived or unmaintained additive inputs are skipped, while archived or unmaintained subtractive inputs fail the merge as a safety stop.
 
 ## Artifact parents and children
 
@@ -49,6 +55,9 @@ The `--enable-all` flag enables all known feeds at startup. This is useful for i
 ```bash
 update-ipsets daemon --enable-all
 ```
+
+This flag is a global runtime override. The current daemon does not use the
+catalog `enabled_by_all` field to exclude sources from `--enable-all`.
 
 ## Persistence
 

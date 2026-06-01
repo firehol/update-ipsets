@@ -26,7 +26,7 @@ Do not confuse:
 
 Integrity runs at three points:
 
-1. **Startup** — the daemon inspects settled local state and queues repair work without blocking service availability.
+1. **Startup** — the daemon inspects settled local feed-output state before listeners are marked ready, then queues repair work for the first scheduler cycle.
 2. **After processing settles** — once the scheduler finishes a run, integrity re-evaluates to catch local drift.
 3. **On operator request** — the admin UI integrity panel lets you trigger a fresh evaluation at any time.
 

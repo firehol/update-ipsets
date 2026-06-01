@@ -58,7 +58,7 @@ sources:
 
 ## How they differ from normal feeds
 
-Provider databases do not appear as normal public feeds in the browsing catalog. Their purpose is enrichment:
+ASN and GeoIP provider databases do not appear as normal public feeds in the browsing catalog. Bogon sources are different: a bogon source can be a public feed and also a provider tab. Their purpose is enrichment:
 
 - **ASN databases** produce per-feed ASN breakdowns. When you visit a feed detail page and see "40% of IPs belong to AS12345," that attribution comes from the configured ASN provider.
 - **GeoIP databases** produce per-feed country breakdowns and country-level comparison pages.
@@ -66,7 +66,12 @@ Provider databases do not appear as normal public feeds in the browsing catalog.
 
 ## Multiple providers
 
-You can configure multiple ASN sources and multiple GeoIP sources. Each produces independent per-feed artifacts. Users can switch between providers on feed-detail pages.
+You can configure multiple ASN, GeoIP, and bogon sources. Each produces independent per-feed artifacts. Users can switch between ASN and GeoIP providers on feed-detail pages, and bogon reports expose the configured bogon providers as comparison tabs.
+
+Provider-list API routes and provider tabs are configuration-driven. They may
+show a configured provider even when the current feed has no readable artifact
+for that provider yet; the provider-specific request or tab state is where the
+missing artifact is reported.
 
 One provider is selected as the default via `defaults.yaml`:
 
@@ -80,9 +85,9 @@ The default provider is used for homepage summaries, IP lookup context, and the 
 
 ## Hidden from public browsing
 
-Most provider databases set `hidden: true`. They are not shown in the public feed list but are still active in the processing pipeline. The admin UI shows them with full status and metadata.
+Most ASN and GeoIP provider databases set `hidden: true`. They are not shown in the public feed list but are still active in the processing pipeline and still appear where provider tabs are needed. The admin UI shows them with full status and metadata.
 
-Bogon sources are typically not hidden — they appear in the `special_use` category as public feeds alongside their enrichment role.
+Bogon sources are often not hidden — they can appear in the `special_use` category as public feeds alongside their enrichment role. Hidden bogon baselines can still appear in bogon provider tabs because those tabs describe reference data, not navigable public feed pages.
 
 ## Download cadence
 

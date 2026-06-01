@@ -81,6 +81,22 @@ An installation root typically contains at least these top-level directories:
 
 The exact absolute path of the installation root is deployment-specific.
 
+### Non-root default runtime layout
+
+The shipped catalog may express path defaults with shell-style templates such
+as `${HOME}/ipsets`, but the effective runtime layout has a separate non-root
+fallback rule. When the daemon is not running as root and the path settings are
+unset or still equal to the built-in defaults, the runtime resolver MUST use
+user-owned defaults for the main mutable state:
+
+- `base_dir`: `$HOME/.update-ipsets/ipsets`
+- `run_parent_dir`: `$HOME/.update-ipsets/run`
+- `cache_dir`: `$HOME/.cache/update-ipsets`
+- `lib_dir`: `$HOME/.local/share/update-ipsets`
+
+Explicit runtime YAML values or environment-variable overrides MUST take
+priority over this non-root fallback rule.
+
 ## Stable top-level files
 
 ### `etc/config/`
@@ -210,9 +226,10 @@ Rules:
   publication context only; they MUST identify `FireHOL's update-ipsets`
   and MUST NOT mention retired wrapper names such as `update-ipsets.sh`
   or obsolete external binaries such as `FireHOL's iprange`
-- the downloader defines their content
-- the engine promotes `.{ip,net}set.processing` into these files after
-  successful downstream processing
+- the downloader defines their canonical body content before processing
+- the engine writes successful normal feed bodies into these files during
+  feed-local finalization, before publishing the corresponding staged public
+  artifacts
 
 ### Temporary downloader scratch state
 

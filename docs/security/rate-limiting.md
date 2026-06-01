@@ -1,13 +1,13 @@
 # Rate Limiting
 
-You will learn how rate limiting works on the public API and how to tune it for your deployment.
+You will learn how rate limiting works on API and MCP requests, and how to tune it for your deployment.
 
 ## Limits
 
 | Endpoint group | Limit |
 |---------------|-------|
-| General API | 240 requests/minute per client IP |
-| IP search (`/api/v1/search`, `/api/v1/query`) | 10 requests/minute per client IP |
+| General `/api/` and `/mcp` requests | 240 requests/minute per client IP |
+| IP search (`/api/v1/search`, `/api/v1/query`, `/api/v1/sets/{name}/search`, `/api/v1/ipsets/{name}/search`) | 10 requests/minute per client IP |
 
 Search requests also consume tokens from the general `/api/` bucket before the stricter search bucket is checked. For search/query traffic, the effective limit is the stricter search bucket unless the client has already exhausted the general API bucket.
 
@@ -20,13 +20,13 @@ These endpoints are not rate-limited:
 
 Admin API routes under `/api/v1/admin/*` are still under the general `/api/` rate limiter.
 
-## Implementation
+## How Limits Are Applied
 
 Rate limiting uses a per-client token bucket. Each client IP gets its own bucket. Tokens refill at the configured rate. Requests that exceed the bucket are rejected with HTTP 429.
 
 The "client IP" is determined by the trusted proxy policy. By default, the daemon uses the TCP connection source address. When behind a reverse proxy or Cloudflare, you must enable `--trust-proxy-headers` or `--trust-cloudflare-headers` for rate limiting to key by the real client IP. See [Production Deployment](production-deployment.md#trusted-proxy-configuration) for details.
 
-Cleanup is lazy — expired client buckets are removed when new clients arrive, not by a background goroutine. This avoids unbounded background processes.
+Cleanup is lazy: expired client buckets are removed when new clients arrive, without a separate cleanup worker.
 
 ## What rate limiting is not
 

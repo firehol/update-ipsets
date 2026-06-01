@@ -21,20 +21,37 @@ The install script:
 - Installs UI dependencies, rebuilds the UI bundle, and builds the Go binary
 - Copies it to the installation directory (default `/opt/update-ipsets/bin/`)
 - Deploys the configuration catalog
+- Copies Markdown templates into `/opt/update-ipsets/etc/config/templates/markdown/`
 - Installs or updates the systemd unit
 - Creates a timestamped backup of the previous configuration if it changed
 
+The configuration backup covers the YAML catalog update. Markdown templates are
+copied separately: identical templates are left alone, but differing repository
+template files are overwritten in place under the installed template directory.
+Keep customized templates or patches outside the install tree before updating.
+
 ## Restart
+
+`./install.sh` restarts the service when it is already active. If the service is
+enabled but inactive, the installer starts it. If the service is not enabled, or
+if you used `--no-restart`, restart manually when you are ready:
 
 ```bash
 sudo systemctl restart update-ipsets
 ```
 
-The restart is fast. The daemon loads configuration, checks for recoverable staged state, and starts serving. Startup does not wait for full catalog processing or integrity scans.
+The daemon loads configuration, runs the startup feed-output integrity check,
+queues any recovery work it can derive, and starts serving. It does not wait for
+full catalog processing. Country and ASN entity-artifact repair continues in
+background work after startup.
 
 ## Zero-downtime considerations
 
-The daemon restarts quickly — typically under a second. If you have a reverse proxy in front of update-ipsets, the proxy's health check against `/healthz` detects the brief unavailability and retries.
+The daemon usually restarts quickly, but very large catalogs or slow disks can
+add startup latency because the feed-output integrity check runs before the
+listeners are marked ready. If you have a reverse proxy in front of
+update-ipsets, the proxy's health check against `/healthz` detects the brief
+unavailability and retries.
 
 For true zero-downtime, run two instances behind a load balancer and restart them one at a time.
 
@@ -74,3 +91,7 @@ sudo systemctl restart update-ipsets
 When the installed config directory differs from the repository catalog, `install.sh` backs up the whole active config directory and replaces it with `configs/firehol/`.
 
 To preserve local edits across updates, keep a patch or a copy of your modified files outside the config directory, then reapply it after the reinstall.
+
+The same rule applies to Markdown templates under
+`/opt/update-ipsets/etc/config/templates/markdown/`, but without an automatic
+template-specific backup.

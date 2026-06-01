@@ -34,7 +34,7 @@ Each value in `history:` is a number of minutes. The example above creates three
 | `dshield` | 10080 (7 days) | `dshield_7d` |
 | `dshield` | 43200 (30 days) | `dshield_30d` |
 
-The naming convention for derivatives is `<parent>_<N>d` where N is the window in days.
+Use whole-hour or whole-day windows. The generated suffix is based on the configured minute value: exact day windows become `<parent>_<N>d`, exact hour windows under one day become `<parent>_<N>h`, and mixed day/hour windows become `<parent>_<D>d<H>h`.
 
 Merges can also own history windows:
 
@@ -69,7 +69,7 @@ History derivatives are anchored to the parent's successful update times — not
 
 ## Eligible parents
 
-History derivatives can only be declared on parents that produce committed feed bodies. Provider databases (ASN, GeoIP sources with `use: [asn]` or `use: [geoip]`) are not valid history-derivative parents.
+History derivatives can only be declared on parents that produce committed feed bodies. Provider databases (ASN and GeoIP sources with `use: [asn]` or `use: [geoip]`) are not valid history-derivative parents. Critical-infrastructure reference feeds also cannot declare history windows because they are reference providers, not retention variants.
 
 ## Using derivatives in merges
 

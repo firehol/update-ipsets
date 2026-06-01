@@ -34,7 +34,9 @@ This dumps the resulting IP set to stdout. The composition expression follows th
 - `+` adds a feed (union)
 - `-` removes a feed (exclusion)
 - Feed names match the names in the configuration catalog
-- The expression is evaluated left to right: additions first, then exclusions
+- The command builds the union of all included feeds, then subtracts all excluded feeds
+- Maximum composition size is 20 included feeds and 20 excluded feeds
+- Output is capped at 32 MiB
 
 ## Test an IP in a composed set
 
@@ -70,7 +72,7 @@ update-ipsets query --set "firehol_level1" --format single
 | `--config <path>` | Path to the configuration catalog |
 | `--set <expr>` | Composition expression with `+` and `-` |
 | `--ip <addr>` | IP address to look up (positional argument also works) |
-| `--format <fmt>` | Output format: `cidr`, `range`, or `single` |
+| `--format <fmt>` | Output format: `cidr`, `net`, `nets`, `range`, `ranges`, `single`, `ip`, or `ips` |
 | `--silent` | Log errors only |
 | `--verbose` | Enable verbose logging |
 

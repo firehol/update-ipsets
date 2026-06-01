@@ -59,9 +59,11 @@ Neither loop wakes on public page views. Public pages serve precomputed artifact
 
 ## The handoff
 
-The downloader writes a complete canonical feed body to a `.new` file on disk. The processing loop claims that file, renames it to `.processing`, and produces outputs. On success, the `.processing` body is promoted to the committed feed body.
+The downloader writes a complete canonical feed body to a `.new` file on disk. The processing loop claims that file by renaming it to `.processing`, parses it, and writes the committed feed body and feed-local state.
 
-If the daemon crashes between stages, `.new` and `.processing` files survive restart. The processing loop recovers them on the next start.
+Public artifacts are staged separately and published as a batch after the successful feed-local work. Supporting downloads such as provider databases and artifact-parent archives use the same durable staging idea, but they are promoted as supporting inputs rather than committed public feed bodies.
+
+If the daemon crashes between stages, `.new` and `.processing` files survive restart. Startup recovery queues those durable inputs for the processing loop again.
 
 ## See also
 

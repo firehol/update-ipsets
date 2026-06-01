@@ -50,8 +50,11 @@ Only public, redistributable, non-archived feeds are served. The endpoint return
 
 - hidden feeds
 - non-redistributable feeds
-- provider-only datasets
+- ASN and GeoIP provider databases
 - feeds that do not have a committed file
+
+Bogon sources are eligible when they are public, redistributable, non-archived
+feeds with a committed `.ipset` or `.netset` file.
 
 ## Difference from the API data endpoint
 

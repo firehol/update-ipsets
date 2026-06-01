@@ -10,7 +10,7 @@ A merge feed composes its output from multiple parent feeds:
 output = union(additive parents) - union(subtractive parents)
 ```
 
-Additive parents are listed in the `sources` field. Subtractive parents are listed in the `exclude` field. All parents must be available and healthy for composition to succeed.
+Additive parents are listed in the `sources` field. Subtractive parents are listed in the `exclude` field. Additive parents can be skipped when their health makes them ineligible, as long as at least one additive parent remains usable. Subtractive parents are stricter: if one is disabled, archived, unmaintained, or missing, the merge fails rather than broadening the output.
 
 ## Missing additive input
 
@@ -32,7 +32,7 @@ If all additive parents are missing or ineligible, the merge is operationally di
 
 ## Missing subtractive input
 
-When a subtractive parent (exclusion list) is missing, the merge fails on purpose.
+When a subtractive parent (exclusion list) is missing, disabled, archived, or unmaintained, the merge fails on purpose.
 
 **Why:** Publishing without the exclusion would broaden the merge output. The missing exclusions would let IPs through that the configuration intends to block.
 
@@ -46,7 +46,7 @@ curl -X POST -u "$UPDATE_IPSETS_ADMIN_USER:$UPDATE_IPSETS_ADMIN_PASSWORD" http:/
 
 ## Health-excluded input
 
-Parents with health class `archived` or `unmaintained` are excluded from merge composition.
+Additive parents with health class `archived` or `unmaintained` are excluded from merge composition. Subtractive parents with the same health classes fail the merge as a safety stop.
 
 **What you see:** The admin UI shows the excluded parent with its health class and exclusion reason in the merge detail view.
 
@@ -88,7 +88,7 @@ The admin API shows the current composition state for each merge:
 
 ```bash
 curl -s -u "$UPDATE_IPSETS_ADMIN_USER:$UPDATE_IPSETS_ADMIN_PASSWORD" http://localhost:18889/api/v1/admin/feeds/<merge-name> | \
-  jq '.merge_included, .merge_excluded, .merge_health_excluded'
+  jq '.merge_included, .merge_subtracted, .merge_excluded'
 ```
 
-This shows which parents are currently included, which are subtracted, and which are excluded due to health.
+This shows which additive parents are currently included, which subtractive parents are applied, and which additive parents are excluded because they are disabled, archived, unmaintained, or missing a local feed body.

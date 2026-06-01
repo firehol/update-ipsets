@@ -10,13 +10,22 @@ The feed inventory is the primary operator view. It lists every feed in the cata
 
 | Column | Meaning |
 |---|---|
-| **Name** | Feed identifier from configuration. |
-| **Health** | Current health class (healthy, delayed, risky, unavailable, empty, unmaintained, archived). |
-| **Status** | Latest settled status from the downloader or processing engine. |
-| **Last check** | When the daemon last attempted to refresh this feed. |
-| **Last change** | When upstream content last changed. |
-| **Last published** | When the daemon last successfully produced outputs for this feed. |
-| **Next schedule** | When the next automatic action is expected, and why. |
+| **Feed** | Feed identifier, current health dot, kind, version, archived marker, and maintainer when available. |
+| **Category** | Configured feed category. |
+| **Vis** | Public-visibility and redistribution indicator. |
+| **Sched** | Configured frequency. |
+| **Actual** | Observed average update interval and cadence ratio. |
+| **Next** | Next scheduled check or input-triggered state. |
+| **Processed** | When processing last finalized for this feed. |
+| **Why** | Why the feed last ran. |
+| **Took** | Processing duration for the last run attempt. |
+| **Upstream** | Upstream `Last-Modified` timestamp when available. |
+| **IPs** | Unique IP count in the current output. |
+| **Entries** | Entry count in the current output. |
+| **State** | Scheduler state, latest settled status, problem class, and latest error text. |
+| **Fail** | Consecutive download failures. |
+| **Files** | Current integrity-file state for required and derived files. |
+| **Public page** | Opens the public feed page when a public URL is available. |
 
 ### Feed kinds
 
@@ -49,12 +58,13 @@ Filter counters are faceted: each count shows how many feeds match that value wi
 
 Click a feed row to see its detail view. The detail shows:
 
-- Full status and error message (if any).
-- Problem class — whether the issue is downloader-stage or processing-stage.
-- Failure streak count and duration.
-- Last run reason and processing duration.
-- For merges: current included inputs, configured subtracted inputs, health-excluded inputs, and why each was excluded.
-- File manifest — what files exist for this feed locally.
+- Identity fields: kind, roles, URLs, maintainer, license, redistribution, visibility, downloader, processor, output, and source-file information.
+- Schedule fields: configured frequency, observed cadence, health thresholds, next check, scheduler state, and retry/backoff state.
+- Timeline fields: first tracking time, last check, last upstream change, last processed time, next check, and upstream clock skew when detected.
+- Content fields: unique IPs, entries, observed ranges, and version.
+- Merge details: included inputs, configured subtracted inputs, excluded inputs, and why each excluded input was skipped.
+- File manifest: required and optional local files, provider ownership, size, modified time, missing files, and stale files.
+- Diagnostics: current health, health detail, last reason, processing time, last status, problem class, download failures, latest error, and integrity recovery plan.
 
 ## See also
 

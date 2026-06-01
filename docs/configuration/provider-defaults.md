@@ -4,7 +4,7 @@ You will learn how to configure the canonical ASN and GeoIP providers, why this 
 
 ## What provider defaults are
 
-Provider defaults tell the system which ASN and GeoIP source to use as the canonical provider for IP lookups, homepage summaries, and feed-detail pages.
+Provider defaults tell the system which ASN and GeoIP source to use as the canonical provider for IP lookups, homepage summaries, insights, entity pages, and feed-detail pages.
 
 ```yaml
 defaults:
@@ -35,8 +35,11 @@ Changing the default provider affects:
 
 - **IP lookup context** — when a visitor looks up an IP on the homepage, the ASN and country attribution use the default providers
 - **Homepage summaries** — aggregate country and ASN breakdowns use the default providers
+- **Insights and entity pages** — generated analysis uses the configured canonical providers
 - **Feed-detail default tabs** — the first ASN and GeoIP tab selected on a feed detail page
 - **Provider-list ordering** — the default provider appears first in provider-list API responses, followed by other providers in catalog order
+
+If a default is omitted, the engine falls back to the first configured provider for that role in catalog order. The shipped catalog sets explicit defaults, so this fallback is mainly for custom or test configurations.
 
 ## Changing a default
 

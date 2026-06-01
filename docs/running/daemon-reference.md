@@ -1,6 +1,6 @@
 # Daemon Reference
 
-You will learn how to start the update-ipsets daemon, what each flag does, and how to choose the right options for local development versus production.
+You will learn how to start the update-ipsets daemon, what each flag does, and how to choose the right options for local testing versus production.
 
 ## Starting the daemon
 
@@ -36,6 +36,8 @@ All public endpoints and, in shared mode, admin endpoints are served here.
 ### `--admin-listen` (address:port)
 
 Optional separate address and port for admin endpoints only. When set, admin routes are removed from the public listener and return 404 there.
+
+Split mode requires `runtime.public_base_url` in the active catalog. The daemon rejects `--admin-listen` without it.
 
 See [Listener Topologies](listener-topologies.md) for details.
 
@@ -79,6 +81,9 @@ The daemon checks for due work (downloads, processing, maintenance) at this cade
 Enable all known feeds at startup. Without this flag, only feeds that have been explicitly enabled (via the admin UI or the `enable` subcommand) are active.
 
 Use this for initial deployment when you want everything running from the start.
+
+The current daemon treats this as a global startup override. It does not filter
+sources through the catalog `enabled_by_all` metadata field.
 
 ### `--push-git`
 
@@ -152,7 +157,7 @@ update-ipsets enable --disable firehol_level1
 update-ipsets iprange --compare file1.ipset file2.ipset
 ```
 
-## Example: local development
+## Example: local testing
 
 Start the daemon locally with no authentication and a short interval:
 
@@ -173,6 +178,8 @@ Admin UI: `http://localhost:18888/admin`
 ## Example: production with split listener
 
 Run the public site on a public port and the admin UI on localhost only, with authentication:
+
+Before starting, set `runtime.public_base_url` in the active catalog to the externally visible public site URL.
 
 ```bash
 UPDATE_IPSETS_ADMIN_USER=admin \

@@ -17,7 +17,7 @@ Use recheck when:
 - the history snapshots needed to rebuild a derivative are missing (target the parent, not the derivative)
 - an artifact-backed child has never been materialized locally (target the parent artifact recheck)
 
-Recheck re-acquires upstream data or refreshes parent artifacts before local processing.
+Recheck re-acquires upstream data or refreshes parent artifacts before local processing. Merge feeds can also be queued for recheck, but their recheck is local recomposition from parent feed bodies, not an upstream download.
 
 ### Reprocess
 
@@ -43,6 +43,8 @@ Another example: a merge feed has missing outputs because one of its parents lac
 
 ## What happens after recovery is queued
 
-1. The daemon adds the target to the scheduler queue.
-2. The scheduler runs the recheck or reprocess during the next cycle.
-3. After the repair settles, the next integrity check confirms the finding is resolved.
+1. The daemon evaluates the current findings and splits targets into `recheck_names` and `reprocess_names`.
+2. Recheck targets are queued for fresh input, parent-artifact refresh, or local merge recomposition.
+3. Reprocess targets are queued for local output regeneration from existing staged or committed input.
+4. If the engine is already running, recovery reports `in_progress` instead of queuing duplicate work.
+5. After the repair settles, the next integrity check confirms whether the finding is resolved.

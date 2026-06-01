@@ -30,8 +30,8 @@ Use a history derivative. Add `history:` to the parent source or merge definitio
 **I want to combine multiple feeds into one, with optional exclusions.**
 Use a merge. Define it in `merges/` with `sources` and optional `exclude`.
 
-**I have an ASN or GeoIP database that enriches other feeds.**
-Use a provider database. Configure it as a normal source with `use: [asn]` or `use: [geoip]`.
+**I have ASN, GeoIP, or bogon reference data that enriches other feeds.**
+Use a provider database or provider-style source. Configure ASN and GeoIP databases with `use: [asn]` or `use: [geoip]`. Configure bogon reference sets with `use: [bogons]`; they still publish normal set files when they are not hidden.
 
 ## Detailed pages
 

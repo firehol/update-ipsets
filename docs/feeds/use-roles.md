@@ -14,7 +14,7 @@ A source or merge without a `use:` field is a normal public threat-intelligence 
 
 ### `bogons`
 
-IPset-compatible bogon reference. The feed produces a committed set and can be used as a bogon comparison provider. Bogon feeds appear in the public catalog and in per-feed bogon overlap reports.
+IPset-compatible bogon reference. The feed produces a committed set and can be used as a bogon comparison provider. Bogon feeds appear in the public catalog when they are not `hidden: true`, and configured bogon providers appear in per-feed bogon overlap reports.
 
 ### `critical_infrastructure`
 

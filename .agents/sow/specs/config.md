@@ -86,6 +86,9 @@ Rules:
 
 - omitted `public` means the category is public
 - non-public categories remain valid configuration for system/provider roles
+- category visibility is not a feed privacy control; source visibility is
+  controlled by source roles such as `asn`/`geoip` and by source-level flags
+  such as `hidden`
 - public website surfaces MUST derive category visibility from configuration,
   not from hardcoded category names
 
@@ -96,6 +99,24 @@ Defines downloadable artifact parents that are not themselves public feeds.
 ### Sources
 
 Defines processable feeds.
+
+The source model accepts `enabled_by_all` as catalog metadata retained from the
+legacy catalog conversion. In the current application, runtime enablement is
+controlled by enable marker files, explicit operator actions, and the daemon
+`--enable-all` override. The `--enable-all` override treats every configured
+source as enabled and does not filter sources by `enabled_by_all`.
+
+The source model accepts both `processor` and `processor_raw`:
+
+- `processor` is the normalized processing pipeline and takes precedence when
+  present. A processor step MAY be either a scalar step name or a single-key
+  mapping whose value becomes the step `args` map for argument-bearing
+  processors such as `grep`, `csv_column`, `json_path`, and `regex`.
+- `processor_raw` is a legacy single processor-name field retained from the
+  bash-era catalog conversion. If `processor` is absent, the engine MAY use
+  `processor_raw` as the one processing step. If `processor` is present,
+  `processor_raw` is compatibility metadata and MUST NOT be treated as a
+  second raw-archive pipeline.
 
 ### Merges
 
@@ -155,8 +176,12 @@ Rules:
 The product MAY define other top-level registries for auxiliary data, such as:
 
 - typed critical-infrastructure reference-feed metadata
-- rename aliases
+- rename cleanup mappings for historical feed-name changes
 - explicitly deleted historical names
+
+`renames` and `deleted` are local-state cleanup registries. They MUST migrate or
+remove existing generated state during cleanup-enabled runs; they MUST NOT be
+interpreted as public API aliases for old feed names.
 
 The legacy top-level `infrastructure_asns` registry is no longer supported.
 Critical-infrastructure warning truth MUST be modeled as normal sources or
@@ -403,10 +428,11 @@ generic static-source plumbing, but MUST NOT contain hardcoded critical
 infrastructure IP/CIDR lists. Static entries for critical-infrastructure
 sources MUST parse as IPv4 addresses or IPv4 CIDRs at config-validation time.
 Public critical-provider metadata and overlap artifacts do not imply raw-body
-redistribution permission. Shipped critical-infrastructure reference feeds MUST
-be marked `redistributable: false` unless a source-specific redistribution
-review explicitly decides that publishing and composing the raw reference body
-is acceptable.
+redistribution permission. The `critical_infrastructure` use role MUST NOT make
+a source non-redistributable by itself. Critical-infrastructure reference feeds
+MUST follow the same direct-upstream redistribution rule as other feeds, and
+operator-maintained static reference data MUST use the operator's publication
+policy for the raw body.
 
 ## Provider context
 
@@ -659,6 +685,15 @@ Artifact definitions MUST support:
 Artifacts are not public feeds.
 
 Artifacts exist to produce and control child feed families.
+
+For the current `dronebl_buildzone` artifact family:
+
+- `rsync_url` identifies the authenticated rsync source
+- the rsync password MUST come from environment, not YAML
+- `DRONEBL_RSYNC_PASSWORD` is the artifact-specific preferred variable
+- `RSYNC_PASSWORD` is accepted as a fallback
+- real secret values MUST NOT be written into catalog YAML, docs, specs, SOWs,
+  or skills
 
 ## Provenance contract
 

@@ -77,7 +77,7 @@ The `bogons` role does not suppress age-based health. Bogon feeds are expected t
 
 Archived feeds have been unavailable for a long time (beyond `feed_health_archival_threshold_minutes`). They remain public catalog targets — their historical data and comparison artifacts persist — but raw downloads stop.
 
-Archived inputs are excluded from merge composition automatically.
+Archived additive inputs are excluded from merge composition automatically. Archived subtractive inputs fail the merge instead, because publishing without the configured exclusion would broaden the output.
 
 ## Summary of what each flag controls
 
@@ -87,4 +87,4 @@ Archived inputs are excluded from merge composition automatically.
 | `hidden` | hidden | visible | active | normal | eligible |
 | `disabled` | — | visible | stopped | — | excluded |
 | `exclude_from_unmaintained` | visible | visible | active | suppressed | eligible |
-| archived | visible (stale) | visible | stopped | archived | excluded |
+| archived | visible (stale) | visible | stopped | archived | additive excluded; subtractive blocks merge |

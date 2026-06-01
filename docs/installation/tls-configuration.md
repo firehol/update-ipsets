@@ -7,6 +7,8 @@ You will learn how to serve the public site and admin dashboard over HTTPS, eith
 The daemon accepts TLS flags directly:
 
 ```bash
+UPDATE_IPSETS_ADMIN_USER=admin \
+UPDATE_IPSETS_ADMIN_PASSWORD=change-this-secret \
 update-ipsets daemon \
     --config /opt/update-ipsets/etc/config \
     --listen :443 \
@@ -16,7 +18,11 @@ update-ipsets daemon \
 
 With a separate admin listener:
 
+Split listener mode requires `runtime.public_base_url` in the active catalog.
+
 ```bash
+UPDATE_IPSETS_ADMIN_USER=admin \
+UPDATE_IPSETS_ADMIN_PASSWORD=change-this-secret \
 update-ipsets daemon \
     --config /opt/update-ipsets/etc/config \
     --listen :443 \
@@ -90,6 +96,10 @@ server {
     }
 }
 ```
+
+Generated public URLs come from `runtime.public_base_url` and
+`runtime.web_url`, not from the request `Host` or `X-Forwarded-Proto` headers.
+Keep those runtime settings aligned with the external HTTPS URL.
 
 ### Caddy example
 

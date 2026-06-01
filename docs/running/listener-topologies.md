@@ -23,6 +23,8 @@ Admin endpoints on the shared listener require authentication when `--admin-auth
 Example:
 
 ```bash
+UPDATE_IPSETS_ADMIN_USER=admin \
+UPDATE_IPSETS_ADMIN_PASSWORD=change-this-secret \
 update-ipsets daemon \
   --config /opt/update-ipsets/etc/config \
   --listen :18888 \
@@ -57,7 +59,16 @@ In split mode:
 
 - The public listener serves only public endpoints.
 - Requests to `/admin`, `/admin/*`, and `/api/v1/admin/*` on the public listener return 404. They do not redirect, authenticate, or serve admin content.
-- The admin listener serves admin endpoints and the admin SPA. It may also serve public endpoints, but the intended use is admin-only on a restricted network.
+- The admin listener serves admin endpoints, the admin SPA, and embedded assets required by that SPA. It does not serve public API routes or public pages.
+- `runtime.public_base_url` must be configured. The daemon refuses to start in split mode without it because admin-to-public links need an external public base URL.
+
+Set the public base URL in the catalog before enabling `--admin-listen`:
+
+```yaml
+runtime:
+  public_base_url: "https://iplists.firehol.org"
+  web_url: "https://iplists.firehol.org/ipsets/"
+```
 
 Example:
 
@@ -78,7 +89,7 @@ Admin UI: `http://127.0.0.1:18889/admin`
 
 | Scenario | Mode | Reason |
 |---|---|---|
-| Local development | Shared | Simplest setup. Use `--admin-auth-mode=disabled` with `--allow-unauthenticated-admin`. |
+| Local testing | Shared | Simplest setup. Use `--admin-auth-mode=disabled` with `--allow-unauthenticated-admin`. |
 | Production, single host | Split | Admin on localhost only. Public on external interface. No admin content exposed publicly. |
 | Production, reverse proxy | Either | If the proxy handles access control, shared mode works. For defense in depth, use split mode and restrict the admin port at the network level. |
 
@@ -94,7 +105,7 @@ runtime:
   web_url: "https://iplists.firehol.org/ipsets/"
 ```
 
-Without `public_base_url`, admin-to-public links may point to the admin listener address, which will not serve public content correctly.
+Without `public_base_url`, the daemon rejects the split-listener configuration at startup.
 
 ## See also
 

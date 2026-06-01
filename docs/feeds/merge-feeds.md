@@ -72,9 +72,9 @@ This merge takes `fullbogons` and removes `bogons`, producing "unassigned but al
 
 ## Health-based exclusions
 
-Archived and unmaintained inputs are excluded from merge composition automatically. This prevents stale or dead feeds from polluting the merge output.
+Archived and unmaintained additive inputs are excluded from merge composition automatically. This prevents stale or dead feeds from polluting the merge output.
 
-If an input feed transitions to an unhealthy state, the merge excludes it on the next composition cycle.
+If an additive input feed transitions to one of these health states, the merge excludes it on the next composition cycle. If a subtractive input transitions to one of these health states, the merge fails instead; publishing without the exclusion would broaden the output.
 
 ## Safety: subtractive input missing
 

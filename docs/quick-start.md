@@ -1,11 +1,12 @@
 # Quick Start
 
-You will learn how to build update-ipsets from source, run it locally, and try its main features in under 5 minutes.
+You will learn how to build update-ipsets from source, run it locally, and try its main features. The daemon starts quickly; the first full catalog download continues in the background.
 
 ## Prerequisites
 
 - Go 1.26 or later
 - Git
+- pnpm
 - A terminal
 
 ## Build from source
@@ -19,6 +20,7 @@ make build
 ```
 
 This produces the `update-ipsets` binary in the project root.
+The build also installs and builds the embedded web UI with `pnpm`.
 
 ## Run the daemon
 
@@ -28,6 +30,7 @@ Start the daemon with the bundled catalog on a local port:
 ./update-ipsets daemon \
   --config configs/firehol \
   --listen :18888 \
+  --enable-all \
   --admin-auth-mode=disabled \
   --allow-unauthenticated-admin
 ```
@@ -35,6 +38,7 @@ Start the daemon with the bundled catalog on a local port:
 Flags explained:
 - `--config configs/firehol` — use the bundled feed catalog
 - `--listen :18888` — serve on port 18888
+- `--enable-all` — make the bundled catalog active without creating enable marker files first
 - `--admin-auth-mode=disabled --allow-unauthenticated-admin` — open admin for local testing (do not use in production)
 
 ## Open the interfaces
@@ -42,7 +46,7 @@ Flags explained:
 - **Public site:** [http://localhost:18888/](http://localhost:18888/)
 - **Admin UI:** [http://localhost:18888/admin](http://localhost:18888/admin)
 
-The public site shows the feed explorer, IP search, and comparisons. The admin UI shows download/processing queues and feed status.
+The public site shows the feed explorer, IP search, and comparisons. The admin UI shows download/processing queues and feed status. On a fresh checkout, wait for the relevant feeds to finish downloading and processing before expecting query results.
 
 ## Try the CLI
 

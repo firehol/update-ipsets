@@ -45,7 +45,6 @@ sources:
     info: Curated IPv4 service addresses for Cloudflare 1.1.1.1, Google Public DNS, Quad9, and OpenDNS public resolvers.
     maintainer: FireHOL
     maintainer_url: https://iplists.firehol.org/
-    enabled_by_all: true
     use: [critical_infrastructure]
     critical:
       tier: hard
@@ -54,6 +53,11 @@ sources:
       source_quality: C
       rationale: Core public recursive DNS resolver anycast addresses; blocking them can immediately break name resolution.
 ```
+
+`enabled_by_all` is accepted legacy catalog metadata. The current daemon's
+`--enable-all` startup flag enables every configured source regardless of that
+field. Use explicit enable markers or omit `--enable-all` when you need runtime
+enablement control.
 
 ## Frequency behavior
 

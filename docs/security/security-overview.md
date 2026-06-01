@@ -29,7 +29,7 @@ The daemon exposes two distinct surfaces:
 
 ## Public surface protections
 
-- **Rate limiting:** 240 requests/minute per client IP for general API endpoints. 10 requests/minute for IP search endpoints. These are independent limits.
+- **Rate limiting:** 240 requests/minute per client IP for `/api/` and `/mcp`. IP search endpoints also have a stricter 10 requests/minute search bucket.
 - **Excluded from rate limiting:** `/healthz` and the `/admin` browser shell. Admin API routes under `/api/v1/admin/*` still use the general `/api/` rate limit.
 - **No secrets in URLs:** Feed data, metadata, and search results never embed credentials.
 - **Path traversal protection:** All artifact and file routes validate paths against traversal attacks.
@@ -47,7 +47,7 @@ See [Admin Authentication](admin-authentication.md) for the full authentication 
 
 | Deployment | Recommendation |
 |------------|---------------|
-| Local development | Use `--admin-auth-mode=disabled` with both flags, on loopback only |
+| Local testing | Use `--admin-auth-mode=disabled` with both flags, on loopback only |
 | Staging | Use `required` auth on the default listener |
 | Production | Use split listener with admin on localhost, behind a firewall |
 

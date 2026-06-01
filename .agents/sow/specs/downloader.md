@@ -422,6 +422,8 @@ The downloader MUST honor runtime configuration for at least:
 - user agent / transport behavior
 - downloader retry behavior
 - environment-variable expansion for downloader URLs
+- outbound HTTP proxy environment variables honored by Go's HTTP transport
+  (`HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`, and lowercase equivalents)
 
 ### Per-feed and per-artifact concerns
 
@@ -437,6 +439,10 @@ The downloader MUST honor per-item configuration for at least:
 - artifact parent type and deliveries
 - artifact-specific acquisition bounds when one artifact family needs a
   different size cap than the global downloader default
+- artifact-specific acquisition credentials from environment variables when a
+  supported artifact family requires authenticated transport. For the current
+  DroneBL rsync artifact family, the downloader MUST prefer
+  `DRONEBL_RSYNC_PASSWORD` and fall back to `RSYNC_PASSWORD`.
 - provider roles
 - enabled/disabled state
 - runtime health-derived archival/composition exclusion state where scheduling or
@@ -519,8 +525,10 @@ The downloader controls content creation and staging of:
 - artifact parent local source state
 - provider dataset local source/archive state
 
-The engine controls claiming staged feed bodies into `.processing` and
-promoting successful `.processing` bodies to committed feed bodies.
+The engine controls claiming staged feed bodies into `.processing` and writing
+successfully finalized normal feed bodies to committed canonical feed-body
+files. Provider archives and artifact-parent source archives are promoted as
+supporting inputs, not as public feed bodies.
 
 The file names and file layout are defined in [files-layout.md](files-layout.md).
 

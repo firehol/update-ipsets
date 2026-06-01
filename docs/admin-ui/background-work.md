@@ -1,18 +1,20 @@
 # Background Work
 
-You will learn what background work the daemon does outside the four live queues, how to see its progress, and how to tell idle from broken.
+You will learn what background work the daemon does outside the four live feed queues, how to see its progress, and how to tell idle from broken.
 
 ## What is background work
 
-Some daemon work does not belong to the downloader or processing queues. It runs in a separate background-maintenance pool. The admin UI shows this work in its own panel.
+Some daemon work does not belong to the downloader or processing queues. It runs in a separate background-maintenance pool. The admin UI shows this work in the **Background Work** section of the runtime and queues panel.
 
 Examples:
 
-- **Startup repairs** — fixing missing or stale artifacts discovered during startup integrity checks.
-- **Entity refreshes** — updating country and ASN detail pages after feed updates or health transitions.
-- **Health transitions** — artifact refreshes triggered when a feed changes health class.
-- **Config-reload rebuilds** — rebuilding artifacts after a successful configuration reload.
-- **Full entity rebuilds** — operator-requested rebuild of all country and ASN artifacts from scratch.
+- **Entity refreshes after feed updates** — updating country and ASN detail pages after public feed outputs change.
+- **Entity refreshes after health transitions** — updating entity pages when feed health affects published country or ASN facts.
+- **Startup entity checks and repairs** — rebuilding or repairing country and ASN artifacts when startup detects missing or stale entity artifacts.
+- **Config-reload entity checks** — checking country and ASN artifacts again after a successful configuration reload.
+- **Operator-requested entity work** — full or selected country and ASN artifact rebuilds from the admin integrity surfaces.
+
+Feed-output integrity recovery is different: it schedules recheck or reprocess work in the normal feed queues. Entity artifact recovery runs as background work.
 
 ## What you see
 
@@ -25,6 +27,9 @@ For each active background task:
 | **Current stage** | Where in the task lifecycle it is right now. |
 | **Started at** | When the task began. |
 | **Progress** | How far along it is, when meaningful. |
+| **Worker count** | How many background workers are active compared with the configured background-worker limit. |
+
+The same section can also show pending coalesced entity work, such as feed updates or health transitions waiting behind an already-running background task.
 
 ## Shown even when idle
 
@@ -36,7 +41,7 @@ The background-work panel is visible even when no background tasks are running. 
 
 ## Coalescing
 
-Repeated background requests for the same target are coalesced. If the same feed needs an entity refresh while one is already queued or running, the daemon does not create a second serial task. It deduplicates by feed name.
+Repeated entity refresh requests for the same target are coalesced. If the same feed needs an entity refresh while one is already queued or running, the daemon does not create a second serial task for the same feed. Full entity rebuild requests are also coalesced while a rebuild is already pending or running.
 
 ## Serialization
 

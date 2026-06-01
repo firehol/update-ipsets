@@ -110,15 +110,17 @@ No other ordinary runtime condition may admit processing work directly.
 For each admitted feed, the engine MUST conceptually execute these stages:
 
 1. claim any staged `.{ip,net}set.new` body for that feed by renaming it to
-   `.{ip,net}set.processing`
+   `.{ip,net}set.processing`, or use an existing committed body for explicit
+   local reprocess work
 2. load the admitted canonical feed body
 3. analyze that canonical feed for engine-local state
-4. update feed-local historical and retention artifacts
-5. update feed-local change-rate and rotation statistics
-6. run required downstream enrichment, comparison, and insight work
-7. publish the resulting public artifacts
-8. on success, promote `.{ip,net}set.processing` to the committed
-   `.{ip,net}set`
+4. finalize the successful normal feed body into the committed canonical feed
+   body and latest binary set
+5. update feed-local historical and retention artifacts
+6. update feed-local change-rate and rotation statistics
+7. run required downstream enrichment, comparison, and insight work
+8. stage the resulting public artifacts and assign their logical mtimes
+9. publish the staged public artifacts and save the updated cache state
 
 The precise end-to-end queue choreography is owned by [pipeline.md](pipeline.md).
 This document owns the engine-local contract.
@@ -273,7 +275,9 @@ The exception model MUST distinguish at least:
 
 ### `finalize_failed`
 
-- downstream finalization, publication, or `.processing` promotion failed
+- feed-local finalization failed while writing the committed canonical feed
+  body, latest binary set, kernel set, or feed-local history/metadata required
+  before downstream publication
 
 ### `retention_failed`
 

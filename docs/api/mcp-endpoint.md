@@ -14,6 +14,14 @@ Point any MCP-compatible client at:
 https://iplists.firehol.org/mcp
 ```
 
+HTTP methods:
+
+```text
+POST /mcp
+GET /mcp
+DELETE /mcp
+```
+
 The endpoint supports:
 
 - **POST** — send JSON-RPC messages (tool calls, initialization)
@@ -34,7 +42,7 @@ Discover threat intelligence IP blocklists by searching and filtering public fee
 |-----------|------|-------------|
 | `search` | string | Case-insensitive full-text search across feed names, official names, maintainers, short descriptions, and descriptions. Multiple terms must all match |
 | `category` | string enum | Threat category values from the active public feed catalog |
-| `maintainer` | string enum | Maintainer values from the active public feed catalog; matching is case-insensitive |
+| `maintainer` | string enum | Maintainer values from the active public feed catalog; filtering uses a case-insensitive substring match |
 | `provenance` | string enum | Origin: `primary`, `secondary_upstream`, `secondary_merge`, `secondary_retention` |
 | `health` | string enum | Feed health: `healthy`, `delayed`, `risky`, `archived`, `unmaintained`, `empty`, `unavailable` |
 | `freshness` | string enum | Time since last update: `hour`, `day`, `week`, `month`, `older` |
@@ -74,7 +82,7 @@ Fetch a detailed markdown analysis page for a specific entity. Use `find_feeds` 
 |------|--------|----------|
 | `feed` | Feed name from `find_feeds` | `firehol_level1`, `tor_exits`, `spamhaus_drop` |
 | `country` | ISO 3166-1 alpha-2 code | `US`, `CN`, `DE`, `BR` |
-| `asn` | ASN number | `13335`, `14618`, `16509` |
+| `asn` | Numeric ASN without the `AS` prefix | `13335`, `14618`, `16509` |
 | `maintainer` | Maintainer slug | `firehol`, `spamhaus`, `emergingthreats` |
 
 **Example** — get analysis for the Tor exits feed:

@@ -6,6 +6,14 @@ You will learn the recommended production setup with split listeners, TLS, and f
 
 Use split listener mode with required authentication:
 
+First set the external public URL in the active catalog:
+
+```yaml
+runtime:
+  public_base_url: "https://iplists.example.org"
+  web_url: "https://iplists.example.org/ipsets/"
+```
+
 ```bash
 UPDATE_IPSETS_ADMIN_USER=admin \
 UPDATE_IPSETS_ADMIN_PASSWORD=your-secret-password \
@@ -21,6 +29,7 @@ update-ipsets daemon \
 - Admin traffic on `127.0.0.1:18889` (localhost only)
 - Admin requires Basic Auth
 - When split mode is active, admin routes return 404 on the public listener
+- The daemon refuses split mode unless `runtime.public_base_url` is set
 
 ## TLS options
 
@@ -75,9 +84,13 @@ Caddy handles TLS automatically with Let's Encrypt.
 
 ### Reverse proxy tips
 
-- Pass the `Host` header so the daemon generates correct URLs
+- Set `runtime.public_base_url` and `runtime.web_url` to the externally visible
+  site URLs. The daemon does not derive generated public URLs from `Host` or
+  `X-Forwarded-Proto` request headers.
+- Passing `Host` and `X-Forwarded-Proto` is still normal reverse-proxy hygiene,
+  but those headers do not replace the runtime URL settings.
 - Disable response buffering for large feed downloads
-- Do not set a request body size limit — the daemon does not accept large POST bodies, but some admin actions send JSON
+- Keep request body limits modest. Admin actions are bodyless POST requests; the public `/mcp` endpoint sends small JSON-RPC messages.
 
 ## Trusted proxy configuration
 

@@ -69,6 +69,10 @@ Compose applies the same checks as individual feed endpoints:
 
 - archived feeds are excluded from composition
 - non-redistributable feeds are excluded from composition
-- hidden and provider datasets are excluded from composition
+- hidden feeds are excluded from composition
+- ASN and GeoIP provider databases are excluded from composition because they are not public feed bodies
+
+Bogon sources are different from ASN and GeoIP databases: a redistributable,
+non-archived bogon source can participate when it is configured as a public feed.
 
 If any named feed fails these checks, the endpoint returns an error.

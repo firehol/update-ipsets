@@ -18,7 +18,7 @@ If the content is unchanged, the downloader reports `same` and stops. No staging
 
 | Status | Meaning |
 |---|---|
-| `ok` | New or changed content obtained and staged. |
+| `downloaded` | New or changed content obtained and staged. |
 | `not_modified` | Upstream confirmed no change (e.g. HTTP 304). |
 | `same` | Downloaded successfully, but content matches the current local version. |
 | `empty` | Downloaded successfully, but no IPs/CIDRs found in the source. |

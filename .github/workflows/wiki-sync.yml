@@ -33,9 +33,10 @@ jobs:
 
           # GitHub Wiki renders Markdown pages from wiki-root filenames.
           # Publishing nested docs paths directly makes links such as
-          # /wiki/api/api-overview.md open as raw markdown, so flatten and
-          # rewrite local docs links for the wiki destination.
-          node scripts/build-wiki.mjs docs wiki
+          # /wiki/api/api-overview.md open as raw markdown. Flatten pages and
+          # rewrite local docs links to full GitHub wiki URLs so custom sidebar
+          # links stay inside the wiki from every page.
+          node scripts/build-wiki.mjs docs wiki "https://github.com/${GITHUB_REPOSITORY}/wiki"
 
       - name: Commit and push to wiki
         run: |

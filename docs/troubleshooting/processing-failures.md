@@ -4,7 +4,9 @@ You will learn what each processing exception means and how to recover from it.
 
 ## Exception classes
 
-When the processing engine fails, it reports a structured exception class. These are severe runtime faults — they indicate something went wrong inside the engine, not just a transient download problem.
+When the processing engine fails, it reports a structured status. These are
+severe runtime faults — they indicate something went wrong while using local
+input, not just a transient upstream download problem.
 
 ### parse_failed
 
@@ -30,13 +32,15 @@ Downstream publication or promotion of the processing output failed.
 curl -X POST -u "$UPDATE_IPSETS_ADMIN_USER:$UPDATE_IPSETS_ADMIN_PASSWORD" http://localhost:18889/api/v1/admin/feeds/<name>/reprocess
 ```
 
-### integrity_failed
+### invalid_input
 
-An integrity check after processing found that the outputs do not match what was expected.
+The processing input or configuration is invalid for this processing path.
 
-**What it means:** Something went wrong during publication — a file was not written, or a secondary artifact is missing or malformed.
+**What it means:** The daemon accepted the catalog, but this run cannot process
+the selected feed with its current local input or dependency state.
 
-**What to do:** Use the integrity recovery action from the admin UI, or reprocess the feed.
+**What to do:** Check the feed configuration and dependencies, then recheck or
+reprocess after fixing the root cause.
 
 ### missing_input
 
@@ -98,6 +102,13 @@ The input or supporting data is too old to be useful.
 
 **What to do:** Recheck the feed to get fresh input.
 
+## Integrity findings are separate
+
+Integrity findings are not reported as feed processing `last_status` values.
+They appear in the integrity panel and through the admin integrity API. Use the
+integrity recovery action when the finding says existing local input can rebuild
+the missing or stale artifacts.
+
 ## Recovery actions
 
 Most processing failures resolve with one of two actions:
@@ -124,7 +135,7 @@ curl -X POST -u "$UPDATE_IPSETS_ADMIN_USER:$UPDATE_IPSETS_ADMIN_PASSWORD" http:/
 If the same feed fails repeatedly after recheck and reprocess, check the logs:
 
 ```bash
-journalctl -u update-ipsets | grep '"feed":"<name>"' | grep '"level":"error"'
+journalctl -u update-ipsets | grep '<name>' | grep 'level=ERROR'
 ```
 
 Recurring `parse_failed` or `finalize_failed` exceptions suggest a bug or a serious consistency problem. Report the issue with the feed name, error message, and relevant log excerpts.

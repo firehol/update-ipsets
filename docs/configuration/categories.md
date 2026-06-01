@@ -44,11 +44,13 @@ categories:
 
 ## Public vs non-public categories
 
-Omit `public` or set it to `true` — the category appears on the public site and in public API responses.
+Omit `public` or set it to `true` — the category appears in the public category index and public browsing taxonomy.
 
-Set `public: false` — the category is valid configuration for system roles but does not appear in public browsing. For example, `geolocation` and `asn` categories hold provider databases that enrich other feeds but are not themselves public threat feeds.
+Set `public: false` — the category is valid configuration for system roles but is excluded from the public category index, homepage category summaries, and country/ASN/maintainer aggregation filters. For example, `geolocation` and `asn` categories hold provider databases that enrich other feeds but are not themselves public threat feeds.
 
-The public website derives category visibility from configuration, not from hardcoded category names. If you add a new non-public category, set `public: false` explicitly.
+This is not a feed privacy control. To remove a source from the public feed catalog and raw feed routes, set `hidden: true` or use an enrichment database role such as `asn` or `geoip`.
+
+The public website derives category visibility from configuration, not from hardcoded category names. If you add a new non-public category for support data, set `public: false` explicitly and also configure the source visibility or role that matches the data's publication policy.
 
 ## Shipped categories
 

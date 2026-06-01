@@ -13,8 +13,8 @@ configs/firehol/
   runtime.yaml          Daemon behavior, concurrency, paths, health thresholds
   categories.yaml       Feed categories for public browsing
   defaults.yaml         Provider defaults (ASN, GeoIP)
-  renames.yaml          Old-name → new-name aliases
-  deleted.yaml          Historical names that are permanently retired
+  renames.yaml          Old-name → new-name state migrations
+  deleted.yaml          Historical names whose local state is removed
   critical_asn_context.yaml  Secondary ASN context entries
 
   sources/              One YAML per feed, grouped by category subdirectory
@@ -46,6 +46,12 @@ configs/firehol/
     ...
 ```
 
+The installed configuration directory also contains
+`templates/markdown/`. These files are copied from the repository's
+`configs/templates/markdown/` directory during installation. They are not YAML
+catalog fragments; they control the public Markdown artifacts generated for
+feeds, countries, ASNs, and maintainers.
+
 ## How loading works
 
 1. The loader walks the catalog directory recursively.
@@ -72,6 +78,13 @@ Create a new `.yaml` file in `merges/`. Reference existing feed names in the `so
 | `runtime.yaml` | All daemon-level settings: concurrency, cadence, health thresholds, web URLs |
 | `categories.yaml` | Public taxonomy: labels, descriptions, colors, sort order |
 | `defaults.yaml` | Canonical ASN and GeoIP provider selection |
-| `renames.yaml` | Backward-compatible name aliases |
-| `deleted.yaml` | Names that are permanently removed and should not be reused |
+| `renames.yaml` | Old-name to new-name cleanup migrations for existing local state |
+| `deleted.yaml` | Historical names whose existing local state should be removed |
 | `critical_asn_context.yaml` | Secondary ASN-level context for blast-radius analysis |
+| `templates/markdown/` | Public Markdown templates installed beside the catalog |
+
+`renames.yaml` and `deleted.yaml` are cleanup registries, not public API aliases.
+During normal scheduler processing, the daemon applies them before the pipeline
+run: rename entries move old local outputs, public artifacts, history, library
+state, and cache entries to the new name when possible; deleted entries remove
+the same classes of local state for retired names.

@@ -1,12 +1,49 @@
 # YAML Field Reference
 
-You will learn the YAML fields source feeds and merge feeds can have, organized by group, with type, default, and example for each.
+You will learn the YAML fields source feeds, merge feeds, artifact parents, and shared catalog registries can have, organized by group, with type, default, and example for each.
+
+## Top-level cleanup registries
+
+These fields usually live in shared files such as `renames.yaml` and
+`deleted.yaml`. They are applied during cleanup-enabled scheduler processing
+runs. They are not public API aliases.
+
+| Field | Type | Default | Description | Example |
+|-------|------|---------|-------------|---------|
+| `renames` | map of old feed name to new feed name | `{}` | Moves existing local feed outputs, public artifacts, history, library state, and cache entries from an old name to a new name when the old files exist and the new files do not. | `{compromised: et_compromised}` |
+| `deleted` | list of feed names | `[]` | Removes existing local feed outputs, public artifacts, history, library state, and cache entries for permanently retired names. | `[atlas_attacks]` |
+
+## Provider default fields
+
+These fields live under the top-level `defaults:` block. Values are source
+names, not UI labels.
+
+| Field | Type | Default | Description | Example |
+|-------|------|---------|-------------|---------|
+| `defaults.asn_provider` | string | first configured ASN provider | Canonical ASN provider used for IP lookup context, homepage summaries, entity pages, insights, and default feed-detail ASN tabs. Must reference a source with `use: [asn]`. | `iptoasn` |
+| `defaults.geo_provider` | string | first configured GeoIP provider | Canonical GeoIP provider used for IP lookup context, homepage summaries, entity pages, insights, and default feed-detail country tabs. Must reference a source with `use: [geoip]`. | `dbip_country` |
+
+Changing either default is pipeline-significant: the daemon rebuilds affected
+public feed and entity artifacts after reload.
+
+## Category registry fields
+
+These fields live under top-level `categories:` entries. Category keys are used
+by source and merge `category:` fields.
+
+| Field | Type | Default | Description | Example |
+|-------|------|---------|-------------|---------|
+| `categories.<key>.label` | string | category key | Human-readable category name shown in the UI. | `Intrusion` |
+| `categories.<key>.description` | string | — | One-sentence explanation of what feeds in this category track. | `IPs observed initiating hostile access attempts against exposed services.` |
+| `categories.<key>.color` | string | — | CSS hex color used for category badges, tags, and charts. | `#dc2626` |
+| `categories.<key>.sort_order` | integer | `0` | Lower numbers appear first in public browsing lists. | `10` |
+| `categories.<key>.public` | boolean | `true` | Whether the category appears in the public category index, homepage category summaries, and country/ASN/maintainer filters. | `false` |
 
 ## Identity fields
 
 | Field | Type | Default | Description | Example |
 |-------|------|---------|-------------|---------|
-| YAML key under `sources:` | string | — | Unique feed name. Used as filename, URL slug, reference key. No path separators, commas, control characters, or non-ASCII. | `dshield` |
+| YAML key under `sources:` | string | — | Unique feed name. Used as filename, URL slug, reference key. Avoid path separators, commas, reserved filename characters (colon, asterisk, question mark, quotes, angle brackets, vertical bar), control characters, and non-ASCII. | `dshield` |
 | `label` | string | feed name | Human-readable name shown in the UI | `Team Cymru bogons (aggregated)` |
 | `info` | string | — | Markdown description shown on the public feed-detail page | `[DShield.org](https://dshield.org/) top 20 attacking class C subnets` |
 | `category` | string | — | Category key from `categories.yaml`. Required. | `intrusion` |
@@ -31,8 +68,8 @@ You will learn the YAML fields source feeds and merge feeds can have, organized 
 | Field | Type | Default | Description | Example |
 |-------|------|---------|-------------|---------|
 | `output` | string | — | Canonical output shape: `ipset` (one IP per line) or `netset` (one CIDR per line) | `netset` |
-| `processor` | list of strings | — | Pipeline of transformations for the normalized output | `["remove_comments"]` |
-| `processor_raw` | string | — | Pipeline for the raw download archive | `remove_comments` |
+| `processor` | list of strings or single-key maps | — | Pipeline of transformations for the normalized output. Simple steps are strings; argument-bearing steps are maps whose value becomes the step `args` map. See [Processor Reference](processors.md). | `["remove_comments"]` |
+| `processor_raw` | string | — | Legacy single processor name. Used as the fallback processor only when `processor` is omitted; otherwise preserved as compatibility metadata. It is not a separate raw-archive pipeline. See [Processor Reference](processors.md). | `remove_comments` |
 | `format` | string | — | Input format hint for specialized parsers | `maxmind_asn_mmdb_tar_gz` |
 
 ## Output and history fields
@@ -75,7 +112,7 @@ Other enrichment subfields cover listing policy, unlisting policy, scope and int
 |-------|------|---------|-------------|---------|
 | `hidden` | boolean | `false` | Hide from public browsing. Feed remains active in admin and processing. | `true` |
 | `exclude_from_unmaintained` | boolean | `false` | Suppress age-based health states (delayed, risky, unmaintained). | `true` |
-| `enabled_by_all` | boolean | `false` | Whether `--enable-all` includes this feed | `true` |
+| `enabled_by_all` | boolean | `false` | Accepted catalog metadata from the legacy catalog. The current daemon `--enable-all` flag enables every configured source regardless of this value. | `true` |
 | `accept_empty` | boolean | `false` | Do not flag empty downloads as errors | `true` |
 
 ## Use role fields
@@ -95,6 +132,25 @@ Only allowed when `use: [critical_infrastructure]` is set.
 | `critical.source_type` | string | — | Source shape (e.g. `authoritative_provider_json`, `curated_static`, `secondary`) | `curated_static` |
 | `critical.source_quality` | string | — | One of: `A`, `B`, `C`, `D` | `C` |
 | `critical.rationale` | string | — | Non-empty public explanation of why this reference is in the catalog | `Core public recursive DNS resolver addresses; blocking them breaks name resolution.` |
+
+## Critical ASN context fields
+
+These fields live in the top-level `critical_asn_context:` list. This list is
+only a secondary ASN-level context signal. It is not a replacement for exact
+critical-infrastructure reference feeds.
+
+| Field | Type | Default | Description | Example |
+|-------|------|---------|-------------|---------|
+| `critical_asn_context[].asn` | integer | — | Autonomous System Number. | `64496` |
+| `critical_asn_context[].name` | string | — | Public operator-facing ASN name. | `Example DNS Anycast` |
+| `critical_asn_context[].tier` | string | — | Context tier. Valid values are `soft` and `contextual`; `hard` is rejected. | `soft` |
+| `critical_asn_context[].role` | string | — | Semantic role for the context signal. | `public_dns_core` |
+| `critical_asn_context[].source_quality` | string | — | Quality grade for the context source. | `B` |
+| `critical_asn_context[].rationale` | string | — | Public explanation for why this ASN context exists. | `ASN-level context for a public DNS service when exact IP references are unavailable.` |
+
+Do not use the legacy top-level `infrastructure_asns` list. Current
+configurations model critical infrastructure warning truth as normal source or
+merge feeds with `use: [critical_infrastructure]`.
 
 ## Merge-specific fields
 
@@ -118,7 +174,7 @@ Used in `artifacts/` YAML files.
 | `info` | string | — | Admin-facing artifact description. | `DroneBL shared buildzone download` |
 | `maintainer` | string | — | Artifact source attribution. | `DroneBL.org` |
 | `maintainer_url` | string (URL) | — | Artifact source website. | `https://dronebl.org` |
-| `rsync_url` | string (URL) | — | Artifact-specific rsync source URL, used by supported artifact types. | `rsync://example.com/path/` |
+| `rsync_url` | string (URL) | — | Artifact-specific rsync source URL, used by supported artifact types. For `dronebl_buildzone`, provide the rsync password with `DRONEBL_RSYNC_PASSWORD` or fallback `RSYNC_PASSWORD`; do not put secrets in YAML. | `rsync://example.com/path/` |
 
 ## Miscellaneous fields
 
@@ -126,7 +182,7 @@ Used in `artifacts/` YAML files.
 |-------|------|---------|-------------|---------|
 | `attributes.public_url` | string (URL) | `url` | Public-safe URL shown in metadata when the real `url` contains credentials or tokens. | `https://example.com/feed.txt?token=TOKEN` |
 | `attributes.downloader` | string | default HTTP/file downloader | Specialized downloader name for normal source-feed downloads. | `copyfile` |
-| `attributes.downloader_options` | string | — | Curl-like options for normal source-feed downloads: `--data`, `--request`, `--referer`, `--user`, and `--header` are supported. | `--data 'export_type=text'` |
+| `attributes.downloader_options` | string | — | Curl-like options for normal source-feed downloads: `--data` / `--data-raw` / `-d`, `--request` / `-X`, `--referer`, `--user` / `-u`, and `--header` / `-H` are supported. The `--data=...`, `--request=...`, `--referer=...`, and `--user=...` forms are also accepted. | `--data 'export_type=text'` |
 | `attributes.no_if_modified_since` | string | unset | Set a non-empty value to suppress `If-Modified-Since` on HTTP downloads for sources that reject conditional requests. | `true` |
 | `attributes.context_role` | string | — | Provider-context role, used with `use: [provider_context]`. | `cloud_customer_hosting` |
 | `attributes.context_source_type` | string | — | Provider-context source shape. | `authoritative_provider_json` |

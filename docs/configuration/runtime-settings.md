@@ -20,8 +20,12 @@ runtime:
   feed_health_default_healthy_cadence_minutes: 10080
   feed_health_default_risky_cadence_minutes: 43200
   feed_health_archival_threshold_minutes: 86400
+  feed_health_category_thresholds:
+    intrusion:
+      healthy_cadence_minutes: 1440
+      risky_cadence_minutes: 10080
+  skip_comparison_if_no_updates: true
   web_url: https://iplists.firehol.org/ipsets/
-  public_base_url: https://iplists.firehol.org
 ```
 
 ## Concurrency domains
@@ -41,6 +45,7 @@ Background work is intentionally low-priority. It prefers finishing later over c
 
 - **`processing_interval_minutes`** — how often the processing queue drains automatically. Default: 5.
 - **`min_run_interval_seconds`** — minimum time between scheduler runs. Prevents rapid re-scheduling. Default: 30.
+- **`skip_comparison_if_no_updates`** — accepted optimization flag for no-update processing runs. Default: `true`. Ordinary no-update runs do not publish public artifacts; use explicit recheck/reprocess or provider/default changes when you need to force regeneration.
 
 ## Download and parsing limits
 
@@ -71,8 +76,8 @@ The public web server caches generated JSON and static artifacts in memory. Raw 
 
 | Setting | Default | Purpose |
 |---------|---------|---------|
-| `ipset_reduce_factor` | 20 | Reduction factor used when producing reduced ipset-compatible outputs |
-| `ipset_reduce_entries` | 65536 | Target entry count for reduced outputs |
+| `ipset_reduce_factor` | 20 | Accepted compatibility field. The current Go publishing pipeline does not use it for public outputs. |
+| `ipset_reduce_entries` | 65536 | Accepted compatibility field. The current Go publishing pipeline does not use it for public outputs. |
 | `web_charts_entries` | 500 | Number of historical points used for generated chart data |
 
 ## Health thresholds
@@ -83,10 +88,20 @@ Health states determine whether a feed is considered healthy, delayed, risky, un
 |---------|---------|---------|
 | `feed_health_single_observation_grace_minutes` | 14400 (10 days) | Grace period before a feed with only one observation gets health-classified |
 | `feed_health_default_healthy_cadence_minutes` | 10080 (7 days) | Default upper bound for "healthy" age |
-| `feed_health_default_risky_cadence_minutes` | 43200 (30 days) | Default upper bound for "risky" age |
+| `feed_health_default_risky_cadence_minutes` | 43200 (30 days) | Default threshold for "risky" age; the unmaintained threshold is double this value |
 | `feed_health_archival_threshold_minutes` | 86400 (60 days) | Continuous unavailable duration before archival |
+| `feed_health_category_thresholds` | empty map | Per-category overrides for healthy and risky cadence thresholds |
 
 Category-specific overrides live in `feed_health_category_thresholds`. For example, `intrusion` feeds use tighter thresholds than `special_use` feeds because intrusion feeds update more frequently.
+
+Each category override has two required fields:
+
+| Field | Purpose |
+|---|---|
+| `healthy_cadence_minutes` | Upper bound for "healthy" age in that category |
+| `risky_cadence_minutes` | Threshold for "risky" age in that category; the unmaintained threshold is double this value |
+
+Both values must be positive, and `healthy_cadence_minutes` must be lower than `risky_cadence_minutes`.
 
 ## Web publishing
 
@@ -153,3 +168,17 @@ base_dir: ${BASE_DIR-${HOME}/ipsets}
 ```
 
 This resolves `$BASE_DIR` if set, otherwise falls back to `$HOME/ipsets`.
+
+That example shows the YAML template value. When the daemon runs as a non-root
+user and the path settings are unset or still equal to the built-in defaults,
+runtime resolution relocates the main state paths before expansion:
+
+| Runtime path | Effective non-root default |
+|---|---|
+| `base_dir` | `$HOME/.update-ipsets/ipsets` |
+| `run_parent_dir` | `$HOME/.update-ipsets/run` |
+| `cache_dir` | `$HOME/.cache/update-ipsets` |
+| `lib_dir` | `$HOME/.local/share/update-ipsets` |
+
+Explicit YAML values or environment-variable overrides take priority over this
+non-root relocation.

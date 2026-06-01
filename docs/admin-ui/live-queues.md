@@ -4,7 +4,7 @@ You will learn what the four queue panels show, how to read queue age, and why t
 
 ## Four panels
 
-The admin UI shows four live-list panels at the top:
+The current-run panel below the heartbeat shows four live-list columns:
 
 | Panel | Contents |
 |---|---|
@@ -13,7 +13,7 @@ The admin UI shows four live-list panels at the top:
 | **Waiting to process** | Feeds with staged work admitted for processing, waiting for a worker slot. |
 | **Processing** | Feeds currently being analyzed and published by processing workers. |
 
-Each panel is a fixed-height scrollable list sized for about four visible rows. The list scrolls for overflow. Auto-refresh does not cause the rest of the page to jump.
+Each column is a fixed-height scrollable list sized for about four visible rows. The list scrolls for overflow. Auto-refresh does not cause the rest of the page to jump.
 
 ## Download queues
 
@@ -25,7 +25,7 @@ The download queues may contain:
 
 ## Processing queue
 
-The processing queue is feed-only. You will not see artifact parents or provider databases here. Only public feeds appear in the processing panels.
+The processing queue is feed-only. You will not see artifact parents or provider databases here. Hidden feeds can still appear when they have local work because hidden status controls public browsing, not processing.
 
 If you see a feed in the processing queue, it was admitted by one of:
 

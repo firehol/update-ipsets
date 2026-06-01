@@ -27,6 +27,10 @@ If the credentials are missing or empty, admin access is denied entirely. The da
 - Setting only one of the two variables
 - Setting an empty password
 
+When auth is required and either variable is missing, admin endpoints return
+`503 Service Unavailable`. When credentials are configured but the request uses
+the wrong username or password, admin endpoints return `401 Unauthorized`.
+
 ## Disabled mode
 
 Disabling authentication requires **two** explicit flags:
@@ -64,7 +68,7 @@ Reasons loopback is not sufficient:
 - SSRF vulnerabilities in co-hosted applications can reach it
 - DNS rebinding attacks can redirect browser requests to loopback
 
-Use authentication even on loopback, unless you are in a controlled development environment.
+Use authentication even on loopback, unless you are in a controlled lab environment.
 
 ## Configuring in systemd
 

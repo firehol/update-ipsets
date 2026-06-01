@@ -37,7 +37,7 @@ The API uses standard HTTP status codes:
 - `405` — method not allowed
 - `429` — rate limit exceeded
 - `500` — internal server error
-- `503` — service not ready (artifact missing, not computed yet)
+- `503` — supporting aggregate/entity artifact is not ready or readable, or required admin authentication is not configured. Missing feed-scoped artifacts usually return `404`.
 
 ## Alias routes
 

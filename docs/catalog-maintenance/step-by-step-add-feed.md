@@ -37,7 +37,7 @@ Place the file under the matching category directory:
 configs/firehol/sources/<category>/<feedname>.yaml
 ```
 
-Use lowercase names with underscores. Avoid path separators, commas, control characters, and non-ASCII characters.
+Use lowercase names with underscores. Avoid path separators, commas, reserved filename characters (`: * ? " < > |`), control characters, and non-ASCII characters.
 
 ## Step 4: Write the source definition
 

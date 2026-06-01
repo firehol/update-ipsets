@@ -55,7 +55,9 @@ Mark `redistributable: false` only when the upstream terms explicitly say "do no
 
 ### Critical infrastructure feeds
 
-Critical-infrastructure reference feeds default to `redistributable: false` in the shipped catalog. They are still public metadata and reference providers. They still produce overlap artifacts for other public feeds. The raw IP/CIDR body is simply not offered for direct download.
+Critical-infrastructure reference feeds follow the same redistribution policy as any other source. The `critical_infrastructure` use role does not make a feed non-redistributable by itself.
+
+Critical reference metadata and overlap results can be public even when the raw feed body is not. Raw-body download and compose routes still enforce the configured `redistributable` value.
 
 ## Merge inheritance
 

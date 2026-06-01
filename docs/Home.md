@@ -13,7 +13,7 @@ This manual covers everything you need to deploy, configure, monitor, and mainta
 - **Admin UI** — runtime status, feed inventory, operator actions
 - **API reference** — all public endpoints, rate limits, and response formats
 - **Monitoring** — OpenTelemetry, Netdata integration, log structure
-- **CLI tools** — iprange, query, and enable subcommands
+- **CLI tools** — iprange, query, enable, and cache-merge migration helper
 - **Troubleshooting** — common issues and how to fix them
 - **Catalog maintenance** — how operators add and validate local catalog feeds
 
@@ -35,8 +35,9 @@ Then branch to the sections you need.
 If you maintain a local feed catalog:
 
 1. Read [Feed Families](feeds/feed-families.md) to pick the right type
-2. Follow [Step by Step: Add a Feed](contributing/step-by-step-add-feed.md)
-3. Check [License Requirements](contributing/license-requirements.md) before publishing redistributed data
+2. Use [Processor Reference](feeds/processors.md) when a source needs normalization
+3. Follow [Step by Step: Add a Feed](catalog-maintenance/step-by-step-add-feed.md)
+4. Check [License Requirements](catalog-maintenance/license-requirements.md) before publishing redistributed data
 
 ## Need help?
 

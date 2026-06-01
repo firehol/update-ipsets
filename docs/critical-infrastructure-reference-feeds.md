@@ -44,10 +44,14 @@ sources:
 
 Downloaded reference feeds use `url:` instead of `static:`.
 
-Shipped critical reference feeds should be public as metadata and overlap
-inputs, but not automatically public as raw downloadable feeds. Set
-`redistributable: false` unless the source has been reviewed and there is an
-explicit decision to publish or compose the raw reference body.
+Set `redistributable` from the direct upstream terms for downloaded feeds, or
+from the operator publication policy for private `static:` data. The
+`critical_infrastructure` use role does not make a feed non-redistributable by
+itself.
+
+Critical reference feeds can be public as metadata and overlap inputs even when
+the raw IP/CIDR body is not public. Use `redistributable: false` when raw
+downloads and compose output must not include the reference body.
 
 For `critical_infrastructure` sources, every `static:` line must be a valid IPv4
 address or IPv4 CIDR. Put human comments in YAML comments, not inside the static
@@ -98,8 +102,7 @@ This object is a secondary hint and does not increase `critical_ips`.
 Critical reference provider metadata is public through the provider-list
 endpoint. Raw feed-body routes such as `/api/v1/sets/{provider}/data`,
 `/files/{provider}.netset`, `/{provider}.netset`, and `/api/v1/compose` still
-enforce `redistributable`; the shipped catalog marks critical reference
-providers non-redistributable by default.
+enforce each provider's configured `redistributable` value.
 
 ## Operator Notes
 

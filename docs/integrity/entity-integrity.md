@@ -50,3 +50,15 @@ Use full rebuild when:
 - you want to guarantee a clean baseline after operational incidents
 
 Trigger full rebuild from the admin UI entity integrity panel.
+
+## Operator API
+
+The entity integrity panel is backed by authenticated admin API endpoints:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/v1/admin/integrity/entities` | Check country and ASN entity artifacts and return current findings. |
+| `POST /api/v1/admin/integrity/entities/rebuild` | Queue a full country and ASN entity artifact rebuild. |
+
+The rebuild endpoint requires `POST`. If a rebuild or entity refresh is already
+running, the response reports `in_progress` instead of queuing duplicate work.

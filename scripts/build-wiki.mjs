@@ -3,9 +3,12 @@ import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 
-const [, , sourceArg = "docs", destArg = "wiki"] = process.argv;
+const [, , sourceArg = "docs", destArg = "wiki", wikiBaseArg] = process.argv;
 const sourceDir = path.resolve(sourceArg);
 const destDir = path.resolve(destArg);
+const wikiBaseURL = normalizeWikiBaseURL(
+  wikiBaseArg ?? process.env.WIKI_BASE_URL ?? defaultWikiBaseURL(),
+);
 
 function toPosix(value) {
   return value.split(path.sep).join(path.posix.sep);
@@ -60,6 +63,21 @@ function hasScheme(target) {
   return /^[a-z][a-z0-9+.-]*:/i.test(target);
 }
 
+function defaultWikiBaseURL() {
+  return `https://github.com/${process.env.GITHUB_REPOSITORY ?? "firehol/update-ipsets"}/wiki`;
+}
+
+function normalizeWikiBaseURL(value) {
+  const trimmed = value.trim().replace(/\/+$/, "");
+  if (!trimmed) {
+    throw new Error("wiki base URL cannot be empty");
+  }
+  if (hasScheme(trimmed)) {
+    return trimmed;
+  }
+  return `https://github.com${trimmed.startsWith("/") ? "" : "/"}${trimmed}`;
+}
+
 function splitTarget(target) {
   const hash = target.indexOf("#");
   if (hash === -1) {
@@ -103,6 +121,12 @@ function resolveDocsLink(currentRel, target) {
   return { resolved, anchor };
 }
 
+function wikiTarget(output, anchor) {
+  const slug = output.slice(0, -".md".length);
+  const pagePath = slug === "Home" ? wikiBaseURL : `${wikiBaseURL}/${slug}`;
+  return `${pagePath}${anchor}`;
+}
+
 function rewriteMarkdownLinks(source, currentRel, relToOutput) {
   return source.replace(/(!?\[[^\]\n]*\]\()([^)]+)(\))/g, (match, prefix, target, suffix) => {
     if (prefix.startsWith("!")) {
@@ -119,8 +143,7 @@ function rewriteMarkdownLinks(source, currentRel, relToOutput) {
       throw new Error(`${currentRel}: unresolved docs link target ${target}`);
     }
 
-    const slug = output.slice(0, -".md".length);
-    return `${prefix}${slug}${resolved.anchor}${suffix}`;
+    return `${prefix}${wikiTarget(output, resolved.anchor)}${suffix}`;
   });
 }
 

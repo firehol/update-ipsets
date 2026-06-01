@@ -56,6 +56,9 @@ Show only the changes (added IPs on the left, removed on the right):
 update-ipsets iprange set1.ipset --diff set2.ipset
 ```
 
+`--diff` exits with code `1` when differences are found and `0` when the sets
+are identical. It still prints the differing ranges unless `--quiet` is set.
+
 ### Intersect
 
 Keep only IPs present in both sets:
@@ -106,14 +109,55 @@ update-ipsets iprange --count-unique @/opt/update-ipsets/data/
 
 Use these flags when you need a representative sample instead of the full set:
 
-- `--ipset-reduce <factor>` — reduce the set to approximately 1/N of its size
-- `--reduce-factor <pct>` — keep approximately N% of the original ranges
+- `--ipset-reduce <pct>` / `--reduce-factor <pct>` — aliases. Allow up to
+  `pct` percent more entries while collapsing output to coarser prefixes.
+- `--ipset-reduce-entries <count>` / `--reduce-entries <count>` — set the
+  minimum entry budget used by reduction.
 
-Example — keep about 10% of ranges:
+Example — allow up to 10% entry growth while reducing prefix detail:
 
 ```bash
 update-ipsets iprange --reduce-factor 10 --combine large1.ipset large2.ipset
 ```
+
+## Supported flags
+
+| Flag | Meaning |
+|---|---|
+| `-4`, `--ipv4` | IPv4 mode. This is the default. |
+| `-6`, `--ipv6` | IPv6 mode. |
+| `--min-prefix <prefix>` | Do not print prefixes smaller than this value. |
+| `--prefixes <list>` | Restrict printed prefix sizes to a comma- or space-separated list. |
+| `--default-prefix <prefix>`, `-p <prefix>` | Prefix length for bare IP input. |
+| `--ipset-reduce <pct>`, `--reduce-factor <pct>` | Enable prefix reduction with the given allowed entry-growth percentage. |
+| `--ipset-reduce-entries <count>`, `--reduce-entries <count>` | Minimum entry budget for reduction. |
+| `--optimize`, `--combine`, `--merge`, `--union`, `--union-all`, `-J` | Combine all input sets. |
+| `--common`, `--intersect`, `--intersect-all` | Keep only addresses common to all input sets. |
+| `--exclude-next`, `--except`, `--complement-next`, `--complement` | Treat following inputs as exclusions from the earlier inputs. |
+| `--diff`, `--diff-next` | Print differences between the earlier inputs and following inputs. |
+| `--compare`, `--compare-first`, `--compare-next` | Print comparison summaries. |
+| `--count-unique`, `-C` | Count unique addresses after merging inputs. |
+| `--count-unique-all` | Count unique addresses per input set. |
+| `--print-ranges`, `-j` | Print ranges instead of CIDR prefixes. |
+| `--print-binary` | Print FileSet binary output. |
+| `--print-single-ips`, `-1` | Print one IP per line. |
+| `--print-prefix <text>` | Prefix every printed IP and network entry. |
+| `--print-prefix-ips <text>` | Prefix only printed single-IP entries. |
+| `--print-prefix-nets <text>` | Prefix only printed network/range entries. |
+| `--print-suffix <text>` | Suffix every printed IP and network entry. |
+| `--print-suffix-ips <text>` | Suffix only printed single-IP entries. |
+| `--print-suffix-nets <text>` | Suffix only printed network/range entries. |
+| `--header` | Include a CSV header where the selected output mode supports one. |
+| `--quiet` | Suppress non-result output where supported. |
+| `--dont-fix-network` | Preserve CIDR host bits instead of normalizing them to the network address. |
+| `--dns-threads <count>` | Number of resolver workers for hostname input. |
+| `--dns-silent`, `--dns-progress` | Accepted for compatibility. |
+| `--has-compare`, `--has-reduce` | Print feature-detection output and exit. |
+| `--has-filelist-loading`, `--has-directory-loading` | Print feature-detection output and exit. |
+| `--version` | Print iprange compatibility version output and exit. |
+| `--help`, `-h` | Print built-in usage and exit. |
+
+Use `as <alias>` after an input path to set the name used in compare output.
 
 ## Reading from stdin
 

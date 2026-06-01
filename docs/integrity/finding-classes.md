@@ -40,7 +40,7 @@ Examples:
 
 - a metadata JSON for an archived feed that still exposes raw download URLs (the schema is wrong for the current feed state)
 - a comparison file that contains explicit zero-overlap rows (zero overlap is represented by absence, so stale `common: 0` rows are noise)
-- a critical-infrastructure overlap file whose `provider_set_id` does not match the current provider set
+- a critical-infrastructure overlap file generated for an older reference-provider set
 
 **What to do:** the daemon queues a reprocess to regenerate the file with correct content.
 
@@ -48,7 +48,7 @@ Examples:
 
 A merge-derived feed cannot complete because a required parent input is unavailable.
 
-**What happened:** the merge needs both additive parents (feeds it includes) and subtractive parents (feeds it excludes). If any required parent body is missing, disabled, or archived, the merge cannot safely compose its output. Publishing without a subtractive parent would broaden the result unexpectedly.
+**What happened:** the merge needs usable additive parents (feeds it includes) and all configured subtractive parents (feeds it excludes). If a required body is missing, or if a subtractive parent is disabled, archived, or unmaintained, the merge cannot safely compose its output. Publishing without a subtractive parent would broaden the result unexpectedly.
 
 **What to do:** the daemon queues a recheck of the blocked parent first. Once the parent has a fresh local body, the merge can reprocess.
 

@@ -24,7 +24,7 @@ The feed URL no longer exists. The upstream provider removed or relocated it.
 
 You are hitting the upstream rate limit.
 
-**What to check:** Reduce the feed's configured frequency. Most providers document their rate limits. A value of `daily` instead of `hourly` may resolve this.
+**What to check:** Reduce the feed's configured frequency. The `frequency` field is minutes, so changing a feed from `60` to `1440` moves it from hourly checks to daily checks. Most providers document their rate limits.
 
 The daemon also has built-in retry backoff — it waits longer between retries after each failure. If 429 errors are occasional, the daemon recovers on its own.
 

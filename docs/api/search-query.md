@@ -35,6 +35,15 @@ Returns structured match objects with feed metadata such as name, file, category
 
 Use this when you need to present feed information alongside the match results without making separate requests for each feed.
 
+## Per-feed scoped search
+
+```
+GET /api/v1/sets/{name}/search?ip=1.2.3.4
+GET /api/v1/ipsets/{name}/search?ip=1.2.3.4
+```
+
+Checks one public feed instead of scanning all public feeds. The scoped response includes `scope: "feed"`, `searched_feed`, and a structured `matches` array. A miss returns an empty `matches` array with HTTP 200. Add `details=true` when you also want the best-effort IP context fields.
+
 ## Legacy alias
 
 ```
@@ -56,6 +65,6 @@ This means:
 
 ## Rate limiting
 
-IP search has its own rate limit: **10 requests per minute per client**. This is independent of the general API rate limit (240/min).
+IP search has an additional rate limit: **10 requests per minute per client**. This applies to global search, the legacy query alias, and per-feed scoped search. Search requests also consume the general `/api/` rate-limit bucket first.
 
 See [Rate Limits and CORS](rate-limits-cors.md) for details.

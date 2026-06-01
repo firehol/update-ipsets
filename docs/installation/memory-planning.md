@@ -4,15 +4,15 @@ You will learn how the daemon uses memory, how to set limits, and how to size re
 
 ## Out-of-core design
 
-The daemon does not load IP sets into RAM. It uses three techniques to keep memory usage low regardless of feed size:
+The daemon avoids keeping the whole published catalog in RAM. It uses three techniques to keep routine serving and comparison memory low:
 
-- **File-backed binary sets.** Each feed stores its current IP ranges as a binary snapshot on disk. Query and comparison operations open these files with memory-mapped I/O and perform binary search directly on the file. The Go heap never holds the range array.
+- **File-backed binary sets.** Each feed stores its current IP ranges as a binary snapshot on disk. Query and comparison operations open these files with memory-mapped I/O or positioned reads and perform binary search directly on the file. The long-lived public-serving path does not need to keep every feed's range array on the Go heap.
 
 - **Streaming set operations.** Union, intersection, exclusion, diff, and overlap counting use two-pointer sweeps over iterators. Memory usage stays constant regardless of input size.
 
-- **Streaming downloads and processing.** HTTP responses stream to temp files instead of buffering in memory. The processing pipeline chains steps as nested readers — data flows line-by-line through the chain.
+- **Streaming downloads and mostly streaming processing.** HTTP responses stream to temp files instead of buffering in memory. Processor steps with streaming implementations chain as readers; whole-input processors such as JSON/XML extraction, zip extraction, regex extraction, and hostname-resolution batches temporarily materialize the active intermediate before streaming can continue.
 
-The result: the daemon handles catalogs with hundreds of feeds and millions of IP ranges using a fraction of the memory that an in-memory approach would require.
+During feed processing, one worker can still hold the active normalized range set and rendered canonical output in memory before committing the binary snapshot. Plan capacity around the largest active source, the number of processing workers, and any whole-input processor steps, not only the total catalog size.
 
 ## GOMEMLIMIT
 
@@ -74,9 +74,9 @@ For detailed breakdown, query the admin status endpoint:
 curl -u "$UPDATE_IPSETS_ADMIN_USER:$UPDATE_IPSETS_ADMIN_PASSWORD" http://127.0.0.1:18889/api/v1/admin/status
 ```
 
-The response includes Go runtime memory statistics and process-level RSS.
+The response includes Go runtime memory statistics and process-level RSS under `system`.
 
-If you have Netdata running on the same host, the daemon exports memory metrics automatically via OpenTelemetry (enabled by default in the installed unit).
+If you have Netdata running on the same host, use Netdata's normal host/process charts for memory and CPU. OpenTelemetry export adds application operation metrics, but process resource snapshots remain easiest to inspect through the admin status API.
 
 ## When to increase limits
 
@@ -86,7 +86,8 @@ Raise limits if you observe:
 - Sustained GC pressure causing slow responses during feed updates
 - The daemon approaching MemoryHigh during large catalog processing runs
 
-The out-of-core design means memory usage grows slowly with catalog size. Most of the working data stays on disk. Limits mainly need to cover:
+The out-of-core design means routine serving memory grows slowly with catalog size. Most long-lived feed data stays on disk. Limits mainly need to cover:
 - The Go runtime and HTTP server overhead
-- Temporary in-memory processing for non-streamable sources (JSON/XML extraction, zip archives)
-- Download buffers during concurrent feed fetches
+- Temporary in-memory processing for non-streamable sources (JSON/XML extraction, zip archives, regex extraction, hostname-resolution batches)
+- Active canonical feed parsing and rendering for each processing worker
+- Small copy buffers during concurrent feed fetches; downloaded bodies are staged on disk

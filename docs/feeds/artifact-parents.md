@@ -28,11 +28,29 @@ Key fields:
 
 | Field | Description |
 |-------|-------------|
-| `type` | Artifact family — controls how the download is parsed and split |
+| `type` | Artifact family — controls how the download is parsed and split. The current supported type is `dronebl_buildzone`. |
 | `frequency` | Minutes between automatic downloads |
 | `max_download_size` | Override the global max download size for this artifact, in bytes |
 | `info` | Description for the admin UI |
 | `maintainer` | Artifact source attribution |
+
+## Authentication for DroneBL artifacts
+
+`dronebl_buildzone` artifacts are fetched with authenticated `rsync`. Provide the
+rsync password through one of these environment variables:
+
+- `DRONEBL_RSYNC_PASSWORD` — preferred, specific to the DroneBL artifact fetcher.
+- `RSYNC_PASSWORD` — fallback accepted by the underlying rsync workflow.
+
+Set the secret in the daemon environment or in `$HOME/.update-ipsets.env`. In the
+default installed service, `HOME=/opt/update-ipsets`, so the service reads
+`/opt/update-ipsets/.update-ipsets.env`.
+
+Example:
+
+```text
+DRONEBL_RSYNC_PASSWORD=[REDACTED_SECRET]
+```
 
 ## Referencing an artifact from a child feed
 

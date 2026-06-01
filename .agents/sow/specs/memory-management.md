@@ -60,6 +60,13 @@ Whole-input processor segments MUST remain bounded by the materialized source
 or intermediate file plus the resulting output. They MUST NOT load unrelated
 catalog sources or historical data while processing one source.
 
+Canonical feed-body normalization MAY build an in-memory active range set and
+rendered canonical body for the source currently being finalized. That active
+heap use MUST be scoped to the source being processed and to the configured
+processing-worker concurrency. Routine public lookup, comparison, and published
+artifact serving MUST prefer file-backed or bounded streaming reads instead of
+holding every committed feed body in heap.
+
 Cancellation MUST be checked before whole-input materialization, between byte
 processor steps, after byte processing, and before writing or copying temporary
 processor output. A canceled processor run MUST NOT publish a partial output as

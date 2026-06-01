@@ -14,13 +14,12 @@ For each artifact parent:
 
 | Field | Meaning |
 |---|---|
-| **Name** | Artifact parent identifier from configuration. |
-| **Enable state** | Whether the parent is enabled or disabled. |
+| **Artifact** | Artifact parent identifier, artifact type, and optional descriptive information. |
+| **Status** | Current artifact state, last settled status, problem class, latest error, and failure count. |
 | **Last check** | When the daemon last attempted to refresh this artifact. |
-| **Last change** | When the artifact content last changed. |
-| **Next scheduled check** | When the next automatic refresh is expected. |
-| **Family / type** | What kind of artifact this is (e.g. DNSBL-style downloader). |
-| **Child feeds** | The feeds that are materialized from this parent. |
+| **Next check** | When the next automatic refresh is expected, plus scheduler detail when available. |
+| **Children** | Child feeds materialized from this parent. Selecting a child opens that feed's detail drawer. |
+| **Actions** | Recheck plus enable or disable. Recheck is unavailable while the artifact is disabled. |
 
 ## Actions
 
@@ -29,6 +28,20 @@ For each artifact parent:
 | **Enable** | Start refreshing the parent on its cadence. Children become eligible for processing. |
 | **Disable** | Stop refreshing the parent. Children stop receiving new input. Existing children remain individually enabled but are operationally disabled. |
 | **Recheck** | Force a fresh download of the parent artifact now. |
+
+## Operator API
+
+The artifact inventory is backed by authenticated admin API endpoints:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /api/v1/admin/artifacts` | List artifact parents and their current state. |
+| `GET /api/v1/admin/artifacts/{name}` | Return one artifact parent row. |
+| `POST /api/v1/admin/artifacts/{name}/recheck` | Queue a fresh artifact download. |
+| `POST /api/v1/admin/artifacts/{name}/enable` | Enable the artifact parent. |
+| `POST /api/v1/admin/artifacts/{name}/disable` | Disable the artifact parent. |
+
+Action endpoints require `POST`. A `GET` request to an action endpoint is rejected.
 
 ## Relationship to child feeds
 

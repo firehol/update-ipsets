@@ -31,6 +31,7 @@
 
 - [Feed Families](feeds/feed-families.md)
 - [Source Feeds](feeds/source-feeds.md)
+- [Processor Reference](feeds/processors.md)
 - [Static Feeds](feeds/static-feeds.md)
 - [Merge Feeds](feeds/merge-feeds.md)
 - [Artifact Parents](feeds/artifact-parents.md)
@@ -59,7 +60,7 @@
 - [Artifact Inventory](admin-ui/artifact-inventory.md)
 - [Live Queues](admin-ui/live-queues.md)
 - [Background Work](admin-ui/background-work.md)
-- [Schedule Panel](admin-ui/schedule-panel.md)
+- [Schedule State](admin-ui/schedule-panel.md)
 - [Operator Actions](admin-ui/operator-actions.md)
 - [Enable & Disable](admin-ui/enable-disable.md)
 
@@ -99,6 +100,7 @@
 - [iprange Command](cli/iprange-command.md)
 - [query Command](cli/query-command.md)
 - [enable Command](cli/enable-command.md)
+- [cache-merge Command](cli/cache-merge-command.md)
 
 ## Troubleshooting
 
@@ -116,9 +118,9 @@
 
 ## Catalog Maintenance
 
-- [Catalog Maintenance Guide](contributing/contribution-guide.md)
-- [Step by Step: Add a Feed](contributing/step-by-step-add-feed.md)
-- [License Requirements](contributing/license-requirements.md)
+- [Catalog Maintenance Guide](catalog-maintenance/contribution-guide.md)
+- [Step by Step: Add a Feed](catalog-maintenance/step-by-step-add-feed.md)
+- [License Requirements](catalog-maintenance/license-requirements.md)
 
 ## Security
 

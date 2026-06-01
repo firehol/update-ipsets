@@ -70,7 +70,9 @@ This is conservative by design. Subtractive parents influence the derived output
 
 ## Critical infrastructure feeds
 
-Critical-infrastructure reference feeds in the shipped catalog default to `redistributable: false`. These feeds are curated reference data and need source-specific review before being republished.
+Critical-infrastructure reference feeds follow the same direct-upstream rule as any other feed. The `critical_infrastructure` use role does not make a feed non-redistributable by itself.
+
+For operator-maintained static reference data, set `redistributable` from your own publication policy. Use `false` when the raw reference body should remain private even though metadata and overlap results are public.
 
 ## Quick reference
 

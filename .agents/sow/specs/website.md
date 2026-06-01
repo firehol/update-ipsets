@@ -129,6 +129,13 @@ at least:
 - maintainer index summaries (dynamic, served from live engine state; not precomputed artifacts)
 - maintainer detail payloads (dynamic, served from live engine state; not precomputed artifacts)
 
+Maintainer index and detail payloads use the homepage aggregation eligibility
+boundary: feeds must be public-category, not hidden, not ASN or geolocation
+provider-only data, have `primary` or `secondary_upstream` provenance, and
+currently classify as `healthy` or `delayed`. Maintainer endpoints MUST NOT
+surface unhealthy, archived, hidden, provider-only, or non-public-category
+sources merely because those sources have maintainer metadata in the catalog.
+
 Normal public feed catalog/detail payloads apply only to public feeds.
 Supporting provider datasets such as ASN and geolocation databases are not
 normal public feeds; they MAY power public derived views and provider-scoped
@@ -235,6 +242,19 @@ The provider-list route may expose critical reference metadata for configured
 providers even when those providers are not raw-redistributable. Raw body and
 compose routes for those provider feeds remain governed by the normal
 public-feed, archived, and redistributable checks.
+
+Per-feed provider-list routes for GeoIP, ASN, and bogon data are configuration
+metadata routes:
+
+- `/api/v1/sets/{feed}/countries`
+- `/api/v1/sets/{feed}/asn`
+- `/api/v1/sets/{feed}/bogons`
+
+They MUST list configured providers for that provider family and MUST NOT use
+the current feed's artifact availability as a filter. Provider-specific routes
+such as `/api/v1/sets/{feed}/countries/{provider}` are the artifact readers;
+those routes MAY return a missing-artifact response when the provider is
+configured but the feed-specific artifact is absent.
 
 Generated artifact route parsing MUST use exact configured identities and typed
 artifact descriptors. A configured public feed whose name contains generated
@@ -357,6 +377,10 @@ official names, maintainer names, short descriptions, and feed descriptions,
 plus metadata filters equivalent to the homepage explorer: category,
 maintainer, provenance, health, freshness, cadence, uniqueness, license,
 redistributable, critical tier, and size range.
+The maintainer filter uses a case-insensitive substring match against
+maintainer names, while category, provenance, health, freshness, cadence,
+uniqueness, license, redistributable, and critical-tier filters use
+case-insensitive exact bucket/value matching.
 The tool input schema MUST expose JSON Schema enums for known string domains.
 Fixed taxonomy filters (`provenance`, `health`, `freshness`, `cadence`,
 `uniqueness`, `redistributable`, and `critical`) use stable enum lists.
@@ -374,7 +398,8 @@ The `fetch_analysis` tool MUST read pre-generated markdown from the published
 artifact tree and return it as text content. Markdown paths are entity-local:
 feeds use `{web-dir}/{name}.md`, countries use `{web-dir}/countries/{code}.md`,
 ASNs use `{web-dir}/asns/{asn}.md`, and maintainers use
-`{web-dir}/maintainers/{slug}.md`.
+`{web-dir}/maintainers/{slug}.md`. Current ASN markdown identifiers are numeric
+artifact names without the `AS` prefix.
 
 Feed markdown returned through `fetch_analysis` MUST be compact enough for AI
 agent context windows: it renders only the configured default ASN provider and

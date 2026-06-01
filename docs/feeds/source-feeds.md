@@ -49,7 +49,17 @@ attributes:
     --header 'Authorization: bearer ${API_TOKEN}'
 ```
 
-Supported options are `--data`/`-d`, `--request`/`-X`, `--referer`, `--user`/`-u`, and `--header`/`-H`.
+Supported options are:
+
+- `--data`, `--data-raw`, or `-d`
+- `--request` or `-X`
+- `--referer`
+- `--user` or `-u`
+- `--header` or `-H`
+
+The `--data=...`, `--request=...`, `--referer=...`, and `--user=...` forms are
+also accepted. Header values must use the separated form, for example
+`--header 'Authorization: bearer ${API_TOKEN}'`.
 
 ## Frequency
 
@@ -77,7 +87,14 @@ Processors form a pipeline — each step transforms the data before passing it t
 | `torproject_exits` | Parse Tor exit-addresses format |
 | `passthrough` | No transformation |
 
-The `processor` field sets the pipeline for the normalized output. The `processor_raw` field sets the pipeline for the raw download archive.
+The `processor` field sets the normalized-output pipeline. When `processor` is
+present, it is the pipeline the daemon runs. `processor_raw` is retained as a
+legacy catalog field: if `processor` is omitted, the daemon treats
+`processor_raw` as one legacy processor name; otherwise it is preserved as
+metadata for compatibility and auditing. It is not a separate raw-archive
+pipeline.
+
+See [Processor Reference](processors.md) for the full supported processor list and arguments.
 
 ## Simple source example
 
@@ -96,7 +113,6 @@ sources:
     info: '[Abuse.ch Feodo tracker](https://feodotracker.abuse.ch) trojan IP blocklist'
     maintainer: Abuse.ch
     maintainer_url: https://feodotracker.abuse.ch/
-    enabled_by_all: true
 ```
 
 ## Complex source example
@@ -120,7 +136,6 @@ sources:
     info: '[DShield.org](https://dshield.org/) top 20 attacking class C subnets'
     maintainer: DShield.org
     maintainer_url: https://dshield.org/
-    enabled_by_all: true
 ```
 
 This source checks every 10 minutes, produces a netset, declares history windows (1 day, 7 days, 30 days), and uses a custom DShield parser.

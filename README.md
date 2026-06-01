@@ -3,9 +3,9 @@
 **See what's actually inside a public IP blocklist — before you trust it to block, alert, or score.**
 
 Every feed maintainer claims their list is fresh, accurate, and comprehensive. There is no
-neutral way to check. update-ipsets tracks **342 public IP threat & blocking feeds**, refreshes
-them continuously, keeps years of history, and measures every one of them the same way — so you
-can see the facts that actually decide whether a feed is worth using.
+neutral way to check. update-ipsets tracks **342 public IP threat, blocking, and reference
+feeds**, refreshes them continuously, keeps years of history, and measures every public feed the
+same way — so you can see the facts that actually decide whether a feed is worth using.
 
 It reports measurements, never opinions. It will never tell you which feed is "best." It hands
 you the evidence and you decide.
@@ -17,8 +17,8 @@ you the evidence and you decide.
 | **Project** | [FireHOL](https://firehol.org) — community-maintained, open source |
 | **License** | GNU GPL v2 |
 | **Language** | Go (a rewrite of the original FireHOL bash `update-ipsets`) |
-| **Catalog** | 342 source feeds · 12 curated merges · 11 categories · tracked since 2015 |
-| **Status** | IPv4 feeds fully implemented · IPv6 feeds not yet |
+| **Catalog** | 342 public feeds: 329 source feeds + 13 curated merges · 11 categories · tracked since 2015 |
+| **Status** | IPv4 feed pipeline fully implemented · `iprange` CLI supports IPv6 |
 
 ---
 
@@ -82,8 +82,9 @@ exact removal channel.
   IPs.
 - **It does not invent a false-positive number.** It surfaces the risk signals; the judgment is
   yours.
-- **Feeds are IPv4 today.** IPv6 feeds are not yet implemented. (The bundled `iprange` CLI does
-  handle IPv6.)
+- **The shipped feed pipeline is IPv4-oriented.** Public feed lookup, enrichment, and
+  critical-infrastructure overlap are IPv4-only in this release. The bundled `iprange` CLI
+  supports IPv6 set operations.
 
 This restraint is the point. The data is trustworthy precisely because the software refuses to
 editorialize.
@@ -123,6 +124,8 @@ larger than available RAM by working file-backed and streaming instead of loadin
 memory. Operators get full visibility through the admin UI: download and processing queues, feed
 status, integrity checks, and manual recheck/reprocess controls.
 
+Builds require Go and `pnpm`; the web UI is embedded into the binary.
+
 ```bash
 make build        # build the binary
 make test         # run tests
@@ -132,7 +135,8 @@ make test         # run tests
 **Also a command-line toolkit.** Beyond the daemon, the same binary is a standalone CLI:
 `iprange` (a FireHOL `iprange`-compatible set tool — CIDR / range / IP math, compare, diff,
 intersect, prefix reduction; IPv4 and IPv6), `query` (which lists contain an IP, or compose sets
-with `set1 + set2 - set3`), and `enable` / `disable` (choose which sources to collect).
+with `set1 + set2 - set3`), `enable` (enable or disable sources), and `cache-merge` (migration
+cache helper).
 
 See [`docs/`](docs/) — [quick-start](docs/quick-start.md),
 [installation](docs/installation/), [api](docs/api/), [feeds](docs/feeds/),

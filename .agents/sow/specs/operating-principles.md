@@ -334,6 +334,13 @@ The default remains `http/protobuf` for generic OTLP collectors. OTLP/gRPC
 endpoint environment values MUST include an `http` or `https` scheme because
 the Go OpenTelemetry gRPC exporters reject bare `host:port` values.
 
+When export is enabled, the daemon MUST use the standard OpenTelemetry resource
+environment detector and default OTLP exporter environment configuration. This
+means standard variables such as `OTEL_SERVICE_NAME`,
+`OTEL_RESOURCE_ATTRIBUTES`, OTLP headers, timeout, compression, insecure, and
+TLS/mTLS certificate variables are honored by the OpenTelemetry SDK/exporters
+in addition to the project-specific enablement and signal-control variables.
+
 The installed service MUST default to direct local Netdata export:
 
 - `UPDATE_IPSETS_OTEL=1`
@@ -344,8 +351,9 @@ The installed service MUST default to direct local Netdata export:
 
 The metric export interval MUST be configurable through
 `UPDATE_IPSETS_OTEL_METRIC_INTERVAL` or `OTEL_METRIC_EXPORT_INTERVAL`; integer
-values are milliseconds. Individual OpenTelemetry signals MUST be suppressible
-with `UPDATE_IPSETS_OTEL_TRACES`, `UPDATE_IPSETS_OTEL_METRICS`,
+values are milliseconds, and duration strings such as `10s` MUST also be
+accepted. Individual OpenTelemetry signals MUST be suppressible with
+`UPDATE_IPSETS_OTEL_TRACES`, `UPDATE_IPSETS_OTEL_METRICS`,
 `UPDATE_IPSETS_OTEL_LOGS`, or the standard `OTEL_<SIGNAL>_EXPORTER=none`
 variables.
 

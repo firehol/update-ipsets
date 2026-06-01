@@ -1,36 +1,43 @@
-# Schedule Panel
+# Schedule State
 
-You will learn how to read the schedule view, what trigger reasons mean, and how different feed families schedule their next run.
+You will learn how to read schedule state in the admin UI and how different feed families become due.
 
-## What the schedule shows
+## Where schedule state appears
 
-The schedule panel lists items with their expected next run time and the reason they will run.
+The current admin UI does not have a separate full-page schedule panel. Schedule state appears in three places:
 
-| Field | Meaning |
+| Surface | What it shows |
 |---|---|
-| **Item** | Feed or artifact parent name. |
-| **Next run** | When the next automatic action is expected. |
-| **Trigger reason** | Why the item will run. |
+| Feed table | Each feed's next check label and scheduler-state text. |
+| Feed detail drawer | Scheduled frequency, observed update cadence, next check, scheduler state, and retry/backoff count. |
+| Artifact inventory | Each artifact parent's next check and scheduler detail. |
 
-## Trigger reasons
+The admin API also exposes `GET /api/v1/admin/schedule` for automation. It returns schedule rows with item name, kind, enable state, next due time, last check, configured frequency, failure count, and detail text.
 
-| Reason | When you see it | What it means |
-|---|---|---|
-| **Cadence-driven** | Merges, plain feeds, artifact parents, provider databases | The item runs on its own configured time interval. |
-| **Input-triggered** | History derivatives, merges after input changes | The item runs because its parent or input feed updated. |
-| **Manual** | After operator recheck or reprocess | An operator explicitly requested this run. |
-| **Retry** | After a failed download | The item is retrying after a hard failure, using exponential backoff. |
-| **Recovery** | After integrity check | The item was queued to repair missing or stale outputs. |
+## Scheduler state text
+
+The scheduler detail is an operator-facing explanation, not an internal code. Common values include:
+
+| Text pattern | Meaning |
+|---|---|
+| `never checked` | No successful check has been recorded yet. The item is due. |
+| `due now` | The next check time has passed. |
+| `next check in ...` | The item is not due yet. The text includes the base configured cadence. |
+| `retry due now` | A failing item is ready for another retry. |
+| `retry in ... after ... hard failures` | The scheduler is backing off after repeated failures. |
+| `archived (automatic retries disabled)` | Archived feeds no longer run automatically. |
+| `triggered by inputs` | A derivative runs when its parent or inputs update, not on a fixed wall-clock cadence. |
+| `static source (never expires)` | A static source has no independent expiry after its first materialization. |
 
 ## How feed families schedule
 
 ### Plain feeds
 
-Run on their configured cadence. After a successful check, the next run is scheduled at `now + cadence`. After a failure, the next retry uses exponential backoff.
+Run on their configured cadence. After a check, the next due time is based on the last checked time plus the configured cadence. After a hard failure, the retry delay grows with the failure count.
 
 ### Merges
 
-Cadence-driven. Merges are the only synthetic feed family that progresses purely because time passed. They recompose from their inputs on each cadence tick.
+Expanded merge feeds are first-class sources. If they have no explicit frequency, they use the runtime processing interval. They recompose from currently eligible local inputs when they run.
 
 ### History derivatives
 
@@ -43,6 +50,15 @@ Run on their own cadence, independently of their child feeds.
 ### Provider databases
 
 Run on their own cadence. When a provider updates successfully, a reprocess wave is triggered for all feeds that depend on that provider.
+
+## Manual actions
+
+Manual actions appear as run reasons in queue and feed-detail views:
+
+- **Run due work now** evaluates the current schedule and enqueues currently due items.
+- **Recheck** targets one feed or artifact parent and forces downloader-stage work.
+- **Reprocess** targets one feed, or all eligible feeds when using broad reprocess, and uses existing local input.
+- **Integrity recovery** queues the recheck/reprocess plan produced by the integrity checker.
 
 ## See also
 

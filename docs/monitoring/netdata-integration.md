@@ -35,16 +35,18 @@ sudo systemctl restart update-ipsets
 - Uses gRPC protocol (required by Netdata's otel-plugin)
 - Pushes metrics every 10 seconds, matching Netdata's default OTel chart interval
 - Suppresses traces — update-ipsets primarily needs metrics, not distributed tracing
-- Logs continue to flow through OpenTelemetry alongside metrics
+- Exports logs through OpenTelemetry unless you set `OTEL_LOGS_EXPORTER=none`
 
 ## Verifying the integration
 
 After restarting, open Netdata and look for new charts under the `update_ipsets` or `iprange` application group. You should see counters for:
 
-- Download operations (`download.ok`, `download.failed`, etc.)
-- Processing phases (`engine.queued`, `engine.<phase>`)
+- Download operations (`download.ok`, `download.failed`, `download.error`, `download.status.downloaded`, etc.)
+- Processing phases and queues (`engine.queued`, `engine.batch.completed`, `engine.<phase>`)
 - iprange primitives (`iprange.load.text`, `iprange.merge.ops`, etc.)
-- Process resource usage (CPU, memory, file descriptors)
+- Public/admin API activity (`http.admin_status`, `http.home_summary.requests`, etc.)
+
+Process CPU, memory, and file-descriptor usage is available through the admin status API under `system` and through Netdata's normal host/process monitoring charts.
 
 If you don't see charts within 30 seconds, check:
 

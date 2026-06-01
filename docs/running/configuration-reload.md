@@ -20,7 +20,7 @@ kill -HUP <update-ipsets-pid>
 
 - YAML catalog: source definitions, merges, artifact parents, runtime settings, categories, supporting registries
 - Derived feed configurations: history derivatives, merge expansions, artifact-backed children
-- Feed enable/disable state derived from the catalog
+- Effective enable/disable state, recalculated from the new catalog and the existing source/artifact enable marker files
 
 The daemon re-reads the `--config` directory, re-validates everything, and swaps to the new configuration atomically.
 
@@ -31,6 +31,7 @@ These require a full restart:
 - Listen addresses (`--listen`, `--admin-listen`)
 - TLS certificates and keys (`--tls-cert`, `--tls-key`)
 - Log level (`--silent`, `--verbose`)
+- Markdown templates under `templates/markdown/`
 
 To change these, restart the service:
 
@@ -60,6 +61,7 @@ The daemon does not swap to a partial or broken configuration. Committed state, 
 | Change TLS certificates | | yes |
 | Change `--interval` | | yes |
 | Change log level | | yes |
+| Change Markdown templates | | yes |
 | Fix a broken feed definition that blocked reload | | yes (or fix the config and reload again) |
 
 ## Checking reload status

@@ -7,9 +7,9 @@ You will learn what happens after the downloader stages a feed body, how the pro
 When the processing loop wakes, it follows this sequence:
 
 1. **Claim staged body** — rename a `.new` file to `.processing` for each feed in the batch.
-2. **Feed-local processing** — analyze the canonical feed body for per-feed state.
+2. **Feed-local processing** — analyze the canonical feed body, write the committed feed body, and update per-feed state.
 3. **Heavy phases** — run global enrichment and comparison across all relevant feeds.
-4. **Commit** — atomically promote `.processing` files to committed feed bodies and publish all artifacts.
+4. **Publish** — stage public artifacts, publish the staged artifact tree, and save the updated cache state.
 
 ## Feed-local processing
 
@@ -38,15 +38,17 @@ After feed-local work completes for the batch, the engine runs global phases:
 
 Heavy-phase concurrency is independently configurable. The engine stops admitting new heavy work during shutdown and waits for in-flight workers to settle.
 
-## Commit
+## Visibility and publication
 
-The commit step:
+The processing loop makes a successful batch visible in stages:
 
-1. Writes all public artifacts (metadata, history, comparisons, enrichment, insights).
-2. Promotes each `.processing` body to the committed feed body.
-3. Sets correct mtimes on published files for pipeline integrity.
+1. During feed-local processing, each successful feed writes its committed canonical body and latest binary set.
+2. Public artifacts are staged with the mtimes required for pipeline integrity.
+3. Supporting staged downloads, such as provider archives and artifact-parent archives, are promoted before public artifact publication when they belong to the successful batch.
+4. The staged public artifact tree is published.
+5. The updated cache state is saved.
 
-If any step fails before promotion, the previous committed outputs remain authoritative. The staged `.processing` body stays on disk for retry.
+If processing fails before publication, the staged or processing input remains available for retry. If publication is interrupted after a feed body was committed, integrity checks detect missing or stale public artifacts and recovery can reprocess from the committed local body.
 
 ## Background work
 

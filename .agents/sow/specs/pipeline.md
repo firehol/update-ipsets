@@ -645,10 +645,15 @@ Publication MUST preserve this order:
 
 1. stage new feed bodies
 2. claim admitted `.new` feed bodies into `.processing`
-3. process the batch from `.processing` or committed feed bodies
-4. publish/update public artifacts and mirrors from the same successful engine
-   run (including markdown page artifacts alongside JSON artifacts)
-5. promote successful `.processing` bodies to committed feed bodies
+3. process the batch from `.processing` or committed feed bodies, and write
+   successfully finalized normal feed bodies to their committed canonical files
+4. stage/update public artifacts and mirrors from the same successful engine
+   run, including markdown page artifacts alongside JSON artifacts
+5. promote successful supporting staged inputs, such as provider archives and
+   artifact-parent source archives, before public artifact publication
+6. apply the logical mtimes required by producer contracts to staged public
+   artifacts
+7. publish the staged public artifact tree and save the updated cache state
 
 Publication MUST preserve the integrity timestamp contract. Files written into
 staging directories may temporarily have filesystem write mtimes, but before
@@ -656,11 +661,14 @@ they become committed publication data the publishing path MUST set or preserve
 the logical mtime assigned by the producer. Public artifact freshness MUST NOT
 depend on the instant a staged file was renamed into the live tree.
 
-If batch processing fails before promotion:
+If batch processing fails before publication:
 
 - staged `.new` and claimed `.processing` inputs MUST remain available for
   restart recovery as appropriate
-- the previous committed outputs MUST remain authoritative
+- if a successful feed body was already finalized into committed state but
+  public publication did not complete, integrity checks MUST be able to detect
+  the missing or stale public artifacts and queue local reprocessing from
+  committed state
 
 ## Restart recovery contract
 

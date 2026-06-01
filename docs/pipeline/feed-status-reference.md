@@ -40,17 +40,34 @@ These indicate a specific failure during download or composition.
 ## Processing-stage statuses
 
 These are set by the processing engine during or after processing runs.
+Some values appear only in the admin status API's per-run report, not as the
+settled feed-row status in the feed inventory.
 
 | Status | Meaning |
 |---|---|
+| `ok` | Per-run report status meaning the feed finished the processing attempt without a processing exception. This is not the downloader changed-content status; changed downloads use `downloaded`. |
 | `updated` | Processing completed successfully. Artifacts were published. |
 | `processing` | The feed is currently being processed. |
 | `cancelled` | Processing was cancelled before completion (e.g. daemon shutdown). |
 | `running` | A processing run attempt has started. |
 | `missing_input` | No feed body was found to process. Staged and committed bodies are both absent. |
+| `invalid_input` | The feed's processing input or configuration is invalid for this processing path. |
 | `parse_failed` | Source parse failure during processing. |
 | `finalize_failed` | Finalization step failed during processing. |
 | `retention_failed` | Retention history update failed during processing. |
+
+## Provider and support-data statuses
+
+These statuses usually appear on ASN, GeoIP, bogon, or other provider-style
+inputs rather than ordinary threat feeds.
+
+| Status | Meaning |
+|---|---|
+| `config_error` | Provider configuration is invalid for the selected format or role. |
+| `extract_failed` | Provider archive extraction failed. |
+| `open_failed` | The daemon could not open the prepared provider database. |
+| `unavailable` | Required provider data is not available locally. |
+| `stale` | The daemon is using cached provider data after a refresh failure. |
 
 ## How to read status in the admin UI
 

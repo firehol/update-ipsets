@@ -45,7 +45,7 @@ Example response (simplified):
     "last_started": "2026-05-31T10:20:30Z",
     "last_ended": "2026-05-31T10:21:45Z",
     "source_count": 423,
-    "merge_count": 12
+    "merge_count": 13
   },
   "system": {
     "uptime_seconds": 86400,
@@ -91,7 +91,8 @@ or identity signal.
 GET /api/v1/categories
 ```
 
-Returns the list of feed categories with metadata. Each category has a slug, display name, and description.
+Returns the public feed categories with metadata. Each category object includes
+`name`, `label`, `description`, and optional `color` and `sort_order` fields.
 
 This endpoint serves the category index used by the public UI feed browser.
 
@@ -105,4 +106,4 @@ GET /api/v1/home/summary?categories=intrusion,malware_infrastructure&limit=10
 These endpoints serve precomputed data for the public homepage:
 
 - `globe` — geographic visualization data for the homepage globe widget. The `categories` query parameter is required.
-- `summary` — aggregated summary statistics. `categories` is optional; when omitted, all public categories participate. `limit` optionally bounds top-N lists.
+- `summary` — aggregated summary statistics. `categories` is optional; when omitted, all public categories participate. `limit` optionally bounds each top-N list. The value must be a non-negative integer; `0` or an omitted value uses the default of 20, and values above 200 are clamped to 200.

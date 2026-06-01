@@ -41,10 +41,55 @@ Meaning:
 
 - use `localhost` when the old bash layout is on the same machine
 - use a hostname when importing over ssh/rsync from another machine
+- omit `INSTALL_DIR` to use `/opt/update-ipsets`
 
 The older `scripts/sync-from-d1.sh` name may still exist as a compatibility wrapper
 while operators transition, but the canonical documented interface is
 `scripts/sync-from-bash-version.sh`.
+
+### Legacy path overrides
+
+The helper assumes the historical FireHOL paths by default. If the old
+installation used different paths, set these environment variables before
+running it:
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `BASH_BASE` | `/etc/firehol/ipsets` | Old committed feed body, history, and related data tree. |
+| `BASH_LIB` | `/var/lib/update-ipsets` | Old library/state directory. |
+| `BASH_CONFIG` | `/etc/firehol/update-ipsets.conf` | Old monolithic bash configuration file. |
+| `BASH_WEB` | `/var/www/blocklists` | Old published website/mirror tree. |
+
+Example:
+
+```bash
+BASH_BASE=/srv/firehol/ipsets \
+BASH_LIB=/srv/firehol/lib \
+BASH_WEB=/srv/www/blocklists \
+./scripts/sync-from-bash-version.sh old-host /opt/update-ipsets
+```
+
+### What the helper does
+
+The helper performs the migration in staged steps:
+
+1. Stops the Go daemon if it is currently running.
+2. Creates a pre-sync backup under `INSTALL_DIR/backups/`.
+3. Imports the old bash data, library, website, and config into
+   `INSTALL_DIR/import-bash-version/`.
+4. Builds manifests for imported feeds and local-only Go feeds.
+5. Copies staged data into the live Go `data/`, `lib/`, and `web/` trees.
+6. Merges the legacy `.cache` into Go `.cache.json` when the legacy cache is present.
+7. Extracts known legacy API-key variables into `INSTALL_DIR/.update-ipsets.env`.
+   This includes `AUTOSHUN_API_KEY`, `BLUELIV_API_KEY`, `XFORCE_API_KEY`,
+   `XFORCE_API_PASSWORD`, `IP2LOCATION_API_KEY`, and `MAXMIND_LICENSE_KEY` when
+   they are present in the legacy config.
+8. Removes stale duplicate legacy `latest.set` files when the corresponding current
+   `latest` files exist.
+9. Restarts the Go daemon only if it was running before the migration started.
+
+The helper prints a summary with feed counts, history snapshot counts, copied
+web artifacts, backup path, manifest path, and environment file path.
 
 ## What to inventory first
 

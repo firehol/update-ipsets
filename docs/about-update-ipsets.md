@@ -37,4 +37,4 @@ Operators use the admin UI to monitor download and processing queues, inspect fe
 
 ## What it does not do
 
-update-ipsets reports facts. It does not rank feeds, tell you which one is "best", or make policy decisions. It does not support IPv6 yet — IPv4 is fully implemented.
+update-ipsets reports facts. It does not rank feeds, tell you which one is "best", or make policy decisions. The shipped feed catalog and public lookup/enrichment pipeline are IPv4-oriented in this release. The standalone `iprange` CLI supports IPv6 set operations.

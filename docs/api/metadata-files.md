@@ -59,11 +59,11 @@ The file follows the emerging `llms.txt` convention for curated AI-readable site
 Example content structure:
 
 ```markdown
-# update-ipsets
+# FireHOL IP Lists
 
-Public cybercrime IP feed observatory.
+> Public cybercrime IP feed observatory for discovering, comparing, and consuming maintained IP blocklists.
 
-## Pages
+## Primary Pages
 
 - / — homepage with IP lookup and feed explorer
 - /countries — country index
@@ -71,10 +71,26 @@ Public cybercrime IP feed observatory.
 - /maintainers — maintainer index
 - /methodology — methodology index
 
-## API
+## Public APIs
 
+- /api/v1/status — high-level public service state
+- /api/v1/categories — public category registry
 - /api/v1/sets — feed catalog
 - /api/v1/search — IP lookup
 - /api/v1/countries — country index
 - /api/v1/asns — ASN index
+- /api/v1/maintainers — maintainer index
+- /api/v1/methodology — methodology index
+- /api/v1/compose — compose example when at least one public feed exists
+
+## Feed Surfaces
+
+- /all-ipsets.json — legacy feed catalog JSON
+- /api/v1/sets — public feed API index
+- /ipsets/{name} — example public feed detail page when at least one public feed exists
+
+## Optional
+
+- /sitemap.xml — XML sitemap for public pages
+- /robots.txt — crawler policy and sitemap pointer
 ```

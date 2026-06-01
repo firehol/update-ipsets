@@ -105,7 +105,7 @@ sudo systemctl restart update-ipsets
 **What to check:**
 
 1. Is the feed enabled? Check the enable marker in the admin UI.
-2. Is the scheduler running? Check the admin status for `scheduler_state`.
+2. Is the scheduler moving work? Check admin status fields `queues`, `metrics.download_started`, `metrics.download_finished`, and `metrics.processing_batches_completed`.
 3. Is `--enable-all` configured? Without it, only explicitly enabled feeds are active.
 4. Is the feed archived? Archived feeds stop automatic scheduling.
 

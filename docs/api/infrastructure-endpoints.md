@@ -18,7 +18,7 @@ Overlap is categorized into tiers:
 GET /api/v1/sets/{name}/infrastructure
 ```
 
-Returns the aggregate critical-infrastructure overlap summary for one feed. Includes total matched IPs per tier, matched reference feeds, and completeness status.
+Returns the aggregate critical-infrastructure overlap summary for one feed. Includes feed size, total matched IPs, percentage, completeness status, provider-set identity, configured and missing providers, per-tier totals, positive-overlap providers, and optional ASN-context matches.
 
 Example:
 
@@ -26,7 +26,7 @@ Example:
 GET /api/v1/sets/firehol_level1/infrastructure
 ```
 
-Key response fields: `provider_set_id`, matched reference feeds per tier, `complete` flag, `missing_providers` list.
+Key response fields: `feed`, `family`, `feed_ips`, `critical_ips`, `percent`, `complete`, `provider_set_id`, `configured_providers`, `missing_providers`, `tiers`, `providers`, and optional `asn_context`.
 
 ## Configured providers
 
@@ -42,7 +42,7 @@ Example:
 GET /api/v1/sets/firehol_level1/infrastructure/providers
 ```
 
-Key response fields: array of provider objects with name, description, and tier classification.
+Key response fields: array of provider objects with `name`, optional `label`, `type`, `tier`, `role`, `source_type`, `source_quality`, `rationale`, license/attribution fields, redistributability, and maintainer fields.
 
 ## Per-provider overlap detail
 
@@ -50,7 +50,7 @@ Key response fields: array of provider objects with name, description, and tier 
 GET /api/v1/sets/{name}/infrastructure/{provider}
 ```
 
-Returns the detailed overlap between one feed and one specific critical-infrastructure provider.
+Returns the overlap summary between one feed and one specific critical-infrastructure provider.
 
 Example:
 
@@ -58,7 +58,7 @@ Example:
 GET /api/v1/sets/firehol_level1/infrastructure/critical_dns_root_servers
 ```
 
-Key response fields: matched IPs, matched ranges, overlap percentages, provider-set identity.
+Key response fields: `provider`, `provider_set_id`, `feed_ips`, `critical_ips`, and `percent`. The endpoint reports counts and percentage; it does not return the matched IP or range list.
 
 ## Stale artifact handling
 

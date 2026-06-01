@@ -41,6 +41,8 @@ Environment="UPDATE_IPSETS_ADMIN_PASSWORD=change-this-secret"
 
 This places the public site on port 18888 and the admin dashboard on `127.0.0.1:18889` with basic auth.
 
+Before enabling this drop-in, set `runtime.public_base_url` in the active catalog to the externally visible public site URL. The daemon rejects split-listener startup without it.
+
 ### Example: custom listen port
 
 ```ini

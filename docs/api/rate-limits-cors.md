@@ -1,6 +1,6 @@
 # Rate Limits and CORS
 
-You will learn the rate limiting policy, CORS headers, and compression behavior for the public API.
+You will learn the rate limiting policy, CORS headers, and compression behavior for the HTTP API surfaces.
 
 ## Rate limits
 
@@ -14,7 +14,7 @@ The rate limiter uses a token-bucket algorithm. Per-client state is tracked by s
 
 ### IP search
 
-IP search endpoints (`/api/v1/search`, `/api/v1/query`) have an additional rate limit of **10 requests per minute per client**.
+IP search endpoints (`/api/v1/search`, `/api/v1/query`, and per-feed `/api/v1/sets/{name}/search` or `/api/v1/ipsets/{name}/search`) have an additional rate limit of **10 requests per minute per client**.
 
 Search requests also pass through the general `/api/` limiter. The effective search limit is the stricter search bucket unless the client has already exhausted the general API bucket.
 

@@ -20,9 +20,9 @@ Example response (simplified):
 
 ```json
 {
-  "pages": [
+  "items": [
     {
-      "slug": "health",
+      "slug": "feed-health",
       "title": "Feed Health Classification",
       "summary": "How we classify feed health and what each class means."
     },
@@ -46,7 +46,7 @@ Returns the full content of a single methodology page.
 Example:
 
 ```
-GET /api/v1/methodology/health
+GET /api/v1/methodology/feed-health
 ```
 
 Key response fields:
@@ -54,10 +54,10 @@ Key response fields:
 - `slug` — the page identifier
 - `title` — the page title
 - `summary` — a short description
-- `body` — the rendered content (structured, not raw HTML)
+- `body` — rendered HTML for the page body
 
 ## How pages are used
 
 The public website links to methodology pages from relevant UI surfaces. For example, a feed detail page links to the health methodology from the health badge, and the retention chart links to the retention methodology.
 
-The API returns structured data so consumers can render methodology content in their own interfaces without scraping HTML.
+The API returns page metadata and rendered HTML so consumers can embed methodology content without scraping the public website.

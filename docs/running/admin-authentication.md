@@ -48,7 +48,7 @@ The daemon does not guess, default, or silently disable authentication. A missin
 
 ## Disabled mode
 
-Disabled mode skips authentication entirely. It is intended for local development or trusted networks where you control all access.
+Disabled mode skips authentication entirely. It is intended for local testing or trusted lab networks where you control all access.
 
 To enable it, set **both** flags:
 
@@ -89,6 +89,7 @@ For production deployments:
 2. Use split mode with `--admin-listen 127.0.0.1:18889`.
 3. Set strong credentials in the systemd drop-in.
 4. Restrict the admin port further with a firewall if possible.
+5. Configure `runtime.public_base_url` for the public site; split mode will not start without it.
 
 ```bash
 UPDATE_IPSETS_ADMIN_USER=admin \
@@ -110,9 +111,9 @@ This gives you:
 
 | Goal | Flags |
 |---|---|
-| Local dev, no auth | `--admin-auth-mode=disabled --allow-unauthenticated-admin` |
+| Local testing, no auth | `--admin-auth-mode=disabled --allow-unauthenticated-admin` |
 | Production, shared listener | `--admin-auth-mode=required` + environment credentials |
-| Production, split listener | `--admin-listen 127.0.0.1:18889 --admin-auth-mode=required` + environment credentials |
+| Production, split listener | `--admin-listen 127.0.0.1:18889 --admin-auth-mode=required` + environment credentials + `runtime.public_base_url` |
 
 ## See also
 
