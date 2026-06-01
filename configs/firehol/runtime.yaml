@@ -1,4 +1,5 @@
 runtime:
+  public_base_url: https://iplists.firehol.org
   base_dir: ${BASE_DIR-${HOME}/ipsets}
   config_file: ${CONFIG_FILE-${HOME}/.update-ipsets/config}
   run_parent_dir: ${RUN_PARENT_DIR-${HOME}/.update-ipsets}

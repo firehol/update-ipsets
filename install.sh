@@ -157,6 +157,12 @@ run sudo mkdir -p \
     "${INSTALL_DIR}/run" \
     "${INSTALL_DIR}/tmp"
 
+# Create iplists system user if missing
+if ! id -u iplists >/dev/null 2>&1; then
+    echo -e "${GREEN}Creating iplists system user…${NC}"
+    run sudo useradd --system --home-dir "${INSTALL_DIR}" --no-create-home --shell /usr/sbin/nologin iplists
+fi
+
 run sudo install -m 0755 update-ipsets "${INSTALL_DIR}/bin/update-ipsets"
 
 # The repository catalog is the deployed source of truth. Reinstalls refresh
@@ -206,45 +212,66 @@ fi
 # Step 5: Install systemd unit
 # ----------------------------------------------------------------------------
 # The unit file is always overwritten, which is intentional — it's part of
-# the shipped artifacts. Site-local overrides (admin credentials, admin
-# listener/auth flags, runtime.public_base_url in config, MaxMind license
+# the shipped artifacts. When Tailscale is available, the admin listener is
+# automatically bound to the Tailscale IP with auth disabled. Site-local
+# overrides (admin credentials, admin listener/auth flags, MaxMind license
 # key, etc.) should go in a drop-in at
 # /etc/systemd/system/update-ipsets.service.d/*.conf so they survive
 # reinstalls without editing this file.
 
+# Default: bind public and admin to localhost, no auth (dev-friendly)
+LISTEN="127.0.0.1:18888"
+ADMIN_LISTEN_ARG="--admin-listen=127.0.0.1:18889"
+ADMIN_AUTH_ARG="--admin-auth-mode=disabled"
+ALLOW_UNAUTH_ADMIN_ARG="--allow-unauthenticated-admin"
+TAILSCALE_IP=""
+
+# If Tailscale is present, move admin to the Tailscale IP
+if command -v tailscale >/dev/null 2>&1; then
+    TAILSCALE_IP=$(tailscale ip -4 2>/dev/null || true)
+    if [ -n "$TAILSCALE_IP" ]; then
+        echo -e "${GREEN}Tailscale detected at ${TAILSCALE_IP} — moving admin to Tailscale${NC}"
+        ADMIN_LISTEN_ARG="--admin-listen=${TAILSCALE_IP}:18889"
+    fi
+fi
+
 echo -e "${GREEN}[6/7] Installing systemd service…${NC}"
-cat << 'UNIT' | sudo tee /etc/systemd/system/update-ipsets.service > /dev/null
+cat << UNIT | sudo tee /etc/systemd/system/update-ipsets.service > /dev/null
 [Unit]
 Description=FireHOL IP Lists Update Daemon
 Documentation=https://github.com/firehol/firehol
-After=network-online.target
-Wants=network-online.target
+After=network-online.target tailscaled.service
+Wants=network-online.target tailscaled.service
 
 [Service]
 Type=notify
-ExecStart=/opt/update-ipsets/bin/update-ipsets daemon \
-    --config /opt/update-ipsets/etc/config \
-    --listen ${UPDATE_IPSETS_LISTEN} \
-    ${UPDATE_IPSETS_ADMIN_LISTEN_ARG} \
-    ${UPDATE_IPSETS_ADMIN_AUTH_ARG} \
-    ${UPDATE_IPSETS_ALLOW_UNAUTHENTICATED_ADMIN_ARG} \
-    --enable-all \
-    --verbose \
-    --web-dir /opt/update-ipsets/web \
-    --web-files-dir /opt/update-ipsets/web/files
+User=iplists
+Group=iplists
+ExecStartPre=+/bin/chown -R iplists:iplists ${INSTALL_DIR}
+ExecStart=${INSTALL_DIR}/bin/update-ipsets daemon \\
+    --config ${INSTALL_DIR}/etc/config \\
+    --listen \${UPDATE_IPSETS_LISTEN} \\
+    \${UPDATE_IPSETS_ADMIN_LISTEN_ARG} \\
+    \${UPDATE_IPSETS_ADMIN_AUTH_ARG} \\
+    \${UPDATE_IPSETS_ALLOW_UNAUTHENTICATED_ADMIN_ARG} \\
+    --enable-all \\
+    --verbose \\
+    --web-dir ${INSTALL_DIR}/web \\
+    --web-files-dir ${INSTALL_DIR}/web/files
 
 Restart=on-failure
 RestartSec=30
 WatchdogSec=300
-WorkingDirectory=/opt/update-ipsets
+WorkingDirectory=${INSTALL_DIR}
+LogNamespace=iplists
 
 # Listener/auth defaults. Override these in a drop-in to switch
 # between shared-listener development and split-listener production
 # without replacing the full ExecStart= line.
-Environment=UPDATE_IPSETS_LISTEN=:18888
-Environment=UPDATE_IPSETS_ADMIN_LISTEN_ARG=
-Environment=UPDATE_IPSETS_ADMIN_AUTH_ARG=--admin-auth-mode=required
-Environment=UPDATE_IPSETS_ALLOW_UNAUTHENTICATED_ADMIN_ARG=
+Environment=UPDATE_IPSETS_LISTEN=${LISTEN}
+Environment=UPDATE_IPSETS_ADMIN_LISTEN_ARG=${ADMIN_LISTEN_ARG}
+Environment=UPDATE_IPSETS_ADMIN_AUTH_ARG=${ADMIN_AUTH_ARG}
+Environment=UPDATE_IPSETS_ALLOW_UNAUTHENTICATED_ADMIN_ARG=${ALLOW_UNAUTH_ADMIN_ARG}
 
 # OpenTelemetry defaults for the local Netdata otel-plugin. Netdata exposes
 # OTLP/gRPC on 127.0.0.1:4317; traces are disabled here because the local
@@ -256,24 +283,24 @@ Environment=OTEL_METRIC_EXPORT_INTERVAL=10000
 Environment=OTEL_TRACES_EXPORTER=none
 
 # Path overrides — these env vars are expanded by the YAML config's
-# ${VAR-default} templates, directing all data to /opt/update-ipsets.
-Environment=HOME=/opt/update-ipsets
-Environment=BASE_DIR=/opt/update-ipsets/data
-Environment=RUN_PARENT_DIR=/opt/update-ipsets/run
-Environment=CACHE_DIR=/opt/update-ipsets/cache
-Environment=LIB_DIR=/opt/update-ipsets/lib
-Environment=HISTORY_DIR=/opt/update-ipsets/data/history
-Environment=ERRORS_DIR=/opt/update-ipsets/data/errors
-Environment=TMP_DIR=/opt/update-ipsets/tmp
-Environment=WEB_DIR=/opt/update-ipsets/web
-Environment=WEB_DIR_FOR_IPSETS=/opt/update-ipsets/web/files
+# \${VAR-default} templates, directing all data to ${INSTALL_DIR}.
+Environment=HOME=${INSTALL_DIR}
+Environment=BASE_DIR=${INSTALL_DIR}/data
+Environment=RUN_PARENT_DIR=${INSTALL_DIR}/run
+Environment=CACHE_DIR=${INSTALL_DIR}/cache
+Environment=LIB_DIR=${INSTALL_DIR}/lib
+Environment=HISTORY_DIR=${INSTALL_DIR}/data/history
+Environment=ERRORS_DIR=${INSTALL_DIR}/data/errors
+Environment=TMP_DIR=${INSTALL_DIR}/tmp
+Environment=WEB_DIR=${INSTALL_DIR}/web
+Environment=WEB_DIR_FOR_IPSETS=${INSTALL_DIR}/web/files
 
 # Security hardening
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=no
-ReadWritePaths=/opt/update-ipsets
+ReadWritePaths=${INSTALL_DIR}
 
 # Resource limits
 LimitNOFILE=65536
@@ -316,12 +343,17 @@ echo "  Binary:   ${INSTALL_DIR}/bin/update-ipsets"
 echo "  Config:   ${INSTALL_DIR}/etc/config/"
 echo "  Data:     ${INSTALL_DIR}/data/"
 echo "  Cache:    ${INSTALL_DIR}/cache/"
-echo "  Web UI:   http://localhost:18888"
+echo "  Web UI:   http://127.0.0.1:18888"
+if [ -n "$TAILSCALE_IP" ]; then
+    echo "  Admin:    http://${TAILSCALE_IP}:18889 (Tailscale, no auth)"
+else
+    echo "  Admin:    http://127.0.0.1:18889 (localhost, no auth)"
+fi
 echo "  Service:  update-ipsets.service"
 echo ""
 echo "Commands:"
-echo "  sudo systemctl enable update-ipsets   # start on boot"
-echo "  sudo systemctl status update-ipsets   # check status"
-echo "  journalctl -u update-ipsets -f        # follow logs"
-echo "  curl http://localhost:18888/healthz   # health check"
+echo "  sudo systemctl enable update-ipsets                   # start on boot"
+echo "  sudo systemctl status update-ipsets                   # check status"
+echo "  journalctl --namespace=iplists -u update-ipsets -f    # follow logs"
+echo "  curl http://127.0.0.1:18888/healthz                  # health check"
 echo ""
