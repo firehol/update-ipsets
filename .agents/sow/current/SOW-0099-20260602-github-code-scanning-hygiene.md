@@ -149,6 +149,9 @@ Current state:
 - Official GitHub Dependabot documentation checked on 2026-06-02 says
   `cooldown` delays version-update PRs; when a dependency's release is inside
   the cooldown period, Dependabot skips that version until the cooldown ends.
+- Official Codacy documentation checked on 2026-06-02 says ESLint v9 config
+  file detection supports `eslint.config.js`, `eslint.config.mjs`, and
+  `eslint.config.cjs` at the default branch root.
 
 Risks:
 
@@ -465,6 +468,20 @@ Open decisions:
 - Updated `.agents/skills/project-hygiene/SKILL.md` so future hygiene checks
   verify Dependabot cooldown alignment with package-manager release-age policy
   and do not weaken pnpm release-age protection merely to merge a dependency PR.
+- Queried Codacy issue overview and tool settings through the authenticated
+  browser UI without writing raw issue payloads to disk because issue payloads
+  include author metadata. Redacted aggregate evidence shows 8844 total Codacy
+  issues: ESLint8 5741, markdownlint 1281, Lizard 970, Opengrep/Semgrep 657,
+  Agentlinter 51, Stylelint 50, Trivy 40, Prospector 35, Pylint 9, Bandit 9,
+  and PMD 1.
+- Codacy tool settings show `ESLint9` is enabled with configuration-file use,
+  but the repository had no root ESLint v9 flat config file. Added
+  `eslint.config.mjs` at the repository root to delegate to the existing
+  `ui/eslint.config.js` config and make Codacy's enabled ESLint9 config-file
+  path valid.
+- Codacy tool settings also show `ESLint`/ESLint8 is enabled by the Default
+  coding standard. Removing the 5741 ESLint8 findings requires Codacy Cloud
+  coding-standard/tool changes, not a repository file alone.
 
 ## Validation
 
