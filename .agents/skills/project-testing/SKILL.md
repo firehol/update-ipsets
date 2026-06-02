@@ -54,6 +54,10 @@ description: "Test commands, fixtures, and validation patterns for update-ipsets
 - UI changes: `pnpm --dir ui install --frozen-lockfile`,
   `pnpm --dir ui test`, `pnpm --dir ui build`, and
   `pnpm --dir ui lint` (evidence: `install.sh`, `ui/package.json`).
+- Root ESLint bridge changes: `make eslint-root-config` or
+  `pnpm --dir ui test:eslint-root-config` verifies that repository-root
+  `eslint.config.mjs` imports the UI flat config, resolves TS/TSX/JS/MJS file
+  shapes, and applies the UI TypeScript rules for Codacy/GitHub scanners.
 - UI pnpm build-script policy lives in `ui/pnpm-workspace.yaml`; keep
   pnpm 11 CI installs green by classifying dependency lifecycle scripts there.
 - UI bundle-size changes: `make ui-budget` or `pnpm --dir ui build:budget`.

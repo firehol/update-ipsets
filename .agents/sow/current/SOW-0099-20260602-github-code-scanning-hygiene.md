@@ -523,6 +523,20 @@ Open decisions:
   and local `go version` reports `go1.26.3-X:nodwarf5`, so both module
   directives and checked-in `actions/setup-go` versions were updated to
   `1.26.3`.
+- Codacy analyzed commit `c24357a150cad529223e32d3e364561e865d5134` after the
+  Go patch-version update. The repository remains Grade A and current issues
+  dropped from 3153 to 3113. Remaining aggregate counts are: Security 655,
+  Complexity 973, CodeStyle 900, BestPractice 463, Markdown 1332 issues by
+  language, Go 1376 issues by language, and 560 High-level issues.
+- Re-checked GitHub Security and quality AI findings after
+  `c24357a150cad529223e32d3e364561e865d5134`. The previous server and admin
+  manifest findings are no longer shown, but GitHub still reports 1 finding in
+  `eslint.config.mjs`. The finding asks for stronger assurance that the root
+  ESLint bridge resolves and applies the UI config across representative file
+  types. The root bridge now validates that the imported config is an object or
+  array of objects, and `ui/scripts/eslint-root-config.test.mjs` verifies root
+  config shape, TS/TSX/JS/MJS resolution, and UI TypeScript rule application.
+  CI now runs this through `make eslint-root-config`.
 
 ## Validation
 
@@ -574,7 +588,15 @@ Tests or equivalent validation:
     skill.
   - `pnpm --dir ui exec eslint --config ../eslint.config.mjs src/App.tsx`:
     passed after the named-binding bridge and after the explicit-array bridge.
+  - `make eslint-root-config`: passed after adding the dedicated root ESLint
+    bridge test.
+  - `pnpm --dir ui exec eslint --config ../eslint.config.mjs src/App.tsx`:
+    passed after the bridge shape guard was added.
   - `pnpm --dir ui lint`: passed.
+  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-testing`:
+    passed after documenting the root ESLint bridge validation command in the
+    project-testing skill.
+  - `make actionlint`: passed after wiring the bridge test into CI.
   - `make hygiene`: passed.
   - `git diff --check -- .codacy.yml .agents/skills/project-hygiene/SKILL.md .agents/sow/current/SOW-0099-20260602-github-code-scanning-hygiene.md eslint.config.mjs`:
     passed.
@@ -592,6 +614,13 @@ Tests or equivalent validation:
   - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-testing`:
     passed after updating the Go manifest version in the project-testing skill.
   - `make hygiene`: passed.
+- GitHub run evidence for `c24357a150cad529223e32d3e364561e865d5134` before
+  the root ESLint bridge test commit:
+  - checked-in CodeQL workflow: success;
+  - dynamic Code Quality/CodeQL surface: success;
+  - Hygiene workflow: success;
+  - CI coverage job: success;
+  - CI build job: still in progress as of 2026-06-02 11:17 EEST.
 
 Real-use evidence:
 
@@ -635,10 +664,11 @@ Artifact maintenance gate:
   change runtime product behavior, feed semantics, APIs, or file layout.
 - End-user/operator docs: added `SECURITY.md` for vulnerability reporting and
   scanner policy expectations.
-- End-user/operator skills: pending.
+- End-user/operator skills: no separate operator skill needed for scanner
+  posture.
 - SOW lifecycle: current SOW remains in `.agents/sow/current/` until
-  post-push GitHub workflow, CodeQL default-setup, and ruleset verification are
-  complete.
+  post-push GitHub workflow, CodeQL default-setup, GitHub AI finding, Codacy,
+  and ruleset verification are complete.
 
 Specs update:
 
@@ -647,6 +677,8 @@ Specs update:
 Project skills update:
 
 - Added and later updated `.agents/skills/project-hygiene/SKILL.md`.
+- Updated `.agents/skills/project-testing/SKILL.md` with the root ESLint
+  bridge validation command.
 
 End-user/operator docs update:
 

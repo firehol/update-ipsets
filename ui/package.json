@@ -17,6 +17,7 @@
     "test:e2e:configured": "NO_COLOR= playwright test",
     "test:watch": "NODE_OPTIONS=\"${NODE_OPTIONS:-} --no-experimental-webstorage\" vitest",
     "test:bundle-budget": "node --test scripts/check-bundle-budget.test.mjs",
+    "test:eslint-root-config": "node --test scripts/eslint-root-config.test.mjs",
     "test:coverage": "NODE_OPTIONS=\"${NODE_OPTIONS:-} --no-experimental-webstorage\" vitest run --coverage"
   },
   "dependencies": {

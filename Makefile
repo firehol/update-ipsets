@@ -33,7 +33,7 @@ UI_STATIC_INPUTS := \
 	ui/tailwind.config.ts \
 	$(shell find ui/src ui/public -type f 2>/dev/null)
 
-.PHONY: build test test-tools test-strict fuzz-replay ui-static ui-test ui-e2e ui-budget race coverage coverage-tools bench lint vulncheck staticcheck golangci-lint actionlint shellcheck gitleaks hygiene clean install cross
+.PHONY: build test test-tools test-strict fuzz-replay ui-static ui-test ui-e2e ui-budget eslint-root-config race coverage coverage-tools bench lint vulncheck staticcheck golangci-lint actionlint shellcheck gitleaks hygiene clean install cross
 
 build: ui-static
 	CGO_ENABLED=0 $(GO) build -ldflags '$(LDFLAGS)' -o $(BINARY) ./cmd/update-ipsets
@@ -70,6 +70,9 @@ ui-e2e:
 
 ui-budget:
 	pnpm --dir ui build:budget
+
+eslint-root-config:
+	pnpm --dir ui test:eslint-root-config
 
 race: ui-static
 	$(GO) test -race ./...

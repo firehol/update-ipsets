@@ -52,6 +52,9 @@ jobs:
       - name: Lint UI
         run: pnpm --dir ui lint
 
+      - name: Test root ESLint config bridge
+        run: make eslint-root-config
+
       - name: Build UI
         run: pnpm --dir ui build
 
