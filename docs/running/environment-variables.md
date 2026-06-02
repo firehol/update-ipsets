@@ -127,19 +127,26 @@ Environment="NO_PROXY=127.0.0.1,localhost,.example.internal"
 
 The installed systemd unit supports runtime configuration through environment variables. This lets you change listen addresses and auth settings without editing the `ExecStart=` line.
 
+The generated unit expands the `*_ARG` variables with systemd `${VAR}`
+substitution, which preserves whitespace as one argument. Use `--flag=value`
+for variables that carry both a flag and its value.
+
 | Variable | Default | Description |
 |---|---|---|
-| `UPDATE_IPSETS_LISTEN` | `:18888` | Public listener address:port. |
-| `UPDATE_IPSETS_ADMIN_LISTEN_ARG` | (empty) | Full `--admin-listen` flag with value, e.g. `--admin-listen 127.0.0.1:18889`. Empty means shared mode. |
-| `UPDATE_IPSETS_ADMIN_AUTH_ARG` | `--admin-auth-mode=required` | Full `--admin-auth-mode` flag with value. |
-| `UPDATE_IPSETS_ALLOW_UNAUTHENTICATED_ADMIN_ARG` | (empty) | Set to `--allow-unauthenticated-admin` to acknowledge unauthenticated admin. Empty means the flag is not passed. |
+| `UPDATE_IPSETS_LISTEN` | `127.0.0.1:18888` | Public listener address:port. |
+| `UPDATE_IPSETS_ADMIN_LISTEN_ARG` | `--admin-listen=127.0.0.1:18889`, or `--admin-listen=<tailscale-ip>:18889` when Tailscale is detected during install | Full `--admin-listen` flag with value. Empty means shared mode. |
+| `UPDATE_IPSETS_ADMIN_AUTH_ARG` | `--admin-auth-mode=disabled` | Full `--admin-auth-mode` flag with value. Use `--admin-auth-mode=required` for authenticated admin. |
+| `UPDATE_IPSETS_ALLOW_UNAUTHENTICATED_ADMIN_ARG` | `--allow-unauthenticated-admin` | Acknowledges unauthenticated admin mode. Set empty when auth is required. |
+
+The Tailscale value is written when `install.sh` generates the unit. It is not a
+dynamic lookup on every service start.
 
 Example drop-in at `/etc/systemd/system/update-ipsets.service.d/override.conf`:
 
 ```ini
 [Service]
 Environment="UPDATE_IPSETS_LISTEN=:18888"
-Environment="UPDATE_IPSETS_ADMIN_LISTEN_ARG=--admin-listen 127.0.0.1:18889"
+Environment="UPDATE_IPSETS_ADMIN_LISTEN_ARG=--admin-listen=127.0.0.1:18889"
 Environment="UPDATE_IPSETS_ADMIN_AUTH_ARG=--admin-auth-mode=required"
 Environment="UPDATE_IPSETS_ALLOW_UNAUTHENTICATED_ADMIN_ARG="
 Environment="UPDATE_IPSETS_ADMIN_USER=admin"

@@ -82,7 +82,7 @@ If you have Netdata running on the same host, use Netdata's normal host/process 
 
 Raise limits if you observe:
 
-- Frequent restarts from OOM kills (check `journalctl -u update-ipsets` for "OOM" or exit code 137)
+- Frequent restarts from OOM kills (check `journalctl --namespace=iplists -u update-ipsets` for "OOM" or exit code 137)
 - Sustained GC pressure causing slow responses during feed updates
 - The daemon approaching MemoryHigh during large catalog processing runs
 

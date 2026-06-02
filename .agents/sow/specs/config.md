@@ -302,6 +302,10 @@ Rules:
 - missing admin credentials MUST NOT silently disable authentication
 - bind-address heuristics such as loopback-only MUST NOT be treated as a safety
   signal for enabling unauthenticated admin
+- installer-generated units MAY deliberately set disabled admin authentication
+  with the unsafe acknowledgment for an operator-controlled private-network
+  deployment, but this is install policy and MUST be documented with the
+  generated listener defaults and override path
 
 ## Source families in configuration
 

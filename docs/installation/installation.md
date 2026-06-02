@@ -34,11 +34,32 @@ The installer does these things in order:
 2. Copies the fresh UI bundle into the embedded static directory
 3. Builds the Go binary with the UI baked in
 4. Creates the directory tree under `/opt/update-ipsets/`
-5. Installs the binary to `/opt/update-ipsets/bin/update-ipsets`
-6. Deploys the feed catalog from `configs/firehol/` to `/opt/update-ipsets/etc/config/`
-7. Copies Markdown templates from `configs/templates/markdown/` to `/opt/update-ipsets/etc/config/templates/markdown/`
-8. Installs the systemd unit at `/etc/systemd/system/update-ipsets.service`
-9. Reloads systemd, restarts the service if it is active, starts it if it is enabled but inactive, or leaves it stopped if it is not enabled
+5. Creates the `iplists` system group and user if they do not already exist
+6. Installs the binary to `/opt/update-ipsets/bin/update-ipsets`
+7. Deploys the feed catalog from `configs/firehol/` to `/opt/update-ipsets/etc/config/`
+8. Copies Markdown templates from `configs/templates/markdown/` to `/opt/update-ipsets/etc/config/templates/markdown/`
+9. Makes `bin/` and `etc/` root-owned, and makes runtime directories writable by `iplists`
+10. Installs the systemd unit at `/etc/systemd/system/update-ipsets.service`
+11. Reloads systemd, restarts the service if it is active, starts it if it is enabled but inactive, or leaves it stopped if it is not enabled
+
+## Installed service defaults
+
+The generated systemd unit:
+
+- runs as `User=iplists` and `Group=iplists`
+- serves the public listener on `127.0.0.1:18888`
+- serves admin on `127.0.0.1:18889` with admin auth disabled
+- moves the admin listener to the Tailscale IPv4 address when `tailscale ip -4` returns one
+- writes logs to the `iplists` journal namespace
+
+The Tailscale address is detected when `install.sh` writes the unit. If
+Tailscale is added later or the address changes, rerun the installer or set
+`UPDATE_IPSETS_ADMIN_LISTEN_ARG` in a drop-in.
+
+The Tailscale default is for hosts where tailnet access is the admin access
+control layer. On a shared, untrusted, or internet-reachable network, override
+the admin listener and set `UPDATE_IPSETS_ADMIN_AUTH_ARG=--admin-auth-mode=required`
+with credentials in a protected drop-in.
 
 ### Custom install directory
 
@@ -48,10 +69,9 @@ Pass a different path as an argument only for manual or experimental layouts:
 ./install.sh /opt/custom-path
 ```
 
-The installer copies the binary and catalog to that path, but the shipped
-systemd unit is still written for `/opt/update-ipsets`. For a managed systemd
-service, use the default install directory unless you also maintain a matching
-custom unit override.
+The installer copies the binary and catalog to that path and writes that path
+into the generated systemd unit. For repeatable managed installs, use one stable
+install directory so path overrides, backups, and service state stay together.
 
 ### Skip restart
 
@@ -97,6 +117,12 @@ Check the service status:
 
 ```bash
 systemctl status update-ipsets
+```
+
+Inspect service logs:
+
+```bash
+journalctl --namespace=iplists -u update-ipsets -n 50
 ```
 
 Test the health endpoint:

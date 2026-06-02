@@ -2,7 +2,7 @@
 
 You will learn the two listener modes the daemon supports, when to use each, and how admin routes behave in split mode.
 
-## Shared mode (default)
+## Shared mode (daemon default)
 
 Public and admin endpoints are served on the same listener. This is the default when `--admin-listen` is not set.
 
@@ -32,6 +32,11 @@ update-ipsets daemon \
 ```
 
 Both public and admin traffic reach `:18888`.
+
+The installed systemd unit does not use shared mode by default. It sets a
+separate admin listener, disables admin authentication with the required unsafe
+acknowledgment flag, and moves admin to the Tailscale IPv4 address when
+Tailscale is available during install.
 
 ## Split mode
 
@@ -90,6 +95,7 @@ Admin UI: `http://127.0.0.1:18889/admin`
 | Scenario | Mode | Reason |
 |---|---|---|
 | Local testing | Shared | Simplest setup. Use `--admin-auth-mode=disabled` with `--allow-unauthenticated-admin`. |
+| Installed Tailscale-managed service | Split | Admin is reachable through the tailnet and authentication is disabled by install policy. |
 | Production, single host | Split | Admin on localhost only. Public on external interface. No admin content exposed publicly. |
 | Production, reverse proxy | Either | If the proxy handles access control, shared mode works. For defense in depth, use split mode and restrict the admin port at the network level. |
 

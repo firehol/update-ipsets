@@ -53,7 +53,7 @@ If you don't see charts within 30 seconds, check:
 1. Netdata is running: `sudo netdatacli uptime`
 2. otel-plugin is enabled in `netdata.conf`
 3. Port 4317 is open: `ss -tlnp | grep 4317`
-4. Daemon logs show OTLP connection: `journalctl -u update-ipsets -n 50`
+4. Daemon logs show OTLP connection: `journalctl --namespace=iplists -u update-ipsets -n 50`
 
 ## Tuning for Netdata
 

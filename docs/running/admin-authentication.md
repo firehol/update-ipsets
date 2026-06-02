@@ -75,6 +75,24 @@ This prevents these common mistakes:
 
 The two-flag design means a disabled-auth deployment needs both the disabled mode and a separate risk acknowledgment.
 
+### Installed service default
+
+`install.sh` generates a systemd unit with disabled admin authentication and
+the unsafe acknowledgment flag already set. It binds admin to `127.0.0.1:18889`,
+or to the Tailscale IPv4 address when Tailscale is available during install.
+
+This is intentional for deployments where localhost or tailnet membership is
+the admin access-control layer. If the host is on a shared, untrusted, or
+internet-reachable network, override the unit with:
+
+```ini
+[Service]
+Environment="UPDATE_IPSETS_ADMIN_AUTH_ARG=--admin-auth-mode=required"
+Environment="UPDATE_IPSETS_ALLOW_UNAUTHENTICATED_ADMIN_ARG="
+Environment="UPDATE_IPSETS_ADMIN_USER=admin"
+Environment="UPDATE_IPSETS_ADMIN_PASSWORD=change-this-secret"
+```
+
 ## Bind address is not a safety signal
 
 The daemon does not treat loopback or localhost bind addresses as "secure enough" to skip authentication.
@@ -118,6 +136,7 @@ This gives you:
 | Goal | Flags |
 |---|---|
 | Local testing, no auth | `--admin-auth-mode=disabled --allow-unauthenticated-admin` |
+| Installed private-network default | `--admin-listen=<tailscale-ip>:18889 --admin-auth-mode=disabled --allow-unauthenticated-admin` |
 | Production, shared listener | `--admin-auth-mode=required` + environment credentials |
 | Production, split listener | `--admin-listen 127.0.0.1:18889 --admin-auth-mode=required` + environment credentials + `runtime.public_base_url` |
 

@@ -56,6 +56,11 @@ ExecStart=/opt/update-ipsets/bin/update-ipsets daemon \
 
 The blank `ExecStart=` clears the inherited value before setting the new one. This is required when overriding `ExecStart` in a drop-in.
 
+If you set `UPDATE_IPSETS_ADMIN_LISTEN_ARG` for this drop-in, use
+`--admin-listen=127.0.0.1:18889`. The `${UPDATE_IPSETS_ADMIN_LISTEN_ARG}`
+expansion passes the variable as one argument, so `--admin-listen 127.0.0.1:18889`
+is not valid in that variable.
+
 ### Certificate renewal
 
 After renewing certificates, restart the service to load the new files:

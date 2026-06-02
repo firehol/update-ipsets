@@ -81,6 +81,25 @@ An installation root typically contains at least these top-level directories:
 
 The exact absolute path of the installation root is deployment-specific.
 
+### Installed ownership contract
+
+For managed systemd installs:
+
+- the installation root, `bin/`, and `etc/` MUST be root-owned and readable by
+  the service user
+- the daemon binary under `bin/` MUST be executable by the service user but not
+  writable by it
+- the active catalog under `etc/config/` and installed templates under
+  `etc/config/templates/` MUST be readable by the service user but not writable
+  by it
+- mutable runtime directories `data/`, `cache/`, `lib/`, `web/`, `run/`, and
+  `tmp/` MUST be writable by the service user
+- systemd write access SHOULD be scoped to mutable runtime directories instead
+  of the full installation root
+
+Installer or packaging flows MUST NOT recursively make the whole installation
+root service-owned as a shortcut for runtime write access.
+
 ### Non-root default runtime layout
 
 The shipped catalog may express path defaults with shell-style templates such

@@ -82,11 +82,18 @@ You will learn where update-ipsets stores its files after installation, what eac
 
 Contains the single `update-ipsets` executable. The web UI is embedded at compile time. No external static files needed.
 
+In the managed install, `bin/` and the binary are owned by `root:root`. The
+`iplists` service user can execute the binary but cannot modify it.
+
 ### `etc/config/` — feed catalog
 
 The YAML configuration directory that defines all feeds, sources, merges, and provider settings. The installer deploys this from the repository's `configs/firehol/` directory.
 
 On reinstall, the installer backs up the existing config (if changed) and deploys a fresh copy. Your customizations should go through the YAML catalog or drop-in environment variables — not by editing files that the installer overwrites.
+
+In the managed install, `etc/` is owned by `root:root` and readable by the
+`iplists` service user. The daemon reads the active catalog but does not own or
+modify it.
 
 The installer also copies Markdown templates into `etc/config/templates/markdown/`.
 Those templates generate public feed, country, ASN, and maintainer Markdown
@@ -103,6 +110,10 @@ outside the installed template directory or reapply them after reinstalling.
 Contains the committed text-format IP sets, raw upstream downloads, enable markers, and the feed state cache. This is the authoritative location for "what the daemon knows about each feed right now."
 
 Files with a `.new` suffix are staged inputs waiting for the processing engine to claim them. Files with a `.processing` suffix are actively being processed. Both survive restarts.
+
+The managed install makes `data/`, `cache/`, `lib/`, `web/`, `run/`, and `tmp/`
+owned by `iplists:iplists`. The generated systemd unit grants write access only
+to those mutable runtime directories, not to the full install tree.
 
 ### `cache/` — runtime caches
 

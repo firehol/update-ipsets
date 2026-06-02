@@ -135,7 +135,7 @@ curl -X POST -u "$UPDATE_IPSETS_ADMIN_USER:$UPDATE_IPSETS_ADMIN_PASSWORD" http:/
 If the same feed fails repeatedly after recheck and reprocess, check the logs:
 
 ```bash
-journalctl -u update-ipsets | grep '<name>' | grep 'level=ERROR'
+journalctl --namespace=iplists -u update-ipsets | grep '<name>' | grep 'level=ERROR'
 ```
 
 Recurring `parse_failed` or `finalize_failed` exceptions suggest a bug or a serious consistency problem. Report the issue with the feed name, error message, and relevant log excerpts.

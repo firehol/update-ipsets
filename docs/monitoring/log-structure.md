@@ -97,10 +97,10 @@ Find actionable issues by filtering for errors:
 
 ```bash
 # Show all errors
-journalctl -u update-ipsets | grep 'level=ERROR'
+journalctl --namespace=iplists -u update-ipsets | grep 'level=ERROR'
 
 # Show errors for a specific feed
-journalctl -u update-ipsets | grep 'level=ERROR' | grep 'tor_exits'
+journalctl --namespace=iplists -u update-ipsets | grep 'level=ERROR' | grep 'tor_exits'
 ```
 
 Or redirect stderr to a file and filter text records:

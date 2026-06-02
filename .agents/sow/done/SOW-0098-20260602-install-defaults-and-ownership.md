@@ -1,0 +1,324 @@
+# SOW-0098 - Install Defaults And Ownership Hardening
+
+## Status
+
+Status: completed
+
+Sub-state: implemented, locally installed, validated, ready to commit and push.
+
+## Requirements
+
+### Purpose
+
+Make the default installer fit production operation: seamless Tailscale admin access for the project's production workflow, correct root-owned immutable install artifacts, safe systemd argument handling, explicit service user/group setup, and operator documentation that matches the generated unit.
+
+### User Request
+
+Review findings from commit `c2bcc420ae13ece984da437bb6e268f430694524` and implement the accepted changes:
+
+- keep the Tailscale unauthenticated admin default because production needs it seamless, but document it clearly;
+- fix ownership so binaries and configs are root-owned and accessible by `iplists`;
+- fix systemd admin argument formatting;
+- fix explicit `iplists` group handling;
+- document `LogNamespace=iplists` and default install behavior.
+
+### Assistant Understanding
+
+Facts:
+
+- `install.sh` is the authoritative local install path.
+- The project allows unauthenticated admin mode only with an explicit unsafe acknowledgment flag.
+- The user accepts the installer's Tailscale unauthenticated-admin default when it is documented.
+- The generated service currently runs as `User=iplists` and `Group=iplists`.
+- systemd `${VAR}` command-line expansion preserves whitespace as one argument.
+
+Inferences:
+
+- The installer should keep `${UPDATE_IPSETS_*_ARG}` as single-argument expansion and require `--flag=value` values for variables that carry a flag and value.
+- The service should own only mutable runtime directories as `iplists`; binary and config artifacts should remain root-owned and readable/executable by the service user.
+
+Unknowns:
+
+- None that block implementation.
+
+### Acceptance Criteria
+
+- `install.sh` creates both `iplists` group and user when missing, without assuming same-name group creation.
+- Installed binary and catalog/config/template artifacts remain root-owned/readable, while mutable runtime directories are writable by `iplists`.
+- Generated systemd unit defaults are documented, including Tailscale admin listener behavior and disabled auth.
+- systemd drop-in docs use `--flag=value` for variables expanded through `${VAR}`.
+- Namespaced journal commands are documented wherever operator docs tell users to inspect service logs.
+- Validation covers shell syntax and targeted text/search checks.
+
+## Analysis
+
+Sources checked:
+
+- `install.sh`
+- `configs/firehol/runtime.yaml`
+- `.agents/sow/specs/config.md`
+- `docs/installation/systemd-setup.md`
+- `docs/running/environment-variables.md`
+- `docs/running/admin-authentication.md`
+- `docs/security/production-deployment.md`
+- `docs/monitoring/log-structure.md`
+- local `man systemd.service`
+
+Current state:
+
+- `install.sh` sets `ADMIN_AUTH_ARG="--admin-auth-mode=disabled"` and `ALLOW_UNAUTH_ADMIN_ARG="--allow-unauthenticated-admin"`.
+- `install.sh` moves admin to the Tailscale IPv4 address when `tailscale ip -4` returns a value.
+- `ExecStartPre=+/bin/chown -R iplists:iplists ${INSTALL_DIR}` makes the whole install tree service-owned.
+- Docs still include systemd environment examples with `--admin-listen 127.0.0.1:18889`, which is unsafe with `${VAR}` expansion.
+- Several docs still use `journalctl -u update-ipsets` without `--namespace=iplists`.
+
+Risks:
+
+- Unauthenticated admin on a Tailscale address is operationally intentional here, but it remains a security-sensitive default and must be visible in docs.
+- Overcorrecting ownership could make runtime writes fail if mutable subdirectories are not explicitly writable by `iplists`.
+- Changing systemd argument style in docs without changing all examples could preserve a broken copy/paste path.
+
+## Pre-Implementation Gate
+
+Status: ready
+
+Problem / root-cause model:
+
+- The installer changed from root-run daemon defaults to a dedicated `iplists` service user, but it recursively chowns the whole install tree. That solves runtime writes by making immutable artifacts mutable, which weakens service hardening.
+- The service unit expands optional flags as `${UPDATE_IPSETS_*_ARG}`. systemd documents `${FOO}` expansion as one argument, including whitespace, so docs that put a flag and value in one variable separated by a space can break flag parsing.
+- `LogNamespace=iplists` changes the journal lookup path, but most docs still show the old non-namespaced commands.
+
+Evidence reviewed:
+
+- `install.sh` generated unit and installer layout.
+- `.agents/sow/specs/config.md` admin exposure contract.
+- `docs/running/admin-authentication.md` security explanation for disabled auth and bind addresses.
+- local `man systemd.service`: `${FOO}` always produces exactly one argument; `$FOO` as a separate word can split into zero or more arguments.
+
+Affected contracts and surfaces:
+
+- Installer behavior: `install.sh`.
+- systemd unit behavior: generated by `install.sh`.
+- Config/admin exposure contract: `.agents/sow/specs/config.md`.
+- Operator docs: installation, running, security, monitoring, troubleshooting pages.
+- No public UI, admin UI, API schema, feed pipeline, or generated public artifact behavior is affected.
+
+Existing patterns to reuse:
+
+- `run` helper in `install.sh` for visible commands.
+- Existing environment-variable override model for systemd drop-ins.
+- Existing docs split: security recommendations in `docs/security`, operating commands in `docs/installation`, runtime variables in `docs/running`.
+
+Risk and blast radius:
+
+- Operational risk: service could fail to write runtime data if directory ownership is incomplete.
+- Security risk: production Tailscale unauthenticated admin is intentional but must not be hidden from operators.
+- Compatibility risk: user-supplied install directory paths remain embedded in the generated unit.
+- Performance risk: none beyond removing recursive startup chown work.
+
+Sensitive data handling plan:
+
+- Do not write real admin credentials, Tailscale node addresses, private endpoints, customer data, account IDs, or secrets to SOWs, specs, docs, skills, code comments, or tests.
+- Use placeholders such as `change-this-secret` only where docs already use credential examples.
+
+Implementation plan:
+
+1. Update `install.sh` to create an explicit `iplists` group, create/adapt the service user with that primary group, make immutable artifacts root-owned/readable, and chown only mutable directories to `iplists`.
+2. Keep the accepted Tailscale admin default, but update generated comments and docs so operators understand public/admin listener defaults and auth state.
+3. Standardize systemd drop-in admin-listen examples to `--admin-listen=...`.
+4. Update namespaced journal commands in operator docs.
+5. Update the config/operations spec to record installer default semantics and the ownership contract.
+
+Validation plan:
+
+- `bash -n install.sh`
+- `shellcheck install.sh` if available
+- targeted `rg` scans for old `--admin-listen 127.0.0.1:18889` environment variable examples
+- targeted `rg` scans for `journalctl -u update-ipsets` examples missing `--namespace=iplists`
+- review changed files for sensitive data
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected; existing rules already cover operations and SOW.
+- Runtime project skills: no update expected unless validation finds a durable repeat lesson.
+- Specs: update `.agents/sow/specs/config.md` for installer/admin exposure and ownership contract.
+- End-user/operator docs: update installation/running/security/monitoring/troubleshooting docs.
+- End-user/operator skills: no separate exported operator skill identified.
+- SOW lifecycle: current SOW remains in `.agents/sow/current/` until implementation and validation are complete.
+
+Open-source reference evidence:
+
+- No mirrored source repositories were needed; this is a project-local installer/systemd issue.
+- Official/local systemd documentation was checked through `man systemd.service`.
+
+Open decisions:
+
+- None. The user accepted Tailscale unauthenticated admin as the default when documented, and requested fixes for the other review findings.
+
+## Implications And Decisions
+
+1. Tailscale admin default
+   - User decision: keep it.
+   - Implication: install defaults may expose unauthenticated admin to tailnet peers when Tailscale is available.
+   - Mitigation: document the default clearly and keep systemd drop-in overrides easy.
+
+2. Binary/config ownership
+   - User decision: fix it.
+   - Implication: immutable install artifacts stay root-owned; service writes must be limited to mutable runtime directories.
+
+3. systemd argument formatting
+   - User decision: fix it.
+   - Implication: environment examples must use `--flag=value` when expanded with `${VAR}`.
+
+4. `iplists` group handling
+   - User decision: fix it.
+   - Implication: installer must explicitly create/verify the group instead of relying on platform defaults.
+
+5. Namespaced logs and default install behavior
+   - User decision: document it.
+   - Implication: operator docs must use `journalctl --namespace=iplists` and explain the default listeners/auth.
+
+## Plan
+
+1. Harden installer ownership and service account setup.
+2. Update specs and operator docs for accepted defaults, ownership, systemd arg style, and namespaced logs.
+3. Validate shell syntax, shell lint if available, and search for stale examples.
+
+## Execution Log
+
+### 2026-06-02
+
+- Created SOW and recorded user decisions before implementation.
+- Updated `install.sh` service identity setup, ownership handling, generated
+  unit write paths, and `run()` shellcheck hygiene.
+- Updated specs for admin exposure installer policy and installed ownership.
+- Updated operator docs for installer defaults, Tailscale detection timing,
+  root-owned immutable artifacts, `--admin-listen=...` systemd variables, and
+  namespaced journal commands.
+
+## Validation
+
+Acceptance criteria evidence:
+
+- `install.sh` now creates `iplists` group explicitly before creating the user.
+- `install.sh` now keeps `${INSTALL_DIR}`, `bin/`, and `etc/` root-owned and
+  chowns only mutable runtime directories to `iplists:iplists`.
+- The generated unit no longer has `ExecStartPre=+/bin/chown -R ...`.
+- `ReadWritePaths` is scoped to mutable directories only.
+- `docs/installation/installation.md`, `docs/installation/systemd-setup.md`,
+  `docs/running/admin-authentication.md`, `docs/security/admin-authentication.md`,
+  and `docs/security/production-deployment.md` document the accepted
+  Tailscale/private-network unauthenticated admin default and the authenticated
+  override path.
+
+Tests or equivalent validation:
+
+- `bash -n install.sh`: passed.
+- `shellcheck install.sh`: passed.
+- `git diff --check`: passed.
+- `timeout 1800 ./install.sh`: passed; rebuilt UI, rebuilt the Go binary,
+  installed to `/opt/update-ipsets`, reloaded systemd, and restarted the
+  `update-ipsets` service.
+- `systemctl is-active update-ipsets`: `active`.
+- `systemctl is-enabled update-ipsets`: `enabled`.
+- `curl -fsS http://127.0.0.1:18888/healthz`: returned `ok`.
+- Admin status returned HTTP 200 on the effective local listener. The generated
+  unit contains the Tailscale admin listener, but this workstation has an
+  existing local drop-in that sets `UPDATE_IPSETS_ADMIN_LISTEN_ARG=` and keeps
+  admin on the shared listener.
+- `stat -c '%U:%G %a %n' ...`: verified `/opt/update-ipsets`, `bin/`, binary,
+  `etc/`, and `etc/config` are `root:root`, while `data`, `cache`, `lib`,
+  `web`, `run`, and `tmp` are `iplists:iplists`.
+
+Real-use evidence:
+
+- Local install completed on the workstation. The service is active/enabled,
+  public health returns `ok`, and admin status is reachable on the effective
+  listener.
+
+Reviewer findings:
+
+- No external reviewer was run; the user did not request one.
+
+Same-failure scan:
+
+- `rg -n 'UPDATE_IPSETS_ADMIN_LISTEN_ARG=.*--admin-listen |Environment="UPDATE_IPSETS_ADMIN_LISTEN_ARG=--admin-listen ' docs README.md .agents/sow/specs install.sh`: no stale space-separated systemd environment examples.
+- `rg -n 'journalctl -u update-ipsets' docs README.md .agents/skills install.sh`: no stale non-namespaced journal commands.
+
+Sensitive data gate:
+
+- Durable artifacts contain no raw secrets, bearer tokens, private endpoints,
+  customer identifiers, personal data, or production Tailscale addresses.
+  Documentation uses placeholders such as `<tailscale-ip>` and
+  `change-this-secret`.
+
+Artifact maintenance gate:
+
+- AGENTS.md: not updated; existing SOW/operations rules already cover this
+  workflow.
+- Runtime project skills: not updated; no durable agent-process lesson beyond
+  existing operations/content/testing rules.
+- Specs: updated `.agents/sow/specs/config.md` and
+  `.agents/sow/specs/files-layout.md`.
+- End-user/operator docs: updated installation, systemd, TLS, running,
+  security, monitoring, and troubleshooting docs.
+- End-user/operator skills: no separate exported operator skill identified.
+- SOW lifecycle: status set to `completed`; file will be moved to
+  `.agents/sow/done/` and committed with the implementation.
+
+Specs update:
+
+- `.agents/sow/specs/config.md`: installer-generated disabled-auth policy must
+  be documented with defaults and overrides.
+- `.agents/sow/specs/files-layout.md`: root-owned immutable artifacts and
+  service-owned mutable runtime directories are now a managed-install contract.
+
+Project skills update:
+
+- None needed.
+
+End-user/operator docs update:
+
+- `docs/installation/installation.md`
+- `docs/installation/filesystem-layout.md`
+- `docs/installation/systemd-setup.md`
+- `docs/installation/tls-configuration.md`
+- `docs/installation/memory-planning.md`
+- `docs/running/admin-authentication.md`
+- `docs/running/environment-variables.md`
+- `docs/running/listener-topologies.md`
+- `docs/running/configuration-reload.md`
+- `docs/security/admin-authentication.md`
+- `docs/security/production-deployment.md`
+- `docs/monitoring/log-structure.md`
+- `docs/monitoring/netdata-integration.md`
+- `docs/troubleshooting/processing-failures.md`
+
+End-user/operator skills update:
+
+- None needed.
+
+Lessons:
+
+- systemd `${VAR}` expansion is single-argument expansion, so any drop-in
+  variable intended to carry a flag and value must use `--flag=value`.
+
+Follow-up mapping:
+
+- No deferred valid work remains in this SOW.
+
+## Outcome
+
+Implemented, locally installed, and validated. Ready to commit and push.
+
+## Lessons Extracted
+
+No project skill update needed; the docs and specs now carry the durable rule.
+
+## Followup
+
+None yet.
+
+## Regression Log
+
+None yet.

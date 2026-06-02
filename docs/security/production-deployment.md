@@ -4,7 +4,15 @@ You will learn the recommended production setup with split listeners, TLS, and f
 
 ## Recommended setup
 
-Use split listener mode with required authentication:
+The installer defaults to a private-network operating model:
+
+- public listener on `127.0.0.1:18888`
+- admin listener on the Tailscale IPv4 address when Tailscale is available, otherwise `127.0.0.1:18889`
+- admin authentication disabled with `--allow-unauthenticated-admin`
+
+Use that default only when tailnet or localhost reachability is the admin
+access-control layer. For internet-facing, shared, or untrusted networks, use
+split listener mode with required authentication:
 
 First set the external public URL in the active catalog:
 
@@ -173,7 +181,7 @@ The installed systemd unit supports environment-based configuration. Use a drop-
 # /etc/systemd/system/update-ipsets.service.d/production.conf
 [Service]
 Environment="UPDATE_IPSETS_LISTEN=:18888"
-Environment="UPDATE_IPSETS_ADMIN_LISTEN_ARG=--admin-listen 127.0.0.1:18889"
+Environment="UPDATE_IPSETS_ADMIN_LISTEN_ARG=--admin-listen=127.0.0.1:18889"
 Environment="UPDATE_IPSETS_ADMIN_AUTH_ARG=--admin-auth-mode=required"
 Environment="UPDATE_IPSETS_ALLOW_UNAUTHENTICATED_ADMIN_ARG="
 Environment="UPDATE_IPSETS_ADMIN_USER=admin"

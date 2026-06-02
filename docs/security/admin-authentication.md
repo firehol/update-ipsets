@@ -2,9 +2,11 @@
 
 You will learn how admin authentication works, why it defaults to fail-closed, and how to configure it safely.
 
-## Required mode (default)
+## Required mode (daemon default)
 
-By default, admin authentication is enabled. The daemon expects HTTP Basic Auth credentials from environment variables:
+By default, the daemon uses required admin authentication when no install-time
+systemd overrides are supplied. It expects HTTP Basic Auth credentials from
+environment variables:
 
 ```bash
 export UPDATE_IPSETS_ADMIN_USER=admin
@@ -69,6 +71,21 @@ Reasons loopback is not sufficient:
 - DNS rebinding attacks can redirect browser requests to loopback
 
 Use authentication even on loopback, unless you are in a controlled lab environment.
+
+## Installed service default
+
+`install.sh` generates a systemd unit for private-network operation. That unit
+sets:
+
+- `UPDATE_IPSETS_ADMIN_AUTH_ARG=--admin-auth-mode=disabled`
+- `UPDATE_IPSETS_ALLOW_UNAUTHENTICATED_ADMIN_ARG=--allow-unauthenticated-admin`
+- admin listener on `127.0.0.1:18889`, or on the Tailscale IPv4 address when Tailscale is available
+
+This is intentionally different from the daemon's CLI default. It is suitable
+only when localhost or tailnet membership is the admin access-control layer. On
+shared, untrusted, or internet-reachable networks, set
+`UPDATE_IPSETS_ADMIN_AUTH_ARG=--admin-auth-mode=required` and configure
+credentials in a protected drop-in.
 
 ## Configuring in systemd
 

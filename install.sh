@@ -43,7 +43,9 @@ set -euo pipefail
 
 RED='\033[0;31m' GREEN='\033[0;32m' YELLOW='\033[1;33m' GRAY='\033[0;90m' NC='\033[0m'
 run() {
-  printf >&2 "${GRAY}$(pwd) >${NC} ${YELLOW}"; printf >&2 "%q " "$@"; printf >&2 "${NC}\n"
+  printf >&2 "%b%s >%b %b" "$GRAY" "$(pwd)" "$NC" "$YELLOW"
+  printf >&2 "%q " "$@"
+  printf >&2 "%b\n" "$NC"
   if ! "$@"; then
     local exit_code=$?
     echo -e >&2 "${RED}[ERROR]${NC} Exit code ${exit_code}: ${YELLOW}$*${NC} (in $(pwd))"
@@ -157,10 +159,15 @@ run sudo mkdir -p \
     "${INSTALL_DIR}/run" \
     "${INSTALL_DIR}/tmp"
 
-# Create iplists system user if missing
+# Create service identity if missing. The group is explicit because some
+# useradd policies do not create a same-name group for system users.
+if ! getent group iplists >/dev/null 2>&1; then
+    echo -e "${GREEN}Creating iplists system group...${NC}"
+    run sudo groupadd --system iplists
+fi
 if ! id -u iplists >/dev/null 2>&1; then
-    echo -e "${GREEN}Creating iplists system user…${NC}"
-    run sudo useradd --system --home-dir "${INSTALL_DIR}" --no-create-home --shell /usr/sbin/nologin iplists
+    echo -e "${GREEN}Creating iplists system user...${NC}"
+    run sudo useradd --system --gid iplists --home-dir "${INSTALL_DIR}" --no-create-home --shell /usr/sbin/nologin iplists
 fi
 
 run sudo install -m 0755 update-ipsets "${INSTALL_DIR}/bin/update-ipsets"
@@ -204,6 +211,31 @@ else
     run sudo cp -a --no-preserve=ownership configs/templates/markdown/. "${MARKDOWN_TEMPLATES}/"
 fi
 
+# Keep shipped artifacts immutable to the daemon and writable runtime state
+# owned by the service user. Do not chown the whole tree: bin/ and etc/ are
+# part of the trusted install surface.
+echo -e "${GREEN}Setting install ownership...${NC}"
+run sudo chown root:root "${INSTALL_DIR}"
+run sudo chown -R root:root "${INSTALL_DIR}/bin" "${INSTALL_DIR}/etc"
+run sudo chmod 0755 "${INSTALL_DIR}" "${INSTALL_DIR}/bin" "${INSTALL_DIR}/etc"
+run sudo chmod 0755 "${INSTALL_DIR}/bin/update-ipsets"
+run sudo find "${INSTALL_DIR}/etc" -type d -exec chmod 0755 {} +
+run sudo find "${INSTALL_DIR}/etc" -type f -exec chmod 0644 {} +
+run sudo chown -R iplists:iplists \
+    "${INSTALL_DIR}/data" \
+    "${INSTALL_DIR}/cache" \
+    "${INSTALL_DIR}/lib" \
+    "${INSTALL_DIR}/web" \
+    "${INSTALL_DIR}/run" \
+    "${INSTALL_DIR}/tmp"
+run sudo chmod 0755 \
+    "${INSTALL_DIR}/data" \
+    "${INSTALL_DIR}/cache" \
+    "${INSTALL_DIR}/lib" \
+    "${INSTALL_DIR}/web" \
+    "${INSTALL_DIR}/run" \
+    "${INSTALL_DIR}/tmp"
+
 # Per-feed HTML description pages are embedded into the binary at
 # build time (pkg/web/static/feed-descriptions/*.html via //go:embed).
 # Nothing to copy at install time — the repo is self-contained.
@@ -219,7 +251,9 @@ fi
 # /etc/systemd/system/update-ipsets.service.d/*.conf so they survive
 # reinstalls without editing this file.
 
-# Default: bind public and admin to localhost, no auth (dev-friendly)
+# Installer default: public on localhost, admin on localhost, auth disabled.
+# When Tailscale is available, admin moves to the Tailscale IPv4 address.
+# Override these environment variables in a systemd drop-in for another model.
 LISTEN="127.0.0.1:18888"
 ADMIN_LISTEN_ARG="--admin-listen=127.0.0.1:18889"
 ADMIN_AUTH_ARG="--admin-auth-mode=disabled"
@@ -247,7 +281,6 @@ Wants=network-online.target tailscaled.service
 Type=notify
 User=iplists
 Group=iplists
-ExecStartPre=+/bin/chown -R iplists:iplists ${INSTALL_DIR}
 ExecStart=${INSTALL_DIR}/bin/update-ipsets daemon \\
     --config ${INSTALL_DIR}/etc/config \\
     --listen \${UPDATE_IPSETS_LISTEN} \\
@@ -265,9 +298,9 @@ WatchdogSec=300
 WorkingDirectory=${INSTALL_DIR}
 LogNamespace=iplists
 
-# Listener/auth defaults. Override these in a drop-in to switch
-# between shared-listener development and split-listener production
-# without replacing the full ExecStart= line.
+# Listener/auth defaults. The installer defaults to unauthenticated admin on
+# localhost, or on the Tailscale IPv4 address when Tailscale is available.
+# Override these in a drop-in without replacing the full ExecStart= line.
 Environment=UPDATE_IPSETS_LISTEN=${LISTEN}
 Environment=UPDATE_IPSETS_ADMIN_LISTEN_ARG=${ADMIN_LISTEN_ARG}
 Environment=UPDATE_IPSETS_ADMIN_AUTH_ARG=${ADMIN_AUTH_ARG}
@@ -300,7 +333,7 @@ NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes
 PrivateTmp=no
-ReadWritePaths=${INSTALL_DIR}
+ReadWritePaths=${INSTALL_DIR}/data ${INSTALL_DIR}/cache ${INSTALL_DIR}/lib ${INSTALL_DIR}/web ${INSTALL_DIR}/run ${INSTALL_DIR}/tmp
 
 # Resource limits
 LimitNOFILE=65536

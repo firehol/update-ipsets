@@ -69,7 +69,7 @@ The daemon does not swap to a partial or broken configuration. Committed state, 
 After a reload, the daemon logs the outcome. Check the journal:
 
 ```bash
-journalctl -u update-ipsets -n 50 --no-pager
+journalctl --namespace=iplists -u update-ipsets -n 50 --no-pager
 ```
 
 The admin status endpoint also shows the current configuration state:
