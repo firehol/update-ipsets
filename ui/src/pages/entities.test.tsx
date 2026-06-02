@@ -63,7 +63,11 @@ test("loads the ASN index from the public ASN API", async () => {
     }),
   ).toBeVisible();
   const asnLink = await screen.findByRole("link", { name: "AS13335" });
-  expect(screen.getByText(/ip2asn\.com/i)).toBeVisible();
+  expect(
+    screen.getByText("Aggregated from the active public ASN-attribution provider", {
+      exact: false,
+    }),
+  ).toHaveTextContent("ip2asn.com");
   expect(asnLink).toHaveAttribute("href", "/asns/13335");
   expect(screen.getByText("Cloudflare, Inc.")).toBeVisible();
   expect(screen.getByText("1,200")).toBeVisible();

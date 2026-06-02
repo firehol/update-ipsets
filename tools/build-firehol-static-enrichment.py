@@ -50,6 +50,7 @@ import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 
 try:
@@ -65,8 +66,6 @@ OUT_BASE = REPO / ".local" / "agents" / "feed-enrichment"
 VALIDATOR = REPO / "agents" / "validate-output.py"
 
 GENERATOR_TAG = "build-firehol-static-enrichment.py"
-
-_CATALOG_ENTRIES: dict[str, dict] | None = None
 
 
 # --- Editorial copy ----------------------------------------------------------
@@ -452,11 +451,8 @@ def scrub_ips(text: str) -> str:
     return _IPV4_RE.sub("", text).replace("  ", " ").replace(" ,", ",").strip()
 
 
+@lru_cache(maxsize=1)
 def catalog_entries() -> dict[str, dict]:
-    global _CATALOG_ENTRIES
-    if _CATALOG_ENTRIES is not None:
-        return _CATALOG_ENTRIES
-
     entries: dict[str, dict] = {}
     for y in sorted(CONFIG_DIR.rglob("*.yaml")):
         try:
@@ -469,7 +465,6 @@ def catalog_entries() -> dict[str, dict]:
             for name, entry in (data.get(section_name) or {}).items():
                 if isinstance(entry, dict):
                     entries[name] = entry
-    _CATALOG_ENTRIES = entries
     return entries
 
 

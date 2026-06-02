@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
 import path from "node:path";
 
 const [, , sourceArg = "docs", destArg = "wiki", wikiBaseArg] = process.argv;
@@ -178,11 +177,14 @@ for (const file of files) {
   const rendered = rewriteMarkdownLinks(source, relPath, relToOutput);
   const destFile = path.join(destDir, outputName);
 
-  if (existsSync(destFile)) {
-    throw new Error(`refusing to overwrite ${destFile}`);
+  try {
+    await writeFile(destFile, rendered, { flag: "wx" });
+  } catch (error) {
+    if (error && typeof error === "object" && "code" in error && error.code === "EEXIST") {
+      throw new Error(`refusing to overwrite ${destFile}`, { cause: error });
+    }
+    throw error;
   }
-
-  await writeFile(destFile, rendered);
 }
 
 console.log(`Built ${files.length} wiki pages in ${destArg}`);

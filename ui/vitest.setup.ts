@@ -7,8 +7,21 @@ import { server } from "./src/test/msw-server";
 expect.extend(axeMatchers);
 
 class ResizeObserverStub {
-  observe() {}
-  unobserve() {}
+  private readonly callback: ResizeObserverCallback;
+
+  constructor(callback: ResizeObserverCallback) {
+    this.callback = callback;
+  }
+
+  observe(target: Element) {
+    void target;
+    this.callback([], this);
+  }
+
+  unobserve(target: Element) {
+    void target;
+  }
+
   disconnect() {}
 }
 
