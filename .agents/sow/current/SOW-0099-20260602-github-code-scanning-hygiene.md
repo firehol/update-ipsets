@@ -143,6 +143,10 @@ Current state:
     reanalysis, and import tool/pattern configuration.
   - `.codacy/codacy.config.json` is the Codacy Analysis CLI local tool/pattern
     configuration; committing it alone does not change Codacy Cloud analysis.
+  - `.codacy.yml` can configure tool-specific path exclusions, but it cannot
+    enable or disable tools. Tools enabled by a Codacy coding standard cannot
+    be disabled at repository level; changing a coding standard can affect
+    every repository that follows it.
 - Official pnpm documentation checked on 2026-06-02 says pnpm v11 enables
   supply-chain protection by default with `minimumReleaseAge: 1440` minutes.
   The `minimumReleaseAge` setting blocks installation of package versions
@@ -486,14 +490,22 @@ Open decisions:
   `ui/eslint.config.js` config and make Codacy's enabled ESLint9 config-file
   path valid.
 - Codacy tool settings also show `ESLint`/ESLint8 is enabled by the Default
-  coding standard. Removing the 5741 ESLint8 findings requires Codacy Cloud
-  coding-standard/tool changes, not a repository file alone.
+  coding standard. Because official Codacy documentation says tools enabled by
+  a coding standard cannot be disabled at repository level, the first safe
+  cleanup is a repo-controlled `.codacy.yml` engine-specific path exclusion for
+  `eslint-8` on UI paths already covered by ESLint9, not an organization-wide
+  default coding-standard change.
 - Re-checked GitHub Security and quality AI findings after the root ESLint
   config bridge. The previous 4 findings are no longer shown, but GitHub now
   reports 1 finding in `eslint.config.mjs`. Local ESLint validation confirms
   the bridge resolves the existing UI config, and the root bridge was rewritten
   to import `uiConfig` and export it as default so the root config shape is
   explicit.
+- Added `.codacy.yml` with `eslint-8` exclusions for `ui/**` and
+  `eslint.config.mjs`. The expected effect on the next Codacy analysis is to
+  remove the large wrong-stack UI ESLint8 issue class while leaving ESLint9,
+  CodeQL, Opengrep/Semgrep, Trivy, gitleaks, and the rest of the scanner stack
+  active for follow-up triage.
 
 ## Validation
 
@@ -537,6 +549,22 @@ Tests or equivalent validation:
   - `go test ./pkg/web`: passed.
   - `make hygiene`: passed.
   - `git diff --check`: passed.
+- Root ESLint bridge / Codacy config validation:
+  - `ruby -e 'require "yaml"; YAML.load_file(".codacy.yml"); puts "codacy yaml ok"'`:
+    passed.
+  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
+    passed after the Codacy coding-standard lesson was added to the hygiene
+    skill.
+  - `pnpm --dir ui exec eslint --config ../eslint.config.mjs src/App.tsx`:
+    passed.
+  - `pnpm --dir ui lint`: passed.
+  - `make hygiene`: passed.
+  - `git diff --check -- .codacy.yml .agents/skills/project-hygiene/SKILL.md .agents/sow/current/SOW-0099-20260602-github-code-scanning-hygiene.md eslint.config.mjs`:
+    passed.
+  - `timeout 120 npx -y @codacy/analysis-cli validate-configuration --directory "$PWD"`:
+    failed because the installed `@codacy/analysis-cli` exposes `analyze`,
+    `init`, `update-config`, `discover`, `info`, `login`, and `logout`, but not
+    `validate-configuration`.
 
 Real-use evidence:
 

@@ -64,6 +64,10 @@ scanner finding review:
   - Cloud tool/pattern changes require Codacy UI/API/CLI import or equivalent
     Cloud action. Do not assume committing `.codacy/codacy.config.json` changes
     Cloud analysis.
+  - Root `.codacy.yml` can configure or exclude paths for a tool, but it cannot
+    enable or disable tools. If a tool is enabled by a Codacy coding standard,
+    repository-level tool toggles cannot disable it; change the coding standard
+    only with explicit SOW evidence because it can affect other repositories.
 - OpenSSF Scorecard or equivalent supply-chain posture checks.
 - Local quality/security gates from `project-testing`, including Go, UI,
   nested-tool, vulnerability, static-analysis, race, and strict-test commands
@@ -120,6 +124,12 @@ tokens or credentials to durable artifacts.
   Wrong-stack, deprecated-tool, generated-file, vendored-file, fixture, and
   project-convention mismatches should be fixed through narrow tool/pattern/path
   configuration, not broad suppression.
+- When Codacy runs both `eslint-8` and `eslint-9`, treat the repository's
+  checked-in ESLint v9 flat config as the owner for React/TypeScript UI code.
+  If legacy `eslint-8` is enforced by a coding standard, prefer a narrow
+  engine-specific `.codacy.yml` path exclusion for UI paths covered by ESLint9
+  instead of editing the organization coding standard or disabling security
+  scanners.
 - For Dependabot npm/pnpm PRs, preserve release-age supply-chain protection.
   If CI fails with `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`, do not weaken the
   installer policy to make the PR pass. Align Dependabot cooldown with pnpm,
