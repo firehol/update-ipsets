@@ -1062,6 +1062,12 @@ Tests or equivalent validation:
   - Redacted sensitive-string scan over the Codacy SARIF workflow, converter,
     this SOW, and the project hygiene skill: no raw personal-name, home-path,
     session cookie, token assignment, or user email strings found.
+  - Post-push run `26848281498` for commit
+    `e437a254f132b67383df30e01610d4f19001d51c`: failed fast in 10 seconds at
+    `Verify Codacy API token` because the GitHub Actions secret
+    `CODACY_API_TOKEN` is not present. This confirms the workflow no longer
+    hangs in local analysis, but Codacy SARIF cannot upload to GitHub Code
+    Scanning until that secret exists.
 
 Real-use evidence:
 
