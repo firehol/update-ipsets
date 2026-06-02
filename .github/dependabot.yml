@@ -43,6 +43,8 @@ updates:
       day: monday
       time: "04:45"
       timezone: Etc/UTC
+    cooldown:
+      default-days: 1
     groups:
       ui-dependencies:
         patterns:

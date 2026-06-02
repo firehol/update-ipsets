@@ -142,6 +142,13 @@ Current state:
     reanalysis, and import tool/pattern configuration.
   - `.codacy/codacy.config.json` is the Codacy Analysis CLI local tool/pattern
     configuration; committing it alone does not change Codacy Cloud analysis.
+- Official pnpm documentation checked on 2026-06-02 says pnpm v11 enables
+  supply-chain protection by default with `minimumReleaseAge: 1440` minutes.
+  The `minimumReleaseAge` setting blocks installation of package versions
+  published too recently, including transitive dependencies.
+- Official GitHub Dependabot documentation checked on 2026-06-02 says
+  `cooldown` delays version-update PRs; when a dependency's release is inside
+  the cooldown period, Dependabot skips that version until the cooldown ends.
 
 Risks:
 
@@ -150,6 +157,9 @@ Risks:
 - Enforcing branch protection/rulesets can disrupt the current direct-push workflow.
 - Adding ShellCheck as a blocking gate before fixing or baselining current findings will make CI fail immediately.
 - Dependabot version updates can create PR volume; grouping and scheduling are needed to keep maintenance load reasonable.
+- Dependabot npm updates can create PRs that pnpm v11 CI rejects when the
+  versions are newer than pnpm's default one-day release-age policy. Without a
+  matching Dependabot cooldown, automated npm PRs can be born unmergeable.
 - Secret scanning non-provider patterns or validity checks may increase alert volume and may require organization/plan-specific availability.
 
 ## Pre-Implementation Gate
@@ -443,6 +453,18 @@ Open decisions:
   are required repair signals for settled non-database public feed manifests.
   The misleading manifest comment was corrected and a focused manifest test now
   locks the required geo/ASN provider artifact contract.
+- Investigated the two Dependabot PRs opened after adding `.github/dependabot.yml`.
+  PR #1 is a Go module update PR; its only failed checks were CodeQL runs from
+  before dynamic default setup was disabled. PR #2 is an npm/pnpm UI update PR;
+  CI and Go CodeQL failed because `pnpm --dir ui install --frozen-lockfile`
+  rejected recently published packages with
+  `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`.
+- Added a one-day Dependabot cooldown to the npm `/ui` update block so future
+  npm version-update PRs align with pnpm v11's default one-day
+  `minimumReleaseAge` supply-chain guardrail.
+- Updated `.agents/skills/project-hygiene/SKILL.md` so future hygiene checks
+  verify Dependabot cooldown alignment with package-manager release-age policy
+  and do not weaken pnpm release-age protection merely to merge a dependency PR.
 
 ## Validation
 
@@ -455,6 +477,8 @@ Acceptance criteria evidence:
   and fails on `moderate` or worse vulnerable dependency additions.
 - Dependabot version updates are checked in at `.github/dependabot.yml` for
   GitHub Actions, root Go module, nested DroneBL Go module, and UI npm/pnpm.
+  The UI npm/pnpm block now has `cooldown.default-days: 1` to match pnpm v11's
+  default one-day release-age guardrail.
 - Hygiene gates are checked in through `make actionlint`, `make shellcheck`,
   `make gitleaks`, and `.github/workflows/hygiene.yml`.
 - Scorecard SARIF upload is checked in at `.github/workflows/scorecard.yml`

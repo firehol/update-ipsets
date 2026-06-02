@@ -39,6 +39,10 @@ scanner finding review:
   be triaged separately.
 - GitHub Dependabot alerts, dependency graph/security updates, version-update
   config, and dependency-review pull-request gating.
+- Dependabot cooldown alignment with package-manager supply-chain policy. For
+  pnpm v11+ UI dependencies, Dependabot npm updates must not create PRs for
+  package versions younger than pnpm's active release-age gate unless the SOW
+  records a narrow emergency exception.
 - GitHub secret scanning, push protection, non-provider patterns, and local
   redacted generic secret scanning.
 - GitHub Actions workflow security: token permissions, untrusted checkout
@@ -116,6 +120,11 @@ tokens or credentials to durable artifacts.
   Wrong-stack, deprecated-tool, generated-file, vendored-file, fixture, and
   project-convention mismatches should be fixed through narrow tool/pattern/path
   configuration, not broad suppression.
+- For Dependabot npm/pnpm PRs, preserve release-age supply-chain protection.
+  If CI fails with `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`, do not weaken the
+  installer policy to make the PR pass. Align Dependabot cooldown with pnpm,
+  wait for the release-age window, or explicitly document a narrow emergency
+  exception.
 - Security, Critical, and High findings stay enabled unless another active
   scanner/pattern covers the same security concern with better precision. If a
   security rule is noisy, prefer file-specific exclusion or a documented false
