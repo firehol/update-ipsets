@@ -18,6 +18,11 @@ description: "Install, daemon, admin, and runtime operation guidance for update-
   group permissions and are not world-readable. Mutable runtime directories are
   `iplists:iplists` and group-only searchable (evidence: `install.sh`,
   `.agents/sow/specs/files-layout.md`).
+- Daemon-created mutable runtime/publication files default to owner-private
+  modes: `0600` for non-executable files and `0700` for directories. Public
+  feed and website access is provided through the daemon's HTTP listener, not
+  by local world-readable generated files (evidence:
+  `.agents/sow/specs/files-layout.md`).
 
 ## Important environment
 

@@ -94,7 +94,7 @@ func (e *Engine) writeMetadataFiles(ctx context.Context, skipComparisons bool, c
 				return nil, err
 			}
 			metaPath := filepath.Join(outDir, name+".json")
-			if err := writeFileAtomic(metaPath, append(data, '\n'), 0o644); err != nil {
+			if err := writeFileAtomic(metaPath, append(data, '\n'), 0o600); err != nil {
 				return nil, err
 			}
 			generated = append(generated, output.GeneratedFile{Path: filepath.Join(liveOutDir, name+".json"), Timestamp: time.Unix(viewEntry.ProcessedDate, 0).UTC(), Redistributable: redistributable})
@@ -102,7 +102,7 @@ func (e *Engine) writeMetadataFiles(ctx context.Context, skipComparisons bool, c
 			if baseGit {
 				setInfoLine := e.renderSetInfo(name, viewEntry)
 				setInfoPath := filepath.Join(e.runtime.BaseDir, name+".setinfo")
-				if err := writeFileAtomic(setInfoPath, []byte(setInfoLine), 0o644); err != nil {
+				if err := writeFileAtomic(setInfoPath, []byte(setInfoLine), 0o600); err != nil {
 					return nil, err
 				}
 				generated = append(generated, output.GeneratedFile{Path: setInfoPath, Timestamp: time.Unix(viewEntry.SourceDate, 0).UTC(), Redistributable: redistributable})
@@ -134,7 +134,7 @@ func (e *Engine) writeMetadataFiles(ctx context.Context, skipComparisons bool, c
 		return nil, err
 	}
 	indexPath := filepath.Join(outDir, "index.json")
-	if err := writeFileAtomic(indexPath, append(data, '\n'), 0o644); err != nil {
+	if err := writeFileAtomic(indexPath, append(data, '\n'), 0o600); err != nil {
 		return nil, err
 	}
 	generated = append(generated, output.GeneratedFile{Path: filepath.Join(liveOutDir, "index.json"), Timestamp: e.now().UTC(), Redistributable: true})
@@ -143,7 +143,7 @@ func (e *Engine) writeMetadataFiles(ctx context.Context, skipComparisons bool, c
 		return nil, err
 	}
 	allPath := filepath.Join(outDir, "all-ipsets.json")
-	if err := writeFileAtomic(allPath, append(data, '\n'), 0o644); err != nil {
+	if err := writeFileAtomic(allPath, append(data, '\n'), 0o600); err != nil {
 		return nil, err
 	}
 	generated = append(generated, output.GeneratedFile{Path: filepath.Join(liveOutDir, "all-ipsets.json"), Timestamp: e.now().UTC(), Redistributable: true})

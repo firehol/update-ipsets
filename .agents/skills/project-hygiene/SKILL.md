@@ -126,9 +126,12 @@ tokens or credentials to durable artifacts.
   configuration, not broad suppression.
 - For Go file-permission findings, separate test fixtures from production
   writers before changing modes. Test fixtures should normally use restrictive
-  `0600` files and `0700` directories. Production public artifacts, generated
-  feeds, install outputs, and shared runtime directories need spec/operator
-  evidence before changing `0644`/`0755` semantics or baselining a scanner rule.
+  `0600` files and `0700` directories. Daemon-owned generated runtime and
+  publication outputs should also default to `0600` files and `0700`
+  directories because public HTTP availability is served by the daemon, not by
+  POSIX world-read bits. Keep broader group access only where a documented
+  install/operator contract requires it, such as root-owned binary/config paths
+  readable or executable by the `iplists` group.
 - When Codacy runs both `eslint-8` and `eslint-9`, treat the repository's
   checked-in ESLint v9 flat config as the owner for React/TypeScript UI code.
   If legacy `eslint-8` is enforced by a coding standard, prefer a narrow

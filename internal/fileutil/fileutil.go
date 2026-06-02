@@ -46,7 +46,7 @@ func writeAtomic(path string, data []byte, mode os.FileMode, syncFile bool) erro
 		observability.Observe(ctx, "file.write_atomic", 1, int64(len(data)), time.Since(started), attrs...)
 		observability.End(span, opErr)
 	}()
-	if opErr = os.MkdirAll(filepath.Dir(path), 0o755); opErr != nil {
+	if opErr = os.MkdirAll(filepath.Dir(path), 0o700); opErr != nil {
 		return opErr
 	}
 	tmp, opErr := os.CreateTemp(filepath.Dir(path), ".tmp-*")

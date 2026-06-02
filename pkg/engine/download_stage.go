@@ -328,7 +328,7 @@ func (e *Engine) fetchStaticSource(src *config.Source, rawPath string) (*downloa
 	tmpDir := e.runtime.TmpDir
 	if tmpDir == "" {
 		tmpDir = os.TempDir()
-	} else if err := os.MkdirAll(tmpDir, 0o755); err != nil {
+	} else if err := os.MkdirAll(tmpDir, 0o700); err != nil {
 		return nil, fmt.Errorf("create static source temp dir: %w", err)
 	}
 	tmpFile, err := os.CreateTemp(tmpDir, "dl-static-*.tmp")

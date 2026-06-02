@@ -119,6 +119,12 @@ owned by `iplists:iplists` and searchable only by owner/group. The generated
 systemd unit grants write access only to those mutable runtime directories, not
 to the full install tree.
 
+Daemon-created runtime files are private on disk by default: non-executable
+files use owner-only read/write permissions, and directories use owner-only
+search/write permissions. Public access to feed data and website artifacts is
+provided by the daemon's HTTP listener, not by making generated files readable
+by every local user.
+
 ### `cache/` — runtime caches
 
 Holds scheduler state and other runtime caches that are not feed bodies. Safe to delete — the daemon rebuilds the contents on startup.

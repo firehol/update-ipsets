@@ -252,7 +252,7 @@ func writeReaderToTemp(ctx context.Context, r io.Reader, tmpDir string) (string,
 	if err := checkContext(ctx); err != nil {
 		return "", err
 	}
-	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
+	if err := os.MkdirAll(tmpDir, 0o700); err != nil {
 		return "", err
 	}
 	tmp, err := os.CreateTemp(tmpDir, "proc-stream-*.tmp")
@@ -287,7 +287,7 @@ func writeBytesToTemp(ctx context.Context, data []byte, tmpDir string) (string, 
 	if err := checkContext(ctx); err != nil {
 		return "", err
 	}
-	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
+	if err := os.MkdirAll(tmpDir, 0o700); err != nil {
 		return "", err
 	}
 	tmp, err := os.CreateTemp(tmpDir, "proc-bytes-*.tmp")
@@ -321,7 +321,7 @@ func copyToTemp(ctx context.Context, srcPath, tmpDir string) (string, error) {
 	if err := checkContext(ctx); err != nil {
 		return "", err
 	}
-	if err := os.MkdirAll(tmpDir, 0o755); err != nil {
+	if err := os.MkdirAll(tmpDir, 0o700); err != nil {
 		return "", err
 	}
 	src, err := os.Open(srcPath)
@@ -367,7 +367,7 @@ func RunStreamToFile(ctx context.Context, steps []config.ProcessorStep, srcPath,
 		return err
 	}
 	dir := filepath.Dir(dstPath)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return err
 	}
 	if err := checkContext(ctx); err != nil {

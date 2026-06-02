@@ -94,6 +94,36 @@ func TestTemplateStoreWithTemplates(t *testing.T) {
 	}
 }
 
+func TestWriteToDirUsesPrivateModes(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "test.tmpl"), []byte("hello"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	s := markdown.NewTemplateStore(dir)
+	if err := s.Load(); err != nil {
+		t.Fatal(err)
+	}
+
+	out := t.TempDir()
+	if err := s.WriteToDir("test.tmpl", nil, out, "nested/out.md"); err != nil {
+		t.Fatal(err)
+	}
+	dirInfo, err := os.Stat(filepath.Join(out, "nested"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := dirInfo.Mode().Perm(); got != 0o700 {
+		t.Fatalf("output dir mode = %04o, want 0700", got)
+	}
+	fileInfo, err := os.Stat(filepath.Join(out, "nested", "out.md"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := fileInfo.Mode().Perm(); got != 0o600 {
+		t.Fatalf("output file mode = %04o, want 0600", got)
+	}
+}
+
 func TestWriteToDirRejectsTraversal(t *testing.T) {
 	dir := t.TempDir()
 

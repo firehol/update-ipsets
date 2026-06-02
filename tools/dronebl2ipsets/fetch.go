@@ -26,7 +26,7 @@ func FetchBuildzone(ctx context.Context, opts FetchOptions) error {
 	if opts.DataDir == "" {
 		return fmt.Errorf("data directory is required")
 	}
-	if err := os.MkdirAll(opts.DataDir, 0o755); err != nil {
+	if err := os.MkdirAll(opts.DataDir, 0o700); err != nil {
 		return fmt.Errorf("create data directory: %w", err)
 	}
 

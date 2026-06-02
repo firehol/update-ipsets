@@ -45,19 +45,19 @@ func parseFeedBodyFile(ctx context.Context, name, path string, dnsThreads int) (
 func stageFeedBodyBytes(dst string, body []byte) error {
 	tmpPath := pendingTempPath(dst)
 	stagePath := stagedPath(dst)
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o700); err != nil {
 		return err
 	}
 	_ = os.Remove(tmpPath)
 	_ = os.Remove(stagePath)
-	if err := writeFileAtomic(tmpPath, body, 0o644); err != nil {
+	if err := writeFileAtomic(tmpPath, body, 0o600); err != nil {
 		return err
 	}
 	return os.Rename(tmpPath, stagePath)
 }
 
 func writeFeedBodyAtomic(path string, header []byte, bodyPath string, mod time.Time) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
 	body, err := os.Open(bodyPath)
@@ -96,7 +96,7 @@ func writeFeedBodyAtomic(path string, header []byte, bodyPath string, mod time.T
 	if err := body.Close(); err != nil {
 		return err
 	}
-	if err := tmp.Chmod(0o644); err != nil {
+	if err := tmp.Chmod(0o600); err != nil {
 		return err
 	}
 	if err := tmp.Sync(); err != nil {
@@ -305,7 +305,7 @@ func (e *Engine) appendHistorySnapshot(parent string, set *iprange.IPSet, observ
 		return false, nil
 	}
 	dir := filepath.Join(e.runtime.HistoryDir, parent)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return false, err
 	}
 	slot, snapshotTime, err := historySnapshotPath(dir, observedAt)

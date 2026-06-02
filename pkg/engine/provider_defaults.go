@@ -112,7 +112,7 @@ func (e *Engine) writeProviderDefaultsMarker() error {
 		}
 		return nil
 	}
-	return writeFileAtomic(path, []byte(current+"\n"), 0o644)
+	return writeFileAtomic(path, []byte(current+"\n"), 0o600)
 }
 
 func readProviderDefaultsMarker(path string) string {

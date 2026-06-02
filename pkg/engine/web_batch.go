@@ -22,7 +22,7 @@ type webPublishBatch struct {
 }
 
 func newStagedPublishBatch(liveDir, owner, pattern string) (*stagedPublishBatch, error) {
-	if err := os.MkdirAll(liveDir, 0o755); err != nil {
+	if err := os.MkdirAll(liveDir, 0o700); err != nil {
 		return nil, err
 	}
 	stageDir, err := os.MkdirTemp(liveDir, pattern)
@@ -118,7 +118,7 @@ func (b *stagedPublishBatch) publish() ([]string, error) {
 		}
 		dst := filepath.Join(b.liveDir, rel)
 		if d.IsDir() {
-			if err := os.MkdirAll(dst, 0o755); err != nil {
+			if err := os.MkdirAll(dst, 0o700); err != nil {
 				return err
 			}
 			if err := chownPath(b.owner, dst); err != nil {
@@ -126,10 +126,10 @@ func (b *stagedPublishBatch) publish() ([]string, error) {
 			}
 			return nil
 		}
-		if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(dst), 0o700); err != nil {
 			return err
 		}
-		if err := os.Chmod(path, 0o644); err != nil {
+		if err := os.Chmod(path, 0o600); err != nil {
 			return err
 		}
 		if err := os.Rename(path, dst); err != nil {

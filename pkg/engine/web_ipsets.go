@@ -52,7 +52,7 @@ func (e *Engine) copyUpdatedIPSetsToWeb(updatedNames []string) ([]output.Generat
 }
 
 func copyFileViaNew(src, dst, owner string, mod time.Time) error {
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o700); err != nil {
 		return err
 	}
 	if err := chownPath(owner, filepath.Dir(dst)); err != nil {
@@ -66,7 +66,7 @@ func copyFileViaNew(src, dst, owner string, mod time.Time) error {
 	}
 	defer func() { _ = in.Close() }()
 
-	out, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o644)
+	out, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}

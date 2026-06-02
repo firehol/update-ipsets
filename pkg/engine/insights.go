@@ -57,7 +57,7 @@ func (e *Engine) writeInsights(name string, outDir string) error {
 	return writeFileAtomicAt(
 		filepath.Join(outDir, name+"_insights.json"),
 		append(data, '\n'),
-		0o644,
+		0o600,
 		e.feedProcessingTimestamp(name),
 	)
 }

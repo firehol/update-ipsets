@@ -14,7 +14,7 @@ func WriteSourceFile(outputDir, filename string, set *RangeSet, mtime time.Time)
 	if filename == "" {
 		return fmt.Errorf("filename is required")
 	}
-	if err := os.MkdirAll(outputDir, 0o755); err != nil {
+	if err := os.MkdirAll(outputDir, 0o700); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
 	}
 
@@ -38,7 +38,7 @@ func WriteSourceFile(outputDir, filename string, set *RangeSet, mtime time.Time)
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("close %s: %w", filename, err)
 	}
-	if err := os.Chmod(tmpPath, 0o644); err != nil {
+	if err := os.Chmod(tmpPath, 0o600); err != nil {
 		return fmt.Errorf("chmod %s: %w", filename, err)
 	}
 	if err := os.Rename(tmpPath, dst); err != nil {

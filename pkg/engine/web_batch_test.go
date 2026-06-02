@@ -52,12 +52,26 @@ func TestStagedPublishBatchPublishesNestedFiles(t *testing.T) {
 		}
 	}
 	for rel, body := range stageFiles {
-		data, err := os.ReadFile(filepath.Join(liveDir, rel))
+		path := filepath.Join(liveDir, rel)
+		data, err := os.ReadFile(path)
 		if err != nil {
 			t.Fatalf("ReadFile(%q) error = %v", rel, err)
 		}
 		if string(data) != body {
 			t.Fatalf("body for %q = %q, want %q", rel, string(data), body)
+		}
+		if info, err := os.Stat(path); err != nil {
+			t.Fatalf("Stat(%q) error = %v", rel, err)
+		} else if got := info.Mode().Perm(); got != 0o600 {
+			t.Fatalf("mode for %q = %04o, want 0600", rel, got)
+		}
+	}
+	for _, rel := range []string{"countries", "asns"} {
+		path := filepath.Join(liveDir, rel)
+		if info, err := os.Stat(path); err != nil {
+			t.Fatalf("Stat(%q) error = %v", rel, err)
+		} else if got := info.Mode().Perm(); got != 0o700 {
+			t.Fatalf("mode for %q = %04o, want 0700", rel, got)
 		}
 	}
 }

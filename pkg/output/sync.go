@@ -46,7 +46,7 @@ func WriteREADME(baseDir string, setInfo map[string]string) error {
 		if !os.IsNotExist(err) {
 			return err
 		}
-		file, createErr := os.OpenFile(editPath, os.O_CREATE|os.O_WRONLY, 0o644)
+		file, createErr := os.OpenFile(editPath, os.O_CREATE|os.O_WRONLY, 0o600)
 		if createErr != nil {
 			return createErr
 		}
@@ -68,7 +68,7 @@ func WriteREADME(baseDir string, setInfo map[string]string) error {
 		buf.WriteString(strings.TrimSpace(setInfo[name]))
 		buf.WriteByte('\n')
 	}
-	return writeAtomic(filepath.Join(baseDir, "README.md"), buf.Bytes(), 0o644)
+	return writeAtomic(filepath.Join(baseDir, "README.md"), buf.Bytes(), 0o600)
 }
 
 func WriteGitIgnore(baseDir string, files []GeneratedFile) error {
@@ -122,7 +122,7 @@ func WriteGitIgnore(baseDir string, files []GeneratedFile) error {
 	if err == nil && bytes.Equal(data, buf.Bytes()) {
 		return nil
 	}
-	return writeAtomic(path, buf.Bytes(), 0o644)
+	return writeAtomic(path, buf.Bytes(), 0o600)
 }
 
 func WriteTimestampScript(baseDir string, files []GeneratedFile) error {

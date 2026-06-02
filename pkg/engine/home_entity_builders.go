@@ -997,7 +997,7 @@ func writeJSONFile(path string, value any) error {
 	if err != nil {
 		return err
 	}
-	return writeFileAtomicNoSync(path, append(data, '\n'), 0o644)
+	return writeFileAtomicNoSync(path, append(data, '\n'), 0o600)
 }
 
 func writeJSONFileAt(path string, value any, mod time.Time) error {

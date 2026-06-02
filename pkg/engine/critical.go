@@ -263,7 +263,7 @@ func (e *Engine) writeCriticalInfrastructureProviderSetMarkerValue(id string) er
 		}
 		return nil
 	}
-	return writeFileAtomic(path, []byte(id+"\n"), 0o644)
+	return writeFileAtomic(path, []byte(id+"\n"), 0o600)
 }
 
 func readCriticalInfrastructureProviderSetMarker(path string) string {
@@ -610,7 +610,7 @@ func (e *Engine) writeCriticalInfrastructureForFeed(name string, datasets *criti
 		return nil, err
 	}
 	outPath := filepath.Join(outDir, name+"_critical_infrastructure.json")
-	if err := writeFileAtomicAt(outPath, append(data, '\n'), 0o644, e.feedProcessingTimestamp(name)); err != nil {
+	if err := writeFileAtomicAt(outPath, append(data, '\n'), 0o600, e.feedProcessingTimestamp(name)); err != nil {
 		return nil, err
 	}
 	return tiers, nil
@@ -652,7 +652,7 @@ func (e *Engine) writeCriticalProviderPayload(outDir, feedName, providerName str
 		return err
 	}
 	outPath := filepath.Join(outDir, feedName+"_critical_"+providerName+".json")
-	return writeFileAtomicAt(outPath, append(data, '\n'), 0o644, e.feedProcessingTimestamp(feedName))
+	return writeFileAtomicAt(outPath, append(data, '\n'), 0o600, e.feedProcessingTimestamp(feedName))
 }
 
 func (e *Engine) criticalASNContextForFeed(feedName string, feedIPs uint64, outDir string) (*criticalASNContextJSON, error) {

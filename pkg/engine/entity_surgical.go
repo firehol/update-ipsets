@@ -123,7 +123,7 @@ func (e *Engine) refreshEntityArtifactsForFeedUpdates(ctx context.Context, feedN
 		if err := contextErr(ctx); err != nil {
 			return err
 		}
-		if err := writeFileAtomic(filepath.Join(entityBatch.stageDir, "version"), []byte(entityArtifactsVersion+"\n"), 0o644); err != nil {
+		if err := writeFileAtomic(filepath.Join(entityBatch.stageDir, "version"), []byte(entityArtifactsVersion+"\n"), 0o600); err != nil {
 			return err
 		}
 		if _, err := entityBatch.publish(); err != nil {
@@ -309,7 +309,7 @@ func (e *Engine) refreshEntityArtifactsForFeedUpdates(ctx context.Context, feedN
 		}
 	}
 
-	if err := writeFileAtomic(filepath.Join(entityBatch.stageDir, "version"), []byte(entityArtifactsVersion+"\n"), 0o644); err != nil {
+	if err := writeFileAtomic(filepath.Join(entityBatch.stageDir, "version"), []byte(entityArtifactsVersion+"\n"), 0o600); err != nil {
 		return err
 	}
 	if err := contextErr(ctx); err != nil {
@@ -560,7 +560,7 @@ func (e *Engine) writeObservedJSONFile(path string, value any, metric string) er
 		return err
 	}
 	body := append(data, '\n')
-	if err := writeFileAtomicNoSync(path, body, 0o644); err != nil {
+	if err := writeFileAtomicNoSync(path, body, 0o600); err != nil {
 		return err
 	}
 	e.observeRunCounter(metric, 1, int64(len(body)))

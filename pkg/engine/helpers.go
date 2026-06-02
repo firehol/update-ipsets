@@ -503,7 +503,7 @@ func moveDownloadedBody(result *downloader.Result, dst string) error {
 	if result == nil || result.BodyPath == "" {
 		return fmt.Errorf("no body file to move")
 	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o700); err != nil {
 		return err
 	}
 	// Try rename first (same filesystem).
@@ -527,7 +527,7 @@ func moveDownloadedBody(result *downloader.Result, dst string) error {
 		_ = tmp.Close()
 		return err
 	}
-	if err := tmp.Chmod(0o644); err != nil {
+	if err := tmp.Chmod(0o600); err != nil {
 		_ = tmp.Close()
 		return err
 	}
@@ -557,7 +557,7 @@ func stageDownloadedBody(result *downloader.Result, dst string) error {
 	}
 	tmpPath := pendingTempPath(dst)
 	stagePath := stagedPath(dst)
-	if err := os.MkdirAll(filepath.Dir(dst), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), 0o700); err != nil {
 		return err
 	}
 	_ = os.Remove(tmpPath)
@@ -604,7 +604,7 @@ func touchFileAt(path string, mod time.Time) error {
 		mod = time.Now()
 	}
 	if !fileExists(path) {
-		if err := writeFileAtomic(path, nil, 0o644); err != nil {
+		if err := writeFileAtomic(path, nil, 0o600); err != nil {
 			return err
 		}
 	}
@@ -616,7 +616,7 @@ func writeBinaryPath(path string, set *iprange.IPSet, mod time.Time) error {
 	if err := iprange.WriteBinary(&buf, set); err != nil {
 		return err
 	}
-	if err := writeFileAtomic(path, buf.Bytes(), 0o644); err != nil {
+	if err := writeFileAtomic(path, buf.Bytes(), 0o600); err != nil {
 		return err
 	}
 	return touchFileAt(path, mod)
@@ -640,14 +640,14 @@ func ensureCSVHeader(path, header string) error {
 	if fileExists(path) {
 		return nil
 	}
-	return writeFileAtomic(path, []byte(header), 0o644)
+	return writeFileAtomic(path, []byte(header), 0o600)
 }
 
 func appendCSV(path, header, line string) error {
 	if err := ensureCSVHeader(path, header); err != nil {
 		return err
 	}
-	file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0o644)
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0)
 	if err != nil {
 		return err
 	}

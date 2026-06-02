@@ -19,7 +19,7 @@ func (e *Engine) processGeoIPDatabases(ctx context.Context, opts RunOptions) (ge
 	}
 	reason := normalizeRunReason(opts)
 	sourceDir := filepath.Join(e.runtime.LibDir, "geolocation")
-	if err := os.MkdirAll(sourceDir, 0o755); err != nil {
+	if err := os.MkdirAll(sourceDir, 0o700); err != nil {
 		return nil, err
 	}
 
@@ -187,7 +187,7 @@ func (e *Engine) writeCountryComparisonFiles(ctx context.Context, datasets geoPr
 			if err != nil {
 				return err
 			}
-			if err := writeFileAtomicAt(filepath.Join(outDir, r.name+"_"+provider+".json"), append(data, '\n'), 0o644, e.feedProcessingTimestamp(r.name)); err != nil {
+			if err := writeFileAtomicAt(filepath.Join(outDir, r.name+"_"+provider+".json"), append(data, '\n'), 0o600, e.feedProcessingTimestamp(r.name)); err != nil {
 				return err
 			}
 		}

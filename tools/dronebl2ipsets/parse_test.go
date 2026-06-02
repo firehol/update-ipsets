@@ -137,7 +137,7 @@ func TestWriteSourceFileWritesCIDRAndPreservesMtime(t *testing.T) {
 	}
 
 	mtime := time.Date(2026, 4, 10, 7, 30, 0, 0, time.UTC)
-	dir := t.TempDir()
+	dir := filepath.Join(t.TempDir(), "out")
 	if err := WriteSourceFile(dir, "dronebl_sample.source", set, mtime); err != nil {
 		t.Fatal(err)
 	}
@@ -154,8 +154,18 @@ func TestWriteSourceFileWritesCIDRAndPreservesMtime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("file mode: got %04o want 0600", got)
+	}
 	if !info.ModTime().Equal(mtime) {
 		t.Fatalf("mtime: got %s want %s", info.ModTime(), mtime)
+	}
+	dirInfo, err := os.Stat(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := dirInfo.Mode().Perm(); got != 0o700 {
+		t.Fatalf("output dir mode: got %04o want 0700", got)
 	}
 }
 

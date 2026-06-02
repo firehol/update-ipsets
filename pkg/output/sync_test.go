@@ -37,6 +37,7 @@ func TestWriteREADME(t *testing.T) {
 	if strings.Index(text, "[a]") > strings.Index(text, "[b]") {
 		t.Fatalf("README is not sorted: %s", text)
 	}
+	assertFileMode(t, filepath.Join(dir, "README.md"), 0o600)
 }
 
 func TestWriteGitIgnore(t *testing.T) {
@@ -66,6 +67,7 @@ func TestWriteGitIgnore(t *testing.T) {
 			t.Fatalf(".gitignore unexpectedly contains %q: %s", unwanted, got)
 		}
 	}
+	assertFileMode(t, filepath.Join(dir, ".gitignore"), 0o600)
 }
 
 func TestGitSupportFilesNoopOutsideGitDir(t *testing.T) {
@@ -103,6 +105,7 @@ func TestWriteGitIgnorePreservesExistingContent(t *testing.T) {
 	if got := string(data); !strings.Contains(got, "# keep me") || !strings.Contains(got, "secret.ipset") || strings.Contains(got, "*.setinfo") {
 		t.Fatalf("unexpected .gitignore content: %s", got)
 	}
+	assertFileMode(t, filepath.Join(dir, ".gitignore"), 0o600)
 }
 
 func TestWriteTimestampScript(t *testing.T) {
@@ -141,6 +144,17 @@ func makeGitDir(t *testing.T, dir string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Join(dir, ".git"), 0o700); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func assertFileMode(t *testing.T, path string, want os.FileMode) {
+	t.Helper()
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.Mode().Perm(); got != want {
+		t.Fatalf("%s mode = %04o, want %04o", path, got, want)
 	}
 }
 

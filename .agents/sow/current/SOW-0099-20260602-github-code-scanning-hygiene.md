@@ -563,6 +563,17 @@ Open decisions:
   directory modes. This implements the requirement that the binary and configs
   are root-owned and accessible by `iplists` without making them readable by
   every local user.
+- Codacy analyzed commit `0c99f4afc3ea74fb54c3820b4a955ad951168b20`. The
+  repository remains Grade A with 2802 current issues. Sanitized current issue
+  evidence for `Semgrep_go_file-permissions_rule-fileperm` shows 8 remaining
+  findings: 7 production writer/publisher paths using `0644` and 1 test
+  cleanup path using `0700` on a file. The next permission pass will make
+  daemon-owned writer outputs private by default (`0600` for files, `0700` for
+  directories). Public HTTP access is not a POSIX world-read contract because
+  the embedded daemon serves published artifacts as the service user, and the
+  managed install already keeps mutable runtime roots non-world-readable.
+  Install-time group access remains reserved for trusted root-owned binary and
+  configuration paths that the `iplists` service user must read or execute.
 
 ## Validation
 
@@ -678,6 +689,23 @@ Tests or equivalent validation:
     failed as expected.
   - `sudo -u nobody test -x /opt/update-ipsets/bin/update-ipsets`: failed as
     expected.
+- Runtime writer permission validation:
+  - `rg -n "0o644|0644|0o755|0755" --glob '*.go' --glob '!*_test.go' pkg internal tools cmd`:
+    only the intentionally executable generated timestamp script remains.
+  - `rg -n "os\.(OpenFile|WriteFile|Chmod)\([^\n]*(0o644|0644|0o700|0700)" --glob '*.go' pkg internal tools cmd`:
+    no matches.
+  - `rg -n "MkdirAll\([^\n]*(0o755|0755)" --glob '*.go' --glob '!*_test.go' pkg internal tools cmd`:
+    no matches.
+  - `go test ./internal/fileutil ./pkg/output ./pkg/markdown ./pkg/engine`:
+    passed.
+  - `go test ./...`: passed.
+  - `cd tools/dronebl2ipsets && go test ./...`: passed.
+  - `make hygiene`: passed.
+  - `make lint`: passed.
+  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
+    passed.
+  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-operations`:
+    passed.
 
 Real-use evidence:
 
@@ -717,10 +745,11 @@ Artifact maintenance gate:
 
 - AGENTS.md: updated to register `.agents/skills/project-hygiene/`.
 - Runtime project skills: added `.agents/skills/project-hygiene/SKILL.md`.
-- Specs: no product/application spec update needed; scanner policy does not
-  change runtime product behavior, feed semantics, APIs, or file layout.
+- Specs: `.agents/sow/specs/files-layout.md` updated with the daemon-created
+  runtime/publication file and directory mode contract.
 - End-user/operator docs: added `SECURITY.md` for vulnerability reporting and
-  scanner policy expectations.
+  scanner policy expectations; updated `docs/installation/filesystem-layout.md`
+  with daemon-created private runtime file behavior.
 - End-user/operator skills: no separate operator skill needed for scanner
   posture.
 - SOW lifecycle: current SOW remains in `.agents/sow/current/` until
@@ -729,7 +758,11 @@ Artifact maintenance gate:
 
 Specs update:
 
-- No update needed; this is repository security/CI posture, not product runtime behavior.
+- Updated `.agents/sow/specs/files-layout.md` to state that daemon-created
+  mutable runtime and publication directories should be owner-private and
+  daemon-created non-executable runtime/publication files should be
+  owner-private. Public HTTP availability is served by the daemon or configured
+  serving process, not by local world-readable generated files.
 
 Project skills update:
 
@@ -741,10 +774,15 @@ Project skills update:
   guidance learned from Codacy triage.
 - Updated `.agents/skills/project-operations/SKILL.md` with the managed install
   ownership contract.
+- Updated `.agents/skills/project-hygiene/SKILL.md` and
+  `.agents/skills/project-operations/SKILL.md` with daemon-owned runtime writer
+  mode guidance.
 
 End-user/operator docs update:
 
 - Added `SECURITY.md`.
+- Updated `docs/installation/filesystem-layout.md` with daemon-created private
+  runtime file behavior.
 
 End-user/operator skills update:
 

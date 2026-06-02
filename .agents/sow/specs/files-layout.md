@@ -95,6 +95,11 @@ For managed systemd installs:
 - mutable runtime directories `data/`, `cache/`, `lib/`, `web/`, `run/`, and
   `tmp/` MUST be owned and writable by the service user and SHOULD NOT be
   world-readable
+- daemon-created mutable runtime and publication directories SHOULD use owner
+  private modes such as `0700`, and daemon-created non-executable runtime and
+  publication files SHOULD use owner private modes such as `0600`
+- public HTTP availability is provided by the daemon or configured serving
+  process, not by making generated runtime/publication files world-readable
 - systemd write access SHOULD be scoped to mutable runtime directories instead
   of the full installation root
 

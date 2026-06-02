@@ -36,7 +36,7 @@ func (e *Engine) finalize(name string, src *config.Source, output string, bodyPa
 	// Write the binary latest before promoting the canonical text file so
 	// FileSet-based readers and the committed feed body stay aligned.
 	latestDir := filepath.Join(e.runtime.LibDir, name)
-	if err := os.MkdirAll(latestDir, 0o755); err != nil {
+	if err := os.MkdirAll(latestDir, 0o700); err != nil {
 		return err
 	}
 	writeLatestStarted := time.Now()

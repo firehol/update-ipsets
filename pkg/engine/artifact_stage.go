@@ -156,7 +156,7 @@ func (e *Engine) materializeDroneBLChildren(ctx context.Context, artifact *confi
 	}
 
 	extractDir := e.artifactExtractDir(name)
-	if err := os.MkdirAll(extractDir, 0o755); err != nil {
+	if err := os.MkdirAll(extractDir, 0o700); err != nil {
 		return DownloadDecision{Name: name}, err
 	}
 	outDir, err := os.MkdirTemp(extractDir, "outputs-")

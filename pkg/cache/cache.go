@@ -329,7 +329,7 @@ func Save(path string, st *State) error {
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		opErr = err
 		return err
 	}

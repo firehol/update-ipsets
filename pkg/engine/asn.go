@@ -43,7 +43,7 @@ func (e *Engine) processASNDatabases(ctx context.Context, opts RunOptions) (asnD
 	}
 	reason := normalizeRunReason(opts)
 	asnDir := filepath.Join(e.runtime.LibDir, "asn")
-	if err := os.MkdirAll(asnDir, 0o755); err != nil {
+	if err := os.MkdirAll(asnDir, 0o700); err != nil {
 		return nil, err
 	}
 
@@ -81,7 +81,7 @@ func (e *Engine) processASNDatabases(ctx context.Context, opts RunOptions) (asnD
 			}
 
 			providerDir := filepath.Join(asnDir, name)
-			if err := os.MkdirAll(providerDir, 0o755); err != nil {
+			if err := os.MkdirAll(providerDir, 0o700); err != nil {
 				entry.MarkProviderFilesystemFailure(err.Error())
 				loopErr = err
 				return
@@ -259,7 +259,7 @@ func (e *Engine) writeASNComparisonFiles(ctx context.Context, datasets asnDatase
 				return mErr
 			}
 			outPath := filepath.Join(outDir, name+"_asn_"+provider+".json")
-			if wErr := writeFileAtomicAt(outPath, append(data, '\n'), 0o644, e.feedProcessingTimestamp(name)); wErr != nil {
+			if wErr := writeFileAtomicAt(outPath, append(data, '\n'), 0o600, e.feedProcessingTimestamp(name)); wErr != nil {
 				return wErr
 			}
 			return nil

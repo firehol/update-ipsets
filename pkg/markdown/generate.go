@@ -12,20 +12,20 @@ import (
 )
 
 var builtins = map[string]any{
-	"comma":             func(v any) string { return commaAny(v) },
-	"commaI":            commaInt,
-	"pct":               pct,
-	"date":              dateStr,
-	"relTime":           relTime,
-	"bar":               barFill,
-	"mins":              minsToDuration,
-	"truncate":          truncate,
-	"table":             RenderTable,
-	"countryName":       countryName,
-	"asnDisplayName":    asnDisplayName,
-	"sortedKeys":        sortedKeys,
-	"statusLabel":       statusLabel,
-	"statusLead":        statusLead,
+	"comma":          func(v any) string { return commaAny(v) },
+	"commaI":         commaInt,
+	"pct":            pct,
+	"date":           dateStr,
+	"relTime":        relTime,
+	"bar":            barFill,
+	"mins":           minsToDuration,
+	"truncate":       truncate,
+	"table":          RenderTable,
+	"countryName":    countryName,
+	"asnDisplayName": asnDisplayName,
+	"sortedKeys":     sortedKeys,
+	"statusLabel":    statusLabel,
+	"statusLead":     statusLead,
 }
 
 // statusLabel maps a status value (research lifecycle state or health
@@ -162,10 +162,10 @@ func (s *TemplateStore) WriteToDir(name string, data any, dir, relPath string) e
 	}
 
 	fullPath := filepath.Join(dir, relPath)
-	if err := os.MkdirAll(filepath.Dir(fullPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(fullPath), 0o700); err != nil {
 		return fmt.Errorf("mkdir for %s: %w", relPath, err)
 	}
-	if err := os.WriteFile(fullPath, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(fullPath, []byte(content), 0o600); err != nil {
 		return fmt.Errorf("write %s: %w", relPath, err)
 	}
 	return nil

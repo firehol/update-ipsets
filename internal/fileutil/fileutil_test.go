@@ -143,10 +143,6 @@ func TestWriteAtomicReadOnlyDirectory(t *testing.T) {
 	if err := os.MkdirAll(readOnly, 0o555); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() {
-		// Restore permissions so cleanup can remove it.
-		_ = os.Chmod(readOnly, 0o700)
-	})
 
 	path := filepath.Join(readOnly, "fail.txt")
 	err := WriteAtomic(path, []byte("should fail"), 0o600)

@@ -418,8 +418,12 @@ sources:
 		t.Fatal(err)
 	}
 	copiedPath := filepath.Join(filesDir, "sample.ipset")
-	if _, err := os.Stat(copiedPath); err != nil {
+	info, err := os.Stat(copiedPath)
+	if err != nil {
 		t.Fatalf("expected copied public ipset file: %v", err)
+	}
+	if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("copied public ipset file mode = %04o, want 0600", got)
 	}
 	if _, err := os.Stat(copiedPath + ".new"); !os.IsNotExist(err) {
 		t.Fatalf("expected no stale .new file, got err=%v", err)

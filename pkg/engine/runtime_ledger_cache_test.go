@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -28,6 +29,11 @@ func TestHistoryLedgerCacheAppliesAndObserves(t *testing.T) {
 	}
 	if err := appendCSV(historyPath, "DateTime,Entries,UniqueIPs\n", "1700007200,15,150\n"); err != nil {
 		t.Fatalf("append history row 3: %v", err)
+	}
+	if info, err := os.Stat(historyPath); err != nil {
+		t.Fatal(err)
+	} else if got := info.Mode().Perm(); got != 0o600 {
+		t.Fatalf("history ledger mode = %04o, want 0600", got)
 	}
 
 	entry := &cache.Entry{}

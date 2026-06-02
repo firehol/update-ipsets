@@ -117,33 +117,33 @@ type RetentionData struct {
 }
 
 type StatusSnapshot struct {
-	Running                     bool                     `json:"running"`
-	LastStarted                 time.Time                `json:"last_started,omitempty"`
-	LastEnded                   time.Time                `json:"last_ended,omitempty"`
-	LastError                   string                   `json:"last_error,omitempty"`
-	LastReport                  *Report                  `json:"last_report,omitempty"`
-	CurrentReason               runreason.Reason         `json:"current_reason,omitempty"`
-	LastReason                  runreason.Reason         `json:"last_reason,omitempty"`
-	CurrentPhase                RunPhase                 `json:"current_phase,omitempty"`
-	ActiveFeeds                 []ActiveFeed             `json:"active_feeds,omitempty"`
-	BackgroundTasks             []BackgroundTaskSnapshot `json:"background_tasks,omitempty"`
-	BackgroundLimit             int                      `json:"background_limit,omitempty"`
-	BackgroundRunning           int                      `json:"background_running,omitempty"`
-	CurrentMetrics              *RunMetricsSnapshot      `json:"current_metrics,omitempty"`
-	LastMetrics                 *RunMetricsSnapshot      `json:"last_metrics,omitempty"`
-	LifetimeMetrics             *LifetimeMetricsSnapshot `json:"lifetime_metrics,omitempty"`
-	ConfigPath                  string                   `json:"config_path"`
-	BaseDir                     string                   `json:"base_dir"`
-	SourceCount                 int                      `json:"source_count"`
-	MergeCount                  int                      `json:"merge_count"`
-	EntityRefreshPending        int                      `json:"entity_refresh_pending,omitempty"`
-	EntityHealthPending         int                      `json:"entity_health_pending,omitempty"`
-	EntityRebuildPending        bool                     `json:"entity_rebuild_pending,omitempty"`
-	LastConfigReload            time.Time                `json:"last_config_reload,omitempty"`
-	ConfigReloadCount           int                      `json:"config_reload_count,omitempty"`
-	LastConfigReloadError       string                   `json:"last_config_reload_error,omitempty"`
-	StartupRepairDeferred       bool                     `json:"startup_repair_deferred,omitempty"`
-	StartupRepairDeferredTargets int                     `json:"startup_repair_deferred_targets,omitempty"`
+	Running                      bool                     `json:"running"`
+	LastStarted                  time.Time                `json:"last_started,omitempty"`
+	LastEnded                    time.Time                `json:"last_ended,omitempty"`
+	LastError                    string                   `json:"last_error,omitempty"`
+	LastReport                   *Report                  `json:"last_report,omitempty"`
+	CurrentReason                runreason.Reason         `json:"current_reason,omitempty"`
+	LastReason                   runreason.Reason         `json:"last_reason,omitempty"`
+	CurrentPhase                 RunPhase                 `json:"current_phase,omitempty"`
+	ActiveFeeds                  []ActiveFeed             `json:"active_feeds,omitempty"`
+	BackgroundTasks              []BackgroundTaskSnapshot `json:"background_tasks,omitempty"`
+	BackgroundLimit              int                      `json:"background_limit,omitempty"`
+	BackgroundRunning            int                      `json:"background_running,omitempty"`
+	CurrentMetrics               *RunMetricsSnapshot      `json:"current_metrics,omitempty"`
+	LastMetrics                  *RunMetricsSnapshot      `json:"last_metrics,omitempty"`
+	LifetimeMetrics              *LifetimeMetricsSnapshot `json:"lifetime_metrics,omitempty"`
+	ConfigPath                   string                   `json:"config_path"`
+	BaseDir                      string                   `json:"base_dir"`
+	SourceCount                  int                      `json:"source_count"`
+	MergeCount                   int                      `json:"merge_count"`
+	EntityRefreshPending         int                      `json:"entity_refresh_pending,omitempty"`
+	EntityHealthPending          int                      `json:"entity_health_pending,omitempty"`
+	EntityRebuildPending         bool                     `json:"entity_rebuild_pending,omitempty"`
+	LastConfigReload             time.Time                `json:"last_config_reload,omitempty"`
+	ConfigReloadCount            int                      `json:"config_reload_count,omitempty"`
+	LastConfigReloadError        string                   `json:"last_config_reload_error,omitempty"`
+	StartupRepairDeferred        bool                     `json:"startup_repair_deferred,omitempty"`
+	StartupRepairDeferredTargets int                      `json:"startup_repair_deferred_targets,omitempty"`
 }
 
 type LifetimeMetricsSnapshot struct {
@@ -202,13 +202,13 @@ type Engine struct {
 	// derivatives declares. It is used to prune old snapshots from
 	// runtime.HistoryDir once they cannot affect any derivative any
 	// more.
-	retentionMaxWindow map[string]time.Duration
-	lastConfigReload   time.Time
-	configReloadCount  int
-	lastConfigReloadError string
-	startupRepairDeferred bool
+	retentionMaxWindow           map[string]time.Duration
+	lastConfigReload             time.Time
+	configReloadCount            int
+	lastConfigReloadError        string
+	startupRepairDeferred        bool
 	startupRepairDeferredTargets int
-	markdownTemplates      *markdown.TemplateStore
+	markdownTemplates            *markdown.TemplateStore
 }
 
 func New(configPath string, logger *slog.Logger) (*Engine, error) {
@@ -448,7 +448,7 @@ func (e *Engine) Enable(names []string, all bool) error {
 			continue
 		}
 		path := e.sourceEnablePath(name)
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 			return err
 		}
 		if err := touchFileAt(path, time.Unix(0, 0)); err != nil {
@@ -467,7 +467,7 @@ func (e *Engine) EnableArtifacts(names []string, all bool) error {
 			continue
 		}
 		path := e.artifactEnablePath(name)
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 			return err
 		}
 		if err := touchFileAt(path, time.Unix(0, 0)); err != nil {
