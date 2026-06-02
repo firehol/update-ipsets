@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/firehol/update-ipsets/internal/fileutil"
 	"github.com/firehol/update-ipsets/internal/observability"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel/attribute"
@@ -247,7 +248,7 @@ func (c *Client) Fetch(ctx context.Context, req Request) (result *Result, err er
 	if tmpDir == "" {
 		tmpDir = os.TempDir()
 	}
-	tmpFile, err := os.CreateTemp(tmpDir, "dl-*.tmp")
+	tmpFile, err := createGeneratedTemp(tmpDir, "dl-*.tmp")
 	if err != nil {
 		return nil, fmt.Errorf("create temp file: %w", err)
 	}
@@ -397,7 +398,7 @@ func fetchLocalPath(req Request, now time.Time, srcPath string) (*Result, error)
 	if tmpDir == "" {
 		tmpDir = os.TempDir()
 	}
-	tmpFile, err := os.CreateTemp(tmpDir, "dl-copy-*.tmp")
+	tmpFile, err := createGeneratedTemp(tmpDir, "dl-copy-*.tmp")
 	if err != nil {
 		return nil, fmt.Errorf("create temp file: %w", err)
 	}
@@ -588,4 +589,18 @@ func splitShellWords(raw string) []string {
 	}
 	flush()
 	return out
+}
+
+func createGeneratedTemp(dir, pattern string) (*os.File, error) {
+	tmp, err := os.CreateTemp(dir, pattern)
+	if err != nil {
+		return nil, err
+	}
+	if err := tmp.Chmod(fileutil.GeneratedFileMode); err != nil {
+		tmpName := tmp.Name()
+		_ = tmp.Close()
+		_ = os.Remove(tmpName)
+		return nil, fmt.Errorf("chmod temp file: %w", err)
+	}
+	return tmp, nil
 }

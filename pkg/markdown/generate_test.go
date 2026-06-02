@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/firehol/update-ipsets/internal/fileutil"
 	"github.com/firehol/update-ipsets/pkg/markdown"
 )
 
@@ -94,7 +95,7 @@ func TestTemplateStoreWithTemplates(t *testing.T) {
 	}
 }
 
-func TestWriteToDirUsesPrivateModes(t *testing.T) {
+func TestWriteToDirUsesGeneratedModes(t *testing.T) {
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "test.tmpl"), []byte("hello"), 0o600); err != nil {
 		t.Fatal(err)
@@ -112,15 +113,15 @@ func TestWriteToDirUsesPrivateModes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := dirInfo.Mode().Perm(); got != 0o700 {
-		t.Fatalf("output dir mode = %04o, want 0700", got)
+	if got := dirInfo.Mode().Perm(); got != fileutil.GeneratedDirMode {
+		t.Fatalf("output dir mode = %04o, want %04o", got, fileutil.GeneratedDirMode)
 	}
 	fileInfo, err := os.Stat(filepath.Join(out, "nested", "out.md"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := fileInfo.Mode().Perm(); got != 0o600 {
-		t.Fatalf("output file mode = %04o, want 0600", got)
+	if got := fileInfo.Mode().Perm(); got != fileutil.GeneratedFileMode {
+		t.Fatalf("output file mode = %04o, want %04o", got, fileutil.GeneratedFileMode)
 	}
 }
 

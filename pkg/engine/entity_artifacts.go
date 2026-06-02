@@ -530,7 +530,7 @@ func (e *Engine) writeEntityArtifacts(ctx context.Context, updatedNames []string
 	}
 
 	if !full && len(affectedCountries) == 0 && len(affectedASNs) == 0 {
-		if err := writeFileAtomic(filepath.Join(entityBatch.stageDir, "version"), []byte(entityArtifactsVersion+"\n"), 0o600); err != nil {
+		if err := writeFileAtomic(filepath.Join(entityBatch.stageDir, "version"), []byte(entityArtifactsVersion+"\n"), generatedFileMode); err != nil {
 			return nil, err
 		}
 		homeAggregate, err := e.stageHomeAggregates(ctx, webBatch.stageDir, "")
@@ -677,7 +677,7 @@ func (e *Engine) writeEntityArtifacts(ctx context.Context, updatedNames []string
 	}
 	generated = append(generated, homeAggregate)
 
-	if err := writeFileAtomic(filepath.Join(entityBatch.stageDir, "version"), []byte(entityArtifactsVersion+"\n"), 0o600); err != nil {
+	if err := writeFileAtomic(filepath.Join(entityBatch.stageDir, "version"), []byte(entityArtifactsVersion+"\n"), generatedFileMode); err != nil {
 		return nil, err
 	}
 	return generated, nil

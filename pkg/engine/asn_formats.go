@@ -32,7 +32,7 @@ func decompressGzipToFileWithLimit(src, dst string, limit int64) error {
 	}
 	defer func() { _ = gz.Close() }()
 	tmpPath := dst + ".tmp"
-	out, err := openPrivateTempFile(tmpPath)
+	out, err := openGeneratedTempFile(tmpPath)
 	if err != nil {
 		return fmt.Errorf("create %s: %w", tmpPath, err)
 	}
@@ -95,7 +95,7 @@ func extractMMDBFromArchiveWithLimit(archivePath, dstPath string, limit int64) e
 		}
 		// Found it. Stream to a temp file and rename atomically.
 		tmpPath := dstPath + ".tmp"
-		out, err := openPrivateTempFile(tmpPath)
+		out, err := openGeneratedTempFile(tmpPath)
 		if err != nil {
 			return fmt.Errorf("create %s: %w", tmpPath, err)
 		}
@@ -116,8 +116,17 @@ func extractMMDBFromArchiveWithLimit(archivePath, dstPath string, limit int64) e
 	}
 }
 
-func openPrivateTempFile(path string) (*os.File, error) {
-	return os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+func openGeneratedTempFile(path string) (*os.File, error) {
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, generatedFileMode)
+	if err != nil {
+		return nil, err
+	}
+	if err := file.Chmod(generatedFileMode); err != nil {
+		_ = file.Close()
+		_ = os.Remove(path)
+		return nil, err
+	}
+	return file, nil
 }
 
 func copyExpandedPayloadWithLimit(dst io.Writer, src io.Reader, limit int64) error {

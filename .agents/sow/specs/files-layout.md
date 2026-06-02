@@ -95,9 +95,15 @@ For managed systemd installs:
 - mutable runtime directories `data/`, `cache/`, `lib/`, `web/`, `run/`, and
   `tmp/` MUST be owned and writable by the service user and SHOULD NOT be
   world-readable
-- daemon-created mutable runtime and publication directories SHOULD use owner
-  private modes such as `0700`, and daemon-created non-executable runtime and
-  publication files SHOULD use owner private modes such as `0600`
+- daemon-created mutable runtime and publication directories MUST be
+  group-readable/searchable and not world-readable; managed installs use `0750`
+- daemon-created non-executable runtime and publication files MUST be
+  group-readable and not world-readable; managed installs use `0640`
+- managed systemd installs MUST set a compatible process umask, currently
+  `UMask=0027`, so direct file and directory creation preserves the generated
+  artifact permission contract
+- install and packaging flows MUST repair existing mutable runtime directories
+  and files to the same directory/file modes during reinstall
 - public HTTP availability is provided by the daemon or configured serving
   process, not by making generated runtime/publication files world-readable
 - systemd write access SHOULD be scoped to mutable runtime directories instead

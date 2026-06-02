@@ -7,6 +7,8 @@ You will learn how to manage the update-ipsets systemd service, apply configurat
 The installer writes `/etc/systemd/system/update-ipsets.service`. This unit:
 
 - Runs as `User=iplists` and `Group=iplists`
+- Sets `UMask=0027` so generated artifacts are group-readable but not
+  world-readable
 - Starts the daemon with `--enable-all` and `--verbose`
 - Sets all path variables to point under `/opt/update-ipsets/`
 - Configures systemd notify and watchdog support

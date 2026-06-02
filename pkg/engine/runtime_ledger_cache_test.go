@@ -32,8 +32,8 @@ func TestHistoryLedgerCacheAppliesAndObserves(t *testing.T) {
 	}
 	if info, err := os.Stat(historyPath); err != nil {
 		t.Fatal(err)
-	} else if got := info.Mode().Perm(); got != 0o600 {
-		t.Fatalf("history ledger mode = %04o, want 0600", got)
+	} else if got := info.Mode().Perm(); got != generatedFileMode {
+		t.Fatalf("history ledger mode = %04o, want %04o", got, generatedFileMode)
 	}
 
 	entry := &cache.Entry{}

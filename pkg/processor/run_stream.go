@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/firehol/update-ipsets/internal/fileutil"
 	"github.com/firehol/update-ipsets/internal/observability"
 	"github.com/firehol/update-ipsets/pkg/config"
 
@@ -252,10 +253,10 @@ func writeReaderToTemp(ctx context.Context, r io.Reader, tmpDir string) (string,
 	if err := checkContext(ctx); err != nil {
 		return "", err
 	}
-	if err := os.MkdirAll(tmpDir, 0o700); err != nil {
+	if err := os.MkdirAll(tmpDir, fileutil.GeneratedDirMode); err != nil {
 		return "", err
 	}
-	tmp, err := os.CreateTemp(tmpDir, "proc-stream-*.tmp")
+	tmp, err := createGeneratedTempFile(tmpDir, "proc-stream-*.tmp")
 	if err != nil {
 		return "", err
 	}
@@ -287,10 +288,10 @@ func writeBytesToTemp(ctx context.Context, data []byte, tmpDir string) (string, 
 	if err := checkContext(ctx); err != nil {
 		return "", err
 	}
-	if err := os.MkdirAll(tmpDir, 0o700); err != nil {
+	if err := os.MkdirAll(tmpDir, fileutil.GeneratedDirMode); err != nil {
 		return "", err
 	}
-	tmp, err := os.CreateTemp(tmpDir, "proc-bytes-*.tmp")
+	tmp, err := createGeneratedTempFile(tmpDir, "proc-bytes-*.tmp")
 	if err != nil {
 		return "", err
 	}
@@ -321,7 +322,7 @@ func copyToTemp(ctx context.Context, srcPath, tmpDir string) (string, error) {
 	if err := checkContext(ctx); err != nil {
 		return "", err
 	}
-	if err := os.MkdirAll(tmpDir, 0o700); err != nil {
+	if err := os.MkdirAll(tmpDir, fileutil.GeneratedDirMode); err != nil {
 		return "", err
 	}
 	src, err := os.Open(srcPath)
@@ -330,7 +331,7 @@ func copyToTemp(ctx context.Context, srcPath, tmpDir string) (string, error) {
 	}
 	defer func() { _ = src.Close() }()
 
-	tmp, err := os.CreateTemp(tmpDir, "proc-copy-*.tmp")
+	tmp, err := createGeneratedTempFile(tmpDir, "proc-copy-*.tmp")
 	if err != nil {
 		return "", err
 	}
@@ -367,7 +368,7 @@ func RunStreamToFile(ctx context.Context, steps []config.ProcessorStep, srcPath,
 		return err
 	}
 	dir := filepath.Dir(dstPath)
-	if err := os.MkdirAll(dir, 0o700); err != nil {
+	if err := os.MkdirAll(dir, fileutil.GeneratedDirMode); err != nil {
 		return err
 	}
 	if err := checkContext(ctx); err != nil {
@@ -397,8 +398,13 @@ func copyFile(ctx context.Context, src, dst string) error {
 	if err := checkContext(ctx); err != nil {
 		return err
 	}
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, fileutil.GeneratedFileMode)
 	if err != nil {
+		return err
+	}
+	if err := out.Chmod(fileutil.GeneratedFileMode); err != nil {
+		_ = out.Close()
+		_ = os.Remove(dst)
 		return err
 	}
 	n, err := io.Copy(out, contextReader{ctx: ctx, r: in})
@@ -418,4 +424,18 @@ func copyFile(ctx context.Context, src, dst string) error {
 		return err
 	}
 	return nil
+}
+
+func createGeneratedTempFile(tmpDir, pattern string) (*os.File, error) {
+	tmp, err := os.CreateTemp(tmpDir, pattern)
+	if err != nil {
+		return nil, err
+	}
+	if err := tmp.Chmod(fileutil.GeneratedFileMode); err != nil {
+		path := tmp.Name()
+		_ = tmp.Close()
+		_ = os.Remove(path)
+		return nil, err
+	}
+	return tmp, nil
 }

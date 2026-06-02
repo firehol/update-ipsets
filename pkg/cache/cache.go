@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/firehol/update-ipsets/internal/fileutil"
 	"github.com/firehol/update-ipsets/internal/observability"
 	"github.com/firehol/update-ipsets/pkg/runreason"
 
@@ -329,7 +330,7 @@ func Save(path string, st *State) error {
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), fileutil.GeneratedDirMode); err != nil {
 		opErr = err
 		return err
 	}
@@ -342,6 +343,11 @@ func Save(path string, st *State) error {
 	defer func() { _ = os.Remove(tmpName) }()
 
 	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		opErr = err
+		return err
+	}
+	if err := tmp.Chmod(fileutil.GeneratedFileMode); err != nil {
 		_ = tmp.Close()
 		opErr = err
 		return err

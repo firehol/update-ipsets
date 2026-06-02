@@ -1,11 +1,13 @@
 package cache
 
 import (
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/firehol/update-ipsets/internal/fileutil"
 	"github.com/firehol/update-ipsets/pkg/runreason"
 )
 
@@ -22,6 +24,11 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 
 	if err := Save(path, st); err != nil {
 		t.Fatalf("Save returned error: %v", err)
+	}
+	if info, err := os.Stat(path); err != nil {
+		t.Fatalf("Stat returned error: %v", err)
+	} else if got := info.Mode().Perm(); got != fileutil.GeneratedFileMode {
+		t.Fatalf("cache file mode = %04o, want %04o", got, fileutil.GeneratedFileMode)
 	}
 
 	loaded, err := Load(path)

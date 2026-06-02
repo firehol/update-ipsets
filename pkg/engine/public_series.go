@@ -45,7 +45,7 @@ func (e *Engine) writePublicHistoryCSV(name, outDir string) error {
 	for _, point := range points {
 		fmt.Fprintf(&buf, "%d,%d,%d\n", point.Timestamp, point.Entries, point.UniqueIPs)
 	}
-	return writeFileAtomicAt(filepath.Join(outDir, name+"_history.csv"), buf.Bytes(), 0o600, e.feedProcessingTimestamp(name))
+	return writeFileAtomicAt(filepath.Join(outDir, name+"_history.csv"), buf.Bytes(), generatedFileMode, e.feedProcessingTimestamp(name))
 }
 
 func (e *Engine) writePublicChangesetsCSV(name, outDir string) error {
@@ -66,7 +66,7 @@ func (e *Engine) writePublicChangesetsCSV(name, outDir string) error {
 	for _, point := range points {
 		fmt.Fprintf(&buf, "%d,%d,%d\n", point.Timestamp, point.Added, point.Removed)
 	}
-	return writeFileAtomicAt(filepath.Join(outDir, name+"_changesets.csv"), buf.Bytes(), 0o600, e.feedProcessingTimestamp(name))
+	return writeFileAtomicAt(filepath.Join(outDir, name+"_changesets.csv"), buf.Bytes(), generatedFileMode, e.feedProcessingTimestamp(name))
 }
 
 func (e *Engine) writePublicRetentionJSON(name, outDir string) error {
@@ -86,7 +86,7 @@ func (e *Engine) writePublicRetentionJSON(name, outDir string) error {
 		}
 		data = append(data, '\n')
 	}
-	return writeFileAtomicAt(filepath.Join(outDir, name+"_retention.json"), data, 0o600, e.feedProcessingTimestamp(name))
+	return writeFileAtomicAt(filepath.Join(outDir, name+"_retention.json"), data, generatedFileMode, e.feedProcessingTimestamp(name))
 }
 
 func (e *Engine) publicHistorySeries(name string) []HistoryPoint {
@@ -119,5 +119,5 @@ func normalizeChangesetLedgerHeader(path string) error {
 		return err
 	}
 	next := append([]byte(changesetLedgerHeader), data...)
-	return writeFileAtomic(path, next, 0o600)
+	return writeFileAtomic(path, next, generatedFileMode)
 }

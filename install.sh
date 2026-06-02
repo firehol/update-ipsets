@@ -236,6 +236,14 @@ run sudo find \
     "${INSTALL_DIR}/run" \
     "${INSTALL_DIR}/tmp" \
     -type d -exec chmod 0750 {} +
+run sudo find \
+    "${INSTALL_DIR}/data" \
+    "${INSTALL_DIR}/cache" \
+    "${INSTALL_DIR}/lib" \
+    "${INSTALL_DIR}/web" \
+    "${INSTALL_DIR}/run" \
+    "${INSTALL_DIR}/tmp" \
+    -type f -exec chmod 0640 {} +
 
 # Per-feed HTML description pages are embedded into the binary at
 # build time (pkg/web/static/feed-descriptions/*.html via //go:embed).
@@ -282,6 +290,7 @@ Wants=network-online.target tailscaled.service
 Type=notify
 User=iplists
 Group=iplists
+UMask=0027
 ExecStart=${INSTALL_DIR}/bin/update-ipsets daemon \\
     --config ${INSTALL_DIR}/etc/config \\
     --listen \${UPDATE_IPSETS_LISTEN} \\

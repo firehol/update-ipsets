@@ -15,15 +15,15 @@ func Test_acquireLock(t *testing.T) {
 	defer func() { _ = first.Release() }()
 	if info, err := os.Stat(path); err != nil {
 		t.Fatal(err)
-	} else if got := info.Mode().Perm(); got != 0o600 {
-		t.Fatalf("lock file mode = %04o, want 0600", got)
+	} else if got := info.Mode().Perm(); got != generatedFileMode {
+		t.Fatalf("lock file mode = %04o, want %04o", got, generatedFileMode)
 	}
 
 	lockDir := filepath.Dir(path)
 	if info, err := os.Stat(lockDir); err != nil {
 		t.Fatal(err)
-	} else if got := info.Mode().Perm(); got != 0o700 {
-		t.Fatalf("lock dir mode = %04o, want 0700", got)
+	} else if got := info.Mode().Perm(); got != generatedDirMode {
+		t.Fatalf("lock dir mode = %04o, want %04o", got, generatedDirMode)
 	}
 
 	second, err := acquireLock(path)

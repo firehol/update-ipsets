@@ -5,9 +5,11 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/firehol/update-ipsets/internal/fileutil"
 )
 
-func TestCopyFileWritesPrivateDestination(t *testing.T) {
+func TestCopyFileWritesGroupReadableDestination(t *testing.T) {
 	tmpDir := t.TempDir()
 	srcPath := filepath.Join(tmpDir, "source.txt")
 	dstPath := filepath.Join(tmpDir, "dest.txt")
@@ -30,7 +32,7 @@ func TestCopyFileWritesPrivateDestination(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if gotMode := info.Mode().Perm(); gotMode != 0o600 {
-		t.Fatalf("copied file mode = %04o, want 0600", gotMode)
+	if gotMode := info.Mode().Perm(); gotMode != fileutil.GeneratedFileMode {
+		t.Fatalf("copied file mode = %04o, want %04o", gotMode, fileutil.GeneratedFileMode)
 	}
 }

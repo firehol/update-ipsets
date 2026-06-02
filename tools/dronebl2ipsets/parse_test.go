@@ -154,8 +154,8 @@ func TestWriteSourceFileWritesCIDRAndPreservesMtime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := info.Mode().Perm(); got != 0o600 {
-		t.Fatalf("file mode: got %04o want 0600", got)
+	if got := info.Mode().Perm(); got != generatedFileMode {
+		t.Fatalf("file mode: got %04o want %04o", got, generatedFileMode)
 	}
 	if !info.ModTime().Equal(mtime) {
 		t.Fatalf("mtime: got %s want %s", info.ModTime(), mtime)
@@ -164,8 +164,8 @@ func TestWriteSourceFileWritesCIDRAndPreservesMtime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got := dirInfo.Mode().Perm(); got != 0o700 {
-		t.Fatalf("output dir mode: got %04o want 0700", got)
+	if got := dirInfo.Mode().Perm(); got != generatedDirMode {
+		t.Fatalf("output dir mode: got %04o want %04o", got, generatedDirMode)
 	}
 }
 

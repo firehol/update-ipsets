@@ -328,7 +328,7 @@ func (e *Engine) fetchStaticSource(src *config.Source, rawPath string) (*downloa
 	tmpDir := e.runtime.TmpDir
 	if tmpDir == "" {
 		tmpDir = os.TempDir()
-	} else if err := os.MkdirAll(tmpDir, 0o700); err != nil {
+	} else if err := os.MkdirAll(tmpDir, generatedDirMode); err != nil {
 		return nil, fmt.Errorf("create static source temp dir: %w", err)
 	}
 	tmpFile, err := os.CreateTemp(tmpDir, "dl-static-*.tmp")
@@ -345,6 +345,9 @@ func (e *Engine) fetchStaticSource(src *config.Source, rawPath string) (*downloa
 	}()
 	if _, err := tmpFile.Write(body); err != nil {
 		return nil, fmt.Errorf("write static source temp file: %w", err)
+	}
+	if err := tmpFile.Chmod(generatedFileMode); err != nil {
+		return nil, fmt.Errorf("chmod static source temp file: %w", err)
 	}
 	if err := tmpFile.Close(); err != nil {
 		return nil, fmt.Errorf("close static source temp file: %w", err)

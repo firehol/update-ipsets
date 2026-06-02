@@ -2,13 +2,14 @@ package markdown
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"text/template"
 
-	"log/slog"
+	"github.com/firehol/update-ipsets/internal/fileutil"
 )
 
 var builtins = map[string]any{
@@ -162,11 +163,14 @@ func (s *TemplateStore) WriteToDir(name string, data any, dir, relPath string) e
 	}
 
 	fullPath := filepath.Join(dir, relPath)
-	if err := os.MkdirAll(filepath.Dir(fullPath), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(fullPath), fileutil.GeneratedDirMode); err != nil {
 		return fmt.Errorf("mkdir for %s: %w", relPath, err)
 	}
-	if err := os.WriteFile(fullPath, []byte(content), 0o600); err != nil {
+	if err := os.WriteFile(fullPath, []byte(content), fileutil.GeneratedFileMode); err != nil {
 		return fmt.Errorf("write %s: %w", relPath, err)
+	}
+	if err := os.Chmod(fullPath, fileutil.GeneratedFileMode); err != nil {
+		return fmt.Errorf("chmod %s: %w", relPath, err)
 	}
 	return nil
 }

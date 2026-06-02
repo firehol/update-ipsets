@@ -58,7 +58,7 @@ func (e *Engine) updateRetention(ctx context.Context, name string, previous, cur
 	ctx = nonNilContext(ctx)
 	dir := filepath.Join(e.runtime.LibDir, name)
 	newDir := filepath.Join(dir, "new")
-	if err := os.MkdirAll(newDir, 0o700); err != nil {
+	if err := os.MkdirAll(newDir, generatedDirMode); err != nil {
 		return err
 	}
 	updatedAtUnix := updatedAt.UTC().Unix()
@@ -111,7 +111,7 @@ func (e *Engine) updateRetention(ctx context.Context, name string, previous, cur
 		if err := writeRetentionHistogramCache(filepath.Join(dir, "histogram"), retention); err != nil {
 			return err
 		}
-		return writeFileAtomic(filepath.Join(dir, "retention.json"), append(data, '\n'), 0o600)
+		return writeFileAtomic(filepath.Join(dir, "retention.json"), append(data, '\n'), generatedFileMode)
 	}
 
 	currentBuckets := map[int]uint64{}
@@ -194,7 +194,7 @@ func (e *Engine) updateRetention(ctx context.Context, name string, previous, cur
 	if err := writeRetentionHistogramCache(filepath.Join(dir, "histogram"), retention); err != nil {
 		return err
 	}
-	return writeFileAtomic(filepath.Join(dir, "retention.json"), append(data, '\n'), 0o600)
+	return writeFileAtomic(filepath.Join(dir, "retention.json"), append(data, '\n'), generatedFileMode)
 }
 
 func (e *Engine) buildRetentionData(ctx context.Context, name string, updatedAt int64) (*RetentionData, error) {
@@ -304,7 +304,7 @@ func writeRetentionHistogramCache(path string, retention *RetentionData) error {
 	fmt.Fprintf(&b, "declare -- RETENTION_HISTOGRAM_INCOMPLETE=\"%d\"\n", retention.Incomplete)
 	writeBashArrayDeclare(&b, "RETENTION_HISTOGRAM", retention.Past)
 	writeBashArrayDeclare(&b, "RETENTION_HISTOGRAM_REST", retention.Current)
-	return writeFileAtomic(path, []byte(b.String()), 0o600)
+	return writeFileAtomic(path, []byte(b.String()), generatedFileMode)
 }
 
 func writeBashArrayDeclare(b *strings.Builder, name string, series RetentionSeries) {

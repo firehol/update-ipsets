@@ -18,10 +18,10 @@ description: "Install, daemon, admin, and runtime operation guidance for update-
   group permissions and are not world-readable. Mutable runtime directories are
   `iplists:iplists` and group-only searchable (evidence: `install.sh`,
   `.agents/sow/specs/files-layout.md`).
-- Daemon-created mutable runtime/publication files default to owner-private
-  modes: `0600` for non-executable files and `0700` for directories. Public
-  feed and website access is provided through the daemon's HTTP listener, not
-  by local world-readable generated files (evidence:
+- Daemon-created mutable runtime/publication artifacts are group-readable but
+  not world-readable: managed installs use `0640` for non-executable files,
+  `0750` for directories, and `UMask=0027`; reinstall repairs existing mutable
+  runtime trees to those modes (evidence: `install.sh`,
   `.agents/sow/specs/files-layout.md`).
 
 ## Important environment

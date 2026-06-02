@@ -448,7 +448,7 @@ func (e *Engine) Enable(names []string, all bool) error {
 			continue
 		}
 		path := e.sourceEnablePath(name)
-		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), generatedDirMode); err != nil {
 			return err
 		}
 		if err := touchFileAt(path, time.Unix(0, 0)); err != nil {
@@ -467,7 +467,7 @@ func (e *Engine) EnableArtifacts(names []string, all bool) error {
 			continue
 		}
 		path := e.artifactEnablePath(name)
-		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), generatedDirMode); err != nil {
 			return err
 		}
 		if err := touchFileAt(path, time.Unix(0, 0)); err != nil {

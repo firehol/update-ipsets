@@ -230,7 +230,7 @@ func (e *Engine) writeBogonComparisonFiles(ctx context.Context, datasets *bogonD
 				return mErr
 			}
 			outPath := filepath.Join(outDir, name+"_bogons_"+providerName+".json")
-			if wErr := writeFileAtomicAt(outPath, append(data, '\n'), 0o600, e.feedProcessingTimestamp(name)); wErr != nil {
+			if wErr := writeFileAtomicAt(outPath, append(data, '\n'), generatedFileMode, e.feedProcessingTimestamp(name)); wErr != nil {
 				return wErr
 			}
 			return nil

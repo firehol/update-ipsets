@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/firehol/update-ipsets/internal/fileutil"
 )
 
 func TestWriteREADME(t *testing.T) {
@@ -37,7 +39,7 @@ func TestWriteREADME(t *testing.T) {
 	if strings.Index(text, "[a]") > strings.Index(text, "[b]") {
 		t.Fatalf("README is not sorted: %s", text)
 	}
-	assertFileMode(t, filepath.Join(dir, "README.md"), 0o600)
+	assertFileMode(t, filepath.Join(dir, "README.md"), fileutil.GeneratedFileMode)
 }
 
 func TestWriteGitIgnore(t *testing.T) {
@@ -67,7 +69,7 @@ func TestWriteGitIgnore(t *testing.T) {
 			t.Fatalf(".gitignore unexpectedly contains %q: %s", unwanted, got)
 		}
 	}
-	assertFileMode(t, filepath.Join(dir, ".gitignore"), 0o600)
+	assertFileMode(t, filepath.Join(dir, ".gitignore"), fileutil.GeneratedFileMode)
 }
 
 func TestGitSupportFilesNoopOutsideGitDir(t *testing.T) {
@@ -105,7 +107,7 @@ func TestWriteGitIgnorePreservesExistingContent(t *testing.T) {
 	if got := string(data); !strings.Contains(got, "# keep me") || !strings.Contains(got, "secret.ipset") || strings.Contains(got, "*.setinfo") {
 		t.Fatalf("unexpected .gitignore content: %s", got)
 	}
-	assertFileMode(t, filepath.Join(dir, ".gitignore"), 0o600)
+	assertFileMode(t, filepath.Join(dir, ".gitignore"), fileutil.GeneratedFileMode)
 }
 
 func TestWriteTimestampScript(t *testing.T) {

@@ -611,7 +611,7 @@ sendPairs:
 		if err != nil {
 			return err
 		}
-		if err := writeFileAtomicAt(path, append(data, '\n'), 0o600, e.feedProcessingTimestamp(name)); err != nil {
+		if err := writeFileAtomicAt(path, append(data, '\n'), generatedFileMode, e.feedProcessingTimestamp(name)); err != nil {
 			return err
 		}
 		mergeCount++
@@ -846,7 +846,7 @@ func (e *Engine) sanitizeComparisonArtifacts(outDir string) error {
 		if !changed {
 			continue
 		}
-		if err := writeFileAtomic(filepath.Join(outDir, rel), data, 0o600); err != nil {
+		if err := writeFileAtomic(filepath.Join(outDir, rel), data, generatedFileMode); err != nil {
 			return err
 		}
 		cleaned++
@@ -917,10 +917,10 @@ func (e *Engine) writePublicMetadataFiles(outDir string, outputNames []string) (
 	if err != nil {
 		return nil, err
 	}
-	if err := writeFileAtomic(filepath.Join(outDir, "robots.txt"), []byte(renderRobotsTXT(siteBase)), 0o600); err != nil {
+	if err := writeFileAtomic(filepath.Join(outDir, "robots.txt"), []byte(renderRobotsTXT(siteBase)), generatedFileMode); err != nil {
 		return nil, err
 	}
-	if err := writeFileAtomic(filepath.Join(outDir, "llms.txt"), []byte(renderLLMSTXT(siteBase, feedPrefix, outputNames)), 0o600); err != nil {
+	if err := writeFileAtomic(filepath.Join(outDir, "llms.txt"), []byte(renderLLMSTXT(siteBase, feedPrefix, outputNames)), generatedFileMode); err != nil {
 		return nil, err
 	}
 	files = append(files, "robots.txt", "llms.txt")
@@ -935,7 +935,7 @@ func (e *Engine) writeSitemapFiles(outDir, siteBase, feedPrefix string, outputNa
 		if err != nil {
 			return nil, err
 		}
-		if err := writeFileAtomic(filepath.Join(outDir, indexName), payload, 0o600); err != nil {
+		if err := writeFileAtomic(filepath.Join(outDir, indexName), payload, generatedFileMode); err != nil {
 			return nil, err
 		}
 		if err := removeStaleSitemapShards(outDir, files); err != nil {
@@ -975,7 +975,7 @@ func (e *Engine) writeSitemapFiles(outDir, siteBase, feedPrefix string, outputNa
 	if err != nil {
 		return nil, err
 	}
-	if err := writeFileAtomic(filepath.Join(outDir, indexName), payload, 0o600); err != nil {
+	if err := writeFileAtomic(filepath.Join(outDir, indexName), payload, generatedFileMode); err != nil {
 		return nil, err
 	}
 	if err := removeStaleSitemapShards(outDir, files); err != nil {
@@ -1125,7 +1125,7 @@ func writeSitemapURLSet(path string, urls []string) error {
 	if err != nil {
 		return err
 	}
-	return writeFileAtomic(path, payload, 0o600)
+	return writeFileAtomic(path, payload, generatedFileMode)
 }
 
 func marshalSitemapURLSet(urls []string) ([]byte, error) {

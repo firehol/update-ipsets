@@ -25,7 +25,7 @@ func TestDecompressGzipToFileRejectsExpandedPayloadOverLimit(t *testing.T) {
 	assertPathMissing(t, dst+".tmp")
 }
 
-func TestDecompressGzipToFileWritesPrivateOutput(t *testing.T) {
+func TestDecompressGzipToFileWritesGeneratedOutput(t *testing.T) {
 	dir := t.TempDir()
 	src := filepath.Join(dir, "provider.tsv.gz")
 	dst := filepath.Join(dir, "provider.tsv")
@@ -35,7 +35,7 @@ func TestDecompressGzipToFileWritesPrivateOutput(t *testing.T) {
 	if err := decompressGzipToFileWithLimit(src, dst, 1024); err != nil {
 		t.Fatal(err)
 	}
-	assertFileBodyAndMode(t, dst, want, 0o600)
+	assertFileBodyAndMode(t, dst, want, generatedFileMode)
 	assertPathMissing(t, dst+".tmp")
 }
 
@@ -53,7 +53,7 @@ func TestExtractMMDBFromArchiveRejectsExpandedPayloadOverLimit(t *testing.T) {
 	assertPathMissing(t, dst+".tmp")
 }
 
-func TestExtractMMDBFromArchiveWritesPrivateOutput(t *testing.T) {
+func TestExtractMMDBFromArchiveWritesGeneratedOutput(t *testing.T) {
 	dir := t.TempDir()
 	src := filepath.Join(dir, "provider.tar.gz")
 	dst := filepath.Join(dir, "provider.mmdb")
@@ -63,7 +63,7 @@ func TestExtractMMDBFromArchiveWritesPrivateOutput(t *testing.T) {
 	if err := extractMMDBFromArchiveWithLimit(src, dst, 1024); err != nil {
 		t.Fatal(err)
 	}
-	assertFileBodyAndMode(t, dst, want, 0o600)
+	assertFileBodyAndMode(t, dst, want, generatedFileMode)
 	assertPathMissing(t, dst+".tmp")
 }
 

@@ -12,6 +12,13 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 )
 
+const (
+	// GeneratedDirMode is the default mode for daemon-generated directories.
+	GeneratedDirMode os.FileMode = 0o750
+	// GeneratedFileMode is the default mode for daemon-generated non-executable files.
+	GeneratedFileMode os.FileMode = 0o640
+)
+
 // Exists returns true if the file at path exists and is not a directory.
 func Exists(path string) bool {
 	_, err := os.Stat(path)
@@ -46,7 +53,7 @@ func writeAtomic(path string, data []byte, mode os.FileMode, syncFile bool) erro
 		observability.Observe(ctx, "file.write_atomic", 1, int64(len(data)), time.Since(started), attrs...)
 		observability.End(span, opErr)
 	}()
-	if opErr = os.MkdirAll(filepath.Dir(path), 0o700); opErr != nil {
+	if opErr = os.MkdirAll(filepath.Dir(path), GeneratedDirMode); opErr != nil {
 		return opErr
 	}
 	tmp, opErr := os.CreateTemp(filepath.Dir(path), ".tmp-*")

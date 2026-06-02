@@ -31,6 +31,11 @@ var (
 	aggregationHourSuffixRE    = regexp.MustCompile(`_(\d+)h$`)
 )
 
+const (
+	generatedDirMode  = fileutil.GeneratedDirMode
+	generatedFileMode = fileutil.GeneratedFileMode
+)
+
 // expandURL expands environment variable templates in a URL.
 // Returns an empty string if the URL still contains unexpanded ${...}
 // variables after expansion (i.e. a required API key is not set).
@@ -503,7 +508,7 @@ func moveDownloadedBody(result *downloader.Result, dst string) error {
 	if result == nil || result.BodyPath == "" {
 		return fmt.Errorf("no body file to move")
 	}
-	if err := os.MkdirAll(filepath.Dir(dst), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), generatedDirMode); err != nil {
 		return err
 	}
 	// Try rename first (same filesystem).
@@ -527,7 +532,7 @@ func moveDownloadedBody(result *downloader.Result, dst string) error {
 		_ = tmp.Close()
 		return err
 	}
-	if err := tmp.Chmod(0o600); err != nil {
+	if err := tmp.Chmod(generatedFileMode); err != nil {
 		_ = tmp.Close()
 		return err
 	}
@@ -557,7 +562,7 @@ func stageDownloadedBody(result *downloader.Result, dst string) error {
 	}
 	tmpPath := pendingTempPath(dst)
 	stagePath := stagedPath(dst)
-	if err := os.MkdirAll(filepath.Dir(dst), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(dst), generatedDirMode); err != nil {
 		return err
 	}
 	_ = os.Remove(tmpPath)
@@ -604,7 +609,7 @@ func touchFileAt(path string, mod time.Time) error {
 		mod = time.Now()
 	}
 	if !fileExists(path) {
-		if err := writeFileAtomic(path, nil, 0o600); err != nil {
+		if err := writeFileAtomic(path, nil, generatedFileMode); err != nil {
 			return err
 		}
 	}
@@ -616,7 +621,7 @@ func writeBinaryPath(path string, set *iprange.IPSet, mod time.Time) error {
 	if err := iprange.WriteBinary(&buf, set); err != nil {
 		return err
 	}
-	if err := writeFileAtomic(path, buf.Bytes(), 0o600); err != nil {
+	if err := writeFileAtomic(path, buf.Bytes(), generatedFileMode); err != nil {
 		return err
 	}
 	return touchFileAt(path, mod)
@@ -640,7 +645,7 @@ func ensureCSVHeader(path, header string) error {
 	if fileExists(path) {
 		return nil
 	}
-	return writeFileAtomic(path, []byte(header), 0o600)
+	return writeFileAtomic(path, []byte(header), generatedFileMode)
 }
 
 func appendCSV(path, header, line string) error {

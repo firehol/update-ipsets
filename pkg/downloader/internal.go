@@ -199,7 +199,7 @@ func fetchInternal(req Request, now time.Time) (*Result, error) {
 	if tmpDir == "" {
 		tmpDir = os.TempDir()
 	}
-	tmp, err := os.CreateTemp(tmpDir, "dl-internal-*.tmp")
+	tmp, err := createGeneratedTemp(tmpDir, "dl-internal-*.tmp")
 	if err != nil {
 		return nil, fmt.Errorf("create temp file: %w", err)
 	}

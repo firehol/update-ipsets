@@ -7,6 +7,11 @@ import (
 	"time"
 )
 
+const (
+	generatedDirMode  os.FileMode = 0o750
+	generatedFileMode os.FileMode = 0o640
+)
+
 func WriteSourceFile(outputDir, filename string, set *RangeSet, mtime time.Time) error {
 	if outputDir == "" {
 		return fmt.Errorf("output directory is required")
@@ -14,8 +19,11 @@ func WriteSourceFile(outputDir, filename string, set *RangeSet, mtime time.Time)
 	if filename == "" {
 		return fmt.Errorf("filename is required")
 	}
-	if err := os.MkdirAll(outputDir, 0o700); err != nil {
+	if err := os.MkdirAll(outputDir, generatedDirMode); err != nil {
 		return fmt.Errorf("create output directory: %w", err)
+	}
+	if err := os.Chmod(outputDir, generatedDirMode); err != nil {
+		return fmt.Errorf("chmod output directory: %w", err)
 	}
 
 	dst := filepath.Join(outputDir, filename)
@@ -38,7 +46,7 @@ func WriteSourceFile(outputDir, filename string, set *RangeSet, mtime time.Time)
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("close %s: %w", filename, err)
 	}
-	if err := os.Chmod(tmpPath, 0o600); err != nil {
+	if err := os.Chmod(tmpPath, generatedFileMode); err != nil {
 		return fmt.Errorf("chmod %s: %w", filename, err)
 	}
 	if err := os.Rename(tmpPath, dst); err != nil {

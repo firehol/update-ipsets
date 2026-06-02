@@ -32,7 +32,7 @@ func (e *Engine) ensureDirectories() error {
 		if dir == "" {
 			continue
 		}
-		if err := os.MkdirAll(dir, 0o700); err != nil {
+		if err := os.MkdirAll(dir, generatedDirMode); err != nil {
 			return err
 		}
 	}

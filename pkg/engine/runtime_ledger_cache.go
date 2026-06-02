@@ -518,7 +518,7 @@ func writeRetentionCohortIndex(path string, cohorts map[int64]uint64) error {
 	for _, addedAt := range keys {
 		lines = append(lines, fmt.Sprintf("%d,%d", addedAt, cohorts[addedAt]))
 	}
-	return writeFileAtomic(path, []byte(strings.Join(lines, "\n")+"\n"), 0o600)
+	return writeFileAtomic(path, []byte(strings.Join(lines, "\n")+"\n"), generatedFileMode)
 }
 
 func loadRetentionCohorts(ctx context.Context, dir string) (map[int64]uint64, error) {

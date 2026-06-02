@@ -17,6 +17,11 @@ func TestStagedPublishBatchPublishesNestedFiles(t *testing.T) {
 		t.Fatalf("newStagedPublishBatch() error = %v", err)
 	}
 	defer batch.cleanup()
+	if info, err := os.Stat(batch.stageDir); err != nil {
+		t.Fatalf("Stat(stageDir) error = %v", err)
+	} else if got := info.Mode().Perm(); got != generatedDirMode {
+		t.Fatalf("stage dir mode = %04o, want %04o", got, generatedDirMode)
+	}
 
 	stageFiles := map[string]string{
 		"countries/index.json": `{"countries":[]}` + "\n",
@@ -62,16 +67,16 @@ func TestStagedPublishBatchPublishesNestedFiles(t *testing.T) {
 		}
 		if info, err := os.Stat(path); err != nil {
 			t.Fatalf("Stat(%q) error = %v", rel, err)
-		} else if got := info.Mode().Perm(); got != 0o600 {
-			t.Fatalf("mode for %q = %04o, want 0600", rel, got)
+		} else if got := info.Mode().Perm(); got != generatedFileMode {
+			t.Fatalf("mode for %q = %04o, want %04o", rel, got, generatedFileMode)
 		}
 	}
 	for _, rel := range []string{"countries", "asns"} {
 		path := filepath.Join(liveDir, rel)
 		if info, err := os.Stat(path); err != nil {
 			t.Fatalf("Stat(%q) error = %v", rel, err)
-		} else if got := info.Mode().Perm(); got != 0o700 {
-			t.Fatalf("mode for %q = %04o, want 0700", rel, got)
+		} else if got := info.Mode().Perm(); got != generatedDirMode {
+			t.Fatalf("mode for %q = %04o, want %04o", rel, got, generatedDirMode)
 		}
 	}
 }
