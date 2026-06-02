@@ -621,6 +621,13 @@ Open decisions:
   cache bytes. The cache now reads the per-file limit under the cache mutex and
   re-checks for a fresh entry under the mutex immediately before inserting a
   loaded file.
+- Re-checked GitHub Security and quality AI findings after
+  `cffe063383f0b51a7fb65a46bc71c2d23a4afe9a`. GitHub reports 2 current
+  findings in `pkg/web/cache_test.go`: the byte-limit test should prove which
+  entry remained cached after eviction, and the rooted symlink escape test
+  should prove the failed helper did not write a response. The tests now assert
+  the exact cache/LRU/byte state after byte-limit eviction and assert that the
+  symlink escape path leaves the recorder status/body untouched.
 
 ## Validation
 
@@ -824,6 +831,17 @@ Tests or equivalent validation:
   - `curl -fsS http://127.0.0.1:18888/healthz`: returned `ok`.
   - `curl -fsS http://127.0.0.1:18888/api/v1/status`: returned running engine
     status.
+- GitHub AI web cache test validation:
+  - `git diff --check -- .agents/sow/current/SOW-0099-20260602-github-code-scanning-hygiene.md pkg/web/cache_test.go`:
+    passed.
+  - `go test ./pkg/web -run 'TestFileCacheHonorsByteLimit|TestFileCacheRootedServingRejectsSymlinkEscapeAndKeepsServeContent|TestFileCacheInsertRecheckKeepsLRUStateConsistent'`:
+    passed.
+  - `go test ./pkg/web`: passed.
+  - `go test -race ./pkg/web -run TestFileCache`: passed.
+  - `go test ./...`: passed.
+  - `make hygiene`: passed.
+  - `make lint`: passed.
+  - `make test`: passed.
 
 Real-use evidence:
 
@@ -856,6 +874,9 @@ Reviewer findings:
     comment corrected and test added.
   - `pkg/web/cache.go`: valid; fixed by protecting cache-limit reads and
     re-checking the cache under the mutex before loaded-file insertion.
+  - `pkg/web/cache_test.go`: valid test-strengthening findings; fixed by
+    asserting byte-limit eviction state and untouched response recorder state
+    on rooted symlink escape rejection.
 
 Same-failure scan:
 

@@ -63,6 +63,7 @@ func TestFileCacheHonorsByteLimit(t *testing.T) {
 
 	assertCachedServeBody(t, cache, a, "aaaa\n")
 	assertCachedServeBody(t, cache, b, "bbbb\n")
+	assertFileCacheContainsOnly(t, cache, b, int64(len("bbbb\n")))
 
 	writeCacheTestFile(t, root, "b.json", "BBBB\n", time.Unix(300, 0))
 	assertCachedServeBody(t, cache, b, "bbbb\n")
@@ -136,6 +137,9 @@ func TestFileCacheRootedServingRejectsSymlinkEscapeAndKeepsServeContent(t *testi
 	rec := httptest.NewRecorder()
 	if cache.ServeRootedFile(rec, req, root, "escape.txt", "text/plain; charset=utf-8") {
 		t.Fatalf("ServeRootedFile served symlink escape with status=%d body=%q", rec.Code, rec.Body.String())
+	}
+	if rec.Code != http.StatusOK || rec.Body.Len() != 0 {
+		t.Fatalf("ServeRootedFile symlink escape wrote status=%d body=%q", rec.Code, rec.Body.String())
 	}
 
 	path := writeCacheTestFile(t, root, "range.txt", "abcdef\n", time.Unix(400, 0))
@@ -217,5 +221,27 @@ func assertCachedServeBody(t *testing.T, cache *fileCache, path, want string) {
 	}
 	if got := rec.Body.String(); got != want {
 		t.Fatalf("ServeFile(%s) body = %q, want %q", path, got, want)
+	}
+}
+
+func assertFileCacheContainsOnly(t *testing.T, cache *fileCache, wantPath string, wantBytes int64) {
+	t.Helper()
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+
+	if len(cache.files) != 1 {
+		t.Fatalf("cache file count = %d, want 1", len(cache.files))
+	}
+	if cache.order.Len() != 1 {
+		t.Fatalf("cache LRU entry count = %d, want 1", cache.order.Len())
+	}
+	if cache.bytes != wantBytes {
+		t.Fatalf("cache bytes = %d, want %d", cache.bytes, wantBytes)
+	}
+	if _, ok := cache.files[wantPath]; !ok {
+		t.Fatalf("cache is missing expected path %s", wantPath)
+	}
+	if gotPath, _ := cache.order.Front().Value.(string); gotPath != wantPath {
+		t.Fatalf("cache LRU front = %s, want %s", gotPath, wantPath)
 	}
 }
