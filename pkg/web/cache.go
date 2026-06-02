@@ -3,7 +3,7 @@ package web
 import (
 	"bytes"
 	"container/list"
-	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/hex"
 	"mime"
 	"net/http"
@@ -160,7 +160,7 @@ func (c *fileCache) load(path string, contentType string) (cachedFile, bool, err
 	if contentType == "" {
 		contentType = mime.TypeByExtension(filepath.Ext(path))
 	}
-	sum := sha1.Sum(data)
+	sum := sha256.Sum256(data)
 	newEntry := &cachedFile{
 		modTime:     info.ModTime(),
 		size:        int64(len(data)),
@@ -231,7 +231,7 @@ func (c *fileCache) loadRooted(rootDir, rel string, contentType string) (cachedF
 	if contentType == "" {
 		contentType = mime.TypeByExtension(filepath.Ext(cleanRel))
 	}
-	sum := sha1.Sum(data)
+	sum := sha256.Sum256(data)
 	newEntry := &cachedFile{
 		modTime:     info.ModTime(),
 		size:        int64(len(data)),

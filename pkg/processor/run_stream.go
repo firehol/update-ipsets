@@ -397,7 +397,7 @@ func copyFile(ctx context.Context, src, dst string) error {
 	if err := checkContext(ctx); err != nil {
 		return err
 	}
-	out, err := os.Create(dst)
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
 	if err != nil {
 		return err
 	}

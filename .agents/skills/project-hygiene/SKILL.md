@@ -132,6 +132,16 @@ tokens or credentials to durable artifacts.
   POSIX world-read bits. Keep broader group access only where a documented
   install/operator contract requires it, such as root-owned binary/config paths
   readable or executable by the `iplists` group.
+- For weak-hash findings, verify the use first. Non-security hashes used for
+  HTTP cache validators, change tokens, or stable fingerprints are not password
+  or signature primitives, but prefer SHA-256 anyway when it is cheap and does
+  not change an operator-facing contract.
+- For compressed provider/archive extraction findings, fix the reader contract
+  rather than suppressing the scanner. Gzip, tar/gzip, zip, and similar inputs
+  must enforce an expanded-byte ceiling, reject entries above the ceiling before
+  committing output, remove incomplete temp files, and create temp/provider
+  outputs with private modes unless a documented install contract requires
+  group access.
 - When Codacy runs both `eslint-8` and `eslint-9`, treat the repository's
   checked-in ESLint v9 flat config as the owner for React/TypeScript UI code.
   If legacy `eslint-8` is enforced by a coding standard, prefer a narrow

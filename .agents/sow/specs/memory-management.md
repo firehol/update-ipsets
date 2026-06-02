@@ -111,6 +111,13 @@ The product SHOULD:
 - process them one provider at a time where possible
 - keep the last committed good provider data if a refresh fails
 
+Compressed provider inputs MUST also remain bounded after expansion. Provider
+gzip and tar/gzip extraction paths MUST enforce an expanded-payload ceiling
+before committing a local provider file, reject entries that exceed that
+ceiling, and clean up incomplete temporary files. Temporary files created for
+provider extraction MUST be private to the service user unless an explicit
+operator-facing install contract requires broader access.
+
 ## Staging contract
 
 Staged file semantics are part of the memory contract because they prevent

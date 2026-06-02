@@ -606,6 +606,14 @@ Open decisions:
   joining in `agents/run-enrichment-pool.sh`. The script now uses explicit
   quoted helper functions for comma splitting and joining instead of mutating
   `IFS` for those cases.
+- Triage of the visible Codacy critical/high production issue classes found
+  SHA-1 used for web cache ETags and kernel temporary ipset names, unbounded
+  ASN gzip/tar.gz provider extraction, and one processor copy fallback using
+  default output file permissions. The weak hashes are not password or
+  signature primitives, but SHA-256 is a cheap compatible replacement. ASN
+  provider extraction now enforces an expanded-payload ceiling, writes private
+  temp/provider files, and removes incomplete temp files on failure. The
+  processor copy fallback now writes private generated files.
 
 ## Validation
 
@@ -777,6 +785,24 @@ Tests or equivalent validation:
   - The generated dry-run pool directory was removed after validation.
   - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
     passed after shell `IFS` guidance update.
+- Weak hash, compressed provider extraction, and private writer validation:
+  - `go test ./pkg/web ./pkg/engine ./pkg/kernel ./pkg/processor`: passed.
+  - `rg -n "crypto/sha1|sha1\\.Sum|sha1\\.New" --glob '*.go' pkg internal cmd tools`:
+    no matches after replacing SHA-1 in web cache ETags and kernel temporary
+    ipset names.
+  - `rg -n "os\\.Create\\(" --glob '*.go' pkg/engine pkg/web pkg/processor pkg/kernel`:
+    only same-package test helper uses remain in the searched runtime areas.
+  - `git diff --check -- .agents/skills/project-hygiene/SKILL.md .agents/sow/current/SOW-0099-20260602-github-code-scanning-hygiene.md .agents/sow/specs/memory-management.md pkg/web/cache.go pkg/engine/asn_formats.go pkg/engine/asn_formats_test.go pkg/kernel/ipset_linux.go pkg/processor/run_stream.go pkg/processor/copy_file_test.go`:
+    passed.
+  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
+    passed after adding weak-hash and compressed-provider extraction guidance.
+  - `go test ./pkg/processor ./tools/archposture`: passed after moving the new
+    processor copy-mode test into a focused file instead of growing an
+    already-large test file.
+  - `go test ./...`: passed.
+  - `make hygiene`: passed.
+  - `make lint`: passed.
+  - `make test`: passed.
 
 Real-use evidence:
 
@@ -826,6 +852,8 @@ Artifact maintenance gate:
 - Runtime project skills: added `.agents/skills/project-hygiene/SKILL.md`.
 - Specs: `.agents/sow/specs/files-layout.md` updated with the daemon-created
   runtime/publication file and directory mode contract.
+  `.agents/sow/specs/memory-management.md` updated with the bounded compressed
+  provider extraction contract.
 - End-user/operator docs: added `SECURITY.md` for vulnerability reporting and
   scanner policy expectations; updated `docs/installation/filesystem-layout.md`
   with daemon-created private runtime file behavior.
@@ -856,6 +884,8 @@ Project skills update:
 - Updated `.agents/skills/project-hygiene/SKILL.md` and
   `.agents/skills/project-operations/SKILL.md` with daemon-owned runtime writer
   mode guidance.
+- Updated `.agents/skills/project-hygiene/SKILL.md` with weak-hash and
+  compressed provider/archive extraction triage guidance.
 
 End-user/operator docs update:
 

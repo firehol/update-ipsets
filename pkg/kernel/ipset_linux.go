@@ -3,7 +3,7 @@
 package kernel
 
 import (
-	"crypto/sha1"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"net"
@@ -121,7 +121,7 @@ func parseEntry(mode, line string) (*netlink.IPSetEntry, error) {
 }
 
 func temporaryName(name string) string {
-	sum := sha1.Sum([]byte(fmt.Sprintf("%s:%d", name, time.Now().UnixNano())))
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%s:%d", name, time.Now().UnixNano())))
 	return "uip_" + hex.EncodeToString(sum[:])[:24]
 }
 

@@ -10,11 +10,17 @@ import (
 	"strings"
 )
 
+const maxASNExpandedFileBytes int64 = 2 << 30
+
 // decompressGzipToFile reads a gzip-compressed source file and writes
 // the decompressed contents atomically to dst (via tmp+rename). Used by
 // every single-file gzip ASN format (DB-IP MMDB, iptoasn TSV, CAIDA
 // prefix2as).
 func decompressGzipToFile(src, dst string) error {
+	return decompressGzipToFileWithLimit(src, dst, maxASNExpandedFileBytes)
+}
+
+func decompressGzipToFileWithLimit(src, dst string, limit int64) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return fmt.Errorf("open %s: %w", src, err)
@@ -26,11 +32,11 @@ func decompressGzipToFile(src, dst string) error {
 	}
 	defer func() { _ = gz.Close() }()
 	tmpPath := dst + ".tmp"
-	out, err := os.Create(tmpPath)
+	out, err := openPrivateTempFile(tmpPath)
 	if err != nil {
 		return fmt.Errorf("create %s: %w", tmpPath, err)
 	}
-	if _, err := io.Copy(out, gz); err != nil {
+	if err := copyExpandedPayloadWithLimit(out, gz, limit); err != nil {
 		_ = out.Close()
 		_ = os.Remove(tmpPath)
 		return fmt.Errorf("decompress %s: %w", src, err)
@@ -52,6 +58,10 @@ func decompressGzipToFile(src, dst string) error {
 // a few text files; we accept any single .mmdb entry regardless of its
 // directory.
 func extractMMDBFromArchive(archivePath, dstPath string) error {
+	return extractMMDBFromArchiveWithLimit(archivePath, dstPath, maxASNExpandedFileBytes)
+}
+
+func extractMMDBFromArchiveWithLimit(archivePath, dstPath string, limit int64) error {
 	f, err := os.Open(archivePath)
 	if err != nil {
 		return fmt.Errorf("open archive: %w", err)
@@ -77,13 +87,19 @@ func extractMMDBFromArchive(archivePath, dstPath string) error {
 		if !strings.HasSuffix(header.Name, ".mmdb") {
 			continue
 		}
+		if header.Size < 0 {
+			return fmt.Errorf("mmdb entry %s has negative size %d", header.Name, header.Size)
+		}
+		if header.Size > limit {
+			return fmt.Errorf("mmdb entry %s expanded payload exceeds %d-byte limit", header.Name, limit)
+		}
 		// Found it. Stream to a temp file and rename atomically.
 		tmpPath := dstPath + ".tmp"
-		out, err := os.Create(tmpPath)
+		out, err := openPrivateTempFile(tmpPath)
 		if err != nil {
 			return fmt.Errorf("create %s: %w", tmpPath, err)
 		}
-		if _, err := io.Copy(out, tr); err != nil {
+		if err := copyExpandedPayloadWithLimit(out, tr, limit); err != nil {
 			_ = out.Close()
 			_ = os.Remove(tmpPath)
 			return fmt.Errorf("copy mmdb: %w", err)
@@ -98,4 +114,22 @@ func extractMMDBFromArchive(archivePath, dstPath string) error {
 		}
 		return nil
 	}
+}
+
+func openPrivateTempFile(path string) (*os.File, error) {
+	return os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+}
+
+func copyExpandedPayloadWithLimit(dst io.Writer, src io.Reader, limit int64) error {
+	if limit <= 0 {
+		return fmt.Errorf("expanded payload limit must be positive")
+	}
+	written, err := io.Copy(dst, io.LimitReader(src, limit+1))
+	if err != nil {
+		return err
+	}
+	if written > limit {
+		return fmt.Errorf("expanded payload exceeds %d-byte limit", limit)
+	}
+	return nil
 }
