@@ -47,7 +47,7 @@ func TestBuildIntegrityReportAnnotatesRecoveryMetadata(t *testing.T) {
 	if err := os.WriteFile(
 		filepath.Join(eng.Runtime().WebDir, "sample.json"),
 		[]byte(`{"name":`),
-		0o644,
+		0o600,
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -295,7 +295,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"), sourceServer.URL)
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -383,7 +383,7 @@ sources:
     use: [asn]
     format: iptoasn_combined_tsv
 `, baseDir, filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), webDir, filepath.Join(root, "cache"), sourceServer.URL)
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -399,10 +399,10 @@ sources:
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(webDir, "sample_dbip_country.json"), []byte(`{"total_mapped":256,"countries":[{"code":"US","value":256}]}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(webDir, "sample_dbip_country.json"), []byte(`{"total_mapped":256,"countries":[{"code":"US","value":256}]}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(webDir, "sample_asn_iptoasn.json"), []byte(`{"by_asn":[{"asn":13335,"name":"CLOUDFLARENET","count":256}]}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(webDir, "sample_asn_iptoasn.json"), []byte(`{"by_asn":[{"asn":13335,"name":"CLOUDFLARENET","count":256}]}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := writeEntityGeoProviderFixture(filepath.Join(root, "lib", "geolocation", "dbip_country.source")); err != nil {
@@ -418,7 +418,7 @@ sources:
 }
 
 func writeEntityGeoProviderFixture(path string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
 	var payload bytes.Buffer
@@ -429,12 +429,12 @@ func writeEntityGeoProviderFixture(path string) error {
 	if err := gw.Close(); err != nil {
 		return err
 	}
-	return os.WriteFile(path, payload.Bytes(), 0o644)
+	return os.WriteFile(path, payload.Bytes(), 0o600)
 }
 
 func writeEntityASNProviderFixture(path string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return err
 	}
-	return os.WriteFile(path, []byte("1.1.1.0\t1.1.1.255\t13335\tUS\tCLOUDFLARENET\n"), 0o644)
+	return os.WriteFile(path, []byte("1.1.1.0\t1.1.1.255\t13335\tUS\tCLOUDFLARENET\n"), 0o600)
 }

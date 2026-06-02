@@ -348,7 +348,7 @@ func TestMiddlewareFeaturesAndOverrides(t *testing.T) {
 	}
 
 	changesetsPath := filepath.Join(eng.Runtime().WebDir, "sample_changesets.csv")
-	if err := os.WriteFile(changesetsPath, []byte("DateTime,AddedIPs,RemovedIPs\n1700000000,2,1\n"), 0o644); err != nil {
+	if err := os.WriteFile(changesetsPath, []byte("DateTime,AddedIPs,RemovedIPs\n1700000000,2,1\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/sets/sample/changesets", nil)
@@ -372,7 +372,7 @@ func TestMiddlewareFeaturesAndOverrides(t *testing.T) {
 	}
 
 	retentionPath := filepath.Join(eng.Runtime().WebDir, "sample_retention.json")
-	if err := os.WriteFile(retentionPath, []byte(`{"ipset":"sample"}`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(retentionPath, []byte(`{"ipset":"sample"}`+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/sets/sample/retention", nil)
@@ -396,7 +396,7 @@ func TestMiddlewareFeaturesAndOverrides(t *testing.T) {
 	}
 
 	comparisonPath := filepath.Join(eng.Runtime().WebDir, "sample_comparison.json")
-	if err := os.WriteFile(comparisonPath, []byte(`[{"name":"other","category":"tests","ips":1,"common":1}]`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(comparisonPath, []byte(`[{"name":"other","category":"tests","ips":1,"common":1}]`+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/sets/sample/compare", nil)
@@ -462,10 +462,10 @@ func TestMiddlewareFeaturesAndOverrides(t *testing.T) {
 	// Root always serves the embedded SPA, never a disk index.html.
 	rootDir := t.TempDir()
 	customDir := filepath.Join(rootDir, "custom-web")
-	if err := os.MkdirAll(customDir, 0o755); err != nil {
+	if err := os.MkdirAll(customDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(customDir, "index.html"), []byte("custom index"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(customDir, "index.html"), []byte("custom index"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	_, overrideHandler := testHandler(t, Options{EnableAll: true, WebDir: customDir})
@@ -479,7 +479,7 @@ func TestMiddlewareFeaturesAndOverrides(t *testing.T) {
 		t.Fatalf("root should serve embedded SPA, not disk index.html")
 	}
 
-	if err := os.WriteFile(filepath.Join(customDir, "sample_changesets.csv"), []byte("DateTime,AddedIPs,RemovedIPs\n1700000000,4,3\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(customDir, "sample_changesets.csv"), []byte("DateTime,AddedIPs,RemovedIPs\n1700000000,4,3\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/sets/sample/changesets", nil)
@@ -581,7 +581,7 @@ sources:
     output: netset
     use: [bogons]
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"))
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := engine.New(cfgPath, nil)
@@ -608,10 +608,10 @@ sources:
 	}
 
 	artifactPath := filepath.Join(eng.Runtime().WebDir, "sample_bogons_bogon_provider.json")
-	if err := os.MkdirAll(filepath.Dir(artifactPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(artifactPath), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(artifactPath, []byte(`{"provider":"bogon_provider"}`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(artifactPath, []byte(`{"provider":"bogon_provider"}`+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/sets/sample/bogons/bogon_provider", nil)
@@ -682,7 +682,7 @@ sources:
       source_quality: A
       rationale: test public DNS reference feed
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"))
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := engine.New(cfgPath, nil)
@@ -693,10 +693,10 @@ sources:
 
 	for _, name := range []string{"orphan_critical_infrastructure", "orphan_critical_critical_dns"} {
 		path := filepath.Join(eng.Runtime().WebDir, name+".json")
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(path, []byte(fmt.Sprintf(`{"name":%q}`+"\n", name)), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte(fmt.Sprintf(`{"name":%q}`+"\n", name)), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		req := httptest.NewRequest(http.MethodGet, "/"+name+".json", nil)
@@ -744,7 +744,7 @@ sources:
 	}
 
 	aggregatePath := filepath.Join(eng.Runtime().WebDir, "sample_critical_infrastructure.json")
-	if err := os.MkdirAll(filepath.Dir(aggregatePath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(aggregatePath), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	// Public surfaces are cache-first: a published critical-infrastructure
@@ -752,7 +752,7 @@ sources:
 	// detection is the admin integrity path's concern (which still flags
 	// such an artifact as malformed); the public path MUST NOT surface that
 	// internal contract to end users.
-	if err := os.WriteFile(aggregatePath, []byte(`{"feed":"sample","critical_ips":1,"provider_set_id":"stale"}`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(aggregatePath, []byte(`{"feed":"sample","critical_ips":1,"provider_set_id":"stale"}`+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/sets/sample/infrastructure", nil)
@@ -769,11 +769,11 @@ sources:
 	}
 
 	aggregateBody := fmt.Sprintf(`{"feed":"sample","critical_ips":1,"complete":true,"provider_set_id":%q}`+"\n", eng.CriticalInfrastructureProviderSetID())
-	if err := os.WriteFile(aggregatePath, []byte(aggregateBody), 0o644); err != nil {
+	if err := os.WriteFile(aggregatePath, []byte(aggregateBody), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	providerPath := filepath.Join(eng.Runtime().WebDir, "sample_critical_critical_dns.json")
-	if err := os.WriteFile(providerPath, []byte(`{"provider":{"name":"critical_dns"},"critical_ips":1,"provider_set_id":"stale"}`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(providerPath, []byte(`{"provider":{"name":"critical_dns"},"critical_ips":1,"provider_set_id":"stale"}`+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -795,7 +795,7 @@ sources:
 	}
 
 	v6AggregatePath := filepath.Join(eng.Runtime().WebDir, "sample_v6_critical_infrastructure.json")
-	if err := os.WriteFile(v6AggregatePath, []byte(fmt.Sprintf(`{"feed":"sample_v6","critical_ips":1,"provider_set_id":%q}`+"\n", eng.CriticalInfrastructureProviderSetID())), 0o644); err != nil {
+	if err := os.WriteFile(v6AggregatePath, []byte(fmt.Sprintf(`{"feed":"sample_v6","critical_ips":1,"provider_set_id":%q}`+"\n", eng.CriticalInfrastructureProviderSetID())), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/sets/sample_v6/infrastructure", nil)
@@ -831,7 +831,7 @@ sources:
 	}
 
 	providerBody := fmt.Sprintf(`{"provider":{"name":"critical_dns"},"critical_ips":1,"provider_set_id":%q}`+"\n", eng.CriticalInfrastructureProviderSetID())
-	if err := os.WriteFile(providerPath, []byte(providerBody), 0o644); err != nil {
+	if err := os.WriteFile(providerPath, []byte(providerBody), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/sets/sample/infrastructure/critical_dns", nil)
@@ -852,7 +852,7 @@ sources:
 	}
 
 	shorterFeedCriticalProviderPath := filepath.Join(eng.Runtime().WebDir, "data_shield_critical_critical_dns.json")
-	if err := os.WriteFile(shorterFeedCriticalProviderPath, []byte(providerBody), 0o644); err != nil {
+	if err := os.WriteFile(shorterFeedCriticalProviderPath, []byte(providerBody), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	req = httptest.NewRequest(http.MethodGet, "/data_shield_critical_critical_dns.json", nil)
@@ -863,7 +863,7 @@ sources:
 	}
 
 	criticalNamedProviderPath := filepath.Join(eng.Runtime().WebDir, "data_shield_critical_critical_critical_dns.json")
-	if err := os.WriteFile(criticalNamedProviderPath, []byte(providerBody), 0o644); err != nil {
+	if err := os.WriteFile(criticalNamedProviderPath, []byte(providerBody), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	req = httptest.NewRequest(http.MethodGet, "/data_shield_critical_critical_critical_dns.json", nil)
@@ -874,7 +874,7 @@ sources:
 	}
 
 	criticalNamedRetentionPath := filepath.Join(eng.Runtime().WebDir, "data_shield_critical_retention.json")
-	if err := os.WriteFile(criticalNamedRetentionPath, []byte(`{"ipset":"data_shield_critical"}`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(criticalNamedRetentionPath, []byte(`{"ipset":"data_shield_critical"}`+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	req = httptest.NewRequest(http.MethodGet, "/data_shield_critical_retention.json", nil)
@@ -892,7 +892,7 @@ sources:
 	//     public feed. This is a filename-shape check, not a provider_set_id
 	//     equality check, and it stays.
 	criticalNamedStaleProviderPath := filepath.Join(eng.Runtime().WebDir, "data_shield_critical_critical_removed_provider.json")
-	if err := os.WriteFile(criticalNamedStaleProviderPath, []byte(`{"provider":{"name":"removed_provider"},"critical_ips":1}`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(criticalNamedStaleProviderPath, []byte(`{"provider":{"name":"removed_provider"},"critical_ips":1}`+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	req = httptest.NewRequest(http.MethodGet, "/data_shield_critical_critical_removed_provider.json", nil)
@@ -903,7 +903,7 @@ sources:
 	}
 
 	staleProviderPath := filepath.Join(eng.Runtime().WebDir, "sample_critical_removed_provider.json")
-	if err := os.WriteFile(staleProviderPath, []byte(`{"provider":{"name":"removed_provider"},"critical_ips":1}`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(staleProviderPath, []byte(`{"provider":{"name":"removed_provider"},"critical_ips":1}`+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	req = httptest.NewRequest(http.MethodGet, "/api/v1/sets/sample/infrastructure/removed_provider", nil)
@@ -987,7 +987,7 @@ sources:
     maintainer_url: https://example.test
 %s
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"), runtimeExtra, sourceServer.URL, sourceExtra)
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

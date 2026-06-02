@@ -373,7 +373,7 @@ merges:
     sources: [sample, peer]
     exclude: [subtract]
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"), scenario.server.URL+"/sample", scenario.server.URL+"/peer", scenario.server.URL+"/subtract", scenario.server.URL+"/rfc_reserved", scenario.server.URL+"/critical_dns", scenario.server.URL+"/dbip_country", scenario.server.URL+"/iptoasn")
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	configTime := time.Now().UTC().Truncate(time.Second).Add(-time.Hour)
@@ -516,13 +516,13 @@ func (s *pipelineIntegrityScenario) writeTextFeedBody(feed, body string) {
 	s.t.Helper()
 
 	path := s.eng.feedBodyPath(feed)
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		s.t.Fatalf("mkdir for %s: %v", path, err)
 	}
 	if body != "" && !strings.HasSuffix(body, "\n") {
 		body += "\n"
 	}
-	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		s.t.Fatalf("write feed body %s: %v", feed, err)
 	}
 	if err := os.Chtimes(path, s.now, s.now); err != nil {

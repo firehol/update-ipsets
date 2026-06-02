@@ -8,7 +8,7 @@ import (
 
 func TestExistsWithExistingFile(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "exists.txt")
-	if err := os.WriteFile(path, []byte("hello"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("hello"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if !Exists(path) {
@@ -67,7 +67,7 @@ func TestWriteAtomicCreatesParentDirectories(t *testing.T) {
 	path := filepath.Join(dir, "sub", "deep", "file.txt")
 	data := []byte("nested write")
 
-	if err := WriteAtomic(path, data, 0o644); err != nil {
+	if err := WriteAtomic(path, data, 0o600); err != nil {
 		t.Fatalf("WriteAtomic returned error: %v", err)
 	}
 
@@ -85,7 +85,7 @@ func TestWriteAtomicNoSyncBasic(t *testing.T) {
 	path := filepath.Join(dir, "staged.json")
 	data := []byte(`{"ok":true}`)
 
-	if err := WriteAtomicNoSync(path, data, 0o644); err != nil {
+	if err := WriteAtomicNoSync(path, data, 0o600); err != nil {
 		t.Fatalf("WriteAtomicNoSync returned error: %v", err)
 	}
 
@@ -102,7 +102,7 @@ func TestWriteAtomicNoLeftoverTempFiles(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "clean.txt")
 
-	if err := WriteAtomic(path, []byte("content"), 0o644); err != nil {
+	if err := WriteAtomic(path, []byte("content"), 0o600); err != nil {
 		t.Fatalf("WriteAtomic returned error: %v", err)
 	}
 
@@ -121,10 +121,10 @@ func TestWriteAtomicOverwritesExistingFile(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "overwrite.txt")
 
-	if err := os.WriteFile(path, []byte("old"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("old"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteAtomic(path, []byte("new"), 0o644); err != nil {
+	if err := WriteAtomic(path, []byte("new"), 0o600); err != nil {
 		t.Fatalf("WriteAtomic returned error: %v", err)
 	}
 
@@ -145,11 +145,11 @@ func TestWriteAtomicReadOnlyDirectory(t *testing.T) {
 	}
 	t.Cleanup(func() {
 		// Restore permissions so cleanup can remove it.
-		_ = os.Chmod(readOnly, 0o755)
+		_ = os.Chmod(readOnly, 0o700)
 	})
 
 	path := filepath.Join(readOnly, "fail.txt")
-	err := WriteAtomic(path, []byte("should fail"), 0o644)
+	err := WriteAtomic(path, []byte("should fail"), 0o600)
 	if err == nil {
 		t.Fatal("expected error writing to read-only directory")
 	}
@@ -159,7 +159,7 @@ func TestWriteAtomicEmptyData(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "empty.txt")
 
-	if err := WriteAtomic(path, []byte{}, 0o644); err != nil {
+	if err := WriteAtomic(path, []byte{}, 0o600); err != nil {
 		t.Fatalf("WriteAtomic returned error: %v", err)
 	}
 

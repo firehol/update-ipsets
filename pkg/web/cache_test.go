@@ -76,7 +76,7 @@ func TestFileCacheRootedServingRejectsSymlinkEscapeAndKeepsServeContent(t *testi
 
 	root := t.TempDir()
 	outside := filepath.Join(t.TempDir(), "outside.txt")
-	if err := os.WriteFile(outside, []byte("outside\n"), 0o644); err != nil {
+	if err := os.WriteFile(outside, []byte("outside\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	link := filepath.Join(root, "escape.txt")
@@ -130,7 +130,7 @@ func TestRawFeedRoutesDoNotEnterArtifactCache(t *testing.T) {
 		t.Fatal(err)
 	}
 	replacement := bytes.Repeat([]byte("x"), len(originalBody))
-	if err := os.WriteFile(metadataPath, replacement, 0o644); err != nil {
+	if err := os.WriteFile(metadataPath, replacement, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chtimes(metadataPath, originalInfo.ModTime(), originalInfo.ModTime()); err != nil {
@@ -149,7 +149,7 @@ func TestRawFeedRoutesDoNotEnterArtifactCache(t *testing.T) {
 func writeCacheTestFile(t *testing.T, root, name, body string, mtime time.Time) string {
 	t.Helper()
 	path := filepath.Join(root, name)
-	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chtimes(path, mtime, mtime); err != nil {

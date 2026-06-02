@@ -25,7 +25,7 @@ func TestProcessorStepRoundTrip(t *testing.T) {
 	}
 
 	tmp := filepath.Join(t.TempDir(), "cfg.yaml")
-	if err := os.WriteFile(tmp, buf.Bytes(), 0o644); err != nil {
+	if err := os.WriteFile(tmp, buf.Bytes(), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -108,10 +108,10 @@ merges:
     sources: [first, second]
     exclude: [subtract]
 `)
-	if err := os.WriteFile(filepath.Join(dir, "01-first.yaml"), first, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "01-first.yaml"), first, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "02-second.yaml"), second, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "02-second.yaml"), second, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -199,7 +199,7 @@ merges:
       rationale: Official public recursive DNS resolver addresses.
     sources: [left, right]
 `)
-	if err := os.WriteFile(filepath.Join(dir, "critical.yaml"), content, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "critical.yaml"), content, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -265,7 +265,7 @@ BASE_DIR=/tmp/firehol-base
 RUN_PARENT_DIR=/tmp/firehol-run
 update sample 30 0 ipv4 ip https://example.test/feed.txt passthrough tests "sample" local https://example.test
 `
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -366,7 +366,7 @@ sources:
     ipv: ipv4
     output: netset
 `
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -770,7 +770,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

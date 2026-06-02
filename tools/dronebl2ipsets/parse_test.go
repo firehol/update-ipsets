@@ -97,7 +97,7 @@ func TestBuildOutputsMatchesLegacyGroupingAndNewClasses(t *testing.T) {
 func TestUpdateParsesBuildzoneAndWritesConfiguredSpecs(t *testing.T) {
 	dir := t.TempDir()
 	buildzone := filepath.Join(dir, "buildzone")
-	if err := os.WriteFile(buildzone, []byte(buildzoneFixture), 0o644); err != nil {
+	if err := os.WriteFile(buildzone, []byte(buildzoneFixture), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	outDir := filepath.Join(dir, "out")

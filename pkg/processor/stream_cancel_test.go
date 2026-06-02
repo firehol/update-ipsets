@@ -45,7 +45,7 @@ func TestStreamP2PBlocklistEquivalence(t *testing.T) {
 
 			tmpDir := t.TempDir()
 			srcPath := filepath.Join(tmpDir, "input.p2p.gz")
-			if err := os.WriteFile(srcPath, gz.Bytes(), 0o644); err != nil {
+			if err := os.WriteFile(srcPath, gz.Bytes(), 0o600); err != nil {
 				t.Fatal(err)
 			}
 
@@ -69,7 +69,7 @@ func TestStreamP2PBlocklistEquivalence(t *testing.T) {
 func TestStreamNoStepsHonorsCanceledContext(t *testing.T) {
 	tmpDir := t.TempDir()
 	srcPath := filepath.Join(tmpDir, "input.dat")
-	if err := os.WriteFile(srcPath, []byte("1.2.3.4\n"), 0o644); err != nil {
+	if err := os.WriteFile(srcPath, []byte("1.2.3.4\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(t.Context())
@@ -87,7 +87,7 @@ func TestStreamNoStepsHonorsCanceledContext(t *testing.T) {
 func TestStreamByteFallbackHonorsCanceledContext(t *testing.T) {
 	tmpDir := t.TempDir()
 	srcPath := filepath.Join(tmpDir, "input.json")
-	if err := os.WriteFile(srcPath, []byte(`{"items":[{"ip":"1.2.3.4"}]}`), 0o644); err != nil {
+	if err := os.WriteFile(srcPath, []byte(`{"items":[{"ip":"1.2.3.4"}]}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithCancel(t.Context())
@@ -123,7 +123,7 @@ func TestStreamCleansUpIntermediateAfterByteFallbackCancel(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	srcPath := filepath.Join(tmpDir, "input.dat")
-	if err := os.WriteFile(srcPath, []byte("1.2.3.4 # comment\n"), 0o644); err != nil {
+	if err := os.WriteFile(srcPath, []byte("1.2.3.4 # comment\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

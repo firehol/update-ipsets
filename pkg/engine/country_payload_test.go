@@ -9,14 +9,14 @@ import (
 func TestCountryComparisonAcceptsLegacyArray(t *testing.T) {
 	dir := t.TempDir()
 	webDir := filepath.Join(dir, "web")
-	if err := os.MkdirAll(webDir, 0o755); err != nil {
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	path := filepath.Join(webDir, "sample_geolite2_country.json")
 	if err := os.WriteFile(path, []byte(`[
   {"code":"US","value":5},
   {"code":"DE","value":2}
-]`), 0o644); err != nil {
+]`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

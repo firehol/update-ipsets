@@ -17,7 +17,7 @@ func TestFetchLocalCopyMaxDownloadSizeEnforced(t *testing.T) {
 
 	// Create a file larger than our limit.
 	content := strings.Repeat("x", 500)
-	if err := os.WriteFile(srcFile, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(srcFile, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -50,7 +50,7 @@ func TestFetchLocalCopyMaxDownloadSizeAllowsUnderLimit(t *testing.T) {
 	srcFile := filepath.Join(tmpDir, "small.txt")
 
 	content := "10.0.0.1\n10.0.0.2\n"
-	if err := os.WriteFile(srcFile, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(srcFile, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -82,7 +82,7 @@ func TestFetchLocalCopyDisabledLimit(t *testing.T) {
 	srcFile := filepath.Join(tmpDir, "any_size.txt")
 
 	content := strings.Repeat("line\n", 200)
-	if err := os.WriteFile(srcFile, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(srcFile, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -109,7 +109,7 @@ func TestFetchLocalCopyDisabledLimit(t *testing.T) {
 func TestFetchLocalCopyEmptyFileRejects(t *testing.T) {
 	tmpDir := t.TempDir()
 	srcFile := filepath.Join(tmpDir, "empty.txt")
-	if err := os.WriteFile(srcFile, []byte{}, 0o644); err != nil {
+	if err := os.WriteFile(srcFile, []byte{}, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -169,7 +169,7 @@ func TestFetchFileURLUsesLocalCopyPath(t *testing.T) {
 	tmpDir := t.TempDir()
 	srcFile := filepath.Join(tmpDir, "sample.txt")
 	content := "10.0.0.1\n10.0.0.2\n"
-	if err := os.WriteFile(srcFile, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(srcFile, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

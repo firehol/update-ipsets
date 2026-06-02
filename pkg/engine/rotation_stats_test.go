@@ -13,16 +13,16 @@ func TestRefreshRotationStatsFromLedgerComputesBoundedChangeRatio(t *testing.T) 
 	root := t.TempDir()
 	libDir := filepath.Join(root, "lib")
 	feedDir := filepath.Join(libDir, "sample")
-	if err := os.MkdirAll(feedDir, 0o755); err != nil {
+	if err := os.MkdirAll(feedDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 
 	historyCSV := "DateTime,Entries,UniqueIPs\n1711929600,10,10\n1711933200,10,10\n1711936800,10,10\n"
-	if err := os.WriteFile(filepath.Join(feedDir, "history.csv"), []byte(historyCSV), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(feedDir, "history.csv"), []byte(historyCSV), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	changesetsCSV := "DateTime,AddedIPs,RemovedIPs\n1711929600,1,0\n1711933200,5,5\n1711936800,10,10\n"
-	if err := os.WriteFile(filepath.Join(feedDir, "changesets.csv"), []byte(changesetsCSV), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(feedDir, "changesets.csv"), []byte(changesetsCSV), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

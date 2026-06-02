@@ -33,11 +33,11 @@ func TestMergeCompositionExcludesArchivedAndUnmaintainedInputs(t *testing.T) {
 	}), withNow(func() time.Time { return now }))
 
 	for _, name := range []string{"healthy", "archived", "unmaintained", "merged"} {
-		if err := os.WriteFile(sourceEnablePathForRuntime(eng.runtime, name), nil, 0o644); err != nil {
+		if err := os.WriteFile(sourceEnablePathForRuntime(eng.runtime, name), nil, 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := os.WriteFile(filepath.Join(baseDir, "healthy.ipset"), []byte("1.2.3.4\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(baseDir, "healthy.ipset"), []byte("1.2.3.4\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -102,7 +102,7 @@ func TestMergeEnablementIgnoresSubtractiveParents(t *testing.T) {
 	}
 	rt := Runtime{BaseDir: baseDir}
 	for _, name := range []string{"merged", "subtracted"} {
-		if err := os.WriteFile(sourceEnablePathForRuntime(rt, name), nil, 0o644); err != nil {
+		if err := os.WriteFile(sourceEnablePathForRuntime(rt, name), nil, 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -111,7 +111,7 @@ func TestMergeEnablementIgnoresSubtractiveParents(t *testing.T) {
 		t.Fatal("merge should not be enabled when only subtractive parents are enabled")
 	}
 
-	if err := os.WriteFile(sourceEnablePathForRuntime(rt, "included"), nil, 0o644); err != nil {
+	if err := os.WriteFile(sourceEnablePathForRuntime(rt, "included"), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if !EffectiveSourceEnabled(cfg, rt, "merged", false) {

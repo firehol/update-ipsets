@@ -134,7 +134,7 @@ func buildIPDenyArchive(t *testing.T) []byte {
 	gw := gzip.NewWriter(&payload)
 	tw := tar.NewWriter(gw)
 	body := []byte("1.2.3.0/24\n")
-	if err := tw.WriteHeader(&tar.Header{Name: "us.zone", Mode: 0o644, Size: int64(len(body))}); err != nil {
+	if err := tw.WriteHeader(&tar.Header{Name: "us.zone", Mode: 0o600, Size: int64(len(body))}); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := tw.Write(body); err != nil {
@@ -233,7 +233,7 @@ func assertGeoLite2(t *testing.T, data *geoloc.Dataset) {
 func writeTempFile(t *testing.T, name string, data []byte) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), name)
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	return path

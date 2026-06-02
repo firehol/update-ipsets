@@ -51,7 +51,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, baseDir, filepath.Join(root, "history"), libDir, filepath.Join(root, "errors"), webDir, filepath.Join(root, "cache"), server.URL)
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -134,7 +134,7 @@ func writeHistorySnapshotForTest(t *testing.T, historyDir, parent string, ts tim
 	t.Helper()
 
 	dir := filepath.Join(historyDir, parent)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	text := strings.Join(cidrs, "\n") + "\n"
@@ -148,7 +148,7 @@ func writeHistorySnapshotForTest(t *testing.T, historyDir, parent string, ts tim
 		t.Fatal(err)
 	}
 	path := filepath.Join(dir, strconv.FormatInt(ts.Unix(), 10)+".set")
-	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
+	if err := os.WriteFile(path, buf.Bytes(), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chtimes(path, ts, ts); err != nil {
@@ -161,7 +161,7 @@ func writeRetentionCohortForTest(t *testing.T, libDir, feed string, ts time.Time
 	t.Helper()
 
 	dir := filepath.Join(libDir, feed, "new")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	text := strings.Join(cidrs, "\n") + "\n"
@@ -175,7 +175,7 @@ func writeRetentionCohortForTest(t *testing.T, libDir, feed string, ts time.Time
 	if err := iprange.WriteBinary(&buf, set); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
+	if err := os.WriteFile(path, buf.Bytes(), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chtimes(path, ts, ts); err != nil {
@@ -216,7 +216,7 @@ func writeRetentionCohortIndexForTest(indexPath, cohortDir string) error {
 	for _, addedAt := range keys {
 		lines = append(lines, fmt.Sprintf("%d,%d", addedAt, counts[addedAt]))
 	}
-	return os.WriteFile(indexPath, []byte(strings.Join(lines, "\n")+"\n"), 0o644)
+	return os.WriteFile(indexPath, []byte(strings.Join(lines, "\n")+"\n"), 0o600)
 }
 
 func TestHomeGlobeEndpoint(t *testing.T) {
@@ -265,13 +265,13 @@ sources:
     use: [geoip]
     format: maxmind_country_csv
 `, baseDir, filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), runtimeWebDir, filepath.Join(root, "cache"), server.URL)
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(runtimeWebDir, 0o755); err != nil {
+	if err := os.MkdirAll(runtimeWebDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(servedWebDir, 0o755); err != nil {
+	if err := os.MkdirAll(servedWebDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 
@@ -287,10 +287,10 @@ sources:
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(servedWebDir, "sample_geolite2_country.json"), []byte(`{"total_mapped":10,"countries":[{"code":"US","value":10}]}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(servedWebDir, "sample_geolite2_country.json"), []byte(`{"total_mapped":10,"countries":[{"code":"US","value":10}]}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(servedWebDir, "home"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(servedWebDir, "home"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(servedWebDir, "home", "aggregates.json"), []byte(`{
@@ -303,7 +303,7 @@ sources:
 			"unique_ips": 1,
 			"countries": [{"code": "US", "feed_count": 1, "attributed_ips": 10}]
 		}]
-	}`), 0o644); err != nil {
+	}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -380,10 +380,10 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, baseDir, filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), webDir, filepath.Join(root, "cache"))
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(webDir, 0o755); err != nil {
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := engine.New(cfgPath, nil)
@@ -433,14 +433,14 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, baseDir, filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), webDir, filepath.Join(root, "cache"))
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	aggregatePath := filepath.Join(webDir, "home", "aggregates.json")
-	if err := os.MkdirAll(filepath.Dir(aggregatePath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(aggregatePath), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(aggregatePath, []byte(`{"version":`), 0o644); err != nil {
+	if err := os.WriteFile(aggregatePath, []byte(`{"version":`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := engine.New(cfgPath, nil)

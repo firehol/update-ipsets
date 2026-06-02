@@ -25,10 +25,10 @@ func TestStagedPublishBatchPublishesNestedFiles(t *testing.T) {
 	}
 	for rel, body := range stageFiles {
 		path := filepath.Join(batch.stageDir, rel)
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 			t.Fatalf("MkdirAll(%q) error = %v", path, err)
 		}
-		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 			t.Fatalf("WriteFile(%q) error = %v", path, err)
 		}
 	}
@@ -65,10 +65,10 @@ func TestStagedPublishBatchPublishesNestedFiles(t *testing.T) {
 func TestStagedPublishBatchDeletesMarkedFilesAndPrunesParents(t *testing.T) {
 	liveDir := t.TempDir()
 	oldPath := filepath.Join(liveDir, "countries", "ZZ.json")
-	if err := os.MkdirAll(filepath.Dir(oldPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(oldPath), 0o700); err != nil {
 		t.Fatalf("MkdirAll(%q) error = %v", filepath.Dir(oldPath), err)
 	}
-	if err := os.WriteFile(oldPath, []byte(`{"code":"ZZ"}`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(oldPath, []byte(`{"code":"ZZ"}`+"\n"), 0o600); err != nil {
 		t.Fatalf("WriteFile(%q) error = %v", oldPath, err)
 	}
 
@@ -104,7 +104,7 @@ func TestStagedPublishBatchAppliesGeneratedFileTimestamps(t *testing.T) {
 
 	rel := "sample.json"
 	stagePath := filepath.Join(batch.stageDir, rel)
-	if err := os.WriteFile(stagePath, []byte(`{"name":"sample"}`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(stagePath, []byte(`{"name":"sample"}`+"\n"), 0o600); err != nil {
 		t.Fatalf("WriteFile(%q) error = %v", stagePath, err)
 	}
 	logical := time.Date(2026, 4, 29, 9, 34, 19, 0, time.UTC)

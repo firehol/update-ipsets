@@ -80,10 +80,10 @@ sources:
     format: maxmind_country_csv
     label: GeoLite2 Country
 `, baseDir, filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), webDir, filepath.Join(root, "cache"))
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(webDir, 0o755); err != nil {
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 
@@ -127,7 +127,7 @@ sources:
 			t.Fatal(err)
 		}
 		path := filepath.Join(webDir, name+"_geolite2_country.json")
-		if err := os.WriteFile(path, data, 0o644); err != nil {
+		if err := os.WriteFile(path, data, 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}

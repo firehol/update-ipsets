@@ -39,7 +39,7 @@ func TestStreamProcessorHeapBounded(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	srcPath := filepath.Join(tmpDir, "large-input.dat")
-	if err := os.WriteFile(srcPath, []byte(input), 0o644); err != nil {
+	if err := os.WriteFile(srcPath, []byte(input), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -118,7 +118,7 @@ func TestStreamProcessorChainedLargeInput(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	srcPath := filepath.Join(tmpDir, "chained-input.dat")
-	if err := os.WriteFile(srcPath, []byte(input), 0o644); err != nil {
+	if err := os.WriteFile(srcPath, []byte(input), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

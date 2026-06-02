@@ -240,7 +240,7 @@ func writeTestCertificate(t *testing.T) (string, string) {
 	dir := t.TempDir()
 	certPath := filepath.Join(dir, "cert.pem")
 	keyPath := filepath.Join(dir, "key.pem")
-	if err := os.WriteFile(certPath, certPEM, 0o644); err != nil {
+	if err := os.WriteFile(certPath, certPEM, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(keyPath, keyPEM, 0o600); err != nil {

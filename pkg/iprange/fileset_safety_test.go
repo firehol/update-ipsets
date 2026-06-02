@@ -220,7 +220,7 @@ func TestFileSetErrNilBeforeClose(t *testing.T) {
 
 func TestFileSetEmptySetErr(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "empty.set")
-	if err := os.WriteFile(path, nil, 0644); err != nil {
+	if err := os.WriteFile(path, nil, 0600); err != nil {
 		t.Fatal(err)
 	}
 

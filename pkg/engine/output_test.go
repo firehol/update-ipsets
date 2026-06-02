@@ -35,10 +35,10 @@ func TestBuildSetMetadataUsesEnableAllForMergeComposition(t *testing.T) {
 	eng := newEngineFixture(t, withConfig(cfg), withRuntime(func(rt *Runtime) {
 		rt.BaseDir = baseDir
 	}))
-	if err := os.WriteFile(eng.feedBodyPath("included"), []byte("10.0.0.0/24\n"), 0o644); err != nil {
+	if err := os.WriteFile(eng.feedBodyPath("included"), []byte("10.0.0.0/24\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(eng.feedBodyPath("subtracted"), []byte("10.0.0.0/25\n"), 0o644); err != nil {
+	if err := os.WriteFile(eng.feedBodyPath("subtracted"), []byte("10.0.0.0/25\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -165,10 +165,10 @@ func TestComparisonRowsDoNotMarkSubtractiveParentRelated(t *testing.T) {
 	root := t.TempDir()
 	baseDir := filepath.Join(root, "base")
 	webDir := filepath.Join(root, "web")
-	if err := os.MkdirAll(baseDir, 0o755); err != nil {
+	if err := os.MkdirAll(baseDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(webDir, 0o755); err != nil {
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	cfg := config.New()
@@ -197,7 +197,7 @@ func TestComparisonRowsDoNotMarkSubtractiveParentRelated(t *testing.T) {
 		"merged":     "10.0.0.0/25\n",
 	} {
 		file := name + ".netset"
-		if err := os.WriteFile(filepath.Join(baseDir, file), []byte(body), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(baseDir, file), []byte(body), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		entry := eng.state.Entry(name)
@@ -295,7 +295,7 @@ func TestMergeCompareRowsDropsAndDeletesZeroOverlapRows(t *testing.T) {
 
 func TestValidateComparisonPayloadRejectsZeroOverlapRows(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "sample_comparison.json")
-	if err := os.WriteFile(path, []byte(`[{"name":"zero","ips":1,"common":0}]`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(`[{"name":"zero","ips":1,"common":0}]`+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := validateComparisonPayload(path); err == nil {
@@ -307,10 +307,10 @@ func TestWriteComparisonFilesRemovesStaleZeroOverlapRows(t *testing.T) {
 	root := t.TempDir()
 	baseDir := filepath.Join(root, "base")
 	webDir := filepath.Join(root, "web")
-	if err := os.MkdirAll(baseDir, 0o755); err != nil {
+	if err := os.MkdirAll(baseDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(webDir, 0o755); err != nil {
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	cfg := config.New()
@@ -327,7 +327,7 @@ func TestWriteComparisonFilesRemovesStaleZeroOverlapRows(t *testing.T) {
 		"beta":  "192.0.2.0/24\n",
 	} {
 		file := name + ".ipset"
-		if err := os.WriteFile(filepath.Join(baseDir, file), []byte(body), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(baseDir, file), []byte(body), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		entry := eng.state.Entry(name)
@@ -340,7 +340,7 @@ func TestWriteComparisonFilesRemovesStaleZeroOverlapRows(t *testing.T) {
 	}
 
 	stale := []byte(`[{"name":"beta","category":"test","ips":256,"common":10}]` + "\n")
-	if err := os.WriteFile(filepath.Join(webDir, "alpha_comparison.json"), stale, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(webDir, "alpha_comparison.json"), stale, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := eng.writeComparisonFiles(t.Context(), []string{"alpha"}, webDir, nil); err != nil {
@@ -363,17 +363,17 @@ func TestSanitizeComparisonArtifactsStagesUntouchedLiveZeroRows(t *testing.T) {
 	root := t.TempDir()
 	webDir := filepath.Join(root, "web")
 	stageDir := filepath.Join(root, "stage")
-	if err := os.MkdirAll(webDir, 0o755); err != nil {
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(stageDir, 0o755); err != nil {
+	if err := os.MkdirAll(stageDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	livePath := filepath.Join(webDir, "orphan_comparison.json")
 	if err := os.WriteFile(livePath, []byte(`[
 		{"name":"zero","ips":10,"common":0},
 		{"name":"positive","ips":10,"common":4}
-	]`+"\n"), 0o644); err != nil {
+	]`+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -480,7 +480,7 @@ func TestRenderLLMSTXTOmitsAdminPaths(t *testing.T) {
 func TestWritePublicMetadataFilesBuildsSitemapIndexAndDetailShards(t *testing.T) {
 	root := t.TempDir()
 	webDir := filepath.Join(root, "web")
-	if err := os.MkdirAll(webDir, 0o755); err != nil {
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	now := time.Unix(1_776_000_000, 0).UTC()
@@ -524,26 +524,26 @@ func TestWritePublicMetadataFilesBuildsSitemapIndexAndDetailShards(t *testing.T)
 	entry.Maintainer = "Team One"
 	entry.MaintainerURL = "https://example.test/team-one"
 
-	if err := os.WriteFile(filepath.Join(webDir, "sample_geo.json"), []byte(`{"total_mapped":10,"countries":[{"code":"gr","value":4},{"code":"US","value":6}]}`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(webDir, "sample_geo.json"), []byte(`{"total_mapped":10,"countries":[{"code":"gr","value":4},{"code":"US","value":6}]}`+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(webDir, "sample_asn_asn.json"), []byte(`{"by_asn":[{"asn":13335,"name":"CLOUDFLARENET","count":6},{"asn":15169,"name":"GOOGLE","count":4}]}`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(webDir, "sample_asn_asn.json"), []byte(`{"by_asn":[{"asn":13335,"name":"CLOUDFLARENET","count":6},{"asn":15169,"name":"GOOGLE","count":4}]}`+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(webDir, "countries"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(webDir, "countries"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(webDir, "countries", "index.json"), []byte(`{"countries":[{"code":"GR"},{"code":"US"}]}`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(webDir, "countries", "index.json"), []byte(`{"countries":[{"code":"GR"},{"code":"US"}]}`+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(webDir, "asns"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(webDir, "asns"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(webDir, "asns", "index.json"), []byte(`{"asns":[{"asn":13335},{"asn":15169},{"asn":424242}]}`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(webDir, "asns", "index.json"), []byte(`{"asns":[{"asn":13335},{"asn":15169},{"asn":424242}]}`+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	staleShard := filepath.Join(webDir, "sitemap-asns-0099.xml")
-	if err := os.WriteFile(staleShard, []byte("stale\n"), 0o644); err != nil {
+	if err := os.WriteFile(staleShard, []byte("stale\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -634,10 +634,10 @@ func assertGoldenFile(t *testing.T, goldenName, actualPath string) {
 	}
 	goldenPath := filepath.Join("testdata", goldenName)
 	if *updateGoldenFiles {
-		if err := os.MkdirAll(filepath.Dir(goldenPath), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(goldenPath), 0o700); err != nil {
 			t.Fatalf("mkdir golden dir: %v", err)
 		}
-		if err := os.WriteFile(goldenPath, actual, 0o644); err != nil {
+		if err := os.WriteFile(goldenPath, actual, 0o600); err != nil {
 			t.Fatalf("update golden %s: %v", goldenPath, err)
 		}
 		return

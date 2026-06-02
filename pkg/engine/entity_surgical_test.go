@@ -55,14 +55,14 @@ func TestIndexFeedEntityJointSidecarProvidesConstantTimePatchRows(t *testing.T) 
 func TestLoadFeedEntitySidecarAcceptsLegacyMembershipArrays(t *testing.T) {
 	eng := newEngineFixture(t)
 	path := filepath.Join(eng.entityFeedsDir(), "sample.json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(path, []byte(`{
 		"feed": "sample",
 		"countries": ["us", "DE", ""],
 		"asns": [13335, 15169, 0]
-	}`), 0o644); err != nil {
+	}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -86,7 +86,7 @@ func TestBuildFeedEntityDeltaFallsBackForLegacyCommittedSidecar(t *testing.T) {
 	committedPath := filepath.Join(eng.entityFeedsDir(), "sample.json")
 	pendingPath := filepath.Join(eng.entityFeedPendingDir(), "sample.json")
 	for _, path := range []string{committedPath, pendingPath} {
-		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -94,14 +94,14 @@ func TestBuildFeedEntityDeltaFallsBackForLegacyCommittedSidecar(t *testing.T) {
 		"feed": "sample",
 		"countries": ["US"],
 		"asns": [13335]
-	}`), 0o644); err != nil {
+	}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(pendingPath, []byte(`{
 		"feed": "sample",
 		"countries": [{"code":"US","attributed_ips":10}],
 		"asns": [{"asn":13335,"attributed_ips":10}]
-	}`), 0o644); err != nil {
+	}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -114,10 +114,10 @@ func TestBuildFeedEntityDeltaFallsBackForLegacyCommittedSidecar(t *testing.T) {
 func TestBuildFeedEntityDeltaPreservesUnreadablePendingSidecarError(t *testing.T) {
 	eng := newEngineFixture(t)
 	pendingPath := filepath.Join(eng.entityFeedPendingDir(), "sample.json")
-	if err := os.MkdirAll(filepath.Dir(pendingPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(pendingPath), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(pendingPath, []byte(`{"feed":`), 0o644); err != nil {
+	if err := os.WriteFile(pendingPath, []byte(`{"feed":`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

@@ -67,7 +67,7 @@ func TestTemplateStoreWithTemplates(t *testing.T) {
 	dir := t.TempDir()
 
 	templateContent := "# {{.Title}}\n\n{{comma .Count}} items.\n"
-	if err := os.WriteFile(filepath.Join(dir, "test.tmpl"), []byte(templateContent), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "test.tmpl"), []byte(templateContent), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -97,7 +97,7 @@ func TestTemplateStoreWithTemplates(t *testing.T) {
 func TestWriteToDirRejectsTraversal(t *testing.T) {
 	dir := t.TempDir()
 
-	if err := os.WriteFile(filepath.Join(dir, "test.tmpl"), []byte("hello"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "test.tmpl"), []byte("hello"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

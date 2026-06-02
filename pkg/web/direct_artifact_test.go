@@ -11,10 +11,10 @@ import (
 func TestDirectPublishedArtifactRejectsHiddenPathSegments(t *testing.T) {
 	eng, handler := testHandler(t, Options{EnableAll: true})
 	hiddenDir := filepath.Join(eng.Runtime().WebDir, ".update-ipsets-web-123")
-	if err := os.MkdirAll(hiddenDir, 0o755); err != nil {
+	if err := os.MkdirAll(hiddenDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(hiddenDir, "sample.json"), []byte(`{"hidden":true}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(hiddenDir, "sample.json"), []byte(`{"hidden":true}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -29,7 +29,7 @@ func TestDirectPublishedArtifactRejectsHiddenPathSegments(t *testing.T) {
 func TestPublicTopLevelArtifactRejectsSymlinkEscape(t *testing.T) {
 	eng, handler := testHandler(t, Options{EnableAll: true})
 	outside := filepath.Join(t.TempDir(), "robots.txt")
-	if err := os.WriteFile(outside, []byte("outside\n"), 0o644); err != nil {
+	if err := os.WriteFile(outside, []byte("outside\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	robots := filepath.Join(eng.Runtime().WebDir, "robots.txt")
@@ -51,7 +51,7 @@ func TestPublicTopLevelArtifactRejectsSymlinkEscape(t *testing.T) {
 func TestRawFeedRouteRejectsSymlinkEscape(t *testing.T) {
 	eng, handler := testHandler(t, Options{EnableAll: true})
 	outside := filepath.Join(t.TempDir(), "sample.ipset")
-	if err := os.WriteFile(outside, []byte("203.0.113.10\n"), 0o644); err != nil {
+	if err := os.WriteFile(outside, []byte("203.0.113.10\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	raw := filepath.Join(eng.Runtime().BaseDir, "sample.ipset")

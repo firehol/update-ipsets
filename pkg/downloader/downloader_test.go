@@ -27,7 +27,7 @@ func TestFetchNotModified(t *testing.T) {
 	defer server.Close()
 
 	ref := filepath.Join(t.TempDir(), "source.ref")
-	if err := os.WriteFile(ref, []byte("1.2.3.4\n"), 0o644); err != nil {
+	if err := os.WriteFile(ref, []byte("1.2.3.4\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chtimes(ref, modified, modified); err != nil {
@@ -62,7 +62,7 @@ func TestFetchSameBody(t *testing.T) {
 	defer server.Close()
 
 	ref := filepath.Join(t.TempDir(), "source.ref")
-	if err := os.WriteFile(ref, []byte("5.6.7.8\n"), 0o644); err != nil {
+	if err := os.WriteFile(ref, []byte("5.6.7.8\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -374,7 +374,7 @@ func TestFetchEmptyBodyRejectsUnlessAcceptEmpty(t *testing.T) {
 func TestFetchCopyFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	srcFile := filepath.Join(tmpDir, "input.txt")
-	if err := os.WriteFile(srcFile, []byte("10.0.0.1\n"), 0o644); err != nil {
+	if err := os.WriteFile(srcFile, []byte("10.0.0.1\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -409,10 +409,10 @@ func TestFetchCopyFileSameBody(t *testing.T) {
 	srcFile := filepath.Join(tmpDir, "input.txt")
 	refFile := filepath.Join(tmpDir, "ref.txt")
 	content := "same-content\n"
-	if err := os.WriteFile(srcFile, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(srcFile, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(refFile, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(refFile, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

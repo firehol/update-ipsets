@@ -217,17 +217,17 @@ merges:
     sources: [included]
     exclude: [subtracted]
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"))
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := engine.New(cfgPath, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(eng.FeedBodyPath("included"), []byte("10.0.0.0/24\n"), 0o644); err != nil {
+	if err := os.WriteFile(eng.FeedBodyPath("included"), []byte("10.0.0.0/24\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(eng.FeedBodyPath("subtracted"), []byte("10.0.0.0/25\n"), 0o644); err != nil {
+	if err := os.WriteFile(eng.FeedBodyPath("subtracted"), []byte("10.0.0.0/25\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

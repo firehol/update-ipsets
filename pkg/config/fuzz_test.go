@@ -28,7 +28,7 @@ sources: {}
 			t.Skip("input exceeds bounded config fuzz size")
 		}
 		path := filepath.Join(t.TempDir(), "config.yaml")
-		if err := os.WriteFile(path, data, 0o644); err != nil {
+		if err := os.WriteFile(path, data, 0o600); err != nil {
 			t.Fatal(err)
 		}
 		cfg, err := LoadYAML(path)
@@ -40,7 +40,7 @@ sources: {}
 			t.Fatalf("save parsed config: %v", err)
 		}
 		roundTripPath := filepath.Join(t.TempDir(), "roundtrip.yaml")
-		if err := os.WriteFile(roundTripPath, out.Bytes(), 0o644); err != nil {
+		if err := os.WriteFile(roundTripPath, out.Bytes(), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := LoadYAML(roundTripPath); err != nil {

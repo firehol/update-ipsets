@@ -231,7 +231,7 @@ func TestFeedTemplateWithAllSections(t *testing.T) {
 	}
 
 	outPath := filepath.Join(t.TempDir(), "dshield.md")
-	if err := os.WriteFile(outPath, []byte(got), 0o644); err != nil {
+	if err := os.WriteFile(outPath, []byte(got), 0o600); err != nil {
 		t.Fatalf("write: %v", err)
 	}
 

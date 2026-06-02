@@ -16,7 +16,7 @@ func TestCanonicalFeedBodySameIgnoresHeaderComments(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "sample.ipset")
 	body := []byte("1.2.3.4\n5.6.7.8\n")
 	headered := "#\n# sample\n# " + strings.Repeat("x", 128*1024) + "\n" + string(body)
-	if err := os.WriteFile(path, []byte(headered), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(headered), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -70,7 +70,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, baseDir, filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"), server.URL)
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

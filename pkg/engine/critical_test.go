@@ -179,10 +179,10 @@ func TestWriteCriticalInfrastructureFilesDeduplicatesAndSkipsReferenceTargets(t 
 	root := t.TempDir()
 	baseDir := filepath.Join(root, "base")
 	webDir := filepath.Join(root, "web")
-	if err := os.MkdirAll(baseDir, 0o755); err != nil {
+	if err := os.MkdirAll(baseDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(webDir, 0o755); err != nil {
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 
@@ -286,10 +286,10 @@ func TestWriteCriticalInfrastructureFilesAddsASNContext(t *testing.T) {
 	root := t.TempDir()
 	baseDir := filepath.Join(root, "base")
 	webDir := filepath.Join(root, "web")
-	if err := os.MkdirAll(baseDir, 0o755); err != nil {
+	if err := os.MkdirAll(baseDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(webDir, 0o755); err != nil {
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 
@@ -340,7 +340,7 @@ func TestWriteCriticalInfrastructureFilesAddsASNContext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(webDir, "sample_asn_iptoasn.json"), append(data, '\n'), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(webDir, "sample_asn_iptoasn.json"), append(data, '\n'), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -377,10 +377,10 @@ func TestCriticalInfrastructureAggregateRecordsMissingProviders(t *testing.T) {
 	root := t.TempDir()
 	baseDir := filepath.Join(root, "base")
 	webDir := filepath.Join(root, "web")
-	if err := os.MkdirAll(baseDir, 0o755); err != nil {
+	if err := os.MkdirAll(baseDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(webDir, 0o755); err != nil {
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 
@@ -456,7 +456,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `
-	if err := os.WriteFile(cfgPath, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := New(cfgPath, nil)
@@ -535,7 +535,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `
-	if err := os.WriteFile(cfgPath, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := New(cfgPath, nil)
@@ -620,7 +620,7 @@ sources:
       source_quality: C
       rationale: test critical provider
 `
-	if err := os.WriteFile(cfgPath, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := New(cfgPath, nil)
@@ -712,7 +712,7 @@ sources:
       source_quality: C
       rationale: test critical provider
 `
-	if err := os.WriteFile(cfgPath, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := New(cfgPath, nil)
@@ -835,7 +835,7 @@ func TestCriticalTargetNamesSkipsReferenceAndIPv6Targets(t *testing.T) {
 func TestMarkStaleCriticalInfrastructureArtifactDeletesRemovedProviders(t *testing.T) {
 	root := t.TempDir()
 	webDir := filepath.Join(root, "web")
-	if err := os.MkdirAll(webDir, 0o755); err != nil {
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	cfg := config.New()
@@ -855,7 +855,7 @@ func TestMarkStaleCriticalInfrastructureArtifactDeletesRemovedProviders(t *testi
 		rt.BaseDir = filepath.Join(root, "base")
 		rt.WebDir = webDir
 	}))
-	if err := os.MkdirAll(eng.runtime.BaseDir, 0o755); err != nil {
+	if err := os.MkdirAll(eng.runtime.BaseDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	writeProcessedFeedForTest(t, eng, eng.runtime.BaseDir, "sample", "sample.netset", "10.0.0.1\n")
@@ -877,7 +877,7 @@ func TestMarkStaleCriticalInfrastructureArtifactDeletesRemovedProviders(t *testi
 	removeCriticalNamedProvider := filepath.Join(webDir, "data_shield_critical_critical_removed_provider.json")
 	removeFeed := filepath.Join(webDir, "old_feed_critical_infrastructure.json")
 	for _, path := range []string{keep, keepShorterFeedWithCriticalPrefixProvider, keepCriticalNamedFeed, keepExactAggregateLookingFeed, keepExactProviderLookingFeed, keepCriticalNamedASN, keepCriticalNamedBogons, keepCriticalNamedGeo, keepCriticalNamedRetention, removeProvider, removeCriticalNamedProvider, removeFeed} {
-		if err := os.WriteFile(path, []byte("{}\n"), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte("{}\n"), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -928,7 +928,7 @@ func TestMarkStaleCriticalInfrastructureArtifactDeletesRemovedProviders(t *testi
 func TestMarkStaleCriticalInfrastructureArtifactDeletesAggregatesWhenNoProvidersRemain(t *testing.T) {
 	root := t.TempDir()
 	webDir := filepath.Join(root, "web")
-	if err := os.MkdirAll(webDir, 0o755); err != nil {
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	cfg := config.New()
@@ -937,14 +937,14 @@ func TestMarkStaleCriticalInfrastructureArtifactDeletesAggregatesWhenNoProviders
 		rt.BaseDir = filepath.Join(root, "base")
 		rt.WebDir = webDir
 	}))
-	if err := os.MkdirAll(eng.runtime.BaseDir, 0o755); err != nil {
+	if err := os.MkdirAll(eng.runtime.BaseDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	writeProcessedFeedForTest(t, eng, eng.runtime.BaseDir, "sample", "sample.netset", "10.0.0.1\n")
 	aggregate := filepath.Join(webDir, "sample_critical_infrastructure.json")
 	provider := filepath.Join(webDir, "sample_critical_removed_provider.json")
 	for _, path := range []string{aggregate, provider} {
-		if err := os.WriteFile(path, []byte("{}\n"), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte("{}\n"), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -972,7 +972,7 @@ func TestCleanupCriticalInfrastructureArtifactsIfUnconfigured(t *testing.T) {
 	root := t.TempDir()
 	webDir := filepath.Join(root, "web")
 	libDir := filepath.Join(root, "lib")
-	if err := os.MkdirAll(webDir, 0o755); err != nil {
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	cfg := config.New()
@@ -985,15 +985,15 @@ func TestCleanupCriticalInfrastructureArtifactsIfUnconfigured(t *testing.T) {
 	aggregate := filepath.Join(webDir, "sample_critical_infrastructure.json")
 	provider := filepath.Join(webDir, "sample_critical_removed_provider.json")
 	for _, path := range []string{aggregate, provider} {
-		if err := os.WriteFile(path, []byte("{}\n"), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte("{}\n"), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
 	marker := CriticalInfrastructureProviderSetMarkerPath(eng.runtime)
-	if err := os.MkdirAll(filepath.Dir(marker), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(marker), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(marker, []byte("old-provider-set\n"), 0o644); err != nil {
+	if err := os.WriteFile(marker, []byte("old-provider-set\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1011,7 +1011,7 @@ func TestCleanupCriticalInfrastructureArtifactsIfUnconfigured(t *testing.T) {
 func TestCleanupStaleCriticalInfrastructureArtifactsRemovesNonComparableTargets(t *testing.T) {
 	root := t.TempDir()
 	webDir := filepath.Join(root, "web")
-	if err := os.MkdirAll(webDir, 0o755); err != nil {
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	cfg := config.New()
@@ -1030,7 +1030,7 @@ func TestCleanupStaleCriticalInfrastructureArtifactsRemovesNonComparableTargets(
 	aggregate := filepath.Join(webDir, "sample_v6_critical_infrastructure.json")
 	provider := filepath.Join(webDir, "sample_v6_critical_critical_dns.json")
 	for _, path := range []string{aggregate, provider} {
-		if err := os.WriteFile(path, []byte("{}\n"), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte("{}\n"), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -1068,7 +1068,7 @@ sources:
     processor:
       - passthrough
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"))
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := New(cfgPath, slog.New(slog.NewTextHandler(io.Discard, nil)))
@@ -1077,19 +1077,19 @@ sources:
 	}
 	aggregate := filepath.Join(eng.runtime.WebDir, "sample_critical_infrastructure.json")
 	provider := filepath.Join(eng.runtime.WebDir, "sample_critical_removed_provider.json")
-	if err := os.MkdirAll(eng.runtime.WebDir, 0o755); err != nil {
+	if err := os.MkdirAll(eng.runtime.WebDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	for _, path := range []string{aggregate, provider} {
-		if err := os.WriteFile(path, []byte("{}\n"), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte("{}\n"), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
 	marker := CriticalInfrastructureProviderSetMarkerPath(eng.runtime)
-	if err := os.MkdirAll(filepath.Dir(marker), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(marker), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(marker, []byte("old-provider-set\n"), 0o644); err != nil {
+	if err := os.WriteFile(marker, []byte("old-provider-set\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1108,10 +1108,10 @@ func TestSignalSnapshotUsesCriticalInfrastructureAggregateArtifact(t *testing.T)
 	root := t.TempDir()
 	stageDir := filepath.Join(root, "stage")
 	webDir := filepath.Join(root, "web")
-	if err := os.MkdirAll(stageDir, 0o755); err != nil {
+	if err := os.MkdirAll(stageDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(webDir, 0o755); err != nil {
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1126,7 +1126,7 @@ func TestSignalSnapshotUsesCriticalInfrastructureAggregateArtifact(t *testing.T)
 	entry.UniqueIPs = 1000
 
 	body := []byte(fmt.Sprintf(`{"feed":"sample","family":"ipv4","feed_ips":1000,"critical_ips":25,"percent":2.5,"provider_set_id":%q,"tiers":[{"tier":"hard","critical_ips":1,"percent":0.1,"providers":1},{"tier":"soft","critical_ips":24,"percent":2.4,"providers":2}]}`, eng.CriticalInfrastructureProviderSetID()))
-	if err := os.WriteFile(filepath.Join(stageDir, "sample_critical_infrastructure.json"), body, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(stageDir, "sample_critical_infrastructure.json"), body, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1145,7 +1145,7 @@ func TestSignalSnapshotUsesCriticalInfrastructureAggregateArtifact(t *testing.T)
 	}
 
 	stale := []byte(`{"feed":"sample","family":"ipv4","feed_ips":1000,"critical_ips":25,"percent":2.5,"provider_set_id":"stale"}`)
-	if err := os.WriteFile(filepath.Join(stageDir, "sample_critical_infrastructure.json"), stale, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(stageDir, "sample_critical_infrastructure.json"), stale, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	snap, err = eng.buildSignalSnapshot("sample", stageDir)
@@ -1172,7 +1172,7 @@ func testCriticalMetadata(tier, role string) *config.CriticalMetadata {
 
 func writeProcessedFeedForTest(t *testing.T, eng *Engine, baseDir, name, file, body string) {
 	t.Helper()
-	if err := os.WriteFile(filepath.Join(baseDir, file), []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(baseDir, file), []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	entry := eng.state.Entry(name)

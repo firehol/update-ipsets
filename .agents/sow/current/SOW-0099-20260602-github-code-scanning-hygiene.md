@@ -537,6 +537,24 @@ Open decisions:
   array of objects, and `ui/scripts/eslint-root-config.test.mjs` verifies root
   config shape, TS/TSX/JS/MJS resolution, and UI TypeScript rule application.
   CI now runs this through `make eslint-root-config`.
+- Re-checked GitHub Security and quality AI findings after
+  `25bfa710c48bdca0859e828513cc953bc8473fe5`. GitHub reports 0 AI findings.
+- Codacy analyzed commit `25bfa710c48bdca0859e828513cc953bc8473fe5`. The
+  repository remains Grade A and current issues dropped from 3113 to 3095.
+- Triage of remaining Codacy Go security/path issue classes found:
+  - `Semgrep_go_file-permissions_rule-fileperm`: 243 total, 236 in
+    `*_test.go`, 7 in production files.
+  - `Semgrep_go.lang.correctness.permissions.file_permission.incorrect-default-permission`:
+    109 total, 77 in `*_test.go`, 32 in production files.
+  - `Semgrep_go_file-permissions_rule-mkdir`: 102 total, 76 in `*_test.go`,
+    26 in production files.
+  - `Semgrep_go_filesystem_rule-fileread`: 93 total, 55 in `*_test.go`, 38 in
+    production files.
+- Updated test fixtures from broad `0644`/`0755` style modes to restrictive
+  `0600`/`0700` modes across tracked `*_test.go` files. Production permission
+  findings are intentionally left for a separate contract review because public
+  artifacts, install outputs, and shared runtime directories may require
+  readable/searchable modes for operators or the service user.
 
 ## Validation
 
@@ -596,6 +614,8 @@ Tests or equivalent validation:
   - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-testing`:
     passed after documenting the root ESLint bridge validation command in the
     project-testing skill.
+  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
+    passed after documenting Codacy Go file-permission triage guidance.
   - `make actionlint`: passed after wiring the bridge test into CI.
   - `make hygiene`: passed.
   - `git diff --check -- .codacy.yml .agents/skills/project-hygiene/SKILL.md .agents/sow/current/SOW-0099-20260602-github-code-scanning-hygiene.md eslint.config.mjs`:
@@ -621,6 +641,19 @@ Tests or equivalent validation:
   - Hygiene workflow: success;
   - CI coverage job: success;
   - CI build job: still in progress as of 2026-06-02 11:17 EEST.
+- GitHub run evidence for `25bfa710c48bdca0859e828513cc953bc8473fe5` before
+  the test-fixture permission cleanup commit:
+  - checked-in CodeQL workflow: success;
+  - dynamic Code Quality/CodeQL surface: success;
+  - Hygiene workflow: success;
+  - CI coverage job: success;
+  - CI build job: still in progress as of 2026-06-02 11:23 EEST.
+- Codacy Go test-fixture permission cleanup validation:
+  - `rg -n "0o(644|666|755|777)|\b0(644|666|755|777)\b" --glob '*_test.go'`:
+    no matches after the fixture rewrite.
+  - `go test ./...`: passed.
+  - `cd tools/dronebl2ipsets && go test ./...`: passed.
+  - `make hygiene`: passed.
 
 Real-use evidence:
 
@@ -679,6 +712,9 @@ Project skills update:
 - Added and later updated `.agents/skills/project-hygiene/SKILL.md`.
 - Updated `.agents/skills/project-testing/SKILL.md` with the root ESLint
   bridge validation command.
+- Updated `.agents/skills/project-hygiene/SKILL.md` and
+  `.agents/skills/project-testing/SKILL.md` with Go test-fixture permission
+  guidance learned from Codacy triage.
 
 End-user/operator docs update:
 

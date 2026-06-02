@@ -65,7 +65,7 @@ sources:
 		filepath.Join(root, "lib"), filepath.Join(root, "errors"),
 		filepath.Join(root, "web"), filepath.Join(root, "cache"),
 		server.URL, server.URL)
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -239,7 +239,7 @@ sources:
 		filepath.Join(root, "lib"), filepath.Join(root, "errors"),
 		filepath.Join(root, "web"), filepath.Join(root, "cache"),
 		server.URL)
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -473,7 +473,7 @@ func TestOpenLatestSetEmptyBinaryFile(t *testing.T) {
 
 	// Overwrite latest with an empty file (represents empty set).
 	latestPath := filepath.Join(root, "lib", "alpha", "latest")
-	if err := os.WriteFile(latestPath, nil, 0o644); err != nil {
+	if err := os.WriteFile(latestPath, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -494,7 +494,7 @@ func TestOpenLatestSetCorruptBinaryFallsBackToText(t *testing.T) {
 
 	// Overwrite latest with garbage to force fallback to text.
 	latestPath := filepath.Join(root, "lib", "alpha", "latest")
-	if err := os.WriteFile(latestPath, []byte("garbage data"), 0o644); err != nil {
+	if err := os.WriteFile(latestPath, []byte("garbage data"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -543,7 +543,7 @@ func TestClosableSourceIterMatchesIPSet(t *testing.T) {
 	if err := iprange.WriteBinary(&buf, set); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
+	if err := os.WriteFile(path, buf.Bytes(), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

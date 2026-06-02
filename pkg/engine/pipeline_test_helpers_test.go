@@ -91,7 +91,7 @@ func writeSnapshotForTest(t *testing.T, historyDir, parent string, ts time.Time,
 	t.Helper()
 
 	dir := filepath.Join(historyDir, parent)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	text := strings.Join(cidrs, "\n") + "\n"
@@ -105,7 +105,7 @@ func writeSnapshotForTest(t *testing.T, historyDir, parent string, ts time.Time,
 		t.Fatal(err)
 	}
 	path := filepath.Join(dir, strconv.FormatInt(ts.Unix(), 10)+".set")
-	if err := os.WriteFile(path, buf.Bytes(), 0o644); err != nil {
+	if err := os.WriteFile(path, buf.Bytes(), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chtimes(path, ts, ts); err != nil {
@@ -118,7 +118,7 @@ func writeRetentionCohortForTest(t *testing.T, libDir, feed string, ts time.Time
 	t.Helper()
 
 	dir := filepath.Join(libDir, feed, "new")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	text := strings.Join(cidrs, "\n") + "\n"

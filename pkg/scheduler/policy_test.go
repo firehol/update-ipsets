@@ -94,7 +94,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `)
-	if err := os.WriteFile(filepath.Join(root, "base", "sample.ipset"), []byte("1.2.3.4\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "base", "sample.ipset"), []byte("1.2.3.4\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	runner := New(eng, true, nil)
@@ -129,7 +129,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `)
-	if err := os.WriteFile(filepath.Join(root, "base", "sample.ipset.new"), []byte("1.2.3.4\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(root, "base", "sample.ipset.new"), []byte("1.2.3.4\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	runner := New(eng, true, nil)
@@ -164,10 +164,10 @@ runtime:
   ipsets_apply: false
 %s
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"), body)
-	if err := os.MkdirAll(filepath.Join(root, "base"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(root, "base"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := engine.New(cfgPath, nil)

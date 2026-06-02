@@ -13,7 +13,7 @@ func TestWriteComparisonFilesReturnsCanceledContext(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		root := t.TempDir()
 		webDir := filepath.Join(root, "web")
-		if err := os.MkdirAll(webDir, 0o755); err != nil {
+		if err := os.MkdirAll(webDir, 0o700); err != nil {
 			t.Fatal(err)
 		}
 		eng := newEngineFixture(t, withRuntime(func(rt *Runtime) {

@@ -69,12 +69,12 @@ func TestComposeHistoryDerivativeUsesParentTimestampInsteadOfWallClock(t *testin
 		rt.HistoryDir = filepath.Join(root, "history")
 	}), withNow(func() time.Time { return parentObserved.Add(14 * 24 * time.Hour) }))
 	eng.retentionMaxWindow = map[string]time.Duration{"sample": 48 * time.Hour}
-	if err := os.MkdirAll(eng.runtime.BaseDir, 0o755); err != nil {
+	if err := os.MkdirAll(eng.runtime.BaseDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 
 	parentBody := filepath.Join(eng.runtime.BaseDir, "sample.ipset")
-	if err := os.WriteFile(parentBody, []byte("4.5.6.7\n"), 0o644); err != nil {
+	if err := os.WriteFile(parentBody, []byte("4.5.6.7\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chtimes(parentBody, parentObserved, parentObserved); err != nil {
@@ -85,7 +85,7 @@ func TestComposeHistoryDerivativeUsesParentTimestampInsteadOfWallClock(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(eng.runtime.HistoryDir, "sample"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(eng.runtime.HistoryDir, "sample"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	if err := writeBinaryPath(filepath.Join(eng.runtime.HistoryDir, "sample", fmt.Sprintf("%d.set", olderSnapshot.Unix())), oldSet, olderSnapshot); err != nil {
@@ -268,7 +268,7 @@ func TestComposeMergeBodyFailsWhenConfiguredExcludeIsUnmaintained(t *testing.T) 
 func newMergeSubtractTestEngine(t *testing.T, now time.Time) (*Engine, *config.Source) {
 	t.Helper()
 	baseDir := filepath.Join(t.TempDir(), "base")
-	if err := os.MkdirAll(baseDir, 0o755); err != nil {
+	if err := os.MkdirAll(baseDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	cfg := config.New()
@@ -296,14 +296,14 @@ func newMergeSubtractTestEngine(t *testing.T, now time.Time) (*Engine, *config.S
 
 func enableMergeParent(t *testing.T, eng *Engine, name string) {
 	t.Helper()
-	if err := os.WriteFile(sourceEnablePathForRuntime(eng.runtime, name), nil, 0o644); err != nil {
+	if err := os.WriteFile(sourceEnablePathForRuntime(eng.runtime, name), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func writeMergeParentBody(t *testing.T, eng *Engine, name, body string) {
 	t.Helper()
-	if err := os.WriteFile(eng.feedBodyPath(name), []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(eng.feedBodyPath(name), []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -396,7 +396,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -409,10 +409,10 @@ sources:
 		t.Fatal(err)
 	}
 	childPath := filepath.Join(root, "base", "child.source")
-	if err := os.MkdirAll(filepath.Dir(childPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(childPath), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(childPath, []byte("1.2.3.4\n"), 0o644); err != nil {
+	if err := os.WriteFile(childPath, []byte("1.2.3.4\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -473,7 +473,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"), server.URL)
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -482,13 +482,13 @@ sources:
 		t.Fatal(err)
 	}
 	rawPath := eng.sourcePath("sample")
-	if err := os.WriteFile(rawPath, []byte(rawBody), 0o644); err != nil {
+	if err := os.WriteFile(rawPath, []byte(rawBody), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chtimes(rawPath, modified, modified); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(eng.feedBodyPath("sample"), nil, 0o644); err != nil {
+	if err := os.WriteFile(eng.feedBodyPath("sample"), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -548,7 +548,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"), server.URL)
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -557,13 +557,13 @@ sources:
 		t.Fatal(err)
 	}
 	rawPath := eng.sourcePath("sample")
-	if err := os.WriteFile(rawPath, []byte(rawBody), 0o644); err != nil {
+	if err := os.WriteFile(rawPath, []byte(rawBody), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chtimes(rawPath, modified, modified); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(eng.feedBodyPath("sample"), nil, 0o644); err != nil {
+	if err := os.WriteFile(eng.feedBodyPath("sample"), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
 

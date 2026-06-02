@@ -67,7 +67,7 @@ sources:
     use: [bogons]
     format: rfc_reserved_baseline
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"), sourceServer.URL)
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -190,7 +190,7 @@ func TestPublicCatalogEndpointHidesRfcReserved(t *testing.T) {
 		}
 	}
 
-	if err := os.WriteFile(filepath.Join(eng.Runtime().WebDir, "rfc_reserved.json"), []byte(`{"name":"rfc_reserved"}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(eng.Runtime().WebDir, "rfc_reserved.json"), []byte(`{"name":"rfc_reserved"}`), 0o600); err != nil {
 		t.Fatalf("seed stale hidden metadata: %v", err)
 	}
 
@@ -276,7 +276,7 @@ sources:
     maintainer: ASN Maintainer
     maintainer_url: https://example.test/asn
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"))
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -322,7 +322,7 @@ func TestPublicCatalogExcludesProviderDatasets(t *testing.T) {
 	}
 
 	for _, name := range []string{"geodb", "asndb"} {
-		if err := os.WriteFile(filepath.Join(eng.Runtime().WebDir, name+".json"), []byte(`{"name":"`+name+`"}`), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(eng.Runtime().WebDir, name+".json"), []byte(`{"name":"`+name+`"}`), 0o600); err != nil {
 			t.Fatalf("%s: seed stale provider metadata: %v", name, err)
 		}
 		req = httptest.NewRequest(http.MethodGet, "/"+name+".json", nil)
@@ -369,7 +369,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"))
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -466,10 +466,10 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, baseDir, filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"))
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(baseDir, 0o755); err != nil {
+	if err := os.MkdirAll(baseDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	st := cache.New()

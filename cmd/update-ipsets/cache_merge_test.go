@@ -17,7 +17,7 @@ func TestRunCacheMergePreservesLocalOnlyEntries(t *testing.T) {
 
 	legacy := `declare -A IPSET_FILE=([production]="production.ipset" )
 declare -A IPSET_IPS=([production]="42" )`
-	if err := os.WriteFile(legacyPath, []byte(legacy), 0o644); err != nil {
+	if err := os.WriteFile(legacyPath, []byte(legacy), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	local := cache.New()
@@ -27,7 +27,7 @@ declare -A IPSET_IPS=([production]="42" )`
 	if err := cache.Save(localJSONPath, local); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(localOnlyPath, []byte("local_only\n"), 0o644); err != nil {
+	if err := os.WriteFile(localOnlyPath, []byte("local_only\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

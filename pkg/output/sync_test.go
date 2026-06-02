@@ -12,7 +12,7 @@ import (
 func TestWriteREADME(t *testing.T) {
 	dir := t.TempDir()
 	makeGitDir(t, dir)
-	if err := os.WriteFile(filepath.Join(dir, "README-EDIT.md"), []byte("curated intro\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "README-EDIT.md"), []byte("curated intro\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := WriteREADME(dir, map[string]string{"b": "[b](x)|B|ipv4 hash:ip|1|src", "a": "[a](x)|A|ipv4 hash:ip|1|src"}); err != nil {
@@ -89,7 +89,7 @@ func TestGitSupportFilesNoopOutsideGitDir(t *testing.T) {
 func TestWriteGitIgnorePreservesExistingContent(t *testing.T) {
 	dir := t.TempDir()
 	makeGitDir(t, dir)
-	if err := os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("# keep me\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".gitignore"), []byte("# keep me\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	files := []GeneratedFile{{Path: filepath.Join(dir, "secret.ipset"), Redistributable: false}}
@@ -139,7 +139,7 @@ func TestWriteTimestampScript(t *testing.T) {
 
 func makeGitDir(t *testing.T, dir string) {
 	t.Helper()
-	if err := os.MkdirAll(filepath.Join(dir, ".git"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, ".git"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -166,7 +166,7 @@ func TestSyncGitCommitsAndPushes(t *testing.T) {
 	run(remoteDir, "init", "--bare", "-b", "main")
 	run(baseDir, "remote", "add", "origin", remoteDir)
 
-	if err := os.WriteFile(filepath.Join(baseDir, "sample.ipset"), []byte("1.2.3.4\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(baseDir, "sample.ipset"), []byte("1.2.3.4\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	files := []GeneratedFile{
@@ -223,10 +223,10 @@ func TestSyncGitIgnoresFilesOutsideRepository(t *testing.T) {
 
 	insidePath := filepath.Join(baseDir, "sample.ipset")
 	outsidePath := filepath.Join(outsideDir, "sample.json")
-	if err := os.WriteFile(insidePath, []byte("1.2.3.4\n"), 0o644); err != nil {
+	if err := os.WriteFile(insidePath, []byte("1.2.3.4\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(outsidePath, []byte("{}\n"), 0o644); err != nil {
+	if err := os.WriteFile(outsidePath, []byte("{}\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

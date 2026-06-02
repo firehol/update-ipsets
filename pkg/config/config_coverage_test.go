@@ -100,7 +100,7 @@ func TestValidateNilSource(t *testing.T) {
 
 func TestLoadYAMLRejectsNilSourceWithoutPanic(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte("sources:\n  bad:\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("sources:\n  bad:\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	_, err := LoadYAML(path)
@@ -111,7 +111,7 @@ func TestLoadYAMLRejectsNilSourceWithoutPanic(t *testing.T) {
 
 func TestLoadYAMLRejectsNilMergeWithoutDropping(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte("merges:\n  bad:\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("merges:\n  bad:\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	_, err := LoadYAML(path)
@@ -146,7 +146,7 @@ func TestLoadDirectoryRejectsNilFragmentEntries(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := t.TempDir()
-			if err := os.WriteFile(filepath.Join(dir, "fragment.yaml"), []byte(tt.content), 0o644); err != nil {
+			if err := os.WriteFile(filepath.Join(dir, "fragment.yaml"), []byte(tt.content), 0o600); err != nil {
 				t.Fatal(err)
 			}
 			_, err := LoadDirectory(dir)
@@ -538,7 +538,7 @@ func TestValidateRejectsLegacyTopLevelBlocks(t *testing.T) {
 		yamlText := "sources: {}\n" + block + ":\n  foo:\n    type: bar\n"
 		dir := t.TempDir()
 		path := filepath.Join(dir, "config.yaml")
-		if err := os.WriteFile(path, []byte(yamlText), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte(yamlText), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := LoadYAML(path); err == nil {
@@ -592,7 +592,7 @@ merges:
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			path := filepath.Join(t.TempDir(), "config.yaml")
-			if err := os.WriteFile(path, []byte(tt.yaml), 0o644); err != nil {
+			if err := os.WriteFile(path, []byte(tt.yaml), 0o600); err != nil {
 				t.Fatal(err)
 			}
 			if _, err := LoadYAML(path); err == nil {
@@ -618,7 +618,7 @@ merges:
     output: ipset
     exclude: [real]
 `
-	if err := os.WriteFile(path, []byte(yaml), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(yaml), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := LoadYAML(path); err == nil || !strings.Contains(err.Error(), `merge "bad" has no sources`) {
@@ -709,7 +709,7 @@ func TestProcessorStepUnmarshalRoundTrip(t *testing.T) {
 	}
 
 	tmp := filepath.Join(t.TempDir(), "roundtrip.yaml")
-	if err := os.WriteFile(tmp, buf.Bytes(), 0o644); err != nil {
+	if err := os.WriteFile(tmp, buf.Bytes(), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -831,7 +831,7 @@ func TestLoadDirectoryNonExistent(t *testing.T) {
 // organize per-feed files below nested folders.
 func TestLoadDirectoryRecursesSubdirectories(t *testing.T) {
 	dir := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(dir, "sources", "policy_risk"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(dir, "sources", "policy_risk"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	categories := []byte(`
@@ -851,10 +851,10 @@ sources:
     output: ipset
     category: policy_risk
 `)
-	if err := os.WriteFile(filepath.Join(dir, "categories.yaml"), categories, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "categories.yaml"), categories, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, "sources", "policy_risk", "nested.yaml"), source, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "sources", "policy_risk", "nested.yaml"), source, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	cfg, err := LoadDirectory(dir)

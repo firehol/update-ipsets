@@ -256,7 +256,7 @@ func TestFileSetCorruptedTruncated(t *testing.T) {
 		t.Fatal(err)
 	}
 	truncPath := filepath.Join(t.TempDir(), "truncated.set")
-	if err := os.WriteFile(truncPath, data[:len(data)-4], 0644); err != nil {
+	if err := os.WriteFile(truncPath, data[:len(data)-4], 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -268,7 +268,7 @@ func TestFileSetCorruptedTruncated(t *testing.T) {
 
 func TestFileSetCorruptedBadMagic(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "bad_magic.set")
-	if err := os.WriteFile(path, []byte("not a valid header\n"), 0644); err != nil {
+	if err := os.WriteFile(path, []byte("not a valid header\n"), 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -300,7 +300,7 @@ func TestFileSetCorruptedWrongEndianness(t *testing.T) {
 	data[idx+1], data[idx+2] = data[idx+2], data[idx+1]
 
 	flipPath := filepath.Join(t.TempDir(), "flipped_endian.set")
-	if err := os.WriteFile(flipPath, data, 0644); err != nil {
+	if err := os.WriteFile(flipPath, data, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -312,7 +312,7 @@ func TestFileSetCorruptedWrongEndianness(t *testing.T) {
 
 func TestFileSetCorruptedZeroLength(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "empty.set")
-	if err := os.WriteFile(path, nil, 0644); err != nil {
+	if err := os.WriteFile(path, nil, 0600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -477,7 +477,7 @@ func TestFileSetCorruptedExtraBytes(t *testing.T) {
 	// Append extra garbage bytes.
 	data = append(data, 0xFF, 0xFF, 0xFF, 0xFF)
 	extraPath := filepath.Join(t.TempDir(), "extra.set")
-	if err := os.WriteFile(extraPath, data, 0644); err != nil {
+	if err := os.WriteFile(extraPath, data, 0600); err != nil {
 		t.Fatal(err)
 	}
 

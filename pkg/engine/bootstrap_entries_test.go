@@ -22,19 +22,19 @@ func TestNewBootstrapsRestoredFeedFromDisk(t *testing.T) {
 	cacheDir := filepath.Join(root, "cache")
 
 	for _, dir := range []string{baseDir, libDir, historyDir, errorsDir, webDir, cacheDir} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	name := "restored"
 	feedDir := filepath.Join(libDir, name)
-	if err := os.MkdirAll(feedDir, 0o755); err != nil {
+	if err := os.MkdirAll(feedDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 
 	historyCSV := "DateTime,Entries,UniqueIPs\n1711929600,1,1\n1711933200,2,5\n171193320012345,999,999\n"
-	if err := os.WriteFile(filepath.Join(feedDir, "history.csv"), []byte(historyCSV), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(feedDir, "history.csv"), []byte(historyCSV), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -85,7 +85,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, baseDir, historyDir, libDir, errorsDir, webDir, cacheDir)
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -196,7 +196,7 @@ func TestNewReconcilesCachedMetadataFromConfigWithoutRefreshingStats(t *testing.
 	cacheDir := filepath.Join(root, "cache")
 
 	for _, dir := range []string{baseDir, historyDir, libDir, errorsDir, webDir, cacheDir} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -228,16 +228,16 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, baseDir, historyDir, libDir, errorsDir, webDir, cacheDir)
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
 	feedDir := filepath.Join(libDir, "sample")
-	if err := os.MkdirAll(feedDir, 0o755); err != nil {
+	if err := os.MkdirAll(feedDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	historyCSV := "DateTime,Entries,UniqueIPs\n1711929600,1,1\n1711933200,2,5\n"
-	if err := os.WriteFile(filepath.Join(feedDir, "history.csv"), []byte(historyCSV), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(feedDir, "history.csv"), []byte(historyCSV), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -303,7 +303,7 @@ func TestNewRepairsInvalidCachedTimestampsFromDisk(t *testing.T) {
 	cacheDir := filepath.Join(root, "cache")
 
 	for _, dir := range []string{baseDir, historyDir, libDir, errorsDir, webDir, cacheDir} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -335,16 +335,16 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, baseDir, historyDir, libDir, errorsDir, webDir, cacheDir)
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
 	feedDir := filepath.Join(libDir, "sample")
-	if err := os.MkdirAll(feedDir, 0o755); err != nil {
+	if err := os.MkdirAll(feedDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	historyCSV := "DateTime,Entries,UniqueIPs\n1709549889,1,1\n1709584328,2,2\n"
-	if err := os.WriteFile(filepath.Join(feedDir, "history.csv"), []byte(historyCSV), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(feedDir, "history.csv"), []byte(historyCSV), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	set := iprange.New("sample")

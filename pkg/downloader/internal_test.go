@@ -90,7 +90,7 @@ func TestFetchInternalNotModifiedSentinel(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	refPath := filepath.Join(tmpDir, "ref")
-	if err := os.WriteFile(refPath, []byte("stale-reference-body"), 0o644); err != nil {
+	if err := os.WriteFile(refPath, []byte("stale-reference-body"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	// Set a distinct mtime on the reference so we can assert the
@@ -137,7 +137,7 @@ func TestFetchInternalSameAsReference(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	refPath := filepath.Join(tmpDir, "ref")
-	if err := os.WriteFile(refPath, []byte(payload), 0o644); err != nil {
+	if err := os.WriteFile(refPath, []byte(payload), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

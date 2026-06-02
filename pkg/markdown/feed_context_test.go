@@ -224,14 +224,14 @@ func writeJSON(t *testing.T, dir, name string, v any) {
 	if err != nil {
 		t.Fatalf("Marshal %s: %v", name, err)
 	}
-	if err := os.WriteFile(filepath.Join(dir, name), data, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, name), data, 0o600); err != nil {
 		t.Fatalf("WriteFile %s: %v", name, err)
 	}
 }
 
 func writeText(t *testing.T, dir, name, content string) {
 	t.Helper()
-	if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o600); err != nil {
 		t.Fatalf("WriteFile %s: %v", name, err)
 	}
 }

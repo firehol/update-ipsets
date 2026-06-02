@@ -25,7 +25,7 @@ func newIntegrityTestEngine(t *testing.T) *Engine {
 	baseDir := filepath.Join(tmp, "base")
 	webDir := filepath.Join(tmp, "web")
 	for _, dir := range []string{baseDir, webDir} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -76,10 +76,10 @@ func markProcessed(t *testing.T, eng *Engine, name string, processedAt time.Time
 // writeFileForIntegrity writes a file with the given mtime.
 func writeFileForIntegrity(t *testing.T, path string, mtime time.Time) {
 	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte("ok\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("ok\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chtimes(path, mtime, mtime); err != nil {
@@ -93,10 +93,10 @@ func writeJSONForIntegrity(t *testing.T, path string, payload any, mtime time.Ti
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chtimes(path, mtime, mtime); err != nil {
@@ -132,10 +132,10 @@ func seedIntegritySecondaries(t *testing.T, eng *Engine, name string, processedA
 	for _, artifact := range eng.expectedSecondaryArtifacts(name) {
 		path := filepath.Join(webDir, artifact.RelPath)
 		if data, ok := invalid[artifact.RelPath]; ok {
-			if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 				t.Fatal(err)
 			}
-			if err := os.WriteFile(path, data, 0o644); err != nil {
+			if err := os.WriteFile(path, data, 0o600); err != nil {
 				t.Fatal(err)
 			}
 			if err := os.Chtimes(path, mtime, mtime); err != nil {
@@ -201,7 +201,7 @@ func TestCheckIntegrityUsesWebDirOverride(t *testing.T) {
 	later := processedAt.Add(10 * time.Second)
 	defaultWebDir := eng.runtime.WebDir
 	overrideWebDir := filepath.Join(t.TempDir(), "served-web")
-	if err := os.MkdirAll(overrideWebDir, 0o755); err != nil {
+	if err := os.MkdirAll(overrideWebDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 
@@ -432,7 +432,7 @@ func TestIntegrityRecoveryPlanRebuildsHistoryDerivativeWhenLocalStateExists(t *t
 	eng.runtime.HistoryDir = filepath.Join(filepath.Dir(eng.runtime.BaseDir), "history")
 	eng.runtime.LibDir = filepath.Join(filepath.Dir(eng.runtime.BaseDir), "lib")
 	for _, dir := range []string{eng.runtime.HistoryDir, eng.runtime.LibDir} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -458,7 +458,7 @@ func TestIntegrityRecoveryPlanRebuildsHistoryDerivativeWhenLocalStateExists(t *t
 	parentEntry.SourceDate = parentUpdate.Unix()
 	parentEntry.ProcessedDate = parentUpdate.Unix()
 	snapshotPath := filepath.Join(eng.runtime.HistoryDir, "sample", fmt.Sprintf("%d.set", parentUpdate.Unix()))
-	if err := os.MkdirAll(filepath.Dir(snapshotPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(snapshotPath), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	set := mustSet(t, "sample_history_snapshot")
@@ -520,7 +520,7 @@ func TestCheckIntegrityFlagsMissingHistoryDerivativeRollupAndRechecksParent(t *t
 	eng.runtime.HistoryDir = filepath.Join(filepath.Dir(eng.runtime.BaseDir), "history")
 	eng.runtime.LibDir = filepath.Join(filepath.Dir(eng.runtime.BaseDir), "lib")
 	for _, dir := range []string{eng.runtime.HistoryDir, eng.runtime.LibDir} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -572,7 +572,7 @@ func TestCheckIntegrityAllowsPartialHistoryDerivativeWindowWhenAvailableRollupEx
 	eng.runtime.HistoryDir = filepath.Join(filepath.Dir(eng.runtime.BaseDir), "history")
 	eng.runtime.LibDir = filepath.Join(filepath.Dir(eng.runtime.BaseDir), "lib")
 	for _, dir := range []string{eng.runtime.HistoryDir, eng.runtime.LibDir} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -596,7 +596,7 @@ func TestCheckIntegrityAllowsPartialHistoryDerivativeWindowWhenAvailableRollupEx
 	parentEntry.SourceDate = parentUpdate.Unix()
 	parentEntry.ProcessedDate = parentUpdate.Unix()
 	snapshotPath := filepath.Join(eng.runtime.HistoryDir, "sample", fmt.Sprintf("%d.set", parentUpdate.Unix()))
-	if err := os.MkdirAll(filepath.Dir(snapshotPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(snapshotPath), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	set := mustSet(t, "sample_history_snapshot")
@@ -710,7 +710,7 @@ func TestExpectedSecondaryFilesSkipsUnloadedCriticalProviderArtifacts(t *testing
 	}
 
 	path := filepath.Join(eng.runtime.BaseDir, "critical_dns.ipset")
-	if err := os.WriteFile(path, []byte("1.1.1.1\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("1.1.1.1\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	entry := eng.state.Entry("critical_dns")
@@ -800,7 +800,7 @@ func TestValidateStructuredSecondaryDoesNotTreatCriticalSubstringAsProviderArtif
 		},
 	}
 	path := filepath.Join(t.TempDir(), "data_shield_critical_extra.json")
-	if err := os.WriteFile(path, []byte(`{"name":"data_shield_critical_extra"}`), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(`{"name":"data_shield_critical_extra"}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := validateStructuredSecondary("data_shield_critical_extra.json", path, map[string]struct{}{}, eng); err != nil {
@@ -809,7 +809,7 @@ func TestValidateStructuredSecondaryDoesNotTreatCriticalSubstringAsProviderArtif
 
 	for _, name := range []string{"orphan_critical_infrastructure", "orphan_critical_critical_dns"} {
 		path := filepath.Join(t.TempDir(), name+".json")
-		if err := os.WriteFile(path, []byte(fmt.Sprintf(`{"name":%q}`, name)), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte(fmt.Sprintf(`{"name":%q}`, name)), 0o600); err != nil {
 			t.Fatal(err)
 		}
 		if err := validateStructuredSecondary(name+".json", path, map[string]struct{}{}, eng); err != nil {
@@ -928,7 +928,7 @@ func TestIntegrityBlockedFeedsIncludesUnavailableSubtractiveParent(t *testing.T)
 	}
 
 	processedAt := time.Now().UTC().Add(-1 * time.Hour).Truncate(time.Second)
-	if err := os.WriteFile(sourceEnablePathForRuntime(eng.runtime, "fullbogons"), nil, 0o644); err != nil {
+	if err := os.WriteFile(sourceEnablePathForRuntime(eng.runtime, "fullbogons"), nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	writeFileForIntegrity(t, eng.feedBodyPath("fullbogons"), processedAt)

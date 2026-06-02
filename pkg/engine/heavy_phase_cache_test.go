@@ -113,7 +113,7 @@ func TestGeoProviderFreshnessDetectsContentChangeWithStableMetadata(t *testing.T
 	if len(bodyA) != len(bodyB) {
 		t.Fatalf("test setup bug: expected same-length payloads, got %d and %d", len(bodyA), len(bodyB))
 	}
-	if err := os.WriteFile(path, bodyA, 0o644); err != nil {
+	if err := os.WriteFile(path, bodyA, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	stableTime := time.Date(2026, 4, 20, 12, 0, 0, 0, time.UTC)
@@ -125,7 +125,7 @@ func TestGeoProviderFreshnessDetectsContentChangeWithStableMetadata(t *testing.T
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(path, bodyB, 0o644); err != nil {
+	if err := os.WriteFile(path, bodyB, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.Chtimes(path, stableTime, stableTime); err != nil {
@@ -209,7 +209,7 @@ func writeDBIPGeoArchive(t *testing.T, path string, rows ...string) {
 	if err := zw.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, payload.Bytes(), 0o644); err != nil {
+	if err := os.WriteFile(path, payload.Bytes(), 0o600); err != nil {
 		t.Fatal(err)
 	}
 }

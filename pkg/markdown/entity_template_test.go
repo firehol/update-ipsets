@@ -193,8 +193,8 @@ func TestMaintainerTemplateMinimal(t *testing.T) {
 		t.Skipf("template dir not available: %v", err)
 	}
 	ctx := &markdown.MaintainerPageContext{
-		Slug: "test",
-		Name: "Test",
+		Slug:   "test",
+		Name:   "Test",
 		Totals: markdown.MaintainerTotals{Feeds: 0, IPs: 0},
 	}
 

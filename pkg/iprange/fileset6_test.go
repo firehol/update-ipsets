@@ -60,7 +60,7 @@ func TestFileSet6UniqueIPsAndEmpty(t *testing.T) {
 	}
 
 	emptyPath := filepath.Join(t.TempDir(), "empty6.set")
-	if err := os.WriteFile(emptyPath, nil, 0644); err != nil {
+	if err := os.WriteFile(emptyPath, nil, 0600); err != nil {
 		t.Fatal(err)
 	}
 	empty, err := OpenFileSet6(emptyPath)

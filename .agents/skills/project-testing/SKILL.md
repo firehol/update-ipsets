@@ -88,6 +88,10 @@ description: "Test commands, fixtures, and validation patterns for update-ipsets
 
 - Prefer small inline YAML, text, JSON, and archive fixtures in tests.
 - Use `t.TempDir()` for filesystem state; do not write into repo source paths.
+- Test fixtures should use restrictive file and directory modes (`0600` for
+  files, `0700` for directories) unless the test explicitly verifies a
+  public/shared mode contract. Do not use `0644`/`0755` as generic fixture
+  defaults.
 - Use `httptest` for downloader and web/API behavior.
 - Treat `configs/firehol/` as a real catalog fixture for catalog validation tests.
 - When catalog source inventory changes, update all duplicated source-count

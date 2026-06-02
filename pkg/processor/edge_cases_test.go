@@ -255,7 +255,7 @@ func TestStreamCRLFLineEndings(t *testing.T) {
 	// Stream pipeline
 	tmpDir := t.TempDir()
 	srcPath := filepath.Join(tmpDir, "crlf.dat")
-	if err := os.WriteFile(srcPath, []byte(input), 0o644); err != nil {
+	if err := os.WriteFile(srcPath, []byte(input), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	resultPath, err := RunStream(t.Context(), steps, srcPath, tmpDir)
@@ -328,7 +328,7 @@ func TestBOMStrippedInStreamingPipeline(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	srcPath := filepath.Join(tmpDir, "bom.dat")
-	if err := os.WriteFile(srcPath, []byte(input), 0o644); err != nil {
+	if err := os.WriteFile(srcPath, []byte(input), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -455,7 +455,7 @@ func TestDuplicateIPsInFeedStreaming(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	srcPath := filepath.Join(tmpDir, "dupes.dat")
-	if err := os.WriteFile(srcPath, []byte(input), 0o644); err != nil {
+	if err := os.WriteFile(srcPath, []byte(input), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -576,7 +576,7 @@ func TestStreamBOMEquivalence(t *testing.T) {
 
 			tmpDir := t.TempDir()
 			srcPath := filepath.Join(tmpDir, "input.dat")
-			if err := os.WriteFile(srcPath, []byte(tc.input), 0o644); err != nil {
+			if err := os.WriteFile(srcPath, []byte(tc.input), 0o600); err != nil {
 				t.Fatal(err)
 			}
 

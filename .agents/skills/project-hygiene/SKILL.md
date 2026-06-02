@@ -124,6 +124,11 @@ tokens or credentials to durable artifacts.
   Wrong-stack, deprecated-tool, generated-file, vendored-file, fixture, and
   project-convention mismatches should be fixed through narrow tool/pattern/path
   configuration, not broad suppression.
+- For Go file-permission findings, separate test fixtures from production
+  writers before changing modes. Test fixtures should normally use restrictive
+  `0600` files and `0700` directories. Production public artifacts, generated
+  feeds, install outputs, and shared runtime directories need spec/operator
+  evidence before changing `0644`/`0755` semantics or baselining a scanner rule.
 - When Codacy runs both `eslint-8` and `eslint-9`, treat the repository's
   checked-in ESLint v9 flat config as the owner for React/TypeScript UI code.
   If legacy `eslint-8` is enforced by a coding standard, prefer a narrow

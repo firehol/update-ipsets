@@ -12,14 +12,14 @@ func TestChangesetReadersIgnoreZeroDeltaRows(t *testing.T) {
 	root := t.TempDir()
 	libDir := filepath.Join(root, "lib")
 	feedDir := filepath.Join(libDir, "sample")
-	if err := os.MkdirAll(feedDir, 0o755); err != nil {
+	if err := os.MkdirAll(feedDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 
 	if err := os.WriteFile(
 		filepath.Join(feedDir, "changesets.csv"),
 		[]byte("DateTime,AddedIPs,RemovedIPs\n100,4,0\n101,0,0\n102,2,2\n"),
-		0o644,
+		0o600,
 	); err != nil {
 		t.Fatal(err)
 	}

@@ -279,7 +279,7 @@ func TestRenderFindFeedsMarkdownFormatsDatesAndPercent(t *testing.T) {
 func TestHandleFetchAnalysis(t *testing.T) {
 	dir := t.TempDir()
 	// Feed markdown lives at web/{feed}.md (sibling of web/{feed}.json).
-	if err := os.WriteFile(filepath.Join(dir, "test_feed.md"), []byte("# Test Feed\n\nSome content."), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "test_feed.md"), []byte("# Test Feed\n\nSome content."), 0o600); err != nil {
 		t.Fatalf("write analysis markdown: %v", err)
 	}
 
@@ -322,10 +322,10 @@ func TestHandleFetchAnalysisEntityLayout(t *testing.T) {
 		{"maintainer", filepath.Join("maintainers", "firehol.md"), "firehol", "# maintainer"},
 	} {
 		path := filepath.Join(dir, c.rel)
-		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 			t.Fatalf("mkdir %s: %v", filepath.Dir(path), err)
 		}
-		if err := os.WriteFile(path, []byte(c.body), 0644); err != nil {
+		if err := os.WriteFile(path, []byte(c.body), 0600); err != nil {
 			t.Fatalf("write %s: %v", path, err)
 		}
 	}

@@ -17,7 +17,7 @@ declare -A IPSET_IPS=([sample]="42" )
 declare -A IPSET_CLOCK_SKEW=([sample]="7" )
 declare -A IPSET_DOWNLOADER=([sample]="copyfile" )
 declare -A IPSET_DOWNLOADER_OPTIONS=([sample]="path=/tmp/file" )`
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -56,7 +56,7 @@ func TestLoadWithMigration(t *testing.T) {
 	dir := t.TempDir()
 	legacyPath := filepath.Join(dir, ".cache")
 	jsonPath := filepath.Join(dir, ".cache.json")
-	if err := os.WriteFile(legacyPath, []byte(`declare -A IPSET_FILE=([sample]="sample.ipset" )`), 0o644); err != nil {
+	if err := os.WriteFile(legacyPath, []byte(`declare -A IPSET_FILE=([sample]="sample.ipset" )`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

@@ -575,10 +575,10 @@ sources:
     format: iptoasn_combined_tsv
     label: IPtoASN
 `, baseDir, filepath.Join(root, "history"), libDir, filepath.Join(root, "errors"), webDir, filepath.Join(root, "cache"))
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(webDir, 0o755); err != nil {
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := New(cfgPath, nil)
@@ -635,7 +635,7 @@ func writeCountryPayloadForDetailTest(t *testing.T, webDir, feed, provider strin
 		t.Fatal(err)
 	}
 	path := filepath.Join(webDir, fmt.Sprintf("%s_%s.json", feed, provider))
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -669,14 +669,14 @@ func writeASNPayloadForDetailTest(t *testing.T, webDir, feed, provider string, r
 		t.Fatal(err)
 	}
 	path := filepath.Join(webDir, fmt.Sprintf("%s_asn_%s.json", feed, provider))
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func writeDetailGeoProviderForTest(t *testing.T, path string) {
 	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	var payload bytes.Buffer
@@ -685,14 +685,14 @@ func writeDetailGeoProviderForTest(t *testing.T, path string) {
 	if err := gw.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, payload.Bytes(), 0o644); err != nil {
+	if err := os.WriteFile(path, payload.Bytes(), 0o600); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func writeDetailASNProviderForTest(t *testing.T, path string) {
 	t.Helper()
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	body := strings.Join([]string{
@@ -701,7 +701,7 @@ func writeDetailASNProviderForTest(t *testing.T, path string) {
 		"9.9.9.0\t9.9.9.255\t15169\tFR\tGOOGLE",
 		"",
 	}, "\n")
-	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -709,14 +709,14 @@ func writeDetailASNProviderForTest(t *testing.T, path string) {
 func writePendingFeedEntitySidecarForDetailTest(t *testing.T, libDir string, sidecar feedEntitySidecar) {
 	t.Helper()
 	path := filepath.Join(libDir, "entities", "feeds-pending", sidecar.Feed+".json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	data, err := json.Marshal(sidecar)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
 }

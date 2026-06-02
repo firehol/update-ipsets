@@ -14,23 +14,23 @@ func TestReadInsightsSizeSeriesPrefersStagedPublicHistory(t *testing.T) {
 	stageDir := filepath.Join(root, "stage")
 	webDir := filepath.Join(root, "web")
 	libDir := filepath.Join(root, "lib")
-	if err := os.MkdirAll(stageDir, 0o755); err != nil {
+	if err := os.MkdirAll(stageDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(webDir, 0o755); err != nil {
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(libDir, "sample"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(libDir, "sample"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(filepath.Join(stageDir, "sample_history.csv"), []byte("DateTime,Entries,UniqueIPs\n1700000200,20,2000\n1700000201,21,2100\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(stageDir, "sample_history.csv"), []byte("DateTime,Entries,UniqueIPs\n1700000200,20,2000\n1700000201,21,2100\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(webDir, "sample_history.csv"), []byte("DateTime,Entries,UniqueIPs\n1700000100,10,1000\n1700000101,11,1100\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(webDir, "sample_history.csv"), []byte("DateTime,Entries,UniqueIPs\n1700000100,10,1000\n1700000101,11,1100\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(libDir, "sample", "history.csv"), []byte("DateTime,Entries,UniqueIPs\n1700000300,30,3000\n1700000301,31,3100\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(libDir, "sample", "history.csv"), []byte("DateTime,Entries,UniqueIPs\n1700000300,30,3000\n1700000301,31,3100\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -58,10 +58,10 @@ func TestReadInsightsSizeSeriesFallsBackToInternalLedgerWithoutSnapshots(t *test
 	root := t.TempDir()
 	historyDir := filepath.Join(root, "history")
 	libDir := filepath.Join(root, "lib")
-	if err := os.MkdirAll(filepath.Join(libDir, "sample"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(libDir, "sample"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(libDir, "sample", "history.csv"), []byte("DateTime,Entries,UniqueIPs\n1700000100,10,1000\n1700000101,11,1100\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(libDir, "sample", "history.csv"), []byte("DateTime,Entries,UniqueIPs\n1700000100,10,1000\n1700000101,11,1100\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	// If the insights hot path still used HistorySeries(), this extra snapshot
@@ -87,23 +87,23 @@ func TestReadInsightsChurnSeriesPrefersStagedPublicChangesets(t *testing.T) {
 	stageDir := filepath.Join(root, "stage")
 	webDir := filepath.Join(root, "web")
 	libDir := filepath.Join(root, "lib")
-	if err := os.MkdirAll(stageDir, 0o755); err != nil {
+	if err := os.MkdirAll(stageDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(webDir, 0o755); err != nil {
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(libDir, "sample"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(libDir, "sample"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(filepath.Join(stageDir, "sample_changesets.csv"), []byte("DateTime,AddedIPs,RemovedIPs\n1700000201,4,1\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(stageDir, "sample_changesets.csv"), []byte("DateTime,AddedIPs,RemovedIPs\n1700000201,4,1\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(webDir, "sample_changesets.csv"), []byte("DateTime,AddedIPs,RemovedIPs\n1700000101,8,2\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(webDir, "sample_changesets.csv"), []byte("DateTime,AddedIPs,RemovedIPs\n1700000101,8,2\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(libDir, "sample", "changesets.csv"), []byte("DateTime,IPsAdded,IPsRemoved\n1700000300,1,0\n1700000301,2,1\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(libDir, "sample", "changesets.csv"), []byte("DateTime,IPsAdded,IPsRemoved\n1700000300,1,0\n1700000301,2,1\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

@@ -173,7 +173,7 @@ func TestStageHomeAggregatesRejectsMalformedInputArtifacts(t *testing.T) {
 			eng := newEngineFixture(t, withConfig(homeAggregateTestConfig()), withNow(func() time.Time { return now }))
 			setHomeAggregateTestEntry(eng, "alpha", now)
 			stageDir := t.TempDir()
-			if err := os.WriteFile(filepath.Join(stageDir, tt.path), []byte(`{`), 0o644); err != nil {
+			if err := os.WriteFile(filepath.Join(stageDir, tt.path), []byte(`{`), 0o600); err != nil {
 				t.Fatal(err)
 			}
 
@@ -267,10 +267,10 @@ func writeHomeCountryPayload(t *testing.T, dir, feed, provider string, rows []Co
 		t.Fatal(err)
 	}
 	path := filepath.Join(dir, feed+"_"+provider+".json")
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, data, 0o644); err != nil {
+	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
 }

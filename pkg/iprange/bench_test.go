@@ -264,7 +264,7 @@ func copyFileBench(b *testing.B, src, dst string) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	if err := os.WriteFile(dst, data, 0644); err != nil {
+	if err := os.WriteFile(dst, data, 0600); err != nil {
 		b.Fatal(err)
 	}
 }

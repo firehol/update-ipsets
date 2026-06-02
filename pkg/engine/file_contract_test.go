@@ -66,7 +66,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, baseDir, filepath.Join(root, "history"), libDir, filepath.Join(root, "errors"), webDir, filepath.Join(root, "cache"), server.URL)
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -206,14 +206,14 @@ func TestPublicChangesetsNormalizesOldGoInternalHeader(t *testing.T) {
 	root := t.TempDir()
 	libDir := filepath.Join(root, "lib")
 	webDir := filepath.Join(root, "web")
-	if err := os.MkdirAll(filepath.Join(libDir, "sample"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(libDir, "sample"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(webDir, 0o755); err != nil {
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	internalPath := filepath.Join(libDir, "sample", "changesets.csv")
-	if err := os.WriteFile(internalPath, []byte("DateTime,AddedIPs,RemovedIPs\n1,10,0\n2,1,1\n"), 0o644); err != nil {
+	if err := os.WriteFile(internalPath, []byte("DateTime,AddedIPs,RemovedIPs\n1,10,0\n2,1,1\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -276,7 +276,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, baseDir, filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), webDir, filepath.Join(root, "cache"), server.URL)
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := New(cfgPath, nil)
@@ -334,7 +334,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, baseDir, filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), webDir, filepath.Join(root, "cache"), server.URL)
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := New(cfgPath, nil)
@@ -379,7 +379,7 @@ func TestCopyUpdatedIPSetsToWebDirForIPSets(t *testing.T) {
 	baseDir := filepath.Join(root, "base")
 	webDir := filepath.Join(root, "web")
 	filesDir := filepath.Join(root, "files")
-	if err := os.MkdirAll(filesDir, 0o755); err != nil {
+	if err := os.MkdirAll(filesDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	cfgPath := filepath.Join(root, "config.yaml")
@@ -406,7 +406,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, baseDir, filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), webDir, filesDir, filepath.Join(root, "cache"), server.URL)
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := New(cfgPath, nil)
@@ -433,7 +433,7 @@ func TestRenameAndDeleteCleanupPublicSecondaryFiles(t *testing.T) {
 	libDir := filepath.Join(root, "lib")
 	historyDir := filepath.Join(root, "history")
 	for _, dir := range []string{baseDir, webDir, libDir, historyDir} {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -449,13 +449,13 @@ func TestRenameAndDeleteCleanupPublicSecondaryFiles(t *testing.T) {
 	}))
 	baseSuffixes := []string{".source", ".ipset", ".netset", ".split", ".setinfo"}
 	for _, suffix := range baseSuffixes {
-		if err := os.WriteFile(filepath.Join(baseDir, "old"+suffix), []byte("x"), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(baseDir, "old"+suffix), []byte("x"), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
 	webSuffixes := eng.publicArtifactSuffixes()
 	for _, suffix := range webSuffixes {
-		if err := os.WriteFile(filepath.Join(webDir, "old"+suffix), []byte("x"), 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(webDir, "old"+suffix), []byte("x"), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -12,10 +12,10 @@ import (
 func TestRetentionIgnoresAtomicTempFilesInNewDir(t *testing.T) {
 	root := t.TempDir()
 	newDir := filepath.Join(root, "lib", "sample", "new")
-	if err := os.MkdirAll(newDir, 0o755); err != nil {
+	if err := os.MkdirAll(newDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(newDir, ".tmp-123456"), []byte("partial"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(newDir, ".tmp-123456"), []byte("partial"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -48,7 +48,7 @@ func TestRetentionIgnoresAtomicTempFilesInNewDir(t *testing.T) {
 func TestLoadRetentionCohortsFromIndex(t *testing.T) {
 	root := t.TempDir()
 	dir := filepath.Join(root, "lib", "sample")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	cohorts := map[int64]uint64{

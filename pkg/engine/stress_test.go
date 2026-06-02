@@ -97,7 +97,7 @@ sources:
 `, strings.Join(feedNames, ", "))
 
 	cfgPath := filepath.Join(root, "config.yaml")
-	if err := os.WriteFile(cfgPath, []byte(cfg.String()), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg.String()), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -244,7 +244,7 @@ sources:
 	}
 
 	cfgPath := filepath.Join(root, "config.yaml")
-	if err := os.WriteFile(cfgPath, []byte(cfg.String()), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg.String()), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

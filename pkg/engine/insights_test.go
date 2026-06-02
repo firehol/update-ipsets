@@ -37,7 +37,7 @@ func TestInsightTargetNamesScopesToAffectedFeedsAndMissingFiles(t *testing.T) {
 
 func writeTestInsightsFile(t *testing.T, dir string, name string) {
 	t.Helper()
-	if err := os.WriteFile(filepath.Join(dir, name+"_insights.json"), []byte(`{"items":[]}`+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, name+"_insights.json"), []byte(`{"items":[]}`+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 }

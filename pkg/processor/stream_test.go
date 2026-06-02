@@ -157,7 +157,7 @@ func TestStreamEquivalence(t *testing.T) {
 			// Run the stream pipeline
 			tmpDir := t.TempDir()
 			srcPath := filepath.Join(tmpDir, "input.dat")
-			if err := os.WriteFile(srcPath, []byte(tc.input), 0o644); err != nil {
+			if err := os.WriteFile(srcPath, []byte(tc.input), 0o600); err != nil {
 				t.Fatal(err)
 			}
 
@@ -206,7 +206,7 @@ func TestStreamGunzipEquivalence(t *testing.T) {
 	// stream path
 	tmpDir := t.TempDir()
 	srcPath := filepath.Join(tmpDir, "input.gz")
-	if err := os.WriteFile(srcPath, gz.Bytes(), 0o644); err != nil {
+	if err := os.WriteFile(srcPath, gz.Bytes(), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -241,7 +241,7 @@ func TestStreamFallbackForNonStreamable(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	srcPath := filepath.Join(tmpDir, "input.json")
-	if err := os.WriteFile(srcPath, []byte(input), 0o644); err != nil {
+	if err := os.WriteFile(srcPath, []byte(input), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -278,7 +278,7 @@ func TestStreamMixedPipeline(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	srcPath := filepath.Join(tmpDir, "input.xml")
-	if err := os.WriteFile(srcPath, []byte(input), 0o644); err != nil {
+	if err := os.WriteFile(srcPath, []byte(input), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -309,7 +309,7 @@ func TestStreamEmptyInput(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	srcPath := filepath.Join(tmpDir, "empty.dat")
-	if err := os.WriteFile(srcPath, nil, 0o644); err != nil {
+	if err := os.WriteFile(srcPath, nil, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -334,7 +334,7 @@ func TestStreamNoSteps(t *testing.T) {
 	input := "1.2.3.4\n5.6.7.8\n"
 	tmpDir := t.TempDir()
 	srcPath := filepath.Join(tmpDir, "input.dat")
-	if err := os.WriteFile(srcPath, []byte(input), 0o644); err != nil {
+	if err := os.WriteFile(srcPath, []byte(input), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -361,7 +361,7 @@ func TestStreamToFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	srcPath := filepath.Join(tmpDir, "input.dat")
 	dstPath := filepath.Join(tmpDir, "output.dat")
-	if err := os.WriteFile(srcPath, []byte(input), 0o644); err != nil {
+	if err := os.WriteFile(srcPath, []byte(input), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -396,7 +396,7 @@ func TestStreamBoundedMemory(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	srcPath := filepath.Join(tmpDir, "large.dat")
-	if err := os.WriteFile(srcPath, []byte(input), 0o644); err != nil {
+	if err := os.WriteFile(srcPath, []byte(input), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -467,7 +467,7 @@ func TestStreamUnzipFallback(t *testing.T) {
 
 	tmpDir := t.TempDir()
 	srcPath := filepath.Join(tmpDir, "input.zip")
-	if err := os.WriteFile(srcPath, buf.Bytes(), 0o644); err != nil {
+	if err := os.WriteFile(srcPath, buf.Bytes(), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -546,7 +546,7 @@ func BenchmarkStreamRemoveComments(b *testing.B) {
 	b.Run("stream", func(b *testing.B) {
 		tmpDir := b.TempDir()
 		srcPath := filepath.Join(tmpDir, "input.dat")
-		if err := os.WriteFile(srcPath, inputBytes, 0o644); err != nil {
+		if err := os.WriteFile(srcPath, inputBytes, 0o600); err != nil {
 			b.Fatal(err)
 		}
 
@@ -582,7 +582,7 @@ func BenchmarkStreamExtractIPv4(b *testing.B) {
 	b.Run("stream", func(b *testing.B) {
 		tmpDir := b.TempDir()
 		srcPath := filepath.Join(tmpDir, "input.dat")
-		if err := os.WriteFile(srcPath, inputBytes, 0o644); err != nil {
+		if err := os.WriteFile(srcPath, inputBytes, 0o600); err != nil {
 			b.Fatal(err)
 		}
 

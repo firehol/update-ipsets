@@ -59,7 +59,7 @@ sources:
     use: [asn]
     format: iptoasn_tsv
 `, baseDir, filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), runtimeWebDir, filepath.Join(root, "cache"), sourceServer.URL)
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -76,10 +76,10 @@ sources:
 		t.Fatal(err)
 	}
 
-	if err := os.WriteFile(filepath.Join(runtimeWebDir, "sample_dbip_country.json"), []byte(`{"total_mapped":256,"countries":[{"code":"US","value":256}]}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(runtimeWebDir, "sample_dbip_country.json"), []byte(`{"total_mapped":256,"countries":[{"code":"US","value":256}]}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(runtimeWebDir, "sample_asn_iptoasn.json"), []byte(`{"by_asn":[{"asn":13335,"name":"CLOUDFLARENET","count":256}]}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(runtimeWebDir, "sample_asn_iptoasn.json"), []byte(`{"by_asn":[{"asn":13335,"name":"CLOUDFLARENET","count":256}]}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -87,10 +87,10 @@ sources:
 		t.Fatal(err)
 	}
 
-	if err := os.MkdirAll(filepath.Join(servedWebDir, "countries"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(servedWebDir, "countries"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(servedWebDir, "asns"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(servedWebDir, "asns"), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	servedArtifacts := map[string]string{
@@ -100,7 +100,7 @@ sources:
 		filepath.Join(servedWebDir, "asns", "64512.json"):      `{"asn":64512,"name":"SERVED-ASN","totals":{"feeds_matching":99}}`,
 	}
 	for path, body := range servedArtifacts {
-		if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -153,7 +153,7 @@ sources:
 		}
 	}
 
-	if err := os.WriteFile(filepath.Join(servedWebDir, "ESCAPED.json"), []byte(`{"escaped":true}`), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(servedWebDir, "ESCAPED.json"), []byte(`{"escaped":true}`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/countries/../escaped", nil)

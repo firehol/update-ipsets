@@ -100,7 +100,7 @@ func TestNextDueUsesSourceTimestampWhenUnchecked(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "sample.source")
 	ts := now.Add(-10 * time.Minute)
-	if err := os.WriteFile(path, []byte("test\n"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("test\n"), 0o600); err != nil {
 		t.Fatalf("WriteFile returned error: %v", err)
 	}
 	if err := os.Chtimes(path, ts, ts); err != nil {
@@ -131,7 +131,7 @@ func TestBuildSnapshotStaticSourceConfigChangesAreDue(t *testing.T) {
 	rt := engine.Runtime{BaseDir: baseDir, IgnoreRepeatingDownloadErrors: 10}
 	entries := []cache.Entry{{Name: "static_reference", CheckedDate: now.Add(-time.Hour).Unix()}}
 
-	if err := os.WriteFile(sourcePath, []byte("1.1.1.1\n"), 0o644); err != nil {
+	if err := os.WriteFile(sourcePath, []byte("1.1.1.1\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	snapshot := BuildSnapshot(cfg, rt, entries, true, now)
@@ -142,7 +142,7 @@ func TestBuildSnapshotStaticSourceConfigChangesAreDue(t *testing.T) {
 		t.Fatalf("detail = %q, want static source config changed", snapshot.Items[0].Detail)
 	}
 
-	if err := os.WriteFile(sourcePath, []byte("1.1.1.1\n8.8.8.8\n"), 0o644); err != nil {
+	if err := os.WriteFile(sourcePath, []byte("1.1.1.1\n8.8.8.8\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	snapshot = BuildSnapshot(cfg, rt, entries, true, now)
@@ -188,10 +188,10 @@ func TestBuildSnapshotCriticalProviderSetChangesAreForcedDue(t *testing.T) {
 		ProcessedDate: now.Add(-time.Hour).Unix(),
 		UniqueIPs:     1,
 	}}
-	if err := os.MkdirAll(baseDir, 0o755); err != nil {
+	if err := os.MkdirAll(baseDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(sourcePath, []byte("1.1.1.1\n"), 0o644); err != nil {
+	if err := os.WriteFile(sourcePath, []byte("1.1.1.1\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -204,10 +204,10 @@ func TestBuildSnapshotCriticalProviderSetChangesAreForcedDue(t *testing.T) {
 	}
 
 	markerPath := engine.CriticalInfrastructureProviderSetMarkerPath(rt)
-	if err := os.MkdirAll(filepath.Dir(markerPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(markerPath), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(markerPath, []byte(engine.CriticalInfrastructureProviderSetIDForSnapshot(cfg)+"\n"), 0o644); err != nil {
+	if err := os.WriteFile(markerPath, []byte(engine.CriticalInfrastructureProviderSetIDForSnapshot(cfg)+"\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	snapshot = BuildSnapshot(cfg, rt, entries, true, now)
@@ -394,21 +394,21 @@ func TestBuildSnapshotUsesProviderEnableStateAndArchivePath(t *testing.T) {
 		LibDir:                        filepath.Join(root, "lib"),
 		IgnoreRepeatingDownloadErrors: 10,
 	}
-	if err := os.MkdirAll(rt.BaseDir, 0o755); err != nil {
+	if err := os.MkdirAll(rt.BaseDir, 0o700); err != nil {
 		t.Fatalf("MkdirAll returned error: %v", err)
 	}
 	archivePath := filepath.Join(rt.LibDir, "geolocation", "geo_db.source")
-	if err := os.MkdirAll(filepath.Dir(archivePath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(archivePath), 0o700); err != nil {
 		t.Fatalf("MkdirAll returned error: %v", err)
 	}
 	ts := now.Add(-2 * time.Hour)
-	if err := os.WriteFile(archivePath, []byte("provider body"), 0o644); err != nil {
+	if err := os.WriteFile(archivePath, []byte("provider body"), 0o600); err != nil {
 		t.Fatalf("WriteFile returned error: %v", err)
 	}
 	if err := os.Chtimes(archivePath, ts, ts); err != nil {
 		t.Fatalf("Chtimes returned error: %v", err)
 	}
-	if err := os.WriteFile(filepath.Join(rt.BaseDir, "geo_db.enabled"), []byte{}, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(rt.BaseDir, "geo_db.enabled"), []byte{}, 0o600); err != nil {
 		t.Fatalf("WriteFile returned error: %v", err)
 	}
 
@@ -544,7 +544,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"), sourceServer.URL)
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -646,7 +646,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, baseDir, filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"))
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -657,7 +657,7 @@ sources:
 	runner := New(eng, true, nil)
 	queuedAt := time.Unix(1_700_000_100, 0).UTC()
 
-	if err := os.WriteFile(filepath.Join(baseDir, "good.ipset.new"), []byte("1.2.3.4\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(baseDir, "good.ipset.new"), []byte("1.2.3.4\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -728,7 +728,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, baseDir, filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"), sourceServer.URL)
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -773,7 +773,7 @@ merges:
     output: ipset
     sources: [anonymous]
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"))
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -819,10 +819,10 @@ func TestBuildSnapshotDisablesArtifactChildWhenParentDisabled(t *testing.T) {
 		IgnoreRepeatingDownloadErrors: 10,
 		ProcessingIntervalMinutes:     10,
 	}
-	if err := os.MkdirAll(rt.BaseDir, 0o755); err != nil {
+	if err := os.MkdirAll(rt.BaseDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(rt.BaseDir, "child.source"), []byte("1.2.3.4\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(rt.BaseDir, "child.source"), []byte("1.2.3.4\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -850,10 +850,10 @@ func TestBuildArtifactItemsIncludesEnabledArtifact(t *testing.T) {
 		LibDir:                        filepath.Join(root, "lib"),
 		IgnoreRepeatingDownloadErrors: 10,
 	}
-	if err := os.MkdirAll(filepath.Join(rt.LibDir, "artifacts", "dronebl"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(rt.LibDir, "artifacts", "dronebl"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(rt.LibDir, "artifacts", "dronebl", "enabled"), []byte{}, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(rt.LibDir, "artifacts", "dronebl", "enabled"), []byte{}, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -890,10 +890,10 @@ func TestBuildArtifactItemsUsesArtifactFailureStateForRetryBackoff(t *testing.T)
 		LibDir:                        filepath.Join(root, "lib"),
 		IgnoreRepeatingDownloadErrors: 10,
 	}
-	if err := os.MkdirAll(filepath.Join(rt.LibDir, "artifacts", "dronebl"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(rt.LibDir, "artifacts", "dronebl"), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(rt.LibDir, "artifacts", "dronebl", "enabled"), []byte{}, 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(rt.LibDir, "artifacts", "dronebl", "enabled"), []byte{}, 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -949,7 +949,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"))
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1010,7 +1010,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"))
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1019,10 +1019,10 @@ sources:
 		t.Fatal(err)
 	}
 	childPath := filepath.Join(root, "base", "child.source")
-	if err := os.MkdirAll(filepath.Dir(childPath), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(childPath), 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(childPath, []byte("1.2.3.4\n"), 0o644); err != nil {
+	if err := os.WriteFile(childPath, []byte("1.2.3.4\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	runner := New(eng, true, nil)
@@ -1067,7 +1067,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"))
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := engine.New(cfgPath, nil)
@@ -1112,7 +1112,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"))
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	eng, err := engine.New(cfgPath, nil)
@@ -1196,7 +1196,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"))
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1250,7 +1250,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"))
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 
@@ -1310,7 +1310,7 @@ sources:
     maintainer: test
     maintainer_url: https://example.test
 `, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"))
-	if err := os.WriteFile(cfgPath, []byte(cfg), 0o644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

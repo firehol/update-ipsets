@@ -137,7 +137,7 @@ func TestCheckEntityArtifactsIntegrityFlagsMalformedHomeAggregate(t *testing.T) 
 		t.Fatal(err)
 	}
 	target := filepath.Join(webDir, "home", "aggregates.json")
-	if err := os.WriteFile(target, []byte(`{`), 0o644); err != nil {
+	if err := os.WriteFile(target, []byte(`{`), 0o600); err != nil {
 		t.Fatal(err)
 	}
 

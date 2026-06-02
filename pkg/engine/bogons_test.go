@@ -183,10 +183,10 @@ func TestWriteBogonComparisonFilesIncludesMergeDerivedProvider(t *testing.T) {
 	root := t.TempDir()
 	baseDir := filepath.Join(root, "base")
 	webDir := filepath.Join(root, "web")
-	if err := os.MkdirAll(baseDir, 0o755); err != nil {
+	if err := os.MkdirAll(baseDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(webDir, 0o755); err != nil {
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
 		t.Fatal(err)
 	}
 	cfg := config.New()
@@ -203,7 +203,7 @@ func TestWriteBogonComparisonFilesIncludesMergeDerivedProvider(t *testing.T) {
 		rt.BaseDir = baseDir
 		rt.WebDir = webDir
 	}))
-	if err := os.WriteFile(filepath.Join(baseDir, "sample.ipset"), []byte("10.0.0.1\n10.0.0.2\n192.0.2.1\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(baseDir, "sample.ipset"), []byte("10.0.0.1\n10.0.0.2\n192.0.2.1\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	eng.state.Entry("sample").Name = "sample"
