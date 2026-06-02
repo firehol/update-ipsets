@@ -751,6 +751,17 @@ Open decisions:
   that `if: always()` could attempt to upload an incomplete SARIF file, which
   GitHub rejected as invalid JSON. The workflow was tuned to run Codacy with
   `parallel: 4` and upload SARIF only when the Codacy generation step succeeds.
+- The replacement official Codacy Analysis CLI action run for
+  `478e611ddb216cf5ac2d704d88b61d4c465f3f00` was still inside `Run Codacy
+  Analysis CLI` after about 24 minutes and had not started the upload step.
+  This shows the official local-analyzer action is not operationally suitable
+  for timely full Codacy visibility on this repository.
+- Replaced the official local-analyzer action with a Codacy Cloud export
+  workflow. The workflow installs the pinned Codacy Cloud CLI, requires a
+  `CODACY_API_TOKEN` GitHub Actions secret, queries the current Codacy Cloud
+  issue categories for the branch, converts issue JSON to SARIF with
+  `.github/scripts/codacy-issues-to-sarif.mjs`, and uploads the SARIF to GitHub
+  Code Scanning under category `codacy`.
 
 ## Validation
 
@@ -771,11 +782,9 @@ Acceptance criteria evidence:
   with the third-party Scorecard action pinned to commit
   `4eaacf0543bb3f2c246792bd56e8cdeffafb205a`.
 - Codacy SARIF upload is checked in at `.github/workflows/codacy-sarif.yml`.
-  It runs on push, pull request, weekly schedule, and manual dispatch; uploads
-  with category `codacy`; keeps issue count advisory through
-  `max-allowed-issues: 2147483647`; and fails if tool execution is incomplete.
-  SARIF upload is conditioned on successful SARIF generation so cancelled or
-  failed partial files are not uploaded.
+  It runs on default-branch push, weekly schedule, and manual dispatch; exports
+  existing Codacy Cloud issues to SARIF; and uploads with category `codacy`.
+  It requires a GitHub Actions secret named `CODACY_API_TOKEN`.
 - Project hygiene skill is valid and registered in `AGENTS.md`.
 - GitHub alert API currently reports zero open CodeQL alerts, zero open
   Dependabot alerts, and zero open secret-scanning alerts before push.
@@ -1031,6 +1040,28 @@ Tests or equivalent validation:
     upload started; cancellation exposed that `if: always()` attempted to
     upload an incomplete SARIF file. Workflow tuned afterward with
     `parallel: 4` and success-only SARIF upload.
+  - Replacement official-action run `26846678833`: cancelled after about 24
+    minutes with no upload started. Workflow replaced afterward with Codacy
+    Cloud issue export to SARIF.
+  - `gh secret list --repo firehol/update-ipsets`: no repository secrets were
+    visible. The Codacy Cloud export workflow therefore requires adding a
+    GitHub Actions secret named `CODACY_API_TOKEN` before it can complete in
+    GitHub Actions.
+  - Local Codacy Cloud export validation using temporary files: passed. The
+    converter generated SARIF version `2.1.0` with 2639 results, 87 rules, 240
+    `error` results, 1092 `warning` results, and 1307 `note` results.
+  - `node --check .github/scripts/codacy-issues-to-sarif.mjs`: passed.
+  - `make actionlint`: passed after replacing the official action workflow with
+    the Codacy Cloud export workflow.
+  - `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/codacy-sarif.yml"); puts "workflow yaml ok"'`:
+    passed after replacing the workflow.
+  - `python $HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
+    passed after documenting the Cloud export preference.
+  - `git diff --check -- .github/workflows/codacy-sarif.yml .github/scripts/codacy-issues-to-sarif.mjs .agents/skills/project-hygiene/SKILL.md .agents/sow/current/SOW-0099-20260602-github-code-scanning-hygiene.md`:
+    passed.
+  - Redacted sensitive-string scan over the Codacy SARIF workflow, converter,
+    this SOW, and the project hygiene skill: no raw personal-name, home-path,
+    session cookie, token assignment, or user email strings found.
 
 Real-use evidence:
 

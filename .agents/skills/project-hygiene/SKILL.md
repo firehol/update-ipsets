@@ -133,6 +133,12 @@ tokens or credentials to durable artifacts.
   GitHub alert count. Rules, patterns, or paths may be removed only after the
   SOW records evidence that the rule is irrelevant, duplicated by a better
   scanner, or mismatched to this repository.
+- The official Codacy Analysis CLI GitHub Action runs local analyzers and can
+  be too slow for this repository when configured to export all findings. For
+  GitHub Code Scanning visibility, prefer exporting already-computed Codacy
+  Cloud issues through the Codacy Cloud CLI to SARIF. This requires a GitHub
+  Actions secret named `CODACY_API_TOKEN`; never write the token value to repo
+  files, logs, SOWs, docs, or skills.
 - For Go file-permission findings, separate test fixtures from production
   writers before changing modes. Test fixtures should normally use restrictive
   `0600` files and `0700` directories. Daemon-owned generated runtime and

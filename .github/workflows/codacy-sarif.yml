@@ -3,8 +3,6 @@ name: Codacy SARIF
 on:
   push:
     branches: [main, master]
-  pull_request:
-    branches: [main, master]
   schedule:
     - cron: "23 5 * * 2"
   workflow_dispatch:
@@ -14,30 +12,68 @@ permissions:
   security-events: write
 
 jobs:
-  analyze:
-    name: Codacy SARIF
+  export:
+    name: Codacy Cloud SARIF
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 20
+    env:
+      CODACY_API_TOKEN: ${{ secrets.CODACY_API_TOKEN }}
+      CODACY_BRANCH: ${{ github.ref_name }}
+      CODACY_ORGANIZATION: firehol
+      CODACY_PROVIDER: gh
+      CODACY_REPOSITORY: update-ipsets
+
     steps:
       - uses: actions/checkout@v6
         with:
           persist-credentials: false
 
-      - name: Run Codacy Analysis CLI
-        uses: codacy/codacy-analysis-cli-action@562ee3e92b8e92df8b67e0a5ff8aa8e261919c08 # v4.4.7
+      - name: Set up Node
+        uses: actions/setup-node@v6
         with:
-          format: sarif
-          output: codacy-results.sarif
-          gh-code-scanning-compat: true
-          max-allowed-issues: 2147483647
-          fail-if-incomplete: true
-          allow-network: true
-          parallel: 4
-          tool-timeout: 15minutes
+          node-version: "25"
+
+      - name: Verify Codacy API token
+        run: |
+          if [ -z "${CODACY_API_TOKEN:-}" ]; then
+            echo "::error title=Missing Codacy token::Add a repository or organization secret named CODACY_API_TOKEN so this workflow can export Codacy Cloud issues to SARIF."
+            exit 1
+          fi
+
+      - name: Install Codacy Cloud CLI
+        run: npm install -g @codacy/codacy-cloud-cli@1.1.1
+
+      - name: Export Codacy issues
+        run: |
+          set -euo pipefail
+
+          mkdir -p codacy-sarif/issues
+          codacy issues "$CODACY_PROVIDER" "$CODACY_ORGANIZATION" "$CODACY_REPOSITORY" \
+            --branch "$CODACY_BRANCH" \
+            --overview \
+            --output json > codacy-sarif/overview.json
+
+          node .github/scripts/codacy-issues-to-sarif.mjs plan \
+            codacy-sarif/overview.json > codacy-sarif/categories.txt
+
+          while IFS= read -r category; do
+            [ -n "$category" ] || continue
+            safe_category="$(printf '%s' "$category" | tr -c 'A-Za-z0-9_.-' '_')"
+            codacy issues "$CODACY_PROVIDER" "$CODACY_ORGANIZATION" "$CODACY_REPOSITORY" \
+              --branch "$CODACY_BRANCH" \
+              --categories "$category" \
+              --limit 1000 \
+              --output json > "codacy-sarif/issues/${safe_category}.json"
+          done < codacy-sarif/categories.txt
+
+          node .github/scripts/codacy-issues-to-sarif.mjs sarif \
+            codacy-sarif/issues/*.json > codacy-sarif/codacy-results.sarif
+
+          node .github/scripts/codacy-issues-to-sarif.mjs summary \
+            codacy-sarif/codacy-results.sarif >> "$GITHUB_STEP_SUMMARY"
 
       - name: Upload Codacy SARIF
-        if: ${{ success() && hashFiles('codacy-results.sarif') != '' }}
         uses: github/codeql-action/upload-sarif@v4
         with:
-          sarif_file: codacy-results.sarif
+          sarif_file: codacy-sarif/codacy-results.sarif
           category: codacy
