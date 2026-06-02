@@ -32,11 +32,11 @@ jobs:
           max-allowed-issues: 2147483647
           fail-if-incomplete: true
           allow-network: true
-          parallel: 2
+          parallel: 4
           tool-timeout: 15minutes
 
       - name: Upload Codacy SARIF
-        if: ${{ always() && hashFiles('codacy-results.sarif') != '' }}
+        if: ${{ success() && hashFiles('codacy-results.sarif') != '' }}
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: codacy-results.sarif

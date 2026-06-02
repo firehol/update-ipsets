@@ -744,6 +744,13 @@ Open decisions:
 - Updated `.agents/skills/project-hygiene/SKILL.md` so future hygiene checks
   include Codacy SARIF visibility in GitHub Code Scanning and preserve the
   evidence-gated rule-removal policy.
+- The first pushed Codacy SARIF run for
+  `f53b3198a510299c15e2b00efea5121f94b15a2c` was still inside `Run Codacy
+  Analysis CLI` after about 30 minutes and had not started the upload step.
+  The run was cancelled to avoid wasting runner time. Cancellation also showed
+  that `if: always()` could attempt to upload an incomplete SARIF file, which
+  GitHub rejected as invalid JSON. The workflow was tuned to run Codacy with
+  `parallel: 4` and upload SARIF only when the Codacy generation step succeeds.
 
 ## Validation
 
@@ -767,6 +774,8 @@ Acceptance criteria evidence:
   It runs on push, pull request, weekly schedule, and manual dispatch; uploads
   with category `codacy`; keeps issue count advisory through
   `max-allowed-issues: 2147483647`; and fails if tool execution is incomplete.
+  SARIF upload is conditioned on successful SARIF generation so cancelled or
+  failed partial files are not uploaded.
 - Project hygiene skill is valid and registered in `AGENTS.md`.
 - GitHub alert API currently reports zero open CodeQL alerts, zero open
   Dependabot alerts, and zero open secret-scanning alerts before push.
@@ -1015,8 +1024,13 @@ Tests or equivalent validation:
     passed.
   - `git diff --check -- .github/workflows/codacy-sarif.yml .agents/skills/project-hygiene/SKILL.md .agents/sow/current/SOW-0099-20260602-github-code-scanning-hygiene.md`:
     passed.
-  - `rg -n "costa|/home/costa|user_session|_gh_sess|CODACY_API_TOKEN=.*|project-token:|api-token:" .github/workflows/codacy-sarif.yml .agents/sow/current/SOW-0099-20260602-github-code-scanning-hygiene.md .agents/skills/project-hygiene/SKILL.md`:
-    no matches.
+  - Redacted sensitive-string scan over the Codacy SARIF workflow, this SOW,
+    and the project hygiene skill: no raw personal-name, home-path, session
+    cookie, or token-assignment strings found.
+  - First pushed run `26845032482`: cancelled after about 30 minutes with no
+    upload started; cancellation exposed that `if: always()` attempted to
+    upload an incomplete SARIF file. Workflow tuned afterward with
+    `parallel: 4` and success-only SARIF upload.
 
 Real-use evidence:
 
