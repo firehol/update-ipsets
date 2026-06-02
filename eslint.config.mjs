@@ -1,1 +1,3 @@
-export { default } from "./ui/eslint.config.js";
+import uiConfig from "./ui/eslint.config.js";
+
+export default uiConfig;

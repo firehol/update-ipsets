@@ -120,7 +120,8 @@ Current state:
   setting as a GitHub Advanced Security feature.
 - GitHub Security and quality AI findings page reports 4 findings in 2 files:
   `pkg/web/admin_manifest.go` and `pkg/web/server.go`.
-- Codacy dashboard reports Grade C and 8844 total current issues on `main`.
+- Codacy dashboard reports Grade C and 8845 total current issues on `main`
+  after analysis of commit `e2a24f095ee57662124d33770e962b230a38e98d`.
   The visible category breakdown is: Error prone about 3k, Compatibility about
   2k, Code complexity 973, Code style 916, Security 700, Best practice 492,
   Performance 122, Unused code 24, Documentation 18, and Comprehensibility 15.
@@ -152,6 +153,11 @@ Current state:
 - Official Codacy documentation checked on 2026-06-02 says ESLint v9 config
   file detection supports `eslint.config.js`, `eslint.config.mjs`, and
   `eslint.config.cjs` at the default branch root.
+- GitHub Security and quality AI findings page reports 1 current finding in
+  `eslint.config.mjs` after the root ESLint config bridge commit. The finding
+  warns that a direct default re-export assumes the UI config default shape and
+  recommends importing the UI config into a named binding before exporting it
+  as the root default config.
 
 Risks:
 
@@ -470,7 +476,7 @@ Open decisions:
   and do not weaken pnpm release-age protection merely to merge a dependency PR.
 - Queried Codacy issue overview and tool settings through the authenticated
   browser UI without writing raw issue payloads to disk because issue payloads
-  include author metadata. Redacted aggregate evidence shows 8844 total Codacy
+  include author metadata. Redacted aggregate evidence shows 8845 total Codacy
   issues: ESLint8 5741, markdownlint 1281, Lizard 970, Opengrep/Semgrep 657,
   Agentlinter 51, Stylelint 50, Trivy 40, Prospector 35, Pylint 9, Bandit 9,
   and PMD 1.
@@ -482,6 +488,12 @@ Open decisions:
 - Codacy tool settings also show `ESLint`/ESLint8 is enabled by the Default
   coding standard. Removing the 5741 ESLint8 findings requires Codacy Cloud
   coding-standard/tool changes, not a repository file alone.
+- Re-checked GitHub Security and quality AI findings after the root ESLint
+  config bridge. The previous 4 findings are no longer shown, but GitHub now
+  reports 1 finding in `eslint.config.mjs`. Local ESLint validation confirms
+  the bridge resolves the existing UI config, and the root bridge was rewritten
+  to import `uiConfig` and export it as default so the root config shape is
+  explicit.
 
 ## Validation
 
