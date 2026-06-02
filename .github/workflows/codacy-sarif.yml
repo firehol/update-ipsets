@@ -1,0 +1,43 @@
+name: Codacy SARIF
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    - cron: "23 5 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  analyze:
+    name: Codacy SARIF
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Run Codacy Analysis CLI
+        uses: codacy/codacy-analysis-cli-action@562ee3e92b8e92df8b67e0a5ff8aa8e261919c08 # v4.4.7
+        with:
+          format: sarif
+          output: codacy-results.sarif
+          gh-code-scanning-compat: true
+          max-allowed-issues: 2147483647
+          fail-if-incomplete: true
+          allow-network: true
+          parallel: 2
+          tool-timeout: 15minutes
+
+      - name: Upload Codacy SARIF
+        if: ${{ always() && hashFiles('codacy-results.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: codacy-results.sarif
+          category: codacy

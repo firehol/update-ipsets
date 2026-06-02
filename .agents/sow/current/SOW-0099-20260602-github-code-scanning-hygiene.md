@@ -79,6 +79,9 @@ Unknowns:
 - Record how Codacy configuration works so future work does not confuse
   repository `.codacy.yml` / `.codacy.yaml` path/language configuration with
   local Codacy Analysis CLI `.codacy/codacy.config.json` tool/pattern tuning.
+- Upload Codacy SARIF to GitHub Code Scanning so Codacy findings are visible
+  in the GitHub security/code-scanning surface, while keeping rule removal
+  evidence-gated.
 
 ## Analysis
 
@@ -200,6 +203,22 @@ Current state:
   the legacy `eslint-8` engine. This does not disable current JavaScript
   coverage; `scripts/build-wiki.mjs` remains covered by the repository's
   modern Node syntax and root ESLint configuration tests.
+- GitHub Code Scanning and Codacy are separate reporting surfaces. GitHub Code
+  Scanning shows CodeQL plus SARIF uploads from workflows, while Codacy Cloud
+  issue counts do not appear there unless a workflow generates and uploads
+  Codacy SARIF.
+- Official GitHub documentation checked on 2026-06-02 says third-party SARIF
+  uploads require a workflow with `security-events: write`, use
+  `github/codeql-action/upload-sarif`, and should use a distinct `category`
+  when multiple analyses are uploaded for the same commit.
+- Official Codacy action documentation checked on 2026-06-02 documents the
+  GitHub Code Scanning integration with `format: sarif`, `output`,
+  `gh-code-scanning-compat: true`, and
+  `max-allowed-issues: 2147483647` so issue existence does not make SARIF
+  generation fail.
+- The latest Codacy Analysis CLI action release checked through the GitHub API
+  is `v4.4.7`, published on 2025-07-17, resolving to commit
+  `562ee3e92b8e92df8b67e0a5ff8aa8e261919c08`.
 
 ## User Decisions - 2026-06-02 Codacy Cleanup Direction
 
@@ -217,6 +236,15 @@ The user approved these implementation choices:
    proven sanitized or structurally non-HTML.
 5. Audit dynamic file/path findings by production surface, add or verify
    root-bound helpers, and baseline test/CLI false positives only with evidence.
+
+## User Decisions - 2026-06-02 Codacy GitHub Visibility
+
+The user approved these implementation choices:
+
+1. Upload all Codacy SARIF results to GitHub Code Scanning now, even if noisy,
+   so GitHub shows the Codacy scanner surface more frequently.
+2. Fix Codacy issues or remove/disable irrelevant rules only after evidence.
+   Do not bulk-disable rules merely to reduce the GitHub Code Scanning count.
 
 Risks:
 
@@ -706,6 +734,16 @@ Open decisions:
   see the same split contract: root-owned installed binary/config are group
   accessible to `iplists`, while daemon-created runtime/publication files are
   private to the service user.
+- Recorded the user's Codacy GitHub visibility decision: upload all Codacy
+  SARIF to GitHub Code Scanning now, and remove/disable rules only after
+  evidence.
+- Added `.github/workflows/codacy-sarif.yml` to run the official Codacy
+  Analysis CLI action pinned to release commit
+  `562ee3e92b8e92df8b67e0a5ff8aa8e261919c08`, generate `codacy-results.sarif`,
+  and upload it to GitHub Code Scanning under the `codacy` SARIF category.
+- Updated `.agents/skills/project-hygiene/SKILL.md` so future hygiene checks
+  include Codacy SARIF visibility in GitHub Code Scanning and preserve the
+  evidence-gated rule-removal policy.
 
 ## Validation
 
@@ -725,6 +763,10 @@ Acceptance criteria evidence:
 - Scorecard SARIF upload is checked in at `.github/workflows/scorecard.yml`
   with the third-party Scorecard action pinned to commit
   `4eaacf0543bb3f2c246792bd56e8cdeffafb205a`.
+- Codacy SARIF upload is checked in at `.github/workflows/codacy-sarif.yml`.
+  It runs on push, pull request, weekly schedule, and manual dispatch; uploads
+  with category `codacy`; keeps issue count advisory through
+  `max-allowed-issues: 2147483647`; and fails if tool execution is incomplete.
 - Project hygiene skill is valid and registered in `AGENTS.md`.
 - GitHub alert API currently reports zero open CodeQL alerts, zero open
   Dependabot alerts, and zero open secret-scanning alerts before push.
@@ -965,6 +1007,16 @@ Tests or equivalent validation:
     dependency pinning.
   - `git diff --name-only -- pkg/web/static ui/dist update-ipsets`: no tracked
     generated static or local binary diff from the install validation.
+- Codacy SARIF workflow validation:
+  - `ruby -e 'require "yaml"; YAML.load_file(".github/workflows/codacy-sarif.yml"); puts "workflow yaml ok"'`:
+    passed.
+  - `make actionlint`: passed.
+  - `python $HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
+    passed.
+  - `git diff --check -- .github/workflows/codacy-sarif.yml .agents/skills/project-hygiene/SKILL.md .agents/sow/current/SOW-0099-20260602-github-code-scanning-hygiene.md`:
+    passed.
+  - `rg -n "costa|/home/costa|user_session|_gh_sess|CODACY_API_TOKEN=.*|project-token:|api-token:" .github/workflows/codacy-sarif.yml .agents/sow/current/SOW-0099-20260602-github-code-scanning-hygiene.md .agents/skills/project-hygiene/SKILL.md`:
+    no matches.
 
 Real-use evidence:
 
