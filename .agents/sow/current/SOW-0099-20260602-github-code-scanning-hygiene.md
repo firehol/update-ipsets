@@ -555,6 +555,14 @@ Open decisions:
   findings are intentionally left for a separate contract review because public
   artifacts, install outputs, and shared runtime directories may require
   readable/searchable modes for operators or the service user.
+- Fixed the managed install ownership contract for the trusted install surface.
+  `install.sh` now installs the binary as `root:iplists` mode `0750`, sets
+  install root, `bin/`, and `etc/` to `root:iplists` mode `0750`, sets
+  config/template directories to `0750`, config/template files to `0640`, and
+  keeps mutable runtime directories owned by `iplists:iplists` with `0750`
+  directory modes. This implements the requirement that the binary and configs
+  are root-owned and accessible by `iplists` without making them readable by
+  every local user.
 
 ## Validation
 
@@ -654,6 +662,22 @@ Tests or equivalent validation:
   - `go test ./...`: passed.
   - `cd tools/dronebl2ipsets && go test ./...`: passed.
   - `make hygiene`: passed.
+- Managed install ownership validation:
+  - `make shellcheck`: passed after the installer ownership change.
+  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-operations`: passed.
+  - `./install.sh --no-restart`: passed locally.
+  - `sudo stat -c '%U:%G %a %n' ...`: confirmed install root, `bin/`, binary,
+    `etc/`, and config directories are `root:iplists 750`; active config files
+    are `root:iplists 640`; runtime directories are `iplists:iplists 750`.
+  - `sudo -u iplists test -x /opt/update-ipsets/bin/update-ipsets`: passed.
+  - `sudo -u iplists test -r /opt/update-ipsets/etc/config/runtime.yaml`:
+    passed.
+  - `sudo -u iplists test -w /opt/update-ipsets/data` and
+    `sudo -u iplists test -w /opt/update-ipsets/web`: passed.
+  - `sudo -u nobody test -r /opt/update-ipsets/etc/config/runtime.yaml`:
+    failed as expected.
+  - `sudo -u nobody test -x /opt/update-ipsets/bin/update-ipsets`: failed as
+    expected.
 
 Real-use evidence:
 
@@ -715,6 +739,8 @@ Project skills update:
 - Updated `.agents/skills/project-hygiene/SKILL.md` and
   `.agents/skills/project-testing/SKILL.md` with Go test-fixture permission
   guidance learned from Codacy triage.
+- Updated `.agents/skills/project-operations/SKILL.md` with the managed install
+  ownership contract.
 
 End-user/operator docs update:
 

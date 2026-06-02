@@ -13,6 +13,11 @@ description: "Install, daemon, admin, and runtime operation guidance for update-
 - Default local service name: `update-ipsets` (evidence: `install.sh`).
 - Default local daemon listen in install flow: `:18888` (evidence: `install.sh`, `README.md`, `ui/vite.config.ts`).
 - Runtime catalog install path: `/opt/update-ipsets/etc/config/` (evidence: `install.sh`, `README.md`).
+- Managed install ownership: install root, `bin/`, and `etc/` are
+  `root:iplists`; binary and config are readable/executable to `iplists` by
+  group permissions and are not world-readable. Mutable runtime directories are
+  `iplists:iplists` and group-only searchable (evidence: `install.sh`,
+  `.agents/sow/specs/files-layout.md`).
 
 ## Important environment
 
@@ -34,7 +39,7 @@ description: "Install, daemon, admin, and runtime operation guidance for update-
 - Background work must be visible through admin status/UI (from SOW-0004).
 - Background concurrency must protect CPU and memory; default background workers should remain conservative.
 - Do not use broad process-kill commands. Track and stop only specific PIDs started for the task.
-- Do not push or touch production systems unless Costa explicitly approves.
+- Do not push or touch production systems unless the user explicitly approves.
 
 ## Release hygiene
 

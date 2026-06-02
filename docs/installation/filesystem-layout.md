@@ -82,8 +82,10 @@ You will learn where update-ipsets stores its files after installation, what eac
 
 Contains the single `update-ipsets` executable. The web UI is embedded at compile time. No external static files needed.
 
-In the managed install, `bin/` and the binary are owned by `root:root`. The
-`iplists` service user can execute the binary but cannot modify it.
+In the managed install, `bin/` and the binary are owned by `root:iplists`.
+The `iplists` service user can execute the binary through group permissions,
+but cannot modify it. Other local users do not get read or execute access from
+the installer.
 
 ### `etc/config/` — feed catalog
 
@@ -91,9 +93,10 @@ The YAML configuration directory that defines all feeds, sources, merges, and pr
 
 On reinstall, the installer backs up the existing config (if changed) and deploys a fresh copy. Your customizations should go through the YAML catalog or drop-in environment variables — not by editing files that the installer overwrites.
 
-In the managed install, `etc/` is owned by `root:root` and readable by the
-`iplists` service user. The daemon reads the active catalog but does not own or
-modify it.
+In the managed install, `etc/` is owned by `root:iplists` and readable by the
+`iplists` service user through group permissions. The daemon reads the active
+catalog but does not own or modify it. Other local users do not get catalog
+read access from the installer.
 
 The installer also copies Markdown templates into `etc/config/templates/markdown/`.
 Those templates generate public feed, country, ASN, and maintainer Markdown
@@ -112,8 +115,9 @@ Contains the committed text-format IP sets, raw upstream downloads, enable marke
 Files with a `.new` suffix are staged inputs waiting for the processing engine to claim them. Files with a `.processing` suffix are actively being processed. Both survive restarts.
 
 The managed install makes `data/`, `cache/`, `lib/`, `web/`, `run/`, and `tmp/`
-owned by `iplists:iplists`. The generated systemd unit grants write access only
-to those mutable runtime directories, not to the full install tree.
+owned by `iplists:iplists` and searchable only by owner/group. The generated
+systemd unit grants write access only to those mutable runtime directories, not
+to the full install tree.
 
 ### `cache/` — runtime caches
 

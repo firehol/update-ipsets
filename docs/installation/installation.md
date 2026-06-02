@@ -38,7 +38,7 @@ The installer does these things in order:
 6. Installs the binary to `/opt/update-ipsets/bin/update-ipsets`
 7. Deploys the feed catalog from `configs/firehol/` to `/opt/update-ipsets/etc/config/`
 8. Copies Markdown templates from `configs/templates/markdown/` to `/opt/update-ipsets/etc/config/templates/markdown/`
-9. Makes `bin/` and `etc/` root-owned, and makes runtime directories writable by `iplists`
+9. Makes `bin/` and `etc/` owned by `root:iplists` with group-only access, and makes runtime directories writable by `iplists`
 10. Installs the systemd unit at `/etc/systemd/system/update-ipsets.service`
 11. Reloads systemd, restarts the service if it is active, starts it if it is enabled but inactive, or leaves it stopped if it is not enabled
 

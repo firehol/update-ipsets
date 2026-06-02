@@ -85,15 +85,16 @@ The exact absolute path of the installation root is deployment-specific.
 
 For managed systemd installs:
 
-- the installation root, `bin/`, and `etc/` MUST be root-owned and readable by
-  the service user
+- the installation root, `bin/`, and `etc/` MUST be owned by `root:iplists`,
+  readable/searchable by the `iplists` group, and not world-readable
 - the daemon binary under `bin/` MUST be executable by the service user but not
   writable by it
 - the active catalog under `etc/config/` and installed templates under
   `etc/config/templates/` MUST be readable by the service user but not writable
   by it
 - mutable runtime directories `data/`, `cache/`, `lib/`, `web/`, `run/`, and
-  `tmp/` MUST be writable by the service user
+  `tmp/` MUST be owned and writable by the service user and SHOULD NOT be
+  world-readable
 - systemd write access SHOULD be scoped to mutable runtime directories instead
   of the full installation root
 

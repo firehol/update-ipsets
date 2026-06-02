@@ -170,7 +170,7 @@ if ! id -u iplists >/dev/null 2>&1; then
     run sudo useradd --system --gid iplists --home-dir "${INSTALL_DIR}" --no-create-home --shell /usr/sbin/nologin iplists
 fi
 
-run sudo install -m 0755 update-ipsets "${INSTALL_DIR}/bin/update-ipsets"
+run sudo install -o root -g iplists -m 0750 update-ipsets "${INSTALL_DIR}/bin/update-ipsets"
 
 # The repository catalog is the deployed source of truth. Reinstalls refresh
 # the active config only when content changed; preserving the mtime on identical
@@ -215,12 +215,12 @@ fi
 # owned by the service user. Do not chown the whole tree: bin/ and etc/ are
 # part of the trusted install surface.
 echo -e "${GREEN}Setting install ownership...${NC}"
-run sudo chown root:root "${INSTALL_DIR}"
-run sudo chown -R root:root "${INSTALL_DIR}/bin" "${INSTALL_DIR}/etc"
-run sudo chmod 0755 "${INSTALL_DIR}" "${INSTALL_DIR}/bin" "${INSTALL_DIR}/etc"
-run sudo chmod 0755 "${INSTALL_DIR}/bin/update-ipsets"
-run sudo find "${INSTALL_DIR}/etc" -type d -exec chmod 0755 {} +
-run sudo find "${INSTALL_DIR}/etc" -type f -exec chmod 0644 {} +
+run sudo chown root:iplists "${INSTALL_DIR}"
+run sudo chown -R root:iplists "${INSTALL_DIR}/bin" "${INSTALL_DIR}/etc"
+run sudo chmod 0750 "${INSTALL_DIR}" "${INSTALL_DIR}/bin" "${INSTALL_DIR}/etc"
+run sudo chmod 0750 "${INSTALL_DIR}/bin/update-ipsets"
+run sudo find "${INSTALL_DIR}/etc" -type d -exec chmod 0750 {} +
+run sudo find "${INSTALL_DIR}/etc" -type f -exec chmod 0640 {} +
 run sudo chown -R iplists:iplists \
     "${INSTALL_DIR}/data" \
     "${INSTALL_DIR}/cache" \
@@ -228,13 +228,14 @@ run sudo chown -R iplists:iplists \
     "${INSTALL_DIR}/web" \
     "${INSTALL_DIR}/run" \
     "${INSTALL_DIR}/tmp"
-run sudo chmod 0755 \
+run sudo find \
     "${INSTALL_DIR}/data" \
     "${INSTALL_DIR}/cache" \
     "${INSTALL_DIR}/lib" \
     "${INSTALL_DIR}/web" \
     "${INSTALL_DIR}/run" \
-    "${INSTALL_DIR}/tmp"
+    "${INSTALL_DIR}/tmp" \
+    -type d -exec chmod 0750 {} +
 
 # Per-feed HTML description pages are embedded into the binary at
 # build time (pkg/web/static/feed-descriptions/*.html via //go:embed).
