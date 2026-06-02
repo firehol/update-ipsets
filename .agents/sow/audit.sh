@@ -271,7 +271,7 @@ echo
 
 # --- .agents/sow/ directories ---
 echo "${BLUE}-- SOW directories --${NC}"
-sow_dirs=(specs pending current done)
+sow_dirs=(specs pending current "done")
 sow_dir_ok=0
 sow_dir_missing=0
 empty_sow_dir_missing_keep=0
@@ -317,7 +317,7 @@ if [ -f ".agents/sow/SOW.template.md" ]; then
     echo "      ${RED}--${NC}  template missing open-source reference evidence"
     sow_template_open_source_reference_missing=1
   fi
-  if grep -qF "directory name, not a status value" ".agents/sow/SOW.template.md" 2>/dev/null && grep -qF '`completed` is the successful terminal status' ".agents/sow/SOW.template.md" 2>/dev/null && grep -qF "one commit" ".agents/sow/SOW.template.md" 2>/dev/null; then
+  if grep -qF "directory name, not a status value" ".agents/sow/SOW.template.md" 2>/dev/null && grep -qF "\`completed\` is the successful terminal status" ".agents/sow/SOW.template.md" 2>/dev/null && grep -qF "one commit" ".agents/sow/SOW.template.md" 2>/dev/null; then
     echo "      ${GREEN}OK${NC}  template includes completed-status and one-commit close rule"
     sow_template_completion_rule_missing=0
   else
@@ -342,7 +342,7 @@ echo
 
 # --- SOW counts per status ---
 echo "${BLUE}-- SOW counts per status --${NC}"
-for d in pending current done; do
+for d in pending current "done"; do
   if [ -d ".agents/sow/$d" ]; then
     n=$(find ".agents/sow/$d" -mindepth 1 -maxdepth 1 -name 'SOW-*.md' -type f 2>/dev/null | wc -l | tr -d ' ')
     if [ "$n" -gt 0 ]; then
@@ -360,7 +360,7 @@ echo "${BLUE}-- SOW status/directory consistency --${NC}"
 sow_status_mismatch=0
 sow_status_missing=0
 sow_status_checked=0
-for d in pending current done; do
+for d in pending current "done"; do
   [ -d ".agents/sow/$d" ] || continue
   while IFS= read -r f; do
     [ -z "$f" ] && continue
@@ -426,7 +426,7 @@ echo
 echo "${BLUE}-- regression section placement --${NC}"
 regression_order_violations=0
 regression_order_checked=0
-for d in pending current done; do
+for d in pending current "done"; do
   [ -d ".agents/sow/$d" ] || continue
   while IFS= read -r f; do
     [ -z "$f" ] && continue
@@ -467,7 +467,7 @@ echo
 echo "${BLUE}-- mirrored open-source reference evidence --${NC}"
 mirror_path_violations=0
 mirror_path_checked=0
-for d in pending current done; do
+for d in pending current "done"; do
   [ -d ".agents/sow/$d" ] || continue
   while IFS= read -r f; do
     [ -z "$f" ] && continue

@@ -100,6 +100,7 @@ The assistant MUST follow these for the work they cover:
 - `.agents/skills/project-coding/` - Go, React, config, and repo conventions; required for code changes
 - `.agents/skills/project-reviewing/` - review checklist and standards; required for code reviews
 - `.agents/skills/project-testing/` - test commands, fixtures, and validation patterns; required for test work
+- `.agents/skills/project-hygiene/` - security, quality, dependency, CI, and GitHub scanner hygiene; required when checking project hygiene, scanner findings, dependency hygiene, branch/ruleset enforcement, secret scanning, or supply-chain security
 - `.agents/skills/project-operations/` - install, daemon, admin, and runtime operation guidance; required for operational changes
 - `.agents/skills/project-content-surfaces/` - audience/surface discipline for SOWs, specs, docs, methodology pages, UI copy, and admin copy; required for non-code content changes
 - `.agents/skills/project-go-best-practices/` - modern Go implementation checklist; required for Go code changes

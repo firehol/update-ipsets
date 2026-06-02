@@ -16,9 +16,9 @@ RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; GRAY='\033[0;90m'; NC
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 run() {
-  printf >&2 "${GRAY}$(pwd) >${NC} ${YELLOW}"
+  printf >&2 '%b%s >%b %b' "${GRAY}" "$(pwd)" "${NC}" "${YELLOW}"
   printf >&2 "%q " "$@"
-  printf >&2 "${NC}\n"
+  printf >&2 '%b\n' "${NC}"
   local exit_code=0
   "$@" || exit_code=$?
   if [ "${exit_code}" -ne 0 ]; then
@@ -30,9 +30,9 @@ run() {
 run_to_file() {
   local out="$1"
   shift
-  printf >&2 "${GRAY}$(pwd) >${NC} ${YELLOW}"
+  printf >&2 '%b%s >%b %b' "${GRAY}" "$(pwd)" "${NC}" "${YELLOW}"
   printf >&2 "%q " "$@"
-  printf >&2 "> %q${NC}\n" "${out}"
+  printf >&2 '> %q%b\n' "${out}" "${NC}"
   local exit_code=0
   "$@" >"${out}" || exit_code=$?
   if [ "${exit_code}" -ne 0 ]; then
@@ -161,7 +161,9 @@ source_file_exists() {
     sudo test -f "${path}"
     return $?
   fi
-  ssh "${SOURCE_HOST}" "test -f '${path}'" 2>/dev/null
+  ssh "${SOURCE_HOST}" sh -s -- "${path}" 2>/dev/null <<'EOF'
+test -f -- "$1"
+EOF
 }
 
 copy_source_file() {
@@ -209,13 +211,14 @@ stop_daemon_if_running() {
     run sudo systemctl stop update-ipsets
   fi
   local state
-  local i
-  for i in {1..60}; do
+  local remaining=60
+  while [ "${remaining}" -gt 0 ]; do
     state="$(systemctl show -p ActiveState --value update-ipsets 2>/dev/null || true)"
     if [ "${state}" != "active" ] && [ "${state}" != "activating" ] && [ "${state}" != "deactivating" ]; then
       return 0
     fi
     sleep 1
+    remaining=$((remaining - 1))
   done
   die "update-ipsets did not become inactive within 60 seconds"
 }

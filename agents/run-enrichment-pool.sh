@@ -128,7 +128,7 @@ if [[ $UNENRICHED -eq 1 ]]; then
         if ! eligible_source_feed "$url" "$maintainer"; then
             continue
         fi
-        latest_dir=$(ls -1d ".local/agents/feed-enrichment/${feed}"/*/ 2>/dev/null | sort | tail -1 || true)
+        latest_dir=$(find ".local/agents/feed-enrichment/${feed}" -mindepth 1 -maxdepth 1 -type d -printf '%p/\n' 2>/dev/null | sort | tail -1 || true)
         if [[ -z "$latest_dir" ]]; then
             FEEDS+=("$feed")
             continue
@@ -209,7 +209,7 @@ export -f worker
 # SLOTS workers run concurrently; as workers finish, xargs spawns new
 # ones for the next queued feed. That is the streaming-slots model.
 printf '%s\n' "${FEEDS[@]}" \
-    | xargs -P "$SLOTS" -I {} bash -c 'worker "$1" "$2"' _ {} "$POOL_DIR"
+    | xargs -P "$SLOTS" -I {} bash -c "worker \"\$1\" \"\$2\"" _ {} "$POOL_DIR"
 
 echo
 echo "[pool] done. summary:"
