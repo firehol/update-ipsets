@@ -501,11 +501,21 @@ Open decisions:
   the bridge resolves the existing UI config, and the root bridge was rewritten
   to import `uiConfig` and export it as default so the root config shape is
   explicit.
+- Re-checked GitHub Security and quality AI findings after the named-binding
+  rewrite. GitHub still reports 1 finding in `eslint.config.mjs`, now warning
+  that the root bridge should make the flat-config array shape explicit. The
+  root bridge now exports `Array.isArray(uiConfig) ? [...uiConfig] :
+  [uiConfig]`, which preserves array configs and wraps a single config object.
 - Added `.codacy.yml` with `eslint-8` exclusions for `ui/**` and
   `eslint.config.mjs`. The expected effect on the next Codacy analysis is to
   remove the large wrong-stack UI ESLint8 issue class while leaving ESLint9,
   CodeQL, Opengrep/Semgrep, Trivy, gitleaks, and the rest of the scanner stack
   active for follow-up triage.
+- Codacy analyzed commit `de892c69618b58367e588c6763901e3bdbfee30f` after
+  the `.codacy.yml` change. The repository grade improved from C to A and
+  current issues dropped from 8846 to 3153. Remaining issue classes are now
+  mostly complexity, Markdown style, Go permission/path Semgrep findings,
+  Trivy dependency findings, and smaller JS/TS/Python/CSS/Shell findings.
 
 ## Validation
 
@@ -556,7 +566,7 @@ Tests or equivalent validation:
     passed after the Codacy coding-standard lesson was added to the hygiene
     skill.
   - `pnpm --dir ui exec eslint --config ../eslint.config.mjs src/App.tsx`:
-    passed.
+    passed after the named-binding bridge and after the explicit-array bridge.
   - `pnpm --dir ui lint`: passed.
   - `make hygiene`: passed.
   - `git diff --check -- .codacy.yml .agents/skills/project-hygiene/SKILL.md .agents/sow/current/SOW-0099-20260602-github-code-scanning-hygiene.md eslint.config.mjs`:

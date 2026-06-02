@@ -1,3 +1,3 @@
 import uiConfig from "./ui/eslint.config.js";
 
-export default uiConfig;
+export default Array.isArray(uiConfig) ? [...uiConfig] : [uiConfig];
