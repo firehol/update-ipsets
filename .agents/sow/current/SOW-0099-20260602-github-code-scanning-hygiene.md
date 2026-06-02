@@ -614,6 +614,13 @@ Open decisions:
   provider extraction now enforces an expanded-payload ceiling, writes private
   temp/provider files, and removes incomplete temp files on failure. The
   processor copy fallback now writes private generated files.
+- Re-checked GitHub Security and quality AI findings after
+  `7d29654e8d73dbeb679ef28ef1b260d3fe207df4`. GitHub reports 3 current
+  findings in `pkg/web/cache.go`: an unlocked per-file cache limit read and a
+  concurrent miss/insert race that could duplicate LRU entries and overcount
+  cache bytes. The cache now reads the per-file limit under the cache mutex and
+  re-checks for a fresh entry under the mutex immediately before inserting a
+  loaded file.
 
 ## Validation
 
@@ -803,6 +810,20 @@ Tests or equivalent validation:
   - `make hygiene`: passed.
   - `make lint`: passed.
   - `make test`: passed.
+- GitHub AI web cache validation:
+  - `git diff --check -- pkg/web/cache.go pkg/web/cache_test.go`: passed.
+  - `go test ./pkg/web`: passed.
+  - `go test -race ./pkg/web -run TestFileCache`: passed.
+  - `go test ./...`: passed.
+  - `make hygiene`: passed.
+  - `make lint`: passed.
+  - `make test`: passed.
+  - `./install.sh`: passed; local binary, configuration, and service were
+    installed through the managed install path.
+  - `systemctl is-active update-ipsets`: returned `active`.
+  - `curl -fsS http://127.0.0.1:18888/healthz`: returned `ok`.
+  - `curl -fsS http://127.0.0.1:18888/api/v1/status`: returned running engine
+    status.
 
 Real-use evidence:
 
@@ -833,6 +854,8 @@ Reviewer findings:
   - `pkg/web/admin_manifest.go`: required-provider finding rejected as stated
     because provider fan-out files are settled-run repair signals; misleading
     comment corrected and test added.
+  - `pkg/web/cache.go`: valid; fixed by protecting cache-limit reads and
+    re-checking the cache under the mutex before loaded-file insertion.
 
 Same-failure scan:
 

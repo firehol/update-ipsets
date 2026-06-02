@@ -71,6 +71,53 @@ func TestFileCacheHonorsByteLimit(t *testing.T) {
 	assertCachedServeBody(t, cache, a, "zzzz\n")
 }
 
+func TestFileCacheInsertRecheckKeepsLRUStateConsistent(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	path := writeCacheTestFile(t, root, "same.json", "v1\n", time.Unix(350, 0))
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cache := newFileCacheWithLimits(fileCacheLimits{MaxEntries: 10, MaxBytes: 1024, MaxFileBytes: 1024})
+
+	cache.mu.Lock()
+	out1, inserted1 := cache.insertLoadedLocked(path, info, &cachedFile{
+		modTime: info.ModTime(),
+		size:    info.Size(),
+		data:    []byte("v1\n"),
+	})
+	out2, inserted2 := cache.insertLoadedLocked(path, info, &cachedFile{
+		modTime: info.ModTime(),
+		size:    info.Size(),
+		data:    []byte("v2\n"),
+	})
+	entries := len(cache.files)
+	lruEntries := cache.order.Len()
+	bytesCached := cache.bytes
+	cache.mu.Unlock()
+
+	if !inserted1 {
+		t.Fatal("first insert reused an existing entry")
+	}
+	if inserted2 {
+		t.Fatal("second insert duplicated an already fresh cache entry")
+	}
+	if got, want := string(out1.data), "v1\n"; got != want {
+		t.Fatalf("first insert body = %q, want %q", got, want)
+	}
+	if got, want := string(out2.data), "v1\n"; got != want {
+		t.Fatalf("second insert body = %q, want %q", got, want)
+	}
+	if entries != 1 || lruEntries != 1 {
+		t.Fatalf("cache entries=%d lru entries=%d, want 1 and 1", entries, lruEntries)
+	}
+	if bytesCached != info.Size() {
+		t.Fatalf("cache bytes = %d, want %d", bytesCached, info.Size())
+	}
+}
+
 func TestFileCacheRootedServingRejectsSymlinkEscapeAndKeepsServeContent(t *testing.T) {
 	t.Parallel()
 

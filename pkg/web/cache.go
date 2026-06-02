@@ -78,6 +78,41 @@ func normalizeFileCacheLimits(limits fileCacheLimits) fileCacheLimits {
 	return limits
 }
 
+func (c *fileCache) maxCachedFileBytes() int64 {
+	c.mu.Lock()
+	maxFileBytes := c.maxFileBytes
+	c.mu.Unlock()
+	return maxFileBytes
+}
+
+func (c *fileCache) lookupFreshLocked(key string, info os.FileInfo) (cachedFile, bool) {
+	entry, ok := c.files[key]
+	if !ok || !entry.modTime.Equal(info.ModTime()) || entry.size != info.Size() {
+		return cachedFile{}, false
+	}
+	c.order.MoveToFront(entry.elem)
+	return *entry, true
+}
+
+func (c *fileCache) removeStaleLocked(key string) {
+	if entry, ok := c.files[key]; ok {
+		c.removeLocked(key, entry)
+	}
+}
+
+func (c *fileCache) insertLoadedLocked(key string, info os.FileInfo, newEntry *cachedFile) (cachedFile, bool) {
+	if out, ok := c.lookupFreshLocked(key, info); ok {
+		return out, false
+	}
+	c.removeStaleLocked(key)
+	newEntry.elem = c.order.PushFront(key)
+	c.files[key] = newEntry
+	c.bytes += newEntry.size
+	c.evictLocked()
+	c.observeStateLocked()
+	return *newEntry, true
+}
+
 func (c *fileCache) ServeFile(w http.ResponseWriter, r *http.Request, path string, contentType string) bool {
 	entry, ok, err := c.load(path, contentType)
 	if err != nil {
@@ -128,24 +163,20 @@ func (c *fileCache) load(path string, contentType string) (cachedFile, bool, err
 		observeWebArtifactCacheLookup("error")
 		return cachedFile{}, false, err
 	}
-	if info.Size() > c.maxFileBytes {
+	maxFileBytes := c.maxCachedFileBytes()
+	if info.Size() > maxFileBytes {
 		c.remove(path)
 		observeWebArtifactCacheLookup("oversize")
 		return cachedFile{}, false, nil
 	}
 
 	c.mu.Lock()
-	entry, ok := c.files[path]
-	if ok && entry.modTime.Equal(info.ModTime()) && entry.size == info.Size() {
-		c.order.MoveToFront(entry.elem)
-		out := *entry
+	if out, ok := c.lookupFreshLocked(path, info); ok {
 		c.mu.Unlock()
 		observeWebArtifactCacheLookup("hit")
 		return out, true, nil
 	}
-	if ok {
-		c.removeLocked(path, entry)
-	}
+	c.removeStaleLocked(path)
 	c.mu.Unlock()
 
 	data, err := os.ReadFile(path)
@@ -153,7 +184,7 @@ func (c *fileCache) load(path string, contentType string) (cachedFile, bool, err
 		observeWebArtifactCacheLookup("error")
 		return cachedFile{}, false, err
 	}
-	if int64(len(data)) > c.maxFileBytes {
+	if int64(len(data)) > maxFileBytes {
 		observeWebArtifactCacheLookup("oversize")
 		return cachedFile{}, false, nil
 	}
@@ -169,14 +200,13 @@ func (c *fileCache) load(path string, contentType string) (cachedFile, bool, err
 		data:        data,
 	}
 	c.mu.Lock()
-	newEntry.elem = c.order.PushFront(path)
-	c.files[path] = newEntry
-	c.bytes += newEntry.size
-	c.evictLocked()
-	c.observeStateLocked()
-	out := *newEntry
+	out, inserted := c.insertLoadedLocked(path, info, newEntry)
 	c.mu.Unlock()
-	observeWebArtifactCacheLookup("miss")
+	if inserted {
+		observeWebArtifactCacheLookup("miss")
+	} else {
+		observeWebArtifactCacheLookup("hit")
+	}
 	return out, true, nil
 }
 
@@ -199,24 +229,20 @@ func (c *fileCache) loadRooted(rootDir, rel string, contentType string) (cachedF
 		return cachedFile{}, false, "", err
 	}
 	key := filepath.Join(filepath.Clean(rootDir), cleanRel)
-	if info.Size() > c.maxFileBytes {
+	maxFileBytes := c.maxCachedFileBytes()
+	if info.Size() > maxFileBytes {
 		c.remove(key)
 		observeWebArtifactCacheLookup("oversize")
 		return cachedFile{}, false, key, nil
 	}
 
 	c.mu.Lock()
-	entry, ok := c.files[key]
-	if ok && entry.modTime.Equal(info.ModTime()) && entry.size == info.Size() {
-		c.order.MoveToFront(entry.elem)
-		out := *entry
+	if out, ok := c.lookupFreshLocked(key, info); ok {
 		c.mu.Unlock()
 		observeWebArtifactCacheLookup("hit")
 		return out, true, key, nil
 	}
-	if ok {
-		c.removeLocked(key, entry)
-	}
+	c.removeStaleLocked(key)
 	c.mu.Unlock()
 
 	data, err := root.ReadFile(cleanRel)
@@ -224,7 +250,7 @@ func (c *fileCache) loadRooted(rootDir, rel string, contentType string) (cachedF
 		observeWebArtifactCacheLookup("error")
 		return cachedFile{}, false, key, err
 	}
-	if int64(len(data)) > c.maxFileBytes {
+	if int64(len(data)) > maxFileBytes {
 		observeWebArtifactCacheLookup("oversize")
 		return cachedFile{}, false, key, nil
 	}
@@ -240,14 +266,13 @@ func (c *fileCache) loadRooted(rootDir, rel string, contentType string) (cachedF
 		data:        data,
 	}
 	c.mu.Lock()
-	newEntry.elem = c.order.PushFront(key)
-	c.files[key] = newEntry
-	c.bytes += newEntry.size
-	c.evictLocked()
-	c.observeStateLocked()
-	out := *newEntry
+	out, inserted := c.insertLoadedLocked(key, info, newEntry)
 	c.mu.Unlock()
-	observeWebArtifactCacheLookup("miss")
+	if inserted {
+		observeWebArtifactCacheLookup("miss")
+	} else {
+		observeWebArtifactCacheLookup("hit")
+	}
 	return out, true, key, nil
 }
 
