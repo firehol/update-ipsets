@@ -154,6 +154,12 @@ tokens or credentials to durable artifacts.
   scanner/pattern covers the same security concern with better precision. If a
   security rule is noisy, prefer file-specific exclusion or a documented false
   positive over disabling the whole concern.
+- For Python subprocess findings, first remove subprocess use when an
+  in-process project API can do the same work. When subprocess is required for
+  fixed tools such as `git` or `gh`, resolve the executable path with
+  `shutil.which`, pass arguments as a list, keep `shell=False`, set an explicit
+  `check` policy, close stdin with `subprocess.DEVNULL`, and use only narrow
+  `# nosec` suppressions with a rationale tied to the fixed command surface.
 - Search for the same failure class before committing a fix.
 - Prefer fixing findings over suppressing them.
 - If suppression is necessary, make it narrow, durable, and justified by

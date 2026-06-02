@@ -593,6 +593,15 @@ Open decisions:
   destination cleanup now rejects paths outside the repository workspace and
   rejects any source/destination overlap before `rm` is called; the flagged
   trailing-slash regex was replaced with bounded character scanning.
+- Triage of the visible Python subprocess/security cluster found two classes:
+  a validator subprocess in `tools/build-firehol-static-enrichment.py` that can
+  be replaced by loading the local validator module directly, and required
+  `git`/`gh` subprocess calls in `agents/enrichment-refresh.py`. The former was
+  removed. The latter now resolves executable paths with `shutil.which`, passes
+  arguments as lists with no shell, sets explicit `check` behavior, closes
+  stdin, and carries narrow `# nosec` rationale for the fixed command surface.
+  Broad YAML parse exceptions in the touched generator were narrowed to
+  `OSError` and `yaml.YAMLError`.
 
 ## Validation
 
@@ -740,6 +749,20 @@ Tests or equivalent validation:
     triage.
   - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-testing`:
     passed after documenting Node `.mjs` root ESLint coverage.
+- Python subprocess/security validation:
+  - `python -m py_compile agents/enrichment-refresh.py tools/build-firehol-static-enrichment.py`:
+    passed.
+  - `python agents/enrichment-refresh.py --help`: passed.
+  - `python tools/build-firehol-static-enrichment.py --dry-run`: passed and
+    discovered 17 FireHOL-maintained feeds without writing outputs.
+  - `rg -n "import subprocess|subprocess\.run|except Exception" agents/enrichment-refresh.py tools/build-firehol-static-enrichment.py`:
+    only the intentional `git`/`gh` subprocess calls in
+    `agents/enrichment-refresh.py` remain, each with narrow `# nosec`
+    rationale; no broad `except Exception` remains in the two touched files.
+  - `python -m bandit -q agents/enrichment-refresh.py tools/build-firehol-static-enrichment.py`:
+    not run because Bandit is not installed locally.
+  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
+    passed after Python subprocess guidance update.
 
 Real-use evidence:
 

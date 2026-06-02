@@ -12,7 +12,8 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import re
-import subprocess
+import shutil
+import subprocess  # nosec B404 - this script runs fixed git/gh commands.
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -34,6 +35,13 @@ def load_enrichment_public():
 
 
 EP = load_enrichment_public()
+
+
+def command_path(name: str) -> str:
+    path = shutil.which(name)
+    if path is None:
+        raise RuntimeError(f"{name} command not found in PATH")
+    return path
 
 
 def parse_feeds(raw: str) -> list[str]:
@@ -123,10 +131,11 @@ def branch_name(scope: str, timestamp: str) -> str:
 
 
 def git(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["git", *args],
+    return subprocess.run(  # nosec B603 - args are fixed git subcommands assembled by this script.
+        [command_path("git"), *args],
         cwd=REPO,
         check=check,
+        stdin=subprocess.DEVNULL,
         text=True,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
@@ -144,9 +153,14 @@ def has_remote_and_gh() -> bool:
     remotes = git("remote", check=False)
     if remotes.returncode != 0 or not remotes.stdout.strip():
         return False
-    gh = subprocess.run(
-        ["gh", "auth", "status"],
+    gh_path = shutil.which("gh")
+    if gh_path is None:
+        return False
+    gh = subprocess.run(  # nosec B603 - fixed gh auth-status command.
+        [gh_path, "auth", "status"],
         cwd=REPO,
+        check=False,
+        stdin=subprocess.DEVNULL,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
     )
@@ -241,9 +255,11 @@ def run(args: argparse.Namespace) -> int:
         print(f"branch\t{branch}")
         if args.open_pr and has_remote_and_gh():
             title = f"Enrichment refresh: {scope} ({len(feeds)} feeds)"
-            gh = subprocess.run(
-                ["gh", "pr", "create", "--title", title, "--body-file", str(summary)],
+            gh = subprocess.run(  # nosec B603 - fixed gh PR command with controlled arguments.
+                [command_path("gh"), "pr", "create", "--title", title, "--body-file", str(summary)],
                 cwd=REPO,
+                check=False,
+                stdin=subprocess.DEVNULL,
                 text=True,
             )
             if gh.returncode != 0:
@@ -270,6 +286,6 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         sys.exit(main())
-    except Exception as err:
+    except (RuntimeError, ValueError) as err:
         print(f"error: {err}", file=sys.stderr)
         sys.exit(1)

@@ -45,9 +45,9 @@ With --validate, runs agents/validate-output.py on each generated file.
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import shutil
-import subprocess
 import sys
 from datetime import datetime, timezone
 from functools import lru_cache
@@ -457,7 +457,7 @@ def catalog_entries() -> dict[str, dict]:
     for y in sorted(CONFIG_DIR.rglob("*.yaml")):
         try:
             data = yaml.safe_load(y.read_text())
-        except Exception:
+        except (OSError, yaml.YAMLError):
             continue
         if not isinstance(data, dict):
             continue
@@ -1094,7 +1094,7 @@ def discover() -> list[tuple[str, str, Path, dict]]:
     for y in sorted(SOURCES_DIR.rglob("*.yaml")):
         try:
             data = yaml.safe_load(y.read_text())
-        except Exception as e:
+        except (OSError, yaml.YAMLError) as e:
             print(f"WARN: parse error on {y.relative_to(REPO)}: {e}", file=sys.stderr)
             continue
         if not isinstance(data, dict):
@@ -1118,7 +1118,7 @@ def discover() -> list[tuple[str, str, Path, dict]]:
     for y in sorted(CONFIG_DIR.rglob("*.yaml")):
         try:
             data = yaml.safe_load(y.read_text())
-        except Exception as e:
+        except (OSError, yaml.YAMLError) as e:
             print(f"WARN: parse error on {y.relative_to(REPO)}: {e}", file=sys.stderr)
             continue
         if not isinstance(data, dict):
@@ -1152,19 +1152,14 @@ def write_output(feed_name: str, doc: dict, yaml_path: Path) -> Path:
 def validate_one(out_path: Path) -> tuple[bool, str]:
     report_path = out_path.with_suffix(".validation-report.json")
     try:
-        result = subprocess.run(
-            [sys.executable, str(VALIDATOR), str(out_path), "--report", str(report_path)],
-            capture_output=True,
-            text=True,
-            timeout=30,
-        )
-    except subprocess.TimeoutExpired:
-        return False, "validator timeout"
-    if not report_path.exists():
-        return False, f"validator did not produce report (exit={result.returncode})\nstderr: {result.stderr[:300]}"
+        validator = load_validator()
+        report = validator.validate(out_path)
+        report_path.write_text(json.dumps(report, indent=2))
+    except (OSError, RuntimeError, TypeError, ValueError) as e:
+        return False, f"validator failed: {e}"
     try:
         report = json.loads(report_path.read_text())
-    except Exception as e:
+    except (OSError, json.JSONDecodeError) as e:
         return False, f"validator report parse error: {e}"
     summary = report.get("summary") or {}
     schema_ok = bool(report.get("schema_valid"))
@@ -1180,6 +1175,17 @@ def validate_one(out_path: Path) -> tuple[bool, str]:
     if ips:
         parts.append(f"ips={ips}")
     return False, ", ".join(parts)
+
+
+@lru_cache(maxsize=1)
+def load_validator():
+    spec = importlib.util.spec_from_file_location("feed_enrichment_validator", VALIDATOR)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot import {VALIDATOR}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
 
 
 def main() -> int:
