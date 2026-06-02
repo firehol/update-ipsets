@@ -18,11 +18,10 @@ import (
 // exists, is the right size, and is fresher than the feed's
 // last ProcessedDate.
 //
-// Required marks files that MUST exist — missing required files
-// are a pipeline bug. Optional files (source enable markers, raw retained
-// inputs, setinfo, downloader history snapshots, bogon/geo/asn per-provider files that depend on fan-out
-// configuration) are reported when present but do not count as
-// "missing" when absent.
+// Required marks files that MUST exist after a settled pipeline run; missing
+// required files are repair signals. Optional files (source enable markers,
+// raw retained inputs, setinfo, and downloader history snapshots) are reported
+// when present but do not count as "missing" when absent.
 type ManifestFile struct {
 	// Rel is the file's path relative to the daemon root so the
 	// UI can render it without leaking absolute paths.
@@ -258,10 +257,11 @@ func buildFeedManifest(name string, src *config.Source, cfg *config.Config, rt e
 			Required: true,
 		})
 
-		// Per-provider fan-out files. One entry per configured
-		// provider — this keeps the manifest in sync with the
-		// catalog automatically when providers are added or
-		// removed.
+		// Per-provider fan-out files. One entry per configured provider
+		// keeps the manifest in sync with catalog changes. The geo file
+		// name intentionally follows the public artifact contract
+		// {feed}_{geo_provider}.json; ASN and bogon artifacts include
+		// their family token to avoid provider-name ambiguity.
 		for _, p := range cfg.SourcesWithUse(config.UseGeoIP) {
 			add(ManifestFile{
 				Rel:      relOrPath(daemonRoot(baseDir), filepath.Join(webDir, name+"_"+p.Name+".json")),

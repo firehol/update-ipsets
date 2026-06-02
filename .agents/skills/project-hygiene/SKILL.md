@@ -1,6 +1,6 @@
 ---
 name: project-hygiene
-description: "Security, quality, dependency, CI, and GitHub scanner hygiene for update-ipsets. MUST be followed when checking project hygiene, GitHub code scanning, scanner findings, dependency hygiene, CI posture, branch/ruleset enforcement, secret scanning, or supply-chain security."
+description: "Security, quality, dependency, CI, GitHub, and Codacy scanner hygiene for update-ipsets. MUST be followed when checking project hygiene, GitHub code scanning, GitHub AI findings, Codacy issues/findings, scanner findings, dependency hygiene, CI posture, branch/ruleset enforcement, secret scanning, or supply-chain security."
 ---
 
 ## Purpose
@@ -23,6 +23,10 @@ must end in one of these states:
 Never hide a finding by broad suppression, alert dismissal, or workflow
 exclusion unless the SOW records why it is safe.
 
+Do not rely on the user to provide scanner links. Discover the scanner surfaces
+yourself from the repository, GitHub, Codacy, CI checks, and local scanner
+configuration.
+
 ## Required Hygiene Surfaces
 
 Check these surfaces when the user asks for project hygiene, scanner setup, or
@@ -30,6 +34,9 @@ scanner finding review:
 
 - GitHub CodeQL setup, analyses, open/fixed/dismissed alerts, query breadth,
   duplicate-analysis risk, and default-vs-advanced ownership.
+- GitHub Security and quality pages, including standard code-quality findings
+  and AI findings. These are separate from CodeQL/code-scanning alerts and must
+  be triaged separately.
 - GitHub Dependabot alerts, dependency graph/security updates, version-update
   config, and dependency-review pull-request gating.
 - GitHub secret scanning, push protection, non-provider patterns, and local
@@ -39,6 +46,20 @@ scanner finding review:
   permissions.
 - Branch protection or repository rulesets for `main`, including whether
   scanner checks are only advisory or actually enforced.
+- Codacy Cloud repository status: dashboard grade, issue totals, issue
+  category/severity/language breakdown, current and ignored issues, security
+  findings, pull-request analysis, quality gate, coverage status, tools,
+  patterns, coding standard, branch state, and whether findings are advisory or
+  enforced.
+- Codacy configuration:
+  - root `.codacy.yml` / `.codacy.yaml` for Codacy Cloud path/language/engine
+    configuration such as `exclude_paths`, `include_paths`, languages, and tool
+    path scopes;
+  - `.codacy/codacy.config.json` for Codacy Analysis CLI local tool/pattern
+    configuration;
+  - Cloud tool/pattern changes require Codacy UI/API/CLI import or equivalent
+    Cloud action. Do not assume committing `.codacy/codacy.config.json` changes
+    Cloud analysis.
 - OpenSSF Scorecard or equivalent supply-chain posture checks.
 - Local quality/security gates from `project-testing`, including Go, UI,
   nested-tool, vulnerability, static-analysis, race, and strict-test commands
@@ -59,6 +80,15 @@ the direct equivalent and record that gap:
 - `go run github.com/rhysd/actionlint/cmd/actionlint@<pinned-version> .github/workflows/*.yml`
 - `shellcheck $(git ls-files '*.sh')`
 - `go run github.com/zricethezav/gitleaks/v8@<pinned-version> detect --no-banner --redact=100 --source . --exit-code 2`
+- `codacy repository gh firehol update-ipsets --output json`
+- `codacy issues gh firehol update-ipsets --branch main --overview --output json`
+- `codacy issues gh firehol update-ipsets --branch main --severities Critical,High --output json`
+- `codacy findings gh firehol update-ipsets --severities Critical,High --output json`
+- `codacy tools gh firehol update-ipsets --output json`
+- `codacy pull-request gh firehol update-ipsets <pr-number> --output json`
+- `codacy-analysis discover --output-format json --output /tmp/codacy-discover.json`
+- `codacy-analysis analyze --inspect --output-format json`
+- `codacy-analysis analyze --diff --output-format json --output /tmp/codacy-diff.json`
 
 Use GitHub API or `gh` for repository-side evidence:
 
@@ -71,11 +101,25 @@ Use GitHub API or `gh` for repository-side evidence:
 - branch protection and rulesets;
 - Actions permissions.
 
+Use Codacy Cloud CLI, Codacy Analysis CLI, or the authenticated Codacy UI for
+Codacy evidence. If the CLIs are unavailable or unauthenticated, record that
+gap and use the browser/UI evidence that is available. Do not write Codacy API
+tokens or credentials to durable artifacts.
+
 ## Finding Handling
 
 - Start with open/blocking findings, but continue through warnings,
   informational findings, fixed-alert regressions, dismissed alerts, scanner
   configuration gaps, and missing enforcement.
+- For Codacy, start with the issue overview and top patterns by count. Separate
+  real findings from configuration mismatch before fixing thousands of issues.
+  Wrong-stack, deprecated-tool, generated-file, vendored-file, fixture, and
+  project-convention mismatches should be fixed through narrow tool/pattern/path
+  configuration, not broad suppression.
+- Security, Critical, and High findings stay enabled unless another active
+  scanner/pattern covers the same security concern with better precision. If a
+  security rule is noisy, prefer file-specific exclusion or a documented false
+  positive over disabling the whole concern.
 - Search for the same failure class before committing a fix.
 - Prefer fixing findings over suppressing them.
 - If suppression is necessary, make it narrow, durable, and justified by
@@ -90,6 +134,8 @@ Use GitHub API or `gh` for repository-side evidence:
 Before closing a hygiene SOW, record:
 
 - scanner commands and GitHub API checks run;
+- Codacy Cloud/UI/CLI checks run, including issue counts before/after and any
+  tool/pattern/path configuration changes;
 - every valid blocker and non-blocker outcome;
 - same-failure searches;
 - remaining accepted baselines or suppressions with evidence;

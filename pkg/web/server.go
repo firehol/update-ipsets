@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -274,6 +275,10 @@ func serveServer(s namedServer, certFile, keyFile string) error {
 	return s.server.Serve(s.listener)
 }
 
+func isServerClosedError(err error) bool {
+	return errors.Is(err, http.ErrServerClosed)
+}
+
 func readyMessage(servers []namedServer) string {
 	parts := make([]string, 0, len(servers))
 	for _, srv := range servers {
@@ -404,7 +409,7 @@ func Run(ctx context.Context, eng *engine.Engine, opts Options) error {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		for _, srv := range servers {
-			if err := srv.server.Shutdown(shutdownCtx); err != nil && err != http.ErrServerClosed {
+			if err := srv.server.Shutdown(shutdownCtx); err != nil && !isServerClosedError(err) {
 				opts.Logger.Error("http server shutdown error", "listener", srv.name, "listen", srv.addr, "error", err)
 			}
 		}
@@ -440,7 +445,7 @@ func Run(ctx context.Context, eng *engine.Engine, opts Options) error {
 		srv := srv
 		go func() {
 			err := serveServer(srv, opts.CertFile, opts.KeyFile)
-			if err == http.ErrServerClosed {
+			if isServerClosedError(err) {
 				errCh <- nil
 				return
 			}

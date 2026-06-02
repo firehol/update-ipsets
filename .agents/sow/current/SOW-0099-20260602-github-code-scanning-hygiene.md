@@ -16,6 +16,12 @@ Make the repository's GitHub security and hygiene scanning fit production-grade 
 
 Configure CodeQL and other GitHub code scanning / hygiene scanners properly, review the findings visible in GitHub, and choose scanner/enforcement policy with the explicit goal of reducing quality/security risk in an AI-generated repository that normally lands changes without human reviews.
 
+The user later added the repository to Codacy and reported 8.8k Codacy issues,
+with the goal of eventually making Codacy clean. The user also pointed to
+GitHub Security and quality AI findings and to `codacy/codacy-skills`, and
+asked that the project hygiene skill stay current so future agents discover
+these finding surfaces without needing direct links from the user.
+
 ### Lifecycle Note - 2026-06-02
 
 The user redirected active work to SOW-0016 before choosing scanner/enforcement
@@ -67,6 +73,12 @@ Unknowns:
 - Create a durable project hygiene skill requiring future hygiene checks to
   cover the full scanner posture and resolve both blocking and non-blocking
   valid findings.
+- Update the project hygiene skill so Codacy Cloud issues, Codacy tools/patterns,
+  Codacy PR analysis, Codacy configuration, GitHub standard code-quality
+  findings, and GitHub AI findings are mandatory hygiene surfaces.
+- Record how Codacy configuration works so future work does not confuse
+  repository `.codacy.yml` / `.codacy.yaml` path/language configuration with
+  local Codacy Analysis CLI `.codacy/codacy.config.json` tool/pattern tuning.
 
 ## Analysis
 
@@ -106,6 +118,30 @@ Current state:
   but a follow-up settings read still reports `secret_scanning_non_provider_patterns:
   disabled`; GitHub documentation/changelog identifies this repository-level
   setting as a GitHub Advanced Security feature.
+- GitHub Security and quality AI findings page reports 4 findings in 2 files:
+  `pkg/web/admin_manifest.go` and `pkg/web/server.go`.
+- Codacy dashboard reports Grade C and 8844 total current issues on `main`.
+  The visible category breakdown is: Error prone about 3k, Compatibility about
+  2k, Code complexity 973, Code style 916, Security 700, Best practice 492,
+  Performance 122, Unused code 24, Documentation 18, and Comprehensibility 15.
+- Codacy visible top patterns include strong evidence of tool/pattern mismatch
+  for this repo, such as ES2015 module bans, block-scoped variable bans,
+  missing React-in-JSX bans, Flowtype rules, markdown style rules, and broad
+  Go file-permission rules. These need triage, not blanket dismissal.
+- `codacy/codacy-skills` was cloned for reference at
+  `bb6e7fc75159f360efa27d89568078272048be93`. Relevant skill guidance covers
+  Codacy Cloud CLI, Codacy Analysis CLI, Codacy code review, and Codacy
+  configuration/noise reduction.
+- Official Codacy documentation checked on 2026-06-02 says:
+  - `.codacy.yml` or `.codacy.yaml` in the repository root configures advanced
+    Codacy Cloud behavior such as global/tool-specific `exclude_paths`,
+    `include_paths`, languages, and base subdirectories.
+  - When a repository Codacy configuration file exists, ignored-file settings
+    in the Codacy UI do not apply; ignored paths must be in the file.
+  - Codacy Cloud CLI can query issues/findings/PRs/tools/patterns, trigger
+    reanalysis, and import tool/pattern configuration.
+  - `.codacy/codacy.config.json` is the Codacy Analysis CLI local tool/pattern
+    configuration; committing it alone does not change Codacy Cloud analysis.
 
 Risks:
 
@@ -388,6 +424,25 @@ Open decisions:
 - Attempted to enable GitHub non-provider secret patterns through the
   repository API; follow-up settings read still shows the feature disabled, so
   generic secret detection is covered by the checked-in redacted gitleaks gate.
+- Investigated GitHub Security and quality AI findings through the browser UI.
+  Two `pkg/web/server.go` findings are valid Go correctness fixes
+  (`http.ErrServerClosed` should be compared with `errors.Is`). The
+  `pkg/web/admin_manifest.go` findings require producer-path verification
+  before changing manifest semantics.
+- Investigated Codacy through the authenticated browser UI. Codacy is currently
+  noisy enough that the first Codacy task must be configuration and triage,
+  not mechanical issue-by-issue fixing.
+- Cloned `codacy/codacy-skills` and updated the project hygiene skill so
+  future scanner work includes Codacy Cloud, Codacy local analysis, and GitHub
+  AI findings without relying on user-provided links.
+- Fixed the valid GitHub AI findings in `pkg/web/server.go` by using
+  `errors.Is` for `http.ErrServerClosed` comparisons.
+- Verified the `pkg/web/admin_manifest.go` GitHub AI findings against producer
+  paths and specs. The geo filename is intentional
+  (`web/{feed}_{geo_provider}.json`), and configured provider fan-out artifacts
+  are required repair signals for settled non-database public feed manifests.
+  The misleading manifest comment was corrected and a focused manifest test now
+  locks the required geo/ASN provider artifact contract.
 
 ## Validation
 
@@ -423,6 +478,12 @@ Tests or equivalent validation:
   - `make hygiene`: passed.
   - `make ui-static && go build ./... && (cd tools/dronebl2ipsets && go build ./...)`: passed.
   - `git diff --check`: passed.
+- Codacy / GitHub AI finding update validation:
+  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`: passed after the Codacy/GitHub AI finding skill update.
+  - `go test ./pkg/web -run 'TestBuildFeedManifestRequiresConfiguredProviderFanOutArtifacts|TestRunServes|TestAdminReadRoutesAllowHEAD'`: passed.
+  - `go test ./pkg/web`: passed.
+  - `make hygiene`: passed.
+  - `git diff --check`: passed.
 
 Real-use evidence:
 
@@ -437,7 +498,14 @@ Real-use evidence:
 
 Reviewer findings:
 
-- None yet.
+- GitHub AI findings:
+  - `pkg/web/server.go`: valid; fixed with `errors.Is`.
+  - `pkg/web/admin_manifest.go`: filename asymmetry finding rejected as a false
+    positive with evidence from producer path `pkg/engine/geoloc.go` and spec
+    `.agents/sow/specs/files-layout.md`.
+  - `pkg/web/admin_manifest.go`: required-provider finding rejected as stated
+    because provider fan-out files are settled-run repair signals; misleading
+    comment corrected and test added.
 
 Same-failure scan:
 
@@ -470,7 +538,7 @@ Specs update:
 
 Project skills update:
 
-- Added `.agents/skills/project-hygiene/SKILL.md`.
+- Added and later updated `.agents/skills/project-hygiene/SKILL.md`.
 
 End-user/operator docs update:
 
