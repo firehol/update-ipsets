@@ -138,6 +138,13 @@ tokens or credentials to durable artifacts.
   engine-specific `.codacy.yml` path exclusion for UI paths covered by ESLint9
   instead of editing the organization coding standard or disabling security
   scanners.
+- For modern Node `.mjs` maintenance scripts, do not rewrite ES modules,
+  `async`/`await`, `const`, or Node builtin imports into obsolete JavaScript only
+  to satisfy legacy `eslint-8` compatibility rules. Add or verify current
+  ESLint9/root-config coverage for the scripts, then use a narrow `eslint-8`
+  path exclusion when the legacy engine is the mismatch. Still fix true script
+  risks found during triage, such as destructive path cleanup without workspace
+  bounds, unsafe regexes, shell injection, or untrusted subprocess execution.
 - For Dependabot npm/pnpm PRs, preserve release-age supply-chain protection.
   If CI fails with `ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION`, do not weaken the
   installer policy to make the PR pass. Align Dependabot cooldown with pnpm,

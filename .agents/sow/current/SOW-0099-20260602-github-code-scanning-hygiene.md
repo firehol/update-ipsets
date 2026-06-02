@@ -574,6 +574,25 @@ Open decisions:
   managed install already keeps mutable runtime roots non-world-readable.
   Install-time group access remains reserved for trusted root-owned binary and
   configuration paths that the `iplists` service user must read or execute.
+- Codacy analyzed commit `4516edad38f6cdd414c85f15b0c23178dfaa13f2` after
+  the daemon runtime writer mode cleanup. The repository remains Grade A and
+  current issues dropped from 2802 to 2763. Security issues dropped from 344 to
+  303, High-level issues dropped from 249 to 208, and the earlier
+  `Semgrep_go_file-permissions_rule-fileperm` and
+  `Semgrep_go_file-permissions_rule-mkdir` overview patterns are no longer
+  visible.
+- Triage of the next visible Codacy JavaScript/script issue cluster found
+  `scripts/build-wiki.mjs` carrying legacy `eslint-8` compatibility findings
+  such as ES modules, `const`, and `async`/`await` being forbidden. The project
+  should not downgrade modern Node maintenance scripts to obsolete JavaScript
+  just to satisfy that legacy engine. The repo-controlled fix is a narrow
+  `eslint-8` path exclusion for modern `.mjs` maintenance scripts, explicit
+  root ESLint9/core-rule coverage for those scripts, and code fixes for true
+  risks found during the same triage.
+- The true `scripts/build-wiki.mjs` risks fixed in that pass are:
+  destination cleanup now rejects paths outside the repository workspace and
+  rejects any source/destination overlap before `rm` is called; the flagged
+  trailing-slash regex was replaced with bounded character scanning.
 
 ## Validation
 
@@ -627,6 +646,16 @@ Tests or equivalent validation:
     passed after the named-binding bridge and after the explicit-array bridge.
   - `make eslint-root-config`: passed after adding the dedicated root ESLint
     bridge test.
+  - `make eslint-root-config`: passed after adding Node `.mjs` maintenance
+    script coverage to the root ESLint config and test.
+  - `./ui/node_modules/.bin/eslint --config eslint.config.mjs scripts/build-wiki.mjs ui/scripts/check-bundle-budget.mjs`:
+    passed from the repository root.
+  - `tmpdir=$(mktemp -d ./.tmp-wiki-test.XXXXXX) && cp -R docs "$tmpdir/docs" && mkdir "$tmpdir/wiki" && node scripts/build-wiki.mjs "$tmpdir/docs" "$tmpdir/wiki"; rc=$?; rm -rf "$tmpdir"; exit $rc`:
+    passed and built 88 wiki pages with workspace-local paths.
+  - `node scripts/build-wiki.mjs docs docs/wiki-test`: failed as expected
+    because the destination overlaps the source tree.
+  - `rg -n "replace\(/\\/\+\$|\\/\+\$" scripts/build-wiki.mjs`: no matches
+    after replacing the flagged trailing-slash regex.
   - `pnpm --dir ui exec eslint --config ../eslint.config.mjs src/App.tsx`:
     passed after the bridge shape guard was added.
   - `pnpm --dir ui lint`: passed.
@@ -706,6 +735,11 @@ Tests or equivalent validation:
     passed.
   - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-operations`:
     passed.
+  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
+    passed after documenting modern Node `.mjs` versus legacy `eslint-8`
+    triage.
+  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-testing`:
+    passed after documenting Node `.mjs` root ESLint coverage.
 
 Real-use evidence:
 
@@ -716,7 +750,15 @@ Real-use evidence:
   - secret scanning and push protection remain enabled;
   - non-provider secret patterns remain disabled after API PATCH, consistent
     with GitHub Advanced Security availability constraints.
-- Pending post-push workflow/default-setup/ruleset verification.
+- Post-push GitHub evidence for `4516edad38f6cdd414c85f15b0c23178dfaa13f2`:
+  checked-in CodeQL workflow succeeded, dynamic CodeQL/security-quality
+  workflow succeeded, Hygiene succeeded, CI coverage succeeded, CI build
+  succeeded, and GitHub Security and quality AI findings reported zero
+  findings.
+- Post-push GitHub API evidence after `4516edad38f6cdd414c85f15b0c23178dfaa13f2`:
+  open CodeQL alerts `0`; open Dependabot security alerts `0`.
+- Pending post-push workflow/default-setup/ruleset verification for the next
+  scanner-cleanup commit.
 
 Reviewer findings:
 

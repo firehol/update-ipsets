@@ -3,11 +3,33 @@ import { mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const [, , sourceArg = "docs", destArg = "wiki", wikiBaseArg] = process.argv;
-const sourceDir = path.resolve(sourceArg);
-const destDir = path.resolve(destArg);
+const workspaceDir = process.cwd();
+const sourceDir = resolveWorkspacePath(sourceArg, "source");
+const destDir = resolveWorkspacePath(destArg, "destination");
+assertSafeDestination(sourceDir, destDir);
 const wikiBaseURL = normalizeWikiBaseURL(
   wikiBaseArg ?? process.env.WIKI_BASE_URL ?? defaultWikiBaseURL(),
 );
+
+function resolveWorkspacePath(input, label) {
+  const resolved = path.resolve(input);
+  const relative = path.relative(workspaceDir, resolved);
+  if (relative === "" || relative.startsWith("..") || path.isAbsolute(relative)) {
+    throw new Error(`${label} path must be inside the repository workspace`);
+  }
+  return resolved;
+}
+
+function isSameOrInside(child, parent) {
+  const relative = path.relative(parent, child);
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
+}
+
+function assertSafeDestination(source, destination) {
+  if (isSameOrInside(destination, source) || isSameOrInside(source, destination)) {
+    throw new Error("wiki destination must not overlap the source tree");
+  }
+}
 
 function toPosix(value) {
   return value.split(path.sep).join(path.posix.sep);
@@ -66,8 +88,16 @@ function defaultWikiBaseURL() {
   return `https://github.com/${process.env.GITHUB_REPOSITORY ?? "firehol/update-ipsets"}/wiki`;
 }
 
+function trimTrailingSlashes(value) {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 47) {
+    end -= 1;
+  }
+  return value.slice(0, end);
+}
+
 function normalizeWikiBaseURL(value) {
-  const trimmed = value.trim().replace(/\/+$/, "");
+  const trimmed = trimTrailingSlashes(value.trim());
   if (!trimmed) {
     throw new Error("wiki base URL cannot be empty");
   }

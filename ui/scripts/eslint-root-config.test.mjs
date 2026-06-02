@@ -15,7 +15,7 @@ test("root ESLint bridge exports a flat config array", async () => {
   const config = imported.default;
 
   assert.ok(Array.isArray(config));
-  assert.ok(config.length > 0);
+  assert.ok(config.length > 1);
   for (const entry of config) {
     assert.equal(typeof entry, "object");
     assert.notEqual(entry, null);
@@ -91,4 +91,25 @@ test("root ESLint bridge parses JavaScript and MJS files without fatal errors", 
 
     assert.equal(result.fatalErrorCount, 0, sample.filePath);
   }
+});
+
+test("root ESLint bridge applies Node script rules", async () => {
+  const eslint = new ESLint({
+    cwd: repoRoot,
+    ignore: false,
+    overrideConfigFile: rootConfigPath,
+  });
+
+  const [result] = await eslint.lintText(
+    "const unusedValue = process.cwd();\nconsole.log('ready');\n",
+    {
+      filePath: path.join(repoRoot, "scripts/root-eslint-bridge-fixture.mjs"),
+    },
+  );
+
+  assert.equal(result.fatalErrorCount, 0);
+  assert.ok(
+    result.messages.some((message) => message.ruleId === "no-unused-vars"),
+    "expected the root config to apply Node script lint rules",
+  );
 });

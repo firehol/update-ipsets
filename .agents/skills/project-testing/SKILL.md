@@ -57,7 +57,8 @@ description: "Test commands, fixtures, and validation patterns for update-ipsets
 - Root ESLint bridge changes: `make eslint-root-config` or
   `pnpm --dir ui test:eslint-root-config` verifies that repository-root
   `eslint.config.mjs` imports the UI flat config, resolves TS/TSX/JS/MJS file
-  shapes, and applies the UI TypeScript rules for Codacy/GitHub scanners.
+  shapes, applies the UI TypeScript rules, and applies Node script rules for
+  modern `.mjs` maintenance scripts covered by Codacy/GitHub scanners.
 - UI pnpm build-script policy lives in `ui/pnpm-workspace.yaml`; keep
   pnpm 11 CI installs green by classifying dependency lifecycle scripts there.
 - UI bundle-size changes: `make ui-budget` or `pnpm --dir ui build:budget`.
