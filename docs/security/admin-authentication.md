@@ -89,14 +89,21 @@ credentials in a protected drop-in.
 
 ## Configuring in systemd
 
-Set credentials in a systemd drop-in:
+For the installed service, enable required authentication and set credentials in
+a systemd drop-in:
 
 ```ini
 # /etc/systemd/system/update-ipsets.service.d/credentials.conf
 [Service]
+Environment="UPDATE_IPSETS_ADMIN_AUTH_ARG=--admin-auth-mode=required"
+Environment="UPDATE_IPSETS_ALLOW_UNAUTHENTICATED_ADMIN_ARG="
 Environment="UPDATE_IPSETS_ADMIN_USER=admin"
 Environment="UPDATE_IPSETS_ADMIN_PASSWORD=your-secret-password"
 ```
+
+Adding only `UPDATE_IPSETS_ADMIN_USER` and `UPDATE_IPSETS_ADMIN_PASSWORD` is not
+enough for the installed service when its auth-mode argument is still set to
+`--admin-auth-mode=disabled`.
 
 Avoid putting credentials in the `ExecStart=` line — they would be visible in the process list.
 

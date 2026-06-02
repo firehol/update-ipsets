@@ -33,7 +33,7 @@ by source and merge `category:` fields.
 
 | Field | Type | Default | Description | Example |
 |-------|------|---------|-------------|---------|
-| `categories.<key>.label` | string | category key | Human-readable category name shown in the UI. | `Intrusion` |
+| `categories.<key>.label` | string | — | Required human-readable category name shown in the UI. | `Intrusion` |
 | `categories.<key>.description` | string | — | One-sentence explanation of what feeds in this category track. | `IPs observed initiating hostile access attempts against exposed services.` |
 | `categories.<key>.color` | string | — | CSS hex color used for category badges, tags, and charts. | `#dc2626` |
 | `categories.<key>.sort_order` | integer | `0` | Lower numbers appear first in public browsing lists. | `10` |
@@ -46,7 +46,7 @@ by source and merge `category:` fields.
 | YAML key under `sources:` | string | — | Unique feed name. Used as filename, URL slug, reference key. Avoid path separators, commas, reserved filename characters (colon, asterisk, question mark, quotes, angle brackets, vertical bar), control characters, and non-ASCII. | `dshield` |
 | `label` | string | feed name | Human-readable name shown in the UI | `Team Cymru bogons (aggregated)` |
 | `info` | string | — | Markdown description shown on the public feed-detail page | `[DShield.org](https://dshield.org/) top 20 attacking class C subnets` |
-| `category` | string | — | Category key from `categories.yaml`. Required. | `intrusion` |
+| `category` | string | — | Category key from `categories.yaml`. Required for normal public taxonomy participation; the loader currently accepts an empty category. | `intrusion` |
 | `maintainer` | string | — | Feed maintainer name | `DShield.org` |
 | `maintainer_url` | string (URL) | — | Link to maintainer website | `https://dshield.org/` |
 | `homepage` | string (URL) | — | Not a direct config field. Use `info` with a markdown link to the upstream page instead. | — |
@@ -59,9 +59,9 @@ by source and merge `category:` fields.
 | `url` | string (URL) | — | Download URL. Supports `https://`, `http://`, `file:///`, `artifact://`, and `internal://`. | `https://feeds.dshield.org/block.txt` |
 | `static` | list of strings | — | IP/CIDR list provided directly in YAML. Alternative to `url`. | `["1.1.1.1", "8.8.8.8"]` |
 | `frequency` | integer | — | Minutes between automatic checks. `0` means not auto-scheduled. | `1440` |
-| `ipv` | string | `ipv4` | IP version marker. Use `ipv4` for current feed processing and public lookup. `ipv6` is accepted by validation for ordinary set feeds, but the shipped catalog and public query/enrichment pipeline are IPv4-only in this release. Critical-infrastructure references reject `ipv6`. | `ipv4` |
+| `ipv` | string | — | Required IP version marker for set-producing sources and merges. Use `ipv4` for current feed processing and public lookup. `ipv6` is accepted by validation for ordinary set feeds, but the shipped catalog and public query/enrichment pipeline are IPv4-only in this release. Critical-infrastructure references reject `ipv6`. | `ipv4` |
 | `downloader` | string | default HTTP/file downloader | Specialized downloader name for provider-database downloads. Normal feed downloads use `attributes.downloader`. | `copyfile` |
-| `downloader_options` | string | — | Curl-like options for provider-database downloads. Normal feed downloads use `attributes.downloader_options`. | `--header 'Authorization: bearer ${API_TOKEN}'` |
+| `downloader_options` | string | — | Literal curl-like options for provider-database downloads. Normal feed downloads use `attributes.downloader_options`. These options are not environment-expanded. | `--header 'Accept: application/json'` |
 
 ## Processing fields
 
@@ -113,7 +113,7 @@ Other enrichment subfields cover listing policy, unlisting policy, scope and int
 | `hidden` | boolean | `false` | Hide from public browsing. Feed remains active in admin and processing. | `true` |
 | `exclude_from_unmaintained` | boolean | `false` | Suppress age-based health states (delayed, risky, unmaintained). | `true` |
 | `enabled_by_all` | boolean | `false` | Accepted catalog metadata from the legacy catalog. The current daemon `--enable-all` flag enables every configured source regardless of this value. | `true` |
-| `accept_empty` | boolean | `false` | Do not flag empty downloads as errors | `true` |
+| `accept_empty` | boolean | `false` | Accepted catalog metadata from the legacy catalog. Current ordinary source downloads and artifact child materialization accept empty bodies regardless of this value. | `true` |
 
 ## Use role fields
 
@@ -182,7 +182,7 @@ Used in `artifacts/` YAML files.
 |-------|------|---------|-------------|---------|
 | `attributes.public_url` | string (URL) | `url` | Public-safe URL shown in metadata when the real `url` contains credentials or tokens. | `https://example.com/feed.txt?token=TOKEN` |
 | `attributes.downloader` | string | default HTTP/file downloader | Specialized downloader name for normal source-feed downloads. | `copyfile` |
-| `attributes.downloader_options` | string | — | Curl-like options for normal source-feed downloads: `--data` / `--data-raw` / `-d`, `--request` / `-X`, `--referer`, `--user` / `-u`, and `--header` / `-H` are supported. The `--data=...`, `--request=...`, `--referer=...`, and `--user=...` forms are also accepted. | `--data 'export_type=text'` |
+| `attributes.downloader_options` | string | — | Literal curl-like options for normal source-feed downloads: `--data` / `--data-raw` / `-d`, `--request` / `-X`, `--referer`, `--user` / `-u`, and `--header` / `-H` are supported. The `--data=...`, `--request=...`, `--referer=...`, and `--user=...` forms are also accepted. These options are not environment-expanded. | `--data 'export_type=text'` |
 | `attributes.no_if_modified_since` | string | unset | Set a non-empty value to suppress `If-Modified-Since` on HTTP downloads for sources that reject conditional requests. | `true` |
 | `attributes.context_role` | string | — | Provider-context role, used with `use: [provider_context]`. | `cloud_customer_hosting` |
 | `attributes.context_source_type` | string | — | Provider-context source shape. | `authoritative_provider_json` |

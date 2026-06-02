@@ -4,9 +4,9 @@ You will learn the security design of update-ipsets, how the two surfaces are pr
 
 ## Design principles
 
-update-ipsets follows a fail-closed security model:
+update-ipsets follows a fail-closed daemon security model:
 
-- Secure defaults out of the box
+- The daemon CLI default requires admin authentication
 - Unsafe modes require explicit opt-in
 - Misconfiguration blocks access rather than opening it
 
@@ -23,7 +23,7 @@ The daemon exposes two distinct surfaces:
 
 **Admin surface** — the operator dashboard and control API.
 
-- Requires authentication by default.
+- Requires authentication by default in the daemon CLI.
 - Exposes feed status, queue state, integrity findings, and operator actions (recheck, reprocess, enable, disable).
 - Available on the same listener as public, or on a separate admin-only listener.
 
@@ -38,10 +38,17 @@ The daemon exposes two distinct surfaces:
 
 See [Admin Authentication](admin-authentication.md) for the full authentication model.
 
-- Default mode is `required` — HTTP Basic Auth with configured credentials.
+- Daemon default mode is `required` — HTTP Basic Auth with configured credentials.
 - Missing or empty credentials block admin access entirely.
 - Disabling auth requires two explicit flags, not one.
 - The admin SPA shell itself is protected behind authentication.
+
+The installed systemd unit is different from the daemon CLI default: `install.sh`
+generates a private-network service configuration that disables admin
+authentication with both required unsafe flags. Treat that installed mode as
+safe only when localhost or tailnet membership is the intended admin access
+control layer. For shared, untrusted, or internet-reachable networks, switch the
+installed unit back to `--admin-auth-mode=required` and configure credentials.
 
 ## Security considerations by deployment
 

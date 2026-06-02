@@ -20,12 +20,16 @@ Compose takes existing public feeds, combines them using set operations, and ret
 
 ## How it works
 
-The daemon opens the latest committed binary set for each named feed, performs the union of all included feeds, subtracts all excluded feeds, and streams the result.
+The daemon opens the latest local set representation for each named feed,
+preferring committed binary set files and falling back to the materialized
+`.ipset` / `.netset` body when needed. It performs the union of all included
+feeds, subtracts all excluded feeds, buffers the composed output with the
+32 MiB cap below, and returns the result.
 
 The compose operation runs entirely against local committed data. It does not trigger downloads or recomputation.
 
-The endpoint caps output at 32 MiB. Very large compositions return an error instead
-of streaming unbounded output.
+The endpoint caps output at 32 MiB. Very large compositions return an error
+instead of producing an unbounded response.
 
 ## Output format
 

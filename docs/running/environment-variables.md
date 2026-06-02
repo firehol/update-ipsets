@@ -63,14 +63,18 @@ directory you want the daemon to load.
 
 ## Web publishing variables
 
-These are not path overrides but configure how published files are served.
+These are runtime YAML fields, not process environment overrides in the shipped
+catalog. The shipped `runtime.yaml` sets the URL values directly. To change
+them, edit the YAML value, or first change the YAML to reference an environment
+template such as `${PUBLIC_BASE_URL-...}` and then set the matching environment
+variable.
 
-| Variable | Default | Description |
+| Runtime setting | Shipped value | Description |
 |---|---|---|
-| `WEB_OWNER` | (none) | Filesystem owner for published web files. |
-| `WEB_URL` | `https://iplists.firehol.org/ipsets/` | Public website feed-detail URL prefix. |
-| `PUBLIC_BASE_URL` | (none) | Externally visible base URL. |
-| `LOCAL_COPY_URL` | `https://iplists.firehol.org/files/` | Base URL for raw file downloads. |
+| `web_owner` | (none) | Filesystem owner for published web files. |
+| `web_url` | `https://iplists.firehol.org/ipsets/` | Public website feed-detail URL prefix. |
+| `public_base_url` | (none) | Externally visible base URL. |
+| `local_copy_url` | `https://iplists.firehol.org/files/` | Base URL for raw file downloads. |
 
 ## API key variables
 
@@ -114,9 +118,13 @@ Environment="HTTPS_PROXY=http://proxy.example:3128"
 Environment="NO_PROXY=127.0.0.1,localhost,.example.internal"
 ```
 
-## Legacy config file
+## Legacy config-file assignment names
 
-| Variable | Default | Description |
+These names are parsed from legacy `.conf` files. They are not process
+environment overrides for the shipped YAML catalog unless a YAML template
+explicitly references them.
+
+| Legacy assignment | Default | Description |
 |---|---|---|
 | `USER_AGENT` | `FireHOL-Update-Ipsets/3.0 (linux-gnu) https://iplists.firehol.org/` | HTTP User-Agent header for upstream downloads. |
 | `UPDATE_IPSETS_LOCK_FILE` | `$RUN_PARENT_DIR/update-ipsets.lock` | Lock file path. `LOCK_FILE` is a legacy alias. |

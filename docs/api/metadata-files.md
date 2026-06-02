@@ -28,7 +28,10 @@ GET /sitemap.xml
 
 Returns a Sitemaps.org sitemap index. This index links to individual sitemap shard files.
 
-Each shard uses absolute URLs and the Sitemaps.org XML namespace. Shards stay below 45,000 URLs to remain well under the 50,000-URL sitemap protocol limit.
+Each shard uses absolute URLs and the Sitemaps.org XML namespace. ASN sitemap
+shards are chunked at 45,000 URLs to remain below the 50,000-URL sitemap
+protocol limit. Other sitemap shards are generated as fixed category shards and
+are expected to remain below the protocol limit.
 
 ## Sitemap shards
 

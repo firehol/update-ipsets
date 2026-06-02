@@ -58,6 +58,9 @@ Sources checked:
 - `pkg/mcp/server.go`
 - `pkg/mcp/fetch_analysis.go`
 - `install.sh`
+- `pkg/engine/download_stage.go`
+- `pkg/downloader/downloader.go`
+- `configs/firehol/sources/malware_infrastructure/blueliv_crimeserver_last.yaml`
 
 Current state:
 
@@ -69,6 +72,7 @@ Current state:
 - `enabled_by_all` is accepted catalog metadata, but current runtime `--enable-all` behavior enables every configured source without filtering by that field.
 - MCP `fetch_analysis` describes `AS`-prefixed ASN names, but the markdown lookup path does not normalize or strip the `AS` prefix.
 - `install.sh` accepts a custom install directory argument while the generated managed systemd unit hardcodes `/opt/update-ipsets`.
+- `attributes.downloader_options` are passed to the downloader as literal strings, but the active `blueliv_crimeserver_last` catalog entry contains a bearer-token environment placeholder in that field.
 
 Risks:
 
@@ -76,6 +80,7 @@ Risks:
 - Changing admin/API rate limiting can affect security posture and automation behavior.
 - Changing `enabled_by_all` semantics can surprise operators who rely on current `--enable-all` behavior.
 - Changing install path behavior can affect managed-service upgrades and path permissions.
+- Changing downloader-option environment expansion can affect secret handling, catalog compatibility, and downloader request construction.
 
 ## Pre-Implementation Gate
 
@@ -98,6 +103,7 @@ Affected contracts and surfaces:
 - catalog enablement semantics
 - MCP tool argument contract
 - install/systemd managed-service contract
+- downloader option and secret-handling contract
 - specs and operator docs if any behavior changes
 
 Existing patterns to reuse:
@@ -115,7 +121,7 @@ Sensitive data handling plan:
 
 Implementation plan:
 
-1. Present the eight review items as numbered decisions with concrete evidence, options, implications, and recommendations.
+1. Present the review items as numbered decisions with concrete evidence, options, implications, and recommendations.
 2. Record user decisions in this SOW.
 3. Implement only accepted changes, splitting into narrower SOWs if decisions are independent or high risk.
 4. Update specs, operator docs, and tests for each accepted behavior change.
@@ -150,6 +156,7 @@ Open decisions:
 6. `enabled_by_all`: implement legacy filtering behavior, deprecate/remove, or keep as accepted catalog metadata only.
 7. MCP ASN names: normalize `AS`-prefixed names, or require numeric ASN identifiers in the tool contract.
 8. Custom install directory: generate matching managed units, reject custom paths for managed installs, or keep custom paths as manual/experimental.
+9. Downloader options and secrets: expand environment variables in downloader options, move secret-bearing headers into a dedicated credential mechanism, rewrite or retire the affected catalog entry, or keep downloader options literal and mark secret-bearing header templates unsupported.
 
 ## Implications And Decisions
 

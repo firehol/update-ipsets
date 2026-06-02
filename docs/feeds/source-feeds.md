@@ -14,9 +14,9 @@ The current feed pipeline is IPv4-oriented. Use `ipv: ipv4` for source feeds in 
 |-------|----------|-------------|
 | `name` | yes (YAML key) | Unique feed identifier — used as filename, URL slug, and reference key |
 | `url` | yes | Download URL — `https://`, `http://`, or `file:///` |
-| `frequency` | yes | Minutes between automatic checks. `0` means not auto-scheduled. |
+| `frequency` | no | Minutes between automatic checks. If omitted or `0`, the source is not auto-scheduled. |
 | `output` | yes | `ipset` (one IP per line) or `netset` (one CIDR per line) |
-| `category` | yes | Category key from `categories.yaml` |
+| `category` | yes for normal public feeds | Category key from `categories.yaml`; required for normal public taxonomy participation. |
 | `processor` | yes | List of transformation steps applied to the download |
 | `info` | recommended | Markdown description shown on the public feed-detail page |
 | `license` | recommended | SPDX identifier or free-text license |
@@ -46,8 +46,12 @@ Most feeds use the default HTTP downloader. For form-style exports or APIs that 
 attributes:
   downloader_options: >-
     --data 'export_type=text'
-    --header 'Authorization: bearer ${API_TOKEN}'
+    --header 'Accept: text/plain'
 ```
+
+`downloader_options` are parsed literally. URL fields support environment
+variable templates, but downloader option values are not environment-expanded.
+Do not put real secrets in catalog YAML.
 
 Supported options are:
 
@@ -59,7 +63,7 @@ Supported options are:
 
 The `--data=...`, `--request=...`, `--referer=...`, and `--user=...` forms are
 also accepted. Header values must use the separated form, for example
-`--header 'Authorization: bearer ${API_TOKEN}'`.
+`--header 'Accept: text/plain'`.
 
 ## Frequency
 

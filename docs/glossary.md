@@ -126,7 +126,7 @@ You will learn the key terms used throughout the update-ipsets documentation.
 
 **provider context** — Broad cloud/hosting address ranges shown as collateral-risk context. Not critical infrastructure warnings.
 
-**provider database** — A supporting dataset (ASN, geolocation, bogon) used for feed enrichment. Not a public feed.
+**provider database** — A supporting ASN or geolocation dataset used for feed enrichment. Not a public feed. Bogon provider sources are different: they may also be public feeds unless configured as hidden.
 
 **provenance** — The origin classification of a feed: primary, secondary_upstream, secondary_merge, or secondary_retention.
 

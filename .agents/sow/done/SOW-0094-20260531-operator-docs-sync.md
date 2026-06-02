@@ -4,7 +4,7 @@
 
 Status: completed
 
-Sub-state: operator-doc, GitHub Wiki publishing/navigation, approved TODO-history move, catalog-maintenance path rename, stale-reference cleanup, logging-format documentation, and spec-as-current-application repairs applied and validated; application-review notes are mapped to SOW-0095; closure and commit approved.
+Sub-state: operator-doc/wiki/spec sync remains completed and validated; regression fix completed on 2026-06-02 for review-only docs accuracy findings; application-review notes are mapped to SOW-0095.
 
 ## Requirements
 
@@ -1468,4 +1468,86 @@ Operator-doc, API Reference, wiki-publishing/navigation, approved TODO-history r
 
 ## Regression Log
 
-None yet.
+## Regression - 2026-06-02
+
+The user requested a review-only documentation accuracy pass with four internal
+reviewers and no code changes, tests, scripts, or external agents. The review
+found twelve documentation accuracy issues after this SOW had been completed.
+The user approved fixing those findings and committing the result.
+
+Findings to repair:
+
+- `docs/api/compose-endpoint.md`: compose currently buffers the output and can
+  fall back from binary set files to materialized text files; it does not stream
+  directly from binary-only inputs.
+- `docs/api/metadata-files.md`: only ASN sitemap shards are chunked at 45,000
+  URLs; the fixed category shards are expected to remain below protocol limits.
+- `docs/security/security-overview.md`: the daemon CLI default requires admin
+  auth, while the installed systemd unit deliberately disables admin auth for
+  private-network operation unless the operator changes the drop-in variables.
+- `docs/security/admin-authentication.md`: systemd authentication requires
+  changing the auth-mode argument and clearing the unauthenticated-admin
+  acknowledgment, not only adding username/password credentials.
+- `docs/running/environment-variables.md`: several names are legacy config-file
+  assignment names or YAML-template variables, not process environment overrides
+  honored by the shipped YAML catalog.
+- `docs/feeds/yaml-field-reference.md`: `ipv` is required for set-producing
+  sources/merges; `downloader_options` are not environment-expanded;
+  `accept_empty` is accepted but not currently effective for ordinary source
+  downloads; declared category labels are required; source category is a public
+  taxonomy requirement rather than a loader-enforced field.
+- `docs/feeds/source-feeds.md`: the same downloader-options example implied
+  secret environment expansion in header values, and the source-feed key table
+  overstated `frequency` as required even though `0` / omitted means not
+  auto-scheduled.
+- `docs/feeds/merge-feeds.md`: merge `frequency` is optional and defaults to
+  `runtime.processing_interval_minutes` when omitted or zero.
+- `docs/glossary.md`: ASN and GeoIP provider databases are not public feeds, but
+  bogon provider sources may also be public feeds unless hidden.
+
+Validation plan for this regression:
+
+- Re-read the corrected documentation snippets against the same code evidence
+  cited by the reviewers.
+- Run `git diff --check` on touched files.
+- Do not run tests or scripts for this regression because the user explicitly
+  asked for a review-only basis and these fixes are documentation-only.
+
+Repairs applied:
+
+- Corrected compose endpoint wording to cover binary-file preference, text-body
+  fallback, and bounded buffering.
+- Corrected sitemap shard wording so only ASN shards claim 45,000 URL chunking.
+- Corrected admin-auth docs to distinguish daemon CLI defaults from the
+  installed private-network systemd defaults, and to show the required drop-in
+  variables for enabling installed-service authentication.
+- Corrected environment-variable docs to distinguish process environment
+  variables, runtime YAML fields, and legacy config-file assignment names.
+- Corrected feed YAML docs for `ipv`, category labels, source category
+  semantics, literal downloader options, and `accept_empty`.
+- Corrected source-feed docs for literal downloader options, secret handling,
+  optional `frequency`, and public-taxonomy category semantics.
+- Corrected merge docs so `frequency` is optional and falls back to
+  `runtime.processing_interval_minutes`.
+- Corrected the provider-database glossary entry so ASN/GeoIP databases are
+  distinguished from bogon sources that may also be public feeds.
+- Updated SOW-0095 with the active-catalog downloader-options secret-handling
+  behavior question found during same-failure review.
+
+Validation performed:
+
+- Targeted stale-claim scans over `docs/` and feed/glossary pages returned no
+  matches for the repaired phrases.
+- `git diff --check` passed for the touched documentation files, this SOW, and
+  `.agents/sow/pending/SOW-0095-20260601-application-review-from-docs-sync.md`.
+- No tests or scripts were run for this regression, per the user's review-only
+  constraint and because the changes are documentation/SOW only.
+
+Additional application-review follow-up:
+
+- `configs/firehol/sources/malware_infrastructure/blueliv_crimeserver_last.yaml`
+  still contains a bearer-token environment placeholder in
+  `attributes.downloader_options`, while current code passes downloader options
+  literally. This is mapped to
+  `.agents/sow/pending/SOW-0095-20260601-application-review-from-docs-sync.md`
+  for an explicit keep/change/deprecate decision.

@@ -19,7 +19,7 @@ Merges do not fetch upstream content. They compose their output from the latest 
 | Field | Required | Description |
 |-------|----------|-------------|
 | `name` | yes (YAML key) | Unique merge identifier |
-| `frequency` | yes | Minutes between composition attempts |
+| `frequency` | no | Minutes between composition attempts. If omitted or `0`, the merge uses `runtime.processing_interval_minutes`. |
 | `sources` | yes | List of additive input feed names |
 | `exclude` | no | List of subtractive input feed names |
 | `history` | no | History-derivative windows, in minutes, generated from the merge output |
