@@ -3,5 +3,6 @@ engines:
   eslint-8:
     exclude_paths:
       - "ui/**"
+      - "scripts/*.mjs"
       - "scripts/**/*.mjs"
       - "eslint.config.mjs"

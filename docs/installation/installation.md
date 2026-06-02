@@ -47,8 +47,7 @@ The installer does these things in order:
 The generated systemd unit:
 
 - runs as `User=iplists` and `Group=iplists`
-- sets `UMask=0027` so generated artifacts are group-readable but not
-  world-readable
+- sets `UMask=0077` so generated artifacts are private to the service user
 - serves the public listener on `127.0.0.1:18888`
 - serves admin on `127.0.0.1:18889` with admin auth disabled
 - moves the admin listener to the Tailscale IPv4 address when `tailscale ip -4` returns one

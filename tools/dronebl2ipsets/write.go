@@ -8,8 +8,8 @@ import (
 )
 
 const (
-	generatedDirMode  os.FileMode = 0o750
-	generatedFileMode os.FileMode = 0o640
+	generatedDirMode  os.FileMode = 0o700
+	generatedFileMode os.FileMode = 0o600
 )
 
 func WriteSourceFile(outputDir, filename string, set *RangeSet, mtime time.Time) error {

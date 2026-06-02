@@ -7,7 +7,6 @@ import (
 	"math"
 	"strconv"
 	"strings"
-	"unsafe"
 )
 
 const (
@@ -56,11 +55,7 @@ const (
 )
 
 func detectNativeEndian() binary.ByteOrder {
-	var probe uint16 = 0x0102
-	if *(*byte)(unsafe.Pointer(&probe)) == 0x02 {
-		return binary.LittleEndian
-	}
-	return binary.BigEndian
+	return binary.NativeEndian
 }
 
 func Uint32ToIPv4(v uint32) string {

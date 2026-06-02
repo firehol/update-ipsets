@@ -102,6 +102,7 @@ const DASH = <span className="text-muted-foreground">—</span>;
 function identification(feed: FeedMetadata): SpecRow[] {
   const maintainerUrl = safeExternalUrl(feed.maintainer_url);
   const sourceUrl = safeExternalUrl(feed.source);
+  const commitHistoryUrl = safeExternalUrl(feed.commit_history);
   return [
     { label: "Name", value: <span className="font-mono">{feed.name}</span> },
     { label: "Category", value: feed.category },
@@ -152,14 +153,20 @@ function identification(feed: FeedMetadata): SpecRow[] {
     {
       label: "Commit history",
       value: feed.commit_history ? (
-        <a
-          className="text-primary hover:underline [word-break:break-all]"
-          href={feed.commit_history}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          View revision history
-        </a>
+        commitHistoryUrl ? (
+          <a
+            className="text-primary hover:underline [word-break:break-all]"
+            href={commitHistoryUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View revision history
+          </a>
+        ) : (
+          <span className="font-mono [word-break:break-all]">
+            {feed.commit_history}
+          </span>
+        )
       ) : (
         DASH
       ),

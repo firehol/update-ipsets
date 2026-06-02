@@ -162,6 +162,61 @@ Current state:
   warns that a direct default re-export assumes the UI config default shape and
   recommends importing the UI config into a named binding before exporting it
   as the root default config.
+- Codacy Cloud CLI was installed and authenticated by the user on 2026-06-02.
+  `codacy repository gh firehol update-ipsets --output json` reports the latest
+  Codacy analysis on `main` ended at `2026-06-02T16:40:33Z` for commit
+  `f4ffd7b00b85652b849764df08b3dbd52c7826a5`, with `issuesCount: 2726`, grade
+  gate policy `Codacy Gate Policy`, and the `Default coding standard`.
+- Codacy issue overview from `codacy issues gh firehol update-ipsets --branch
+  main --overview --output json` reports 2726 issues: 262 Security, 982
+  Complexity, 901 CodeStyle, 463 BestPractice, 41 Compatibility, 39 ErrorProne,
+  18 Documentation, 15 Comprehensibility, and 5 Performance. Levels are 170
+  High, 131 Error, 1118 Warning, and 1307 Info.
+- Codacy findings from `codacy findings gh firehol update-ipsets --limit 500
+  --output json` report 262 active security findings: 131 Critical and 131 High.
+  Category totals are FileAccess 179, InsecureModulesLibraries 37, XSS 18,
+  Cryptography 8, CommandInjection 7, UnexpectedBehaviour 6, DoS 2, HTTP 2,
+  SSL 2, and Regex 1.
+- Codacy security issue grouping from `codacy issues gh firehol update-ipsets
+  --branch main --categories Security --limit 1000 --output json` shows the
+  largest classes are dynamic file/path reads (96), file permission findings
+  (80), package dependency version-range findings in `ui/package.json` (33),
+  direct writes to `http.ResponseWriter` (11), and `math/rand` findings (6).
+  The file-permission group includes many `os.MkdirAll(..., 0o700)` test
+  directory creations; those must be triaged as directory false positives or
+  rule/config mismatch rather than weakened to unusable `0600` directory modes.
+- Codacy tools from `codacy tools gh firehol update-ipsets --output json` show
+  many enabled tools, including Gosec, Staticcheck, Trivy, Opengrep,
+  GolangCI-Lint, Ruff, ESLint9, Bandit, ShellCheck, markdownlint, Stylelint,
+  Lizard, Agentlinter, Prospector, and legacy/deprecated tools such as TSLint
+  and Pylint (deprecated). `ESLint9` is enabled and uses a configuration file;
+  `ESLint (deprecated)` is disabled, while another `ESLint` tool remains enabled
+  by the default coding standard. Tool overlap and deprecated-tool ownership
+  must be handled as configuration hygiene, not by broad issue dismissal.
+- Codacy high/error issue details showed `ESLint8_*` findings still attached to
+  `scripts/build-wiki.mjs` even though `.codacy.yml` attempted to exclude
+  `scripts/**/*.mjs`. The top-level `scripts/build-wiki.mjs` path was not
+  matched by that glob, so `.codacy.yml` now also excludes `scripts/*.mjs` for
+  the legacy `eslint-8` engine. This does not disable current JavaScript
+  coverage; `scripts/build-wiki.mjs` remains covered by the repository's
+  modern Node syntax and root ESLint configuration tests.
+
+## User Decisions - 2026-06-02 Codacy Cleanup Direction
+
+The user approved these implementation choices:
+
+1. Pin direct UI dependency and dev-dependency version specifiers exactly rather
+   than keeping npm range specifiers and baselining Codacy's dependency-version
+   findings.
+2. Move daemon-generated runtime/publication file modes to private
+   owner-readable/owner-writable files and private owner-accessible directories
+   where no documented install/operator contract requires group access.
+3. Handle Codacy tool mismatch with narrow repo/tool/path configuration rather
+   than broad tool disabling or bulk issue dismissal.
+4. Tighten XSS/HTML rendering code and tests first, then only baseline paths
+   proven sanitized or structurally non-HTML.
+5. Audit dynamic file/path findings by production surface, add or verify
+   root-bound helpers, and baseline test/CLI false positives only with evidence.
 
 Risks:
 
@@ -628,6 +683,29 @@ Open decisions:
   should prove the failed helper did not write a response. The tests now assert
   the exact cache/LRU/byte state after byte-limit eviction and assert that the
   symlink escape path leaves the recorder status/body untouched.
+- After the user installed and authenticated the Codacy Cloud CLI, re-queried
+  Codacy on 2026-06-02. The latest completed Codacy analysis on `main` reports
+  2726 open issues and 262 active security findings. The biggest actionable
+  security groups are file/path reads, file permissions, dependency version
+  ranges in `ui/package.json`, direct response writes, and test-only
+  `math/rand` findings.
+- Implemented the approved first cleanup batch for the current Codacy evidence:
+  pinned direct UI dependency and dev-dependency specifiers exactly, refreshed
+  only the pnpm lockfile importer specifiers, added a narrow top-level
+  `scripts/*.mjs` legacy `eslint-8` exclusion, changed daemon-generated
+  runtime/publication modes to private `0700` directories and `0600` files,
+  updated the managed installer to repair mutable runtime trees to `0700` and
+  `0600`, changed the generated systemd unit to `UMask=0077`, kept the trusted
+  binary/config install contract as `root:iplists` with group access, rendered
+  unsafe feed commit-history values as text instead of links, and replaced the
+  `pkg/iprange` unsafe endian probe with `encoding/binary.NativeEndian`.
+- Updated `.agents/sow/specs/files-layout.md`,
+  `docs/installation/filesystem-layout.md`, `docs/installation/installation.md`,
+  `docs/installation/systemd-setup.md`, and
+  `.agents/skills/project-operations/SKILL.md` so future operators and agents
+  see the same split contract: root-owned installed binary/config are group
+  accessible to `iplists`, while daemon-created runtime/publication files are
+  private to the service user.
 
 ## Validation
 
@@ -658,7 +736,7 @@ Tests or equivalent validation:
   - `go run github.com/zricethezav/gitleaks/v8@latest detect --no-banner --redact=100 --source . --exit-code 2`: passed; no leaks found.
   - `shellcheck $(git ls-files '*.sh')`: failed with current warnings/info findings that must be fixed or baselined before ShellCheck becomes blocking.
 - Implementation validation:
-  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`: passed.
+  - `python $HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`: passed.
   - `make actionlint`: passed.
   - `make shellcheck`: passed.
   - `make gitleaks`: passed; no leaks found.
@@ -666,7 +744,7 @@ Tests or equivalent validation:
   - `make ui-static && go build ./... && (cd tools/dronebl2ipsets && go build ./...)`: passed.
   - `git diff --check`: passed.
 - Codacy / GitHub AI finding update validation:
-  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`: passed after the Codacy/GitHub AI finding skill update.
+  - `python $HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`: passed after the Codacy/GitHub AI finding skill update.
   - `go test ./pkg/web -run 'TestBuildFeedManifestRequiresConfiguredProviderFanOutArtifacts|TestRunServes|TestAdminReadRoutesAllowHEAD'`: passed.
   - `go test ./pkg/web`: passed.
   - `make hygiene`: passed.
@@ -674,7 +752,7 @@ Tests or equivalent validation:
 - Root ESLint bridge / Codacy config validation:
   - `ruby -e 'require "yaml"; YAML.load_file(".codacy.yml"); puts "codacy yaml ok"'`:
     passed.
-  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
+  - `python $HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
     passed after the Codacy coding-standard lesson was added to the hygiene
     skill.
   - `pnpm --dir ui exec eslint --config ../eslint.config.mjs src/App.tsx`:
@@ -694,10 +772,10 @@ Tests or equivalent validation:
   - `pnpm --dir ui exec eslint --config ../eslint.config.mjs src/App.tsx`:
     passed after the bridge shape guard was added.
   - `pnpm --dir ui lint`: passed.
-  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-testing`:
+  - `python $HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-testing`:
     passed after documenting the root ESLint bridge validation command in the
     project-testing skill.
-  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
+  - `python $HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
     passed after documenting Codacy Go file-permission triage guidance.
   - `make actionlint`: passed after wiring the bridge test into CI.
   - `make hygiene`: passed.
@@ -714,7 +792,7 @@ Tests or equivalent validation:
     to `1.26.3`.
   - `go test ./...`: passed.
   - `cd tools/dronebl2ipsets && go test ./...`: passed.
-  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-testing`:
+  - `python $HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-testing`:
     passed after updating the Go manifest version in the project-testing skill.
   - `make hygiene`: passed.
 - GitHub run evidence for `c24357a150cad529223e32d3e364561e865d5134` before
@@ -739,7 +817,7 @@ Tests or equivalent validation:
   - `make hygiene`: passed.
 - Managed install ownership validation:
   - `make shellcheck`: passed after the installer ownership change.
-  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-operations`: passed.
+  - `python $HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-operations`: passed.
   - `./install.sh --no-restart`: passed locally.
   - `sudo stat -c '%U:%G %a %n' ...`: confirmed install root, `bin/`, binary,
     `etc/`, and config directories are `root:iplists 750`; active config files
@@ -766,14 +844,14 @@ Tests or equivalent validation:
   - `cd tools/dronebl2ipsets && go test ./...`: passed.
   - `make hygiene`: passed.
   - `make lint`: passed.
-  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
+  - `python $HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
     passed.
-  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-operations`:
+  - `python $HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-operations`:
     passed.
-  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
+  - `python $HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
     passed after documenting modern Node `.mjs` versus legacy `eslint-8`
     triage.
-  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-testing`:
+  - `python $HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-testing`:
     passed after documenting Node `.mjs` root ESLint coverage.
 - Python subprocess/security validation:
   - `python -m py_compile agents/enrichment-refresh.py tools/build-firehol-static-enrichment.py`:
@@ -787,7 +865,7 @@ Tests or equivalent validation:
     rationale; no broad `except Exception` remains in the two touched files.
   - `python -m bandit -q agents/enrichment-refresh.py tools/build-firehol-static-enrichment.py`:
     not run because Bandit is not installed locally.
-  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
+  - `python $HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
     passed after Python subprocess guidance update.
 - Shell `IFS` scanner validation:
   - `shellcheck agents/run-enrichment-pool.sh`: passed.
@@ -797,7 +875,7 @@ Tests or equivalent validation:
     no matches.
   - `make shellcheck`: passed.
   - The generated dry-run pool directory was removed after validation.
-  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
+  - `python $HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
     passed after shell `IFS` guidance update.
 - Weak hash, compressed provider extraction, and private writer validation:
   - `go test ./pkg/web ./pkg/engine ./pkg/kernel ./pkg/processor`: passed.
@@ -808,7 +886,7 @@ Tests or equivalent validation:
     only same-package test helper uses remain in the searched runtime areas.
   - `git diff --check -- .agents/skills/project-hygiene/SKILL.md .agents/sow/current/SOW-0099-20260602-github-code-scanning-hygiene.md .agents/sow/specs/memory-management.md pkg/web/cache.go pkg/engine/asn_formats.go pkg/engine/asn_formats_test.go pkg/kernel/ipset_linux.go pkg/processor/run_stream.go pkg/processor/copy_file_test.go`:
     passed.
-  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
+  - `python $HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
     passed after adding weak-hash and compressed-provider extraction guidance.
   - `go test ./pkg/processor ./tools/archposture`: passed after moving the new
     processor copy-mode test into a focused file instead of growing an
@@ -842,6 +920,51 @@ Tests or equivalent validation:
   - `make hygiene`: passed.
   - `make lint`: passed.
   - `make test`: passed.
+- Current Codacy cleanup batch validation:
+  - `git diff --check`: passed.
+  - `ruby -e 'require "yaml"; YAML.load_file(".codacy.yml"); puts "codacy yaml ok"'`:
+    passed.
+  - `python $HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-operations`:
+    passed.
+  - `python $HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
+    passed.
+  - `pnpm --dir ui install --frozen-lockfile`: passed.
+  - `go test ./internal/fileutil ./pkg/iprange ./pkg/output ./pkg/markdown ./pkg/cache`:
+    passed.
+  - `cd tools/dronebl2ipsets && go test ./...`: passed.
+  - `pnpm --dir ui test -- src/components/feed-detail/section-specs.test.tsx src/lib/safe-url.test.ts`:
+    passed; Vitest reported 14 test files and 41 tests.
+  - `make shellcheck`: passed.
+  - `go test ./...`: passed.
+  - `pnpm --dir ui lint`: passed.
+  - `pnpm --dir ui build`: passed. Vite emitted existing non-fatal font
+    resolution and large-chunk warnings.
+  - `make hygiene`: passed.
+  - `make lint`: passed.
+  - `./install.sh`: passed; local managed install completed and restarted
+    `update-ipsets`.
+  - `systemctl is-active update-ipsets`: returned `active`.
+  - `curl -fsS http://127.0.0.1:18888/healthz`: returned `ok`.
+  - `curl -fsS http://127.0.0.1:18888/api/v1/status | jq -r '.status // .engine_status // .state // "status-ok"'`:
+    returned `status-ok`.
+  - `systemctl cat update-ipsets | rg -n 'User=|Group=|UMask=|ExecStart='`:
+    confirmed `User=iplists`, `Group=iplists`, and `UMask=0077`.
+  - `sudo stat -c '%U:%G %a %n' ...`: confirmed install root, `bin/`,
+    binary, `etc/`, and config directories are `root:iplists 750`; active
+    config files are `root:iplists 640`; mutable runtime roots are
+    `iplists:iplists 700`.
+  - `sudo -u iplists test -x /opt/update-ipsets/bin/update-ipsets`,
+    `sudo -u iplists test -r /opt/update-ipsets/etc/config/runtime.yaml`,
+    `sudo -u iplists test -w /opt/update-ipsets/data`, and
+    `sudo -u iplists test -w /opt/update-ipsets/web`: passed.
+  - `sudo -u nobody` access checks for the binary, runtime config, and runtime
+    data root failed as expected.
+  - `rg -n 'UMask=0027|generated artifacts are group-readable|runtime files are readable by the iplists group|0750.*generated|0640.*generated|0o750|0o640' ...`:
+    no matches in the touched runtime-mode contract surfaces.
+  - `rg -n '"[~^][^"]+"' ui/package.json`: no matches after exact direct
+    dependency pinning.
+  - `git diff --name-only -- pkg/web/static ui/dist update-ipsets`: no tracked
+    generated static or local binary diff from the install validation.
 
 Real-use evidence:
 
@@ -894,13 +1017,17 @@ Artifact maintenance gate:
 
 - AGENTS.md: updated to register `.agents/skills/project-hygiene/`.
 - Runtime project skills: added `.agents/skills/project-hygiene/SKILL.md`.
+  `.agents/skills/project-operations/SKILL.md` updated with the split install
+  versus daemon-generated artifact permission contract.
 - Specs: `.agents/sow/specs/files-layout.md` updated with the daemon-created
   runtime/publication file and directory mode contract.
   `.agents/sow/specs/memory-management.md` updated with the bounded compressed
   provider extraction contract.
 - End-user/operator docs: added `SECURITY.md` for vulnerability reporting and
-  scanner policy expectations; updated `docs/installation/filesystem-layout.md`
-  with daemon-created private runtime file behavior.
+  scanner policy expectations; updated `docs/installation/filesystem-layout.md`,
+  `docs/installation/installation.md`, and
+  `docs/installation/systemd-setup.md` with daemon-created private runtime file
+  behavior and `UMask=0077`.
 - End-user/operator skills: no separate operator skill needed for scanner
   posture.
 - SOW lifecycle: current SOW remains in `.agents/sow/current/` until
@@ -930,12 +1057,18 @@ Project skills update:
   mode guidance.
 - Updated `.agents/skills/project-hygiene/SKILL.md` with weak-hash and
   compressed provider/archive extraction triage guidance.
+- Updated `.agents/skills/project-operations/SKILL.md` with the final private
+  daemon-generated runtime/publication artifact contract after changing the
+  managed install to `UMask=0077`.
 
 End-user/operator docs update:
 
 - Added `SECURITY.md`.
 - Updated `docs/installation/filesystem-layout.md` with daemon-created private
   runtime file behavior.
+- Updated `docs/installation/installation.md` and
+  `docs/installation/systemd-setup.md` with the managed unit `UMask=0077`
+  behavior.
 
 End-user/operator skills update:
 

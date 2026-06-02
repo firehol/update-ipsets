@@ -16,12 +16,12 @@ description: "Install, daemon, admin, and runtime operation guidance for update-
 - Managed install ownership: install root, `bin/`, and `etc/` are
   `root:iplists`; binary and config are readable/executable to `iplists` by
   group permissions and are not world-readable. Mutable runtime directories are
-  `iplists:iplists` and group-only searchable (evidence: `install.sh`,
+  `iplists:iplists` and private to the service user (evidence: `install.sh`,
   `.agents/sow/specs/files-layout.md`).
-- Daemon-created mutable runtime/publication artifacts are group-readable but
-  not world-readable: managed installs use `0640` for non-executable files,
-  `0750` for directories, and `UMask=0027`; reinstall repairs existing mutable
-  runtime trees to those modes (evidence: `install.sh`,
+- Daemon-created mutable runtime/publication artifacts are owner-private:
+  managed installs use `0600` for non-executable files, `0700` for directories,
+  and `UMask=0077`; reinstall repairs existing mutable runtime trees to those
+  modes (evidence: `install.sh`,
   `.agents/sow/specs/files-layout.md`).
 
 ## Important environment

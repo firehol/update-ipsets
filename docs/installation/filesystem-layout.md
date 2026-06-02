@@ -115,15 +115,15 @@ Contains the committed text-format IP sets, raw upstream downloads, enable marke
 Files with a `.new` suffix are staged inputs waiting for the processing engine to claim them. Files with a `.processing` suffix are actively being processed. Both survive restarts.
 
 The managed install makes `data/`, `cache/`, `lib/`, `web/`, `run/`, and `tmp/`
-owned by `iplists:iplists` and searchable only by owner/group. The generated
+owned by `iplists:iplists` and searchable only by the service user. The generated
 systemd unit grants write access only to those mutable runtime directories, not
-to the full install tree. The unit sets `UMask=0027`, and reinstalling repairs
-existing generated directories to `0750` and generated non-executable files to
-`0640`.
+to the full install tree. The unit sets `UMask=0077`, and reinstalling repairs
+existing generated directories to `0700` and generated non-executable files to
+`0600`.
 
-Daemon-created runtime files are readable by the `iplists` group but not by
-other local users. Public access to feed data and website artifacts is provided
-by the daemon's HTTP listener, not by making generated files world-readable.
+Daemon-created runtime files are readable only by the `iplists` service user.
+Public access to feed data and website artifacts is provided by the daemon's
+HTTP listener, not by POSIX read bits on generated files.
 
 ### `cache/` — runtime caches
 

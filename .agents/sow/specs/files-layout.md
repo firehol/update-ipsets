@@ -96,11 +96,11 @@ For managed systemd installs:
   `tmp/` MUST be owned and writable by the service user and SHOULD NOT be
   world-readable
 - daemon-created mutable runtime and publication directories MUST be
-  group-readable/searchable and not world-readable; managed installs use `0750`
+  owner-readable/searchable/writable only; managed installs use `0700`
 - daemon-created non-executable runtime and publication files MUST be
-  group-readable and not world-readable; managed installs use `0640`
+  owner-readable/writable only; managed installs use `0600`
 - managed systemd installs MUST set a compatible process umask, currently
-  `UMask=0027`, so direct file and directory creation preserves the generated
+  `UMask=0077`, so direct file and directory creation preserves the generated
   artifact permission contract
 - install and packaging flows MUST repair existing mutable runtime directories
   and files to the same directory/file modes during reinstall

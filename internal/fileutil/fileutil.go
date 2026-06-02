@@ -14,9 +14,9 @@ import (
 
 const (
 	// GeneratedDirMode is the default mode for daemon-generated directories.
-	GeneratedDirMode os.FileMode = 0o750
+	GeneratedDirMode os.FileMode = 0o700
 	// GeneratedFileMode is the default mode for daemon-generated non-executable files.
-	GeneratedFileMode os.FileMode = 0o640
+	GeneratedFileMode os.FileMode = 0o600
 )
 
 // Exists returns true if the file at path exists and is not a directory.
