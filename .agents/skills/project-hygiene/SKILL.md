@@ -160,6 +160,10 @@ tokens or credentials to durable artifacts.
   `shutil.which`, pass arguments as a list, keep `shell=False`, set an explicit
   `check` policy, close stdin with `subprocess.DEVNULL`, and use only narrow
   `# nosec` suppressions with a rationale tied to the fixed command surface.
+- For shell `IFS` scanner findings, avoid global or subshell `IFS` mutation for
+  simple CSV splitting/joining. Prefer small quoted helper functions that build
+  arrays or strings explicitly, then verify with ShellCheck and a dry-run path
+  that exercises the changed argument handling.
 - Search for the same failure class before committing a fix.
 - Prefer fixing findings over suppressing them.
 - If suppression is necessary, make it narrow, durable, and justified by

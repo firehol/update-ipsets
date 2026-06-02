@@ -48,6 +48,29 @@ FINALIZE=1
 SCOPE_LABEL=""
 FEEDS=()
 
+append_csv_feeds() {
+    local raw="$1"
+    local item
+    while [[ "$raw" == *,* ]]; do
+        item="${raw%%,*}"
+        FEEDS+=("$item")
+        raw="${raw#*,}"
+    done
+    FEEDS+=("$raw")
+}
+
+join_csv() {
+    local out=""
+    local item
+    for item in "$@"; do
+        if [[ -n "$out" ]]; then
+            out+=","
+        fi
+        out+="$item"
+    done
+    printf '%s' "$out"
+}
+
 usage() {
     sed -n '2,30p' "$0"
     exit "${1:-0}"
@@ -56,7 +79,7 @@ usage() {
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -j)               SLOTS="$2"; shift 2 ;;
-        --feeds)          IFS=',' read -r -a selected <<< "$2"; FEEDS+=("${selected[@]}"); shift 2 ;;
+        --feeds)          append_csv_feeds "$2"; shift 2 ;;
         --category)       CATEGORY="$2"; shift 2 ;;
         --all)            ALL=1; shift ;;
         --unenriched)     UNENRICHED=1; shift ;;
@@ -234,11 +257,11 @@ if [[ $FINALIZE -eq 1 ]]; then
         elif [[ $ALL -eq 1 ]]; then
             scope="all"
         else
-            scope="$(IFS=,; echo "${SUCCESS_FEEDS[*]}")"
+            scope="$(join_csv "${SUCCESS_FEEDS[@]}")"
         fi
         echo "[pool] finalizing ${#SUCCESS_FEEDS[@]} successful feed(s): ${scope}"
         python3 agents/enrichment-refresh.py \
-            --feeds "$(IFS=,; echo "${SUCCESS_FEEDS[*]}")" \
+            --feeds "$(join_csv "${SUCCESS_FEEDS[@]}")" \
             --scope "$scope" \
             --write \
             --branch \

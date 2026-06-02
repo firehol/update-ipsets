@@ -602,6 +602,10 @@ Open decisions:
   stdin, and carries narrow `# nosec` rationale for the fixed command surface.
   Broad YAML parse exceptions in the touched generator were narrowed to
   `OSError` and `yaml.YAMLError`.
+- Triage of the visible shell `IFS` cluster found avoidable CSV splitting and
+  joining in `agents/run-enrichment-pool.sh`. The script now uses explicit
+  quoted helper functions for comma splitting and joining instead of mutating
+  `IFS` for those cases.
 
 ## Validation
 
@@ -763,6 +767,16 @@ Tests or equivalent validation:
     not run because Bandit is not installed locally.
   - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
     passed after Python subprocess guidance update.
+- Shell `IFS` scanner validation:
+  - `shellcheck agents/run-enrichment-pool.sh`: passed.
+  - `agents/run-enrichment-pool.sh --feeds alpha,beta --dry-run --no-finalize`:
+    passed and printed a two-feed queue.
+  - `rg -n "IFS=,|IFS=','|IFS=;|IFS=.*echo" agents/run-enrichment-pool.sh`:
+    no matches.
+  - `make shellcheck`: passed.
+  - The generated dry-run pool directory was removed after validation.
+  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-hygiene`:
+    passed after shell `IFS` guidance update.
 
 Real-use evidence:
 
