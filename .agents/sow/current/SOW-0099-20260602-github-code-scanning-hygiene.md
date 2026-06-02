@@ -516,6 +516,13 @@ Open decisions:
   current issues dropped from 8846 to 3153. Remaining issue classes are now
   mostly complexity, Markdown style, Go permission/path Semgrep findings,
   Trivy dependency findings, and smaller JS/TS/Python/CSS/Shell findings.
+- Sanitized Codacy issue samples after the `.codacy.yml` change show Trivy
+  high/medium/minor findings on `go.mod` and
+  `tools/dronebl2ipsets/go.mod`, caused by the `go 1.26.0` directive being
+  treated as `golang/stdlib@v1.26.0`. Official Go downloads list Go 1.26.3,
+  and local `go version` reports `go1.26.3-X:nodwarf5`, so both module
+  directives and checked-in `actions/setup-go` versions were updated to
+  `1.26.3`.
 
 ## Validation
 
@@ -575,6 +582,16 @@ Tests or equivalent validation:
     failed because the installed `@codacy/analysis-cli` exposes `analyze`,
     `init`, `update-config`, `discover`, `info`, `login`, and `logout`, but not
     `validate-configuration`.
+- Go stdlib Trivy finding validation:
+  - `go version && go env GOVERSION GOTOOLCHAIN`: local Go reports
+    `go1.26.3-X:nodwarf5` with `GOTOOLCHAIN=auto`.
+  - `make actionlint`: passed after pinning workflow `actions/setup-go` inputs
+    to `1.26.3`.
+  - `go test ./...`: passed.
+  - `cd tools/dronebl2ipsets && go test ./...`: passed.
+  - `python /home/costa/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-testing`:
+    passed after updating the Go manifest version in the project-testing skill.
+  - `make hygiene`: passed.
 
 Real-use evidence:
 

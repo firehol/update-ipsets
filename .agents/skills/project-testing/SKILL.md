@@ -16,7 +16,7 @@ description: "Test commands, fixtures, and validation patterns for update-ipsets
 - Fuzz tests exist in `pkg/iprange`, `pkg/config`, and `pkg/processor`;
   `make fuzz-replay` replays the committed seed corpus shape with
   `go test -run=Fuzz` and is wired into CI.
-- Tool versions come from manifests: Go `1.26.0` in `go.mod`, React/Vite/TypeScript/Tailwind in `ui/package.json`.
+- Tool versions come from manifests: Go `1.26.3` in `go.mod`, React/Vite/TypeScript/Tailwind in `ui/package.json`.
 - Go analysis tool versions are pinned in `Makefile`: `govulncheck`
   `v1.3.0`, Staticcheck `v0.7.0`, and golangci-lint `v2.11.4`.
 
