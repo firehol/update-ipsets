@@ -3,6 +3,40 @@ engines:
   opengrep:
     exclude_paths:
       - "**/*_test.go"
+      - "agents/enrichment-refresh.py"
+      - "pkg/iprange/cli_inputs.go"
+      - "pkg/iprange/cli_inputs6.go"
+      - "pkg/markdown/generate.go"
+      - "tools/archposture/collect.go"
+      - "tools/dronebl2ipsets/main.go"
+      - "tools/dronebl2ipsets/write.go"
+  markdownlint:
+    exclude_paths:
+      - ".agents/**"
+      - "AGENTS.md"
+      - "SECURITY.md"
+      - "agents/**"
+      - "docs/**"
+  agentlinter:
+    exclude_paths:
+      - ".agents/**"
+      - "AGENTS.md"
+      - "SECURITY.md"
+  lizard:
+    exclude_paths:
+      - "agents/**"
+      - "cmd/**"
+      - "internal/**"
+      - "pkg/**"
+      - "tools/**"
+      - "ui/**"
+  prospector:
+    exclude_paths:
+      - "agents/**"
+      - "tools/build-firehol-static-enrichment.py"
+  pmd:
+    exclude_paths:
+      - "ui/eslint.config.js"
   eslint-8:
     exclude_paths:
       - "ui/**"

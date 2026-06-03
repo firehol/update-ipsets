@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# pyright: reportMissingImports=false, reportMissingModuleSource=false
 """
 Post-run validator for feed-enrichment agent output (v2 schema).
 
@@ -23,23 +24,16 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import importlib
 import json
 import re
 import sys
 from pathlib import Path
-from typing import Any
 
-
-def required_module(name: str, install_hint: str) -> Any:
-    try:
-        return importlib.import_module(name)
-    except ImportError:
-        print(f"ERROR: {name} not installed. Install with: {install_hint}", file=sys.stderr)
-        sys.exit(2)
-
-
-jsonschema = required_module("jsonschema", "pip install jsonschema")
+try:
+    import jsonschema
+except ImportError:
+    print("ERROR: jsonschema not installed. Install with: pip install jsonschema", file=sys.stderr)
+    sys.exit(2)
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent

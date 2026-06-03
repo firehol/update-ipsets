@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# pyright: reportMissingImports=false, reportMissingModuleSource=false
 """
 Project validated feed-enrichment runs into public YAML enrichment blocks.
 
@@ -27,7 +28,6 @@ Commands:
 from __future__ import annotations
 
 import argparse
-import importlib
 import json
 import re
 import sys
@@ -37,17 +37,17 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
+try:
+    import jsonschema
+except ImportError:
+    print("ERROR: jsonschema not installed. Install with: pip install jsonschema", file=sys.stderr)
+    sys.exit(2)
 
-def required_module(name: str, install_hint: str) -> Any:
-    try:
-        return importlib.import_module(name)
-    except ImportError:
-        print(f"ERROR: {name} not installed. Install with: {install_hint}", file=sys.stderr)
-        sys.exit(2)
-
-
-jsonschema = required_module("jsonschema", "pip install jsonschema")
-YAML = required_module("ruamel.yaml", "pip install ruamel.yaml").YAML
+try:
+    from ruamel.yaml import YAML
+except ImportError:
+    print("ERROR: ruamel.yaml not installed. Install with: pip install ruamel.yaml", file=sys.stderr)
+    sys.exit(2)
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
