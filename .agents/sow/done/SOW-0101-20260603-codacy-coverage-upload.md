@@ -2,9 +2,9 @@
 
 ## Status
 
-Status: in-progress
+Status: completed
 
-Sub-state: approved option 1A; implementing main/master push-only Codacy coverage upload.
+Sub-state: verified on merged main commit `e62e02b56227e93c26adf6d0687c79bddc5ce472`.
 
 ## Requirements
 
@@ -171,6 +171,14 @@ Open decisions:
 - Used `curl -fsSL` when fetching the official Codacy Coverage Reporter script
   so HTTP and network failures stop the step before bash executes incomplete
   input.
+- Merged PR #4 as `e62e02b56227e93c26adf6d0687c79bddc5ce472`.
+- Verified the main push `CI coverage` job ran the upload step, parsed both Go
+  coverage reports, uploaded both reports successfully, and sent the final
+  coverage notification successfully.
+- Verified Codacy Cloud repository coverage on commit
+  `e62e02b56227e93c26adf6d0687c79bddc5ce472`: `coveragePercentage: 65`.
+- Updated `.agents/skills/project-testing/SKILL.md` with the durable Codacy
+  coverage upload ownership and secret-boundary rule.
 
 ## Validation
 
@@ -191,11 +199,24 @@ Tests or equivalent validation:
 
 Real-use evidence:
 
-- Pending until the workflow runs on a pushed `main` commit.
+- PR #4 merged as `e62e02b56227e93c26adf6d0687c79bddc5ce472`.
+- GitHub Actions run `26881131547`, job `CI coverage`, completed
+  successfully.
+- The `Upload coverage to Codacy` log shows:
+  - Codacy Coverage Reporter `14.1.3` downloaded and checksum verified.
+  - Reporter detected commit
+    `e62e02b56227e93c26adf6d0687c79bddc5ce472`.
+  - `coverage.out` parsed with Codacy's Go parser and uploaded successfully.
+  - `tools/dronebl2ipsets/coverage.out` parsed with Codacy's Go parser and
+    uploaded successfully.
+  - Final coverage notification was received successfully.
+- `codacy repository gh firehol update-ipsets --output json` for
+  `e62e02b56227e93c26adf6d0687c79bddc5ce472` reports
+  `coverage.coveragePercentage: 65`.
 
 Reviewer findings:
 
-- Pending.
+- None.
 
 Same-failure scan:
 
@@ -213,13 +234,13 @@ Artifact maintenance gate:
 
 - AGENTS.md: no update needed; existing hygiene and SOW rules cover scanner
   posture and secret handling.
-- Runtime project skills: no update needed unless post-merge validation shows a
-  durable Codacy coverage lesson.
+- Runtime project skills: `.agents/skills/project-testing/SKILL.md` updated
+  with the Codacy coverage upload owner, event scope, and secret boundary.
 - Specs: no update needed; product behavior is unchanged.
 - End-user/operator docs: no update needed; this is CI/Codacy integration.
 - End-user/operator skills: no update needed.
-- SOW lifecycle: remains current until post-merge Codacy coverage evidence is
-  available.
+- SOW lifecycle: completed and moved to `.agents/sow/done/` after post-merge
+  Codacy coverage evidence was available.
 
 Specs update:
 
@@ -227,7 +248,7 @@ Specs update:
 
 Project skills update:
 
-- None yet.
+- `.agents/skills/project-testing/SKILL.md` updated.
 
 End-user/operator docs update:
 
@@ -239,24 +260,31 @@ End-user/operator skills update:
 
 Lessons:
 
-- Pending post-merge validation.
+- Codacy coverage upload must be kept separate from Codacy issue/SARIF export.
+  The existing `CODACY_API_TOKEN` can support both, but each workflow must make
+  its purpose and event scope explicit.
+- Pull-request coverage jobs should continue to skip Codacy upload unless a
+  separate trusted-PR design is approved.
 
 Follow-up mapping:
 
-- Post-merge Codacy coverage processing must be verified before this SOW is
-  completed.
+- None.
 
 ## Outcome
 
-Pending.
+Completed.
+
+Codacy coverage is now uploaded from trusted default-branch pushes, and Codacy
+Cloud reports 65% coverage for the merged main commit
+`e62e02b56227e93c26adf6d0687c79bddc5ce472`.
 
 ## Lessons Extracted
 
-Pending.
+Extracted into `.agents/skills/project-testing/SKILL.md`.
 
 ## Followup
 
-None yet.
+None.
 
 ## Regression Log
 
