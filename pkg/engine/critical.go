@@ -752,22 +752,6 @@ func criticalTierRank(tier string) int {
 	return len(config.CriticalTiers())
 }
 
-func uniqueStrings(values []string) []string {
-	seen := make(map[string]struct{}, len(values))
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		if value == "" {
-			continue
-		}
-		if _, ok := seen[value]; ok {
-			continue
-		}
-		seen[value] = struct{}{}
-		out = append(out, value)
-	}
-	return out
-}
-
 func criticalTargetNames(cfg *config.Config, names []string) []string {
 	if cfg == nil || len(names) == 0 {
 		return names

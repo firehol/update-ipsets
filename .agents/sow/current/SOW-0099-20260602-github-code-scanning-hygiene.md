@@ -936,6 +936,10 @@ Open decisions:
   `agents/enrichment-public.py` and `agents/validate-output.py` with static
   imports plus Pyright file directives, eliminating the new non-literal import
   security findings instead of suppressing them.
+- GitHub CI for the next scanner-scope commit failed in Staticcheck with
+  `pkg/engine/critical.go:755:6: func uniqueStrings is unused (U1000)`.
+  Same-failure search found no callers, so the dead helper was removed instead
+  of weakening the static-analysis gate.
 
 ## Validation
 
@@ -1110,6 +1114,12 @@ Tests or equivalent validation:
     failed because the installed `@codacy/analysis-cli` exposes `analyze`,
     `init`, `update-config`, `discover`, `info`, `login`, and `logout`, but not
     `validate-configuration`.
+  - `rg -n "uniqueStrings\\(" pkg/engine`: no callers found before removing
+    the unused helper.
+  - `gofmt -w pkg/engine/critical.go`: passed.
+  - `git diff --check -- pkg/engine/critical.go`: passed.
+  - `go test ./pkg/engine`: passed.
+  - `make staticcheck`: passed after removing the unused helper.
 - Go stdlib Trivy finding validation:
   - `go version && go env GOVERSION GOTOOLCHAIN`: local Go reports
     `go1.26.3-X:nodwarf5` with `GOTOOLCHAIN=auto`.
