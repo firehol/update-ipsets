@@ -100,6 +100,8 @@ the direct equivalent and record that gap:
 - `codacy-analysis discover --output-format json --output /tmp/codacy-discover.json`
 - `codacy-analysis analyze --inspect --output-format json`
 - `codacy-analysis analyze --diff --output-format json --output /tmp/codacy-diff.json`
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture.json`
+- `npx --yes jscpd@4.2.4 --reporters json,console --output /tmp/update-ipsets-jscpd-src --exitCode 0 --min-lines 20 --min-tokens 120 --max-lines 2000 --max-size 512kb --ignore '**/*_test.go,pkg/web/static/**,ui/dist/**,ui/node_modules/**,.agents/**,tools/archposture/testdata/**' cmd internal pkg tools ui/src .github/scripts`
 
 Use GitHub API or `gh` for repository-side evidence:
 
@@ -133,6 +135,12 @@ tokens or credentials to durable artifacts.
   GitHub alert count. Rules, patterns, or paths may be removed only after the
   SOW records evidence that the rule is irrelevant, duplicated by a better
   scanner, or mismatched to this repository.
+- For structural quality work, do not rely on Codacy's repository-level
+  complexity or duplication percentages alone as an actionable file map. Run
+  local `tools/archposture` for large-file/function evidence and a source-only
+  `jscpd` scan for duplicate blocks, excluding generated assets, dependencies,
+  SOW artifacts, test data, and `_test.go` files unless the SOW explicitly
+  targets test maintainability. Record before/after counts in the SOW.
 - The official Codacy Analysis CLI GitHub Action runs local analyzers and can
   be too slow for this repository when configured to export all findings. For
   GitHub Code Scanning visibility, prefer exporting already-computed Codacy

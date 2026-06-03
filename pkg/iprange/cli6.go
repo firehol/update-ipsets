@@ -8,376 +8,367 @@ import (
 )
 
 func runCLIV6(ctx context.Context, stdout, stderr io.Writer, stdin io.Reader, args []string) int {
-	mode := modeCombine
-	printOpts := DefaultPrintOptions6()
-	parseOpts := DefaultParseOptions6()
-	readSecond := false
-	header := false
-	quiet := false
-	reduceFactor := 120
-	reduceEntries := 16384
+	runner := newCLIV6Runner(stdout, stderr, stdin)
+	if code, done := runner.parseArgs(ctx, args); done {
+		return code
+	}
+	return runner.execute()
+}
 
-	before := make([]*IPSet6, 0)
-	after := make([]*IPSet6, 0)
-
+func (r *cliV6Runner) parseArgs(ctx context.Context, args []string) (int, bool) {
 	for i := 0; i < len(args); i++ {
-		arg := args[i]
-		switch arg {
-		case "as":
-			if i+1 >= len(args) {
-				_, _ = fmt.Fprintln(stderr, "iprange: missing alias after 'as'")
-				return 1
-			}
-			target := &before
-			if readSecond {
-				target = &after
-			}
-			if len(*target) == 0 {
-				_, _ = fmt.Fprintln(stderr, "iprange: alias requires a previous input")
-				return 1
-			}
-			(*target)[len(*target)-1].Name = args[i+1]
-			i++
-		case "--min-prefix":
-			if i+1 >= len(args) {
-				_, _ = fmt.Fprintln(stderr, "iprange: --min-prefix requires a value")
-				return 1
-			}
-			prefix, err := ParsePrefix6(args[i+1])
-			if err != nil || prefix < 1 || prefix > 128 {
-				_, _ = fmt.Fprintf(stderr, "iprange: invalid --min-prefix value %q\n", args[i+1])
-				return 1
-			}
-			for j := 0; j < prefix; j++ {
-				printOpts.PrefixesEnabled[j] = false
-			}
-			i++
-		case "--prefixes":
-			if i+1 >= len(args) {
-				_, _ = fmt.Fprintln(stderr, "iprange: --prefixes requires a value")
-				return 1
-			}
-			for j := 0; j < 129; j++ {
-				printOpts.PrefixesEnabled[j] = false
-			}
-			for _, part := range strings.FieldsFunc(args[i+1], func(r rune) bool { return r == ',' || r == ' ' }) {
-				prefix, err := ParsePrefix6(part)
-				if err != nil || prefix <= 0 || prefix > 128 {
-					_, _ = fmt.Fprintf(stderr, "iprange: invalid prefix %q\n", part)
-					return 1
-				}
-				printOpts.PrefixesEnabled[prefix] = true
-			}
-			printOpts.PrefixesEnabled[128] = true
-			i++
-		case "--default-prefix", "-p":
-			if i+1 >= len(args) {
-				_, _ = fmt.Fprintln(stderr, "iprange: --default-prefix requires a value")
-				return 1
-			}
-			prefix, err := ParsePrefix6(args[i+1])
-			if err != nil {
-				_, _ = fmt.Fprintf(stderr, "iprange: invalid --default-prefix value %q\n", args[i+1])
-				return 1
-			}
-			parseOpts.DefaultPrefix = prefix
-			i++
-		case "--ipset-reduce", "--reduce-factor":
-			if i+1 >= len(args) {
-				_, _ = fmt.Fprintln(stderr, "iprange: --ipset-reduce requires a value")
-				return 1
-			}
-			if _, err := fmt.Sscanf(args[i+1], "%d", &reduceFactor); err != nil || reduceFactor < 0 {
-				_, _ = fmt.Fprintf(stderr, "iprange: invalid reduce factor %q\n", args[i+1])
-				return 1
-			}
-			reduceFactor += 100
-			mode = modeReduce
-			i++
-		case "--ipset-reduce-entries", "--reduce-entries":
-			if i+1 >= len(args) {
-				_, _ = fmt.Fprintln(stderr, "iprange: --reduce-entries requires a value")
-				return 1
-			}
-			if _, err := fmt.Sscanf(args[i+1], "%d", &reduceEntries); err != nil || reduceEntries < 0 {
-				_, _ = fmt.Fprintf(stderr, "iprange: invalid reduce entries %q\n", args[i+1])
-				return 1
-			}
-			mode = modeReduce
-			i++
-		case "--optimize", "--combine", "--merge", "--union", "--union-all", "-J":
-			mode = modeCombine
-		case "--common", "--intersect", "--intersect-all":
-			mode = modeCommon
-		case "--exclude-next", "--except", "--complement-next", "--complement":
-			if len(before) == 0 {
-				_, _ = fmt.Fprintln(stderr, "iprange: an ipset is needed before --exclude-next")
-				return 1
-			}
-			mode = modeExcludeNext
-			readSecond = true
-		case "--diff", "--diff-next":
-			if len(before) == 0 {
-				_, _ = fmt.Fprintln(stderr, "iprange: an ipset is needed before --diff")
-				return 1
-			}
-			mode = modeDiff
-			readSecond = true
-		case "--compare":
-			mode = modeCompare
-		case "--compare-first":
-			mode = modeCompareFirst
-		case "--compare-next":
-			if len(before) == 0 {
-				_, _ = fmt.Fprintln(stderr, "iprange: an ipset is needed before --compare-next")
-				return 1
-			}
-			mode = modeCompareNext
-			readSecond = true
-		case "--count-unique", "-C":
-			mode = modeCountUniqueMerged
-		case "--count-unique-all":
-			mode = modeCountUniqueAll
-		case "--print-ranges", "-j":
-			printOpts.Format = PrintRanges
-		case "--print-binary":
-			printOpts.Format = PrintBinary
-		case "--print-single-ips", "-1":
-			printOpts.Format = PrintSingleIPs
-		case "--print-prefix":
-			if i+1 >= len(args) {
-				_, _ = fmt.Fprintln(stderr, "iprange: --print-prefix requires a value")
-				return 1
-			}
-			printOpts.PrintPrefixIPs = args[i+1]
-			printOpts.PrintPrefixNets = args[i+1]
-			i++
-		case "--print-prefix-ips":
-			if i+1 >= len(args) {
-				_, _ = fmt.Fprintln(stderr, "iprange: --print-prefix-ips requires a value")
-				return 1
-			}
-			printOpts.PrintPrefixIPs = args[i+1]
-			i++
-		case "--print-prefix-nets":
-			if i+1 >= len(args) {
-				_, _ = fmt.Fprintln(stderr, "iprange: --print-prefix-nets requires a value")
-				return 1
-			}
-			printOpts.PrintPrefixNets = args[i+1]
-			i++
-		case "--print-suffix":
-			if i+1 >= len(args) {
-				_, _ = fmt.Fprintln(stderr, "iprange: --print-suffix requires a value")
-				return 1
-			}
-			printOpts.PrintSuffixIPs = args[i+1]
-			printOpts.PrintSuffixNets = args[i+1]
-			i++
-		case "--print-suffix-ips":
-			if i+1 >= len(args) {
-				_, _ = fmt.Fprintln(stderr, "iprange: --print-suffix-ips requires a value")
-				return 1
-			}
-			printOpts.PrintSuffixIPs = args[i+1]
-			i++
-		case "--print-suffix-nets":
-			if i+1 >= len(args) {
-				_, _ = fmt.Fprintln(stderr, "iprange: --print-suffix-nets requires a value")
-				return 1
-			}
-			printOpts.PrintSuffixNets = args[i+1]
-			i++
-		case "--header":
-			header = true
-		case "--quiet":
-			quiet = true
-		case "--dont-fix-network":
-			parseOpts.UseCIDRNetwork = false
-		case "--dns-threads":
-			if i+1 >= len(args) {
-				_, _ = fmt.Fprintln(stderr, "iprange: --dns-threads requires a value")
-				return 1
-			}
-			if _, err := fmt.Sscanf(args[i+1], "%d", &parseOpts.DNSThreads); err != nil || parseOpts.DNSThreads < 1 {
-				_, _ = fmt.Fprintf(stderr, "iprange: invalid dns thread count %q\n", args[i+1])
-				return 1
-			}
-			i++
-		case "--dns-silent", "--dns-progress":
-			continue
-		case "--has-compare", "--has-reduce":
-			_, _ = fmt.Fprintln(stderr, "yes, compare and reduce is present.")
-			return 0
-		case "--has-filelist-loading", "--has-directory-loading":
-			_, _ = fmt.Fprintln(stderr, "yes, @filename and @directory support is present.")
-			return 0
-		case "--version":
-			_, _ = fmt.Fprintln(stdout, "iprange go-dev")
-			return 0
-		case "--help", "-h":
-			return printCLIUsage(stdout)
-		default:
-			sets, err := loadInputArgument6(ctx, arg, stdin, parseOpts)
-			if err != nil {
-				_, _ = fmt.Fprintf(stderr, "iprange: %v\n", err)
-				return 1
-			}
-			if readSecond {
-				after = append(after, sets...)
-			} else {
-				before = append(before, sets...)
-			}
+		next, code, done := r.parseArg(ctx, args, i)
+		if done {
+			return code, true
 		}
+		i = next
 	}
-
-	if len(before) == 0 {
-		set, err := ParseReader6(ctx, DefaultName, stdin, parseOpts)
+	if len(r.before) == 0 {
+		set, err := ParseReader6(ctx, DefaultName, r.stdin, r.parseOpts)
 		if err != nil {
-			_, _ = fmt.Fprintf(stderr, "iprange: %v\n", err)
-			return 1
+			return cliError(r.stderr, err), true
 		}
-		before = append(before, set)
+		r.before = append(r.before, set)
 	}
+	return 0, false
+}
 
-	switch mode {
+func (r *cliV6Runner) parseArg(ctx context.Context, args []string, i int) (int, int, bool) {
+	return parseCLIArg(ctx, args, i, r)
+}
+
+func (r *cliV6Runner) parseAlias(args []string, i int) (int, int, bool) {
+	if i+1 >= len(args) {
+		return i, cliErrorText(r.stderr, "missing alias after 'as'"), true
+	}
+	target := &r.before
+	if r.readSecond {
+		target = &r.after
+	}
+	if len(*target) == 0 {
+		return i, cliErrorText(r.stderr, "alias requires a previous input"), true
+	}
+	(*target)[len(*target)-1].Name = args[i+1]
+	return i + 1, 0, false
+}
+
+func (r *cliV6Runner) parseMinPrefix(args []string, i int) (int, int, bool) {
+	value, next, ok := cliOptionValue(r.stderr, args, i, "--min-prefix")
+	if !ok {
+		return i, 1, true
+	}
+	prefix, err := ParsePrefix6(value)
+	if err != nil || prefix < 1 || prefix > 128 {
+		_, _ = fmt.Fprintf(r.stderr, "iprange: invalid --min-prefix value %q\n", value)
+		return next, 1, true
+	}
+	for j := 0; j < prefix; j++ {
+		r.printOpts.PrefixesEnabled[j] = false
+	}
+	return next, 0, false
+}
+
+func (r *cliV6Runner) parsePrefixes(args []string, i int) (int, int, bool) {
+	value, next, ok := cliOptionValue(r.stderr, args, i, "--prefixes")
+	if !ok {
+		return i, 1, true
+	}
+	for j := 0; j < 129; j++ {
+		r.printOpts.PrefixesEnabled[j] = false
+	}
+	for _, part := range strings.FieldsFunc(value, func(r rune) bool { return r == ',' || r == ' ' }) {
+		prefix, err := ParsePrefix6(part)
+		if err != nil || prefix <= 0 || prefix > 128 {
+			_, _ = fmt.Fprintf(r.stderr, "iprange: invalid prefix %q\n", part)
+			return next, 1, true
+		}
+		r.printOpts.PrefixesEnabled[prefix] = true
+	}
+	r.printOpts.PrefixesEnabled[128] = true
+	return next, 0, false
+}
+
+func (r *cliV6Runner) parseDefaultPrefix(args []string, i int) (int, int, bool) {
+	value, next, ok := cliOptionValue(r.stderr, args, i, "--default-prefix")
+	if !ok {
+		return i, 1, true
+	}
+	prefix, err := ParsePrefix6(value)
+	if err != nil {
+		_, _ = fmt.Fprintf(r.stderr, "iprange: invalid --default-prefix value %q\n", value)
+		return next, 1, true
+	}
+	r.parseOpts.DefaultPrefix = prefix
+	return next, 0, false
+}
+
+func (r *cliV6Runner) parseReduceFactor(args []string, i int) (int, int, bool) {
+	value, next, ok := cliOptionValue(r.stderr, args, i, "--ipset-reduce")
+	if !ok {
+		return i, 1, true
+	}
+	reduceFactor, ok := cliIntValue(value)
+	if !ok || reduceFactor < 0 {
+		_, _ = fmt.Fprintf(r.stderr, "iprange: invalid reduce factor %q\n", value)
+		return next, 1, true
+	}
+	r.reduceFactor = reduceFactor + 100
+	r.mode = modeReduce
+	return next, 0, false
+}
+
+func (r *cliV6Runner) parseReduceEntries(args []string, i int) (int, int, bool) {
+	value, next, ok := cliOptionValue(r.stderr, args, i, "--reduce-entries")
+	if !ok {
+		return i, 1, true
+	}
+	reduceEntries, ok := cliIntValue(value)
+	if !ok || reduceEntries < 0 {
+		_, _ = fmt.Fprintf(r.stderr, "iprange: invalid reduce entries %q\n", value)
+		return next, 1, true
+	}
+	r.reduceEntries = reduceEntries
+	r.mode = modeReduce
+	return next, 0, false
+}
+
+func (r *cliV6Runner) parsePrintPrefix(args []string, i int) (int, int, bool) {
+	value, next, ok := cliOptionValue(r.stderr, args, i, "--print-prefix")
+	if !ok {
+		return i, 1, true
+	}
+	r.printOpts.PrintPrefixIPs = value
+	r.printOpts.PrintPrefixNets = value
+	return next, 0, false
+}
+
+func (r *cliV6Runner) parsePrintPrefixIPs(args []string, i int) (int, int, bool) {
+	value, next, ok := cliOptionValue(r.stderr, args, i, "--print-prefix-ips")
+	if !ok {
+		return i, 1, true
+	}
+	r.printOpts.PrintPrefixIPs = value
+	return next, 0, false
+}
+
+func (r *cliV6Runner) parsePrintPrefixNets(args []string, i int) (int, int, bool) {
+	value, next, ok := cliOptionValue(r.stderr, args, i, "--print-prefix-nets")
+	if !ok {
+		return i, 1, true
+	}
+	r.printOpts.PrintPrefixNets = value
+	return next, 0, false
+}
+
+func (r *cliV6Runner) parsePrintSuffix(args []string, i int) (int, int, bool) {
+	value, next, ok := cliOptionValue(r.stderr, args, i, "--print-suffix")
+	if !ok {
+		return i, 1, true
+	}
+	r.printOpts.PrintSuffixIPs = value
+	r.printOpts.PrintSuffixNets = value
+	return next, 0, false
+}
+
+func (r *cliV6Runner) parsePrintSuffixIPs(args []string, i int) (int, int, bool) {
+	value, next, ok := cliOptionValue(r.stderr, args, i, "--print-suffix-ips")
+	if !ok {
+		return i, 1, true
+	}
+	r.printOpts.PrintSuffixIPs = value
+	return next, 0, false
+}
+
+func (r *cliV6Runner) parsePrintSuffixNets(args []string, i int) (int, int, bool) {
+	value, next, ok := cliOptionValue(r.stderr, args, i, "--print-suffix-nets")
+	if !ok {
+		return i, 1, true
+	}
+	r.printOpts.PrintSuffixNets = value
+	return next, 0, false
+}
+
+func (r *cliV6Runner) parseDNSThreads(args []string, i int) (int, int, bool) {
+	value, next, ok := cliOptionValue(r.stderr, args, i, "--dns-threads")
+	if !ok {
+		return i, 1, true
+	}
+	threads, ok := cliIntValue(value)
+	if !ok || threads < 1 {
+		_, _ = fmt.Fprintf(r.stderr, "iprange: invalid dns thread count %q\n", value)
+		return next, 1, true
+	}
+	r.parseOpts.DNSThreads = threads
+	return next, 0, false
+}
+
+func (r *cliV6Runner) loadInput(ctx context.Context, arg string) (int, bool) {
+	sets, err := loadInputArgument6(ctx, arg, r.stdin, r.parseOpts)
+	if err != nil {
+		return cliError(r.stderr, err), true
+	}
+	if r.readSecond {
+		r.after = append(r.after, sets...)
+	} else {
+		r.before = append(r.before, sets...)
+	}
+	return 0, false
+}
+
+func (r *cliV6Runner) execute() int {
+	switch r.mode {
 	case modeCombine, modeReduce:
-		merged, err := mergeAll6(before)
+		merged, err := mergeAll6(r.before)
 		if err != nil {
-			_, _ = fmt.Fprintf(stderr, "iprange: %v\n", err)
-			return 1
+			return cliError(r.stderr, err)
 		}
-		if mode == modeReduce {
-			printOpts.PrefixesEnabled = Reduce6(merged, reduceFactor, reduceEntries, printOpts.PrefixesEnabled)
+		if r.mode == modeReduce {
+			r.printOpts.PrefixesEnabled = Reduce6(merged, r.reduceFactor, r.reduceEntries, r.printOpts.PrefixesEnabled)
 		}
-		if err := merged.Write6(stdout, printOpts); err != nil {
-			_, _ = fmt.Fprintf(stderr, "iprange: %v\n", err)
-			return 1
-		}
-		return 0
+		return r.writeSet(merged)
 	case modeCommon:
-		if len(before) < 2 {
-			_, _ = fmt.Fprintln(stderr, "iprange: common requires at least two ipsets")
-			return 1
-		}
-		current := before[0]
-		for _, next := range before[1:] {
-			current = Intersect6(current, next)
-		}
-		if err := current.Write6(stdout, printOpts); err != nil {
-			_, _ = fmt.Fprintf(stderr, "iprange: %v\n", err)
-			return 1
-		}
-		return 0
+		return r.executeCommon()
 	case modeExcludeNext:
-		if len(after) == 0 {
-			_, _ = fmt.Fprintln(stderr, "iprange: no files given after --exclude-next")
-			return 1
-		}
-		current, err := mergeAll6(before)
-		if err != nil {
-			_, _ = fmt.Fprintf(stderr, "iprange: %v\n", err)
-			return 1
-		}
-		for _, exclude := range after {
-			current = Exclude6(current, exclude)
-		}
-		if err := current.Write6(stdout, printOpts); err != nil {
-			_, _ = fmt.Fprintf(stderr, "iprange: %v\n", err)
-			return 1
-		}
-		return 0
+		return r.executeExcludeNext()
 	case modeDiff:
-		if len(after) == 0 {
-			_, _ = fmt.Fprintln(stderr, "iprange: no files given after --diff")
-			return 1
-		}
-		left, err := mergeAll6(before)
-		if err != nil {
-			_, _ = fmt.Fprintf(stderr, "iprange: %v\n", err)
-			return 1
-		}
-		right, err := mergeAll6(after)
-		if err != nil {
-			_, _ = fmt.Fprintf(stderr, "iprange: %v\n", err)
-			return 1
-		}
-		diff := Diff6(left, right)
-		if !quiet {
-			if err := diff.Write6(stdout, printOpts); err != nil {
-				_, _ = fmt.Fprintf(stderr, "iprange: %v\n", err)
-				return 1
-			}
-		}
-		if !diff.UniqueCount().IsZero() {
-			return 1
-		}
-		return 0
+		return r.executeDiff()
 	case modeCompare:
-		rows, err := CompareAll6(before)
-		if err != nil {
-			_, _ = fmt.Fprintf(stderr, "iprange: %v\n", err)
-			return 1
-		}
-		if header {
-			_, _ = fmt.Fprintln(stdout, "name1,name2,entries1,entries2,ips1,ips2,combined_ips,common_ips")
-		}
-		for _, row := range rows {
-			_, _ = fmt.Fprintf(stdout, "%s,%s,%d,%d,%s,%s,%s,%s\n", row.Name1, row.Name2, row.Entries1, row.Entries2, row.Unique1.String(), row.Unique2.String(), row.CombinedIPs.String(), row.CommonIPs.String())
-		}
-		return 0
+		return r.executeCompare()
 	case modeCompareNext:
-		rows, err := CompareNext6(before, after)
-		if err != nil {
-			_, _ = fmt.Fprintf(stderr, "iprange: %v\n", err)
-			return 1
-		}
-		if header {
-			_, _ = fmt.Fprintln(stdout, "name1,name2,entries1,entries2,ips1,ips2,combined_ips,common_ips")
-		}
-		for _, row := range rows {
-			_, _ = fmt.Fprintf(stdout, "%s,%s,%d,%d,%s,%s,%s,%s\n", row.Name1, row.Name2, row.Entries1, row.Entries2, row.Unique1.String(), row.Unique2.String(), row.CombinedIPs.String(), row.CommonIPs.String())
-		}
-		return 0
+		return r.executeCompareNext()
 	case modeCompareFirst:
-		rows, err := CompareFirst6(before)
-		if err != nil {
-			_, _ = fmt.Fprintf(stderr, "iprange: %v\n", err)
-			return 1
-		}
-		if header {
-			_, _ = fmt.Fprintln(stdout, "name,entries,unique_ips,common_ips")
-		}
-		for _, row := range rows {
-			_, _ = fmt.Fprintf(stdout, "%s,%d,%s,%s\n", row.Name, row.Entries, row.UniqueIPs.String(), row.CommonIPs.String())
-		}
-		return 0
+		return r.executeCompareFirst()
 	case modeCountUniqueMerged:
-		row, err := CountUniqueMerged6(before)
-		if err != nil {
-			_, _ = fmt.Fprintf(stderr, "iprange: %v\n", err)
-			return 1
-		}
-		if header {
-			_, _ = fmt.Fprintln(stdout, "entries,unique_ips")
-		}
-		_, _ = fmt.Fprintf(stdout, "%d,%s\n", row.Entries, row.UniqueIPs.String())
-		return 0
+		return r.executeCountUniqueMerged()
 	case modeCountUniqueAll:
-		rows, err := CountUniqueAll6(before)
-		if err != nil {
-			_, _ = fmt.Fprintf(stderr, "iprange: %v\n", err)
-			return 1
-		}
-		if header {
-			_, _ = fmt.Fprintln(stdout, "name,entries,unique_ips")
-		}
-		for _, row := range rows {
-			_, _ = fmt.Fprintf(stdout, "%s,%d,%s\n", row.Name, row.Entries, row.UniqueIPs.String())
-		}
-		return 0
+		return r.executeCountUniqueAll()
 	default:
-		_, _ = fmt.Fprintln(stderr, "iprange: unknown mode")
+		return cliErrorText(r.stderr, "unknown mode")
+	}
+}
+
+func (r *cliV6Runner) writeSet(set *IPSet6) int {
+	if err := set.Write6(r.stdout, r.printOpts); err != nil {
+		return cliError(r.stderr, err)
+	}
+	return 0
+}
+
+func (r *cliV6Runner) executeCommon() int {
+	if len(r.before) < 2 {
+		return cliErrorText(r.stderr, "common requires at least two ipsets")
+	}
+	current := r.before[0]
+	for _, next := range r.before[1:] {
+		current = Intersect6(current, next)
+	}
+	return r.writeSet(current)
+}
+
+func (r *cliV6Runner) executeExcludeNext() int {
+	if len(r.after) == 0 {
+		return cliErrorText(r.stderr, "no files given after --exclude-next")
+	}
+	current, err := mergeAll6(r.before)
+	if err != nil {
+		return cliError(r.stderr, err)
+	}
+	for _, exclude := range r.after {
+		current = Exclude6(current, exclude)
+	}
+	return r.writeSet(current)
+}
+
+func (r *cliV6Runner) executeDiff() int {
+	if len(r.after) == 0 {
+		return cliErrorText(r.stderr, "no files given after --diff")
+	}
+	left, err := mergeAll6(r.before)
+	if err != nil {
+		return cliError(r.stderr, err)
+	}
+	right, err := mergeAll6(r.after)
+	if err != nil {
+		return cliError(r.stderr, err)
+	}
+	diff := Diff6(left, right)
+	if !r.quiet {
+		if code := r.writeSet(diff); code != 0 {
+			return code
+		}
+	}
+	if !diff.UniqueCount().IsZero() {
 		return 1
 	}
+	return 0
+}
+
+func (r *cliV6Runner) executeCompare() int {
+	rows, err := CompareAll6(r.before)
+	if err != nil {
+		return cliError(r.stderr, err)
+	}
+	r.writeCompareHeader()
+	for _, row := range rows {
+		_, _ = fmt.Fprintf(r.stdout, "%s,%s,%d,%d,%s,%s,%s,%s\n", row.Name1, row.Name2, row.Entries1, row.Entries2, row.Unique1.String(), row.Unique2.String(), row.CombinedIPs.String(), row.CommonIPs.String())
+	}
+	return 0
+}
+
+func (r *cliV6Runner) executeCompareNext() int {
+	rows, err := CompareNext6(r.before, r.after)
+	if err != nil {
+		return cliError(r.stderr, err)
+	}
+	r.writeCompareHeader()
+	for _, row := range rows {
+		_, _ = fmt.Fprintf(r.stdout, "%s,%s,%d,%d,%s,%s,%s,%s\n", row.Name1, row.Name2, row.Entries1, row.Entries2, row.Unique1.String(), row.Unique2.String(), row.CombinedIPs.String(), row.CommonIPs.String())
+	}
+	return 0
+}
+
+func (r *cliV6Runner) writeCompareHeader() {
+	if r.header {
+		_, _ = fmt.Fprintln(r.stdout, "name1,name2,entries1,entries2,ips1,ips2,combined_ips,common_ips")
+	}
+}
+
+func (r *cliV6Runner) executeCompareFirst() int {
+	rows, err := CompareFirst6(r.before)
+	if err != nil {
+		return cliError(r.stderr, err)
+	}
+	if r.header {
+		_, _ = fmt.Fprintln(r.stdout, "name,entries,unique_ips,common_ips")
+	}
+	for _, row := range rows {
+		_, _ = fmt.Fprintf(r.stdout, "%s,%d,%s,%s\n", row.Name, row.Entries, row.UniqueIPs.String(), row.CommonIPs.String())
+	}
+	return 0
+}
+
+func (r *cliV6Runner) executeCountUniqueMerged() int {
+	row, err := CountUniqueMerged6(r.before)
+	if err != nil {
+		return cliError(r.stderr, err)
+	}
+	if r.header {
+		_, _ = fmt.Fprintln(r.stdout, "entries,unique_ips")
+	}
+	_, _ = fmt.Fprintf(r.stdout, "%d,%s\n", row.Entries, row.UniqueIPs.String())
+	return 0
+}
+
+func (r *cliV6Runner) executeCountUniqueAll() int {
+	rows, err := CountUniqueAll6(r.before)
+	if err != nil {
+		return cliError(r.stderr, err)
+	}
+	if r.header {
+		_, _ = fmt.Fprintln(r.stdout, "name,entries,unique_ips")
+	}
+	for _, row := range rows {
+		_, _ = fmt.Fprintf(r.stdout, "%s,%d,%s\n", row.Name, row.Entries, row.UniqueIPs.String())
+	}
+	return 0
 }
