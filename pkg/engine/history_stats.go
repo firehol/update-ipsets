@@ -16,7 +16,7 @@ func (e *Engine) refreshHistoryStatsFromLedger(name string, entry *cache.Entry, 
 	if e.runtime.LibDir == "" {
 		return false
 	}
-	points := parseHistoryCSV(filepath.Join(e.runtime.LibDir, name, "history.csv"), name)
+	points := parseHistoryCSVInRoot(e.runtime.LibDir, filepath.Join(name, "history.csv"), name)
 	return applyHistoryPointsToEntry(entry, points, frequency)
 }
 

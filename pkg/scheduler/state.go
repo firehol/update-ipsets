@@ -10,7 +10,8 @@ import (
 )
 
 func LoadSnapshot(path string) (Snapshot, error) {
-	data, err := os.ReadFile(path)
+	rootDir, rel := filepath.Split(path)
+	data, err := fileutil.ReadFileUnderRoot(rootDir, rel)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return Snapshot{}, nil

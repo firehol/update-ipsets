@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/firehol/update-ipsets/internal/fileutil"
 	"github.com/firehol/update-ipsets/pkg/enrichment"
 )
 
@@ -107,8 +108,20 @@ func (r *FeedArtifactReader) path(rel string) string {
 	return filepath.Join(r.dir, rel)
 }
 
+func (r *FeedArtifactReader) readFile(rel string) ([]byte, error) {
+	return fileutil.ReadFileUnderRoot(r.dir, rel)
+}
+
+func (r *FeedArtifactReader) readMatchedFile(path string) ([]byte, error) {
+	rel, err := filepath.Rel(r.dir, path)
+	if err != nil {
+		return nil, err
+	}
+	return r.readFile(rel)
+}
+
 func (r *FeedArtifactReader) readFeedMetadata(name string) (map[string]any, error) {
-	data, err := os.ReadFile(r.path(name + ".json"))
+	data, err := r.readFile(name + ".json")
 	if err != nil {
 		return nil, err
 	}

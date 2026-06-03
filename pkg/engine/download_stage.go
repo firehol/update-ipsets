@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -312,7 +313,7 @@ func (e *Engine) fetchStaticSource(src *config.Source, rawPath string) (*downloa
 		now = e.now().UTC()
 	}
 	body := []byte(strings.Join(src.Static, "\n") + "\n")
-	if existing, err := os.ReadFile(rawPath); err == nil && bytes.Equal(existing, body) {
+	if existing, err := readFilePathUnderRoot(filepath.Dir(rawPath), rawPath); err == nil && bytes.Equal(existing, body) {
 		modifiedAt := now
 		if info, statErr := os.Stat(rawPath); statErr == nil {
 			modifiedAt = info.ModTime().UTC()

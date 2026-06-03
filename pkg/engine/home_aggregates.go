@@ -305,9 +305,8 @@ func (e *Engine) loadHomeAggregatesInDir(outputDir string) (*homeAggregatesPaylo
 	if outputDir == "" {
 		outputDir = e.outputDir()
 	}
-	path := filepath.Join(outputDir, e.publicHomeAggregatesRelPath())
 	started := time.Now()
-	payload, size, err := readHomeAggregatesFile(path)
+	payload, size, err := readHomeAggregatesFile(outputDir, e.publicHomeAggregatesRelPath())
 	if err != nil {
 		return nil, err
 	}
@@ -316,8 +315,8 @@ func (e *Engine) loadHomeAggregatesInDir(outputDir string) (*homeAggregatesPaylo
 	return payload, nil
 }
 
-func readHomeAggregatesFile(path string) (*homeAggregatesPayload, int, error) {
-	data, err := os.ReadFile(path)
+func readHomeAggregatesFile(rootDir, rel string) (*homeAggregatesPayload, int, error) {
+	data, err := readFileInRoot(rootDir, rel)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, 0, ErrHomeAggregatesNotReady

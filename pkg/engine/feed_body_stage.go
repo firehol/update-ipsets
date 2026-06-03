@@ -60,7 +60,7 @@ func writeFeedBodyAtomic(path string, header []byte, bodyPath string, mod time.T
 	if err := os.MkdirAll(filepath.Dir(path), generatedDirMode); err != nil {
 		return err
 	}
-	body, err := os.Open(bodyPath)
+	body, err := openFilePathUnderRoot(filepath.Dir(bodyPath), bodyPath)
 	if err != nil {
 		return err
 	}
@@ -119,7 +119,7 @@ func canonicalFeedBodySame(dst string, body []byte) (bool, error) {
 	if !fileExists(dst) {
 		return false, nil
 	}
-	existing, err := os.Open(dst)
+	existing, err := openFilePathUnderRoot(filepath.Dir(dst), dst)
 	if err != nil {
 		return false, err
 	}
@@ -515,7 +515,7 @@ func (e *Engine) mergeInputReaders(inputs []MergeInputState) ([]io.Reader, func(
 	}
 	for _, input := range inputs {
 		path := latestFeedBodyPath(e.feedBodyPath(input.Name))
-		file, err := os.Open(path)
+		file, err := openFilePathUnderRoot(filepath.Dir(path), path)
 		if err != nil {
 			closeReaders()
 			return nil, func() {}, err

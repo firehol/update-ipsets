@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net"
 	"net/http"
-	pathpkg "path"
+	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -35,7 +35,7 @@ func handleClientIP(resolver *clientIPResolver) http.HandlerFunc {
 // handleCountryIndex serves /api/v1/countries from the published artifact.
 func handleCountryIndex(eng *engine.Engine, cache *fileCache, outputDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		rel := pathpkg.Join("countries", "index.json")
+		rel := filepath.Join("countries", "index.json")
 		if cache != nil && cache.ServeRootedFile(w, r, outputDir, rel, "application/json") {
 			eng.ObserveCounter("http.entity_artifact.country_index_hit", 1, 0)
 			return
@@ -66,7 +66,7 @@ func handleCountryDetail(eng *engine.Engine, cache *fileCache, outputDir string)
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "country code must be two ASCII letters"})
 			return
 		}
-		rel := pathpkg.Join("countries", code+".json")
+		rel := filepath.Join("countries", code+".json")
 		if cache != nil && cache.ServeRootedFile(w, r, outputDir, rel, "application/json") {
 			eng.ObserveCounter("http.entity_artifact.country_detail_hit", 1, 0)
 			return
@@ -103,7 +103,7 @@ func normalizeCountryCode(raw string) (string, bool) {
 // handleASNIndex serves /api/v1/asns from the published artifact.
 func handleASNIndex(eng *engine.Engine, cache *fileCache, outputDir string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		rel := pathpkg.Join("asns", "index.json")
+		rel := filepath.Join("asns", "index.json")
 		if cache != nil && cache.ServeRootedFile(w, r, outputDir, rel, "application/json") {
 			eng.ObserveCounter("http.entity_artifact.asn_index_hit", 1, 0)
 			return
@@ -134,7 +134,7 @@ func handleASNDetail(eng *engine.Engine, cache *fileCache, outputDir string) htt
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "ASN must be a positive integer"})
 			return
 		}
-		rel := pathpkg.Join("asns", strconv.FormatUint(number, 10)+".json")
+		rel := filepath.Join("asns", strconv.FormatUint(number, 10)+".json")
 		if cache != nil && cache.ServeRootedFile(w, r, outputDir, rel, "application/json") {
 			eng.ObserveCounter("http.entity_artifact.asn_detail_hit", 1, 0)
 			return

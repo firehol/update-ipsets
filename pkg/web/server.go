@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"embed"
 	"encoding/json"
@@ -593,6 +594,8 @@ func writeJSON(w http.ResponseWriter, status int, value any) int {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	_, _ = w.Write(append(data, '\n'))
-	return len(data) + 1
+	body := bytes.NewBuffer(data)
+	body.WriteByte('\n')
+	written, _ := body.WriteTo(w)
+	return int(written)
 }

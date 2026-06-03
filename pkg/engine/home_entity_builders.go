@@ -57,7 +57,7 @@ func (v entityOutputView) countryComparison(name, provider string) (*CountryComp
 		}
 		v.mu.Unlock()
 	}
-	pathGroups := make([][]string, 0, 2)
+	pathGroups := make([][]rootedCandidatePath, 0, 2)
 	if v.stageDir != "" {
 		pathGroups = append(pathGroups, geoCountryCandidatePaths(v.stageDir, name, provider))
 	}
@@ -112,7 +112,7 @@ func (v entityOutputView) topASNsWithError(name, provider string) ([]topASNRow, 
 		}
 		v.mu.Unlock()
 	}
-	pathGroups := make([][]string, 0, 2)
+	pathGroups := make([][]rootedCandidatePath, 0, 2)
 	if v.stageDir != "" {
 		pathGroups = append(pathGroups, asnCandidatePaths(v.stageDir, name, provider))
 	}
@@ -969,7 +969,7 @@ func (e *Engine) materializeASNDetailWithHealth(sidecar *asnDetailSidecar, healt
 }
 
 func loadCountryDetailSidecar(path string) (*countryDetailSidecar, error) {
-	data, err := os.ReadFile(path)
+	data, err := readFilePathUnderRoot(filepath.Dir(path), path)
 	if err != nil {
 		return nil, err
 	}
@@ -981,7 +981,7 @@ func loadCountryDetailSidecar(path string) (*countryDetailSidecar, error) {
 }
 
 func loadASNDetailSidecar(path string) (*asnDetailSidecar, error) {
-	data, err := os.ReadFile(path)
+	data, err := readFilePathUnderRoot(filepath.Dir(path), path)
 	if err != nil {
 		return nil, err
 	}

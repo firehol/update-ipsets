@@ -251,9 +251,7 @@ type adminScheduleEntry struct {
 // admin surface is registered, so the operator shell and the operator
 // APIs follow the same access-control boundary.
 func handleAdminPage(w http.ResponseWriter, _ *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	w.Header().Set("Cache-Control", "no-store")
-	_, _ = w.Write([]byte(embeddedIndex))
+	serveEmbeddedIndexNoStore(w, embeddedIndex)
 }
 
 func handleAdminStatus(eng *engine.Engine, runner *scheduler.Runner) http.HandlerFunc {

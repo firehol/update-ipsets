@@ -676,9 +676,8 @@ func (e *Engine) rebuildASNSidecarFromParts(asn uint32, base *asnDetailSidecar, 
 
 func (e *Engine) patchCountryIndex(webBatch *webPublishBatch, updates map[string]*countryDetailSidecar) error {
 	payload := e.emptyCountryIndexPayload()
-	path := filepath.Join(e.outputDir(), e.publicCountryIndexRelPath())
 	start := time.Now()
-	data, err := os.ReadFile(path)
+	data, err := readFileInRoot(e.outputDir(), e.publicCountryIndexRelPath())
 	if err == nil {
 		e.observeRunCounter("entity.refresh.country_index_read", 1, int64(len(data)))
 		e.observeRunOperation("entity.refresh.country_index_read", time.Since(start))
@@ -730,9 +729,8 @@ func (e *Engine) patchCountryIndex(webBatch *webPublishBatch, updates map[string
 
 func (e *Engine) patchASNIndex(webBatch *webPublishBatch, updates map[uint32]*asnDetailSidecar) error {
 	payload := e.emptyASNIndexPayload()
-	path := filepath.Join(e.outputDir(), e.publicASNIndexRelPath())
 	start := time.Now()
-	data, err := os.ReadFile(path)
+	data, err := readFileInRoot(e.outputDir(), e.publicASNIndexRelPath())
 	if err == nil {
 		e.observeRunCounter("entity.refresh.asn_index_read", 1, int64(len(data)))
 		e.observeRunOperation("entity.refresh.asn_index_read", time.Since(start))

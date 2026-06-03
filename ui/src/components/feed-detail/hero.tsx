@@ -43,7 +43,7 @@ export function FeedHero({ feed }: { feed: FeedMetadata }) {
   const roleLabels =
     feed.enrichment?.roles
       .slice(0, 3)
-      .map((role) => role.role.replaceAll("_", " "))
+      .map((role) => role.role.replace(/_/g, " "))
       .filter(Boolean) ?? [];
   return (
     <section className="bg-display py-24 text-display-fg md:py-32">

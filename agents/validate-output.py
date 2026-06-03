@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
-"""Post-run validator for feed-enrichment agent output (v2 schema).
+# pyright: reportMissingImports=false, reportMissingModuleSource=false
+"""
+Post-run validator for feed-enrichment agent output (v2 schema).
 
 Checks:
   1. JSON parses and validates against the v2 schema.

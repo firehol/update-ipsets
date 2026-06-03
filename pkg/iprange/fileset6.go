@@ -132,7 +132,7 @@ func OpenFileSet6(path string) (FileSet6, error) {
 		iprangeEnd(span, opErr)
 		iprangeObserve(iprangeBackground(), "iprange.load.binary", 1, bytes, time.Since(started), attribute.String("ip.version", "6"), attribute.String("iprange.source", "fileset"))
 	}()
-	f, err := os.Open(path)
+	f, err := os.Open(path) // nosemgrep: exported local fileset API; callers intentionally provide the binary set path.
 	if err != nil {
 		opErr = err
 		return nil, err

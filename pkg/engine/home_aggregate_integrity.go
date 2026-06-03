@@ -35,7 +35,7 @@ func (e *Engine) checkHomeAggregatesIntegrity(findings *[]EntityIntegrityFinding
 		return err
 	}
 	pathMTime := info.ModTime().UTC()
-	if _, _, err := readHomeAggregatesFile(path); err != nil {
+	if _, _, err := readHomeAggregatesFile(e.outputDir(), e.publicHomeAggregatesRelPath()); err != nil {
 		*findings = append(*findings, EntityIntegrityFinding{
 			Scope:        "homepage",
 			Kind:         "home_aggregates_malformed",

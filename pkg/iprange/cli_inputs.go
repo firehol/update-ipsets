@@ -76,7 +76,7 @@ func loadInputArgument(ctx context.Context, arg string, stdin io.Reader, opts Pa
 			return out, nil
 		}
 
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(path) // nosemgrep: local CLI file-list input; the caller intentionally selects paths to parse.
 		if err != nil {
 			return nil, err
 		}
@@ -112,7 +112,7 @@ func loadInputArgument(ctx context.Context, arg string, stdin io.Reader, opts Pa
 }
 
 func loadSinglePath(ctx context.Context, path string, opts ParseOptions) (*IPSet, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) // nosemgrep: local CLI/parser input; no daemon or public request path reaches this API directly.
 	if err != nil {
 		return nil, err
 	}

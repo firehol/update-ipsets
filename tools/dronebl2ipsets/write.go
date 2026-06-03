@@ -19,10 +19,10 @@ func WriteSourceFile(outputDir, filename string, set *RangeSet, mtime time.Time)
 	if filename == "" {
 		return fmt.Errorf("filename is required")
 	}
-	if err := os.MkdirAll(outputDir, generatedDirMode); err != nil {
+	if err := os.MkdirAll(outputDir, generatedDirMode); err != nil { // nosemgrep: go.lang.correctness.permissions.file_permission.incorrect-default-permission - 0700 is the restrictive usable directory mode.
 		return fmt.Errorf("create output directory: %w", err)
 	}
-	if err := os.Chmod(outputDir, generatedDirMode); err != nil {
+	if err := os.Chmod(outputDir, generatedDirMode); err != nil { // nosemgrep: go.lang.correctness.permissions.file_permission.incorrect-default-permission,go.file-permissions.rule-fileperm - 0700 is the restrictive usable directory mode.
 		return fmt.Errorf("chmod output directory: %w", err)
 	}
 

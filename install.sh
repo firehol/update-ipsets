@@ -46,10 +46,12 @@ run() {
   printf >&2 "%b%s >%b %b" "$GRAY" "$(pwd)" "$NC" "$YELLOW"
   printf >&2 "%q " "$@"
   printf >&2 "%b\n" "$NC"
-  if ! "$@"; then
+  if "$@"; then
+    return 0
+  else
     local exit_code=$?
     echo -e >&2 "${RED}[ERROR]${NC} Exit code ${exit_code}: ${YELLOW}$*${NC} (in $(pwd))"
-    return $exit_code
+    return "$exit_code"
   fi
 }
 
@@ -235,6 +237,7 @@ run sudo find \
     "${INSTALL_DIR}/web" \
     "${INSTALL_DIR}/run" \
     "${INSTALL_DIR}/tmp" \
+    -ignore_readdir_race \
     -type d -exec chmod 0700 {} +
 run sudo find \
     "${INSTALL_DIR}/data" \
@@ -243,6 +246,7 @@ run sudo find \
     "${INSTALL_DIR}/web" \
     "${INSTALL_DIR}/run" \
     "${INSTALL_DIR}/tmp" \
+    -ignore_readdir_race \
     -type f -exec chmod 0600 {} +
 
 # Per-feed HTML description pages are embedded into the binary at

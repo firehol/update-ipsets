@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/firehol/update-ipsets/internal/fileutil"
 	mcpgo "github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -57,8 +58,7 @@ func (s *FileMarkdownStore) ReadMarkdown(entityType, name string) ([]byte, error
 		return nil, fmt.Errorf("unknown entity type %q", entityType)
 	}
 
-	path := filepath.Join(s.webDir, rel)
-	data, err := os.ReadFile(path)
+	data, err := fileutil.ReadFileUnderRoot(s.webDir, rel)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, fmt.Errorf("%s %q not found", entityType, name)

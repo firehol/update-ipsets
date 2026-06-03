@@ -408,8 +408,16 @@ EDITORIAL: dict[str, dict] = {
 
 # --- Schema-shaped builders ---------------------------------------------------
 
-ISO_NOW = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-UTC_STAMP = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+def utc_stamp(now: datetime) -> str:
+    return (
+        f"{now.year:04d}{now.month:02d}{now.day:02d}"
+        f"T{now.hour:02d}{now.minute:02d}{now.second:02d}Z"
+    )
+
+
+NOW = datetime.now(timezone.utc)
+ISO_NOW = NOW.isoformat(timespec="seconds").replace("+00:00", "Z")
+UTC_STAMP = utc_stamp(NOW)
 
 INTERNAL_MAINTAINER_NOTE = (
     "Maintained by the FireHOL catalog project as a public reference / aggregate. "

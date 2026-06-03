@@ -109,7 +109,7 @@ function normalizeWikiBaseURL(value) {
 
 function splitTarget(target) {
   const hash = target.indexOf("#");
-  if (hash === -1) {
+  if (hash < 0) {
     return { pathname: target, anchor: "" };
   }
 
@@ -119,35 +119,51 @@ function splitTarget(target) {
   };
 }
 
-function resolveDocsLink(currentRel, target) {
-  if (
+function shouldKeepLinkTarget(target) {
+  const localPrefixes = ["#", "/", "?"];
+  return (
     !target ||
-    target.startsWith("#") ||
-    target.startsWith("/") ||
-    target.startsWith("?") ||
+    localPrefixes.some((prefix) => target.startsWith(prefix)) ||
     hasScheme(target)
-  ) {
-    return null;
-  }
+  );
+}
 
-  const { pathname, anchor } = splitTarget(target);
+function docsPathForLink(pathname) {
   if (!pathname || pathname.includes(" ")) {
     return null;
   }
 
   const ext = path.posix.extname(pathname);
-  const docsPath = ext === "" ? `${pathname}.md` : pathname;
   if (ext !== "" && ext !== ".md") {
     return null;
   }
 
+  return ext === "" ? `${pathname}.md` : pathname;
+}
+
+function resolveSafeDocsPath(currentRel, docsPath) {
   const currentDir = path.posix.dirname(currentRel);
   const resolved = path.posix.normalize(path.posix.join(currentDir, docsPath));
   if (resolved.startsWith("../") || resolved === "..") {
     return null;
   }
 
-  return { resolved, anchor };
+  return resolved;
+}
+
+function resolveDocsLink(currentRel, target) {
+  if (shouldKeepLinkTarget(target)) {
+    return null;
+  }
+
+  const { pathname, anchor } = splitTarget(target);
+  const docsPath = docsPathForLink(pathname);
+  if (!docsPath) {
+    return null;
+  }
+
+  const resolved = resolveSafeDocsPath(currentRel, docsPath);
+  return resolved ? { resolved, anchor } : null;
 }
 
 function wikiTarget(output, anchor) {

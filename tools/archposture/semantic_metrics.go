@@ -23,7 +23,7 @@ var artifactTokens = []string{
 }
 
 func semanticShortcutMatches(path, rel string) ([]LineMatch, error) {
-	file, err := os.Open(path)
+	file, err := os.Open(path) // nosemgrep: repository architecture scanner intentionally reads tracked local source files.
 	if err != nil {
 		return nil, err
 	}

@@ -83,7 +83,7 @@ func ProviderDefaultsChangedForConfig(cfg *config.Config, rt Runtime) bool {
 	if path == "" {
 		return false
 	}
-	return readProviderDefaultsMarker(path) != current
+	return readProviderDefaultsMarker(rt) != current
 }
 
 func (e *Engine) ProviderDefaultsChanged() bool {
@@ -115,8 +115,8 @@ func (e *Engine) writeProviderDefaultsMarker() error {
 	return writeFileAtomic(path, []byte(current+"\n"), generatedFileMode)
 }
 
-func readProviderDefaultsMarker(path string) string {
-	data, err := os.ReadFile(path)
+func readProviderDefaultsMarker(rt Runtime) string {
+	data, err := readFileInRoot(rt.LibDir, filepath.Join("provider_defaults", "provider_set_id"))
 	if err != nil {
 		return ""
 	}

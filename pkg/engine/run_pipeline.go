@@ -138,7 +138,7 @@ func (e *Engine) buildPipelineRunPlan(report *Report, opts RunOptions) pipelineR
 	e.criticalProviderSetCached = true
 	e.criticalProviderSetMu.Unlock()
 	markerPath := CriticalInfrastructureProviderSetMarkerPath(e.runtime)
-	criticalProviderSetChanged := markerPath != "" && readCriticalInfrastructureProviderSetMarker(markerPath) != currentCriticalProviderSetID
+	criticalProviderSetChanged := markerPath != "" && readCriticalInfrastructureProviderSetMarker(e.runtime) != currentCriticalProviderSetID
 
 	plan := pipelineRunPlan{
 		hasUpdates:                 len(report.Updated) > 0,

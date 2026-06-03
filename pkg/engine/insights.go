@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -188,7 +187,7 @@ func (e *Engine) buildSignalSnapshot(name string, outDir string) (insights.Signa
 // insights package consumes. The source is <lib_dir>/<name>/retention.json
 // which is always rebuilt by updateRetention on every successful run.
 func (e *Engine) readRetentionHistograms(name string) (past insights.AgeHistogram, current insights.AgeHistogram) {
-	data, err := os.ReadFile(filepath.Join(e.runtime.LibDir, name, "retention.json"))
+	data, err := readFileInRoot(e.runtime.LibDir, filepath.Join(name, "retention.json"))
 	if err != nil {
 		return
 	}
@@ -441,7 +440,7 @@ func (e *Engine) readBogonShare(name string, outDir string) float64 {
 // counterpart feed has no cache entry are skipped — the insights
 // package cannot evaluate them without knowing their size.
 func (e *Engine) readOverlapFacts(name string, outDir string) ([]insights.FeedOverlap, map[string]insights.CategoryStat) {
-	data, err := readFirstExisting([]string{filepath.Join(outDir, name+"_comparison.json")}, []string{filepath.Join(e.outputDir(), name+"_comparison.json")})
+	data, err := readFirstExisting(singleCandidatePath(outDir, name+"_comparison.json"), singleCandidatePath(e.outputDir(), name+"_comparison.json"))
 	if err != nil {
 		return nil, nil
 	}
@@ -526,14 +525,19 @@ func parseUint64(s string) (uint64, error) {
 // when none exist, so callers can distinguish "missing" (fs.ErrNotExist) from
 // "permission denied" or "I/O error". Groups MUST be ordered
 // most-preferred-first so staged files win over live files during a batch.
-func readFirstExisting(pathGroups ...[]string) ([]byte, error) {
+type rootedCandidatePath struct {
+	rootDir string
+	rel     string
+}
+
+func readFirstExisting(pathGroups ...[]rootedCandidatePath) ([]byte, error) {
 	if len(pathGroups) == 0 {
 		return nil, fs.ErrNotExist
 	}
 	var lastErr error
 	for _, paths := range pathGroups {
-		for _, path := range paths {
-			data, err := os.ReadFile(path)
+		for _, candidate := range paths {
+			data, err := readFileInRoot(candidate.rootDir, candidate.rel)
 			if err == nil {
 				return data, nil
 			}
@@ -552,16 +556,22 @@ func readFirstExisting(pathGroups ...[]string) ([]byte, error) {
 // the writer joins it directly, so there is exactly one canonical
 // path. Returned as a slice to keep the call site symmetrical with
 // the asn/bogon helpers.
-func geoCountryCandidatePaths(dir, name, provider string) []string {
-	return []string{filepath.Join(dir, name+"_"+provider+".json")}
+func geoCountryCandidatePaths(dir, name, provider string) []rootedCandidatePath {
+	if dir == "" {
+		return nil
+	}
+	return []rootedCandidatePath{{rootDir: dir, rel: name + "_" + provider + ".json"}}
 }
 
 // asnCandidatePaths returns the on-disk path for the per-feed ASN
 // attribution snapshot. The writer always uses
 // <feed>_asn_<source_name>.json so there is exactly one canonical
 // path; the slice return type matches the geo/bogon helpers.
-func asnCandidatePaths(dir, name, provider string) []string {
-	return []string{filepath.Join(dir, name+"_asn_"+provider+".json")}
+func asnCandidatePaths(dir, name, provider string) []rootedCandidatePath {
+	if dir == "" {
+		return nil
+	}
+	return []rootedCandidatePath{{rootDir: dir, rel: name + "_asn_" + provider + ".json"}}
 }
 
 // bogonCandidatePaths returns the on-disk paths to try when reading
@@ -569,10 +579,16 @@ func asnCandidatePaths(dir, name, provider string) []string {
 // is consistent (<feed>_bogons_<source_name>.json) so only one path
 // is attempted, but the helper exists symmetrically with the geo and
 // ASN readers so a future rename can be absorbed in one place.
-func bogonCandidatePaths(dir, name, sourceName string) []string {
-	return []string{filepath.Join(dir, name+"_bogons_"+sourceName+".json")}
+func bogonCandidatePaths(dir, name, sourceName string) []rootedCandidatePath {
+	if dir == "" {
+		return nil
+	}
+	return []rootedCandidatePath{{rootDir: dir, rel: name + "_bogons_" + sourceName + ".json"}}
 }
 
-func criticalInfrastructureCandidatePaths(dir, name string) []string {
-	return []string{filepath.Join(dir, name+"_critical_infrastructure.json")}
+func criticalInfrastructureCandidatePaths(dir, name string) []rootedCandidatePath {
+	if dir == "" {
+		return nil
+	}
+	return []rootedCandidatePath{{rootDir: dir, rel: name + "_critical_infrastructure.json"}}
 }

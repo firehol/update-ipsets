@@ -41,21 +41,13 @@ func WriteREADME(baseDir string, setInfo map[string]string) error {
 	slices.Sort(names)
 
 	editPath := filepath.Join(baseDir, "README-EDIT.md")
-	edit, err := os.ReadFile(editPath)
+	edit, err := fileutil.ReadFileUnderRoot(baseDir, "README-EDIT.md")
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return err
 		}
-		file, createErr := os.OpenFile(editPath, os.O_CREATE|os.O_WRONLY, fileutil.GeneratedFileMode)
-		if createErr != nil {
-			return createErr
-		}
-		if chmodErr := file.Chmod(fileutil.GeneratedFileMode); chmodErr != nil {
-			_ = file.Close()
-			return chmodErr
-		}
-		if closeErr := file.Close(); closeErr != nil {
-			return closeErr
+		if err := writeAtomic(editPath, nil, fileutil.GeneratedFileMode); err != nil {
+			return err
 		}
 	}
 
@@ -80,7 +72,7 @@ func WriteGitIgnore(baseDir string, files []GeneratedFile) error {
 		return nil
 	}
 	path := filepath.Join(baseDir, ".gitignore")
-	data, err := os.ReadFile(path)
+	data, err := fileutil.ReadFileUnderRoot(baseDir, ".gitignore")
 	var buf bytes.Buffer
 	if err != nil {
 		if !os.IsNotExist(err) {

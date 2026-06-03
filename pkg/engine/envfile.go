@@ -26,7 +26,7 @@ func loadEnvFile(logger *slog.Logger) {
 }
 
 func loadEnvFileFrom(path string, logger *slog.Logger) {
-	file, err := os.Open(path)
+	file, err := openFilePathUnderRoot(filepath.Dir(path), path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			logger.Debug("no env file found", "path", path)

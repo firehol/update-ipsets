@@ -48,6 +48,9 @@ scanner finding review:
 - GitHub Actions workflow security: token permissions, untrusted checkout
   paths, third-party actions, action pinning, workflow lint, and SARIF upload
   permissions.
+- GitHub Code Scanning visibility for non-GitHub scanners, especially whether
+  Codacy results are uploaded as SARIF, which workflow owns the upload, which
+  SARIF category is used, and whether the upload is advisory or required.
 - Branch protection or repository rulesets for `main`, including whether
   scanner checks are only advisory or actually enforced.
 - Codacy Cloud repository status: dashboard grade, issue totals, issue
@@ -124,6 +127,18 @@ tokens or credentials to durable artifacts.
   Wrong-stack, deprecated-tool, generated-file, vendored-file, fixture, and
   project-convention mismatches should be fixed through narrow tool/pattern/path
   configuration, not broad suppression.
+- If Codacy findings are uploaded to GitHub Code Scanning, keep GitHub
+  visibility and Codacy cleanup decisions separate. Uploading all Codacy SARIF
+  is acceptable for visibility, but do not disable rules merely to reduce the
+  GitHub alert count. Rules, patterns, or paths may be removed only after the
+  SOW records evidence that the rule is irrelevant, duplicated by a better
+  scanner, or mismatched to this repository.
+- The official Codacy Analysis CLI GitHub Action runs local analyzers and can
+  be too slow for this repository when configured to export all findings. For
+  GitHub Code Scanning visibility, prefer exporting already-computed Codacy
+  Cloud issues through the Codacy Cloud CLI to SARIF. This requires a GitHub
+  Actions secret named `CODACY_API_TOKEN`; never write the token value to repo
+  files, logs, SOWs, docs, or skills.
 - For Go file-permission findings, separate test fixtures from production
   writers before changing modes. Test fixtures should normally use restrictive
   `0600` files and `0700` directories. Daemon-owned generated runtime and

@@ -95,11 +95,10 @@ func (e *Engine) SetData(name string) ([]byte, *cache.Entry, error) {
 	if !rawFeedFileMatches(name, entry.File) {
 		return nil, nil, fmt.Errorf("set %q has unexpected materialized file %q", name, entry.File)
 	}
-	path, ok := safeRuntimeFilePath(e.runtime.BaseDir, entry.File)
-	if !ok {
+	if _, ok := safeRuntimeFilePath(e.runtime.BaseDir, entry.File); !ok {
 		return nil, nil, fmt.Errorf("set %q has unsafe materialized file %q", name, entry.File)
 	}
-	data, err := os.ReadFile(path)
+	data, err := readFileInRoot(e.runtime.BaseDir, entry.File)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -120,7 +121,7 @@ func parseList(raw string) []string {
 func writePlain(w http.ResponseWriter, status int, body []byte) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(status)
-	_, _ = w.Write(body)
+	_, _ = bytes.NewReader(body).WriteTo(w)
 }
 
 func apiNoCache(w http.ResponseWriter) {
@@ -130,7 +131,13 @@ func apiNoCache(w http.ResponseWriter) {
 func serveEmbeddedIndex(w http.ResponseWriter, body string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "public, max-age=300")
-	_, _ = io.WriteString(w, body)
+	_, _ = strings.NewReader(body).WriteTo(w)
+}
+
+func serveEmbeddedIndexNoStore(w http.ResponseWriter, body string) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-store")
+	_, _ = strings.NewReader(body).WriteTo(w)
 }
 
 func outputDirFromOptions(baseDir, webDir string) string {

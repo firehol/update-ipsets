@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"text/template"
+	"text/template" // nosemgrep: go.lang.security.audit.xss.import-text-template - templates render Markdown text, not HTML.
 
 	"github.com/firehol/update-ipsets/internal/fileutil"
 )
@@ -116,8 +116,7 @@ func (s *TemplateStore) Load() error {
 			continue
 		}
 		name := e.Name()
-		path := filepath.Join(s.dir, name)
-		data, err := os.ReadFile(path)
+		data, err := fileutil.ReadFileUnderRoot(s.dir, name)
 		if err != nil {
 			return fmt.Errorf("read template %s: %w", name, err)
 		}

@@ -4,7 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { sanitizeHtml } from "@/lib/safe-html";
+import { SanitizedHtml } from "@/lib/safe-html-react";
 import {
   methodologyOptions,
   methodologyPageOptions,
@@ -91,16 +91,20 @@ export function MethodologyPage() {
                   </p>
                 )}
               </header>
-              <div
-                className="prose prose-slate max-w-none dark:prose-invert"
-                dangerouslySetInnerHTML={{
-                  __html: sanitizeHtml(pageQuery.data.body),
-                }}
-              />
+              <MethodologyBody body={pageQuery.data.body} />
             </article>
           )}
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function MethodologyBody({ body }: { body: string }) {
+  return (
+    <SanitizedHtml
+      className="prose prose-slate max-w-none dark:prose-invert"
+      html={body}
+    />
   );
 }

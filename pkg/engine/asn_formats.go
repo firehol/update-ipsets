@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -21,7 +22,7 @@ func decompressGzipToFile(src, dst string) error {
 }
 
 func decompressGzipToFileWithLimit(src, dst string, limit int64) error {
-	in, err := os.Open(src)
+	in, err := openFilePathUnderRoot(filepath.Dir(src), src)
 	if err != nil {
 		return fmt.Errorf("open %s: %w", src, err)
 	}
@@ -62,7 +63,7 @@ func extractMMDBFromArchive(archivePath, dstPath string) error {
 }
 
 func extractMMDBFromArchiveWithLimit(archivePath, dstPath string, limit int64) error {
-	f, err := os.Open(archivePath)
+	f, err := openFilePathUnderRoot(filepath.Dir(archivePath), archivePath)
 	if err != nil {
 		return fmt.Errorf("open archive: %w", err)
 	}
@@ -117,7 +118,7 @@ func extractMMDBFromArchiveWithLimit(archivePath, dstPath string, limit int64) e
 }
 
 func openGeneratedTempFile(path string) (*os.File, error) {
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, generatedFileMode)
+	file, err := openFilePathWithFlagsUnderRoot(filepath.Dir(path), path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, generatedFileMode)
 	if err != nil {
 		return nil, err
 	}

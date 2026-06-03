@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -229,7 +230,7 @@ func CriticalInfrastructureProviderSetChangedForSnapshot(cfg *config.Config, rt 
 	if path == "" {
 		return false
 	}
-	previous := readCriticalInfrastructureProviderSetMarker(path)
+	previous := readCriticalInfrastructureProviderSetMarker(rt)
 	return previous != current
 }
 
@@ -266,8 +267,8 @@ func (e *Engine) writeCriticalInfrastructureProviderSetMarkerValue(id string) er
 	return writeFileAtomic(path, []byte(id+"\n"), generatedFileMode)
 }
 
-func readCriticalInfrastructureProviderSetMarker(path string) string {
-	data, err := os.ReadFile(path)
+func readCriticalInfrastructureProviderSetMarker(rt Runtime) string {
+	data, err := readFileInRoot(rt.LibDir, filepath.Join("critical_infrastructure", "provider_set_id"))
 	if err != nil {
 		return ""
 	}
@@ -725,27 +726,19 @@ func (e *Engine) readPreferredASNPayload(feedName, outDir string) (string, *asnF
 		if provider == nil {
 			continue
 		}
-		paths := uniqueStrings([]string{
-			filepath.Join(outDir, feedName+"_asn_"+provider.Name+".json"),
-			filepath.Join(e.outputDir(), feedName+"_asn_"+provider.Name+".json"),
-		})
-		for _, path := range paths {
-			if path == "" {
+		rel := feedName + "_asn_" + provider.Name + ".json"
+		data, err := readFirstExisting(singleCandidatePath(outDir, rel), singleCandidatePath(e.outputDir(), rel))
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
 				continue
 			}
-			data, err := os.ReadFile(path)
-			if err != nil {
-				if os.IsNotExist(err) {
-					continue
-				}
-				return provider.Name, nil, err
-			}
-			var payload asnFeedJSON
-			if err := json.Unmarshal(data, &payload); err != nil {
-				return provider.Name, nil, fmt.Errorf("read ASN context payload %s: %w", path, err)
-			}
-			return provider.Name, &payload, nil
+			return provider.Name, nil, err
 		}
+		var payload asnFeedJSON
+		if err := json.Unmarshal(data, &payload); err != nil {
+			return provider.Name, nil, fmt.Errorf("read ASN context payload %s: %w", rel, err)
+		}
+		return provider.Name, &payload, nil
 	}
 	return "", nil, nil
 }
@@ -757,22 +750,6 @@ func criticalTierRank(tier string) int {
 		}
 	}
 	return len(config.CriticalTiers())
-}
-
-func uniqueStrings(values []string) []string {
-	seen := make(map[string]struct{}, len(values))
-	out := make([]string, 0, len(values))
-	for _, value := range values {
-		if value == "" {
-			continue
-		}
-		if _, ok := seen[value]; ok {
-			continue
-		}
-		seen[value] = struct{}{}
-		out = append(out, value)
-	}
-	return out
 }
 
 func criticalTargetNames(cfg *config.Config, names []string) []string {

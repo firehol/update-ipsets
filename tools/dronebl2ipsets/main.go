@@ -18,7 +18,6 @@ type Options struct {
 	WorkDir       string
 	OutputDir     string
 	BuildzonePath string
-	RsyncBin      string
 	RsyncURL      string
 	Timeout       time.Duration
 	SkipFetch     bool
@@ -47,9 +46,6 @@ func Update(ctx context.Context, opts Options) (*Report, error) {
 	if len(opts.Specs) == 0 {
 		return nil, fmt.Errorf("at least one output spec is required")
 	}
-	if opts.RsyncBin == "" {
-		opts.RsyncBin = "rsync"
-	}
 	if opts.RsyncURL == "" {
 		opts.RsyncURL = DefaultRsyncURL
 	}
@@ -65,7 +61,6 @@ func Update(ctx context.Context, opts Options) (*Report, error) {
 
 	if !opts.SkipFetch {
 		if err := FetchBuildzone(runCtx, FetchOptions{
-			RsyncBin: opts.RsyncBin,
 			RsyncURL: opts.RsyncURL,
 			DataDir:  filepath.Join(opts.WorkDir, "data"),
 		}); err != nil {
@@ -73,7 +68,7 @@ func Update(ctx context.Context, opts Options) (*Report, error) {
 		}
 	}
 
-	file, err := os.Open(opts.BuildzonePath)
+	file, err := os.Open(opts.BuildzonePath) // nosemgrep: CLI tool reads the operator-selected DroneBL buildzone file.
 	if err != nil {
 		return nil, fmt.Errorf("open buildzone: %w", err)
 	}

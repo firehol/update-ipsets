@@ -4,8 +4,11 @@ package fileutil
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/firehol/update-ipsets/internal/observability"
@@ -23,6 +26,53 @@ const (
 func Exists(path string) bool {
 	_, err := os.Stat(path)
 	return err == nil
+}
+
+// ReadFileUnderRoot reads a regular file addressed relative to rootDir without
+// allowing absolute paths, parent traversal, or symlink escapes outside rootDir.
+func ReadFileUnderRoot(rootDir, relPath string) ([]byte, error) {
+	file, err := OpenFileUnderRoot(rootDir, relPath)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = file.Close() }()
+	return io.ReadAll(file)
+}
+
+// OpenFileUnderRoot opens a file addressed relative to rootDir without allowing
+// absolute paths, parent traversal, or symlink escapes outside rootDir.
+func OpenFileUnderRoot(rootDir, relPath string) (*os.File, error) {
+	return OpenFileWithFlagsUnderRoot(rootDir, relPath, os.O_RDONLY, 0)
+}
+
+// OpenFileWithFlagsUnderRoot opens a file addressed relative to rootDir with
+// caller-supplied flags without allowing absolute paths, parent traversal, or
+// symlink escapes outside rootDir.
+func OpenFileWithFlagsUnderRoot(rootDir, relPath string, flag int, perm os.FileMode) (*os.File, error) {
+	cleanRel, err := cleanRootRelativePath(relPath)
+	if err != nil {
+		return nil, err
+	}
+	root, err := os.OpenRoot(rootDir)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = root.Close() }()
+	return root.OpenFile(cleanRel, flag, perm)
+}
+
+func cleanRootRelativePath(relPath string) (string, error) {
+	if strings.TrimSpace(relPath) == "" {
+		return "", fmt.Errorf("relative path is required")
+	}
+	if filepath.IsAbs(relPath) {
+		return "", fmt.Errorf("absolute path %q is not allowed", relPath)
+	}
+	clean := filepath.Clean(relPath)
+	if clean == "." || clean == ".." || strings.HasPrefix(clean, ".."+string(os.PathSeparator)) {
+		return "", fmt.Errorf("path %q escapes root", relPath)
+	}
+	return clean, nil
 }
 
 // WriteAtomic writes data to path atomically by writing to a temporary file
@@ -53,7 +103,7 @@ func writeAtomic(path string, data []byte, mode os.FileMode, syncFile bool) erro
 		observability.Observe(ctx, "file.write_atomic", 1, int64(len(data)), time.Since(started), attrs...)
 		observability.End(span, opErr)
 	}()
-	if opErr = os.MkdirAll(filepath.Dir(path), GeneratedDirMode); opErr != nil {
+	if opErr = os.MkdirAll(filepath.Dir(path), GeneratedDirMode); opErr != nil { // nosemgrep: go.lang.correctness.permissions.file_permission.incorrect-default-permission - 0700 is the restrictive usable directory mode.
 		return opErr
 	}
 	tmp, opErr := os.CreateTemp(filepath.Dir(path), ".tmp-*")

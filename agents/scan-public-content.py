@@ -42,7 +42,11 @@ PATTERNS = {
     "snapshot_size": [
         # "850,000 IPs", "1.2 million addresses", "47K entries"
         re.compile(r"\b\d{1,3}(?:[,.]\d{3})+\s*(?:IPs?|IP addresses|addresses|entries|ranges|networks?|CIDRs?|hosts?|records?)\b", re.IGNORECASE),
-        re.compile(r"\b\d+(?:\.\d+)?\s*(?:million|thousand|billion|M|K)\b\s*(?:IPs?|IP addresses|addresses|entries|ranges|networks?|CIDRs?|hosts?|records?)?\b", re.IGNORECASE),
+        re.compile(
+            r"\b\d+(?:\.\d+)?\s*(?:million|thousand|billion|M|K)\b\s*"
+            r"(?:IPs?|IP addresses|addresses|entries|ranges|networks?|CIDRs?|hosts?|records?)?\b",
+            re.IGNORECASE,
+        ),
         re.compile(r"\bcontains?\s+(?:approximately|about|around|roughly)?\s*\d[\d,.]*\s*(?:IPs?|addresses|entries|ranges)\b", re.IGNORECASE),
         re.compile(r"\b(?:currently|now|today)\s+(?:lists?|contains?|has|holds?)\s+\d[\d,.]*\b", re.IGNORECASE),
     ],
@@ -186,7 +190,11 @@ def main():
                 by_class[cls].append({"feed": result["feed"], **item})
 
     # write detail JSON
-    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    now = datetime.now(timezone.utc)
+    ts = (
+        f"{now.year:04d}{now.month:02d}{now.day:02d}"
+        f"T{now.hour:02d}{now.minute:02d}{now.second:02d}Z"
+    )
     out_dir = REPO_ROOT / ".local" / "agents" / "scan-public-content" / ts
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "findings.json").write_text(json.dumps(all_findings, indent=2))
