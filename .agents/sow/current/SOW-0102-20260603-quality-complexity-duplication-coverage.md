@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: tenth implementation slice validated; downloader fetch PR pending
+Sub-state: eleventh implementation slice validated; entity detail builder PR pending
 
 ## Requirements
 
@@ -433,6 +433,98 @@ Artifact impact plan:
 Open decisions:
 
 - None. The user approved the pragmatic quality target model and behavior-preserving quality work.
+
+## Pre-Implementation Gate - Slice 11
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after PR #14 merged to `main`, local `main` matches `origin/main` at `acb3ed0d41ab`.
+- Facts: `tools/archposture` reports `612` source files, `126072` source lines, `55` large files, and `41` large functions.
+- Facts: two of the next highest production large functions live in the same file and surface: `pkg/engine/home_entity_builders.go:644` `(*Engine).buildASNDetailSidecar` at `231` lines with complexity `44`, and `pkg/engine/home_entity_builders.go:430` `(*Engine).buildCountryDetailSidecar` at `213` lines with complexity `42`.
+- Facts: baseline `pkg/engine` coverage is `71.2%`; `buildASNDetailSidecar` coverage is `83.6%`; `buildCountryDetailSidecar` coverage is `82.9%`.
+- Working theory: these functions are already covered by real entity artifact tests but still duplicate aggregation, sorting, provider setup, matching-feed collection, and cross-provider enrichment logic. Existing builder types in `pkg/engine/home_entity_precompute.go` already encapsulate the country/ASN detail sidecar aggregation contract, so the live builders should delegate to those helpers instead of hand-assembling totals.
+
+Evidence reviewed:
+
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice11-baseline.json`
+- `jq '{source:.source, large_files:(.large_files|length), large_functions:(.large_functions|length), targets:(.large_functions | map(select((.path // "") == "pkg/engine/home_entity_builders.go")))}' /tmp/update-ipsets-archposture-slice11-baseline.json`
+- `go test -coverprofile=/tmp/update-ipsets-engine-slice11-baseline.cover -covermode=atomic ./pkg/engine`
+- `go tool cover -func=/tmp/update-ipsets-engine-slice11-baseline.cover`
+- `pkg/engine/home_entity_builders.go`
+- `pkg/engine/home_entity_precompute.go`
+- `pkg/engine/home_detail_test.go`
+- `pkg/engine/entity_artifacts_write.go`
+- `pkg/engine/entity_feed_sidecar.go`
+- `.agents/sow/specs/integrity.md`
+- `.agents/sow/specs/pipeline.md`
+- `.agents/sow/specs/files-layout.md`
+- `.agents/sow/specs/operating-principles.md`
+
+Affected contracts and surfaces:
+
+- `pkg/engine`: live country/ASN detail sidecar builders used by detail API helpers and entity artifact rebuild paths.
+- Private entity detail sidecars under `lib/entities/countries` and `lib/entities/asns`.
+- Public country/ASN detail payload materialization that consumes those sidecars.
+- No config schema, downloader behavior, scheduler queue behavior, public request-time generation, UI source, install behavior, or artifact schema change is expected.
+- SOW only; specs/docs are not expected to change because behavior is preserved.
+
+Existing patterns to reuse:
+
+- `countryDetailBuilder` and `asnDetailBuilder` in `pkg/engine/home_entity_precompute.go` already own feed/category/maintainer/top-ASN/top-country aggregation and stable sort behavior for precomputed entity detail sidecars.
+- Existing `TestRebuildEntityArtifactsWritesPrecomputedCountryAndASNPayloads` drives real rebuild outputs and validates country/ASN indexes, public ASN detail payloads, private feed sidecars, and joint country/ASN counts.
+- Existing `TestRefreshEntityArtifactsForFeedUpdatesSurgicallyPatchesAggregates` and health-transition tests cover downstream entity detail persistence and refresh behavior.
+- Recent complexity slices keep public methods as small orchestration wrappers and move phase logic into focused private helpers without changing output schemas.
+
+Risk and blast radius:
+
+- Entity detail sidecars are production public-serving inputs. A behavior change can alter country/ASN totals, top categories, top maintainers, top ASNs/countries, country distributions, or provider labels.
+- Live builders must preserve the current behavior of returning valid empty country/ASN detail payloads when no feeds match, and an empty ASN sidecar when no ASN provider is configured.
+- Cross-provider enrichment must keep current error-tolerant behavior: skip unreadable set files or failed provider counts rather than failing the whole detail builder.
+- Public requests must remain cache-first readers; no request-time broad generation may be introduced.
+
+Sensitive data handling plan:
+
+- This slice uses local synthetic test fixtures and structural metrics only.
+- No secrets, tokens, cookies, private endpoints, customer data, raw external IP lists, or personal data are needed.
+- Durable artifacts will record only package paths, metrics, test outcomes, and sanitized behavior evidence.
+
+Implementation plan:
+
+1. Keep `buildCountryDetailSidecar` and `buildASNDetailSidecar` as the live public package helpers for their existing callers.
+2. Extract provider setup and feed matching into focused private helpers where it reduces complexity without hiding behavior.
+3. Reuse `countryDetailBuilder` and `asnDetailBuilder` for feed/category/maintainer/detail aggregation instead of duplicating sorting and total construction.
+4. Extract country-to-ASN enrichment and ASN-to-country enrichment loops into focused helpers that preserve best-effort skip behavior.
+5. Add or adjust behavior tests only if inspection finds an uncovered branch affected by the extraction.
+6. Re-run package coverage, architecture posture, strict engine tests, and repository quality gates.
+
+Validation plan:
+
+- `go test ./pkg/engine`
+- `go test -coverprofile=/tmp/update-ipsets-engine-slice11.cover -covermode=atomic ./pkg/engine`
+- `go tool cover -func=/tmp/update-ipsets-engine-slice11.cover`
+- `go test -shuffle=on -count=3 ./pkg/engine`
+- `go run ./tools/archposture -root .`
+- `make lint`
+- `make staticcheck`
+- `make golangci-lint`
+- `CI=true make coverage`
+- `make test-strict`
+- `git diff --check -- ...`
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if this slice finds a durable entity detail builder lesson.
+- Specs: no update expected; behavior is preserved.
+- End-user/operator docs: no update expected; entity detail semantics are unchanged.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: keep this SOW in `.agents/sow/current/` until the quality campaign reaches an appropriate closure point.
+
+Open decisions:
+
+- None. The user approved behavior-preserving quality work and the next measured production hotspot is clear from local evidence.
 
 ## Pre-Implementation Gate - Slice 10
 
@@ -1024,6 +1116,13 @@ Open decisions:
   - `Fetch` remains the public observability wrapper.
   - downloader dispatch, local URL handling, HTTP request construction, response classification, body streaming, max-size enforcement, same-body detection, and modified-time extraction live in `pkg/downloader/fetch_http.go`.
   - `pkg/downloader/downloader.go` now keeps types, client construction, redirect policy, hashing/file helpers, local/internal fetch helpers, curl-like option parsing, and temp-file creation.
+- Pulled merged PR #14; local `main`, `origin/main`, and `quality-entity-detail-builders-complexity` started this slice at `acb3ed0d41ab`.
+- Refactored live country/ASN entity detail builders:
+  - `buildCountryDetailSidecar` and `buildASNDetailSidecar` now orchestrate provider setup, matching-feed collection, provider enrichment, and builder output through focused helpers.
+  - live detail provider setup, matching-feed helpers, empty-sidecar builders, country-to-ASN enrichment, and ASN-to-country enrichment live in `pkg/engine/home_entity_detail_live.go`.
+  - detail payload materialization, sidecar JSON loading, JSON writing, timestamped writes, and sorted JSON file listing live in `pkg/engine/home_entity_detail_payload.go`.
+  - `pkg/engine/home_entity_builders.go` now owns output views, health classification, indexes, and short live detail orchestration instead of also owning the detail payload/I/O helpers.
+- Added `pkg/engine/home_entity_detail_live_test.go` to validate invalid entity identifiers and empty country/ASN detail payloads through exported detail APIs.
 
 ## Validation
 
@@ -1116,6 +1215,15 @@ Acceptance criteria evidence:
   - Root coverage after this slice remains `72.5%`.
   - `tools/archposture` after this slice: source files `612`, source lines `126072`, large files `55`, and large functions `41`.
   - No `pkg/downloader/downloader.go` or `pkg/downloader/fetch_http.go` files or functions are listed in `tools/archposture` large-file/large-function output.
+- Eleventh-slice local results:
+  - `pkg/engine/home_entity_builders.go` moved from `1030` lines to `457` lines.
+  - The former `(*Engine).buildASNDetailSidecar` target moved from `231` lines / complexity `44` to a short orchestration function and no longer appears in `tools/archposture` large-function output.
+  - The former `(*Engine).buildCountryDetailSidecar` target moved from `213` lines / complexity `42` to a short orchestration function and no longer appears in `tools/archposture` large-function output.
+  - New split files are below the project file-size threshold: `home_entity_detail_live.go` `217` lines, `home_entity_detail_payload.go` `166` lines, and `home_entity_detail_live_test.go` `55` lines.
+  - `pkg/engine` coverage remains `71.2%`; this slice was behavior-preserving complexity and file-size reduction with targeted coverage to avoid a net coverage regression.
+  - Root coverage after this slice remains `72.5%`.
+  - `tools/archposture` after this slice: source files `615`, source lines `125937`, large files `54`, and large functions `39`.
+  - No `pkg/engine/home_entity_builders.go`, `pkg/engine/home_entity_detail_live.go`, `pkg/engine/home_entity_detail_payload.go`, or `pkg/engine/home_entity_precompute.go` files or functions are listed in `tools/archposture` large-file/large-function output.
 - Scanner posture:
   - Codacy Cloud still reports `issuesCount: 0` on the latest analyzed `main` commit; structural percentages still reflect remote `main`, not these local changes.
   - GitHub Code Scanning open alerts: `[]`.
@@ -1247,6 +1355,22 @@ Tests or equivalent validation:
 - `git diff --check -- .agents/sow/current/SOW-0102-20260603-quality-complexity-duplication-coverage.md pkg/downloader/downloader.go`: passed after Slice 10.
 - `git diff --no-index --check -- /dev/null pkg/downloader/fetch_http.go`: passed after Slice 10.
 - Forbidden durable-artifact personal/tool/vendor name scan over the Slice 10 SOW and changed Go files: no matches after Slice 10.
+- `go test ./pkg/engine`: passed after Slice 11.
+- `go test -coverprofile=/tmp/update-ipsets-engine-slice11.cover -covermode=atomic ./pkg/engine`: passed, `71.2%`.
+- `go tool cover -func=/tmp/update-ipsets-engine-slice11.cover`: passed.
+- `go test -shuffle=on -count=3 ./pkg/engine`: passed after Slice 11.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice11.json`: passed.
+- `make lint`: passed after Slice 11.
+- `make staticcheck`: passed after Slice 11.
+- `make golangci-lint`: passed after Slice 11 with `0 issues`.
+- `CI=true make coverage`: passed after Slice 11.
+- `make test-strict`: passed after Slice 11.
+- `go tool cover -func=coverage.out`: passed after Slice 11; total statement coverage `72.5%`.
+- `git diff --check -- .agents/sow/current/SOW-0102-20260603-quality-complexity-duplication-coverage.md pkg/engine/home_entity_builders.go`: passed after Slice 11.
+- `git diff --no-index --check -- /dev/null pkg/engine/home_entity_detail_live.go`: passed after Slice 11.
+- `git diff --no-index --check -- /dev/null pkg/engine/home_entity_detail_payload.go`: passed after Slice 11.
+- `git diff --no-index --check -- /dev/null pkg/engine/home_entity_detail_live_test.go`: passed after Slice 11.
+- Forbidden durable-artifact personal/tool/vendor name scan over the Slice 11 SOW and changed Go files: no matches after Slice 11.
 - `codacy-analysis analyze --inspect --output-format json --output /tmp/update-ipsets-codacy-inspect.json`: completed but reported `MissingConfig` because this repository does not currently have `.codacy/codacy.config.json`; not used as a code-validation signal.
 
 Real-use evidence:
@@ -1263,7 +1387,8 @@ Real-use evidence:
 - The health-transition entity artifact test drives real rebuild outputs in a temporary engine fixture, corrupts published country/ASN artifacts, and validates refresh through the engine's published artifact outputs and mtimes.
 - The surgical entity refresh path remains covered by `TestRefreshEntityArtifactsForFeedUpdatesSurgicallyPatchesAggregates`, which drives real pending sidecars, public/private country and ASN details, indexes, and pending sidecar cleanup.
 - The downloader tests drive `Fetch` through real `httptest` servers, temporary files, local file URLs, local copy paths, internal sources, redirects, bad schemes, max-size edges, same-body detection, and POST/header behavior.
-- No daemon, scheduler, public serving, admin UI, install, or runtime behavior was changed intentionally; comparison, entity artifact generation, surgical entity refresh, and downloader fetch changed only by helper extraction and one behavior-focused test addition in Slice 8.
+- The live entity detail tests drive exported `CountryDetail` and `ASNDetail` APIs, validating invalid identifier errors and empty country/ASN payload behavior without depending on private helper names.
+- No daemon, scheduler, public serving, admin UI, install, or runtime behavior was changed intentionally; comparison, entity artifact generation, surgical entity refresh, downloader fetch, and live entity detail building changed only by helper extraction and focused behavior tests.
 
 Reviewer findings:
 
@@ -1285,7 +1410,7 @@ Artifact maintenance gate:
 - Specs: no update needed; implementation preserves behavior and does not change product contracts.
 - End-user/operator docs: no update needed; operator-visible CLI, comparison, entity artifact, and surgical refresh semantics did not change.
 - End-user/operator skills: no update needed.
-- SOW lifecycle: remains in `.agents/sow/current/`; the first ten slices are validated but broader quality work continues.
+- SOW lifecycle: remains in `.agents/sow/current/`; the first eleven slices are validated but broader quality work continues.
 
 Specs update:
 
@@ -1311,11 +1436,11 @@ Lessons:
 Follow-up mapping:
 
 - Next measured complexity targets:
-  - `pkg/engine/home_entity_builders.go:644` `(*Engine).buildASNDetailSidecar`: 231 lines, complexity 44.
   - `pkg/web/admin_manifest.go:134` `buildFeedManifest`: 217 lines, complexity 29.
-  - `pkg/engine/home_entity_builders.go:430` `(*Engine).buildCountryDetailSidecar`: 213 lines, complexity 42.
   - `pkg/config/validate.go:274` `Validate`: 197 lines, complexity 85.
   - `pkg/web/server.go:291` `Run`: 179 lines, complexity 34.
+  - `pkg/engine/entity_feed_sidecar.go:374` `(*Engine).buildSingleFeedEntitySidecar`: 171 lines, complexity 53.
+  - `pkg/engine/integrity.go:110` `(*Engine).CheckIntegrityWithOptions`: 156 lines, complexity 36.
 - Next measured duplication targets:
   - `ui/src/components/admin/feeds-table-header.tsx`: 130 duplicated lines.
   - `ui/src/pages/asn-detail.tsx` and `ui/src/pages/country-detail.tsx`: 20, 35, and 107 duplicated line blocks.
@@ -1325,7 +1450,7 @@ Follow-up mapping:
 
 ## Outcome
 
-First through tenth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through eleventh implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
@@ -1333,7 +1458,7 @@ Update project hygiene practice to always pair Codacy Cloud metrics with local a
 
 ## Followup
 
-Continue with one focused slice at a time, starting with either UI duplicate pages/components, entity detail builders, web manifest generation, or config validation after a fresh pre-implementation gate update for that chosen surface.
+Continue with one focused slice at a time, starting with either UI duplicate pages/components, web manifest generation, config validation, or server runtime after a fresh pre-implementation gate update for that chosen surface.
 
 ## Regression Log
 
