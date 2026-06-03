@@ -20,8 +20,42 @@ type SetInfo struct {
 	Entries  uint32
 }
 
+type ipsetOps interface {
+	listAll() ([]netlink.IPSetResult, error)
+	create(name, typeName string, options netlink.IpsetCreateOptions) error
+	destroy(name string) error
+	add(name string, entry *netlink.IPSetEntry) error
+	swap(name, otherName string) error
+}
+
+type netlinkIPSetOps struct{}
+
+func (netlinkIPSetOps) listAll() ([]netlink.IPSetResult, error) {
+	return netlink.IpsetListAll()
+}
+
+func (netlinkIPSetOps) create(name, typeName string, options netlink.IpsetCreateOptions) error {
+	return netlink.IpsetCreate(name, typeName, options)
+}
+
+func (netlinkIPSetOps) destroy(name string) error {
+	return netlink.IpsetDestroy(name)
+}
+
+func (netlinkIPSetOps) add(name string, entry *netlink.IPSetEntry) error {
+	return netlink.IpsetAdd(name, entry)
+}
+
+func (netlinkIPSetOps) swap(name, otherName string) error {
+	return netlink.IpsetSwap(name, otherName)
+}
+
 func LoadedSets() (map[string]SetInfo, error) {
-	results, err := netlink.IpsetListAll()
+	return loadedSets(netlinkIPSetOps{})
+}
+
+func loadedSets(ops ipsetOps) (map[string]SetInfo, error) {
+	results, err := ops.listAll()
 	if err != nil {
 		return nil, err
 	}
@@ -37,7 +71,11 @@ func LoadedSets() (map[string]SetInfo, error) {
 }
 
 func ApplyIfLoaded(name, hash string, lines []string) (bool, error) {
-	loaded, err := LoadedSets()
+	return applyIfLoaded(netlinkIPSetOps{}, name, hash, lines)
+}
+
+func applyIfLoaded(ops ipsetOps, name, hash string, lines []string) (bool, error) {
+	loaded, err := loadedSets(ops)
 	if err != nil {
 		return false, err
 	}
@@ -57,10 +95,10 @@ func ApplyIfLoaded(name, hash string, lines []string) (bool, error) {
 		Family:      unix.AF_INET,
 		MaxElements: uint32(maxInt(1024, len(lines)*2+16)),
 	}
-	if err := netlink.IpsetCreate(tmpName, typeName, options); err != nil {
+	if err := ops.create(tmpName, typeName, options); err != nil {
 		return false, err
 	}
-	defer func() { _ = netlink.IpsetDestroy(tmpName) }()
+	defer func() { _ = ops.destroy(tmpName) }()
 
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
@@ -71,11 +109,11 @@ func ApplyIfLoaded(name, hash string, lines []string) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		if err := netlink.IpsetAdd(tmpName, entry); err != nil {
+		if err := ops.add(tmpName, entry); err != nil {
 			return false, err
 		}
 	}
-	if err := netlink.IpsetSwap(tmpName, name); err != nil {
+	if err := ops.swap(tmpName, name); err != nil {
 		return false, err
 	}
 	return true, nil
