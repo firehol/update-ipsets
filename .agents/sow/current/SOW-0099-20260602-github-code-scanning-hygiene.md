@@ -602,10 +602,17 @@ Open decisions:
 - Sanitized Codacy issue samples after the `.codacy.yml` change show Trivy
   high/medium/minor findings on `go.mod` and
   `tools/dronebl2ipsets/go.mod`, caused by the `go 1.26.0` directive being
-  treated as `golang/stdlib@v1.26.0`. Official Go downloads list Go 1.26.3,
-  and local `go version` reports `go1.26.3-X:nodwarf5`, so both module
-  directives and checked-in `actions/setup-go` versions were updated to
+  treated as `golang/stdlib@v1.26.0`. Official Go downloads listed Go 1.26.3
+  at that time, and local `go version` reported `go1.26.3-X:nodwarf5`, so both
+  module directives and checked-in `actions/setup-go` versions were updated to
   `1.26.3`.
+- On 2026-06-03, GitHub CI govulncheck failed on commit
+  `71d5e393d6216e4220812cae64f3e6ffbd9473db` because Go `1.26.3` is affected
+  by `GO-2026-5039` in `net/textproto` and `GO-2026-5037` in `crypto/x509`.
+  Official Go release history lists Go `1.26.4` released on 2026-06-02 with
+  security fixes for `crypto/x509`, `mime`, and `net/textproto`, so the module
+  directives and checked-in `actions/setup-go` versions were updated to
+  `1.26.4`.
 - Codacy analyzed commit `c24357a150cad529223e32d3e364561e865d5134` after the
   Go patch-version update. The repository remains Grade A and current issues
   dropped from 3153 to 3113. Remaining aggregate counts are: Security 655,
@@ -856,6 +863,26 @@ Tests or equivalent validation:
   - `python $HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-testing`:
     passed after updating the Go manifest version in the project-testing skill.
   - `make hygiene`: passed.
+- Go stdlib govulncheck follow-up validation:
+  - GitHub CI run `26855627397` failed at `make vulncheck` because
+    govulncheck reported reachable standard-library vulnerabilities
+    `GO-2026-5039` and `GO-2026-5037` in Go `1.26.3`; both report fixed
+    versions at Go `1.26.4`.
+  - Official Go release history checked on 2026-06-03 lists Go `1.26.4`
+    released on 2026-06-02 with security fixes for `crypto/x509`, `mime`, and
+    `net/textproto`.
+  - `go env GOVERSION GOTOOLCHAIN`: reported `go1.26.4` and `auto` after
+    updating the module directives to Go `1.26.4`.
+  - `make actionlint`: passed after updating checked-in `actions/setup-go`
+    versions to `1.26.4`.
+  - `python $HOME/.codex/skills/.system/skill-creator/scripts/quick_validate.py .agents/skills/project-testing`:
+    passed after updating the Go manifest version in the project-testing skill.
+  - `git diff --check -- go.mod tools/dronebl2ipsets/go.mod .github/workflows/ci.yml .github/workflows/codeql.yml .github/workflows/hygiene.yml .agents/skills/project-testing/SKILL.md .agents/sow/current/SOW-0099-20260602-github-code-scanning-hygiene.md`:
+    passed.
+  - `make vulncheck`: passed for both the root module and
+    `tools/dronebl2ipsets`; govulncheck reported no vulnerabilities.
+  - `make test`: passed.
+  - `make test-tools`: passed.
 - GitHub run evidence for `c24357a150cad529223e32d3e364561e865d5134` before
   the root ESLint bridge test commit:
   - checked-in CodeQL workflow: success;

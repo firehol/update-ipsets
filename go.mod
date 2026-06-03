@@ -1,6 +1,6 @@
 module github.com/firehol/update-ipsets
 
-go 1.26.3
+go 1.26.4
 
 require (
 	github.com/firehol/update-ipsets/tools/dronebl2ipsets v0.0.0
