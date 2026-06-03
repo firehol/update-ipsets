@@ -60,16 +60,16 @@ def embedded_projection(feed: str) -> dict[str, Any]:
 
 
 def latest_projection(feed: str) -> tuple[Any, dict[str, Any], list[dict[str, Any]]]:
-    run = EP.latest_feed_run(feed)
-    data = EP.load_json(run.output_path)
+    feed_run = EP.latest_feed_run(feed)
+    data = EP.load_json(feed_run.output_path)
     projection = EP.project_public(data)
     EP.validate_public(projection)
     hygiene = EP.prose_hygiene_findings(
-        run.feed,
+        feed_run.feed,
         projection,
-        str(run.output_path.relative_to(REPO)),
+        str(feed_run.output_path.relative_to(REPO)),
     )
-    return run, projection, hygiene
+    return feed_run, projection, hygiene
 
 
 def role_value(doc: dict[str, Any], key: str) -> str:

@@ -49,7 +49,7 @@ run() {
   if ! "$@"; then
     local exit_code=$?
     echo -e >&2 "${RED}[ERROR]${NC} Exit code ${exit_code}: ${YELLOW}$*${NC} (in $(pwd))"
-    return $exit_code
+    return "$exit_code"
   fi
 }
 

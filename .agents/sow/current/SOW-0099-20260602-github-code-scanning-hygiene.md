@@ -955,6 +955,31 @@ Open decisions:
   construction from result construction, and the wiki builder now separates
   link-target filtering, docs-path normalization, and safe path resolution from
   the final link resolver.
+- Codacy Cloud analyzed
+  `4218c8d0b5640efb7bc109108a5fd9d25e9bc198` from
+  `2026-06-03T08:54:06Z` to `2026-06-03T08:54:47Z`. The two Lizard
+  complexity warnings were gone, but 62 findings remained: CodeStyle 40,
+  ErrorProne 16, Compatibility 3, Security 2, and BestPractice 1. The
+  remaining set was concentrated in Tailwind v4 CSS Stylelint mismatch
+  (`ui/src/index.css`, 50 findings), shell boolean-command false positives or
+  simple shell quoting fixes (7 findings), one Go filesystem path-join warning,
+  one Python local-variable shadowing warning, one JavaScript `replaceAll`
+  compatibility warning, and two already-guarded Semgrep security false
+  positives where Codacy Cloud did not honor inline `nosemgrep`.
+- Fixed the safe mechanical findings from that 62-issue set: quoted the
+  `install.sh` run-helper return value, changed SOW audit boolean command
+  checks to quoted string comparisons, switched country/ASN artifact relative
+  file paths from `path.Join` to `filepath.Join`, replaced the SARIF converter
+  `replaceAll` compatibility case with a regular expression replacement, and
+  renamed the Python `latest_projection` local variable that shadowed the
+  module-level `run` function.
+- Added exact Codacy path configuration for the remaining mismatches instead
+  of broad scanner disablement: Stylelint excludes only `ui/src/index.css`
+  because Codacy applies SCSS/legacy CSS rules to Tailwind v4 CSS without the
+  project's UI build/lint context, and Opengrep excludes only the SARIF export
+  script and same-origin browser API client file where root confinement or
+  same-origin validation is already enforced and inline `nosemgrep` was not
+  honored by Codacy Cloud.
 
 ## Validation
 
@@ -1155,6 +1180,39 @@ Tests or equivalent validation:
   - Local `lizard` binary check: not installed locally; Codacy Cloud
     reanalysis remains the authoritative confirmation for these two
     `Lizard_ccn-medium` findings after push.
+  - `codacy repository gh firehol update-ipsets --output json`: for
+    `4218c8d0b5640efb7bc109108a5fd9d25e9bc198`, reported the 62-finding
+    breakdown recorded above.
+  - `codacy issues gh firehol update-ipsets --branch main --severities High,Error --output json`:
+    identified the High/Error subset as the Go path-join warning, shell
+    boolean/quoting findings, Stylelint unknown-rule mismatches, and the two
+    guarded Semgrep security false positives recorded above.
+  - `codacy issues gh firehol update-ipsets --branch main --categories Security --output json`:
+    reported only the SARIF root-confined file-read and same-origin browser
+    fetch false positives after the 4218c8d analysis.
+  - `ruby -e 'require "yaml"; YAML.load_file(".codacy.yml"); puts "codacy yaml ok"'`:
+    passed after adding exact Stylelint and Opengrep path exclusions.
+  - `node --check .github/scripts/codacy-issues-to-sarif.mjs`: passed after
+    replacing `replaceAll`.
+  - `python -m py_compile agents/enrichment-refresh.py`: passed after the
+    shadowing rename.
+  - `bash -n install.sh .agents/sow/audit.sh`: passed after the shell quoting
+    cleanup.
+  - `go test ./pkg/web`: passed after switching entity artifact relative paths
+    to `filepath.Join`.
+  - `make shellcheck`: passed after the shell quoting cleanup.
+  - `make actionlint`: passed after the Codacy scope/JavaScript cleanup.
+  - `make eslint-root-config`: passed after the Codacy scope/JavaScript cleanup.
+  - Bad-pattern search for the original shell command-expansion, `return
+    $exit_code`, `replaceAll(`, `pathpkg.Join`, and Python shadowing patterns:
+    no matches.
+  - `.agents/sow/audit.sh`: executed successfully but reported unrelated
+    SOW-0016 structural gaps already present in the dirty worktree: one
+    status/directory mismatch, three missing `Status:` lines, four current SOWs
+    missing pre-implementation gates, and five current SOWs missing sensitive
+    data handling/gates. SOW-0099 itself passed the audit checks.
+  - `git diff --check -- .codacy.yml .github/scripts/codacy-issues-to-sarif.mjs .agents/sow/audit.sh install.sh pkg/web/home_detail_api.go agents/enrichment-refresh.py`:
+    passed.
 - Go stdlib Trivy finding validation:
   - `go version && go env GOVERSION GOTOOLCHAIN`: local Go reports
     `go1.26.3-X:nodwarf5` with `GOTOOLCHAIN=auto`.

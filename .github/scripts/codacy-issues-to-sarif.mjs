@@ -32,7 +32,7 @@ function resolveInputPath(filePath) {
 
 function normalizeUri(filePath) {
   return String(filePath || "")
-    .replaceAll("\\", "/")
+    .replace(/\\/g, "/")
     .replace(/^\.\/+/, "");
 }
 

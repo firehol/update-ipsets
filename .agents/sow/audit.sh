@@ -377,7 +377,7 @@ for d in pending current "done"; do
         ok=true
         ;;
     esac
-    if $ok; then
+    if [ "$ok" = true ]; then
       echo "  ${GREEN}OK${NC}  $f  ($status)"
     elif [ "$status" = "done" ]; then
       echo "  ${RED}--${NC}  $f  (Status: done is invalid; use Status: completed in done/. done is the directory name, not a status)"
@@ -601,7 +601,7 @@ else
   fi
 fi
 todo_untracked_count=$todo_count
-if $todo_tracked; then
+if [ "$todo_tracked" = true ]; then
   todo_untracked_count=0
 fi
 echo
@@ -611,7 +611,7 @@ echo "${BLUE}-- pre-SOW AGENTS.md backup --${NC}"
 if [ -f ./AGENTS.md.pre-sow.bak ]; then
   echo "  ${GREEN}OK${NC}  AGENTS.md.pre-sow.bak present (preserves original)"
 else
-  if $initialized; then
+  if [ "$initialized" = true ]; then
     echo "  ${GRAY}(no backup file; either init was clean or backup name differs)${NC}"
   else
     echo "  ${GRAY}(not yet initialized)${NC}"
@@ -635,16 +635,16 @@ if [ "$sensitive_findings" -gt 0 ]; then
   exit 2
 fi
 
-if $initialized && [ "$sections_missing" -eq 0 ] && [ "$sensitive_warning_missing" -eq 0 ] && [ "$agents_warning_missing" -eq 0 ] && [ "$bridge_missing" -eq 0 ] && [ "$sow_dir_missing" -eq 0 ] && [ "$empty_sow_dir_missing_keep" -eq 0 ] && [ "$framework_missing" -eq 0 ] && [ "$sow_status_errors" -eq 0 ] && [ "$pre_impl_errors" -eq 0 ] && [ "$sensitive_gate_errors" -eq 0 ] && [ "$sow_evidence_errors" -eq 0 ] && [ "$todo_untracked_count" -eq 0 ] && [ "$skill_classification_warnings" -eq 0 ]; then
+if [ "$initialized" = true ] && [ "$sections_missing" -eq 0 ] && [ "$sensitive_warning_missing" -eq 0 ] && [ "$agents_warning_missing" -eq 0 ] && [ "$bridge_missing" -eq 0 ] && [ "$sow_dir_missing" -eq 0 ] && [ "$empty_sow_dir_missing_keep" -eq 0 ] && [ "$framework_missing" -eq 0 ] && [ "$sow_status_errors" -eq 0 ] && [ "$pre_impl_errors" -eq 0 ] && [ "$sensitive_gate_errors" -eq 0 ] && [ "$sow_evidence_errors" -eq 0 ] && [ "$todo_untracked_count" -eq 0 ] && [ "$skill_classification_warnings" -eq 0 ]; then
   echo "  ${GREEN}=== SOW initialization complete and clean. ===${NC}"
   exit 0
-elif $initialized && [ "$sections_missing" -eq 0 ] && [ "$sensitive_warning_missing" -eq 0 ] && [ "$agents_warning_missing" -eq 0 ] && [ "$bridge_missing" -eq 0 ] && [ "$sow_dir_missing" -eq 0 ] && [ "$empty_sow_dir_missing_keep" -eq 0 ] && [ "$framework_missing" -eq 0 ] && [ "$sow_status_errors" -eq 0 ] && [ "$pre_impl_errors" -eq 0 ] && [ "$sensitive_gate_errors" -eq 0 ] && [ "$sow_evidence_errors" -eq 0 ] && [ "$todo_untracked_count" -eq 0 ]; then
+elif [ "$initialized" = true ] && [ "$sections_missing" -eq 0 ] && [ "$sensitive_warning_missing" -eq 0 ] && [ "$agents_warning_missing" -eq 0 ] && [ "$bridge_missing" -eq 0 ] && [ "$sow_dir_missing" -eq 0 ] && [ "$empty_sow_dir_missing_keep" -eq 0 ] && [ "$framework_missing" -eq 0 ] && [ "$sow_status_errors" -eq 0 ] && [ "$pre_impl_errors" -eq 0 ] && [ "$sensitive_gate_errors" -eq 0 ] && [ "$sow_evidence_errors" -eq 0 ] && [ "$todo_untracked_count" -eq 0 ]; then
   echo "  ${YELLOW}=== SOW initialization structurally complete with skill classification warning(s):${NC}"
   echo "    ${YELLOW}- ${skill_classification_warnings} non-project skill director(y/ies) need classification in AGENTS.md${NC}"
   echo "    ${YELLOW}- Runtime input skills should be renamed/wrapped as .agents/skills/project-*/${NC}"
   echo "    ${YELLOW}- Output/reference skills should be listed separately and kept out of the generic runtime hook${NC}"
   exit 0
-elif $initialized; then
+elif [ "$initialized" = true ]; then
   echo "  ${YELLOW}=== SOW marker present but partial state detected:${NC}"
   [ "$sections_missing" -gt 0 ] && echo "    ${YELLOW}- ${sections_missing} canonical AGENTS.md section(s) missing${NC}"
   [ "$sensitive_warning_missing" -gt 0 ] && echo "    ${YELLOW}- CRITICAL sensitive-data warning missing from AGENTS.md${NC}"
