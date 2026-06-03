@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: fourth implementation slice locally validated; next quality slice pending
+Sub-state: fifth implementation slice locally validated; next quality slice pending
 
 ## Requirements
 
@@ -434,6 +434,79 @@ Open decisions:
 
 - None. The user approved the pragmatic quality target model and behavior-preserving quality work.
 
+## Pre-Implementation Gate - Slice 5
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after the fourth slice merged to `main`, root Go coverage is `72.0%`; `pkg/feedhealth` remains at `63.9%` statement coverage.
+- Facts: `pkg/feedhealth` is operator-facing classification logic for unavailable, archived, empty, delayed, risky, unmaintained, and healthy states.
+- Working theory: behavior-focused `Classify` tests can cover meaningful policy branches without production changes or broad engine fixtures.
+
+Evidence reviewed:
+
+- `go test -coverprofile=/tmp/update-ipsets-feedhealth-baseline.cover -covermode=atomic ./pkg/feedhealth`
+- `go tool cover -func=/tmp/update-ipsets-feedhealth-baseline.cover`
+- `pkg/feedhealth/feedhealth.go`
+- `pkg/feedhealth/feedhealth_test.go`
+
+Affected contracts and surfaces:
+
+- `pkg/feedhealth`: runtime policy extraction, category threshold lookup, classification branches, configured cadence fallback, single-observation grace, delayed/risky/unmaintained age classes, empty/unavailable precedence, and source/category fallback behavior.
+- No daemon, scheduler, public serving, UI, install, config schema, or generated artifact contracts are expected to change.
+- SOW only; specs/docs are not expected to change because public behavior is unchanged.
+
+Existing patterns to reuse:
+
+- External-package tests already validate operator-visible `Classify` outputs.
+- Small synthetic `cache.Entry`, `config.Source`, `config.RuntimeConfig`, and fixed `time.Time` fixtures are enough.
+- Assertions should focus on snapshot class and fields operators/API callers observe.
+
+Risk and blast radius:
+
+- No production behavior change is expected in this slice.
+- Tests must avoid coupling to unexported helper names.
+- Feed health semantics are user-facing, so expected class precedence must be explicit in tests.
+
+Sensitive data handling plan:
+
+- This slice uses synthetic feed names, categories, and timestamps only.
+- No secrets, tokens, cookies, private endpoints, customer data, or personal data are needed.
+- Durable artifacts will record only package names, coverage values, and validation outcomes.
+
+Implementation plan:
+
+1. Add public `PolicyFromRuntime` and threshold fallback tests.
+2. Add `Classify` table coverage for delayed, risky, unmaintained, healthy, empty, unavailable, and single-observation grace behavior.
+3. Add cadence/category fallback tests using observable snapshot fields.
+4. Re-run package coverage for `pkg/feedhealth`, then root coverage and relevant lint/static checks.
+
+Validation plan:
+
+- `go test ./pkg/feedhealth`
+- `go test -coverprofile=/tmp/update-ipsets-feedhealth.cover -covermode=atomic ./pkg/feedhealth`
+- `go tool cover -func=/tmp/update-ipsets-feedhealth.cover`
+- `make lint`
+- `make staticcheck`
+- `make golangci-lint`
+- `CI=true make coverage`
+- `go run ./tools/archposture -root .`
+- `git diff --check -- ...`
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if this slice finds a durable testing/hygiene lesson.
+- Specs: no update expected; behavior is preserved.
+- End-user/operator docs: no update expected; feed-health semantics are unchanged.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: keep this SOW in `.agents/sow/current/` until the quality campaign reaches an appropriate closure point.
+
+Open decisions:
+
+- None. The user approved the pragmatic quality target model and behavior-preserving quality work.
+
 ## Execution Log
 
 ### 2026-06-03
@@ -458,6 +531,8 @@ Open decisions:
 - Added fake-backed `pkg/kernel` tests for loaded-set mapping, not-loaded no-op behavior, successful replacement, fallback type selection, invalid entry handling, create/add/swap errors, cleanup, parse errors, and helper edge cases.
 - Pulled merged PR #7; local `main` now matches `origin/main` at `a40467c3eceb`.
 - Added `pkg/asnloc` coverage for text-backed `Open`, nil and wrapper behavior, range-walking counts, bogon splitting, lookup-error propagation, gzip/plain text loader paths, range-table overlap/nil behavior, and IPv4 helper edge cases.
+- Pulled merged PR #8; local `main` now matches `origin/main` at `4b46fa04a620`.
+- Added `pkg/feedhealth` coverage for runtime policy extraction, category fallback, delayed/risky/unmaintained age classes, single-observation grace, entry/source cadence fallback, source category/date fallback, unavailable-over-empty precedence, nil entries, and never-published entries.
 
 ## Validation
 
@@ -502,6 +577,13 @@ Acceptance criteria evidence:
   - Root coverage after this slice is `72.0%`, up from `71.7%` after the third slice.
   - `tools/archposture` after this slice: source files `595`, source lines `124907`, large files `59`, and large functions `47`.
   - No changed ASN files or functions are listed in `tools/archposture` large-file/large-function output.
+- Fifth-slice local results:
+  - `pkg/feedhealth` package coverage moved from `63.9%` to `88.9%`.
+  - Public feed-health functions now report: `PolicyFromRuntime` `100.0%`, `ThresholdsForCategory` `100.0%`, and `Classify` `100.0%`.
+  - Policy branch helpers now report: `classifyAge` `100.0%`, `configuredFrequency` `100.0%`, `graceActive` `100.0%`, and `archivalThresholdReached` `100.0%`.
+  - Root coverage after this slice is `72.2%`, up from `72.0%` after the fourth slice.
+  - `tools/archposture` after this slice: source files `595`, source lines `125145`, large files `59`, and large functions `47`.
+  - No changed feed-health files or functions are listed in `tools/archposture` large-file/large-function output.
 - Scanner posture:
   - Codacy Cloud still reports `issuesCount: 0` on the latest analyzed `main` commit; structural percentages still reflect remote `main`, not these local changes.
   - GitHub Code Scanning open alerts: `[]`.
@@ -546,6 +628,16 @@ Tests or equivalent validation:
 - `make golangci-lint`: passed after Slice 4 with `0 issues`.
 - `CI=true make coverage`: passed after Slice 4.
 - `go tool cover -func=coverage.out`: passed after Slice 4; total statement coverage `72.0%`.
+- `go test ./pkg/feedhealth`: passed.
+- `go test -coverprofile=/tmp/update-ipsets-feedhealth.cover -covermode=atomic ./pkg/feedhealth`: passed, `88.9%`.
+- `go tool cover -func=/tmp/update-ipsets-feedhealth.cover`: passed.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice5.json`: passed.
+- `make lint`: passed after Slice 5.
+- `make staticcheck`: passed after Slice 5.
+- `make golangci-lint`: passed after Slice 5 with `0 issues`.
+- `CI=true make coverage`: passed after Slice 5.
+- `go tool cover -func=coverage.out`: passed after Slice 5; total statement coverage `72.2%`.
+- `git diff --check -- .agents/sow/current/SOW-0102-20260603-quality-complexity-duplication-coverage.md pkg/feedhealth/feedhealth_test.go`: passed after Slice 5.
 - `codacy-analysis analyze --inspect --output-format json --output /tmp/update-ipsets-codacy-inspect.json`: completed but reported `MissingConfig` because this repository does not currently have `.codacy/codacy.config.json`; not used as a code-validation signal.
 
 Real-use evidence:
@@ -556,6 +648,7 @@ Real-use evidence:
 - The observability tests expose metrics through the real Prometheus handler and validate bounded labels in the exported payload.
 - The kernel tests drive `ApplyIfLoaded` orchestration through a fake ipset backend, validating replacement and cleanup behavior without real kernel ipset state.
 - The ASN tests drive `Database` range counting through real in-memory range-table backends and temporary text provider files, validating attributed, unknown, and bogon-split outputs without external provider downloads.
+- The feed-health tests drive exported policy and classification behavior through real `cache.Entry`, `config.Source`, and `config.RuntimeConfig` values with fixed timestamps.
 - No daemon, scheduler, public serving, admin UI, install, or runtime artifact generation code was changed.
 
 Reviewer findings:
@@ -578,7 +671,7 @@ Artifact maintenance gate:
 - Specs: no update needed; implementation preserves behavior and does not change product contracts.
 - End-user/operator docs: no update needed; CLI semantics did not change.
 - End-user/operator skills: no update needed.
-- SOW lifecycle: remains in `.agents/sow/current/`; the first four slices are validated but broader quality work continues.
+- SOW lifecycle: remains in `.agents/sow/current/`; the first five slices are validated but broader quality work continues.
 
 Specs update:
 
@@ -617,7 +710,7 @@ Follow-up mapping:
 
 ## Outcome
 
-First, second, third, and fourth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through fifth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
