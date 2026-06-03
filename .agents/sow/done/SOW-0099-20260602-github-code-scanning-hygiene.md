@@ -2,9 +2,9 @@
 
 ## Status
 
-Status: in-progress
+Status: completed
 
-Sub-state: approved; implementation starting with strict scanner policy for an AI-generated repository.
+Sub-state: scanner cleanup, install validation, dependency PR handling, and `main` ruleset enforcement completed.
 
 ## Requirements
 
@@ -1020,6 +1020,32 @@ Open decisions:
   CodeQL job contexts to stable, explicit names: `CI build`, `CI coverage`,
   and `CodeQL security-and-quality (...)`. This avoids ambiguous required
   checks with GitHub Code Quality's dynamic `Analyze (...)` jobs.
+- GitHub workflow evidence for
+  `97263a261ee769e5e74fe1f5778a87f9198f054b`: Hygiene, Codacy SARIF,
+  checked-in CodeQL, GitHub Code Quality, CI build, and CI coverage all
+  completed successfully after the required-check context rename.
+- Updated, validated, and squash-merged Dependabot PR #2 as
+  `756635f04da4b527cd61117cc45ba2da79f51b42`. The PR introduced no Codacy
+  issues, Dependency Review passed, checked-in CodeQL passed for Actions, Go,
+  JavaScript/TypeScript, and Python, GitHub Code Quality passed, Hygiene
+  passed, and CI build/coverage passed.
+- Codacy Cloud analyzed
+  `756635f04da4b527cd61117cc45ba2da79f51b42` from
+  `2026-06-03T09:43:57.886Z` to `2026-06-03T09:44:19.450Z` and reported
+  `issuesCount: 0`, empty `problems`, and an empty issue overview.
+- GitHub Code Scanning, Dependabot, and secret-scanning APIs reported no open
+  alerts after `756635f04da4b527cd61117cc45ba2da79f51b42`.
+- Added repository ruleset `main scanner gate` with ID `17211959`, target
+  `branch`, enforcement `active`, no bypass actors, and condition
+  `refs/heads/main`. The ruleset requires pull requests, strict required
+  status checks, CodeQL code-scanning alert thresholds set to `all`, prevents
+  force pushes, and prevents branch deletion.
+- Required status checks for `main` are `CI build`, `CI coverage`, `Hygiene`,
+  `Dependency Review`, `CodeQL security-and-quality (actions)`,
+  `CodeQL security-and-quality (go)`,
+  `CodeQL security-and-quality (javascript-typescript)`,
+  `CodeQL security-and-quality (python)`, and
+  `Codacy Static Code Analysis`.
 
 ## Validation
 
@@ -1314,6 +1340,49 @@ Tests or equivalent validation:
     contexts for future required-check enforcement.
   - `git diff --check -- .github/workflows/ci.yml .github/workflows/codeql.yml`:
     passed after the checked-in job context rename.
+  - GitHub workflow evidence for
+    `97263a261ee769e5e74fe1f5778a87f9198f054b`: Hygiene, Codacy SARIF,
+    checked-in CodeQL, GitHub Code Quality, CI build, and CI coverage all
+    completed successfully.
+  - Dependabot PR #2 check evidence: `Codacy Static Code Analysis`,
+    `Dependency Review`, `Hygiene`, `CI build`, `CI coverage`,
+    `CodeQL security-and-quality (actions)`,
+    `CodeQL security-and-quality (go)`,
+    `CodeQL security-and-quality (javascript-typescript)`,
+    `CodeQL security-and-quality (python)`, and GitHub Code Quality dynamic
+    checks all completed successfully before merge.
+  - `codacy pull-request gh firehol update-ipsets 2 --output json`: reported
+    `isUpToStandards: true`, `newIssues: 0`, `fixedIssues: 0`, and
+    `deltaClonesCount: 0`.
+  - GitHub workflow evidence for
+    `756635f04da4b527cd61117cc45ba2da79f51b42`: Codacy SARIF, Hygiene,
+    checked-in CodeQL, GitHub Code Quality, CI build, and CI coverage all
+    completed successfully.
+  - `codacy repository gh firehol update-ipsets --output json`: for
+    `756635f04da4b527cd61117cc45ba2da79f51b42`, reported
+    `issuesCount: 0`, empty `problems`, and an empty issue overview.
+  - `codacy issues gh firehol update-ipsets --branch main --overview --output json`:
+    reported empty categories, levels, languages, tags, patterns, and authors.
+  - `codacy issues gh firehol update-ipsets --branch main --limit 100 --output json`:
+    reported an empty issues list.
+  - `codacy findings gh firehol update-ipsets --limit 100 --output json`:
+    reported an empty findings list and `total: 0`.
+  - GitHub Code Scanning API after `756635f04da4b527cd61117cc45ba2da79f51b42`:
+    open alerts across all tools `0`.
+  - GitHub Dependabot alerts API after
+    `756635f04da4b527cd61117cc45ba2da79f51b42`: open alerts `0`.
+  - GitHub secret-scanning alerts API after
+    `756635f04da4b527cd61117cc45ba2da79f51b42`: open alerts `0`.
+  - `gh api repos/firehol/update-ipsets/rulesets/17211959 --jq '{...}'`:
+    confirmed `main scanner gate` is active, has no bypass actors, targets
+    `refs/heads/main`, requires pull requests, requires the listed scanner
+    status checks, enforces CodeQL code-scanning thresholds at `all`, blocks
+    non-fast-forward updates, and blocks deletion.
+  - `gh api repos/firehol/update-ipsets/rules/branches/main --jq '.'`:
+    confirmed the active rules on `main` come from ruleset `17211959`.
+  - `gh api repos/firehol/update-ipsets/branches/main/protection --jq '.'`:
+    returned `404 Branch not protected`, which is expected because this
+    repository now uses GitHub Rulesets rather than classic branch protection.
 - Go stdlib Trivy finding validation:
   - `go version && go env GOVERSION GOTOOLCHAIN`: local Go reports
     `go1.26.3-X:nodwarf5` with `GOTOOLCHAIN=auto`.
@@ -1630,8 +1699,9 @@ Real-use evidence:
   findings.
 - Post-push GitHub API evidence after `4516edad38f6cdd414c85f15b0c23178dfaa13f2`:
   open CodeQL alerts `0`; open Dependabot security alerts `0`.
-- Pending post-push workflow/default-setup/ruleset verification for the next
-  scanner-cleanup commit.
+- Final post-push workflow/default-setup/ruleset verification completed. CodeQL
+  code scanning default setup is `not-configured`; GitHub Code Quality remains
+  `configured`; repository ruleset `17211959` now enforces `main`.
 
 Reviewer findings:
 
@@ -1678,9 +1748,8 @@ Artifact maintenance gate:
   behavior and `UMask=0077`.
 - End-user/operator skills: no separate operator skill needed for scanner
   posture.
-- SOW lifecycle: current SOW remains in `.agents/sow/current/` until
-  post-push GitHub workflow, CodeQL default-setup, GitHub AI finding, Codacy,
-  and ruleset verification are complete.
+- SOW lifecycle: this SOW is completed and moved to `.agents/sow/done/` with
+  the final scanner-cleanup and ruleset evidence recorded.
 
 Specs update:
 
@@ -1724,26 +1793,39 @@ End-user/operator skills update:
 
 Lessons:
 
-- Pending.
-
-Follow-up mapping:
-
-- Branch/ruleset enforcement may become a follow-up if not included in this SOW.
-- Remaining Codacy dynamic file/path findings in `pkg/engine/output.go` stay on
-  the path-safety triage track; they were observed during the URL cleanup but
-  are not part of this patch.
+- Codacy Cloud issue counts can be temporarily inconsistent immediately after
+  a push. Treat Codacy as clean only after the last analyzed commit matches the
+  intended commit and both issue overview and issue list are empty.
+- GitHub Code Quality is separate from CodeQL code scanning default setup.
+  Keep checked-in CodeQL as the code-scanning owner, but keep GitHub Code
+  Quality enabled as an additional Security and Quality finding surface.
+- Required-check enforcement needs stable job context names before the ruleset
+  is activated.
+- Codacy Cloud SARIF export should use already-computed Codacy Cloud issues and
+  wait for the matching commit, not run the full local Codacy Analysis CLI on
+  this repository.
+- Clean-state SARIF export must upload a valid zero-result SARIF file so stale
+  GitHub Code Scanning alerts close.
 
 ## Outcome
 
-Pending.
+Completed.
+
+The repository now has checked-in scanner ownership, clean Codacy Cloud issues,
+clean Codacy security findings, clean GitHub Code Scanning alerts, clean
+Dependabot and secret-scanning alert surfaces, local managed install
+validation, a merged Dependabot UI dependency update, and active `main`
+ruleset enforcement for scanner-gated pull requests.
 
 ## Lessons Extracted
 
-Pending.
+Lessons were extracted into `.agents/skills/project-hygiene/SKILL.md`,
+`.agents/skills/project-testing/SKILL.md`, and
+`.agents/skills/project-operations/SKILL.md` during this SOW.
 
 ## Followup
 
-None yet.
+None.
 
 ## Regression Log
 
