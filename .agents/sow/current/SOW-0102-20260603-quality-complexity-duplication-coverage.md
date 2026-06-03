@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: eleventh implementation slice validated; entity detail builder PR pending
+Sub-state: twelfth implementation slice validated; admin manifest PR pending
 
 ## Requirements
 
@@ -433,6 +433,94 @@ Artifact impact plan:
 Open decisions:
 
 - None. The user approved the pragmatic quality target model and behavior-preserving quality work.
+
+## Pre-Implementation Gate - Slice 12
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after PR #15 merged to `main`, local `main` matches `origin/main` at `a25d39b68b55`.
+- Facts: `tools/archposture` reports `615` source files, `125937` source lines, `54` large files, and `39` large functions.
+- Facts: the next highest production large function is `pkg/web/admin_manifest.go:134` `buildFeedManifest` at `217` lines with complexity `29`.
+- Facts: baseline `pkg/web` coverage is `78.3%` by `go tool cover`; `buildFeedManifest` coverage is `86.8%`.
+- Working theory: `buildFeedManifest` mixes several independent responsibilities: processed-date lookup, runtime directory normalization, database/provider-source file enumeration, non-database base file enumeration, web secondary artifact enumeration, provider fan-out enumeration, binary/latest file enumeration, downloader history snapshot enumeration, and summary rollup. Extracting those phases into focused helpers should reduce complexity without changing the admin API contract.
+
+Evidence reviewed:
+
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice12-baseline.json`
+- `jq '{source:.source, large_files:(.large_files|length), large_functions:(.large_functions|length), targets:(.large_functions | map(select((.path // "") == "pkg/web/admin_manifest.go")))}' /tmp/update-ipsets-archposture-slice12-baseline.json`
+- `go test -coverprofile=/tmp/update-ipsets-web-slice12-baseline.cover -covermode=atomic ./pkg/web`
+- `go tool cover -func=/tmp/update-ipsets-web-slice12-baseline.cover`
+- `pkg/web/admin_manifest.go`
+- `pkg/web/admin_manifest_test.go`
+- `pkg/web/http_test_helpers_test.go`
+- `.agents/sow/specs/admin-ui.md`
+- `.agents/sow/specs/files-layout.md`
+- `.agents/sow/specs/integrity.md`
+- `.agents/sow/specs/operating-principles.md`
+
+Affected contracts and surfaces:
+
+- `GET /api/v1/admin/feeds/{name}/manifest` response fields: feed, processed date, file rows, row kind/provider/required/existence/stale state, and summary totals.
+- Admin manifest expectations for base files, database provider source files, web secondary files, geo/ASN/bogon provider fan-out artifacts, binary latest files, and optional history snapshots.
+- No public serving, pipeline writers, config schema, UI source, install behavior, or artifact generation behavior is expected to change.
+- SOW only; specs/docs are not expected to change because behavior is preserved.
+
+Existing patterns to reuse:
+
+- Existing `TestBuildFeedManifestRequiresConfiguredProviderFanOutArtifacts` validates configured provider fan-out file expectations.
+- `statManifestFile`, `daemonRoot`, and `relOrPath` already isolate file-state and path-display behavior.
+- Web route tests use `newWebHTTPTestServer` for route-level behavior when needed, but this slice can stay mostly focused on manifest builder output because the handler is a thin validation wrapper.
+- Recent complexity slices keep the top-level function as orchestration and move file-family enumeration into private helpers.
+
+Risk and blast radius:
+
+- Admin manifest is an operator trust surface. A behavior change can hide missing required artifacts, mark the wrong files stale, or show confusing paths.
+- Database feeds and non-database feeds intentionally have different required files; this distinction must remain.
+- Optional files must remain optional, especially enable markers, raw sources, setinfo, and history snapshots.
+- Provider fan-out enumeration must stay config-driven, not hardcoded to feed/provider names.
+
+Sensitive data handling plan:
+
+- This slice uses local synthetic test fixtures, temporary directories, file names, and structural metrics only.
+- No secrets, tokens, cookies, private endpoints, customer data, raw external IP lists, or personal data are needed.
+- Durable artifacts will record only package paths, metrics, test outcomes, and sanitized behavior evidence.
+
+Implementation plan:
+
+1. Keep `buildFeedManifest` as the top-level manifest assembly function.
+2. Extract processed-date lookup, manifest row creation, base/provider/canonical file enumeration, web secondary artifact enumeration, provider fan-out enumeration, binary/history snapshot enumeration, and summary rollup into focused private helpers.
+3. Preserve existing row ordering, kind/provider labels, required/optional policy, stale policy, and relative path calculation.
+4. Add or adjust behavior tests only if inspection finds uncovered branches affected by extraction.
+5. Re-run package coverage, architecture posture, strict web tests, and repository quality gates.
+
+Validation plan:
+
+- `go test ./pkg/web`
+- `go test -coverprofile=/tmp/update-ipsets-web-slice12.cover -covermode=atomic ./pkg/web`
+- `go tool cover -func=/tmp/update-ipsets-web-slice12.cover`
+- `go test -shuffle=on -count=3 ./pkg/web`
+- `go run ./tools/archposture -root .`
+- `make lint`
+- `make staticcheck`
+- `make golangci-lint`
+- `CI=true make coverage`
+- `make test-strict`
+- `git diff --check -- ...`
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if this slice finds a durable admin-manifest lesson.
+- Specs: no update expected; behavior is preserved.
+- End-user/operator docs: no update expected; admin manifest semantics are unchanged.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: keep this SOW in `.agents/sow/current/` until the quality campaign reaches an appropriate closure point.
+
+Open decisions:
+
+- None. The user approved behavior-preserving quality work and the next measured production hotspot is clear from local evidence.
 
 ## Pre-Implementation Gate - Slice 11
 
@@ -1123,6 +1211,12 @@ Open decisions:
   - detail payload materialization, sidecar JSON loading, JSON writing, timestamped writes, and sorted JSON file listing live in `pkg/engine/home_entity_detail_payload.go`.
   - `pkg/engine/home_entity_builders.go` now owns output views, health classification, indexes, and short live detail orchestration instead of also owning the detail payload/I/O helpers.
 - Added `pkg/engine/home_entity_detail_live_test.go` to validate invalid entity identifiers and empty country/ASN detail payloads through exported detail APIs.
+- Pulled merged PR #15; local `main`, `origin/main`, and `quality-admin-manifest-complexity` started this slice at `a25d39b68b55`.
+- Refactored admin feed manifest generation:
+  - `buildFeedManifest` remains the top-level manifest assembly function.
+  - processed-date lookup, row creation, base/provider/canonical file enumeration, web secondary artifacts, provider fan-out artifacts, binary/latest files, optional history snapshots, and summary rollup live in `pkg/web/admin_manifest_builder.go`.
+  - `pkg/web/admin_manifest.go` now keeps the HTTP handler, manifest DTOs, file stat/stale policy, and path display helpers.
+- Added database provider manifest tests for ASN and geolocation provider-source rows and database-feed exclusion of non-database artifacts.
 
 ## Validation
 
@@ -1224,6 +1318,14 @@ Acceptance criteria evidence:
   - Root coverage after this slice remains `72.5%`.
   - `tools/archposture` after this slice: source files `615`, source lines `125937`, large files `54`, and large functions `39`.
   - No `pkg/engine/home_entity_builders.go`, `pkg/engine/home_entity_detail_live.go`, `pkg/engine/home_entity_detail_payload.go`, or `pkg/engine/home_entity_precompute.go` files or functions are listed in `tools/archposture` large-file/large-function output.
+- Twelfth-slice local results:
+  - `pkg/web/admin_manifest.go` moved from `403` lines to `188` lines.
+  - The former `buildFeedManifest` target moved from `217` lines / complexity `29` to a one-line orchestration function and no longer appears in `tools/archposture` large-function output.
+  - New `pkg/web/admin_manifest_builder.go` is below the project file-size threshold at `179` lines.
+  - `pkg/web` coverage moved from `78.3%` to `78.4%` by `go tool cover`; `buildFeedManifest` now reports `100.0%`, and the new provider-source path helper reports `100.0%`.
+  - Root coverage after this slice remains `72.5%`.
+  - `tools/archposture` after this slice: source files `616`, source lines `125955`, large files `54`, and large functions `38`.
+  - No `pkg/web/admin_manifest.go` or `pkg/web/admin_manifest_builder.go` files or functions are listed in `tools/archposture` large-file/large-function output.
 - Scanner posture:
   - Codacy Cloud still reports `issuesCount: 0` on the latest analyzed `main` commit; structural percentages still reflect remote `main`, not these local changes.
   - GitHub Code Scanning open alerts: `[]`.
@@ -1371,6 +1473,20 @@ Tests or equivalent validation:
 - `git diff --no-index --check -- /dev/null pkg/engine/home_entity_detail_payload.go`: passed after Slice 11.
 - `git diff --no-index --check -- /dev/null pkg/engine/home_entity_detail_live_test.go`: passed after Slice 11.
 - Forbidden durable-artifact personal/tool/vendor name scan over the Slice 11 SOW and changed Go files: no matches after Slice 11.
+- `go test ./pkg/web`: passed after Slice 12.
+- `go test -coverprofile=/tmp/update-ipsets-web-slice12.cover -covermode=atomic ./pkg/web`: passed, `78.4%` by `go tool cover`.
+- `go tool cover -func=/tmp/update-ipsets-web-slice12.cover`: passed.
+- `go test -shuffle=on -count=3 ./pkg/web`: passed after Slice 12.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice12.json`: passed.
+- `make lint`: passed after Slice 12.
+- `make staticcheck`: passed after Slice 12.
+- `make golangci-lint`: passed after Slice 12 with `0 issues`.
+- `CI=true make coverage`: passed after Slice 12.
+- `make test-strict`: passed after Slice 12.
+- `go tool cover -func=coverage.out`: passed after Slice 12; total statement coverage `72.5%`.
+- `git diff --check -- .agents/sow/current/SOW-0102-20260603-quality-complexity-duplication-coverage.md pkg/web/admin_manifest.go pkg/web/admin_manifest_test.go`: passed after Slice 12.
+- `git diff --no-index --check -- /dev/null pkg/web/admin_manifest_builder.go`: passed after Slice 12.
+- Forbidden durable-artifact personal/tool/vendor name scan over the Slice 12 SOW and changed Go files: no matches after Slice 12.
 - `codacy-analysis analyze --inspect --output-format json --output /tmp/update-ipsets-codacy-inspect.json`: completed but reported `MissingConfig` because this repository does not currently have `.codacy/codacy.config.json`; not used as a code-validation signal.
 
 Real-use evidence:
@@ -1388,7 +1504,8 @@ Real-use evidence:
 - The surgical entity refresh path remains covered by `TestRefreshEntityArtifactsForFeedUpdatesSurgicallyPatchesAggregates`, which drives real pending sidecars, public/private country and ASN details, indexes, and pending sidecar cleanup.
 - The downloader tests drive `Fetch` through real `httptest` servers, temporary files, local file URLs, local copy paths, internal sources, redirects, bad schemes, max-size edges, same-body detection, and POST/header behavior.
 - The live entity detail tests drive exported `CountryDetail` and `ASNDetail` APIs, validating invalid identifier errors and empty country/ASN payload behavior without depending on private helper names.
-- No daemon, scheduler, public serving, admin UI, install, or runtime behavior was changed intentionally; comparison, entity artifact generation, surgical entity refresh, downloader fetch, and live entity detail building changed only by helper extraction and focused behavior tests.
+- The admin manifest tests drive real engine test fixtures and manifest builder output, validating configured provider fan-out artifacts, database provider-source paths, and database-feed exclusion of non-database artifact families.
+- No daemon, scheduler, public serving, admin UI, install, or runtime behavior was changed intentionally; comparison, entity artifact generation, surgical entity refresh, downloader fetch, live entity detail building, and admin manifest generation changed only by helper extraction and focused behavior tests.
 
 Reviewer findings:
 
@@ -1410,7 +1527,7 @@ Artifact maintenance gate:
 - Specs: no update needed; implementation preserves behavior and does not change product contracts.
 - End-user/operator docs: no update needed; operator-visible CLI, comparison, entity artifact, and surgical refresh semantics did not change.
 - End-user/operator skills: no update needed.
-- SOW lifecycle: remains in `.agents/sow/current/`; the first eleven slices are validated but broader quality work continues.
+- SOW lifecycle: remains in `.agents/sow/current/`; the first twelve slices are validated but broader quality work continues.
 
 Specs update:
 
@@ -1436,7 +1553,6 @@ Lessons:
 Follow-up mapping:
 
 - Next measured complexity targets:
-  - `pkg/web/admin_manifest.go:134` `buildFeedManifest`: 217 lines, complexity 29.
   - `pkg/config/validate.go:274` `Validate`: 197 lines, complexity 85.
   - `pkg/web/server.go:291` `Run`: 179 lines, complexity 34.
   - `pkg/engine/entity_feed_sidecar.go:374` `(*Engine).buildSingleFeedEntitySidecar`: 171 lines, complexity 53.
@@ -1450,7 +1566,7 @@ Follow-up mapping:
 
 ## Outcome
 
-First through eleventh implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through twelfth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
@@ -1458,7 +1574,7 @@ Update project hygiene practice to always pair Codacy Cloud metrics with local a
 
 ## Followup
 
-Continue with one focused slice at a time, starting with either UI duplicate pages/components, web manifest generation, config validation, or server runtime after a fresh pre-implementation gate update for that chosen surface.
+Continue with one focused slice at a time, starting with either UI duplicate pages/components, config validation, server runtime, or entity feed sidecar generation after a fresh pre-implementation gate update for that chosen surface.
 
 ## Regression Log
 
