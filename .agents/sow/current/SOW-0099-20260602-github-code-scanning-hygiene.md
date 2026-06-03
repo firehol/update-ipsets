@@ -784,7 +784,8 @@ Acceptance criteria evidence:
 - Codacy SARIF upload is checked in at `.github/workflows/codacy-sarif.yml`.
   It runs on default-branch push, weekly schedule, and manual dispatch; exports
   existing Codacy Cloud issues to SARIF; and uploads with category `codacy`.
-  It requires a GitHub Actions secret named `CODACY_API_TOKEN`.
+  It requires a GitHub Actions secret named `CODACY_API_TOKEN`; the secret is
+  present in the repository as of 2026-06-03.
 - Project hygiene skill is valid and registered in `AGENTS.md`.
 - GitHub alert API currently reports zero open CodeQL alerts, zero open
   Dependabot alerts, and zero open secret-scanning alerts before push.
@@ -1068,6 +1069,15 @@ Tests or equivalent validation:
     `CODACY_API_TOKEN` is not present. This confirms the workflow no longer
     hangs in local analysis, but Codacy SARIF cannot upload to GitHub Code
     Scanning until that secret exists.
+  - After the repository secret was added, rerun attempt 2 of `26848324745`
+    for commit `56cf3f9c866effbc1b389e20da94976f5f44d5b8` passed in 1 minute
+    3 seconds. The `Verify Codacy API token`, `Export Codacy issues`, and
+    `Upload Codacy SARIF` steps all passed.
+  - `gh secret list --repo firehol/update-ipsets`: reports
+    `CODACY_API_TOKEN` present, last updated `2026-06-03T00:05:08Z`.
+  - GitHub Code Scanning API after the successful rerun reports `2642` open
+    alerts with `tool.name == "Codacy Cloud"`, matching the current Codacy
+    Cloud issue total for `main`.
 
 Real-use evidence:
 
