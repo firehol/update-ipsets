@@ -793,6 +793,10 @@ Open decisions:
   The remaining Semgrep open-redirect match is a documented false positive
   after validation, so the redirect sink carries a narrow inline `nosemgrep`
   marker with adjacent rationale.
+- CI for `2fa65820bb65df2d2a88f45e7cba70bcc5e99fef` failed in
+  `tools/archposture` because `pkg/engine/output.go` grew past its large-file
+  baseline. The URL helpers were moved into focused `pkg/engine/public_url.go`
+  instead of updating the baseline.
 
 ## Validation
 
@@ -1167,6 +1171,15 @@ Tests or equivalent validation:
     passed after the fresh URL literal helper change.
   - `go test ./pkg/web -run 'TestLegacyIPSetRedirectStaysOnLocalSite|TestRouteMethodContracts|TestSurfaceHandlerModesRegisterExpectedSurfaces' -count=1 && go test ./pkg/web ./pkg/engine`:
     passed after the follow-up scanner changes.
+  - CI run `26857797930` for `2fa65820bb65df2d2a88f45e7cba70bcc5e99fef`
+    failed because `tools/archposture` reported `pkg/engine/output.go` grew
+    from 1372 to 1399 lines.
+  - `go test ./tools/archposture`: passed after moving public URL helpers out
+    of `pkg/engine/output.go`.
+  - `go test ./pkg/web -run 'TestLegacyIPSetRedirectStaysOnLocalSite|TestRouteMethodContracts|TestSurfaceHandlerModesRegisterExpectedSurfaces' -count=1 && go test ./pkg/web ./pkg/engine`:
+    passed after moving the helpers.
+  - Exact local Semgrep open-redirect and shared URL mutation rule runs:
+    passed after moving the helpers.
 
 Real-use evidence:
 
