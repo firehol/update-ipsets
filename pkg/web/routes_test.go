@@ -54,6 +54,48 @@ func assertRouteStatus(t *testing.T, server *webHTTPTestServer, path, user strin
 	}
 }
 
+func TestLegacyIPSetRedirectStaysOnLocalSite(t *testing.T) {
+	_, handler := testHandler(t, Options{EnableAll: true})
+
+	cases := []struct {
+		name string
+		path string
+		want string
+	}{
+		{
+			name: "plain feed",
+			path: "/?ipset=firehol_level1",
+			want: "/ipsets/firehol_level1",
+		},
+		{
+			name: "absolute-looking input is path escaped",
+			path: "/?ipset=https://evil.example/path",
+			want: "/ipsets/https:%2F%2Fevil.example%2Fpath",
+		},
+		{
+			name: "protocol-relative input stays local",
+			path: "/?ipset=//evil.example/path",
+			want: "/ipsets/%2F%2Fevil.example%2Fpath",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tc.path, nil)
+			rec := httptest.NewRecorder()
+
+			handler.ServeHTTP(rec, req)
+
+			if got := rec.Code; got != http.StatusMovedPermanently {
+				t.Fatalf("redirect status = %d, want %d", got, http.StatusMovedPermanently)
+			}
+			if got := rec.Header().Get("Location"); got != tc.want {
+				t.Fatalf("redirect location = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestRouteMethodContracts(t *testing.T) {
 	_, handler := testHandler(t, Options{
 		EnableAll:                 true,

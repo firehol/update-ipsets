@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"path/filepath"
 	"strings"
 
@@ -428,9 +429,9 @@ func (s *surfaceRoutes) handleSPAFallback() http.HandlerFunc {
 			return
 		}
 		if ipset := r.URL.Query().Get("ipset"); ipset != "" && r.URL.Path == "/" {
-			target := "/ipsets/" + ipset
+			target := "/ipsets/" + url.PathEscape(ipset)
 			if r.URL.Fragment != "" {
-				target += "#" + r.URL.Fragment
+				target += "#" + url.QueryEscape(r.URL.Fragment)
 			}
 			http.Redirect(w, r, target, http.StatusMovedPermanently)
 			return

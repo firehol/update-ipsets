@@ -769,6 +769,21 @@ Open decisions:
   issue categories for the branch, converts issue JSON to SARIF with
   `.github/scripts/codacy-issues-to-sarif.mjs`, and uploads the SARIF to GitHub
   Code Scanning under category `codacy`.
+- Re-checked the Codacy/GitHub visibility state on 2026-06-03. GitHub Code
+  Scanning reports 2642 open alerts with `tool.name == "Codacy Cloud"`, and
+  Codacy Cloud reports 2642 current issues on `main`.
+- Triage of production-facing Codacy security alerts in the next cleanup slice
+  found 4 shared URL struct mutation findings in `pkg/engine/output.go` and 1
+  legacy `?ipset=` redirect finding in `pkg/web/routes.go`. The same remote
+  issue sample also shows dynamic file/path findings in `pkg/engine/output.go`;
+  those remain for the path-safety triage track and were not claimed as fixed
+  by this URL-focused patch.
+- Fixed the shared URL mutation findings by copying parsed `url.URL` values
+  before normalizing paths in the public URL helper paths.
+- Fixed the legacy `?ipset=` redirect contract by escaping the query value as
+  one local `/ipsets/{name}` path segment before redirecting. The focused
+  regression test covers normal feed names, absolute-looking values, and
+  protocol-relative values.
 
 ## Validation
 
@@ -1105,6 +1120,23 @@ Tests or equivalent validation:
   - GitHub Code Scanning API after the successful rerun reports `2642` open
     alerts with `tool.name == "Codacy Cloud"`, matching the current Codacy
     Cloud issue total for `main`.
+- Codacy URL/security cleanup validation:
+  - `gh api -X GET /repos/firehol/update-ipsets/code-scanning/alerts -f state=open -f per_page=100 --paginate --jq '[.[] | select(.tool.name == "Codacy Cloud")] | length' | awk '{s+=$1} END{print s+0}'`:
+    reported 2642 open Codacy Cloud alerts.
+  - `codacy repository gh firehol update-ipsets --output json`: reported 2642
+    current issues.
+  - `go test ./pkg/web -run TestLegacyIPSetRedirectStaysOnLocalSite -count=1`:
+    passed.
+  - `go test ./pkg/engine -run 'Test.*Public.*URL|Test.*Sitemap|Test.*LLMS|Test.*Output' -count=1`:
+    passed.
+  - `go test ./pkg/web -run 'TestLegacyIPSetRedirectStaysOnLocalSite|TestRouteMethodContracts|TestSurfaceHandlerModesRegisterExpectedSurfaces' -count=1`:
+    passed.
+  - `go test ./pkg/web ./pkg/engine`: passed.
+  - `codacy-analysis analyze . --inspect --files pkg/engine/output.go pkg/web/routes.go pkg/web/routes_test.go --output-format json --output /tmp/codacy-touched-inspect.json`:
+    did not run analyzers because the repository has no
+    `.codacy/codacy.config.json`; local Codacy Analysis CLI validation is not
+    available for this patch. Cloud reanalysis remains the authoritative
+    scanner confirmation after push.
 
 Real-use evidence:
 
@@ -1221,6 +1253,9 @@ Lessons:
 Follow-up mapping:
 
 - Branch/ruleset enforcement may become a follow-up if not included in this SOW.
+- Remaining Codacy dynamic file/path findings in `pkg/engine/output.go` stay on
+  the path-safety triage track; they were observed during the URL cleanup but
+  are not part of this patch.
 
 ## Outcome
 

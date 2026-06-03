@@ -1240,8 +1240,9 @@ func normalizeAbsolutePublicURL(raw string) string {
 	if !ok {
 		return ""
 	}
-	parsed.Path = strings.TrimRight(parsed.Path, "/")
-	return strings.TrimRight(parsed.String(), "/")
+	normalized := *parsed
+	normalized.Path = strings.TrimRight(normalized.Path, "/")
+	return strings.TrimRight(normalized.String(), "/")
 }
 
 func derivePublicSiteBaseFromWebURL(raw string) string {
@@ -1249,19 +1250,20 @@ func derivePublicSiteBaseFromWebURL(raw string) string {
 	if !ok {
 		return ""
 	}
-	path := strings.TrimRight(parsed.Path, "/")
+	derived := *parsed
+	path := strings.TrimRight(derived.Path, "/")
 	switch {
 	case path == "" || path == "/":
-		parsed.Path = ""
+		derived.Path = ""
 	case strings.HasSuffix(path, "/ipsets"):
-		parsed.Path = strings.TrimSuffix(path, "/ipsets")
-		if parsed.Path == "/" {
-			parsed.Path = ""
+		derived.Path = strings.TrimSuffix(path, "/ipsets")
+		if derived.Path == "/" {
+			derived.Path = ""
 		}
 	default:
-		parsed.Path = path
+		derived.Path = path
 	}
-	return strings.TrimRight(parsed.String(), "/")
+	return strings.TrimRight(derived.String(), "/")
 }
 
 func parseAbsolutePublicURL(raw string) (*url.URL, bool) {
