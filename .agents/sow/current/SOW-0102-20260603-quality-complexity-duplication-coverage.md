@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: eighth implementation slice validated; entity artifact generation complexity ready for PR
+Sub-state: ninth implementation slice selected; surgical entity refresh complexity in progress
 
 ## Requirements
 
@@ -434,6 +434,101 @@ Open decisions:
 
 - None. The user approved the pragmatic quality target model and behavior-preserving quality work.
 
+## Pre-Implementation Gate - Slice 9
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after PR #12 merged to `main`, local `main` matches `origin/main` at `5571260ef5d`.
+- Facts: `tools/archposture` reports `606` source files, `125864` source lines, `57` large files, and `43` large functions.
+- Facts: the highest remaining production large function is `pkg/engine/entity_surgical.go:66` `(*Engine).refreshEntityArtifactsForFeedUpdates` at `267` lines with complexity `68`; `pkg/engine/entity_surgical.go` is `981` lines.
+- Facts: baseline `pkg/engine` coverage is `71.2%`; `refreshEntityArtifactsForFeedUpdates` coverage is `60.4%`.
+- Working theory: the complexity is orchestration coupling inside one function: publish batch setup, target filtering, feed delta loading, pending sidecar promotion/deletion, affected country/ASN tracking, unchanged detail touches, changed detail sidecar/public payload writes, index patching, version publication, generated-file timestamp application, and final sync. Extracting these phases into private helpers should reduce measured complexity without changing surgical entity refresh behavior.
+
+Evidence reviewed:
+
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice9-baseline.json`
+- `jq '{source:.source, large_files:(.large_files|length), large_functions:(.large_functions|length), large_functions: (.large_functions[:15] | map({path,start_line,name,lines,complexity})), entity_surgical_large_functions:(.large_functions | map(select((.path // "") == "pkg/engine/entity_surgical.go"))) }' /tmp/update-ipsets-archposture-slice9-baseline.json`
+- `go test -coverprofile=/tmp/update-ipsets-engine-slice9-baseline.cover -covermode=atomic ./pkg/engine`
+- `go tool cover -func=/tmp/update-ipsets-engine-slice9-baseline.cover`
+- `pkg/engine/entity_surgical.go`
+- `pkg/engine/home_detail_test.go`
+- `pkg/engine/entity_artifacts.go`
+- `pkg/engine/entity_artifacts_write.go`
+- `pkg/engine/entity_artifacts_health.go`
+- `.agents/sow/specs/integrity.md`
+- `.agents/sow/specs/pipeline.md`
+- `.agents/sow/specs/files-layout.md`
+- `.agents/sow/specs/operating-principles.md`
+
+Affected contracts and surfaces:
+
+- `pkg/engine`: surgical entity artifact refresh after selected feed updates, feed sidecar promotion, pending sidecar cleanup, private country/ASN sidecars, public country/ASN detail JSON and markdown, country/ASN index patching, generated-file timestamps, and entity artifact version marker.
+- Private entity artifacts under `lib/entities/feeds`, `lib/entities/feeds-pending`, `lib/entities/countries`, `lib/entities/asns`, and `lib/entities/version`.
+- Public entity artifacts under `web/countries`, `web/asns`, and indexes.
+- No config schema, downloader behavior, public request-time generation, UI source, install behavior, scheduler queue admission, or artifact schema change is expected.
+- SOW only; specs/docs are not expected to change because behavior is preserved.
+
+Existing patterns to reuse:
+
+- Slice 8 entity artifact writer split: keep top-level orchestration small and move phase-specific helpers into focused private types/files.
+- Existing `TestRefreshEntityArtifactsForFeedUpdatesSurgicallyPatchesAggregates` drives a real temporary engine fixture, pending sidecars, public/private artifacts, index updates, and pending sidecar cleanup.
+- Existing mtime helpers and public/private path helpers from `entity_artifacts_helpers.go` and `entity_artifacts.go`.
+- Existing batch APIs: `webPublishBatch`, `entityPublishBatch`, `markDelete`, `writeObservedJSONFileAt`, generated-file timestamp application, and `syncGeneratedFiles`.
+- Existing background task update wording and progress phase names.
+
+Risk and blast radius:
+
+- Surgical refresh is a production incremental-repair path. A behavior change can silently leave stale country/ASN pages, stale indexes, stale private sidecars, or repeated integrity repair loops.
+- Full rebuild fallback must remain intact for legacy/missing/unreadable sidecars, underflow, and inconsistent detail state.
+- Unchanged detail paths must preserve the touch behavior for private and public artifacts only when both files exist.
+- Generated-file ledger entries and mtimes must continue to match published public artifacts.
+- Public requests must remain cache-first readers; no request-time artifact generation may be introduced.
+
+Sensitive data handling plan:
+
+- This slice uses synthetic test feeds, country codes, ASNs, paths, and structural metrics only.
+- No secrets, tokens, cookies, private endpoints, customer data, raw external IP lists, or personal data are needed.
+- Durable artifacts will record only package paths, metrics, test outcomes, and sanitized behavior evidence.
+
+Implementation plan:
+
+1. Introduce a package-private surgical refresh state/helper that carries context, batches, task, target feeds, deltas, affected country/ASN sets, feed mtimes, health classifier, generated files, and update maps.
+2. Extract target-feed filtering and feed delta loading/promotion into focused helpers while preserving full-rebuild fallback behavior.
+3. Extract no-delta version publication into a focused helper.
+4. Extract country and ASN detail patch loops into focused helpers, preserving unchanged touches, changed writes, delete markers, materialization metrics, markdown generation, progress updates, and generated-file ledger entries.
+5. Extract index patching and final publish/sync into focused helpers.
+6. Add or adjust behavior tests only if inspection finds a meaningful uncovered branch affected by the extraction.
+7. Re-run package coverage, architecture posture, strict engine tests, and repository quality gates.
+
+Validation plan:
+
+- `go test ./pkg/engine`
+- `go test -coverprofile=/tmp/update-ipsets-engine-slice9.cover -covermode=atomic ./pkg/engine`
+- `go tool cover -func=/tmp/update-ipsets-engine-slice9.cover`
+- `go test -shuffle=on -count=3 ./pkg/engine`
+- `go run ./tools/archposture -root .`
+- `make lint`
+- `make staticcheck`
+- `make golangci-lint`
+- `CI=true make coverage`
+- `make test-strict`
+- `git diff --check -- ...`
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if this slice finds a durable surgical-refresh refactor/testing lesson.
+- Specs: no update expected; behavior is preserved.
+- End-user/operator docs: no update expected; entity artifact semantics are unchanged.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: keep this SOW in `.agents/sow/current/` until the quality campaign reaches an appropriate closure point.
+
+Open decisions:
+
+- None. The user approved behavior-preserving quality work and the next measured production hotspot is clear from local evidence.
+
 ## Pre-Implementation Gate - Slice 8
 
 Status: ready.
@@ -831,6 +926,13 @@ Open decisions:
   - health-transition entity-detail refresh helpers live in `pkg/engine/entity_artifacts_health.go`.
   - `pkg/engine/entity_artifacts.go` now keeps path helpers and top-level rebuild/refresh orchestration instead of also owning detailed artifact generation.
 - Added `pkg/engine/entity_artifacts_health_test.go` to prove health-transition refresh rewrites corrupted published country/ASN detail artifacts from private sidecars and preserves sidecar mtimes on publication.
+- Refactored surgical entity refresh:
+  - `RefreshEntityArtifactsForFeedUpdates` remains in `pkg/engine/entity_surgical.go` as the public entrypoint.
+  - surgical refresh orchestration, progress, and publication phases live in `pkg/engine/entity_surgical_refresh.go`.
+  - feed delta loading and target filtering helpers live in `pkg/engine/entity_surgical_delta.go`.
+  - country/ASN detail patch helpers live in `pkg/engine/entity_surgical_detail.go`.
+  - country/ASN index patch helpers live in `pkg/engine/entity_surgical_index.go`.
+  - observed artifact I/O, touch, and empty sidecar helpers live in `pkg/engine/entity_surgical_io.go`.
 
 ## Validation
 
@@ -907,6 +1009,14 @@ Acceptance criteria evidence:
   - `pkg/engine` coverage moved from `70.7%` to `71.2%`.
   - Root coverage after this slice is `72.5%`.
   - `tools/archposture` after this slice: source files `606`, source lines `125864`, large files `57`, and large functions `43`.
+- Ninth-slice local results:
+  - `pkg/engine/entity_surgical.go` moved from `981` lines to `38` lines.
+  - The former `(*Engine).refreshEntityArtifactsForFeedUpdates` target moved from `267` lines / complexity `68` to a small orchestration function and no longer appears in `tools/archposture` large-function output.
+  - New split files are below the project file-size threshold: `entity_surgical_refresh.go` `387` lines, `entity_surgical_detail.go` `278` lines, `entity_surgical_delta.go` `154` lines, `entity_surgical_index.go` `135` lines, and `entity_surgical_io.go` `138` lines.
+  - `pkg/engine` coverage remained `71.2%`; this slice was behavior-preserving complexity reduction rather than coverage expansion.
+  - Root coverage after this slice remains `72.5%`.
+  - `tools/archposture` after this slice: source files `611`, source lines `126013`, large files `56`, and large functions `42`.
+  - No `pkg/engine/entity_surgical*` files or functions are listed in `tools/archposture` large-file/large-function output.
 - Scanner posture:
   - Codacy Cloud still reports `issuesCount: 0` on the latest analyzed `main` commit; structural percentages still reflect remote `main`, not these local changes.
   - GitHub Code Scanning open alerts: `[]`.
@@ -1006,6 +1116,24 @@ Tests or equivalent validation:
 - `git diff --no-index --check -- /dev/null pkg/engine/entity_artifacts_health.go`: passed after Slice 8.
 - `git diff --no-index --check -- /dev/null pkg/engine/entity_artifacts_health_test.go`: passed after Slice 8.
 - Forbidden durable-artifact personal/tool/vendor name scan over the Slice 8 SOW and changed Go files: no matches after Slice 8.
+- `go test ./pkg/engine`: passed after Slice 9.
+- `go test -coverprofile=/tmp/update-ipsets-engine-slice9.cover -covermode=atomic ./pkg/engine`: passed, `71.2%`.
+- `go tool cover -func=/tmp/update-ipsets-engine-slice9.cover`: passed.
+- `go test -shuffle=on -count=3 ./pkg/engine`: passed after Slice 9.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice9.json`: passed.
+- `make lint`: passed after Slice 9.
+- `make staticcheck`: passed after Slice 9.
+- `make golangci-lint`: passed after Slice 9 with `0 issues`.
+- `CI=true make coverage`: passed after Slice 9.
+- `make test-strict`: passed after Slice 9.
+- `go tool cover -func=coverage.out`: passed after Slice 9; total statement coverage `72.5%`.
+- `git diff --check -- .agents/sow/current/SOW-0102-20260603-quality-complexity-duplication-coverage.md pkg/engine/entity_surgical.go`: passed after Slice 9.
+- `git diff --no-index --check -- /dev/null pkg/engine/entity_surgical_refresh.go`: passed after Slice 9.
+- `git diff --no-index --check -- /dev/null pkg/engine/entity_surgical_delta.go`: passed after Slice 9.
+- `git diff --no-index --check -- /dev/null pkg/engine/entity_surgical_detail.go`: passed after Slice 9.
+- `git diff --no-index --check -- /dev/null pkg/engine/entity_surgical_index.go`: passed after Slice 9.
+- `git diff --no-index --check -- /dev/null pkg/engine/entity_surgical_io.go`: passed after Slice 9.
+- Forbidden durable-artifact personal/tool/vendor name scan over the Slice 9 SOW and changed Go files: no matches after Slice 9.
 - `codacy-analysis analyze --inspect --output-format json --output /tmp/update-ipsets-codacy-inspect.json`: completed but reported `MissingConfig` because this repository does not currently have `.codacy/codacy.config.json`; not used as a code-validation signal.
 
 Real-use evidence:
@@ -1020,6 +1148,7 @@ Real-use evidence:
 - The entity-integrity tests drive real rebuild outputs in temporary engine fixtures and then mutate version markers, public ASN payloads, and private ASN sidecars to validate observable findings and targeted repair plans.
 - The comparison-writer tests drive comparison artifact behavior through real engine fixtures, file sets, and JSON artifacts, validating subtractive-merge relatedness, prefix pruning, stale zero-overlap cleanup, cancellation, and file-set generation.
 - The health-transition entity artifact test drives real rebuild outputs in a temporary engine fixture, corrupts published country/ASN artifacts, and validates refresh through the engine's published artifact outputs and mtimes.
+- The surgical entity refresh path remains covered by `TestRefreshEntityArtifactsForFeedUpdatesSurgicallyPatchesAggregates`, which drives real pending sidecars, public/private country and ASN details, indexes, and pending sidecar cleanup.
 - No daemon, scheduler, public serving, admin UI, install, or runtime behavior was changed intentionally; comparison and entity artifact generation changed only by helper extraction and one behavior-focused test addition.
 
 Reviewer findings:
@@ -1040,9 +1169,9 @@ Artifact maintenance gate:
 - AGENTS.md: no update needed; no project-wide workflow or responsibility rule changed.
 - Runtime project skills: updated `.agents/skills/project-hygiene/SKILL.md` with durable local structural-quality checks.
 - Specs: no update needed; implementation preserves behavior and does not change product contracts.
-- End-user/operator docs: no update needed; operator-visible CLI, comparison, and entity artifact semantics did not change.
+- End-user/operator docs: no update needed; operator-visible CLI, comparison, entity artifact, and surgical refresh semantics did not change.
 - End-user/operator skills: no update needed.
-- SOW lifecycle: remains in `.agents/sow/current/`; the first eight slices are validated but broader quality work continues.
+- SOW lifecycle: remains in `.agents/sow/current/`; the first nine slices are validated but broader quality work continues.
 
 Specs update:
 
@@ -1068,11 +1197,11 @@ Lessons:
 Follow-up mapping:
 
 - Next measured complexity targets:
-  - `pkg/engine/entity_surgical.go:66` `(*Engine).refreshEntityArtifactsForFeedUpdates`: 267 lines, complexity 68.
   - `pkg/downloader/downloader.go:112` `(*Client).Fetch`: 231 lines, complexity 48.
   - `pkg/engine/home_entity_builders.go:644` `(*Engine).buildASNDetailSidecar`: 231 lines, complexity 44.
   - `pkg/web/admin_manifest.go:134` `buildFeedManifest`: 217 lines, complexity 29.
   - `pkg/engine/home_entity_builders.go:430` `(*Engine).buildCountryDetailSidecar`: 213 lines, complexity 42.
+  - `pkg/config/validate.go:274` `Validate`: 197 lines, complexity 85.
 - Next measured duplication targets:
   - `ui/src/components/admin/feeds-table-header.tsx`: 130 duplicated lines.
   - `ui/src/pages/asn-detail.tsx` and `ui/src/pages/country-detail.tsx`: 20, 35, and 107 duplicated line blocks.
@@ -1082,7 +1211,7 @@ Follow-up mapping:
 
 ## Outcome
 
-First through eighth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through ninth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
@@ -1090,7 +1219,7 @@ Update project hygiene practice to always pair Codacy Cloud metrics with local a
 
 ## Followup
 
-Continue with one focused slice at a time, starting with either UI duplicate pages/components or the remaining engine surgical entity refresh path after a fresh pre-implementation gate update for that chosen surface.
+Continue with one focused slice at a time, starting with either UI duplicate pages/components, the downloader fetch path, or the entity detail builders after a fresh pre-implementation gate update for that chosen surface.
 
 ## Regression Log
 
