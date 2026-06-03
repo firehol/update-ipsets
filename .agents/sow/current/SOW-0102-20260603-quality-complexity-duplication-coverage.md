@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: thirteenth implementation slice validated; config validation PR pending
+Sub-state: fourteenth implementation slice validated; web run lifecycle PR pending
 
 ## Requirements
 
@@ -1553,7 +1553,6 @@ Lessons:
 Follow-up mapping:
 
 - Next measured complexity targets:
-  - `pkg/web/server.go:291` `Run`: 179 lines, complexity 34.
   - `pkg/engine/entity_feed_sidecar.go:374` `(*Engine).buildSingleFeedEntitySidecar`: 171 lines, complexity 53.
   - `pkg/engine/integrity.go:110` `(*Engine).CheckIntegrityWithOptions`: 156 lines, complexity 36.
 - Next measured duplication targets:
@@ -1687,9 +1686,136 @@ Artifact maintenance gate:
 - End-user/operator skills: no update needed.
 - SOW lifecycle: remains in `.agents/sow/current/`; Slice 13 is validated and pending PR merge.
 
+## Pre-Implementation Gate - Slice 14
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after the Slice 13 merge, local `tools/archposture` reports `pkg/web/server.go:291` `Run` at 179 lines with complexity 34.
+- Facts: `go test -coverprofile=/tmp/update-ipsets-web-slice14-baseline.cover -covermode=atomic ./pkg/web` reports `pkg/web` coverage at `78.5%`; `go tool cover` reports `Run` coverage at `64.4%` and package total statement coverage at `78.4%`.
+- Working theory: `Run` is large because it owns several lifecycle concerns inline: runtime overrides, startup integrity recovery, startup entity artifact checks, scheduler lifetime, handler/server construction, listener acquisition, shutdown watcher, watchdog notification, and serving/waiting.
+
+Evidence reviewed:
+
+- `pkg/web/server.go`
+- `pkg/web/run_lifecycle_test.go`
+- `pkg/web/routes_test.go`
+- `/tmp/update-ipsets-archposture-slice14-baseline.json`
+- `/tmp/update-ipsets-web-slice14-baseline.cover`
+- Project coding, testing, hygiene, Go best-practices, Go behavioral-testing, and content-surface skills.
+
+Affected contracts and surfaces:
+
+- `pkg/web.Run` daemon web lifecycle behavior.
+- HTTP listener construction for shared public/admin mode and split public/admin mode.
+- Startup integrity recovery queueing, startup entity artifact refresh, scheduler ownership, systemd ready/stopping/watchdog notifications, TLS serving, shutdown, and return-error behavior.
+- Existing lifecycle tests for HTTPS, split admin listeners, and invalid split/admin auth options.
+- SOW only; no end-user docs or specs are expected to change because this is behavior-preserving lifecycle structure work.
+
+Existing patterns to reuse:
+
+- Existing `namedServer`, `serveServer`, `isServerClosedError`, `readyMessage`, `newHandlerWithContext`, `newPublicHandlerWithContext`, and `newAdminHandlerWithContext`.
+- Existing `run_lifecycle_test.go` black-box tests that drive the exported `Run` function through real TCP listeners and HTTP clients.
+- Existing context-owned background worker pattern in `Run`: cancel on shutdown, then wait for startup entity artifact and scheduler goroutines.
+
+Risk and blast radius:
+
+- `Run` is a daemon lifecycle function; incorrect helper extraction can leak goroutines, leave listeners open on partial failure, change shutdown timing, or alter error returns.
+- Startup integrity findings must still be logged and queued before the scheduler starts processing.
+- Split public/admin listener behavior must stay unchanged, including admin-only route visibility and `runtime.public_base_url` enforcement.
+- Systemd notification failures must remain non-fatal except for listener/serve errors that are already returned.
+- No public route behavior, admin API behavior, scheduler semantics, engine artifact generation, install behavior, or UI behavior should change.
+
+Sensitive data handling plan:
+
+- This slice uses only local source code, synthetic test servers, temporary files, and local posture/coverage metrics.
+- No secrets, tokens, cookies, private endpoints, customer data, or personal data are needed.
+- Durable artifacts will record only file paths, metrics, validation outcomes, and sanitized command evidence.
+
+Implementation plan:
+
+1. Extract startup integrity recovery into a helper that preserves logging, recovery-plan queueing, and reason values.
+2. Extract startup background worker ownership into a helper that starts entity artifact checks and scheduler run, and returns a wait function used by `Run`'s existing deferred shutdown path.
+3. Extract public/admin server construction and listener acquisition into helpers that preserve partial-listener cleanup.
+4. Extract shutdown watcher, systemd watchdog, ready/log announcement, and server serve/wait loop into focused helpers.
+5. Keep `Run` as the exported lifecycle coordinator and avoid changing route handlers, scheduler APIs, or engine APIs.
+6. Add tests only if an extracted contract is not already covered through exported `Run` lifecycle behavior.
+7. Re-run `pkg/web` tests and coverage, `tools/archposture`, strict shuffled tests, lint/static checks, and root coverage.
+
+Validation plan:
+
+- Run `go test ./pkg/web`.
+- Run `go test -coverprofile=/tmp/update-ipsets-web-slice14.cover -covermode=atomic ./pkg/web` and inspect `go tool cover -func`.
+- Run `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice14.json` and confirm `pkg/web/server.go:Run` no longer appears as a large-function target.
+- Run `go test -shuffle=on -count=3 ./pkg/web`.
+- Run `make lint`, `make staticcheck`, `make golangci-lint`, `CI=true make coverage`, and `make test-strict`.
+- Run whitespace and durable-artifact forbidden-name scans over the changed files before commit.
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if a repeatable lifecycle-refactor lesson is found.
+- Specs: no update expected because web runtime semantics are intended to stay unchanged.
+- End-user/operator docs: no update expected.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: this SOW remains in `.agents/sow/current/`; Slice 14 results will be recorded after validation.
+
+Open decisions:
+
+- No new user design decision is required because the slice is behavior-preserving quality work under the previously approved autonomy decision.
+
+## Slice 14 Results
+
+Changes made:
+
+- Refactored `pkg/web.Run` into a short exported lifecycle coordinator.
+- Added `pkg/web/server_run.go` for web daemon lifecycle helpers:
+  - engine startup preparation;
+  - startup integrity recovery queueing;
+  - startup entity artifact and scheduler goroutine ownership;
+  - public/admin server construction;
+  - listener acquisition and partial-listener cleanup;
+  - shutdown watcher, systemd watchdog, ready announcement, and serve/wait loop.
+- Preserved public/admin handler construction, split-listener behavior, systemd notification handling, scheduler reason values, and first-error return behavior.
+
+Measured result:
+
+- Baseline: `pkg/web/server.go:291` `Run` was 179 lines with complexity 34 and `64.4%` direct coverage.
+- After refactor: no `pkg/web/server.go` or `pkg/web/server_run.go` file or function appears in `tools/archposture` large-file or large-function output.
+- `pkg/web/server.go` is now 418 lines; `pkg/web/server_run.go` is 237 lines.
+- `Run` direct coverage moved from `64.4%` to `86.4%`.
+- `pkg/web` coverage moved from `78.5%` to `78.6%`; package total statement coverage by `go tool cover` is `78.5%`.
+- Root coverage by `go tool cover -func=coverage.out` remains `72.6%`.
+- `tools/archposture` after this slice: source files `622`, source lines `126293`, large files `52`, and large functions `36`.
+
+Tests or equivalent validation:
+
+- `go test ./pkg/web`: passed.
+- `go test -coverprofile=/tmp/update-ipsets-web-slice14.cover -covermode=atomic ./pkg/web`: passed, `78.6%`.
+- `go tool cover -func=/tmp/update-ipsets-web-slice14.cover`: passed, total `78.5%`.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice14.json`: passed.
+- `go test -shuffle=on -count=3 ./pkg/web`: passed.
+- `make lint`: passed.
+- `make staticcheck`: passed.
+- `make golangci-lint`: passed with `0 issues`.
+- `CI=true make coverage`: passed.
+- `make test-strict`: passed.
+- `git diff --check -- .agents/sow/current/SOW-0102-20260603-quality-complexity-duplication-coverage.md pkg/web/server.go pkg/web/server_run.go`: passed.
+- Durable-artifact forbidden-name scan over the changed SOW and Go files found no personal name, authorship, tool, or vendor-attribution text.
+
+Artifact maintenance gate:
+
+- AGENTS.md: no update needed.
+- Runtime project skills: no update needed; no new durable process rule was found.
+- Specs: no update needed; web runtime semantics are unchanged.
+- End-user/operator docs: no update needed.
+- End-user/operator skills: no update needed.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 14 is validated and pending PR merge.
+
 ## Outcome
 
-First through thirteenth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through fourteenth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
