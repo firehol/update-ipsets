@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: ninth implementation slice selected; surgical entity refresh complexity in progress
+Sub-state: tenth implementation slice validated; downloader fetch PR pending
 
 ## Requirements
 
@@ -433,6 +433,92 @@ Artifact impact plan:
 Open decisions:
 
 - None. The user approved the pragmatic quality target model and behavior-preserving quality work.
+
+## Pre-Implementation Gate - Slice 10
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after PR #13 merged to `main`, local `main` matches `origin/main` at `8150a4c007cd`.
+- Facts: `tools/archposture` reports `611` source files, `126013` source lines, `56` large files, and `42` large functions.
+- Facts: the highest remaining production large function is `pkg/downloader/downloader.go:112` `(*Client).Fetch` at `231` lines with complexity `48`; `pkg/downloader/downloader.go` is `606` lines.
+- Facts: baseline `pkg/downloader` coverage is `66.8%`; `Fetch` coverage is `93.8%`.
+- Working theory: `Fetch` is well covered but mixes dispatch, URL validation, curl-like option application, HTTP request construction, conditional headers, response classification, streaming, hashing, size limit enforcement, empty-body policy, modified-time extraction, same-body detection, temp-file ownership, and observability in one function. Extracting focused helpers should reduce measured complexity without changing downloader behavior.
+
+Evidence reviewed:
+
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice10-baseline.json`
+- `jq '{source:.source, large_files:(.large_files|length), large_functions:(.large_functions|length), downloader_large_functions:(.large_functions | map(select((.path // "") == "pkg/downloader/downloader.go"))), downloader_large_files:(.large_files | map(select((.path // "") == "pkg/downloader/downloader.go"))) }' /tmp/update-ipsets-archposture-slice10-baseline.json`
+- `go test -coverprofile=/tmp/update-ipsets-downloader-slice10-baseline.cover -covermode=atomic ./pkg/downloader`
+- `go tool cover -func=/tmp/update-ipsets-downloader-slice10-baseline.cover`
+- `pkg/downloader/downloader.go`
+- `pkg/downloader/downloader_test.go`
+- `pkg/downloader/edge_cases_test.go`
+- `pkg/downloader/localcopy_test.go`
+- `pkg/downloader/internal_test.go`
+
+Affected contracts and surfaces:
+
+- `pkg/downloader`: HTTP(S), `file:`, `copyfile`, and `internal://` fetch behavior; curl-like options; headers; referer; basic auth; If-Modified-Since; HTTP status handling; response streaming; max download size; empty body handling; Last-Modified handling; SHA-256 body hash; same-body detection; temp-file ownership and cleanup; and observability metrics/spans.
+- No config schema, engine pipeline, scheduler, public serving, UI, install behavior, or generated artifact contract is expected to change.
+- SOW only; specs/docs are not expected to change because behavior is preserved.
+
+Existing patterns to reuse:
+
+- Existing downloader tests already drive `Fetch` through real `httptest` servers, temporary files, local copy paths, internal sources, redirects, bad schemes, max-size edges, same-body detection, and POST/header behavior.
+- Project pattern from recent slices: keep public method behavior intact, move private phases to focused files/helpers, and rely on existing behavior tests for equivalence.
+- Existing temp-file helper `createGeneratedTemp`, hashing helper `fileHashEquals`, and local/internal fetch helpers.
+
+Risk and blast radius:
+
+- Downloader behavior is production input acquisition. A subtle change can break upstream feeds, conditional downloads, POST-based feeds, local copies, or size-limit safety.
+- Temp file cleanup and ownership must not regress; failed downloads and same-body results must not leave owned temp files behind.
+- SSRF scheme restrictions and redirect safety must remain intact.
+- Max download size must continue to reject after reading only `limit + 1` bytes.
+- Observability counters/spans must continue to report status, bytes, duration, and errors.
+
+Sensitive data handling plan:
+
+- This slice uses synthetic URLs, `httptest` servers, temporary files, and structural metrics only.
+- No secrets, tokens, cookies, private endpoints, customer data, raw external IP lists, or personal data are needed.
+- Durable artifacts will record only package paths, metrics, test outcomes, and sanitized behavior evidence.
+
+Implementation plan:
+
+1. Keep `Fetch` as the public observability wrapper and dispatch to focused private helpers.
+2. Extract downloader dispatch for `copyfile`, empty URL, `internal://`, `file:`, and HTTP(S) URL validation.
+3. Extract HTTP request building for method/body, headers, referer, default content type, basic auth, and conditional headers.
+4. Extract HTTP response classification and body streaming into focused helpers that preserve max-size, empty-body, hash, Last-Modified, same-body, and temp-file cleanup behavior.
+5. Move HTTP-specific fetch helpers to a focused downloader file so `downloader.go` drops below the large-file threshold.
+6. Add or adjust behavior tests only if inspection finds a meaningful uncovered branch affected by the extraction.
+7. Re-run package coverage, architecture posture, strict downloader tests, and repository quality gates.
+
+Validation plan:
+
+- `go test ./pkg/downloader`
+- `go test -coverprofile=/tmp/update-ipsets-downloader-slice10.cover -covermode=atomic ./pkg/downloader`
+- `go tool cover -func=/tmp/update-ipsets-downloader-slice10.cover`
+- `go run ./tools/archposture -root .`
+- `make lint`
+- `make staticcheck`
+- `make golangci-lint`
+- `CI=true make coverage`
+- `make test-strict`
+- `git diff --check -- ...`
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if this slice finds a durable downloader refactor/testing lesson.
+- Specs: no update expected; behavior is preserved.
+- End-user/operator docs: no update expected; downloader semantics are unchanged.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: keep this SOW in `.agents/sow/current/` until the quality campaign reaches an appropriate closure point.
+
+Open decisions:
+
+- None. The user approved behavior-preserving quality work and the next measured production hotspot is clear from local evidence.
 
 ## Pre-Implementation Gate - Slice 9
 
@@ -933,6 +1019,11 @@ Open decisions:
   - country/ASN detail patch helpers live in `pkg/engine/entity_surgical_detail.go`.
   - country/ASN index patch helpers live in `pkg/engine/entity_surgical_index.go`.
   - observed artifact I/O, touch, and empty sidecar helpers live in `pkg/engine/entity_surgical_io.go`.
+- Pulled merged PR #13; local `main`, `origin/main`, and `quality-downloader-fetch-complexity` started this slice at `8150a4c007cd`.
+- Refactored downloader fetch:
+  - `Fetch` remains the public observability wrapper.
+  - downloader dispatch, local URL handling, HTTP request construction, response classification, body streaming, max-size enforcement, same-body detection, and modified-time extraction live in `pkg/downloader/fetch_http.go`.
+  - `pkg/downloader/downloader.go` now keeps types, client construction, redirect policy, hashing/file helpers, local/internal fetch helpers, curl-like option parsing, and temp-file creation.
 
 ## Validation
 
@@ -1017,6 +1108,14 @@ Acceptance criteria evidence:
   - Root coverage after this slice remains `72.5%`.
   - `tools/archposture` after this slice: source files `611`, source lines `126013`, large files `56`, and large functions `42`.
   - No `pkg/engine/entity_surgical*` files or functions are listed in `tools/archposture` large-file/large-function output.
+- Tenth-slice local results:
+  - `pkg/downloader/downloader.go` moved from `606` lines to `370` lines.
+  - The former `(*Client).Fetch` target moved from `231` lines / complexity `48` to a public wrapper plus focused private helpers and no longer appears in `tools/archposture` large-function output.
+  - New `pkg/downloader/fetch_http.go` is below the project file-size threshold at `295` lines.
+  - `pkg/downloader` coverage moved from `66.8%` to `68.4%`; the public `Fetch` wrapper reports `100.0%`, HTTP response handling reports `100.0%`, and streaming body handling reports `89.7%`.
+  - Root coverage after this slice remains `72.5%`.
+  - `tools/archposture` after this slice: source files `612`, source lines `126072`, large files `55`, and large functions `41`.
+  - No `pkg/downloader/downloader.go` or `pkg/downloader/fetch_http.go` files or functions are listed in `tools/archposture` large-file/large-function output.
 - Scanner posture:
   - Codacy Cloud still reports `issuesCount: 0` on the latest analyzed `main` commit; structural percentages still reflect remote `main`, not these local changes.
   - GitHub Code Scanning open alerts: `[]`.
@@ -1134,6 +1233,20 @@ Tests or equivalent validation:
 - `git diff --no-index --check -- /dev/null pkg/engine/entity_surgical_index.go`: passed after Slice 9.
 - `git diff --no-index --check -- /dev/null pkg/engine/entity_surgical_io.go`: passed after Slice 9.
 - Forbidden durable-artifact personal/tool/vendor name scan over the Slice 9 SOW and changed Go files: no matches after Slice 9.
+- `go test ./pkg/downloader`: passed after Slice 10.
+- `go test -shuffle=on -count=3 ./pkg/downloader`: passed after Slice 10.
+- `go test -coverprofile=/tmp/update-ipsets-downloader-slice10.cover -covermode=atomic ./pkg/downloader`: passed, `68.4%`.
+- `go tool cover -func=/tmp/update-ipsets-downloader-slice10.cover`: passed.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice10.json`: passed.
+- `make lint`: passed after Slice 10.
+- `make staticcheck`: passed after Slice 10.
+- `make golangci-lint`: passed after Slice 10 with `0 issues`.
+- `CI=true make coverage`: passed after Slice 10.
+- `make test-strict`: passed after Slice 10.
+- `go tool cover -func=coverage.out`: passed after Slice 10; total statement coverage `72.5%`.
+- `git diff --check -- .agents/sow/current/SOW-0102-20260603-quality-complexity-duplication-coverage.md pkg/downloader/downloader.go`: passed after Slice 10.
+- `git diff --no-index --check -- /dev/null pkg/downloader/fetch_http.go`: passed after Slice 10.
+- Forbidden durable-artifact personal/tool/vendor name scan over the Slice 10 SOW and changed Go files: no matches after Slice 10.
 - `codacy-analysis analyze --inspect --output-format json --output /tmp/update-ipsets-codacy-inspect.json`: completed but reported `MissingConfig` because this repository does not currently have `.codacy/codacy.config.json`; not used as a code-validation signal.
 
 Real-use evidence:
@@ -1149,7 +1262,8 @@ Real-use evidence:
 - The comparison-writer tests drive comparison artifact behavior through real engine fixtures, file sets, and JSON artifacts, validating subtractive-merge relatedness, prefix pruning, stale zero-overlap cleanup, cancellation, and file-set generation.
 - The health-transition entity artifact test drives real rebuild outputs in a temporary engine fixture, corrupts published country/ASN artifacts, and validates refresh through the engine's published artifact outputs and mtimes.
 - The surgical entity refresh path remains covered by `TestRefreshEntityArtifactsForFeedUpdatesSurgicallyPatchesAggregates`, which drives real pending sidecars, public/private country and ASN details, indexes, and pending sidecar cleanup.
-- No daemon, scheduler, public serving, admin UI, install, or runtime behavior was changed intentionally; comparison and entity artifact generation changed only by helper extraction and one behavior-focused test addition.
+- The downloader tests drive `Fetch` through real `httptest` servers, temporary files, local file URLs, local copy paths, internal sources, redirects, bad schemes, max-size edges, same-body detection, and POST/header behavior.
+- No daemon, scheduler, public serving, admin UI, install, or runtime behavior was changed intentionally; comparison, entity artifact generation, surgical entity refresh, and downloader fetch changed only by helper extraction and one behavior-focused test addition in Slice 8.
 
 Reviewer findings:
 
@@ -1171,7 +1285,7 @@ Artifact maintenance gate:
 - Specs: no update needed; implementation preserves behavior and does not change product contracts.
 - End-user/operator docs: no update needed; operator-visible CLI, comparison, entity artifact, and surgical refresh semantics did not change.
 - End-user/operator skills: no update needed.
-- SOW lifecycle: remains in `.agents/sow/current/`; the first nine slices are validated but broader quality work continues.
+- SOW lifecycle: remains in `.agents/sow/current/`; the first ten slices are validated but broader quality work continues.
 
 Specs update:
 
@@ -1197,11 +1311,11 @@ Lessons:
 Follow-up mapping:
 
 - Next measured complexity targets:
-  - `pkg/downloader/downloader.go:112` `(*Client).Fetch`: 231 lines, complexity 48.
   - `pkg/engine/home_entity_builders.go:644` `(*Engine).buildASNDetailSidecar`: 231 lines, complexity 44.
   - `pkg/web/admin_manifest.go:134` `buildFeedManifest`: 217 lines, complexity 29.
   - `pkg/engine/home_entity_builders.go:430` `(*Engine).buildCountryDetailSidecar`: 213 lines, complexity 42.
   - `pkg/config/validate.go:274` `Validate`: 197 lines, complexity 85.
+  - `pkg/web/server.go:291` `Run`: 179 lines, complexity 34.
 - Next measured duplication targets:
   - `ui/src/components/admin/feeds-table-header.tsx`: 130 duplicated lines.
   - `ui/src/pages/asn-detail.tsx` and `ui/src/pages/country-detail.tsx`: 20, 35, and 107 duplicated line blocks.
@@ -1211,7 +1325,7 @@ Follow-up mapping:
 
 ## Outcome
 
-First through ninth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through tenth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
@@ -1219,7 +1333,7 @@ Update project hygiene practice to always pair Codacy Cloud metrics with local a
 
 ## Followup
 
-Continue with one focused slice at a time, starting with either UI duplicate pages/components, the downloader fetch path, or the entity detail builders after a fresh pre-implementation gate update for that chosen surface.
+Continue with one focused slice at a time, starting with either UI duplicate pages/components, entity detail builders, web manifest generation, or config validation after a fresh pre-implementation gate update for that chosen surface.
 
 ## Regression Log
 
