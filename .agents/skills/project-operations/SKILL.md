@@ -23,6 +23,14 @@ description: "Install, daemon, admin, and runtime operation guidance for update-
   and `UMask=0077`; reinstall repairs existing mutable runtime trees to those
   modes (evidence: `install.sh`,
   `.agents/sow/specs/files-layout.md`).
+- Install command wrappers must preserve the real failing command status. Do
+  not use `if ! "$@"; then exit_code=$?` because `$?` becomes the negated
+  status inside the block. Use a positive `if "$@"; then return 0; else ...`
+  form or another pattern that records the command status before negation.
+- Reinstall permission repair can race with a running daemon's mutable temp
+  files. For managed live installs, use race-aware traversal such as GNU
+  `find ... -ignore_readdir_race` on daemon-owned runtime/publication trees, or
+  stop the daemon first if strict traversal is required.
 
 ## Important environment
 

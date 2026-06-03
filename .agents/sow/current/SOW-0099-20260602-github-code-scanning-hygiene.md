@@ -991,6 +991,17 @@ Open decisions:
   SARIF file with zero rules and zero results when Codacy Cloud has no issues.
   This lets GitHub Code Scanning receive an empty upload and close stale Codacy
   alerts.
+- Final local install validation exposed an installer error-reporting bug:
+  `run()` used `if ! "$@"; then exit_code=$?`, so the recorded status inside
+  the block was the negated status (`0`) rather than the failing command's real
+  status. The same install showed a live daemon race while repairing mutable
+  runtime file modes: a daemon temp file disappeared during `find`, producing a
+  transient "No such file or directory" message. The helper now preserves the
+  real failing command status, and mutable runtime/publication permission
+  repair uses `find ... -ignore_readdir_race`.
+- Updated `.agents/skills/project-operations/SKILL.md` so future install work
+  preserves real command exit codes and handles live mutable-tree permission
+  repair races deliberately.
 
 ## Validation
 
@@ -1238,6 +1249,41 @@ Tests or equivalent validation:
     the empty-SARIF exporter fix.
   - `git diff --check -- .github/scripts/codacy-issues-to-sarif.mjs`: passed
     after the empty-SARIF exporter fix.
+  - `codacy repository gh firehol update-ipsets --output json`: for
+    `5cc0e63da6e5cc3ea67b4f639742fbfbf6b1a1b4`, reported an empty issue
+    overview after the clean-state SARIF exporter fix.
+  - `codacy issues gh firehol update-ipsets --branch main --limit 1000 --output json`:
+    reported an empty issues list.
+  - GitHub Code Scanning API: open alerts across all tools `0`; open alerts
+    with `tool.name == "Codacy Cloud"` `0`.
+  - GitHub workflow evidence for `5cc0e63da6e5cc3ea67b4f639742fbfbf6b1a1b4`:
+    Hygiene success, Codacy SARIF success, checked-in CodeQL success, dynamic
+    Code Quality/CodeQL success, and CI success.
+  - CI build job evidence for `5cc0e63da6e5cc3ea67b4f639742fbfbf6b1a1b4`:
+    build, Go tests, UI tests, browser smoke, UI lint, root ESLint bridge, UI
+    build, bundle budget, nested tool tests, race detector, strict shuffled
+    tests, fuzz seed replay, vet, govulncheck, staticcheck, golangci-lint,
+    cross-compile, and static binary verification all passed. CI coverage job
+    also passed root and nested tool coverage thresholds.
+  - `bash -n install.sh`: passed after the install helper/race fix.
+  - `shellcheck install.sh`: passed after the install helper/race fix.
+  - Install helper failure-path smoke: sourcing only the `run()` helper and
+    running `run false` returned status `1` and printed the real exit code.
+  - `sudo find /opt/update-ipsets/web -ignore_readdir_race -maxdepth 0 -type d -print`:
+    passed, confirming the option ordering works on the target host.
+  - `timeout 1800 ./install.sh`: first post-clean install completed but exposed
+    the negated-status helper bug and a live mutable-tree `find` race; after
+    the helper/race fix, the second install completed without that error and
+    restarted `update-ipsets`.
+  - Post-install smoke after the final install: `systemctl is-active
+    update-ipsets` reported `active`; `/healthz` returned `ok`;
+    `/api/v1/status` reported the engine running with 423 sources and 13
+    merges; `/api/v1/sets` returned 403 entries with first feed
+    `abuseipdb_1d`.
+  - `sudo stat -c '%U:%G %a %n' /opt/update-ipsets /opt/update-ipsets/bin/update-ipsets /opt/update-ipsets/etc /opt/update-ipsets/web`:
+    confirmed `/opt/update-ipsets`, the installed binary, and `etc` are
+    `root:iplists` with `0750`, while generated `web` is `iplists:iplists`
+    with `0700`.
 - Go stdlib Trivy finding validation:
   - `go version && go env GOVERSION GOTOOLCHAIN`: local Go reports
     `go1.26.3-X:nodwarf5` with `GOTOOLCHAIN=auto`.
