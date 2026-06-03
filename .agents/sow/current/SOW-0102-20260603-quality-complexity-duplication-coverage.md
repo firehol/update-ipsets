@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: twelfth implementation slice validated; admin manifest PR pending
+Sub-state: thirteenth implementation slice validated; config validation PR pending
 
 ## Requirements
 
@@ -1553,7 +1553,6 @@ Lessons:
 Follow-up mapping:
 
 - Next measured complexity targets:
-  - `pkg/config/validate.go:274` `Validate`: 197 lines, complexity 85.
   - `pkg/web/server.go:291` `Run`: 179 lines, complexity 34.
   - `pkg/engine/entity_feed_sidecar.go:374` `(*Engine).buildSingleFeedEntitySidecar`: 171 lines, complexity 53.
   - `pkg/engine/integrity.go:110` `(*Engine).CheckIntegrityWithOptions`: 156 lines, complexity 36.
@@ -1564,9 +1563,133 @@ Follow-up mapping:
   - `pkg/iprange/set6_ops.go` and `pkg/iprange/set_ops.go`: 25 duplicated lines.
   - `pkg/engine/runtime_ledger_cache.go`, `pkg/engine/home_entity_precompute.go`, `pkg/engine/home_entity_builders.go`, and `pkg/engine/download_stage.go`: remaining Go duplicate blocks.
 
+## Pre-Implementation Gate - Slice 13
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after the Slice 12 merge, local `tools/archposture` reports `pkg/config/validate.go:274` `Validate` at 197 lines with complexity 85.
+- Facts: `go test -coverprofile=/tmp/update-ipsets-config-slice13-baseline.cover -covermode=atomic ./pkg/config` reports `pkg/config` coverage at `69.7%`; `go tool cover` reports `Validate` at `81.1%` and total package statement coverage at `71.6%`.
+- Working theory: `Validate` is doing three separable jobs in one function: top-level/global validation, artifact validation, source validation, and merge validation. Extracting those concerns should reduce complexity without changing config semantics.
+
+Evidence reviewed:
+
+- `pkg/config/validate.go`
+- `pkg/config/config.go`
+- `pkg/config/config_coverage_test.go`
+- `pkg/config/config_test.go`
+- `/tmp/update-ipsets-archposture-slice13-baseline.json`
+- `/tmp/update-ipsets-config-slice13-baseline.cover`
+- Project coding, testing, hygiene, Go best-practices, Go behavioral-testing, and content-surface skills.
+
+Affected contracts and surfaces:
+
+- `pkg/config.Validate` and `pkg/config.ValidateDeep` programmatic behavior.
+- YAML/catalog validation semantics for artifacts, sources, merges, runtime URL/resource controls, feed health thresholds, default ASN/geolocation providers, static sources, artifact-backed sources, critical-infrastructure metadata, and merge role constraints.
+- FireHOL catalog loading and validation tests.
+- SOW only; no end-user docs or specs are expected to change because this is behavior-preserving internal structure work.
+
+Existing patterns to reuse:
+
+- Existing package-local helper validators in `pkg/config/validate.go` such as `validateDefaultProviders`, `validateStaticSourceBody`, `validateCriticalArtifactNamespace`, `validateCriticalMetadata`, `validateUseRoles`, `validateRuntimeURLs`, and `validateRuntimeResourceControls`.
+- Existing behavior tests that call the exported `Validate`, `ValidateDeep`, `LoadYAML`, and `LoadDirectory` surfaces rather than private helper functions.
+- Existing table-driven config validation tests with synthetic `Config` values and the real FireHOL catalog fixture.
+
+Risk and blast radius:
+
+- Error order within a single artifact, source, or merge must remain stable so operators and tests keep seeing the same first actionable validation failure.
+- Map iteration order is already undefined across different entries, so this slice must not add cross-entry ordering promises.
+- Config validation protects feed correctness, generated artifact namespace safety, static-source safety, and provider-role correctness; any behavior change here can block valid catalogs or allow invalid ones.
+- No public serving, scheduler, downloader, engine publication, install behavior, or UI behavior should change.
+
+Sensitive data handling plan:
+
+- This slice uses only synthetic config values and local test coverage/posture metrics.
+- No secrets, tokens, cookies, private endpoints, customer data, or personal data are needed.
+- Durable artifacts will record only file paths, metrics, validation outcomes, and sanitized command evidence.
+
+Implementation plan:
+
+1. Extract artifact validation from `Validate` into a package-local helper that preserves the current per-artifact validation order and error text.
+2. Extract source validation into package-local helpers for source basics, role compatibility, output shape, provider format requirements, and URL/artifact URL checks while preserving validation order.
+3. Extract merge validation into package-local helpers for merge basics and role compatibility while preserving validation order.
+4. Add focused exported-contract tests only if the extraction exposes an uncovered validation branch or a contract not already represented in the current tests.
+5. Re-run `pkg/config` tests and coverage, then `tools/archposture`, strict validation, lint/static checks, and root coverage as appropriate for this Go config change.
+
+Validation plan:
+
+- Run `go test ./pkg/config`.
+- Run `go test -coverprofile=/tmp/update-ipsets-config-slice13.cover -covermode=atomic ./pkg/config` and inspect `go tool cover -func`.
+- Run `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice13.json` and confirm `pkg/config/validate.go` no longer appears as a large `Validate` function target.
+- Run `go test -shuffle=on -count=3 ./pkg/config`.
+- Run `make lint`, `make staticcheck`, `make golangci-lint`, `CI=true make coverage`, and `make test-strict`.
+- Run whitespace and durable-artifact forbidden-name scans over the changed files before commit.
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if a repeatable validation-refactor lesson is found.
+- Specs: no update expected because config semantics are intended to stay unchanged.
+- End-user/operator docs: no update expected.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: this SOW remains in `.agents/sow/current/`; Slice 13 results will be recorded after validation.
+
+Open decisions:
+
+- No new user design decision is required because the slice is behavior-preserving quality work under the previously approved autonomy decision.
+
+## Slice 13 Results
+
+Changes made:
+
+- Refactored `pkg/config.Validate` into a short coordinator.
+- Split artifact, source, merge, and critical-infrastructure validation into smaller files:
+  - `pkg/config/validate_artifacts.go`
+  - `pkg/config/validate_sources.go`
+  - `pkg/config/validate_merges.go`
+  - `pkg/config/validate_critical.go`
+- Added exported-contract tests in `pkg/config/validate_contract_test.go` for artifact validation and source URL validation, including file URLs, artifact-backed sources, malformed artifact URLs, unknown artifact references, and artifact-backed frequency rules.
+- Preserved existing validation order and error messages inside each artifact/source/merge path.
+
+Measured result:
+
+- Baseline: `pkg/config/validate.go:274` `Validate` was 197 lines with complexity 85.
+- After refactor: no `pkg/config/validate*` file or function appears in `tools/archposture` large-file or large-function output.
+- `pkg/config/validate.go` is now 365 lines; new validation files are 34, 84, 154, and 221 lines.
+- `pkg/config/config_test.go` remains at its existing 829-line baseline; the new validation tests live in a separate 180-line file.
+- `pkg/config` coverage moved from `69.7%` to `71.2%`.
+- `pkg/config` total statement coverage by `go tool cover` moved from `71.6%` to `73.1%`.
+- Root coverage by `go tool cover -func=coverage.out` moved from `72.5%` to `72.6%`.
+- `tools/archposture` after this slice: source files `621`, source lines `126237`, large files `53`, and large functions `37`.
+
+Tests or equivalent validation:
+
+- `go test ./pkg/config`: passed.
+- `go test -coverprofile=/tmp/update-ipsets-config-slice13.cover -covermode=atomic ./pkg/config`: passed, `71.2%`.
+- `go tool cover -func=/tmp/update-ipsets-config-slice13.cover`: passed, total `73.1%`.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice13.json`: passed.
+- `go test -shuffle=on -count=3 ./pkg/config`: passed.
+- `make lint`: passed.
+- `make staticcheck`: passed.
+- `make golangci-lint`: passed with `0 issues`.
+- `CI=true make coverage`: passed.
+- `make test-strict`: passed.
+- `git diff --check -- .agents/sow/current/SOW-0102-20260603-quality-complexity-duplication-coverage.md pkg/config/validate.go pkg/config/config_test.go pkg/config/validate_contract_test.go pkg/config/validate_artifacts.go pkg/config/validate_sources.go pkg/config/validate_merges.go pkg/config/validate_critical.go`: passed.
+- Durable-artifact forbidden-name scan over the changed SOW and Go files produced only public company-name false positives in moved, pre-existing critical ASN rationale strings; no personal name, authorship, tool, or vendor-attribution text was added.
+
+Artifact maintenance gate:
+
+- AGENTS.md: no update needed.
+- Runtime project skills: no update needed; no new durable process rule was found.
+- Specs: no update needed; config semantics are unchanged.
+- End-user/operator docs: no update needed; operator-visible validation semantics and error text are unchanged.
+- End-user/operator skills: no update needed.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 13 is validated and pending PR merge.
+
 ## Outcome
 
-First through twelfth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through thirteenth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
