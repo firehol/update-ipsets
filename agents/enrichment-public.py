@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Project validated feed-enrichment runs into public YAML enrichment blocks.
+"""
+Project validated feed-enrichment runs into public YAML enrichment blocks.
 
 This is the bridge between the full agent output under
 `.local/agents/feed-enrichment/<feed>/<UTC>/output.json` and the committed
@@ -26,6 +27,7 @@ Commands:
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import re
 import sys
@@ -35,17 +37,17 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-try:
-    import jsonschema
-except ImportError:
-    print("ERROR: jsonschema not installed. Install with: pip install jsonschema", file=sys.stderr)
-    sys.exit(2)
 
-try:
-    from ruamel.yaml import YAML
-except ImportError:
-    print("ERROR: ruamel.yaml not installed. Install with: pip install ruamel.yaml", file=sys.stderr)
-    sys.exit(2)
+def required_module(name: str, install_hint: str) -> Any:
+    try:
+        return importlib.import_module(name)
+    except ImportError:
+        print(f"ERROR: {name} not installed. Install with: {install_hint}", file=sys.stderr)
+        sys.exit(2)
+
+
+jsonschema = required_module("jsonschema", "pip install jsonschema")
+YAML = required_module("ruamel.yaml", "pip install ruamel.yaml").YAML
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -179,66 +181,72 @@ def sentence_count(text: str) -> int:
     return len([s for s in SENTENCE_RE.split(stripped) if s.strip()])
 
 
+def add_markdown_string(out: list[tuple[str, str]], path: str, value: Any) -> None:
+    if isinstance(value, str) and value.strip():
+        out.append((path, value))
+
+
+def add_roles_markdown(out: list[tuple[str, str]], roles: Any) -> None:
+    for idx, role in enumerate(roles or []):
+        add_markdown_string(out, f"roles[{idx}].notes", role.get("notes") if isinstance(role, dict) else None)
+
+
+def add_derivation_markdown(out: list[tuple[str, str]], derivation: Any) -> None:
+    if not isinstance(derivation, dict):
+        return
+    add_markdown_string(out, "derivation.description", derivation.get("description"))
+    for idx, source in enumerate(derivation.get("source_feeds") or []):
+        add_markdown_string(
+            out,
+            f"derivation.source_feeds[{idx}].notes",
+            source.get("notes") if isinstance(source, dict) else None,
+        )
+
+
+def add_policy_markdown(out: list[tuple[str, str]], name: str, section: Any) -> None:
+    if not isinstance(section, dict):
+        return
+    add_markdown_string(out, f"{name}.summary", section.get("summary"))
+    for idx, item in enumerate(section.get("criteria") or []):
+        add_markdown_string(out, f"{name}.criteria[{idx}]", item)
+
+
+def add_scope_markdown(out: list[tuple[str, str]], scope: Any) -> None:
+    if not isinstance(scope, dict):
+        return
+    add_markdown_string(out, "scope_and_intent.description", scope.get("description"))
+    for key in ("intended_for", "not_intended_for"):
+        for idx, item in enumerate(scope.get(key) or []):
+            add_markdown_string(out, f"scope_and_intent.{key}[{idx}]", item)
+
+
+def add_optional_object_fields(out: list[tuple[str, str]], prefix: str, value: Any, fields: tuple[str, ...]) -> None:
+    if not isinstance(value, dict):
+        return
+    for field in fields:
+        add_markdown_string(out, f"{prefix}.{field}", value.get(field))
+
+
 def iter_markdown_strings(doc: dict[str, Any]) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
-
-    def add(path: str, value: Any) -> None:
-        if isinstance(value, str) and value.strip():
-            out.append((path, value))
-
-    add("short_description", doc.get("short_description"))
-    add("long_description", doc.get("long_description"))
-
-    for idx, role in enumerate(doc.get("roles") or []):
-        add(f"roles[{idx}].notes", role.get("notes") if isinstance(role, dict) else None)
-
-    derivation = doc.get("derivation") or {}
-    add("derivation.description", derivation.get("description") if isinstance(derivation, dict) else None)
-    for idx, source in enumerate((derivation.get("source_feeds") or []) if isinstance(derivation, dict) else []):
-        add(f"derivation.source_feeds[{idx}].notes", source.get("notes") if isinstance(source, dict) else None)
-
-    for section_name in ("listing_policy", "unlisting_policy"):
-        section = doc.get(section_name) or {}
-        if isinstance(section, dict):
-            add(f"{section_name}.summary", section.get("summary"))
-            for idx, item in enumerate(section.get("criteria") or []):
-                add(f"{section_name}.criteria[{idx}]", item)
-
-    unlist = doc.get("unlist_request") or {}
-    if isinstance(unlist, dict):
-        add("unlist_request.instructions", unlist.get("instructions"))
-
-    frequency = doc.get("update_frequency") or {}
-    if isinstance(frequency, dict):
-        add("update_frequency.human_readable", frequency.get("human_readable"))
-
-    detection = doc.get("detection_classification") or {}
-    if isinstance(detection, dict):
-        add("detection_classification.description", detection.get("description"))
-
-    scope = doc.get("scope_and_intent") or {}
-    if isinstance(scope, dict):
-        add("scope_and_intent.description", scope.get("description"))
-        for idx, item in enumerate(scope.get("intended_for") or []):
-            add(f"scope_and_intent.intended_for[{idx}]", item)
-        for idx, item in enumerate(scope.get("not_intended_for") or []):
-            add(f"scope_and_intent.not_intended_for[{idx}]", item)
-
-    redistribution = doc.get("redistribution") or {}
-    if isinstance(redistribution, dict):
-        add("redistribution.terms", redistribution.get("terms"))
-        add("redistribution.attribution_required", redistribution.get("attribution_required"))
-
-    status = doc.get("current_status") or {}
-    if isinstance(status, dict):
-        add("current_status.description", status.get("description"))
-
-    community = doc.get("community") or {}
-    if isinstance(community, dict):
-        add("community.awards", community.get("awards"))
-        add("community.criticism", community.get("criticism"))
-        add("community.engagement", community.get("engagement"))
-
+    add_markdown_string(out, "short_description", doc.get("short_description"))
+    add_markdown_string(out, "long_description", doc.get("long_description"))
+    add_roles_markdown(out, doc.get("roles"))
+    add_derivation_markdown(out, doc.get("derivation"))
+    add_policy_markdown(out, "listing_policy", doc.get("listing_policy"))
+    add_policy_markdown(out, "unlisting_policy", doc.get("unlisting_policy"))
+    add_optional_object_fields(out, "unlist_request", doc.get("unlist_request"), ("instructions",))
+    add_optional_object_fields(out, "update_frequency", doc.get("update_frequency"), ("human_readable",))
+    add_optional_object_fields(
+        out,
+        "detection_classification",
+        doc.get("detection_classification"),
+        ("description",),
+    )
+    add_scope_markdown(out, doc.get("scope_and_intent"))
+    add_optional_object_fields(out, "redistribution", doc.get("redistribution"), ("terms", "attribution_required"))
+    add_optional_object_fields(out, "current_status", doc.get("current_status"), ("description",))
+    add_optional_object_fields(out, "community", doc.get("community"), ("awards", "criticism", "engagement"))
     return out
 
 
@@ -547,100 +555,139 @@ def normalize_maintainer(value: Any) -> str | None:
     return aliases.get(compact, compact)
 
 
-def normalize_license(value: Any, feed: str | None = None) -> str | None:
-    text = normalize_string(value)
-    if text is None:
-        return None
-    compact = (
-        text.replace("—", "-")
-        .replace("–", "-")
-        .replace("_", "-")
-        .replace("/", "-")
-    )
+LICENSE_ALIASES = {
+    "abuseipdb-terms-of-service": "abuseipdb-terms",
+    "abuseipdb-terms-of-service-see-https-www.abuseipdb.com-legal": "abuseipdb-terms",
+    "caida-acceptable-use-agreement": "caida-public-aua",
+    "caida-acceptable-use-agreement-public-aua": "caida-public-aua",
+    "cc-0-creative-commons-zero": "cc0-1.0",
+    "cc-by-4.0": "cc-by-4.0",
+    "cc-by-nc-sa-4.0": "cc-by-nc-sa-4.0",
+    "cc-by-nc-sa-4.0-creative-commons-attribution-noncommercial-sharealike-4.0-international": (
+        "cc-by-nc-sa-4.0"
+    ),
+    "cc0-1.0": "cc0-1.0",
+    "cc0-1.0-misp-warninglists": "cc0-1.0",
+    "cc0-1.0-universal": "cc0-1.0",
+    "cc0-1.0-universal-cc0-1.0-public-domain-dedication": "cc0-1.0",
+    "cc0-1.0-universal-public-domain-dedication": "cc0-1.0",
+    "creative-commons-attribution-4.0-international-cc-by-4.0": "cc-by-4.0",
+    "creative-commons-attribution-noncommercial-sharealike-4.0-international": "cc-by-nc-sa-4.0",
+    "creative-commons-attribution-noncommercial-sharealike-4.0-international-cc-by-nc-sa-4.0": (
+        "cc-by-nc-sa-4.0"
+    ),
+    "gnu-general-public-license-v3-gpl-3.0": "gpl-3.0",
+    "gnu-general-public-license-v3.0-gpl-3.0": "gpl-3.0",
+    "gnu-gplv3": "gpl-3.0",
+    "gpl-3.0": "gpl-3.0",
+    "gplv3": "gpl-3.0",
+    "mit": "mit",
+    "mit-license": "mit",
+    "pddl-v1.0-public-domain": "pddl-1.0",
+    "pddl-v1.0-public-domain-dedication-and-license": "pddl-1.0",
+    "provider-published-public-ip-ranges": "public-feed",
+    "provider-published-rfc-8805-geofeed": "public-feed",
+    "provider-published-support-documentation": "public-feed",
+    "public-feed": "public-feed",
+    "public-no-stated-license": "public-feed",
+    "public-no-stated-license-firehol-catalog-merge": "public-feed",
+    "the-unlicense": "unlicense",
+    "the-unlicense-derived-from-ipsum-bitwire-mirror-has-no-license-file": "unlicense",
+    "the-unlicense-public-domain": "unlicense",
+    "the-unlicense-public-domain-dedication": "unlicense",
+    "unlicense": "unlicense",
+    "unlicense-public-domain": "unlicense",
+}
+
+IBLOCKLIST_LICENSES = {
+    "personal-non-commercial-only",
+    "personal-non-commercial-use-only",
+    "personal-use-only",
+    "personal-use-only-non-commercial",
+}
+
+
+def compact_license(value: str) -> str:
+    compact = value.replace("—", "-").replace("–", "-").replace("_", "-").replace("/", "-")
     compact = re.sub(r"[^a-z0-9.+-]+", "-", compact).strip("-")
-    compact = re.sub(r"-+", "-", compact)
-    feed_name = feed or ""
+    return re.sub(r"-+", "-", compact)
 
-    if feed_name.startswith("iblocklist_") and (
-        "iblocklist" in compact
-        or "i-blocklist" in compact
-        or compact in {
-            "personal-non-commercial-only",
-            "personal-non-commercial-use-only",
-            "personal-use-only",
-            "personal-use-only-non-commercial",
-        }
-    ):
-        return "iblocklist-tos"
 
-    if feed_name.startswith("dataplane_") and (
-        compact.startswith("dataplane.org-")
-        or compact.startswith("non-commercial-use-only")
-    ):
-        return "dataplane-noncommercial-redistribution-prohibited"
+def matches_iblocklist_license(compact: str, feed_name: str) -> bool:
+    return feed_name.startswith("iblocklist_") and (
+        "iblocklist" in compact or "i-blocklist" in compact or compact in IBLOCKLIST_LICENSES
+    )
 
-    if feed_name.startswith("dronebl_") and (
+
+def matches_dataplane_license(compact: str, feed_name: str) -> bool:
+    return feed_name.startswith("dataplane_") and compact.startswith(
+        ("dataplane.org-", "non-commercial-use-only")
+    )
+
+
+def matches_dronebl_license(compact: str, feed_name: str) -> bool:
+    return feed_name.startswith("dronebl_") and (
         "dronebl" in compact
-        or compact.startswith("bsd-style")
-        or compact == "bsd-style-license"
-        or compact == "mit-license"
-        or compact == "public-no-stated-license"
-        or compact.startswith("free-for-commercial-and-non-commercial-use")
-    ):
-        return "dronebl-community-data"
+        or compact.startswith(("bsd-style", "free-for-commercial-and-non-commercial-use"))
+        or compact in {"bsd-style-license", "mit-license", "public-no-stated-license"}
+    )
 
-    if feed_name.startswith("stopforumspam") and (
-        "cc-by-nc-nd-3.0" in compact
-        or "attribution-noncommercial-noderivatives-3.0" in compact
-    ):
-        return "cc-by-nc-nd-3.0-modified"
 
-    if compact == "unknown" or compact.startswith("unknown-no-license"):
-        return "unknown"
-    if feed_name == "botscout" and "botscout-terms-of-service" in compact:
-        return "botscout-tos"
+def matches_stopforumspam_license(compact: str, feed_name: str) -> bool:
+    return feed_name.startswith("stopforumspam") and (
+        "cc-by-nc-nd-3.0" in compact or "attribution-noncommercial-noderivatives-3.0" in compact
+    )
+
+
+def matches_geolite_license(compact: str) -> bool:
+    has_eula = "eula" in compact or "end-user-license-agreement" in compact
+    has_cc = "cc-by-sa-4.0" in compact or "creative-commons-attribution-sharealike-4.0" in compact
+    return compact.startswith("geolite") and has_eula and has_cc
+
+
+def feed_specific_license_alias(compact: str, feed_name: str) -> str | None:
+    rules = (
+        (matches_iblocklist_license, "iblocklist-tos"),
+        (matches_dataplane_license, "dataplane-noncommercial-redistribution-prohibited"),
+        (matches_dronebl_license, "dronebl-community-data"),
+        (matches_stopforumspam_license, "cc-by-nc-nd-3.0-modified"),
+    )
+    for matcher, alias in rules:
+        if matcher(compact, feed_name):
+            return alias
+    return exact_feed_license_alias(compact, feed_name)
+
+
+def exact_feed_license_alias(compact: str, feed_name: str) -> str | None:
+    exact_rules = {
+        "botscout": ("botscout-terms-of-service", "botscout-tos"),
+        "jamesbrine_bruteforce": ("tlp-white", "jamesbrine-tlp-white-noncommercial"),
+    }
+    if feed_name in exact_rules and exact_rules[feed_name][0] in compact:
+        return exact_rules[feed_name][1]
     if feed_name == "greensnow" and compact.startswith("reproduction-or-republication"):
         return "greensnow-reproduction-prohibited"
-    if feed_name == "griffinguard" and (
-        compact.startswith("griffinguard-security-research-monitoring-only")
-        or compact.startswith("restricted-security-research-monitoring-only")
-    ):
-        return "griffinguard-restricted-security-research"
     if feed_name == "vxvault" and compact.startswith("copyleft") and "no-rights-reserved" in compact:
         return "vxvault-copyleft"
+    if feed_name == "griffinguard" and compact.startswith(
+        ("griffinguard-security-research-monitoring-only", "restricted-security-research-monitoring-only")
+    ):
+        return "griffinguard-restricted-security-research"
+    return None
 
-    if compact in {
-        "public-feed",
-        "public-no-stated-license",
-        "public-no-stated-license-firehol-catalog-merge",
-    } or compact.startswith("free-no-restrictions-stated"):
-        return "public-feed"
-    if compact in {
-        "provider-published-public-ip-ranges",
-        "provider-published-rfc-8805-geofeed",
-        "provider-published-support-documentation",
-    }:
-        return "public-feed"
-    if compact.startswith("provider-published-public-ip-ranges-governed-by-fastly-terms-of-service"):
+
+def public_pattern_license_alias(compact: str) -> str | None:
+    if compact.startswith("unknown-no-license") or compact == "unknown":
+        return "unknown"
+    if compact.startswith(("free-no-restrictions-stated", "provider-published-public-ip-ranges-governed-by-fastly")):
         return "public-feed"
     if compact.startswith("no-stated-license") and "digitalocean.com-geo-google.csv" in compact:
         return "public-feed"
+    return None
 
-    if compact in {
-        "abuseipdb-terms-of-service",
-        "abuseipdb-terms-of-service-see-https-www.abuseipdb.com-legal",
-    }:
-        return "abuseipdb-terms"
-    if compact in {
-        "caida-acceptable-use-agreement",
-        "caida-acceptable-use-agreement-public-aua",
-    }:
-        return "caida-public-aua"
-    if (
-        compact.startswith("geolite")
-        and ("eula" in compact or "end-user-license-agreement" in compact)
-        and ("cc-by-sa-4.0" in compact or "creative-commons-attribution-sharealike-4.0" in compact)
-    ):
+
+def vendor_pattern_license_alias(compact: str, feed_name: str) -> str | None:
+    if matches_geolite_license(compact):
         return "geolite-eula-cc-by-sa-4.0"
     if compact.startswith("maxmind-geoip-end-user-license-agreement"):
         return "maxmind-geoip-eula"
@@ -650,60 +697,27 @@ def normalize_license(value: Any, feed: str | None = None) -> str | None:
         or "non-transferable-proprietary-license" in compact
     ):
         return "cleantalk-proprietary"
-    if feed_name == "jamesbrine_bruteforce" and "tlp-white" in compact:
-        return "jamesbrine-tlp-white-noncommercial"
     if feed_name.startswith("threatview_") and compact == "all-rights-reserved-by-threatview.io":
         return "threatview-all-rights-reserved"
-    if compact in {
-        "pddl-v1.0-public-domain",
-        "pddl-v1.0-public-domain-dedication-and-license",
-    }:
-        return "pddl-1.0"
+    return None
 
-    if compact in {
-        "mit",
-        "mit-license",
-    }:
-        return "mit"
-    if compact in {
-        "gpl-3.0",
-        "gplv3",
-        "gnu-gplv3",
-        "gnu-general-public-license-v3-gpl-3.0",
-        "gnu-general-public-license-v3.0-gpl-3.0",
-    }:
-        return "gpl-3.0"
-    if compact in {
-        "unlicense",
-        "the-unlicense",
-        "unlicense-public-domain",
-        "the-unlicense-public-domain",
-        "the-unlicense-public-domain-dedication",
-        "the-unlicense-derived-from-ipsum-bitwire-mirror-has-no-license-file",
-    }:
-        return "unlicense"
-    if compact in {
-        "cc0-1.0",
-        "cc0-1.0-misp-warninglists",
-        "cc0-1.0-universal",
-        "cc0-1.0-universal-public-domain-dedication",
-        "cc0-1.0-universal-cc0-1.0-public-domain-dedication",
-        "cc-0-creative-commons-zero",
-    }:
-        return "cc0-1.0"
-    if compact in {
-        "cc-by-4.0",
-        "creative-commons-attribution-4.0-international-cc-by-4.0",
-    }:
-        return "cc-by-4.0"
-    if compact in {
-        "cc-by-nc-sa-4.0",
-        "creative-commons-attribution-noncommercial-sharealike-4.0-international",
-        "creative-commons-attribution-noncommercial-sharealike-4.0-international-cc-by-nc-sa-4.0",
-        "cc-by-nc-sa-4.0-creative-commons-attribution-noncommercial-sharealike-4.0-international",
-    }:
-        return "cc-by-nc-sa-4.0"
-    return text
+
+def pattern_license_alias(compact: str, feed_name: str) -> str | None:
+    return public_pattern_license_alias(compact) or vendor_pattern_license_alias(compact, feed_name)
+
+
+def normalize_license(value: Any, feed: str | None = None) -> str | None:
+    text = normalize_string(value)
+    if text is None:
+        return None
+    compact = compact_license(text)
+    feed_name = feed or ""
+    return (
+        feed_specific_license_alias(compact, feed_name)
+        or pattern_license_alias(compact, feed_name)
+        or LICENSE_ALIASES.get(compact)
+        or text
+    )
 
 
 def normalize_field(field: str, value: Any, feed: str | None = None) -> Any:

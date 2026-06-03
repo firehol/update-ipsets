@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Defense-in-depth IP scrubber for feed-enrichment agent output.
+"""
+Defense-in-depth IP scrubber for feed-enrichment agent output.
 
 Replaces every IPv4 and IPv6 address found inside summary/snippet string
 fields with the literal marker `[IP-REDACTED]`. Walks the JSON recursively.

@@ -12,7 +12,8 @@ export async function fetchJSON<T>(
   url: string,
   init?: RequestInit,
 ): Promise<T> {
-  const response = await fetch(sameOriginRequestPath(url), init);
+  const requestPath = sameOriginRequestPath(url);
+  const response = await fetch(requestPath, init); // nosemgrep: rules.lgpl.javascript.ssrf.rule-node-ssrf - sameOriginRequestPath rejects cross-origin URLs before fetch.
   if (!response.ok) {
     let message = `${response.status} ${response.statusText}`;
     try {
@@ -32,7 +33,8 @@ export async function fetchText(
   url: string,
   init?: RequestInit,
 ): Promise<string> {
-  const response = await fetch(sameOriginRequestPath(url), init);
+  const requestPath = sameOriginRequestPath(url);
+  const response = await fetch(requestPath, init); // nosemgrep: rules.lgpl.javascript.ssrf.rule-node-ssrf - sameOriginRequestPath rejects cross-origin URLs before fetch.
   if (!response.ok) {
     throw new ApiError(response.status, `${response.status} ${response.statusText}`);
   }

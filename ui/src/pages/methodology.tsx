@@ -4,7 +4,7 @@ import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { sanitizeHtml } from "@/lib/safe-html";
+import { SanitizedHtml } from "@/lib/safe-html-react";
 import {
   methodologyOptions,
   methodologyPageOptions,
@@ -101,14 +101,10 @@ export function MethodologyPage() {
 }
 
 function MethodologyBody({ body }: { body: string }) {
-  const safeBody = sanitizeHtml(body);
-  // nosemgrep: javascript.react.rule-dangerouslysetinnerhtml - methodology HTML is rendered by the server and sanitized again with DOMPurify before insertion.
   return (
-    <div
+    <SanitizedHtml
       className="prose prose-slate max-w-none dark:prose-invert"
-      dangerouslySetInnerHTML={{
-        __html: safeBody,
-      }}
+      html={body}
     />
   );
 }

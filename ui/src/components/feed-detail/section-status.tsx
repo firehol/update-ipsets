@@ -68,8 +68,8 @@ export function SectionStatus({ feed }: { feed: FeedMetadata }) {
         )}
         {showResearch && research && (
           <StatusPanel
-            label={RESEARCH_LABEL[research.state] ?? research.state.replaceAll("_", " ")}
-            lead={RESEARCH_LEAD[research.state] ?? `The official status of this feed is ${research.state.replaceAll("_", " ")}:`}
+            label={RESEARCH_LABEL[research.state] ?? research.state.replace(/_/g, " ")}
+            lead={RESEARCH_LEAD[research.state] ?? `The official status of this feed is ${research.state.replace(/_/g, " ")}:`}
             description={research.description?.trim()}
             footer={
               <>

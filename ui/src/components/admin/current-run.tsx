@@ -363,7 +363,7 @@ function formatBackgroundTrigger(trigger: string): string {
     case "feed_update":
       return "feed update";
     default:
-      return trigger.replaceAll("_", " ");
+      return trigger.replace(/_/g, " ");
   }
 }
 

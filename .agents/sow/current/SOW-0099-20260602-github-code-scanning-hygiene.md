@@ -877,6 +877,33 @@ Open decisions:
   `root:iplists` binary/config install contract, kept mutable runtime trees
   private to the service user, and passed public health/status/feed-list smoke
   checks.
+- Pushed commit `f24f927929a097957241c6f78c26512381d64a27`. GitHub Hygiene,
+  checked-in CodeQL, dynamic Code Quality/CodeQL, Sync docs to Wiki, and
+  Codacy SARIF completed successfully for that commit; CI was still running
+  during the first post-push poll and had passed through coverage, UI tests,
+  browser smoke, race, strict shuffled tests, fuzz seed replay, vet, and
+  govulncheck.
+- Codacy Cloud analyzed
+  `f24f927929a097957241c6f78c26512381d64a27` from
+  `2026-06-03T08:12:33Z` to `2026-06-03T08:15:53Z`. Current Codacy issues
+  dropped from `2637` to `24`. The remaining issue breakdown was: Security 9,
+  Documentation 5, BestPractice 3, Complexity 2, ErrorProne 2, CodeStyle 2,
+  and Compatibility 1; levels were High 5, Error 3, Warning 9, and Info 7.
+- Found a Codacy SARIF visibility flaw: the GitHub SARIF workflow could export
+  Codacy Cloud issues before Codacy Cloud finished analyzing the pushed commit.
+  That left GitHub Code Scanning showing the previous `2637` Codacy Cloud
+  alerts even after Codacy Cloud itself had dropped to `24`. The workflow now
+  waits until Codacy Cloud's last analyzed commit matches `GITHUB_SHA` before
+  exporting SARIF, and requests one reanalysis after 60 seconds if Codacy is
+  still behind.
+- Implemented the remaining 24-issue cleanup batch and same-class preventive
+  fixes: removed raw React HTML insertion for methodology pages, replaced all
+  UI `replaceAll("_", " ")` calls, kept the browser API client's same-origin
+  guard with narrow SSRF-rule rationale, converted Python dependency imports
+  that Codacy Pyright could not resolve to runtime-required imports, added
+  Bandit/Semgrep-specific subprocess suppressions with fixed-command rationale,
+  removed `strftime` timestamp formatting, corrected pydocstyle module/function
+  docstring layout, and split the Python enrichment helper complexity hot spots.
 
 ## Validation
 
@@ -986,6 +1013,48 @@ Tests or equivalent validation:
     document with the engine running and 423 sources loaded.
   - `curl -fsS http://127.0.0.1:18888/api/v1/sets`: returned a JSON feed list
     with 403 entries.
+  - `codacy repository gh firehol update-ipsets --output json`: after the
+    `f24f927929a097957241c6f78c26512381d64a27` analysis, reported 24 current
+    issues.
+  - `codacy issues gh firehol update-ipsets --branch main --overview --output json`:
+    reported the 24-issue breakdown recorded in the execution log.
+  - `gh api ... code-scanning/alerts`: still reported 2637 open
+    `Codacy Cloud` alerts immediately after the `f24f927` SARIF run, proving
+    the old SARIF workflow exported before Codacy Cloud finished analyzing the
+    pushed commit.
+  - `python -m py_compile agents/enrichment-public.py agents/enrichment-refresh.py agents/locate-feed.py agents/scan-public-content.py agents/strip-ips.py agents/validate-output.py tools/build-firehol-static-enrichment.py`:
+    passed after the final Python cleanup batch.
+  - `python agents/enrichment-public.py --help`, `python agents/enrichment-refresh.py --help`,
+    and `python agents/validate-output.py --help`: passed.
+  - `python tools/build-firehol-static-enrichment.py --dry-run`: passed and
+    reported no output writes.
+  - Focused Semgrep with local rules for React `dangerouslySetInnerHTML`,
+    JavaScript `replaceAll`, and Python subprocess audit/tainted-args findings:
+    0 results and 0 errors.
+  - Exact same-class search for `strftime(`, `dangerouslySetInnerHTML`,
+    `replaceAll(`, static `jsonschema`/`ruamel` imports, and `new RegExp(` in
+    touched agent/tool/UI source paths: no remaining matches.
+  - `pnpm --dir ui lint`: passed after the final UI cleanup batch.
+  - `pnpm --dir ui build:budget`: passed; feed-detail route remains a WARN
+    within the configured budget, and the existing unresolved runtime font URL
+    warnings remain.
+  - `pnpm --dir ui test methodology`: passed after changing methodology body
+    rendering from raw HTML insertion to sanitized React node rendering.
+  - `make actionlint`: passed after adding the Codacy Cloud analysis wait step.
+  - `make test`: passed after the final Python/UI/workflow cleanup batch.
+  - Old-vs-new behavior comparison for `normalize_license` against commit
+    `f24f927929a097957241c6f78c26512381d64a27`: checked 369 catalog/sample
+    inputs with 0 mismatches.
+  - `timeout 1800 ./install.sh`: passed for commit
+    `b548117` after building the UI bundle, refreshing embedded static assets,
+    building the Go binary, installing to `/opt/update-ipsets`, and restarting
+    `update-ipsets`. The installed version string carried `-dirty` because
+    unrelated SOW files remain dirty in the worktree, not because the changed
+    source files were uncommitted.
+  - Post-install smoke after `b548117`: `systemctl is-active update-ipsets`
+    reported `active`; `/healthz` returned `ok`; `/api/v1/status` reported the
+    engine running with 423 sources and 13 merges; `/api/v1/sets` returned 403
+    entries.
   - `pnpm --dir ui exec eslint --config ../eslint.config.mjs src/App.tsx`:
     passed after the bridge shape guard was added.
   - `pnpm --dir ui lint`: passed.

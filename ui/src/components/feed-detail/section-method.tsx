@@ -99,13 +99,13 @@ export function SectionMethod({ feed }: { feed: FeedMetadata }) {
         <FactChip
           icon={Sparkles}
           label="Primary method"
-          value={METHOD_LABELS[primaryMethod] ?? primaryMethod.replaceAll("_", " ")}
+          value={METHOD_LABELS[primaryMethod] ?? primaryMethod.replace(/_/g, " ")}
           accent={accent}
         />
         <FactChip
           icon={derivationType === "original" ? Sparkles : GitBranch}
           label="Source of source"
-          value={DERIVATION_LABELS[derivationType] ?? derivationType.replaceAll("_", " ")}
+          value={DERIVATION_LABELS[derivationType] ?? derivationType.replace(/_/g, " ")}
           accent={accent}
         />
         <FactChip
@@ -137,7 +137,7 @@ export function SectionMethod({ feed }: { feed: FeedMetadata }) {
                 </FeedRef>
                 {source.relationship && (
                   <span className="ml-2 text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
-                    {source.relationship.replaceAll("_", " ")}
+                    {source.relationship.replace(/_/g, " ")}
                   </span>
                 )}
                 {source.notes && (
@@ -175,7 +175,7 @@ export function SectionMethod({ feed }: { feed: FeedMetadata }) {
                 </FeedRef>
                 {entry.reason && (
                   <span className="ml-2 text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
-                    {entry.reason.replaceAll("_", " ")}
+                    {entry.reason.replace(/_/g, " ")}
                   </span>
                 )}
                 {entry.health_class && entry.health_class !== "healthy" && (
@@ -272,7 +272,7 @@ function RoleCard({
   return (
     <li className="border border-border p-4" style={accent ? { borderColor: `${accent}33` } : undefined}>
       <div className="text-[10px] uppercase tracking-[0.1em] text-muted-foreground">
-        {ROLE_LABELS[role.role] ?? role.role.replaceAll("_", " ")}
+        {ROLE_LABELS[role.role] ?? role.role.replace(/_/g, " ")}
       </div>
       <div className="mt-1 text-[15px] font-semibold text-foreground">
         {href ? (

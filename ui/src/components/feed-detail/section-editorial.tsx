@@ -135,7 +135,7 @@ function OperatedBy({
               style={borderStyle(accent)}
             >
               <div className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
-                {ROLE_LABELS[role.role] ?? role.role.replaceAll("_", " ")}
+                {ROLE_LABELS[role.role] ?? role.role.replace(/_/g, " ")}
               </div>
               <div className="mt-1 text-[15px] font-semibold text-foreground">
                 {href ? (

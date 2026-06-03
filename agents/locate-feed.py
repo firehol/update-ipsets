@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Locate a feed by name across the catalog YAML files.
+"""
+Locate a feed by name across the catalog YAML files.
 
 The agent wrapper (run-enrichment.sh) and pool (run-enrichment-pool.sh)
 historically iterated YAML files by filename and treated the stem as the
@@ -42,7 +43,8 @@ SOURCES_DIR = REPO / "configs" / "firehol" / "sources"
 
 
 def _row(name: str, src: dict, yaml_path: Path) -> tuple[str, str, str, str, str]:
-    """Return (feed_name, yaml_path, url, maintainer, category) — '-' for missing.
+    """
+    Return (feed_name, yaml_path, url, maintainer, category) — '-' for missing.
 
     Empty fields are emitted as a literal '-' instead of an empty string so
     shell `read -r ... ` doesn't collapse adjacent tabs and shift columns

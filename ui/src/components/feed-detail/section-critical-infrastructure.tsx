@@ -319,7 +319,7 @@ function CriticalInfrastructureTable({
       sortValue: (row) => row.provider.role,
       render: (row) => (
         <span className="text-muted-foreground">
-          {row.provider.role.replaceAll("_", " ")}
+          {row.provider.role.replace(/_/g, " ")}
         </span>
       ),
     },
@@ -396,7 +396,7 @@ function CriticalASNContextTable({
       sortValue: (row) => row.role,
       render: (row) => (
         <span className="text-muted-foreground">
-          {row.role.replaceAll("_", " ")}
+          {row.role.replace(/_/g, " ")}
         </span>
       ),
     },

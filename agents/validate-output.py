@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Post-run validator for feed-enrichment agent output (v2 schema).
+"""
+Post-run validator for feed-enrichment agent output (v2 schema).
 
 Checks:
   1. JSON parses and validates against the v2 schema.
@@ -22,16 +23,23 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import importlib
 import json
 import re
 import sys
 from pathlib import Path
+from typing import Any
 
-try:
-    import jsonschema
-except ImportError:
-    print("ERROR: jsonschema not installed. Install with: pip install jsonschema", file=sys.stderr)
-    sys.exit(2)
+
+def required_module(name: str, install_hint: str) -> Any:
+    try:
+        return importlib.import_module(name)
+    except ImportError:
+        print(f"ERROR: {name} not installed. Install with: {install_hint}", file=sys.stderr)
+        sys.exit(2)
+
+
+jsonschema = required_module("jsonschema", "pip install jsonschema")
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent

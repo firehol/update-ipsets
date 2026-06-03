@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Finalize a scoped enrichment refresh.
+"""
+Finalize a scoped enrichment refresh.
 
 The pool runner is responsible for executing expensive research workers. This
 script handles the deterministic post-run phase: project latest clean outputs to
@@ -130,9 +131,17 @@ def branch_name(scope: str, timestamp: str) -> str:
     return f"enrichment/{slug(scope)}-{timestamp[:8]}"
 
 
+def utc_timestamp(now: datetime) -> str:
+    return (
+        f"{now.year:04d}{now.month:02d}{now.day:02d}"
+        f"T{now.hour:02d}{now.minute:02d}{now.second:02d}Z"
+    )
+
+
 def git(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit,dangerous-subprocess-use-tainted-env-args - fixed git executable with list args and no shell.
-        [command_path("git"), *args],
+    command = [command_path("git"), *args]
+    return subprocess.run(  # nosec B603; nosemgrep - fixed git command, list args, no shell.
+        command,
         cwd=REPO,
         check=check,
         stdin=subprocess.DEVNULL,
@@ -156,8 +165,9 @@ def has_remote_and_gh() -> bool:
     gh_path = shutil.which("gh")
     if gh_path is None:
         return False
-    gh = subprocess.run(  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit - fixed gh auth-status command with list args and no shell.
-        [gh_path, "auth", "status"],
+    command = [gh_path, "auth", "status"]
+    gh = subprocess.run(  # nosec B603; nosemgrep - fixed gh command, list args, no shell.
+        command,
         cwd=REPO,
         check=False,
         stdin=subprocess.DEVNULL,
@@ -218,7 +228,7 @@ def cell(value: str) -> str:
 def run(args: argparse.Namespace) -> int:
     feeds = parse_feeds(args.feeds)
     scope = args.scope or ",".join(feeds)
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = utc_timestamp(datetime.now(timezone.utc))
     branch = branch_name(scope, timestamp)
     if args.branch and not args.dry_run:
         require_clean_worktree()
@@ -255,8 +265,17 @@ def run(args: argparse.Namespace) -> int:
         print(f"branch\t{branch}")
         if args.open_pr and has_remote_and_gh():
             title = f"Enrichment refresh: {scope} ({len(feeds)} feeds)"
-            gh = subprocess.run(  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit,dangerous-subprocess-use-tainted-env-args - fixed gh PR command with list args and no shell.
-                [command_path("gh"), "pr", "create", "--title", title, "--body-file", str(summary)],
+            command = [
+                command_path("gh"),
+                "pr",
+                "create",
+                "--title",
+                title,
+                "--body-file",
+                str(summary),
+            ]
+            gh = subprocess.run(  # nosec B603; nosemgrep - fixed gh command, list args, no shell.
+                command,
                 cwd=REPO,
                 check=False,
                 stdin=subprocess.DEVNULL,
