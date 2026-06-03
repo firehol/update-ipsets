@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: sixth implementation slice locally validated; next quality slice pending
+Sub-state: seventh implementation slice locally validated; next quality slice pending
 
 ## Requirements
 
@@ -434,6 +434,98 @@ Open decisions:
 
 - None. The user approved the pragmatic quality target model and behavior-preserving quality work.
 
+## Pre-Implementation Gate - Slice 7
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after PR #10 merged to `main`, local `main` matches `origin/main` at `8393bc24bc04`.
+- Facts: `tools/archposture` reports `600` source files, `125455` source lines, `58` large files, and `46` large functions.
+- Facts: the highest remaining production large function is `pkg/engine/output.go:336` `(*Engine).writeComparisonFiles` at `295` lines with complexity `55`; `pkg/engine/output.go` is `1311` lines.
+- Facts: baseline `pkg/engine` coverage is `70.7%`; `writeComparisonFiles` coverage is `80.3%`.
+- Working theory: the complexity is mostly phase coupling inside one function: public-set preparation, update filtering, worker fan-out, skip accounting, relatedness construction, row grouping, merge/write accounting, and artifact sanitization. Extracting these phases into private helpers should reduce measured complexity without changing comparison output behavior.
+
+Evidence reviewed:
+
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice7-baseline.json`
+- `jq '{source: .source, large_files_count: (.large_files|length), large_functions_count: (.large_functions|length), large_functions: .large_functions[:15], large_files: .large_files[:15]}' /tmp/update-ipsets-archposture-slice7-baseline.json`
+- `go test -coverprofile=/tmp/update-ipsets-engine-slice7-baseline.cover -covermode=atomic ./pkg/engine`
+- `go tool cover -func=/tmp/update-ipsets-engine-slice7-baseline.cover`
+- `pkg/engine/output.go`
+- `pkg/engine/output_test.go`
+- `pkg/engine/output_cancellation_test.go`
+- `pkg/engine/fileset_helpers_test.go`
+- `.agents/sow/specs/integrity.md`
+- `.agents/sow/specs/pipeline.md`
+- `.agents/sow/specs/operating-principles.md`
+
+Affected contracts and surfaces:
+
+- `pkg/engine`: pairwise public feed comparison artifacts, comparison skip accounting, related-row classification, incremental comparison-row merge behavior, zero-overlap row removal, and generated artifact mtimes.
+- Public artifacts named `<feed>_comparison.json`.
+- Downstream unique-share, insights, integrity, public API/UI comparison consumers that read comparison artifacts.
+- No config schema, downloader behavior, scheduler queue behavior, public request-time generation, UI source, install behavior, or generated frontend assets are expected to change.
+- SOW only; specs/docs are not expected to change because behavior is preserved.
+
+Existing patterns to reuse:
+
+- Existing `CompareRow` contract and `mergeCompareRows` zero-overlap policy.
+- Existing `leafAncestors` and `positiveLineageParents` relatedness model for signed merges.
+- Existing `latestSetCache` sharing for heavy engine phases.
+- Existing comparison tests for subtractive merge relatedness, prefix overlap, stale zero-overlap cleanup, file-set generation, and cancellation.
+- Private helper extraction in the engine package, matching recent entity-integrity slice structure without creating a new package.
+
+Risk and blast radius:
+
+- Comparison artifacts are public product data. A behavior change can affect feed pages, unique-share estimates, insights, and integrity results.
+- Incremental runs must preserve untouched comparison rows and delete stale zero-overlap rows only for recomputed counterparts.
+- Cancellation must stop publication before partial comparison files are written.
+- Heavy-worker fan-out must keep bounded worker counts and avoid opening more set files than the current cache model permits.
+- Generated file mtimes must continue using `feedProcessingTimestamp(name)`.
+
+Sensitive data handling plan:
+
+- This slice uses local synthetic test feeds and local structural metrics only.
+- No secrets, tokens, cookies, private endpoints, customer data, raw external IP lists, or personal data are needed.
+- Durable artifacts will record only package paths, metrics, test outcomes, and sanitized behavior evidence.
+
+Implementation plan:
+
+1. Extract comparison set preparation into a focused helper that returns per-feed metadata and prefix/range pruning state.
+2. Extract updated-feed filtering, pair generation, worker execution, skip counters, and operation metric emission into focused helpers.
+3. Extract relatedness caching and fresh-row grouping into focused helpers.
+4. Extract comparison-row merge/write accounting into a focused helper while preserving existing read-from-live then write-to-stage behavior and logical mtimes.
+5. Keep all helper types private to `pkg/engine`; avoid new abstractions outside the selected production path.
+6. Add or adjust behavior tests only if inspection finds a meaningful uncovered contract branch affected by the extraction.
+7. Re-run package coverage, architecture posture, strict engine tests, and repository quality gates.
+
+Validation plan:
+
+- `go test ./pkg/engine`
+- `go test -coverprofile=/tmp/update-ipsets-engine-slice7.cover -covermode=atomic ./pkg/engine`
+- `go tool cover -func=/tmp/update-ipsets-engine-slice7.cover`
+- `go test -shuffle=on -count=3 ./pkg/engine`
+- `go run ./tools/archposture -root .`
+- `make lint`
+- `make staticcheck`
+- `make golangci-lint`
+- `CI=true make coverage`
+- `git diff --check -- ...`
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if this slice finds a durable comparison-artifact refactor/testing lesson.
+- Specs: no update expected; behavior is preserved.
+- End-user/operator docs: no update expected; comparison semantics are unchanged.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: keep this SOW in `.agents/sow/current/` until the quality campaign reaches an appropriate closure point.
+
+Open decisions:
+
+- None. The user approved behavior-preserving quality work and the next measured production hotspot is clear from local evidence.
+
 ## Pre-Implementation Gate - Slice 6
 
 Status: ready.
@@ -627,6 +719,12 @@ Open decisions:
   - scanner orchestration and global prerequisites moved to `pkg/engine/entity_integrity_scanner.go`.
   - feed-sidecar scanning moved to `pkg/engine/entity_integrity_feed_scan.go`.
   - country/ASN/index/health-drift scanning moved to `pkg/engine/entity_integrity_detail_scan.go`.
+- Pulled merged PR #10; local `main` now matches `origin/main` at `8393bc24bc04`.
+- Refactored the comparison artifact writer:
+  - `writeComparisonFiles` now orchestrates comparison preparation, pair execution, row grouping, merge/write, and sanitization through focused helpers.
+  - comparison pair fan-out, skip accounting, update filtering, and operation metrics live in `pkg/engine/output_comparison.go`.
+  - range/prefix pruning, positive-lineage relatedness helpers, zero-overlap row merge policy, and comparison-artifact sanitization live in `pkg/engine/output_comparison_helpers.go`.
+  - `pkg/engine/output.go` now keeps metadata and sitemap helpers instead of also owning comparison artifact generation.
 
 ## Validation
 
@@ -686,6 +784,14 @@ Acceptance criteria evidence:
   - Root coverage after this slice remains `72.2%`.
   - `tools/archposture` after this slice: source files `600`, source lines `125455`, large files `58`, and large functions `46`.
   - No `pkg/engine/entity_integrity*` files or functions are listed in `tools/archposture` large-file/large-function output.
+- Seventh-slice local results:
+  - `pkg/engine/output.go` moved from `1311` lines to `750` lines.
+  - The former `(*Engine).writeComparisonFiles` target moved from `295` lines / complexity `55` to a small orchestration function and no longer appears in `tools/archposture` large-function output.
+  - New split files are below the project file-size threshold: `output_comparison.go` `383` lines and `output_comparison_helpers.go` `267` lines.
+  - `pkg/engine` coverage remained `70.7%`; this slice was behavior-preserving complexity reduction rather than coverage expansion.
+  - Root coverage after this slice is `72.3%`.
+  - `tools/archposture` after this slice: source files `602`, source lines `125547`, large files `58`, and large functions `45`.
+  - No `pkg/engine/output_comparison*` files or comparison-writer functions are listed in `tools/archposture` large-file/large-function output.
 - Scanner posture:
   - Codacy Cloud still reports `issuesCount: 0` on the latest analyzed `main` commit; structural percentages still reflect remote `main`, not these local changes.
   - GitHub Code Scanning open alerts: `[]`.
@@ -753,6 +859,21 @@ Tests or equivalent validation:
 - `make test-strict`: passed after Slice 6.
 - `go tool cover -func=coverage.out`: passed after Slice 6; total statement coverage `72.2%`.
 - `git diff --check -- .agents/sow/current/SOW-0102-20260603-quality-complexity-duplication-coverage.md pkg/engine/entity_integrity.go pkg/engine/entity_integrity_refs.go pkg/engine/entity_integrity_scanner.go pkg/engine/entity_integrity_feed_scan.go pkg/engine/entity_integrity_detail_scan.go pkg/engine/entity_integrity_global_test.go`: passed after Slice 6.
+- `go test ./pkg/engine`: passed after comparison-writer refactor.
+- `go test -coverprofile=/tmp/update-ipsets-engine-slice7.cover -covermode=atomic ./pkg/engine`: passed, `70.7%`.
+- `go tool cover -func=/tmp/update-ipsets-engine-slice7.cover`: passed.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice7.json`: passed.
+- `go test -shuffle=on -count=3 ./pkg/engine`: passed after Slice 7.
+- `make lint`: passed after Slice 7.
+- `make staticcheck`: passed after Slice 7.
+- `make golangci-lint`: passed after Slice 7 with `0 issues`.
+- `CI=true make coverage`: passed after Slice 7.
+- `make test-strict`: passed after Slice 7.
+- `go tool cover -func=coverage.out`: passed after Slice 7; total statement coverage `72.3%`.
+- `git diff --check -- .agents/sow/current/SOW-0102-20260603-quality-complexity-duplication-coverage.md pkg/engine/output.go`: passed after Slice 7.
+- `git diff --no-index --check -- /dev/null pkg/engine/output_comparison.go`: passed after Slice 7.
+- `git diff --no-index --check -- /dev/null pkg/engine/output_comparison_helpers.go`: passed after Slice 7.
+- Forbidden durable-artifact personal/tool/vendor name scan over the Slice 7 SOW and changed Go files: no matches after Slice 7.
 - `codacy-analysis analyze --inspect --output-format json --output /tmp/update-ipsets-codacy-inspect.json`: completed but reported `MissingConfig` because this repository does not currently have `.codacy/codacy.config.json`; not used as a code-validation signal.
 
 Real-use evidence:
@@ -765,7 +886,8 @@ Real-use evidence:
 - The ASN tests drive `Database` range counting through real in-memory range-table backends and temporary text provider files, validating attributed, unknown, and bogon-split outputs without external provider downloads.
 - The feed-health tests drive exported policy and classification behavior through real `cache.Entry`, `config.Source`, and `config.RuntimeConfig` values with fixed timestamps.
 - The entity-integrity tests drive real rebuild outputs in temporary engine fixtures and then mutate version markers, public ASN payloads, and private ASN sidecars to validate observable findings and targeted repair plans.
-- No daemon, scheduler, public serving, admin UI, install, or runtime artifact generation code was changed.
+- The comparison-writer tests drive comparison artifact behavior through real engine fixtures, file sets, and JSON artifacts, validating subtractive-merge relatedness, prefix pruning, stale zero-overlap cleanup, cancellation, and file-set generation.
+- No daemon, scheduler, public serving, admin UI, install, or runtime behavior was changed intentionally; comparison artifact generation changed only by helper extraction.
 
 Reviewer findings:
 
@@ -785,9 +907,9 @@ Artifact maintenance gate:
 - AGENTS.md: no update needed; no project-wide workflow or responsibility rule changed.
 - Runtime project skills: updated `.agents/skills/project-hygiene/SKILL.md` with durable local structural-quality checks.
 - Specs: no update needed; implementation preserves behavior and does not change product contracts.
-- End-user/operator docs: no update needed; CLI semantics did not change.
+- End-user/operator docs: no update needed; operator-visible CLI and comparison semantics did not change.
 - End-user/operator skills: no update needed.
-- SOW lifecycle: remains in `.agents/sow/current/`; the first six slices are validated but broader quality work continues.
+- SOW lifecycle: remains in `.agents/sow/current/`; the first seven slices are validated but broader quality work continues.
 
 Specs update:
 
@@ -813,10 +935,10 @@ Lessons:
 Follow-up mapping:
 
 - Next measured complexity targets:
-  - `pkg/engine/entity_integrity.go:189` `(*Engine).CheckEntityArtifactsIntegrity`: 449 lines, complexity 61.
-  - `pkg/engine/output.go:336` `(*Engine).writeComparisonFiles`: 295 lines, complexity 55.
   - `pkg/engine/entity_artifacts.go:395` `(*Engine).writeEntityArtifacts`: 290 lines, complexity 78.
   - `pkg/engine/entity_surgical.go:66` `(*Engine).refreshEntityArtifactsForFeedUpdates`: 267 lines, complexity 68.
+  - `pkg/downloader/downloader.go:112` `(*Client).Fetch`: 231 lines, complexity 48.
+  - `pkg/engine/home_entity_builders.go:644` `(*Engine).buildASNDetailSidecar`: 231 lines, complexity 44.
 - Next measured duplication targets:
   - `ui/src/components/admin/feeds-table-header.tsx`: 130 duplicated lines.
   - `ui/src/pages/asn-detail.tsx` and `ui/src/pages/country-detail.tsx`: 20, 35, and 107 duplicated line blocks.
@@ -826,7 +948,7 @@ Follow-up mapping:
 
 ## Outcome
 
-First through sixth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through seventh implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
