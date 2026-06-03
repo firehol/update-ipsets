@@ -1002,6 +1002,24 @@ Open decisions:
 - Updated `.agents/skills/project-operations/SKILL.md` so future install work
   preserves real command exit codes and handles live mutable-tree permission
   repair races deliberately.
+- GitHub workflow evidence for
+  `9845b7159a231a28c97f576b9a3c41837480f3c5`: Hygiene, Codacy SARIF,
+  checked-in CodeQL, GitHub Code Quality, CI build, and CI coverage all
+  completed successfully. CI build passed build, Go tests, UI tests, browser
+  smoke, UI lint, root ESLint bridge, UI build, bundle budget, nested tool
+  tests, race detector, strict shuffled tests, fuzz seed replay, vet,
+  govulncheck, staticcheck, golangci-lint, cross-compile, and static binary
+  verification.
+- Verified GitHub Code Quality default setup separately from CodeQL code
+  scanning default setup. CodeQL code scanning default setup is
+  `not-configured`; GitHub Code Quality remains `configured` for Go,
+  JavaScript/TypeScript, and Python. This is intentionally kept as an
+  additional GitHub Security and Quality finding surface rather than disabled
+  as noise.
+- Before enabling required-check enforcement, renamed the checked-in CI and
+  CodeQL job contexts to stable, explicit names: `CI build`, `CI coverage`,
+  and `CodeQL security-and-quality (...)`. This avoids ambiguous required
+  checks with GitHub Code Quality's dynamic `Analyze (...)` jobs.
 
 ## Validation
 
@@ -1284,6 +1302,18 @@ Tests or equivalent validation:
     confirmed `/opt/update-ipsets`, the installed binary, and `etc` are
     `root:iplists` with `0750`, while generated `web` is `iplists:iplists`
     with `0700`.
+  - GitHub workflow evidence for
+    `9845b7159a231a28c97f576b9a3c41837480f3c5`: Hygiene success, Codacy SARIF
+    success, checked-in CodeQL success, GitHub Code Quality success, CI build
+    success, and CI coverage success.
+  - `gh api -X GET repos/firehol/update-ipsets/code-quality/setup --jq '.'`:
+    reported GitHub Code Quality `state: configured` for Go,
+    JavaScript/TypeScript, and Python. This is a separate scanner surface from
+    CodeQL code scanning default setup, which remains `not-configured`.
+  - `make actionlint`: passed after renaming checked-in CI and CodeQL job
+    contexts for future required-check enforcement.
+  - `git diff --check -- .github/workflows/ci.yml .github/workflows/codeql.yml`:
+    passed after the checked-in job context rename.
 - Go stdlib Trivy finding validation:
   - `go version && go env GOVERSION GOTOOLCHAIN`: local Go reports
     `go1.26.3-X:nodwarf5` with `GOTOOLCHAIN=auto`.

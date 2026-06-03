@@ -11,6 +11,7 @@ permissions:
 
 jobs:
   build:
+    name: CI build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -94,6 +95,7 @@ jobs:
           file update-ipsets-linux-arm64 | grep -q "statically linked"
 
   coverage:
+    name: CI coverage
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6

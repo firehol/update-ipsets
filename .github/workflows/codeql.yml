@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   analyze:
-    name: Analyze (${{ matrix.language }})
+    name: CodeQL security-and-quality (${{ matrix.language }})
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
