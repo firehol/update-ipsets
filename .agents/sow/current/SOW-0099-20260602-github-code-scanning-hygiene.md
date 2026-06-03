@@ -980,6 +980,17 @@ Open decisions:
   script and same-origin browser API client file where root confinement or
   same-origin validation is already enforced and inline `nosemgrep` was not
   honored by Codacy Cloud.
+- Codacy Cloud analyzed
+  `ad98bbe12b76ee21890d6630404107936bff652f` from
+  `2026-06-03T09:00:08Z` to `2026-06-03T09:00:09Z`. The issue overview was
+  clean: no categories, levels, languages, tags, patterns, or authors. GitHub
+  Code Scanning still showed the previous 62 Codacy alerts because the Codacy
+  SARIF workflow failed in the clean state: with zero Codacy issue categories,
+  no issue JSON files existed and the converter rejected an empty SARIF input.
+- Fixed the Codacy SARIF clean-state exporter so `sarif` mode emits a valid
+  SARIF file with zero rules and zero results when Codacy Cloud has no issues.
+  This lets GitHub Code Scanning receive an empty upload and close stale Codacy
+  alerts.
 
 ## Validation
 
@@ -1213,6 +1224,20 @@ Tests or equivalent validation:
     data handling/gates. SOW-0099 itself passed the audit checks.
   - `git diff --check -- .codacy.yml .github/scripts/codacy-issues-to-sarif.mjs .agents/sow/audit.sh install.sh pkg/web/home_detail_api.go agents/enrichment-refresh.py`:
     passed.
+  - `codacy repository gh firehol update-ipsets --output json`: for
+    `ad98bbe12b76ee21890d6630404107936bff652f`, reported an empty issue
+    overview after the residual Codacy scanner cleanup.
+  - `gh run view 26874568943 --repo firehol/update-ipsets --log-failed`:
+    showed the Codacy SARIF workflow failure was the converter rejecting the
+    clean-state/no-issue input with "No Codacy issue JSON files were provided."
+  - Empty Codacy SARIF smoke: passed. Running
+    `.github/scripts/codacy-issues-to-sarif.mjs sarif` with no issue files
+    produced valid SARIF with zero results and zero rules, and the summary
+    command reported zero results.
+  - `node --check .github/scripts/codacy-issues-to-sarif.mjs`: passed after
+    the empty-SARIF exporter fix.
+  - `git diff --check -- .github/scripts/codacy-issues-to-sarif.mjs`: passed
+    after the empty-SARIF exporter fix.
 - Go stdlib Trivy finding validation:
   - `go version && go env GOVERSION GOTOOLCHAIN`: local Go reports
     `go1.26.3-X:nodwarf5` with `GOTOOLCHAIN=auto`.

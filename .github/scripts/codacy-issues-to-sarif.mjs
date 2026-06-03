@@ -177,10 +177,6 @@ function plan(overviewPath) {
 }
 
 function sarif(issuePaths) {
-  if (issuePaths.length === 0) {
-    fail("No Codacy issue JSON files were provided.");
-  }
-
   const rules = new Map();
   const results = [];
   const seen = new Set();
