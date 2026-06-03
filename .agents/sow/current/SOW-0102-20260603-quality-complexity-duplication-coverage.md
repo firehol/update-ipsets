@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: third implementation slice locally validated; next quality slice pending
+Sub-state: fourth implementation slice locally validated; next quality slice pending
 
 ## Requirements
 
@@ -357,6 +357,83 @@ Open decisions:
 
 - None. The user approved the pragmatic quality target model and behavior-preserving quality work.
 
+## Pre-Implementation Gate - Slice 4
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after the third slice merged to `main`, root Go coverage is `71.7%`; `pkg/asnloc` remains at `44.9%` statement coverage.
+- Facts: uncovered `pkg/asnloc` areas include public `Database` wrappers, count-feed range walking, bogon splitting, path-based text loaders, and nil/error handling.
+- Working theory: synthetic range-table tests can materially improve ASN coverage and confidence without requiring MMDB files, network access, large fixtures, or engine changes.
+
+Evidence reviewed:
+
+- `go test -coverprofile=/tmp/update-ipsets-asnloc-baseline.cover -covermode=atomic ./pkg/asnloc`
+- `go tool cover -func=/tmp/update-ipsets-asnloc-baseline.cover`
+- `pkg/asnloc/asnloc.go`
+- `pkg/asnloc/backend_rangetable.go`
+- `pkg/asnloc/loader_iptoasn.go`
+- `pkg/asnloc/loader_caida.go`
+- existing `pkg/asnloc/*_test.go`
+
+Affected contracts and surfaces:
+
+- `pkg/asnloc`: `Open` for text-backed providers, `Close`, `Lookup`, `Stats`, `CountFeed`, `CountFeedWithBogons`, range-table miss/hit behavior, and helper edge cases.
+- No daemon, scheduler, public serving, UI, install, config, or generated artifact contracts are expected to change.
+- SOW only; specs/docs are not expected to change because the public behavior is unchanged.
+
+Existing patterns to reuse:
+
+- Same-package tests already exist for ASN parser and range-table internals.
+- Small inline text fixtures and `t.TempDir` are already used in project tests.
+- `iprange.New` provides a small in-memory `RangeSource` for count-feed tests.
+
+Risk and blast radius:
+
+- Tests must not depend on local MMDB provider files.
+- Tests must avoid very large ranges that make failures slow to diagnose.
+- No production behavior change is expected in this slice.
+
+Sensitive data handling plan:
+
+- This slice uses RFC 5737 documentation IPv4 ranges and synthetic ASNs only.
+- No secrets, tokens, cookies, private endpoints, customer data, or personal data are needed.
+- Durable artifacts will record only package names, coverage values, and validation outcomes.
+
+Implementation plan:
+
+1. Add wrapper tests for nil `Database`, `Close`, `Lookup`, `Stats`, and text-backed `Open`.
+2. Add range-table count tests for attributed, unknown, and bogon-split feed ranges.
+3. Add loader path tests using temporary `iptoasn` and CAIDA text files.
+4. Add range-table/helper edge-case tests where coverage shows simple meaningful gaps.
+5. Re-run package coverage for `pkg/asnloc`, then root coverage and relevant lint/static checks.
+
+Validation plan:
+
+- `go test ./pkg/asnloc`
+- `go test -coverprofile=/tmp/update-ipsets-asnloc.cover -covermode=atomic ./pkg/asnloc`
+- `go tool cover -func=/tmp/update-ipsets-asnloc.cover`
+- `make lint`
+- `make staticcheck`
+- `make golangci-lint`
+- `CI=true make coverage`
+- `go run ./tools/archposture -root .`
+- `git diff --check -- ...`
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if this slice finds a durable testing/hygiene lesson.
+- Specs: no update expected; behavior is preserved.
+- End-user/operator docs: no update expected; ASN semantics are unchanged.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: keep this SOW in `.agents/sow/current/` until the quality campaign reaches an appropriate closure point.
+
+Open decisions:
+
+- None. The user approved the pragmatic quality target model and behavior-preserving quality work.
+
 ## Execution Log
 
 ### 2026-06-03
@@ -379,6 +456,8 @@ Open decisions:
 - Repaired local ownership of generated/dependency directories needed by the coverage gate (`ui/node_modules`, `ui/dist`, and `pkg/web/static`) after a prior root-owned local install left them unwritable; no tracked generated assets were manually edited.
 - Refactored `pkg/kernel` Linux ipset orchestration behind an unexported operation interface backed by netlink.
 - Added fake-backed `pkg/kernel` tests for loaded-set mapping, not-loaded no-op behavior, successful replacement, fallback type selection, invalid entry handling, create/add/swap errors, cleanup, parse errors, and helper edge cases.
+- Pulled merged PR #7; local `main` now matches `origin/main` at `a40467c3eceb`.
+- Added `pkg/asnloc` coverage for text-backed `Open`, nil and wrapper behavior, range-walking counts, bogon splitting, lookup-error propagation, gzip/plain text loader paths, range-table overlap/nil behavior, and IPv4 helper edge cases.
 
 ## Validation
 
@@ -416,6 +495,13 @@ Acceptance criteria evidence:
   - Root coverage after this slice is `71.7%`, up from `71.5%` after the second slice.
   - `tools/archposture` after this slice: source files `595`, source lines `124561`, large files `59`, and large functions `47`.
   - No changed kernel files or functions are listed in `tools/archposture` large-file/large-function output.
+- Fourth-slice local results:
+  - `pkg/asnloc` package coverage moved from `44.9%` to `76.2%`.
+  - Public ASN wrapper/counting functions now report: `Close` `100.0%`, `Lookup` `100.0%`, `Stats` `100.0%`, `CountFeed` `100.0%`, `CountFeedWithBogons` `100.0%`, and `countFeedRanges` `95.5%`.
+  - Text loader functions now report: `loadIPToASNTSV` `86.4%` and `loadCAIDAPrefix2AS` `86.4%`.
+  - Root coverage after this slice is `72.0%`, up from `71.7%` after the third slice.
+  - `tools/archposture` after this slice: source files `595`, source lines `124907`, large files `59`, and large functions `47`.
+  - No changed ASN files or functions are listed in `tools/archposture` large-file/large-function output.
 - Scanner posture:
   - Codacy Cloud still reports `issuesCount: 0` on the latest analyzed `main` commit; structural percentages still reflect remote `main`, not these local changes.
   - GitHub Code Scanning open alerts: `[]`.
@@ -451,6 +537,15 @@ Tests or equivalent validation:
 - `CI=true make coverage`: passed after Slice 3.
 - `go tool cover -func=coverage.out`: passed after Slice 3; total statement coverage `71.7%`.
 - Project skill validation: not run after Slice 3 because no project skill files changed in Slice 2 or Slice 3.
+- `go test ./pkg/asnloc`: passed.
+- `go test -coverprofile=/tmp/update-ipsets-asnloc.cover -covermode=atomic ./pkg/asnloc`: passed, `76.2%`.
+- `go tool cover -func=/tmp/update-ipsets-asnloc.cover`: passed.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice4.json`: passed.
+- `make lint`: passed after Slice 4.
+- `make staticcheck`: passed after Slice 4.
+- `make golangci-lint`: passed after Slice 4 with `0 issues`.
+- `CI=true make coverage`: passed after Slice 4.
+- `go tool cover -func=coverage.out`: passed after Slice 4; total statement coverage `72.0%`.
 - `codacy-analysis analyze --inspect --output-format json --output /tmp/update-ipsets-codacy-inspect.json`: completed but reported `MissingConfig` because this repository does not currently have `.codacy/codacy.config.json`; not used as a code-validation signal.
 
 Real-use evidence:
@@ -460,6 +555,7 @@ Real-use evidence:
 - The systemd tests send and receive real Unix datagram notification payloads.
 - The observability tests expose metrics through the real Prometheus handler and validate bounded labels in the exported payload.
 - The kernel tests drive `ApplyIfLoaded` orchestration through a fake ipset backend, validating replacement and cleanup behavior without real kernel ipset state.
+- The ASN tests drive `Database` range counting through real in-memory range-table backends and temporary text provider files, validating attributed, unknown, and bogon-split outputs without external provider downloads.
 - No daemon, scheduler, public serving, admin UI, install, or runtime artifact generation code was changed.
 
 Reviewer findings:
@@ -482,7 +578,7 @@ Artifact maintenance gate:
 - Specs: no update needed; implementation preserves behavior and does not change product contracts.
 - End-user/operator docs: no update needed; CLI semantics did not change.
 - End-user/operator skills: no update needed.
-- SOW lifecycle: remains in `.agents/sow/current/`; the first three slices are validated but broader quality work continues.
+- SOW lifecycle: remains in `.agents/sow/current/`; the first four slices are validated but broader quality work continues.
 
 Specs update:
 
@@ -521,7 +617,7 @@ Follow-up mapping:
 
 ## Outcome
 
-First, second, and third implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First, second, third, and fourth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 

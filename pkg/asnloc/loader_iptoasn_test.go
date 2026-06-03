@@ -1,6 +1,9 @@
 package asnloc
 
 import (
+	"compress/gzip"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -34,6 +37,52 @@ func TestParseIPToASNTSVHappy(t *testing.T) {
 	}
 }
 
+func TestLoadIPToASNTSVPlainAndGzip(t *testing.T) {
+	plainPath := filepath.Join(t.TempDir(), "iptoasn.tsv")
+	if err := os.WriteFile(plainPath, []byte(sampleIPToASNTSV), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	be, err := loadIPToASNTSV(plainPath)
+	if err != nil {
+		t.Fatalf("loadIPToASNTSV(plain) error = %v", err)
+	}
+	networks, covered, err := be.stats()
+	if err != nil {
+		t.Fatalf("plain stats error = %v", err)
+	}
+	if networks != 4 || covered != 1792 {
+		t.Fatalf("plain stats = (%d, %d), want (4, 1792)", networks, covered)
+	}
+
+	gzipPath := filepath.Join(t.TempDir(), "iptoasn.tsv.gz")
+	writeGzipASNLocFixture(t, gzipPath, sampleIPToASNTSV)
+	be, err = loadIPToASNTSV(gzipPath)
+	if err != nil {
+		t.Fatalf("loadIPToASNTSV(gzip) error = %v", err)
+	}
+	networks, covered, err = be.stats()
+	if err != nil {
+		t.Fatalf("gzip stats error = %v", err)
+	}
+	if networks != 4 || covered != 1792 {
+		t.Fatalf("gzip stats = (%d, %d), want (4, 1792)", networks, covered)
+	}
+}
+
+func TestLoadIPToASNTSVErrors(t *testing.T) {
+	if _, err := loadIPToASNTSV(filepath.Join(t.TempDir(), "missing.tsv")); err == nil {
+		t.Fatal("loadIPToASNTSV(missing) error = nil, want error")
+	}
+
+	path := filepath.Join(t.TempDir(), "bad.tsv")
+	if err := os.WriteFile(path, []byte("1.2.3.0\t1.2.3.255\t13335\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadIPToASNTSV(path); err == nil {
+		t.Fatal("loadIPToASNTSV(bad) error = nil, want parse error")
+	}
+}
+
 func TestParseIPToASNTSVSkipsAS0(t *testing.T) {
 	in := "1.2.3.0\t1.2.3.255\t0\tNone\tNot routed\n"
 	ranges, err := parseIPToASNTSVStream(strings.NewReader(in))
@@ -63,6 +112,16 @@ func TestParseIPToASNTSVRejectsReversedRange(t *testing.T) {
 	in := "1.2.3.255\t1.2.3.0\t13335\tUS\tCLOUDFLARENET\n"
 	if _, err := parseIPToASNTSVStream(strings.NewReader(in)); err == nil {
 		t.Error("expected error on hi<lo, got nil")
+	}
+}
+
+func TestParseIPv4DecimalRejectsInvalidInputs(t *testing.T) {
+	for _, raw := range []string{"", "not.an.ip", "2001:db8::1"} {
+		t.Run(raw, func(t *testing.T) {
+			if _, ok := parseIPv4Decimal(raw); ok {
+				t.Fatalf("parseIPv4Decimal(%q) ok = true, want false", raw)
+			}
+		})
 	}
 }
 
@@ -138,5 +197,53 @@ func TestRangeTableStats(t *testing.T) {
 	}
 	if ips != 512 {
 		t.Errorf("ip count = %d, want 512", ips)
+	}
+}
+
+func TestRangeTableNilAndOverlapBehavior(t *testing.T) {
+	var nilBackend *rangeTableBackend
+	rec, network, err := nilBackend.lookup(0xC0000201)
+	if err != nil {
+		t.Fatalf("nil lookup error = %v", err)
+	}
+	if rec.ASN != 0 || network.Lo != 0xC0000201 || network.Hi != ^uint32(0) {
+		t.Fatalf("nil lookup = record %#v network %#v", rec, network)
+	}
+	if _, _, err := nilBackend.stats(); err == nil {
+		t.Fatal("nil stats error = nil, want error")
+	}
+	if err := nilBackend.close(); err != nil {
+		t.Fatalf("nil close error = %v", err)
+	}
+
+	be := newRangeTableBackend([]asnRange{
+		{lo: 0xC0000200, hi: 0xC00002FF, asn: 64500},
+		{lo: 0xC0000280, hi: 0xC00003FF, asn: 64501},
+	})
+	if len(be.ranges) != 2 {
+		t.Fatalf("range count = %d, want 2", len(be.ranges))
+	}
+	if be.ranges[1].lo != 0xC0000300 || be.ranges[1].hi != 0xC00003FF {
+		t.Fatalf("overlap adjusted range = %#v", be.ranges[1])
+	}
+}
+
+func writeGzipASNLocFixture(t *testing.T, path, content string) {
+	t.Helper()
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gz := gzip.NewWriter(f)
+	if _, err := gz.Write([]byte(content)); err != nil {
+		_ = f.Close()
+		t.Fatal(err)
+	}
+	if err := gz.Close(); err != nil {
+		_ = f.Close()
+		t.Fatal(err)
+	}
+	if err := f.Close(); err != nil {
+		t.Fatal(err)
 	}
 }
