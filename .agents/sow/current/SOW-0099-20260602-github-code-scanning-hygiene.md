@@ -940,6 +940,21 @@ Open decisions:
   `pkg/engine/critical.go:755:6: func uniqueStrings is unused (U1000)`.
   Same-failure search found no callers, so the dead helper was removed instead
   of weakening the static-analysis gate.
+- Codacy Cloud analyzed
+  `5beb8e82c03b79bcfac7031378bd34aadff6dbc8` from
+  `2026-06-03T08:49:19Z` to `2026-06-03T08:49:20Z`. The issue overview
+  reported 2 remaining open findings, both `Lizard_ccn-medium` JavaScript
+  complexity warnings:
+  `.github/scripts/codacy-issues-to-sarif.mjs:105` and
+  `scripts/build-wiki.mjs:122`. The repository summary field and GitHub Code
+  Scanning still reported 64 Codacy issues before the next SARIF upload
+  settled, so those counts were treated as pending visibility evidence rather
+  than final cleanup evidence.
+- Split the remaining two JavaScript complexity hot spots into focused helper
+  functions: the Codacy SARIF converter now separates location/result-id
+  construction from result construction, and the wiki builder now separates
+  link-target filtering, docs-path normalization, and safe path resolution from
+  the final link resolver.
 
 ## Validation
 
@@ -1120,6 +1135,26 @@ Tests or equivalent validation:
   - `git diff --check -- pkg/engine/critical.go`: passed.
   - `go test ./pkg/engine`: passed.
   - `make staticcheck`: passed after removing the unused helper.
+  - `codacy issues gh firehol update-ipsets --branch main --patterns Lizard_ccn-medium --output json`:
+    reported only the two JavaScript complexity findings recorded above.
+  - `node --check .github/scripts/codacy-issues-to-sarif.mjs`: passed after
+    the SARIF converter complexity split.
+  - `node --check scripts/build-wiki.mjs`: passed after the wiki resolver
+    complexity split.
+  - Synthetic Codacy SARIF smoke: passed. A temporary issue payload produced
+    two SARIF results, preserved the populated-path location, omitted
+    `locations` for a blank-path issue, and the summary command reported two
+    results.
+  - Temporary wiki build smoke: passed. Internal Markdown links were rewritten
+    to the configured wiki base URL, external links were preserved, and the
+    temporary source/destination trees were removed after the run.
+  - `make actionlint`: passed after the JavaScript complexity cleanup.
+  - `make eslint-root-config`: passed after the JavaScript complexity cleanup.
+  - `git diff --check -- .github/scripts/codacy-issues-to-sarif.mjs scripts/build-wiki.mjs`:
+    passed.
+  - Local `lizard` binary check: not installed locally; Codacy Cloud
+    reanalysis remains the authoritative confirmation for these two
+    `Lizard_ccn-medium` findings after push.
 - Go stdlib Trivy finding validation:
   - `go version && go env GOVERSION GOTOOLCHAIN`: local Go reports
     `go1.26.3-X:nodwarf5` with `GOTOOLCHAIN=auto`.

@@ -102,25 +102,42 @@ function ruleForIssue(issue) {
   };
 }
 
+function locationForIssue(issue) {
+  const uri = normalizeUri(issue?.filePath);
+  if (!uri) {
+    return null;
+  }
+
+  return {
+    physicalLocation: {
+      artifactLocation: {
+        uri,
+      },
+      region: {
+        startLine: issueLine(issue),
+      },
+    },
+  };
+}
+
+function codacyResultDataId(issue) {
+  if (issue?.resultDataId === undefined || issue?.resultDataId === null) {
+    return null;
+  }
+
+  return String(issue.resultDataId);
+}
+
 function resultForIssue(issue) {
-  const result = {
+  const location = locationForIssue(issue);
+
+  return {
     ruleId: issueRuleId(issue),
     level: issueLevel(issue),
     message: {
       text: issueMessage(issue),
     },
-    locations: [
-      {
-        physicalLocation: {
-          artifactLocation: {
-            uri: normalizeUri(issue?.filePath),
-          },
-          region: {
-            startLine: issueLine(issue),
-          },
-        },
-      },
-    ],
+    ...(location ? { locations: [location] } : {}),
     partialFingerprints: {
       codacyResultDataId: issueFingerprint(issue),
     },
@@ -128,19 +145,10 @@ function resultForIssue(issue) {
       codacyCategory: issue?.patternInfo?.category || null,
       codacySubCategory: issue?.patternInfo?.subCategory || null,
       codacySeverity: issue?.patternInfo?.severityLevel || null,
-      codacyResultDataId:
-        issue?.resultDataId === undefined || issue?.resultDataId === null
-          ? null
-          : String(issue.resultDataId),
+      codacyResultDataId: codacyResultDataId(issue),
       falsePositiveThreshold: issue?.falsePositiveThreshold ?? null,
     },
   };
-
-  if (!result.locations[0].physicalLocation.artifactLocation.uri) {
-    delete result.locations;
-  }
-
-  return result;
 }
 
 function plan(overviewPath) {
