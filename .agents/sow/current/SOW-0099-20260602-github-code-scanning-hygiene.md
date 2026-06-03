@@ -778,12 +778,21 @@ Open decisions:
   issue sample also shows dynamic file/path findings in `pkg/engine/output.go`;
   those remain for the path-safety triage track and were not claimed as fixed
   by this URL-focused patch.
-- Fixed the shared URL mutation findings by copying parsed `url.URL` values
-  before normalizing paths in the public URL helper paths.
-- Fixed the legacy `?ipset=` redirect contract by escaping the query value as
-  one local `/ipsets/{name}` path segment before redirecting. The focused
-  regression test covers normal feed names, absolute-looking values, and
-  protocol-relative values.
+- The first pushed URL cleanup commit `29e40f2f888a4ba646a478e8cc1dfa24bf9aa2b7`
+  was not enough for Codacy: Codacy Cloud analyzed that commit and still
+  reported 2642 issues, including the same legacy open-redirect finding and
+  shared URL struct mutation findings. The copy-before-mutate and
+  path-escaping changes were semantically safe, but not sufficient for these
+  scanner rules.
+- Fixed the shared URL mutation findings by constructing fresh `url.URL`
+  literals for normalized public URL strings instead of assigning to URL struct
+  fields after parse.
+- Tightened the legacy `?ipset=` redirect contract: valid feed names still
+  redirect to a local `/ipsets/{name}` path, while URL-shaped or
+  protocol-relative values are rejected with `404` and no `Location` header.
+  The remaining Semgrep open-redirect match is a documented false positive
+  after validation, so the redirect sink carries a narrow inline `nosemgrep`
+  marker with adjacent rationale.
 
 ## Validation
 
@@ -1137,6 +1146,27 @@ Tests or equivalent validation:
     `.codacy/codacy.config.json`; local Codacy Analysis CLI validation is not
     available for this patch. Cloud reanalysis remains the authoritative
     scanner confirmation after push.
+  - Codacy Cloud analyzed `29e40f2f888a4ba646a478e8cc1dfa24bf9aa2b7` and still
+    reported 2642 issues. A sanitized issue sample still included the legacy
+    open-redirect finding in `pkg/web/routes.go` and the shared URL struct
+    mutation findings in `pkg/engine/output.go`; follow-up changes were
+    required before claiming this cleanup complete.
+  - Upstream Semgrep rule evidence checked:
+    `semgrep/semgrep-rules @ d04ae90ca63c7719a4a679485b2adce9b34599b5`,
+    `go/lang/security/injection/open-redirect.yaml`, and
+    `go/lang/security/shared-url-struct-mutation.yaml`.
+  - Exact local Semgrep open-redirect rule run against `pkg/web/routes.go`
+    passed after the validated local redirect carried the inline `nosemgrep`
+    marker.
+  - Exact local Semgrep shared URL mutation rule run against
+    `pkg/engine/output.go`: passed after replacing URL field assignments with a
+    fresh URL literal builder.
+  - `go test ./pkg/web -run TestLegacyIPSetRedirectStaysOnLocalSite -count=1`:
+    passed after invalid URL-shaped legacy values were changed to `404`.
+  - `go test ./pkg/engine -run 'Test.*Public.*URL|Test.*Sitemap|Test.*LLMS|Test.*Output' -count=1`:
+    passed after the fresh URL literal helper change.
+  - `go test ./pkg/web -run 'TestLegacyIPSetRedirectStaysOnLocalSite|TestRouteMethodContracts|TestSurfaceHandlerModesRegisterExpectedSurfaces' -count=1 && go test ./pkg/web ./pkg/engine`:
+    passed after the follow-up scanner changes.
 
 Real-use evidence:
 

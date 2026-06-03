@@ -429,11 +429,13 @@ func (s *surfaceRoutes) handleSPAFallback() http.HandlerFunc {
 			return
 		}
 		if ipset := r.URL.Query().Get("ipset"); ipset != "" && r.URL.Path == "/" {
-			target := "/ipsets/" + url.PathEscape(ipset)
-			if r.URL.Fragment != "" {
-				target += "#" + url.QueryEscape(r.URL.Fragment)
+			if validFeedName(ipset) {
+				target := "/ipsets/" + url.PathEscape(ipset)
+				// validFeedName rejects URL/path separators; target is a local path.
+				http.Redirect(w, r, target, http.StatusMovedPermanently) // nosemgrep
+				return
 			}
-			http.Redirect(w, r, target, http.StatusMovedPermanently)
+			http.NotFound(w, r)
 			return
 		}
 		if r.URL.Path == "/" {

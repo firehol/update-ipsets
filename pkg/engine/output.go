@@ -1240,9 +1240,7 @@ func normalizeAbsolutePublicURL(raw string) string {
 	if !ok {
 		return ""
 	}
-	normalized := *parsed
-	normalized.Path = strings.TrimRight(normalized.Path, "/")
-	return strings.TrimRight(normalized.String(), "/")
+	return strings.TrimRight(publicURLWithPath(parsed, strings.TrimRight(parsed.Path, "/")), "/")
 }
 
 func derivePublicSiteBaseFromWebURL(raw string) string {
@@ -1250,20 +1248,32 @@ func derivePublicSiteBaseFromWebURL(raw string) string {
 	if !ok {
 		return ""
 	}
-	derived := *parsed
-	path := strings.TrimRight(derived.Path, "/")
+	path := strings.TrimRight(parsed.Path, "/")
 	switch {
 	case path == "" || path == "/":
-		derived.Path = ""
+		path = ""
 	case strings.HasSuffix(path, "/ipsets"):
-		derived.Path = strings.TrimSuffix(path, "/ipsets")
-		if derived.Path == "/" {
-			derived.Path = ""
+		path = strings.TrimSuffix(path, "/ipsets")
+		if path == "/" {
+			path = ""
 		}
-	default:
-		derived.Path = path
 	}
-	return strings.TrimRight(derived.String(), "/")
+	return strings.TrimRight(publicURLWithPath(parsed, path), "/")
+}
+
+func publicURLWithPath(parsed *url.URL, path string) string {
+	return (&url.URL{
+		Scheme:      parsed.Scheme,
+		Opaque:      parsed.Opaque,
+		User:        parsed.User,
+		Host:        parsed.Host,
+		Path:        path,
+		Fragment:    parsed.Fragment,
+		RawQuery:    parsed.RawQuery,
+		RawFragment: parsed.RawFragment,
+		ForceQuery:  parsed.ForceQuery,
+		OmitHost:    parsed.OmitHost,
+	}).String()
 }
 
 func parseAbsolutePublicURL(raw string) (*url.URL, bool) {

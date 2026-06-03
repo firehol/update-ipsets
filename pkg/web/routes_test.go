@@ -58,24 +58,26 @@ func TestLegacyIPSetRedirectStaysOnLocalSite(t *testing.T) {
 	_, handler := testHandler(t, Options{EnableAll: true})
 
 	cases := []struct {
-		name string
-		path string
-		want string
+		name         string
+		path         string
+		wantStatus   int
+		wantLocation string
 	}{
 		{
-			name: "plain feed",
-			path: "/?ipset=firehol_level1",
-			want: "/ipsets/firehol_level1",
+			name:         "plain feed",
+			path:         "/?ipset=firehol_level1",
+			wantStatus:   http.StatusMovedPermanently,
+			wantLocation: "/ipsets/firehol_level1",
 		},
 		{
-			name: "absolute-looking input is path escaped",
-			path: "/?ipset=https://evil.example/path",
-			want: "/ipsets/https:%2F%2Fevil.example%2Fpath",
+			name:       "absolute-looking input does not redirect",
+			path:       "/?ipset=https://evil.example/path",
+			wantStatus: http.StatusNotFound,
 		},
 		{
-			name: "protocol-relative input stays local",
-			path: "/?ipset=//evil.example/path",
-			want: "/ipsets/%2F%2Fevil.example%2Fpath",
+			name:       "protocol-relative input does not redirect",
+			path:       "/?ipset=//evil.example/path",
+			wantStatus: http.StatusNotFound,
 		},
 	}
 
@@ -86,11 +88,11 @@ func TestLegacyIPSetRedirectStaysOnLocalSite(t *testing.T) {
 
 			handler.ServeHTTP(rec, req)
 
-			if got := rec.Code; got != http.StatusMovedPermanently {
-				t.Fatalf("redirect status = %d, want %d", got, http.StatusMovedPermanently)
+			if got := rec.Code; got != tc.wantStatus {
+				t.Fatalf("status = %d, want %d", got, tc.wantStatus)
 			}
-			if got := rec.Header().Get("Location"); got != tc.want {
-				t.Fatalf("redirect location = %q, want %q", got, tc.want)
+			if got := rec.Header().Get("Location"); got != tc.wantLocation {
+				t.Fatalf("location = %q, want %q", got, tc.wantLocation)
 			}
 		})
 	}
