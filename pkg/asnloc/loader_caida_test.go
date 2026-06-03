@@ -1,6 +1,8 @@
 package asnloc
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -44,6 +46,52 @@ func TestParseCAIDAPrefix2ASHappy(t *testing.T) {
 	}
 	if !found {
 		t.Error("MOAS row not in parsed output")
+	}
+}
+
+func TestLoadCAIDAPrefix2ASPlainAndGzip(t *testing.T) {
+	plainPath := filepath.Join(t.TempDir(), "routeviews.pfx2as")
+	if err := os.WriteFile(plainPath, []byte(sampleCAIDAPrefix2AS), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	be, err := loadCAIDAPrefix2AS(plainPath)
+	if err != nil {
+		t.Fatalf("loadCAIDAPrefix2AS(plain) error = %v", err)
+	}
+	networks, covered, err := be.stats()
+	if err != nil {
+		t.Fatalf("plain stats error = %v", err)
+	}
+	if networks != 6 || covered != 6144 {
+		t.Fatalf("plain stats = (%d, %d), want (6, 6144)", networks, covered)
+	}
+
+	gzipPath := filepath.Join(t.TempDir(), "routeviews.pfx2as.gz")
+	writeGzipASNLocFixture(t, gzipPath, sampleCAIDAPrefix2AS)
+	be, err = loadCAIDAPrefix2AS(gzipPath)
+	if err != nil {
+		t.Fatalf("loadCAIDAPrefix2AS(gzip) error = %v", err)
+	}
+	networks, covered, err = be.stats()
+	if err != nil {
+		t.Fatalf("gzip stats error = %v", err)
+	}
+	if networks != 6 || covered != 6144 {
+		t.Fatalf("gzip stats = (%d, %d), want (6, 6144)", networks, covered)
+	}
+}
+
+func TestLoadCAIDAPrefix2ASErrors(t *testing.T) {
+	if _, err := loadCAIDAPrefix2AS(filepath.Join(t.TempDir(), "missing.pfx2as")); err == nil {
+		t.Fatal("loadCAIDAPrefix2AS(missing) error = nil, want error")
+	}
+
+	path := filepath.Join(t.TempDir(), "bad.pfx2as")
+	if err := os.WriteFile(path, []byte("1.0.0.0\t99\t13335\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := loadCAIDAPrefix2AS(path); err == nil {
+		t.Fatal("loadCAIDAPrefix2AS(bad) error = nil, want parse error")
 	}
 }
 
