@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: fifth implementation slice locally validated; next quality slice pending
+Sub-state: sixth implementation slice locally validated; next quality slice pending
 
 ## Requirements
 
@@ -434,6 +434,92 @@ Open decisions:
 
 - None. The user approved the pragmatic quality target model and behavior-preserving quality work.
 
+## Pre-Implementation Gate - Slice 6
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after PR #9 merged to `main`, root Go coverage is `72.2%`.
+- Facts: `tools/archposture` reports `pkg/engine/entity_integrity.go` at `1028` lines and `(*Engine).CheckEntityArtifactsIntegrity` at `449` lines with complexity `61`.
+- Facts: baseline `pkg/engine` coverage is `70.5%`; `CheckEntityArtifactsIntegrity` coverage is `62.8%`.
+- Facts: entity-artifact integrity is a production safety surface for public country/ASN artifacts, private entity sidecars, indexes, homepage aggregates, health-sensitive payloads, and startup/operator repair planning.
+- Working theory: the high complexity is mostly orchestration coupling, not algorithmic necessity. Splitting global prerequisite checks, feed sidecar scanning, country/ASN detail scanning, index checks, and health drift checks into focused helpers should reduce complexity without changing behavior.
+
+Evidence reviewed:
+
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice6-baseline.json`
+- `go test -coverprofile=/tmp/update-ipsets-engine-baseline.cover -covermode=atomic ./pkg/engine`
+- `go tool cover -func=/tmp/update-ipsets-engine-baseline.cover`
+- `pkg/engine/entity_integrity.go`
+- `pkg/engine/entity_integrity_test.go`
+- `.agents/sow/specs/integrity.md`
+- `.agents/sow/specs/pipeline.md`
+- `.agents/sow/specs/files-layout.md`
+- `.agents/sow/specs/operating-principles.md`
+
+Affected contracts and surfaces:
+
+- `pkg/engine`: entity-artifact integrity findings, repair plans, and startup/operator repair behavior.
+- Entity private sidecars under `lib/entities/feeds`, `lib/entities/countries`, and `lib/entities/asns`.
+- Public entity artifacts under `web/countries`, `web/asns`, and indexes.
+- Homepage aggregate integrity is called from this path but owned by `home_aggregate_integrity.go`; no behavior change is intended.
+- No public serving, admin API/UI, config schema, install, downloader, scheduler, or generated artifact format change is intended.
+
+Existing patterns to reuse:
+
+- Use package-local engine fixtures from `pkg/engine/*_test.go`; do not construct raw `Engine` literals outside established helpers.
+- Existing entity-integrity tests assert observable finding kinds, repair actions, affected entity IDs, and repair plan contents.
+- Keep same-package tests only because the engine repair plan type is intentionally unexported operator-internal state.
+- Keep integrity findings sorted by scope, subject, and kind.
+
+Risk and blast radius:
+
+- Entity integrity is high-risk: false positives can trigger unnecessary background repair; false negatives can leave stale public artifacts after production rollout.
+- Mtime semantics are delicate; refactor must not change reference timestamp selection or unchanged-actor mtime behavior.
+- Startup availability matters; refactor must preserve broad repair deferral and avoid adding startup recomputation.
+- File size will remain a broader follow-up because this slice targets the highest-complexity function first.
+
+Sensitive data handling plan:
+
+- This slice uses synthetic test feeds, ASNs, country codes, paths, and timestamps only.
+- No secrets, tokens, cookies, private endpoints, customer data, raw external IP lists, or personal data are needed.
+- Durable artifacts will record package paths, metrics, test outcomes, and sanitized behavior evidence only.
+
+Implementation plan:
+
+1. Add focused behavior tests for currently under-covered entity-integrity branches before refactoring: missing/mismatched version marker and missing ASN public detail.
+2. Introduce a package-private scanner/state helper for `CheckEntityArtifactsIntegrity` orchestration.
+3. Extract global prerequisite checks, provider references, feed sidecar scan, country detail scan, ASN detail scan, index checks, and health drift scan into focused helpers.
+4. Preserve finding payloads, repair actions, plan mutation, and final sort order.
+5. Re-run package coverage, architecture posture, strict engine tests, and repository quality gates.
+
+Validation plan:
+
+- `go test ./pkg/engine`
+- `go test -coverprofile=/tmp/update-ipsets-engine-slice6.cover -covermode=atomic ./pkg/engine`
+- `go tool cover -func=/tmp/update-ipsets-engine-slice6.cover`
+- `go test -shuffle=on -count=3 ./pkg/engine`
+- `go run ./tools/archposture -root .`
+- `make lint`
+- `make staticcheck`
+- `make golangci-lint`
+- `CI=true make coverage`
+- `git diff --check -- ...`
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if this slice finds a durable entity-integrity refactor/testing lesson.
+- Specs: no update expected; behavior is preserved.
+- End-user/operator docs: no update expected; operator-facing behavior is unchanged.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: keep this SOW in `.agents/sow/current/` until the quality campaign reaches an appropriate closure point.
+
+Open decisions:
+
+- None. The user selected the engine complexity slice and approved behavior-preserving quality work.
+
 ## Pre-Implementation Gate - Slice 5
 
 Status: ready.
@@ -533,6 +619,14 @@ Open decisions:
 - Added `pkg/asnloc` coverage for text-backed `Open`, nil and wrapper behavior, range-walking counts, bogon splitting, lookup-error propagation, gzip/plain text loader paths, range-table overlap/nil behavior, and IPv4 helper edge cases.
 - Pulled merged PR #8; local `main` now matches `origin/main` at `4b46fa04a620`.
 - Added `pkg/feedhealth` coverage for runtime policy extraction, category fallback, delayed/risky/unmaintained age classes, single-observation grace, entry/source cadence fallback, source category/date fallback, unavailable-over-empty precedence, nil entries, and never-published entries.
+- Pulled merged PR #9; local `main` now matches `origin/main` at `6db9850ea70d`.
+- Added pre-refactor entity-integrity coverage for missing version marker, mismatched version marker, missing ASN public JSON, and malformed ASN private sidecar behavior.
+- Refactored `CheckEntityArtifactsIntegrity` into focused entity-integrity scanner helpers:
+  - public orchestration and repair-plan types remain in `pkg/engine/entity_integrity.go`.
+  - dependency/reference timestamp helpers moved to `pkg/engine/entity_integrity_refs.go`.
+  - scanner orchestration and global prerequisites moved to `pkg/engine/entity_integrity_scanner.go`.
+  - feed-sidecar scanning moved to `pkg/engine/entity_integrity_feed_scan.go`.
+  - country/ASN/index/health-drift scanning moved to `pkg/engine/entity_integrity_detail_scan.go`.
 
 ## Validation
 
@@ -584,6 +678,14 @@ Acceptance criteria evidence:
   - Root coverage after this slice is `72.2%`, up from `72.0%` after the fourth slice.
   - `tools/archposture` after this slice: source files `595`, source lines `125145`, large files `59`, and large functions `47`.
   - No changed feed-health files or functions are listed in `tools/archposture` large-file/large-function output.
+- Sixth-slice local results:
+  - `pkg/engine/entity_integrity.go` moved from `1028` lines to `191` lines.
+  - The former `(*Engine).CheckEntityArtifactsIntegrity` target moved from `449` lines / complexity `61` to a small scanner wrapper and no longer appears in `tools/archposture` large-function output.
+  - New split files are below the project file-size threshold: `entity_integrity_refs.go` `403` lines, `entity_integrity_scanner.go` `151` lines, `entity_integrity_feed_scan.go` `138` lines, `entity_integrity_detail_scan.go` `320` lines, and `entity_integrity_global_test.go` `135` lines.
+  - `pkg/engine` coverage moved from `70.5%` to `70.7%`.
+  - Root coverage after this slice remains `72.2%`.
+  - `tools/archposture` after this slice: source files `600`, source lines `125455`, large files `58`, and large functions `46`.
+  - No `pkg/engine/entity_integrity*` files or functions are listed in `tools/archposture` large-file/large-function output.
 - Scanner posture:
   - Codacy Cloud still reports `issuesCount: 0` on the latest analyzed `main` commit; structural percentages still reflect remote `main`, not these local changes.
   - GitHub Code Scanning open alerts: `[]`.
@@ -638,6 +740,19 @@ Tests or equivalent validation:
 - `CI=true make coverage`: passed after Slice 5.
 - `go tool cover -func=coverage.out`: passed after Slice 5; total statement coverage `72.2%`.
 - `git diff --check -- .agents/sow/current/SOW-0102-20260603-quality-complexity-duplication-coverage.md pkg/feedhealth/feedhealth_test.go`: passed after Slice 5.
+- `go test ./pkg/engine`: passed after adding pre-refactor entity-integrity tests.
+- `go test ./pkg/engine`: passed after entity-integrity scanner refactor.
+- `go test -coverprofile=/tmp/update-ipsets-engine-slice6.cover -covermode=atomic ./pkg/engine`: passed, `70.7%`.
+- `go tool cover -func=/tmp/update-ipsets-engine-slice6.cover`: passed.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice6.json`: passed.
+- `go test -shuffle=on -count=3 ./pkg/engine`: passed.
+- `make lint`: passed after Slice 6.
+- `make staticcheck`: passed after Slice 6.
+- `make golangci-lint`: passed after Slice 6 with `0 issues`.
+- `CI=true make coverage`: passed after Slice 6.
+- `make test-strict`: passed after Slice 6.
+- `go tool cover -func=coverage.out`: passed after Slice 6; total statement coverage `72.2%`.
+- `git diff --check -- .agents/sow/current/SOW-0102-20260603-quality-complexity-duplication-coverage.md pkg/engine/entity_integrity.go pkg/engine/entity_integrity_refs.go pkg/engine/entity_integrity_scanner.go pkg/engine/entity_integrity_feed_scan.go pkg/engine/entity_integrity_detail_scan.go pkg/engine/entity_integrity_global_test.go`: passed after Slice 6.
 - `codacy-analysis analyze --inspect --output-format json --output /tmp/update-ipsets-codacy-inspect.json`: completed but reported `MissingConfig` because this repository does not currently have `.codacy/codacy.config.json`; not used as a code-validation signal.
 
 Real-use evidence:
@@ -649,6 +764,7 @@ Real-use evidence:
 - The kernel tests drive `ApplyIfLoaded` orchestration through a fake ipset backend, validating replacement and cleanup behavior without real kernel ipset state.
 - The ASN tests drive `Database` range counting through real in-memory range-table backends and temporary text provider files, validating attributed, unknown, and bogon-split outputs without external provider downloads.
 - The feed-health tests drive exported policy and classification behavior through real `cache.Entry`, `config.Source`, and `config.RuntimeConfig` values with fixed timestamps.
+- The entity-integrity tests drive real rebuild outputs in temporary engine fixtures and then mutate version markers, public ASN payloads, and private ASN sidecars to validate observable findings and targeted repair plans.
 - No daemon, scheduler, public serving, admin UI, install, or runtime artifact generation code was changed.
 
 Reviewer findings:
@@ -671,7 +787,7 @@ Artifact maintenance gate:
 - Specs: no update needed; implementation preserves behavior and does not change product contracts.
 - End-user/operator docs: no update needed; CLI semantics did not change.
 - End-user/operator skills: no update needed.
-- SOW lifecycle: remains in `.agents/sow/current/`; the first five slices are validated but broader quality work continues.
+- SOW lifecycle: remains in `.agents/sow/current/`; the first six slices are validated but broader quality work continues.
 
 Specs update:
 
@@ -710,7 +826,7 @@ Follow-up mapping:
 
 ## Outcome
 
-First through fifth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through sixth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
