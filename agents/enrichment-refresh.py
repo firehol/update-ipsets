@@ -104,7 +104,7 @@ SIGNIFICANT_FIELDS = (
 def significant_changes(feed: str, before: dict[str, Any], after: dict[str, Any]) -> list[dict[str, str]]:
     out: list[dict[str, str]] = []
     for label, path in SIGNIFICANT_FIELDS:
-        if path[:2] == ("roles", "maintainer"):
+        if len(path) >= 3 and path[:2] == ("roles", "maintainer"):
             old = role_value(before, path[2])
             new = role_value(after, path[2])
         else:
@@ -131,7 +131,7 @@ def branch_name(scope: str, timestamp: str) -> str:
 
 
 def git(*args: str, check: bool = True) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(  # nosec B603 - args are fixed git subcommands assembled by this script.
+    return subprocess.run(  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit,dangerous-subprocess-use-tainted-env-args - fixed git executable with list args and no shell.
         [command_path("git"), *args],
         cwd=REPO,
         check=check,
@@ -156,7 +156,7 @@ def has_remote_and_gh() -> bool:
     gh_path = shutil.which("gh")
     if gh_path is None:
         return False
-    gh = subprocess.run(  # nosec B603 - fixed gh auth-status command.
+    gh = subprocess.run(  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit - fixed gh auth-status command with list args and no shell.
         [gh_path, "auth", "status"],
         cwd=REPO,
         check=False,
@@ -255,7 +255,7 @@ def run(args: argparse.Namespace) -> int:
         print(f"branch\t{branch}")
         if args.open_pr and has_remote_and_gh():
             title = f"Enrichment refresh: {scope} ({len(feeds)} feeds)"
-            gh = subprocess.run(  # nosec B603 - fixed gh PR command with controlled arguments.
+            gh = subprocess.run(  # nosemgrep: python.lang.security.audit.dangerous-subprocess-use-audit,dangerous-subprocess-use-tainted-env-args - fixed gh PR command with list args and no shell.
                 [command_path("gh"), "pr", "create", "--title", title, "--body-file", str(summary)],
                 cwd=REPO,
                 check=False,

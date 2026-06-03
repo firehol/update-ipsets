@@ -49,7 +49,7 @@ func (e *Engine) writePublicHistoryCSV(name, outDir string) error {
 }
 
 func (e *Engine) writePublicChangesetsCSV(name, outDir string) error {
-	if err := normalizeChangesetLedgerHeader(filepath.Join(e.runtime.LibDir, name, "changesets.csv")); err != nil {
+	if err := normalizeChangesetLedgerHeader(e.runtime.LibDir, filepath.Join(name, "changesets.csv")); err != nil {
 		return err
 	}
 	points := e.changesetTailFromRuntime(name)
@@ -70,8 +70,7 @@ func (e *Engine) writePublicChangesetsCSV(name, outDir string) error {
 }
 
 func (e *Engine) writePublicRetentionJSON(name, outDir string) error {
-	path := filepath.Join(e.runtime.LibDir, name, "retention.json")
-	data, err := os.ReadFile(path)
+	data, err := readFileInRoot(e.runtime.LibDir, filepath.Join(name, "retention.json"))
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return err
@@ -97,8 +96,8 @@ func (e *Engine) publicHistorySeries(name string) []HistoryPoint {
 	return points
 }
 
-func normalizeChangesetLedgerHeader(path string) error {
-	file, err := os.Open(path)
+func normalizeChangesetLedgerHeader(rootDir, rel string) error {
+	file, err := openFileInRoot(rootDir, rel)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil
@@ -119,5 +118,5 @@ func normalizeChangesetLedgerHeader(path string) error {
 		return err
 	}
 	next := append([]byte(changesetLedgerHeader), data...)
-	return writeFileAtomic(path, next, generatedFileMode)
+	return writeFileAtomic(filepath.Join(rootDir, rel), next, generatedFileMode)
 }

@@ -18,13 +18,13 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import ipaddress
 import json
 import re
 import sys
 from pathlib import Path
 
-IPV4_RE = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}(?:/\d{1,2})?\b")
-IPV6_RE = re.compile(r"\b(?:[0-9a-fA-F]{1,4}:){2,7}[0-9a-fA-F]{1,4}(?:/\d{1,3})?\b")
+IP_CANDIDATE_RE = re.compile(r"\b[0-9A-Fa-f:.]{2,}(?:/\d{1,3})?\b")
 REDACTED = "[IP-REDACTED]"
 
 # Fields we scrub. These are the only places where community-quoted IPs leak.
@@ -35,14 +35,17 @@ def scrub_text(s: str) -> tuple[str, int]:
     """Return (scrubbed_text, replacement_count)."""
     n = 0
 
-    def repl(_):
+    def repl(match: re.Match[str]) -> str:
         nonlocal n
+        token = match.group(0)
+        try:
+            ipaddress.ip_network(token, strict=False)
+        except ValueError:
+            return token
         n += 1
         return REDACTED
 
-    out = IPV4_RE.sub(repl, s)
-    out = IPV6_RE.sub(repl, out)
-    return out, n
+    return IP_CANDIDATE_RE.sub(repl, s), n
 
 
 def scrub(obj, total: list[int]) -> None:

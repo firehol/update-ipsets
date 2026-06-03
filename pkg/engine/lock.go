@@ -20,7 +20,7 @@ func acquireLock(path string) (*FileLock, error) {
 	if err := os.MkdirAll(filepath.Dir(path), generatedDirMode); err != nil {
 		return nil, err
 	}
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR, generatedFileMode)
+	file, err := openFilePathWithFlagsUnderRoot(filepath.Dir(path), path, os.O_CREATE|os.O_RDWR, generatedFileMode)
 	if err != nil {
 		return nil, err
 	}

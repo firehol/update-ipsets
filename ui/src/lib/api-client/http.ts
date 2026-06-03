@@ -12,7 +12,7 @@ export async function fetchJSON<T>(
   url: string,
   init?: RequestInit,
 ): Promise<T> {
-  const response = await fetch(url, init);
+  const response = await fetch(sameOriginRequestPath(url), init);
   if (!response.ok) {
     let message = `${response.status} ${response.statusText}`;
     try {
@@ -32,7 +32,7 @@ export async function fetchText(
   url: string,
   init?: RequestInit,
 ): Promise<string> {
-  const response = await fetch(url, init);
+  const response = await fetch(sameOriginRequestPath(url), init);
   if (!response.ok) {
     throw new ApiError(response.status, `${response.status} ${response.statusText}`);
   }
@@ -41,4 +41,13 @@ export async function fetchText(
 
 export function signalInit(signal?: AbortSignal): RequestInit | undefined {
   return signal ? { signal } : undefined;
+}
+
+function sameOriginRequestPath(url: string): string {
+  const origin = globalThis.location?.origin ?? "http://localhost";
+  const parsed = new URL(url, origin);
+  if (parsed.origin !== origin) {
+    throw new Error("API client only accepts same-origin URLs");
+  }
+  return `${parsed.pathname}${parsed.search}${parsed.hash}`;
 }

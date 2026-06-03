@@ -277,7 +277,7 @@ func (e *Engine) applyKernelSet(name, hash, bodyPath string) error {
 	if os.Geteuid() != 0 {
 		return nil
 	}
-	body, err := os.Open(bodyPath)
+	body, err := openFilePathUnderRoot(filepath.Dir(bodyPath), bodyPath)
 	if err != nil {
 		return err
 	}
@@ -517,7 +517,7 @@ func moveDownloadedBody(result *downloader.Result, dst string) error {
 		return nil
 	}
 	// Cross-device: copy + remove.
-	src, err := os.Open(result.BodyPath)
+	src, err := openFilePathUnderRoot(filepath.Dir(result.BodyPath), result.BodyPath)
 	if err != nil {
 		return err
 	}
@@ -652,7 +652,7 @@ func appendCSV(path, header, line string) error {
 	if err := ensureCSVHeader(path, header); err != nil {
 		return err
 	}
-	file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0)
+	file, err := openFilePathWithFlagsUnderRoot(filepath.Dir(path), path, os.O_APPEND|os.O_WRONLY, 0)
 	if err != nil {
 		return err
 	}

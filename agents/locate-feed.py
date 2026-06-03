@@ -63,7 +63,7 @@ def iter_feeds():
     for y in sorted(SOURCES_DIR.rglob("*.yaml")):
         try:
             data = yaml.safe_load(y.read_text())
-        except Exception:
+        except (OSError, yaml.YAMLError):
             continue
         if not isinstance(data, dict):
             continue

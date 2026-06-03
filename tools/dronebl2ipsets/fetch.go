@@ -11,15 +11,11 @@ import (
 var ErrMissingPassword = errors.New("missing DroneBL rsync password")
 
 type FetchOptions struct {
-	RsyncBin string
 	RsyncURL string
 	DataDir  string
 }
 
 func FetchBuildzone(ctx context.Context, opts FetchOptions) error {
-	if opts.RsyncBin == "" {
-		opts.RsyncBin = "rsync"
-	}
 	if opts.RsyncURL == "" {
 		return fmt.Errorf("rsync URL is required")
 	}
@@ -41,7 +37,7 @@ func FetchBuildzone(ctx context.Context, opts FetchOptions) error {
 		return ErrMissingPassword
 	}
 
-	cmd := exec.CommandContext(ctx, opts.RsyncBin, "-HaSPvz", opts.RsyncURL, opts.DataDir+"/")
+	cmd := exec.CommandContext(ctx, "rsync", "-HaSPvz", opts.RsyncURL, opts.DataDir+"/")
 	cmd.Env = withRsyncPassword(os.Environ(), password)
 	cmd.Stdout = os.Stderr
 	cmd.Stderr = os.Stderr

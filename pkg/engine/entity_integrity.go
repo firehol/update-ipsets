@@ -211,7 +211,7 @@ func (e *Engine) CheckEntityArtifactsIntegrity() ([]EntityIntegrityFinding, enti
 		}
 		return nil, plan, err
 	}
-	versionData, err := os.ReadFile(versionPath)
+	versionData, err := readFileInRoot(e.entitiesDir(), "version")
 	if err != nil {
 		return nil, plan, err
 	}
@@ -423,7 +423,7 @@ func (e *Engine) CheckEntityArtifactsIntegrity() ([]EntityIntegrityFinding, enti
 			return nil, plan, err
 		}
 		publicMTime := publicInfo.ModTime().UTC()
-		healths, err := loadCountryDetailPublicHealth(publicPath)
+		healths, err := loadCountryDetailPublicHealth(e.outputDir(), e.publicCountryDetailRelPath(code))
 		if err != nil {
 			findings = append(findings, EntityIntegrityFinding{
 				Scope:        "country",
@@ -514,7 +514,7 @@ func (e *Engine) CheckEntityArtifactsIntegrity() ([]EntityIntegrityFinding, enti
 			return nil, plan, err
 		}
 		publicMTime := publicInfo.ModTime().UTC()
-		healths, err := loadASNDetailPublicHealth(publicPath)
+		healths, err := loadASNDetailPublicHealth(e.outputDir(), e.publicASNDetailRelPath(asn))
 		if err != nil {
 			findings = append(findings, EntityIntegrityFinding{
 				Scope:        "asn",
@@ -989,8 +989,8 @@ func mergeEntityDependencyRef(dst *entityDependencyRef, path string, when time.T
 	}
 }
 
-func loadCountryDetailPublicHealth(path string) (map[string]string, error) {
-	data, err := os.ReadFile(path)
+func loadCountryDetailPublicHealth(rootDir, rel string) (map[string]string, error) {
+	data, err := readFileInRoot(rootDir, rel)
 	if err != nil {
 		return nil, err
 	}
@@ -1008,8 +1008,8 @@ func loadCountryDetailPublicHealth(path string) (map[string]string, error) {
 	return healths, nil
 }
 
-func loadASNDetailPublicHealth(path string) (map[string]string, error) {
-	data, err := os.ReadFile(path)
+func loadASNDetailPublicHealth(rootDir, rel string) (map[string]string, error) {
+	data, err := readFileInRoot(rootDir, rel)
 	if err != nil {
 		return nil, err
 	}

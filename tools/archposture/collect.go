@@ -252,7 +252,7 @@ func skipFile(rel string) bool {
 }
 
 func countLines(path string) (int, error) {
-	body, err := os.ReadFile(path)
+	body, err := os.ReadFile(path) // nosemgrep: repository architecture scanner intentionally reads tracked local source files.
 	if err != nil {
 		return 0, err
 	}

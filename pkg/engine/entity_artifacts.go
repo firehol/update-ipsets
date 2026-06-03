@@ -104,7 +104,7 @@ func (e *Engine) entityASNSidecarRelPath(asn uint32) string {
 }
 
 func (e *Engine) entityArtifactsNeedBootstrapFast() bool {
-	version, err := os.ReadFile(e.entityVersionPath())
+	version, err := readFileInRoot(e.entitiesDir(), "version")
 	if err != nil {
 		return true
 	}

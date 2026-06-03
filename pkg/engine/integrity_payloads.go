@@ -3,7 +3,7 @@ package engine
 import (
 	"encoding/json"
 	"fmt"
-	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/firehol/update-ipsets/pkg/config"
@@ -163,7 +163,7 @@ func validateCriticalAggregateArtifact(path string, eng *Engine) error {
 	if eng == nil {
 		return nil
 	}
-	data, err := os.ReadFile(path)
+	data, err := readFilePathUnderRoot(filepath.Dir(path), path)
 	if err != nil {
 		return err
 	}
@@ -186,7 +186,7 @@ func validateCriticalProviderArtifact(path string, eng *Engine) error {
 	if eng == nil {
 		return nil
 	}
-	data, err := os.ReadFile(path)
+	data, err := readFilePathUnderRoot(filepath.Dir(path), path)
 	if err != nil {
 		return err
 	}
@@ -203,7 +203,7 @@ func validateCriticalProviderArtifact(path string, eng *Engine) error {
 }
 
 func validateComparisonPayload(path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readFilePathUnderRoot(filepath.Dir(path), path)
 	if err != nil {
 		return err
 	}
@@ -220,7 +220,7 @@ func validateComparisonPayload(path string) error {
 }
 
 func validateJSONFile[T any](path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readFilePathUnderRoot(filepath.Dir(path), path)
 	if err != nil {
 		return err
 	}
@@ -232,7 +232,7 @@ func validatePublicMetadataArtifactPolicy(path string, rawAllowed bool) error {
 	if rawAllowed {
 		return nil
 	}
-	data, err := os.ReadFile(path)
+	data, err := readFilePathUnderRoot(filepath.Dir(path), path)
 	if err != nil {
 		return err
 	}

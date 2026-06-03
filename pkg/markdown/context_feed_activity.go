@@ -2,7 +2,6 @@ package markdown
 
 import (
 	"encoding/json"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -21,7 +20,7 @@ func (r *FeedArtifactReader) populateBehavior(ctx *FeedPageContext, name string)
 }
 
 func (r *FeedArtifactReader) readHistoryCSV(name string) []HistoryPoint {
-	data, err := os.ReadFile(r.path(name + "_history.csv"))
+	data, err := r.readFile(name + "_history.csv")
 	if err != nil {
 		return nil
 	}
@@ -29,7 +28,7 @@ func (r *FeedArtifactReader) readHistoryCSV(name string) []HistoryPoint {
 }
 
 func (r *FeedArtifactReader) readChangesetsCSV(name string) []ChangesetPoint {
-	data, err := os.ReadFile(r.path(name + "_changesets.csv"))
+	data, err := r.readFile(name + "_changesets.csv")
 	if err != nil {
 		return nil
 	}
@@ -37,7 +36,7 @@ func (r *FeedArtifactReader) readChangesetsCSV(name string) []ChangesetPoint {
 }
 
 func (r *FeedArtifactReader) readRetention(name string) (*RetentionContext, error) {
-	data, err := os.ReadFile(r.path(name + "_retention.json"))
+	data, err := r.readFile(name + "_retention.json")
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +63,7 @@ func (r *FeedArtifactReader) readRetention(name string) (*RetentionContext, erro
 }
 
 func (r *FeedArtifactReader) readComparison(name string, feedIPs uint64) ([]CompareRowContext, error) {
-	data, err := os.ReadFile(r.path(name + "_comparison.json"))
+	data, err := r.readFile(name + "_comparison.json")
 	if err != nil {
 		return nil, err
 	}

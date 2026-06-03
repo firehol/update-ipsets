@@ -28,7 +28,7 @@ export class SectionErrorBoundary extends Component<Props, State> {
     // Log to the console so the error and component stack remain
     // visible in dev — production logging would go through a real
     // observability hook.
-    console.error(`[${this.props.name}] section error:`, error, info.componentStack);
+    console.error("Section error:", this.props.name, error, info.componentStack);
   }
 
   render() {

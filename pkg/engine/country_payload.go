@@ -3,7 +3,7 @@ package engine
 import (
 	"encoding/json"
 	"fmt"
-	"os"
+	"path/filepath"
 	"sort"
 )
 
@@ -15,7 +15,7 @@ import (
 // overlapping country ranges, but it is still far better than treating
 // ten years of historical files as unreadable.
 func loadCountryComparisonPayload(path string) (*CountryComparisonPayload, error) {
-	data, err := os.ReadFile(path)
+	data, err := readFilePathUnderRoot(filepath.Dir(path), path)
 	if err != nil {
 		return nil, err
 	}

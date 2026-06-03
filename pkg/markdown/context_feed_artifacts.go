@@ -3,14 +3,13 @@ package markdown
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 )
 
 func (r *FeedArtifactReader) readInsights(name string) (*insightsPayload, error) {
-	data, err := os.ReadFile(r.path(name + "_insights.json"))
+	data, err := r.readFile(name + "_insights.json")
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +31,7 @@ type insightsPayload struct {
 }
 
 func (r *FeedArtifactReader) readCritical(name string) (*CriticalContext, error) {
-	data, err := os.ReadFile(r.path(name + "_critical_infrastructure.json"))
+	data, err := r.readFile(name + "_critical_infrastructure.json")
 	if err != nil {
 		return nil, err
 	}
@@ -114,7 +113,7 @@ func criticalProviderDisplayName(v any) string {
 
 func (r *FeedArtifactReader) readASNProviders(name string) ([]ASNProviderContext, error) {
 	if r.preferredASNProvider != "" {
-		pctx, err := r.readASNProviderFile(r.path(fmt.Sprintf("%s_asn_%s.json", name, r.preferredASNProvider)))
+		pctx, err := r.readASNProviderFile(fmt.Sprintf("%s_asn_%s.json", name, r.preferredASNProvider))
 		if err != nil {
 			return nil, err
 		}
@@ -129,7 +128,7 @@ func (r *FeedArtifactReader) readASNProviders(name string) ([]ASNProviderContext
 
 	var result []ASNProviderContext
 	for _, p := range matches {
-		pctx, err := r.readASNProviderFile(p)
+		pctx, err := r.readMatchedASNProviderFile(p)
 		if err != nil {
 			continue
 		}
@@ -138,11 +137,23 @@ func (r *FeedArtifactReader) readASNProviders(name string) ([]ASNProviderContext
 	return result, nil
 }
 
-func (r *FeedArtifactReader) readASNProviderFile(path string) (ASNProviderContext, error) {
-	data, err := os.ReadFile(path)
+func (r *FeedArtifactReader) readASNProviderFile(rel string) (ASNProviderContext, error) {
+	data, err := r.readFile(rel)
 	if err != nil {
 		return ASNProviderContext{}, err
 	}
+	return parseASNProviderFile(data)
+}
+
+func (r *FeedArtifactReader) readMatchedASNProviderFile(path string) (ASNProviderContext, error) {
+	data, err := r.readMatchedFile(path)
+	if err != nil {
+		return ASNProviderContext{}, err
+	}
+	return parseASNProviderFile(data)
+}
+
+func parseASNProviderFile(data []byte) (ASNProviderContext, error) {
 	var raw map[string]any
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return ASNProviderContext{}, err
@@ -199,7 +210,7 @@ func (r *FeedArtifactReader) readGEOProviders(name string, meta map[string]any) 
 		if !ok {
 			continue
 		}
-		data, err := os.ReadFile(r.path(fname))
+		data, err := r.readFile(fname)
 		if err != nil {
 			continue
 		}
@@ -241,7 +252,7 @@ func (r *FeedArtifactReader) readBogonProviders(name string) ([]BogonProviderCon
 
 	var result []BogonProviderContext
 	for _, p := range matches {
-		data, err := os.ReadFile(p)
+		data, err := r.readMatchedFile(p)
 		if err != nil {
 			continue
 		}

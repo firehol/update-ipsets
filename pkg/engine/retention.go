@@ -25,9 +25,9 @@ import (
 // and crashing with "expecting binary header but found …" when a
 // snapshot is not binary. The failure killed the entire feed update
 // with last_status: retention_failed.
-func loadSnapshotSet(ctx context.Context, name, path string) (*iprange.IPSet, error) {
+func loadSnapshotSet(ctx context.Context, name, rootDir, rel string) (*iprange.IPSet, error) {
 	ctx = nonNilContext(ctx)
-	file, err := os.Open(path)
+	file, err := openFileInRoot(rootDir, rel)
 	if err != nil {
 		return nil, err
 	}
@@ -39,15 +39,16 @@ func loadSnapshotSet(ctx context.Context, name, path string) (*iprange.IPSet, er
 // Returns an empty set if the file does not exist. This must be called
 // before finalize() overwrites latest with the new data.
 func (e *Engine) loadLatestSet(ctx context.Context, name string) (*iprange.IPSet, error) {
-	latestPath := filepath.Join(e.runtime.LibDir, name, "latest")
+	latestRel := filepath.Join(name, "latest")
+	latestPath := filepath.Join(e.runtime.LibDir, latestRel)
 	if !fileExists(latestPath) {
 		// Fallback: earlier Go builds used "latest.set".
-		latestPath = filepath.Join(e.runtime.LibDir, name, "latest.set")
-		if !fileExists(latestPath) {
+		latestRel = filepath.Join(name, "latest.set")
+		if !fileExists(filepath.Join(e.runtime.LibDir, latestRel)) {
 			return iprange.New(name), nil
 		}
 	}
-	return loadSnapshotSet(ctx, name, latestPath)
+	return loadSnapshotSet(ctx, name, e.runtime.LibDir, latestRel)
 }
 
 func isIgnoredRetentionSnapshotName(name string) bool {
@@ -69,7 +70,7 @@ func (e *Engine) updateRetention(ctx context.Context, name string, previous, cur
 	removed := removedSet.UniqueCount()
 	if added > 0 || removed > 0 {
 		changesetsPath := filepath.Join(dir, "changesets.csv")
-		if err := normalizeChangesetLedgerHeader(changesetsPath); err != nil {
+		if err := normalizeChangesetLedgerHeader(e.runtime.LibDir, filepath.Join(name, "changesets.csv")); err != nil {
 			return err
 		}
 		if err := appendCSV(changesetsPath, changesetLedgerHeader,
@@ -137,14 +138,14 @@ func (e *Engine) updateRetention(ctx context.Context, name string, previous, cur
 			e.logger.Warn("retention: skipping malformed filename", "source", name, "file", baseName, "error", err)
 			continue
 		}
-		path := filepath.Join(newDir, baseName)
 		// Use loadSnapshotSet (ParseReader-backed) so legacy text-format
 		// snapshots from the bash version are accepted alongside the
 		// binary format the Go engine writes for new snapshots. The
 		// bogons feed in particular has retention snapshot files going
 		// back to 2015 that are still in plain text and must keep
 		// loading correctly.
-		oldSet, err := loadSnapshotSet(ctx, entry.Name(), path)
+		path := filepath.Join(newDir, baseName)
+		oldSet, err := loadSnapshotSet(ctx, entry.Name(), e.runtime.LibDir, filepath.Join(name, "new", baseName))
 		if err != nil {
 			return err
 		}
@@ -211,8 +212,7 @@ func (e *Engine) buildRetentionData(ctx context.Context, name string, updatedAt 
 	// retention file's date <= started. We use int (0/1) to match the JSON.
 	incomplete := 0
 
-	retentionCSV := filepath.Join(dir, "retention.csv")
-	if data, err := os.ReadFile(retentionCSV); err == nil {
+	if data, err := readFileInRoot(e.runtime.LibDir, filepath.Join(name, "retention.csv")); err == nil {
 		lines := strings.Split(strings.TrimSpace(string(data)), "\n")
 		for _, line := range lines[1:] {
 			if strings.TrimSpace(line) == "" {
@@ -256,7 +256,7 @@ func (e *Engine) buildRetentionData(ctx context.Context, name string, updatedAt 
 			// loadSnapshotSet handles both binary and legacy text
 			// snapshots so the bash-era files in lib/{name}/new/
 			// keep loading correctly across the format migration.
-			set, err := loadSnapshotSet(ctx, file.Name(), filepath.Join(newDir, file.Name()))
+			set, err := loadSnapshotSet(ctx, file.Name(), e.runtime.LibDir, filepath.Join(name, "new", file.Name()))
 			if err != nil {
 				return nil, err
 			}

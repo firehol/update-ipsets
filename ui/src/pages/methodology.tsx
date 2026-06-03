@@ -91,16 +91,24 @@ export function MethodologyPage() {
                   </p>
                 )}
               </header>
-              <div
-                className="prose prose-slate max-w-none dark:prose-invert"
-                dangerouslySetInnerHTML={{
-                  __html: sanitizeHtml(pageQuery.data.body),
-                }}
-              />
+              <MethodologyBody body={pageQuery.data.body} />
             </article>
           )}
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function MethodologyBody({ body }: { body: string }) {
+  const safeBody = sanitizeHtml(body);
+  // nosemgrep: javascript.react.rule-dangerouslysetinnerhtml - methodology HTML is rendered by the server and sanitized again with DOMPurify before insertion.
+  return (
+    <div
+      className="prose prose-slate max-w-none dark:prose-invert"
+      dangerouslySetInnerHTML={{
+        __html: safeBody,
+      }}
+    />
   );
 }

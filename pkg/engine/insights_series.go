@@ -1,16 +1,12 @@
 package engine
 
-import (
-	"path/filepath"
+import "github.com/firehol/update-ipsets/pkg/insights"
 
-	"github.com/firehol/update-ipsets/pkg/insights"
-)
-
-func singleCandidatePath(baseDir string, elems ...string) []string {
+func singleCandidatePath(baseDir string, elems ...string) []rootedCandidatePath {
 	if baseDir == "" {
 		return nil
 	}
-	return []string{filepath.Join(append([]string{baseDir}, elems...)...)}
+	return []rootedCandidatePath{{rootDir: baseDir, rel: joinRelativePath(elems...)}}
 }
 
 // readInsightsHistoryPoints is the waste-elimination path for insights:

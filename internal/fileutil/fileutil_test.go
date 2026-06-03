@@ -33,6 +33,51 @@ func TestExistsWithDirectory(t *testing.T) {
 	}
 }
 
+func TestReadFileUnderRootReadsRelativeFile(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "nested"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "nested", "data.txt"), []byte("inside"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	got, err := ReadFileUnderRoot(dir, "nested/data.txt")
+	if err != nil {
+		t.Fatalf("ReadFileUnderRoot returned error: %v", err)
+	}
+	if string(got) != "inside" {
+		t.Fatalf("content mismatch: got %q", got)
+	}
+}
+
+func TestReadFileUnderRootRejectsTraversal(t *testing.T) {
+	dir := t.TempDir()
+	err := os.WriteFile(filepath.Join(dir, "data.txt"), []byte("inside"), 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := ReadFileUnderRoot(dir, "../data.txt"); err == nil {
+		t.Fatal("expected traversal path to be rejected")
+	}
+}
+
+func TestReadFileUnderRootRejectsSymlinkEscape(t *testing.T) {
+	dir := t.TempDir()
+	outside := filepath.Join(t.TempDir(), "secret.txt")
+	if err := os.WriteFile(outside, []byte("outside"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(dir, "link.txt")); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := ReadFileUnderRoot(dir, "link.txt"); err == nil {
+		t.Fatal("expected symlink escape to be rejected")
+	}
+}
+
 func TestWriteAtomicBasic(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "output.txt")

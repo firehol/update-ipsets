@@ -1,5 +1,8 @@
 ---
 engines:
+  opengrep:
+    exclude_paths:
+      - "**/*_test.go"
   eslint-8:
     exclude_paths:
       - "ui/**"

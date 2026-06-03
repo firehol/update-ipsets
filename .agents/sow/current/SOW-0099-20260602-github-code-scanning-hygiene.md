@@ -82,6 +82,12 @@ Unknowns:
 - Upload Codacy SARIF to GitHub Code Scanning so Codacy findings are visible
   in the GitHub security/code-scanning surface, while keeping rule removal
   evidence-gated.
+- Treat the remaining Codacy and GitHub scanner backlog as pre-production
+  hardening work. Every valid scanner finding must be fixed, narrowly
+  configured out, or explicitly rejected/baselined with evidence before this
+  SOW can close.
+- Record the current issue baseline, final issue counts, and every accepted
+  suppression, baseline, or tool/path/rule configuration decision.
 
 ## Analysis
 
@@ -245,6 +251,29 @@ The user approved these implementation choices:
    so GitHub shows the Codacy scanner surface more frequently.
 2. Fix Codacy issues or remove/disable irrelevant rules only after evidence.
    Do not bulk-disable rules merely to reduce the GitHub Code Scanning count.
+
+## User Decisions - 2026-06-03 Pre-Production Scanner Cleanup
+
+The user decided that because the application has not yet had its first
+production run, this is the right time to resolve the full scanner backlog
+rather than accepting hardening debt that becomes riskier to address after
+production battle-testing.
+
+Approved policy:
+
+- Treat the remaining Codacy and GitHub scanner findings as pre-production
+  hardening work.
+- Fix every valid finding where feasible.
+- Remove or disable only irrelevant, duplicate, or mismatched rules/paths with
+  narrow evidence.
+- Baseline or suppress only false positives with narrow scope and evidence.
+- Prioritize Security, Critical, High, and production runtime findings first,
+  then Error, Warning, and Info/quality classes.
+- Keep GitHub Code Scanning visibility for Codacy results while reducing the
+  real Codacy issue count.
+- Do not close this SOW while valid scanner findings remain only as prose
+  deferrals. Each remaining valid item must be implemented, rejected as a
+  non-goal with evidence, or mapped to a concrete pending SOW path.
 
 Risks:
 
@@ -618,6 +647,15 @@ Open decisions:
   dropped from 3153 to 3113. Remaining aggregate counts are: Security 655,
   Complexity 973, CodeStyle 900, BestPractice 463, Markdown 1332 issues by
   language, Go 1376 issues by language, and 560 High-level issues.
+- Codacy analyzed commit `0f4fa5876a4b3192046401bfd795fc5beaa24cfd` after the
+  URL cleanup and helper split. The repository remains Grade A and current
+  Codacy issues are `2637`, matching GitHub Code Scanning's open
+  `Codacy Cloud` alert count. Current issue categories are Security 218,
+  Complexity 983, CodeStyle 901, BestPractice 463, ErrorProne 24,
+  Documentation 18, Compatibility 15, and Comprehensibility 15. Current issue
+  levels are High 106, Error 130, Warning 1094, and Info 1307.
+- Open Dependabot security alerts are `0` and open secret-scanning alerts are
+  `0` as of 2026-06-03.
 - Re-checked GitHub Security and quality AI findings after
   `c24357a150cad529223e32d3e364561e865d5134`. The previous server and admin
   manifest findings are no longer shown, but GitHub still reports 1 finding in
@@ -797,6 +835,48 @@ Open decisions:
   `tools/archposture` because `pkg/engine/output.go` grew past its large-file
   baseline. The URL helpers were moved into focused `pkg/engine/public_url.go`
   instead of updating the baseline.
+- On 2026-06-03, the user clarified that this is the last practical window to
+  fix scanner-discovered production risks before the application is first run
+  in production. The SOW now treats the remaining `2637` Codacy/GitHub
+  Code Scanning findings as pre-production hardening work, with every valid
+  finding requiring a fixed, narrowly configured, or evidence-rejected outcome.
+- Implemented the next pre-production Security/High cleanup slice. Production
+  runtime/publication file readers now use root-confined file APIs based on
+  `os.Root` through `internal/fileutil`, covering web/public artifacts,
+  engine ledgers, retention snapshots, entity sidecars, provider markers,
+  comparison/sitemap inputs, MCP markdown reads, output sync reads, scheduler
+  state/static-source reads, compressed ASN provider inputs, and feed-body
+  staging reads.
+- Kept standalone/local-input path APIs explicit instead of pretending they
+  are daemon traversal paths. `pkg/iprange` parser/fileset loaders, the
+  DroneBL buildzone CLI input, and `tools/archposture` repository scanners
+  now have line-local `nosemgrep` rationale because the caller intentionally
+  selects local files and no public daemon request path reaches those APIs.
+- Fixed the current production Codacy/Semgrep issue classes visible in Cloud
+  evidence: direct `ResponseWriter` writes, unsafe React/HTML rendering,
+  dynamic frontend API fetch origins, unsafe JS format/dynamic regex patterns,
+  Python broad exception/regex/subprocess findings, DroneBL dynamic executable
+  selection, SARIF converter path traversal, markdown template import context,
+  and generated-directory permission false positives.
+- Added a narrow `.codacy.yml` `opengrep` engine exclusion for
+  `**/*_test.go`. Evidence: the refreshed Codacy Cloud Security breakdown on
+  2026-06-03 showed remaining Opengrep test-file findings as fixture noise
+  (`*_test.go` file permission, file-read, response-writer, `math/rand`, and
+  test TLS findings), while production code is still scanned by Opengrep.
+- Confirmed from official Codacy documentation on 2026-06-03 that
+  `.codacy.yml` supports engine-specific `exclude_paths` and that the
+  configuration-file engine key for Codacy's Opengrep scanner is `opengrep`.
+  The installed Codacy Analysis CLI did not provide the documented
+  `validate-configuration` command; local YAML parsing passed, and
+  `codacy-analysis analyze --inspect` only reported missing
+  `.codacy/codacy.config.json`, which is local-analysis configuration and not
+  the Cloud `.codacy.yml` path configuration.
+- Installed the current scanner-hardening build locally through the
+  authoritative `./install.sh` path. The install restarted the
+  `update-ipsets` service, preserved the documented root-owned
+  `root:iplists` binary/config install contract, kept mutable runtime trees
+  private to the service user, and passed public health/status/feed-list smoke
+  checks.
 
 ## Validation
 
@@ -864,7 +944,48 @@ Tests or equivalent validation:
   - `node scripts/build-wiki.mjs docs docs/wiki-test`: failed as expected
     because the destination overlaps the source tree.
   - `rg -n "replace\(/\\/\+\$|\\/\+\$" scripts/build-wiki.mjs`: no matches
-    after replacing the flagged trailing-slash regex.
+  - `python -m py_compile agents/locate-feed.py agents/strip-ips.py agents/enrichment-public.py agents/enrichment-refresh.py`:
+    passed after the Python security cleanup.
+  - `node --check .github/scripts/codacy-issues-to-sarif.mjs && node --check scripts/build-wiki.mjs && node --check ui/scripts/check-bundle-budget.mjs`:
+    passed after the JavaScript/script cleanup.
+  - Focused Semgrep with `--enable-nosem` for response-writer writes, Go
+    dangerous exec, Python subprocess/regex, JavaScript dynamic regex,
+    unsafe format strings, and React `dangerouslySetInnerHTML`: `0` results
+    and `0` errors.
+  - Focused Semgrep with `--enable-nosem` for Go file-permission findings on
+    touched production paths: `0` results and `0` errors.
+  - Local `.codacy.yml` parse check with Python `yaml.safe_load`: passed and
+    confirmed `engines.opengrep.exclude_paths == ["**/*_test.go"]`.
+  - `codacy-analysis analyze . --inspect --output-format json`: completed,
+    but reported only missing local `.codacy/codacy.config.json`; this does
+    not validate Cloud `.codacy.yml` semantics.
+  - `go test ./internal/fileutil ./pkg/markdown ./pkg/engine`: passed after
+    adding root-confined artifact readers.
+  - `go test ./pkg/engine ./pkg/mcp`: passed after MCP and entity/public
+    artifact reader changes.
+  - `go test ./pkg/output`: passed after output sync root-confined reads.
+  - `go test ./pkg/scheduler`: passed after scheduler state/static-source
+    root-confined reads.
+  - `go test ./pkg/iprange ./tools/archposture`: passed after line-local
+    scanner suppressions for intentional local-input reads.
+  - `(cd tools/dronebl2ipsets && go test ./...)`: passed after DroneBL
+    command/read hardening.
+  - `make lint`: passed.
+  - `make test`: passed.
+  - `pnpm --dir ui lint`: passed.
+  - `pnpm --dir ui build:budget`: passed; feed-detail route remains a WARN
+    within the configured budget, and the existing unresolved runtime font URL
+    warnings remain.
+  - `git diff --check`: passed.
+  - `timeout 1800 ./install.sh`: passed after building the UI bundle,
+    refreshing embedded static assets, building the Go binary, installing to
+    `/opt/update-ipsets`, and restarting `update-ipsets`.
+  - `systemctl is-active update-ipsets`: reported `active`.
+  - `curl -fsS http://127.0.0.1:18888/healthz`: returned `ok`.
+  - `curl -fsS http://127.0.0.1:18888/api/v1/status`: returned a JSON status
+    document with the engine running and 423 sources loaded.
+  - `curl -fsS http://127.0.0.1:18888/api/v1/sets`: returned a JSON feed list
+    with 403 entries.
   - `pnpm --dir ui exec eslint --config ../eslint.config.mjs src/App.tsx`:
     passed after the bridge shape guard was added.
   - `pnpm --dir ui lint`: passed.

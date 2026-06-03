@@ -213,7 +213,7 @@ func appendChangesTail(tail []ChangesetPoint, point ChangesetPoint, limit int) [
 }
 
 func readCSVLines(path string, fn func(string) error) error {
-	file, err := os.Open(path)
+	file, err := openFilePathUnderRoot(filepath.Dir(path), path)
 	if err != nil {
 		return err
 	}
@@ -553,7 +553,7 @@ func loadRetentionCohorts(ctx context.Context, dir string) (map[int64]uint64, er
 			_ = fs.Close()
 			continue
 		}
-		set, err := loadSnapshotSet(ctx, entry.Name(), filePath)
+		set, err := loadSnapshotSet(ctx, entry.Name(), dir, filepath.Join("new", entry.Name()))
 		if err != nil {
 			return nil, err
 		}

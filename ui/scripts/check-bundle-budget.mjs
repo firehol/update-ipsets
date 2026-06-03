@@ -45,9 +45,9 @@ export async function checkBundleBudget(config, options = {}) {
 }
 
 function evaluateBudget(budget, files, warnAt) {
-  const patterns = (budget.patterns ?? []).map((pattern) => new RegExp(pattern));
+  const patterns = (budget.patterns ?? []).map(parseChunkPattern);
   const matches = files.filter((file) =>
-    patterns.some((pattern) => pattern.test(file.relative)),
+    patterns.some((pattern) => matchesChunkPattern(file.relative, pattern)),
   );
   const bytes = sum(matches, "bytes");
   const gzipBytes = sum(matches, "gzipBytes");
@@ -82,6 +82,36 @@ function evaluateBudget(budget, files, warnAt) {
     overBytes,
     overGzip,
   };
+}
+
+const CHUNK_PATTERN_RE = /^\^([A-Za-z0-9_-]+)-\[\\w-\]\+\\\.(js|css)\$$/;
+
+function parseChunkPattern(pattern) {
+  const match = CHUNK_PATTERN_RE.exec(String(pattern));
+  if (!match) {
+    throw new Error(`unsupported bundle budget pattern: ${pattern}`);
+  }
+  return { prefix: match[1], extension: match[2] };
+}
+
+function matchesChunkPattern(fileName, pattern) {
+  const prefix = `${pattern.prefix}-`;
+  const suffix = `.${pattern.extension}`;
+  if (!fileName.startsWith(prefix) || !fileName.endsWith(suffix)) {
+    return false;
+  }
+  const chunk = fileName.slice(prefix.length, -suffix.length);
+  return chunk.length > 0 && [...chunk].every(isChunkNameChar);
+}
+
+function isChunkNameChar(char) {
+  return (
+    (char >= "a" && char <= "z") ||
+    (char >= "A" && char <= "Z") ||
+    (char >= "0" && char <= "9") ||
+    char === "_" ||
+    char === "-"
+  );
 }
 
 async function readAssetFiles(assetsDir) {

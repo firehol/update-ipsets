@@ -2,7 +2,6 @@ import { BookOpen, Check, ExternalLink, Quote, Users } from "lucide-react";
 import type { FeedMetadata } from "@/lib/api-types";
 import type { FeedEnrichmentRole } from "@/lib/enrichment-types";
 import { useCategoryAccent } from "@/lib/categories";
-import { sanitizeHtml } from "@/lib/safe-html";
 import { safeExternalUrl } from "@/lib/safe-url";
 import { cn } from "@/lib/utils";
 import { DetailSection } from "./section";
@@ -99,7 +98,7 @@ function FallbackAbout({
   feed: FeedMetadata;
   accent: string | undefined;
 }) {
-  const safeHtml = sanitizeHtml(feed.info ?? "");
+  const body = feed.info?.trim() || "No description.";
   return (
     <DetailSection
       eyebrow="The story"
@@ -108,10 +107,7 @@ function FallbackAbout({
       accentColor={accent}
       tight
     >
-      <article
-        className="prose prose-lg max-w-3xl dark:prose-invert prose-headings:font-display prose-a:text-primary prose-a:no-underline hover:prose-a:underline"
-        dangerouslySetInnerHTML={{ __html: safeHtml || "<p>No description.</p>" }}
-      />
+      <MarkdownText value={body} className="max-w-3xl" />
     </DetailSection>
   );
 }

@@ -412,7 +412,8 @@ func staticSourceMaterializationChanged(src *config.Source, sourcePath string) b
 		return false
 	}
 	want := strings.Join(src.Static, "\n") + "\n"
-	got, err := os.ReadFile(sourcePath)
+	rootDir, rel := filepath.Split(sourcePath)
+	got, err := fileutil.ReadFileUnderRoot(rootDir, rel)
 	if err != nil {
 		return true
 	}

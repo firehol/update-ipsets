@@ -159,7 +159,7 @@ type asnActorContribution struct {
 }
 
 func (e *Engine) loadFeedEntitySidecar(path string) (*feedEntitySidecar, error) {
-	data, err := os.ReadFile(path)
+	data, err := readFilePathUnderRoot(filepath.Dir(path), path)
 	if err != nil {
 		return nil, err
 	}

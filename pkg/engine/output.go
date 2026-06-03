@@ -589,10 +589,9 @@ sendPairs:
 	var mergeMax time.Duration
 	for name, group := range grouped {
 		started := time.Now()
-		livePath := filepath.Join(e.outputDir(), name+"_comparison.json")
 		path := filepath.Join(outDir, name+"_comparison.json")
 		var existing []CompareRow
-		if data, err := os.ReadFile(livePath); err == nil {
+		if data, err := readFileInRoot(e.outputDir(), name+"_comparison.json"); err == nil {
 			if err := json.Unmarshal(data, &existing); err != nil {
 				// A corrupt comparison file should not poison the
 				// merge — fall back to "no existing rows" so the
@@ -827,7 +826,7 @@ func (e *Engine) sanitizeComparisonArtifacts(outDir string) error {
 			if entry.IsDir() || !strings.HasSuffix(name, "_comparison.json") {
 				continue
 			}
-			paths[name] = filepath.Join(dir, name)
+			paths[name] = dir
 		}
 	}
 	collect(liveOutDir)
@@ -835,11 +834,11 @@ func (e *Engine) sanitizeComparisonArtifacts(outDir string) error {
 	collect(outDir)
 
 	var cleaned int64
-	for rel, srcPath := range paths {
-		data, changed, err := sanitizedComparisonArtifactData(srcPath)
+	for rel, rootDir := range paths {
+		data, changed, err := sanitizedComparisonArtifactData(rootDir, rel)
 		if err != nil {
 			if e.logger != nil {
-				e.logger.Warn("comparison sanitize: cannot parse artifact", "file", srcPath, "error", err)
+				e.logger.Warn("comparison sanitize: cannot parse artifact", "file", filepath.Join(rootDir, rel), "error", err)
 			}
 			continue
 		}
@@ -857,8 +856,8 @@ func (e *Engine) sanitizeComparisonArtifacts(outDir string) error {
 	return nil
 }
 
-func sanitizedComparisonArtifactData(path string) ([]byte, bool, error) {
-	data, err := os.ReadFile(path)
+func sanitizedComparisonArtifactData(rootDir, rel string) ([]byte, bool, error) {
+	data, err := readFileInRoot(rootDir, rel)
 	if err != nil {
 		return nil, false, err
 	}
@@ -1058,8 +1057,8 @@ func asnSitemapURLsFromIndex(siteBase string, index *ASNIndexPayload) []string {
 }
 
 func (e *Engine) loadCountryIndexForSitemap(outDir string) *CountryIndexPayload {
-	for _, path := range sitemapIndexCandidatePaths(outDir, e.outputDir(), e.publicCountryIndexRelPath()) {
-		data, err := os.ReadFile(path)
+	for _, candidate := range sitemapIndexCandidatePaths(outDir, e.outputDir(), e.publicCountryIndexRelPath()) {
+		data, err := readFileInRoot(candidate.rootDir, candidate.rel)
 		if err != nil {
 			continue
 		}
@@ -1072,8 +1071,8 @@ func (e *Engine) loadCountryIndexForSitemap(outDir string) *CountryIndexPayload 
 }
 
 func (e *Engine) loadASNIndexForSitemap(outDir string) *ASNIndexPayload {
-	for _, path := range sitemapIndexCandidatePaths(outDir, e.outputDir(), e.publicASNIndexRelPath()) {
-		data, err := os.ReadFile(path)
+	for _, candidate := range sitemapIndexCandidatePaths(outDir, e.outputDir(), e.publicASNIndexRelPath()) {
+		data, err := readFileInRoot(candidate.rootDir, candidate.rel)
 		if err != nil {
 			continue
 		}
@@ -1085,20 +1084,20 @@ func (e *Engine) loadASNIndexForSitemap(outDir string) *ASNIndexPayload {
 	return nil
 }
 
-func sitemapIndexCandidatePaths(stageDir, liveDir, rel string) []string {
-	paths := make([]string, 0, 2)
+func sitemapIndexCandidatePaths(stageDir, liveDir, rel string) []rootedCandidatePath {
+	paths := make([]rootedCandidatePath, 0, 2)
 	seen := map[string]struct{}{}
 	for _, dir := range []string{stageDir, liveDir} {
 		dir = strings.TrimSpace(dir)
 		if dir == "" {
 			continue
 		}
-		path := filepath.Join(dir, rel)
-		if _, ok := seen[path]; ok {
+		key := filepath.Join(dir, rel)
+		if _, ok := seen[key]; ok {
 			continue
 		}
-		seen[path] = struct{}{}
-		paths = append(paths, path)
+		seen[key] = struct{}{}
+		paths = append(paths, rootedCandidatePath{rootDir: dir, rel: rel})
 	}
 	return paths
 }

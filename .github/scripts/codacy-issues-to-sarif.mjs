@@ -5,6 +5,7 @@ import path from "node:path";
 
 const SARIF_VERSION = "2.1.0";
 const MAX_CODACY_ISSUES_PER_QUERY = 1000;
+const INPUT_ROOT = path.resolve(process.env.CODACY_SARIF_WORK_DIR || "codacy-sarif");
 
 function fail(message) {
   console.error(message);
@@ -12,11 +13,21 @@ function fail(message) {
 }
 
 function loadJson(filePath) {
+  const safePath = resolveInputPath(filePath);
   try {
-    return JSON.parse(fs.readFileSync(filePath, "utf8"));
+    return JSON.parse(fs.readFileSync(safePath, "utf8")); // nosemgrep: javascript.pathtraversal.rule-non-literal-fs-filename - path is root-confined by resolveInputPath.
   } catch (error) {
     fail(`Failed to read JSON from ${filePath}: ${error.message}`);
   }
+}
+
+function resolveInputPath(filePath) {
+  const resolved = path.resolve(filePath);
+  const relative = path.relative(INPUT_ROOT, resolved);
+  if (relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative))) {
+    return resolved;
+  }
+  fail(`JSON input must be under ${path.relative(process.cwd(), INPUT_ROOT) || INPUT_ROOT}: ${filePath}`);
 }
 
 function normalizeUri(filePath) {

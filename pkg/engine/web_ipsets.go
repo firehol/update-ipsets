@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -30,70 +31,80 @@ func (e *Engine) copyUpdatedIPSetsToWeb(updatedNames []string) ([]output.Generat
 		if entry == nil || entry.File == "" {
 			continue
 		}
-		src := filepath.Join(e.runtime.BaseDir, entry.File)
-		info, err := os.Stat(src)
+		if !rawFeedFileMatches(name, entry.File) {
+			return nil, fmt.Errorf("set %q has unexpected materialized file %q", name, entry.File)
+		}
+		if _, ok := safeRuntimeFilePath(e.runtime.BaseDir, entry.File); !ok {
+			return nil, fmt.Errorf("set %q has unsafe materialized file %q", name, entry.File)
+		}
+		dst := filepath.Join(e.runtime.WebDirForIPSets, entry.File)
+		mod, err := copyFileViaNew(e.runtime.BaseDir, entry.File, dst, e.runtime.WebOwner)
 		if err != nil {
 			if os.IsNotExist(err) {
 				continue
 			}
 			return nil, err
 		}
-		dst := filepath.Join(e.runtime.WebDirForIPSets, entry.File)
-		if err := copyFileViaNew(src, dst, e.runtime.WebOwner, info.ModTime()); err != nil {
-			return nil, err
-		}
 		generated = append(generated, output.GeneratedFile{
 			Path:            dst,
-			Timestamp:       info.ModTime().UTC(),
+			Timestamp:       mod.UTC(),
 			Redistributable: true,
 		})
 	}
 	return generated, nil
 }
 
-func copyFileViaNew(src, dst, owner string, mod time.Time) error {
+func copyFileViaNew(srcRoot, srcRel, dst, owner string) (time.Time, error) {
 	if err := os.MkdirAll(filepath.Dir(dst), generatedDirMode); err != nil {
-		return err
+		return time.Time{}, err
 	}
 	if err := chownPath(owner, filepath.Dir(dst)); err != nil {
-		return err
+		return time.Time{}, err
 	}
-	tmp := dst + ".new"
-	defer func() { _ = os.Remove(tmp) }()
-	in, err := os.Open(src)
+	in, err := openFileInRoot(srcRoot, srcRel)
 	if err != nil {
-		return err
+		return time.Time{}, err
 	}
 	defer func() { _ = in.Close() }()
-
-	out, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, generatedFileMode)
+	info, err := in.Stat()
 	if err != nil {
-		return err
+		return time.Time{}, err
 	}
+	mod := info.ModTime()
+
+	out, err := os.CreateTemp(filepath.Dir(dst), ".new-*")
+	if err != nil {
+		return time.Time{}, err
+	}
+	tmp := out.Name()
+	defer func() { _ = os.Remove(tmp) }()
 	if err := out.Chmod(generatedFileMode); err != nil {
 		_ = out.Close()
-		return err
+		return time.Time{}, err
 	}
 	if _, err := io.Copy(out, in); err != nil {
 		_ = out.Close()
-		return err
+		return time.Time{}, err
 	}
 	if err := out.Sync(); err != nil {
 		_ = out.Close()
-		return err
+		return time.Time{}, err
 	}
 	if err := out.Close(); err != nil {
-		return err
+		return time.Time{}, err
 	}
 	if !mod.IsZero() {
 		if err := os.Chtimes(tmp, mod, mod); err != nil {
-			return err
+			return time.Time{}, err
 		}
 	}
 	if err := chownPath(owner, tmp); err != nil {
-		return err
+		return time.Time{}, err
 	}
-	return os.Rename(tmp, dst)
+	if err := os.Rename(tmp, dst); err != nil {
+		return time.Time{}, err
+	}
+	return mod, nil
 }
 
 func dirExists(path string) bool {

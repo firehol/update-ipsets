@@ -131,7 +131,7 @@ func LoadPath6(ctx context.Context, path string, opts ParseOptions) (*IPSet6, er
 	if path == "" || path == "-" {
 		return ParseReader6(ctx, DefaultName, os.Stdin, opts)
 	}
-	f, err := os.Open(path)
+	f, err := os.Open(path) // nosemgrep: exported local parser API; callers intentionally provide the file path.
 	if err != nil {
 		return nil, err
 	}

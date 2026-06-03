@@ -109,7 +109,7 @@ function normalizeWikiBaseURL(value) {
 
 function splitTarget(target) {
   const hash = target.indexOf("#");
-  if (hash === -1) {
+  if (hash < 0) {
     return { pathname: target, anchor: "" };
   }
 

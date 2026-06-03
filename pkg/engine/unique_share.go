@@ -2,8 +2,6 @@ package engine
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/firehol/update-ipsets/pkg/cache"
@@ -85,14 +83,8 @@ func (e *Engine) updateUniqueShares(names []string, outDir string) {
 		}
 		selfMaintainer := strings.TrimSpace(strings.ToLower(entry.Maintainer))
 
-		path := pickExistingPath(
-			filepath.Join(outDir, name+"_comparison.json"),
-			filepath.Join(liveOutDir, name+"_comparison.json"),
-		)
-		if path == "" {
-			continue
-		}
-		data, err := os.ReadFile(path)
+		rel := name + "_comparison.json"
+		data, err := readFirstExisting(singleCandidatePath(outDir, rel), singleCandidatePath(liveOutDir, rel))
 		if err != nil {
 			continue
 		}
@@ -183,18 +175,4 @@ func isIndependentPeer(peer *config.Source, self *config.Source) bool {
 		return false
 	}
 	return true
-}
-
-// pickExistingPath returns the first path from the candidates that
-// points to an existing file, or "" when none exist.
-func pickExistingPath(candidates ...string) string {
-	for _, p := range candidates {
-		if p == "" {
-			continue
-		}
-		if _, err := os.Stat(p); err == nil {
-			return p
-		}
-	}
-	return ""
 }

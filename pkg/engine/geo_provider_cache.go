@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"io"
 	"iter"
-	"os"
+	"path/filepath"
 	"slices"
 	"sort"
 	"sync"
@@ -112,7 +112,7 @@ func currentGeoProviderFreshness(format, path string) (geoProviderFreshnessKey, 
 	if err != nil {
 		return geoProviderFreshnessKey{}, err
 	}
-	f, err := os.Open(path)
+	f, err := openFilePathUnderRoot(filepath.Dir(path), path)
 	if err != nil {
 		return geoProviderFreshnessKey{}, err
 	}

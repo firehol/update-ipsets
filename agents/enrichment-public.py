@@ -157,6 +157,17 @@ def validate_public(doc: dict[str, Any]) -> None:
     jsonschema.validate(doc, load_json(PUBLIC_SCHEMA))
 
 
+RECOVERABLE_PUBLIC_ERRORS = (
+    OSError,
+    json.JSONDecodeError,
+    ValueError,
+    KeyError,
+    TypeError,
+    jsonschema.ValidationError,
+    jsonschema.SchemaError,
+)
+
+
 def paragraph_count(text: str) -> list[str]:
     return [p.strip() for p in re.split(r"\n\s*\n", text.strip()) if p.strip()]
 
@@ -277,7 +288,7 @@ def prose_hygiene_findings(feed: str, doc: dict[str, Any], source: str) -> list[
 def clean_report(report_path: Path, static: bool) -> bool:
     try:
         report = load_json(report_path)
-    except Exception:
+    except (OSError, json.JSONDecodeError):
         return False
     summary = report.get("summary") or {}
     if report.get("schema_valid") is not True:
@@ -881,7 +892,7 @@ def command_hygiene(args: argparse.Namespace) -> int:
         projection = project_public(data)
         try:
             validate_public(projection)
-        except Exception as e:
+        except (jsonschema.ValidationError, jsonschema.SchemaError) as e:
             schema_failures.append({"feed": run.feed, "source": str(run.output_path), "error": str(e)})
             continue
         all_findings.extend(prose_hygiene_findings(run.feed, projection, str(run.output_path.relative_to(REPO_ROOT))))
@@ -943,7 +954,7 @@ def command_hygiene_embedded(args: argparse.Namespace) -> int:
     for feed, projection, source in items:
         try:
             validate_public(projection)
-        except Exception as e:
+        except (jsonschema.ValidationError, jsonschema.SchemaError) as e:
             schema_failures.append({"feed": feed, "source": source, "error": str(e)})
             continue
         all_findings.extend(prose_hygiene_findings(feed, projection, source))
@@ -985,7 +996,7 @@ def command_embed(args: argparse.Namespace) -> int:
             item["hygiene_findings"] = hygiene
             report["items"].append(item)
             print(("wrote" if args.write else "would_write") + f"\t{run.feed}\t{item['yaml']}\t{item['section']}\thygiene={len(hygiene)}")
-        except Exception as e:
+        except RECOVERABLE_PUBLIC_ERRORS as e:
             report["errors"].append({"feed": run.feed, "error": str(e)})
             print(f"error\t{run.feed}\t{e}", file=sys.stderr)
     if args.report:
@@ -1018,7 +1029,7 @@ def command_delta(args: argparse.Namespace) -> int:
             projection = project_public(data)
             validate_public(projection)
             report["findings"].extend(delta_findings(run, projection, fields))
-        except Exception as e:
+        except RECOVERABLE_PUBLIC_ERRORS as e:
             report["errors"].append({"feed": run.feed, "error": str(e)})
             print(f"error\t{run.feed}\t{e}", file=sys.stderr)
 
@@ -1088,7 +1099,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         return args.func(args)
-    except Exception as e:
+    except RECOVERABLE_PUBLIC_ERRORS as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 2
 
