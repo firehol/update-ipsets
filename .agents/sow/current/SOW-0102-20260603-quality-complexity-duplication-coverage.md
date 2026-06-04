@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: nineteenth implementation slice validated; runtime resolver PR pending
+Sub-state: twentieth implementation slice validated; output metadata PR pending
 
 ## Requirements
 
@@ -2467,9 +2467,144 @@ Artifact maintenance gate:
 - End-user/operator skills: no update needed.
 - SOW lifecycle: remains in `.agents/sow/current/`; Slice 19 is validated and pending PR merge.
 
+## Pre-Implementation Gate - Slice 20
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after the Slice 19 merge, local `tools/archposture` reports `pkg/engine/output.go:142` `(*Engine).buildSetMetadataFromEffectiveEntryInDirWithResolver` at 133 lines with complexity 27.
+- Facts: `go test -coverprofile=/tmp/update-ipsets-output-metadata-slice20-baseline.cover -covermode=atomic ./pkg/engine` reports `pkg/engine` coverage at `71.3%`; `go tool cover` reports `buildSetMetadataFromEffectiveEntryInDirWithResolver` at `98.1%` and package total statement coverage at `71.3%`.
+- Working theory: the metadata builder is large because it combines base bash-compatible metadata construction, live config fallback for license/attribution, comparison and geo artifact discovery, raw redistributable URL exposure, source-config enrichment/provenance fields, merge composition fields, and final raw-field suppression for non-redistributable or archived feeds.
+
+Evidence reviewed:
+
+- `pkg/engine/output.go`
+- `pkg/engine/output_test.go`
+- `pkg/engine/output_metadata_test.go`
+- `pkg/engine/public_enrichment_test.go`
+- `pkg/engine/file_contract_test.go`
+- `pkg/engine/metadata_write.go`
+- `/tmp/update-ipsets-archposture-slice20-baseline.json`
+- `/tmp/update-ipsets-output-metadata-slice20-baseline.cover`
+- Project coding, testing, hygiene, Go best-practices, Go behavioral-testing, and content-surface skills.
+
+Affected contracts and surfaces:
+
+- Per-feed public metadata JSON returned by `Metadata` and written as `{feed}.json`.
+- Bash-compatible metadata fields and millisecond timestamp semantics.
+- Redistributability and archived-feed raw field suppression.
+- Geolocation provider artifact discovery from configured `use: geoip` sources.
+- Source enrichment/provenance fields consumed by public API/UI.
+- Merge composition fields and `enableAll` semantics.
+- SOW only; no docs or specs are expected to change because the slice is behavior-preserving.
+
+Existing patterns to reuse:
+
+- Existing `lookupSource`, `publicProvenance`, `formatProcessorSteps`, `mergeCompositionWithResolver`, and health classification helpers.
+- Existing file-existence checks against both selected output directory and engine output directory.
+- Existing tests for merge composition, non-redistributable metadata suppression, markdown conversion, timestamp milliseconds, enrichment exposure, and file contracts.
+
+Risk and blast radius:
+
+- Public metadata is a stable API and generated artifact contract.
+- Raw source/file URL exposure must stay tied to redistributability and archived-feed policy.
+- Geo artifact discovery must remain config-driven and must not hardcode provider names.
+- Merge composition must continue using the passed resolver and `enableAll` option.
+- No public serving, scheduler, downloader, install script, or UI behavior should change.
+
+Sensitive data handling plan:
+
+- This slice uses only local source code, synthetic test fixtures, temporary paths, and local posture/coverage metrics.
+- No secrets, tokens, cookies, private endpoints, customer data, or personal data are needed.
+- Durable artifacts will record only file paths, metrics, validation outcomes, and sanitized command evidence.
+
+Implementation plan:
+
+1. Extract base bash-compatible metadata construction into a focused helper.
+2. Extract config fallback fields for license and attribution.
+3. Extract comparison/geo artifact discovery and redistributable URL population.
+4. Extract source-config enrichment/provenance/merge fields.
+5. Extract final raw-field suppression for non-redistributable or archived feeds.
+6. Preserve all public metadata field values, artifact lookup behavior, and merge resolver semantics.
+7. Re-run `pkg/engine` tests and coverage, `tools/archposture`, strict shuffled tests, lint/static checks, and root coverage.
+
+Validation plan:
+
+- Run `go test ./pkg/engine`.
+- Run `go test -coverprofile=/tmp/update-ipsets-output-metadata-slice20.cover -covermode=atomic ./pkg/engine` and inspect `go tool cover -func`.
+- Run `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice20.json` and confirm `buildSetMetadataFromEffectiveEntryInDirWithResolver` no longer appears as a large-function target.
+- Run `go test -shuffle=on -count=3 ./pkg/engine`.
+- Run `make lint`, `make staticcheck`, `make golangci-lint`, `CI=true make coverage`, and `make test-strict`.
+- Run whitespace and durable-artifact forbidden-name scans over the changed files before commit.
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if a repeatable metadata-builder refactor lesson is found.
+- Specs: no update expected because public metadata semantics are intended to stay unchanged.
+- End-user/operator docs: no update expected.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: this SOW remains in `.agents/sow/current/`; Slice 20 results will be recorded after validation.
+
+Open decisions:
+
+- No new user design decision is required because the slice is behavior-preserving quality work under the previously approved quality plan.
+
+## Slice 20 Results
+
+Changes made:
+
+- Moved per-feed public metadata schema and builders from `pkg/engine/output.go` into `pkg/engine/output_metadata.go`.
+- Split `buildSetMetadataFromEffectiveEntryInDirWithResolver` into focused helpers for:
+  - base bash-compatible metadata construction;
+  - config fallback for license and attribution;
+  - comparison, geo, local-copy, and GitHub artifact fields;
+  - source provenance, enrichment, use-role, and processor fields;
+  - merge composition fields;
+  - raw source/file suppression for non-redistributable or archived feeds.
+- Kept shared sitemap, robots, llms, JSON, and timestamp helpers in `pkg/engine/output.go`.
+- Preserved public metadata field values, configured geo provider discovery, redistributability policy, archived-feed suppression, and merge resolver/`enableAll` behavior.
+
+Measured result:
+
+- Baseline: `pkg/engine/output.go:142` `(*Engine).buildSetMetadataFromEffectiveEntryInDirWithResolver` was 133 lines with complexity 27 and `98.1%` direct coverage.
+- After refactor: no `pkg/engine/output*.go` function appears in `tools/archposture` large-function output.
+- `pkg/engine/output.go` moved to 424 lines.
+- `pkg/engine/output_metadata.go` is 364 lines.
+- `buildSetMetadataFromEffectiveEntryInDirWithResolver` direct coverage moved to `100.0%`.
+- `pkg/engine` coverage remains `71.3%`.
+- Root coverage by `go tool cover -func=coverage.out` remains `72.6%`.
+- `tools/archposture` after this slice: source files `628`, source lines `126734`, large files `50`, and large functions `30`.
+- Remaining top production complexity target: `pkg/engine/critical.go:489` `(*Engine).writeCriticalInfrastructureForFeed`, 130 lines, complexity 26.
+
+Tests or equivalent validation:
+
+- `go test ./pkg/engine`: passed.
+- `go test -coverprofile=/tmp/update-ipsets-output-metadata-slice20.cover -covermode=atomic ./pkg/engine`: passed, `71.3%`.
+- `go tool cover -func=/tmp/update-ipsets-output-metadata-slice20.cover`: passed, total `71.3%`.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice20.json`: passed.
+- `go test -shuffle=on -count=3 ./pkg/engine`: passed.
+- `make lint`: passed.
+- `make staticcheck`: passed.
+- `make golangci-lint`: passed with `0 issues`.
+- `CI=true make coverage`: passed.
+- `make test-strict`: passed.
+- `git diff --check`: passed.
+- Durable-artifact forbidden-name scan over the changed SOW and Go files found no newly added personal name, authorship, tool, or vendor-attribution text.
+
+Artifact maintenance gate:
+
+- AGENTS.md: no update needed.
+- Runtime project skills: no update needed; no new durable process rule was found.
+- Specs: no update needed; public metadata semantics are unchanged.
+- End-user/operator docs: no update needed.
+- End-user/operator skills: no update needed.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 20 is validated and pending PR merge.
+
 ## Outcome
 
-First through nineteenth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through twentieth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
