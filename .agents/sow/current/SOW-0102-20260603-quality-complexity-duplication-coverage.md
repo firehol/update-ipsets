@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: fifteenth implementation slice validated; entity feed sidecar PR pending
+Sub-state: sixteenth implementation slice validated; integrity check PR pending
 
 ## Requirements
 
@@ -1553,9 +1553,11 @@ Lessons:
 Follow-up mapping:
 
 - Next measured complexity targets:
-  - `pkg/engine/integrity.go:110` `(*Engine).CheckIntegrityWithOptions`: 156 lines, complexity 36.
   - `pkg/engine/metadata.go:16` `(*Engine).writeMetadataFiles`: 150 lines, complexity 28.
   - `pkg/engine/retention.go:58` `(*Engine).updateRetention`: 142 lines, complexity 32.
+  - `pkg/engine/runtime.go:81` `resolveRuntime`: 134 lines, complexity 32.
+  - `pkg/engine/output.go:142` `(*Engine).buildSetMetadataFromEffectiveEntryInDirWithResolver`: 133 lines, complexity 27.
+  - `pkg/engine/critical.go:489` `(*Engine).writeCriticalInfrastructureForFeed`: 130 lines, complexity 26.
   - `pkg/engine/entity_feed_sidecar.go:370` `(*Engine).buildSelectedEntityDetailSidecarsFromFeedSidecars`: 122 lines, complexity 39.
 - Next measured duplication targets:
   - `ui/src/components/admin/feeds-table-header.tsx`: 130 duplicated lines.
@@ -1944,9 +1946,140 @@ Artifact maintenance gate:
 - End-user/operator skills: no update needed.
 - SOW lifecycle: remains in `.agents/sow/current/`; Slice 15 is validated and pending PR merge.
 
+## Pre-Implementation Gate - Slice 16
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after the Slice 15 merge, local `tools/archposture` reports `pkg/engine/integrity.go:110` `(*Engine).CheckIntegrityWithOptions` at 156 lines with complexity 36.
+- Facts: `go test -coverprofile=/tmp/update-ipsets-integrity-slice16-baseline.cover -covermode=atomic ./pkg/engine` reports `pkg/engine` coverage at `71.2%`; `go tool cover` reports `CheckIntegrityWithOptions` at `81.2%` and package total statement coverage at `71.2%`.
+- Working theory: `CheckIntegrityWithOptions` is large because it combines runtime path resolution, feed eligibility, archive filtering, blocked-input finding construction, never-processed detection, source-body checks, in-flight suppression, history-derivative handling, secondary artifact scanning, policy validation, reason construction, sorting, and output accumulation.
+
+Evidence reviewed:
+
+- `pkg/engine/integrity.go`
+- `pkg/engine/integrity_test.go`
+- `/tmp/update-ipsets-archposture-slice16-baseline.json`
+- `/tmp/update-ipsets-integrity-slice16-baseline.cover`
+- Project coding, testing, hygiene, Go best-practices, Go behavioral-testing, and content-surface skills.
+
+Affected contracts and surfaces:
+
+- `Engine.CheckIntegrity` and `Engine.CheckIntegrityWithOptions`.
+- Admin integrity API behavior that exposes `IntegrityFinding` fields.
+- Startup integrity recovery decisions that consume integrity findings.
+- Recovery planning for recheck versus reprocess.
+- Generated artifact integrity semantics: missing, stale, malformed, blocked feeds, source mtime fields, processed timestamp, recovery reason text, and deterministic list sorting.
+- SOW only; no docs or specs are expected to change because the slice is behavior-preserving.
+
+Existing patterns to reuse:
+
+- Existing integrity tests in `pkg/engine/integrity_test.go` that drive exported integrity checks through temp directories and engine fixtures.
+- Existing helper style in `integrity.go` for reason building, blocked-feed calculation, history derivative checks, source-body lookup, and expected secondary artifact enumeration.
+- Existing recovery/action semantics that treat missing committed sources differently from stale/missing secondary artifacts.
+
+Risk and blast radius:
+
+- Integrity findings protect startup recovery and operator repair workflows. A behavior change can hide broken artifacts or produce noisy false positives.
+- Archive filtering and `EnableAll` behavior must remain identical.
+- In-flight suppression must still happen before expensive or noisy secondary checks.
+- History-derived feeds must still prefer parent recheck when downloader-owned snapshots are missing or corrupt.
+- Metadata redistributability policy validation must still use the same archive-aware policy.
+- Deterministic sorting of missing, stale, malformed, and blocked lists must remain unchanged.
+
+Sensitive data handling plan:
+
+- This slice uses only local source code, synthetic engine fixtures, temporary directories, and local posture/coverage metrics.
+- No secrets, tokens, cookies, private endpoints, customer data, or personal data are needed.
+- Durable artifacts will record only file paths, metrics, validation outcomes, and sanitized command evidence.
+
+Implementation plan:
+
+1. Move the exported integrity check coordinator and its new focused helpers into a dedicated integrity-check file if that reduces file posture.
+2. Extract runtime-path validation, per-source eligibility/context gathering, blocked-input finding construction, unprocessed-source handling, missing-source handling, and secondary artifact scanning into focused helpers.
+3. Preserve existing helper behavior for history derivatives, reason construction, blocked bogon provider artifacts, expected artifact enumeration, and structured artifact validation.
+4. Add tests only if the extraction exposes a valid branch not already covered through exported integrity behavior.
+5. Re-run `pkg/engine` tests and coverage, `tools/archposture`, strict shuffled tests, lint/static checks, and root coverage.
+
+Validation plan:
+
+- Run `go test ./pkg/engine`.
+- Run `go test -coverprofile=/tmp/update-ipsets-integrity-slice16.cover -covermode=atomic ./pkg/engine` and inspect `go tool cover -func`.
+- Run `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice16.json` and confirm `CheckIntegrityWithOptions` no longer appears as a large-function target.
+- Run `go test -shuffle=on -count=3 ./pkg/engine`.
+- Run `make lint`, `make staticcheck`, `make golangci-lint`, `CI=true make coverage`, and `make test-strict`.
+- Run whitespace and durable-artifact forbidden-name scans over the changed files before commit.
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if a repeatable integrity-refactor lesson is found.
+- Specs: no update expected because integrity semantics are intended to stay unchanged.
+- End-user/operator docs: no update expected.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: this SOW remains in `.agents/sow/current/`; Slice 16 results will be recorded after validation.
+
+Open decisions:
+
+- No new user design decision is required because the slice is behavior-preserving quality work under the previously approved quality plan.
+
+## Slice 16 Results
+
+Changes made:
+
+- Moved the exported integrity check coordinator from `pkg/engine/integrity.go` into `pkg/engine/integrity_check.go`.
+- Split `CheckIntegrityWithOptions` into focused helpers for:
+  - runtime path validation;
+  - per-source eligibility/context gathering;
+  - blocked merge input findings;
+  - enabled-but-never-processed findings;
+  - missing committed source findings;
+  - secondary artifact scanning;
+  - final reason and list sorting.
+- Preserved existing helper behavior for history derivatives, blocked-feed calculation, blocked bogon provider artifacts, expected secondary artifact enumeration, structured artifact validation, archive filtering, `EnableAll`, in-flight suppression, and recovery reason text.
+- Added `pkg/engine/integrity_blocked_test.go` to cover blocked merge input reporting through the exported `CheckIntegrityWithOptions` path.
+- Kept the new behavioral test out of the already-large `pkg/engine/integrity_test.go`; that file remains at its 1207-line baseline.
+
+Measured result:
+
+- Baseline: `pkg/engine/integrity.go:110` `(*Engine).CheckIntegrityWithOptions` was 156 lines with complexity 36 and `81.2%` direct coverage.
+- After refactor: `CheckIntegrityWithOptions` is a short coordinator and no `pkg/engine/integrity*.go` production function appears in `tools/archposture` large-function output.
+- `pkg/engine/integrity.go` moved to 376 lines.
+- `pkg/engine/integrity_check.go` is 246 lines.
+- `pkg/engine/integrity_blocked_test.go` is 59 lines.
+- `pkg/engine` coverage moved from `71.2%` to `71.3%`.
+- Root coverage by `go tool cover -func=coverage.out` remains `72.6%`.
+- `tools/archposture` after this slice: source files `625`, source lines `126476`, large files `51`, and large functions `34`.
+- Remaining top production complexity target: `pkg/engine/metadata.go:16` `(*Engine).writeMetadataFiles`, 150 lines, complexity 28.
+
+Tests or equivalent validation:
+
+- `go test ./pkg/engine`: passed.
+- `go test -coverprofile=/tmp/update-ipsets-integrity-slice16.cover -covermode=atomic ./pkg/engine`: passed, `71.3%`.
+- `go tool cover -func=/tmp/update-ipsets-integrity-slice16.cover`: passed, total `71.3%`.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice16.json`: passed.
+- `go test -shuffle=on -count=3 ./pkg/engine`: passed.
+- `make lint`: passed.
+- `make staticcheck`: passed.
+- `make golangci-lint`: passed with `0 issues`.
+- `CI=true make coverage`: passed.
+- `make test-strict`: passed.
+- `git diff --check`: passed.
+- Durable-artifact forbidden-name scan over the changed SOW and Go files found no newly added personal name, authorship, tool, or vendor-attribution text.
+
+Artifact maintenance gate:
+
+- AGENTS.md: no update needed.
+- Runtime project skills: no update needed; no new durable process rule was found.
+- Specs: no update needed; integrity semantics are unchanged.
+- End-user/operator docs: no update needed.
+- End-user/operator skills: no update needed.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 16 is validated and pending PR merge.
+
 ## Outcome
 
-First through fifteenth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through sixteenth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
