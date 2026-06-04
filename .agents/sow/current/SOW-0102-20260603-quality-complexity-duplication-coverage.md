@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: twentieth implementation slice validated; output metadata PR pending
+Sub-state: twenty-first implementation slice validated; critical writer PR pending
 
 ## Requirements
 
@@ -2602,9 +2602,141 @@ Artifact maintenance gate:
 - End-user/operator skills: no update needed.
 - SOW lifecycle: remains in `.agents/sow/current/`; Slice 20 is validated and pending PR merge.
 
+## Pre-Implementation Gate - Slice 21
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after the Slice 20 merge, local `tools/archposture` reports `pkg/engine/critical.go:489` `(*Engine).writeCriticalInfrastructureForFeed` at 130 lines with complexity 26.
+- Facts: `go test -coverprofile=/tmp/update-ipsets-critical-slice21-baseline.cover -covermode=atomic ./pkg/engine` reports `pkg/engine` coverage at `71.3%`; `go tool cover` reports `writeCriticalInfrastructureForFeed` at `79.7%` and package total statement coverage at `71.3%`.
+- Working theory: `writeCriticalInfrastructureForFeed` is large because it combines target feed opening, source/provider error checks, per-provider intersection scanning, provider artifact writing, aggregate/tier set accumulation, provider sorting, aggregate payload construction, ASN context enrichment, overlap summary extraction, and aggregate artifact writing.
+
+Evidence reviewed:
+
+- `pkg/engine/critical.go`
+- `pkg/engine/critical_test.go`
+- `pkg/engine/integrity_test.go`
+- `pkg/engine/pipeline_integrity_scenario_test.go`
+- `pkg/engine/run_pipeline.go`
+- `/tmp/update-ipsets-archposture-slice21-baseline.json`
+- `/tmp/update-ipsets-critical-slice21-baseline.cover`
+- Project coding, testing, hygiene, Go best-practices, Go behavioral-testing, and content-surface skills.
+
+Affected contracts and surfaces:
+
+- Critical infrastructure aggregate artifacts: `{feed}_critical_infrastructure.json`.
+- Critical provider artifacts: `{feed}_critical_{provider}.json`, including zero-overlap provider artifacts.
+- Critical tier summaries, provider ordering, percentages, missing-provider completeness, provider-set IDs, and ASN context.
+- In-memory critical overlap tier summaries stored on cache entries after processing.
+- SOW only; no docs or specs are expected to change because the slice is behavior-preserving.
+
+Existing patterns to reuse:
+
+- Existing `criticalDatasets`, `criticalProviderOverlapJSON`, `criticalAggregateJSON`, and `criticalTierSummaryJSON` payload types.
+- Existing `writeCriticalProviderPayload`, `criticalASNContextForFeed`, `criticalOverlapTiersFromAggregate`, and `checkFileSetErr` helpers.
+- Existing critical tests that verify provider metadata, target selection, aggregate/provider artifacts, missing providers, stale artifact cleanup, ASN context, provider-set IDs, and pipeline generation.
+
+Risk and blast radius:
+
+- Public critical artifacts are consumed by the public site, integrity checks, insights, and signal snapshots.
+- Provider artifacts must still be written even when a provider has zero overlap.
+- Aggregate provider ordering must remain by descending critical IPs, then provider name.
+- Tier provider counts must count providers with any overlap once per tier.
+- File-set error checks before and after scans must stay intact to catch mmap/fileset failures.
+- No public serving, scheduler, downloader, install script, or UI behavior should change.
+
+Sensitive data handling plan:
+
+- This slice uses only local source code, synthetic test fixtures, temporary paths, and local posture/coverage metrics.
+- No secrets, tokens, cookies, private endpoints, customer data, or personal data are needed.
+- Durable artifacts will record only file paths, metrics, validation outcomes, and sanitized command evidence.
+
+Implementation plan:
+
+1. Introduce a focused per-feed critical writer helper that owns aggregate/tier state for one feed.
+2. Extract feed source opening and feed IP/error validation.
+3. Extract per-provider overlap scanning and provider payload writing.
+4. Extract provider payload sorting and aggregate payload assembly.
+5. Extract tier summary assembly and aggregate artifact writing.
+6. Preserve provider artifact writes, zero-overlap behavior, ordering, percentages, provider-set IDs, and ASN context.
+7. Re-run `pkg/engine` tests and coverage, `tools/archposture`, strict shuffled tests, lint/static checks, and root coverage.
+
+Validation plan:
+
+- Run `go test ./pkg/engine`.
+- Run `go test -coverprofile=/tmp/update-ipsets-critical-slice21.cover -covermode=atomic ./pkg/engine` and inspect `go tool cover -func`.
+- Run `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice21.json` and confirm `writeCriticalInfrastructureForFeed` no longer appears as a large-function target.
+- Run `go test -shuffle=on -count=3 ./pkg/engine`.
+- Run `make lint`, `make staticcheck`, `make golangci-lint`, `CI=true make coverage`, and `make test-strict`.
+- Run whitespace and durable-artifact forbidden-name scans over the changed files before commit.
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if a repeatable critical-writer refactor lesson is found.
+- Specs: no update expected because critical artifact semantics are intended to stay unchanged.
+- End-user/operator docs: no update expected.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: this SOW remains in `.agents/sow/current/`; Slice 21 results will be recorded after validation.
+
+Open decisions:
+
+- No new user design decision is required because the slice is behavior-preserving quality work under the previously approved quality plan.
+
+## Slice 21 Results
+
+Changes made:
+
+- Moved the per-feed critical infrastructure writer from `pkg/engine/critical.go` into `pkg/engine/critical_feed_writer.go`.
+- Split `writeCriticalInfrastructureForFeed` into focused helpers for:
+  - feed source opening and validation;
+  - per-provider file-set checks;
+  - provider overlap scanning and aggregate/tier set accumulation;
+  - zero-overlap provider artifact writing;
+  - provider payload sorting;
+  - aggregate payload and tier summary construction;
+  - ASN context attachment and aggregate artifact writing.
+- Preserved missing target feed skip behavior, provider artifact writes for zero-overlap providers, provider ordering, tier provider counts, percentage calculations, provider-set IDs, missing-provider completeness, ASN context, and overlap tier summaries.
+
+Measured result:
+
+- Baseline: `pkg/engine/critical.go:489` `(*Engine).writeCriticalInfrastructureForFeed` was 130 lines with complexity 26 and `79.7%` direct coverage.
+- After refactor: no `pkg/engine/critical*.go` function appears in `tools/archposture` large-function output.
+- `pkg/engine/critical.go` moved to 831 lines.
+- `pkg/engine/critical_feed_writer.go` is 226 lines.
+- `pkg/engine` coverage remains `71.3%`.
+- Root coverage by `go tool cover -func=coverage.out` remains `72.6%`.
+- `tools/archposture` after this slice: source files `629`, source lines `126829`, large files `50`, and large functions `29`.
+- Remaining top production complexity target: `pkg/downloader/internal.go:119` `fetchInternal`, 128 lines, complexity 16.
+
+Tests or equivalent validation:
+
+- `go test ./pkg/engine`: passed.
+- `go test -coverprofile=/tmp/update-ipsets-critical-slice21.cover -covermode=atomic ./pkg/engine`: passed, `71.3%`.
+- `go tool cover -func=/tmp/update-ipsets-critical-slice21.cover`: passed, total `71.3%`.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice21.json`: passed.
+- `go test -shuffle=on -count=3 ./pkg/engine`: passed.
+- `make lint`: passed.
+- `make staticcheck`: passed.
+- `make golangci-lint`: passed with `0 issues`.
+- `CI=true make coverage`: passed.
+- `make test-strict`: passed.
+- `git diff --check`: passed.
+- Durable-artifact forbidden-name scan over the changed SOW and Go files found no newly added personal name, authorship, tool, or vendor-attribution text.
+
+Artifact maintenance gate:
+
+- AGENTS.md: no update needed.
+- Runtime project skills: no update needed; no new durable process rule was found.
+- Specs: no update needed; critical artifact semantics are unchanged.
+- End-user/operator docs: no update needed.
+- End-user/operator skills: no update needed.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 21 is validated and pending PR merge.
+
 ## Outcome
 
-First through twentieth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through twenty-first implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
