@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: seventeenth implementation slice validated; metadata writer PR pending
+Sub-state: eighteenth implementation slice validated; retention refactor PR pending
 
 ## Requirements
 
@@ -2205,9 +2205,142 @@ Artifact maintenance gate:
 - End-user/operator skills: no update needed.
 - SOW lifecycle: remains in `.agents/sow/current/`; Slice 17 is validated and pending PR merge.
 
+## Pre-Implementation Gate - Slice 18
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after the Slice 17 merge, local `tools/archposture` reports `pkg/engine/retention.go:58` `(*Engine).updateRetention` at 142 lines with complexity 32.
+- Facts: `go test -coverprofile=/tmp/update-ipsets-retention-slice18-baseline.cover -covermode=atomic ./pkg/engine` reports `pkg/engine` coverage at `71.3%`; `go tool cover` reports `updateRetention` at `76.3%` and package total statement coverage at `71.3%`.
+- Working theory: `updateRetention` is large because it combines directory preparation, new/removed set delta calculation, changeset ledger updates, cohort creation, no-removal fast-path artifact refresh, removal reconciliation, retention cache mutation, JSON publication, and bash histogram cache writing.
+
+Evidence reviewed:
+
+- `pkg/engine/retention.go`
+- `pkg/engine/retention_test.go`
+- `pkg/engine/runtime_ledger_cache.go`
+- `pkg/engine/file_contract_test.go`
+- `pkg/engine/public_series.go`
+- `/tmp/update-ipsets-archposture-slice18-baseline.json`
+- `/tmp/update-ipsets-retention-slice18-baseline.cover`
+- Project coding, testing, hygiene, Go best-practices, Go behavioral-testing, and content-surface skills.
+
+Affected contracts and surfaces:
+
+- Retention cohort files under `lib/{feed}/new/`.
+- Retention ledgers: `changesets.csv`, `retention.csv`, and `retention_cohorts.csv`.
+- Generated retention artifacts: `retention.json`, bash `histogram`, and public `{feed}_retention.json` consumers.
+- Runtime retention ledger cache updates used by query, public series, insights, and integrity paths.
+- SOW only; no docs or specs are expected to change because the slice is behavior-preserving.
+
+Existing patterns to reuse:
+
+- Existing `loadSnapshotSet` compatibility with binary and legacy text retention snapshots.
+- Existing runtime ledger cache helpers: `retentionPastFromRuntime`, `observeRetentionPast`, `retentionCohortsFromRuntime`, `observeRetentionCohort`, and `replaceRetentionCohorts`.
+- Existing writer helpers: `appendCSV`, `writeBinaryPath`, `writeRetentionCohortIndex`, `writeRetentionHistogramCache`, and `writeFileAtomic`.
+- Existing behavior tests that verify bash-compatible retention outputs and ignored atomic temp files.
+
+Risk and blast radius:
+
+- Retention cohort mtimes and file names are compatibility data. New cohort files must keep the logical `updatedAt` mtime.
+- Legacy text-format retention snapshots must continue loading through `loadSnapshotSet`.
+- Atomic temp files and malformed cohort names must continue to be ignored or warned about as before.
+- Runtime retention caches must reflect additions and removals so query and public artifacts do not drift.
+- No pipeline scheduling, downloader, public serving, install behavior, or UI behavior should change.
+
+Sensitive data handling plan:
+
+- This slice uses only local source code, synthetic engine fixtures, temporary files, and local posture/coverage metrics.
+- No secrets, tokens, cookies, private endpoints, customer data, or personal data are needed.
+- Durable artifacts will record only file paths, metrics, validation outcomes, and sanitized command evidence.
+
+Implementation plan:
+
+1. Move retention update orchestration into a focused retention update file if that improves file posture.
+2. Extract changeset/cohort delta recording from removal reconciliation.
+3. Extract no-removal artifact refresh into a helper that reuses cached cohorts.
+4. Extract removal reconciliation over `new/` cohort files into focused helpers for scanning, per-cohort accounting, stale cohort removal, and partial cohort rewrite.
+5. Keep retention artifact finalization in one helper so `retention_cohorts.csv`, `histogram`, and `retention.json` stay synchronized.
+6. Add tests only if the refactor exposes an observable behavior branch that is not already covered.
+7. Re-run `pkg/engine` tests and coverage, `tools/archposture`, strict shuffled tests, lint/static checks, and root coverage.
+
+Validation plan:
+
+- Run `go test ./pkg/engine`.
+- Run `go test -coverprofile=/tmp/update-ipsets-retention-slice18.cover -covermode=atomic ./pkg/engine` and inspect `go tool cover -func`.
+- Run `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice18.json` and confirm `updateRetention` no longer appears as a large-function target.
+- Run `go test -shuffle=on -count=3 ./pkg/engine`.
+- Run `make lint`, `make staticcheck`, `make golangci-lint`, `CI=true make coverage`, and `make test-strict`.
+- Run whitespace and durable-artifact forbidden-name scans over the changed files before commit.
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if a repeatable retention-refactor lesson is found.
+- Specs: no update expected because retention semantics are intended to stay unchanged.
+- End-user/operator docs: no update expected.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: this SOW remains in `.agents/sow/current/`; Slice 18 results will be recorded after validation.
+
+Open decisions:
+
+- No new user design decision is required because the slice is behavior-preserving quality work under the previously approved quality plan.
+
+## Slice 18 Results
+
+Changes made:
+
+- Moved retention update orchestration from `pkg/engine/retention.go` into `pkg/engine/retention_update.go`.
+- Split `updateRetention` into focused helpers for:
+  - retention directory preparation;
+  - new/removed set delta calculation;
+  - changeset ledger and new cohort recording;
+  - no-removal artifact refresh from cached cohorts;
+  - removal reconciliation over `new/` cohort snapshots;
+  - retention removal ledger/cache accounting;
+  - retention cohort index, histogram, and JSON finalization.
+- Preserved binary and legacy text snapshot loading through `loadSnapshotSet`, atomic temp-file ignore behavior, malformed filename warnings, cohort file mtimes, runtime retention cache updates, and public retention artifact contents.
+
+Measured result:
+
+- Baseline: `pkg/engine/retention.go:58` `(*Engine).updateRetention` was 142 lines with complexity 32 and `76.3%` direct coverage.
+- After refactor: no retention production function appears in `tools/archposture` large-function output.
+- `pkg/engine/retention.go` moved to 201 lines.
+- `pkg/engine/retention_update.go` is 231 lines.
+- `updateRetention` direct coverage moved to `78.9%`.
+- `pkg/engine` coverage remains `71.3%`.
+- Root coverage by `go tool cover -func=coverage.out` remains `72.6%`.
+- `tools/archposture` after this slice: source files `627`, source lines `126662`, large files `51`, and large functions `32`.
+- Remaining top production complexity target: `pkg/engine/runtime.go:81` `resolveRuntime`, 134 lines, complexity 32.
+
+Tests or equivalent validation:
+
+- `go test ./pkg/engine`: passed.
+- `go test -coverprofile=/tmp/update-ipsets-retention-slice18.cover -covermode=atomic ./pkg/engine`: passed, `71.3%`.
+- `go tool cover -func=/tmp/update-ipsets-retention-slice18.cover`: passed, total `71.3%`.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice18.json`: passed.
+- `go test -shuffle=on -count=3 ./pkg/engine`: passed.
+- `make lint`: passed.
+- `make staticcheck`: passed.
+- `make golangci-lint`: passed with `0 issues`.
+- `CI=true make coverage`: passed.
+- `make test-strict`: passed.
+- `git diff --check`: passed.
+- Durable-artifact forbidden-name scan over the changed SOW and Go files found no newly added personal name, authorship, tool, or vendor-attribution text.
+
+Artifact maintenance gate:
+
+- AGENTS.md: no update needed.
+- Runtime project skills: no update needed; no new durable process rule was found.
+- Specs: no update needed; retention semantics are unchanged.
+- End-user/operator docs: no update needed.
+- End-user/operator skills: no update needed.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 18 is validated and pending PR merge.
+
 ## Outcome
 
-First through seventeenth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through eighteenth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 

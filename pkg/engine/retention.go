@@ -2,14 +2,12 @@ package engine
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/firehol/update-ipsets/pkg/iprange"
 )
@@ -53,149 +51,6 @@ func (e *Engine) loadLatestSet(ctx context.Context, name string) (*iprange.IPSet
 
 func isIgnoredRetentionSnapshotName(name string) bool {
 	return strings.HasPrefix(name, ".")
-}
-
-func (e *Engine) updateRetention(ctx context.Context, name string, previous, current *iprange.IPSet, updatedAt time.Time) error {
-	ctx = nonNilContext(ctx)
-	dir := filepath.Join(e.runtime.LibDir, name)
-	newDir := filepath.Join(dir, "new")
-	if err := os.MkdirAll(newDir, generatedDirMode); err != nil {
-		return err
-	}
-	updatedAtUnix := updatedAt.UTC().Unix()
-
-	newSet := iprange.Exclude(current, previous)
-	removedSet := iprange.Exclude(previous, current)
-	added := newSet.UniqueCount()
-	removed := removedSet.UniqueCount()
-	if added > 0 || removed > 0 {
-		changesetsPath := filepath.Join(dir, "changesets.csv")
-		if err := normalizeChangesetLedgerHeader(e.runtime.LibDir, filepath.Join(name, "changesets.csv")); err != nil {
-			return err
-		}
-		if err := appendCSV(changesetsPath, changesetLedgerHeader,
-			fmt.Sprintf("%d,%d,%d\n", updatedAtUnix, added, removed)); err != nil {
-			return err
-		}
-		e.observeChangesetPoint(name, ChangesetPoint{
-			Timestamp: updatedAtUnix,
-			Added:     added,
-			Removed:   removed,
-		})
-	}
-	if added > 0 {
-		if err := writeBinaryPath(filepath.Join(newDir, fmt.Sprintf("%d", updatedAtUnix)), newSet, updatedAt); err != nil {
-			return err
-		}
-		e.observeRetentionCohort(name, updatedAtUnix, added)
-	}
-	if err := ensureCSVHeader(filepath.Join(dir, "retention.csv"), "date_removed,date_added,hours,ips\n"); err != nil {
-		return err
-	}
-	started := e.state.Entry(name).Snapshot().StartedDate
-	if started == 0 {
-		started = updatedAtUnix
-	}
-	past := e.retentionPastFromRuntime(name, started)
-
-	if removed == 0 {
-		cohorts := e.retentionCohortsFromRuntime(ctx, name)
-		currentBuckets, incomplete := buildCurrentRetentionBuckets(cohorts, updatedAtUnix, started)
-		retention := buildRetentionDataFromBuckets(name, started, updatedAtUnix, incomplete, past, currentBuckets)
-		data, err := jsonMarshalTabIndent(retention)
-		if err != nil {
-			return err
-		}
-		if err := writeRetentionCohortIndex(filepath.Join(dir, "retention_cohorts.csv"), cohorts); err != nil {
-			return err
-		}
-		if err := writeRetentionHistogramCache(filepath.Join(dir, "histogram"), retention); err != nil {
-			return err
-		}
-		return writeFileAtomic(filepath.Join(dir, "retention.json"), append(data, '\n'), generatedFileMode)
-	}
-
-	currentBuckets := map[int]uint64{}
-	incomplete := 0
-	cohorts := make(map[int64]uint64)
-
-	files, err := os.ReadDir(newDir)
-	if err != nil {
-		return err
-	}
-	for _, entry := range files {
-		if entry.IsDir() {
-			continue
-		}
-		if isIgnoredRetentionSnapshotName(entry.Name()) {
-			continue
-		}
-		// Accept both "1234567.set" (Go convention) and "1234567" (bash convention).
-		baseName := entry.Name()
-		tsStr := strings.TrimSuffix(baseName, ".set")
-		addedAt, err := strconv.ParseInt(tsStr, 10, 64)
-		if err != nil {
-			e.logger.Warn("retention: skipping malformed filename", "source", name, "file", baseName, "error", err)
-			continue
-		}
-		// Use loadSnapshotSet (ParseReader-backed) so legacy text-format
-		// snapshots from the bash version are accepted alongside the
-		// binary format the Go engine writes for new snapshots. The
-		// bogons feed in particular has retention snapshot files going
-		// back to 2015 that are still in plain text and must keep
-		// loading correctly.
-		path := filepath.Join(newDir, baseName)
-		oldSet, err := loadSnapshotSet(ctx, entry.Name(), e.runtime.LibDir, filepath.Join(name, "new", baseName))
-		if err != nil {
-			return err
-		}
-		still := iprange.Intersect(oldSet, current)
-		removedSet := iprange.Exclude(oldSet, still)
-		stillCount := still.UniqueCount()
-		removedCount := removedSet.UniqueCount()
-		hours := int((updatedAtUnix + 1800 - addedAt) / 3600)
-		if removedCount > 0 {
-			if err := appendCSV(filepath.Join(dir, "retention.csv"), "date_removed,date_added,hours,ips\n",
-				fmt.Sprintf("%d,%d,%d,%d\n", updatedAtUnix, addedAt, hours, removedCount)); err != nil {
-				return err
-			}
-			if addedAt > started {
-				past[hours] += removedCount
-				e.observeRetentionPast(name, started, hours, removedCount)
-			}
-		}
-		if stillCount == 0 {
-			if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-				return err
-			}
-			continue
-		}
-		cohorts[addedAt] = stillCount
-		currentBuckets[hours] += stillCount
-		if addedAt <= started {
-			incomplete = 1
-		}
-		if removedCount == 0 {
-			continue
-		}
-		if err := writeBinaryPath(path, still, time.Unix(addedAt, 0).UTC()); err != nil {
-			return err
-		}
-	}
-	e.replaceRetentionCohorts(name, cohorts)
-	if err := writeRetentionCohortIndex(filepath.Join(dir, "retention_cohorts.csv"), cohorts); err != nil {
-		return err
-	}
-
-	retention := buildRetentionDataFromBuckets(name, started, updatedAtUnix, incomplete, past, currentBuckets)
-	data, err := jsonMarshalTabIndent(retention)
-	if err != nil {
-		return err
-	}
-	if err := writeRetentionHistogramCache(filepath.Join(dir, "histogram"), retention); err != nil {
-		return err
-	}
-	return writeFileAtomic(filepath.Join(dir, "retention.json"), append(data, '\n'), generatedFileMode)
 }
 
 func (e *Engine) buildRetentionData(ctx context.Context, name string, updatedAt int64) (*RetentionData, error) {
