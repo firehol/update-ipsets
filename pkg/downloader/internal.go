@@ -113,106 +113,115 @@ func InternalName(url string) string {
 
 // fetchInternal materializes a registered internal provider as a
 // Result with a body file on disk, matching the real HTTP Fetch path so
-// downstream code does not have to special-case synthetic sources. The
-// body is written to a temp file the caller must move or delete; the
-// ModifiedTime is the constant InternalSentinelTime.
+// downstream code does not have to special-case synthetic sources.
 func fetchInternal(req Request, now time.Time) (*Result, error) {
 	name := InternalName(req.URL)
 	if name == "" {
-		return &Result{
-			Status:    StatusFailed,
-			Message:   fmt.Sprintf("malformed internal URL %q", req.URL),
-			CheckedAt: now,
-		}, nil
+		return internalFailedResult(now, "malformed internal URL %q", req.URL), nil
 	}
 	provider, ok := LookupInternal(name)
 	if !ok {
-		return &Result{
-			Status:    StatusFailed,
-			Message:   fmt.Sprintf("no internal provider registered for %q", name),
-			CheckedAt: now,
-		}, nil
+		return internalFailedResult(now, "no internal provider registered for %q", name), nil
 	}
 	body, err := provider(req.ReferencePath)
 	if errors.Is(err, ErrInternalNotModified) {
-		// Provider determined its inputs are stable relative to the
-		// reference file. Skip the rest of the pipeline — no temp
-		// file, no hashing, no write.
-		modTime := InternalSentinelTime
-		if req.ReferencePath != "" {
-			if info, statErr := os.Stat(req.ReferencePath); statErr == nil {
-				modTime = info.ModTime().UTC()
-			}
-		}
-		return &Result{
-			Status:       StatusSame,
-			Message:      fmt.Sprintf("internal provider %q: not modified", name),
-			ModifiedTime: modTime,
-			CheckedAt:    now,
-		}, nil
+		return internalNotModifiedResult(req, now, name), nil
 	}
 	if err != nil {
-		return &Result{
-			Status:    StatusFailed,
-			Message:   fmt.Sprintf("internal provider %q: %v", name, err),
-			CheckedAt: now,
-		}, nil
-	}
-	if len(body) == 0 && !req.AcceptEmpty {
-		return &Result{
-			Status:    StatusFailed,
-			Message:   fmt.Sprintf("internal provider %q returned empty body", name),
-			CheckedAt: now,
-		}, nil
+		return internalFailedResult(now, "internal provider %q: %v", name, err), nil
 	}
 
-	// Hash the body once; we need it for the same-as-reference check
-	// and for the returned Result.
-	bodyHash := hashBytes(body)
+	return internalBodyResult(req, now, name, body)
+}
 
-	// Same-body detection against the on-disk reference file. Internal
-	// sources have deterministic content, so a successful reference
-	// match means "nothing changed" and the caller can keep the
-	// existing cached data without moving a temp file around.
-	//
-	// ModifiedTime is the current time, not the sentinel — the
-	// downstream touchFileAt call uses this value to bump the
-	// output file's mtime, and a sentinel here would leave the
-	// file stuck at 1970 forever, tripping the integrity check
-	// every startup even when the content is up-to-date.
+func internalFailedResult(now time.Time, format string, args ...any) *Result {
+	return &Result{
+		Status:    StatusFailed,
+		Message:   fmt.Sprintf(format, args...),
+		CheckedAt: now,
+	}
+}
+
+func internalNotModifiedResult(req Request, now time.Time, name string) *Result {
+	modTime := InternalSentinelTime
 	if req.ReferencePath != "" {
-		if same, _ := fileHashEquals(req.ReferencePath, bodyHash); same {
-			return &Result{
-				Status:       StatusSame,
-				Message:      "internal source unchanged",
-				BodySize:     int64(len(body)),
-				BodyHash:     bodyHash,
-				ModifiedTime: now,
-				CheckedAt:    now,
-			}, nil
+		if info, statErr := os.Stat(req.ReferencePath); statErr == nil {
+			modTime = info.ModTime().UTC()
 		}
 	}
+	return &Result{
+		Status:       StatusSame,
+		Message:      fmt.Sprintf("internal provider %q: not modified", name),
+		ModifiedTime: modTime,
+		CheckedAt:    now,
+	}
+}
 
-	// Write to a temp file so the rest of the pipeline sees a regular
-	// downloaded body.
-	tmpDir := req.TmpDir
+func internalBodyResult(req Request, now time.Time, name string, body []byte) (*Result, error) {
+	if len(body) == 0 && !req.AcceptEmpty {
+		return internalFailedResult(now, "internal provider %q returned empty body", name), nil
+	}
+
+	bodyHash := hashBytes(body)
+	if req.ReferencePath != "" {
+		if same, _ := fileHashEquals(req.ReferencePath, bodyHash); same {
+			return internalSameReferenceResult(now, body, bodyHash), nil
+		}
+	}
+	return materializeInternalBody(req, now, name, body, bodyHash)
+}
+
+func internalSameReferenceResult(now time.Time, body []byte, bodyHash string) *Result {
+	return &Result{
+		Status:       StatusSame,
+		Message:      "internal source unchanged",
+		BodySize:     int64(len(body)),
+		BodyHash:     bodyHash,
+		ModifiedTime: now,
+		CheckedAt:    now,
+	}
+}
+
+func materializeInternalBody(req Request, now time.Time, name string, body []byte, bodyHash string) (*Result, error) {
+	tmpPath, err := writeInternalTempBody(req.TmpDir, body)
+	if err != nil {
+		return nil, err
+	}
+	stampInternalBodyTime(tmpPath, now)
+
+	return &Result{
+		Status:       StatusOK,
+		Message:      fmt.Sprintf("internal source %q", name),
+		BodyPath:     tmpPath,
+		BodySize:     int64(len(body)),
+		BodyHash:     bodyHash,
+		ModifiedTime: now,
+		CheckedAt:    now,
+	}, nil
+}
+
+func writeInternalTempBody(tmpDir string, body []byte) (string, error) {
 	if tmpDir == "" {
 		tmpDir = os.TempDir()
 	}
 	tmp, err := createGeneratedTemp(tmpDir, "dl-internal-*.tmp")
 	if err != nil {
-		return nil, fmt.Errorf("create temp file: %w", err)
+		return "", fmt.Errorf("create temp file: %w", err)
 	}
 	tmpPath := tmp.Name()
 	if _, err := tmp.Write(body); err != nil {
 		_ = tmp.Close()
 		_ = os.Remove(tmpPath)
-		return nil, fmt.Errorf("write internal body: %w", err)
+		return "", fmt.Errorf("write internal body: %w", err)
 	}
 	if err := tmp.Close(); err != nil {
 		_ = os.Remove(tmpPath)
-		return nil, fmt.Errorf("close internal temp: %w", err)
+		return "", fmt.Errorf("close internal temp: %w", err)
 	}
+	return tmpPath, nil
+}
+
+func stampInternalBodyTime(tmpPath string, now time.Time) {
 	// Stamp the body file with the CURRENT time so downstream
 	// consumers — finalize's touchFileAt, the integrity check's
 	// source-vs-secondary mtime comparison, file listings in the
@@ -233,16 +242,6 @@ func fetchInternal(req Request, now time.Time) (*Result, error) {
 		// Not worth failing the fetch for.
 		_ = err
 	}
-
-	return &Result{
-		Status:       StatusOK,
-		Message:      fmt.Sprintf("internal source %q", name),
-		BodyPath:     tmpPath,
-		BodySize:     int64(len(body)),
-		BodyHash:     bodyHash,
-		ModifiedTime: now,
-		CheckedAt:    now,
-	}, nil
 }
 
 // hashBytes wraps the SHA-256 helper already used by Fetch so the

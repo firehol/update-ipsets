@@ -1,8 +1,10 @@
 package downloader
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -67,6 +69,52 @@ func TestFetchInternalUnknownNameFails(t *testing.T) {
 	}
 	if result.Status != StatusFailed {
 		t.Fatalf("status = %q, want %q", result.Status, StatusFailed)
+	}
+}
+
+func TestFetchInternalMalformedURLFails(t *testing.T) {
+	client := New(5*time.Second, 5*time.Second)
+	result, err := client.Fetch(t.Context(), Request{
+		URL:    "internal://",
+		TmpDir: t.TempDir(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != StatusFailed {
+		t.Fatalf("status = %q, want %q", result.Status, StatusFailed)
+	}
+	if !strings.Contains(result.Message, "malformed internal URL") {
+		t.Fatalf("message = %q, want malformed URL failure", result.Message)
+	}
+	if result.BodyPath != "" {
+		t.Fatalf("malformed URL should not produce a body file, got %q", result.BodyPath)
+	}
+}
+
+func TestFetchInternalProviderErrorFails(t *testing.T) {
+	const name = "test-internal-provider-error"
+	RegisterInternal(name, func(_ string) ([]byte, error) {
+		return nil, errors.New("provider boom")
+	})
+	defer UnregisterInternal(name)
+
+	client := New(5*time.Second, 5*time.Second)
+	result, err := client.Fetch(t.Context(), Request{
+		URL:    "internal://" + name,
+		TmpDir: t.TempDir(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result.Status != StatusFailed {
+		t.Fatalf("status = %q, want %q", result.Status, StatusFailed)
+	}
+	if !strings.Contains(result.Message, name) || !strings.Contains(result.Message, "provider boom") {
+		t.Fatalf("message = %q, want provider name and error", result.Message)
+	}
+	if result.BodyPath != "" {
+		t.Fatalf("provider error should not produce a body file, got %q", result.BodyPath)
 	}
 }
 
@@ -155,5 +203,60 @@ func TestFetchInternalSameAsReference(t *testing.T) {
 	}
 	if result.BodyPath != "" {
 		t.Fatal("same-body internal source should not produce a body file")
+	}
+}
+
+func TestFetchInternalEmptyBodyPolicy(t *testing.T) {
+	const name = "test-internal-empty"
+	RegisterInternal(name, func(_ string) ([]byte, error) {
+		return nil, nil
+	})
+	defer UnregisterInternal(name)
+
+	client := New(5*time.Second, 5*time.Second)
+	rejected, err := client.Fetch(t.Context(), Request{
+		URL:    "internal://" + name,
+		TmpDir: t.TempDir(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if rejected.Status != StatusFailed {
+		t.Fatalf("status = %q, want %q", rejected.Status, StatusFailed)
+	}
+	if !strings.Contains(rejected.Message, "returned empty body") {
+		t.Fatalf("message = %q, want empty-body failure", rejected.Message)
+	}
+	if rejected.BodyPath != "" {
+		t.Fatalf("rejected empty body should not produce a body file, got %q", rejected.BodyPath)
+	}
+
+	accepted, err := client.Fetch(t.Context(), Request{
+		URL:         "internal://" + name,
+		TmpDir:      t.TempDir(),
+		AcceptEmpty: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer accepted.CleanUp()
+	if accepted.Status != StatusOK {
+		t.Fatalf("status = %q, want %q", accepted.Status, StatusOK)
+	}
+	if accepted.BodyPath == "" {
+		t.Fatal("accepted empty body should produce a body file")
+	}
+	body, err := os.ReadFile(accepted.BodyPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(body) != 0 {
+		t.Fatalf("accepted body length = %d, want 0", len(body))
+	}
+	if accepted.BodySize != 0 {
+		t.Fatalf("body size = %d, want 0", accepted.BodySize)
+	}
+	if accepted.BodyHash == "" {
+		t.Fatal("accepted empty body should still have a hash")
 	}
 }

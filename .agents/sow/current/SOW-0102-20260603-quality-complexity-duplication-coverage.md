@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: twenty-first implementation slice validated; critical writer PR pending
+Sub-state: twenty-second implementation slice validated; downloader internal fetch PR pending
 
 ## Requirements
 
@@ -2732,11 +2732,144 @@ Artifact maintenance gate:
 - Specs: no update needed; critical artifact semantics are unchanged.
 - End-user/operator docs: no update needed.
 - End-user/operator skills: no update needed.
-- SOW lifecycle: remains in `.agents/sow/current/`; Slice 21 is validated and pending PR merge.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 21 merged through PR #25 as merge commit `0f294e45abf566b75175dcc643f5b4b18a51df3b`.
+
+## Pre-Implementation Gate - Slice 22
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after the Slice 21 merge, local `tools/archposture` reports `pkg/downloader/internal.go:119` `fetchInternal` at 128 lines with complexity 16.
+- Facts: `go test -coverprofile=/tmp/update-ipsets-downloader-baseline.cover -covermode=atomic ./pkg/downloader` reports `pkg/downloader` coverage at `68.4%`; `go tool cover` reports `fetchInternal` at `71.1%`.
+- Working theory: `fetchInternal` is large because it combines URL/provider validation, provider invocation, not-modified handling, provider-error mapping, empty-body policy, body hashing, same-reference detection, temp-file creation/write/close/cleanup, mtime stamping, and final result construction.
+
+Evidence reviewed:
+
+- `pkg/downloader/internal.go`
+- `pkg/downloader/internal_test.go`
+- `pkg/downloader/downloader.go`
+- `pkg/downloader/fetch_http.go`
+- `pkg/engine/geoloc_synthetic.go`
+- `pkg/engine/bogons_rfc.go`
+- `/tmp/update-ipsets-archposture-after-pr25.json`
+- `/tmp/update-ipsets-downloader-baseline.cover`
+- Project coding, testing, hygiene, Go best-practices, Go behavioral-testing, and content-surface skills.
+
+Affected contracts and surfaces:
+
+- `internal://` synthetic-source download behavior reached through `Client.Fetch`.
+- Registry lookup and missing-provider failure behavior.
+- `ErrInternalNotModified` short-circuit behavior and reference-file mtime propagation.
+- Empty-body rejection unless `Request.AcceptEmpty` is set.
+- Same-body detection against `Request.ReferencePath`.
+- Temp-file creation, cleanup on write/close failure, generated file mode, and logical mtime stamping.
+- SOW only; no docs or specs are expected to change because the slice is behavior-preserving.
+
+Existing patterns to reuse:
+
+- Existing `Result` status/message fields used by HTTP, file, local copy, and internal fetch paths.
+- Existing `hashBytes`, `fileHashEquals`, `createGeneratedTemp`, and `generatedFileMode` helpers.
+- Existing `internal_test.go` behavior tests for registered bytes, unknown providers, `ErrInternalNotModified`, and same-reference handling.
+- Existing downloader tests that assert empty-body policy, same-body behavior, cleanup, and reference-path handling.
+
+Risk and blast radius:
+
+- Internal sources are used by synthetic feeds and derivative artifacts; a behavior drift can affect scheduler processing, pipeline integrity, and startup repair.
+- `ErrInternalNotModified` must not create a temp file and must preserve reference mtime when available.
+- Same-body detection must still avoid temp-file churn while returning hash/size metadata.
+- Temp-file cleanup on write/close failure must remain reliable.
+- No HTTP downloader behavior, config semantics, scheduler behavior, public serving, install behavior, or UI behavior should change.
+
+Sensitive data handling plan:
+
+- This slice uses only local source code, synthetic test fixtures, temporary paths, and local posture/coverage metrics.
+- No secrets, tokens, cookies, private endpoints, customer data, or personal data are needed.
+- Durable artifacts will record only file paths, metrics, validation outcomes, and sanitized command evidence.
+
+Implementation plan:
+
+1. Introduce a focused internal-fetch helper that resolves the provider and owns request-local state.
+2. Extract malformed URL and missing-provider failure result construction.
+3. Extract provider not-modified, provider failure, empty-body, and same-reference result paths.
+4. Extract temp-file materialization and timestamp stamping into a focused helper with the same cleanup behavior.
+5. Preserve all status values, messages, body hash/size fields, modified times, checked times, temp-file modes, and cleanup behavior.
+6. Re-run downloader tests and coverage, `tools/archposture`, strict shuffled tests where relevant, and lint/static checks.
+
+Validation plan:
+
+- Run `go test ./pkg/downloader`.
+- Run `go test -coverprofile=/tmp/update-ipsets-downloader-slice22.cover -covermode=atomic ./pkg/downloader` and inspect `go tool cover -func`.
+- Run `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice22.json` and confirm `fetchInternal` no longer appears as a large-function target.
+- Run `make lint`, `make staticcheck`, `make golangci-lint`, `CI=true make coverage`, and `make test-strict`.
+- Run whitespace and durable-artifact forbidden-name scans over the changed files before commit.
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if a repeatable downloader/internal-source lesson is found.
+- Specs: no update expected because downloader/internal-source semantics are intended to stay unchanged.
+- End-user/operator docs: no update expected.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: this SOW remains in `.agents/sow/current/`; Slice 22 results will be recorded after validation.
+
+Open decisions:
+
+- No new user design decision is required because the slice is behavior-preserving quality work under the previously approved quality plan.
+
+## Slice 22 Results
+
+Changes made:
+
+- Split `pkg/downloader/internal.go` `fetchInternal` into focused helpers for:
+  - failed internal-result construction;
+  - `ErrInternalNotModified` result construction with reference mtime propagation;
+  - empty-body policy;
+  - same-reference detection;
+  - internal body materialization;
+  - temp-file writing and cleanup;
+  - generated internal body timestamp stamping.
+- Updated the stale `fetchInternal` comment that still described fresh internal bodies as using `InternalSentinelTime`.
+- Added behavior tests through `Client.Fetch` for malformed internal URLs, provider errors, and empty-body rejection versus `AcceptEmpty`.
+- Preserved status values, failure messages, same-body hash/size metadata, `ErrInternalNotModified` no-body behavior, reference mtime propagation, temp-file cleanup behavior, generated file mode, and current-time mtime stamping.
+
+Measured result:
+
+- Baseline: `pkg/downloader/internal.go:119` `fetchInternal` was 128 lines with complexity 16 and `71.1%` direct coverage.
+- After refactor: no `pkg/downloader/internal.go` function appears in `tools/archposture` large-function output.
+- `fetchInternal` direct coverage is now `100.0%`.
+- `pkg/downloader` coverage moved from `68.4%` to `69.6%`.
+- Root coverage by `go tool cover -func=coverage.out` is `72.7%`.
+- `tools/archposture` after this slice: source files `629`, source lines `126931`, large files `50`, large functions `28`, and production large functions `3`.
+- Remaining top production complexity target: `pkg/engine/operator_status.go:23` `OperatorStatusMeaning`, 123 lines, complexity 35.
+
+Tests or equivalent validation:
+
+- `go test ./pkg/downloader`: passed.
+- `go test -coverprofile=/tmp/update-ipsets-downloader-slice22.cover -covermode=atomic ./pkg/downloader`: passed, `69.6%`.
+- `go tool cover -func=/tmp/update-ipsets-downloader-slice22.cover`: passed; `fetchInternal` `100.0%`, package total `69.6%`.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice22.json`: passed.
+- `make lint`: passed.
+- `make staticcheck`: passed.
+- `make golangci-lint`: passed with `0 issues`.
+- `CI=true make coverage`: passed, root total `72.7%`.
+- `make test-strict`: passed.
+- `go test -shuffle=on -count=3 ./pkg/downloader`: passed.
+- `git diff --check`: passed.
+- Durable-artifact forbidden-name scan over the changed SOW and Go files found no newly added personal name, authorship, tool, or vendor-attribution text.
+
+Artifact maintenance gate:
+
+- AGENTS.md: no update needed.
+- Runtime project skills: no update needed; no new durable process rule was found.
+- Specs: no update needed; downloader/internal-source semantics are unchanged.
+- End-user/operator docs: no update needed.
+- End-user/operator skills: no update needed.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 22 is validated and pending PR merge.
 
 ## Outcome
 
-First through twenty-first implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through twenty-first implementation slices are complete, validated locally, and merged. The twenty-second implementation slice is complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
