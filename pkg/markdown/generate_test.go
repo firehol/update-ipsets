@@ -64,6 +64,15 @@ func TestTemplateStoreLoadMissingDir(t *testing.T) {
 	}
 }
 
+func TestTemplateStoreDir(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if got := markdown.NewTemplateStore(dir).Dir(); got != dir {
+		t.Fatalf("Dir()=%q; want %q", got, dir)
+	}
+}
+
 func TestTemplateStoreWithTemplates(t *testing.T) {
 	dir := t.TempDir()
 

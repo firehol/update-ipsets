@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: twenty-ninth implementation slice validated; cache legacy migration coverage PR pending
+Sub-state: thirtieth implementation slice validated; markdown helper coverage PR pending
 
 ## Requirements
 
@@ -2324,7 +2324,130 @@ Artifact maintenance gate:
 - Specs: no update needed; legacy migration behavior is unchanged.
 - End-user/operator docs: no update needed.
 - End-user/operator skills: no update needed.
-- SOW lifecycle: remains in `.agents/sow/current/`; Slice 29 is validated and pending PR merge.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 29 merged through PR #33 as merge commit `e797b6ae7a84f0e0e406e612381f1bb39ac53af2`.
+
+## Pre-Implementation Gate - Slice 30
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after the Slice 29 merge, root coverage is `73.8%` and local `tools/archposture` still reports zero production large functions.
+- Facts: `go test -count=1 -coverprofile=/tmp/update-ipsets-markdown-baseline.cover -covermode=atomic ./pkg/markdown` reports `pkg/markdown` coverage at `70.8%`.
+- Facts: `go tool cover -func=/tmp/update-ipsets-markdown-baseline.cover` reports clear helper gaps in `pkg/markdown`: `barFill` at `0.0%`, `truncate` at `0.0%`, `statusLabel` at `0.0%`, `statusLead` at `0.0%`, `int64Val` at `28.6%`, `toFloat` at `33.3%`, `uintVal` at `50.0%`, and `relTime` at `45.5%`.
+- Working theory: markdown helper coverage is a low-risk slice because these helpers are deterministic presentation contracts for generated Markdown pages and can be tested through the existing template execution surface where possible.
+
+Evidence reviewed:
+
+- `pkg/markdown/funcs.go`
+- `pkg/markdown/generate.go`
+- `pkg/markdown/context_feed_values.go`
+- `pkg/markdown/funcs_test.go`
+- `pkg/markdown/generate_test.go`
+- `/tmp/update-ipsets-markdown-baseline.cover`
+- Project coding, testing, hygiene, Go best-practices, Go behavioral-testing, and content-surface skills.
+
+Affected contracts and surfaces:
+
+- Generated Markdown template helper behavior for numbers, percentages, dates, relative times, status labels/leads, bars, truncation, and source value conversion.
+- SOW and tests only; no production code, public UI, docs, specs, install behavior, downloader behavior, scheduler behavior, or public serving behavior is expected to change.
+
+Existing patterns to reuse:
+
+- Existing external `markdown_test` tests that drive `markdown.ExecuteInline` and `markdown.RenderTable`.
+- Existing same-package tests only where the helper has no exported or template-bound surface.
+- Existing table-driven assertions and small synthetic values.
+- Existing file-mode and path-safety assertions for template output.
+
+Risk and blast radius:
+
+- This slice should be test-only.
+- Template-bound helpers should be tested through `ExecuteInline` to keep behavior tied to the generated Markdown contract.
+- Time-relative tests must avoid brittle wall-clock exactness. Use current time offsets and assert stable output buckets such as `just now`, `5m ago`, or `2h ago`.
+- Unexported context value converters should be tested as deterministic conversion helpers only; tests must not create a new public API expectation.
+- No template wording, generated Markdown content, public website copy, or operator docs should change.
+
+Sensitive data handling plan:
+
+- This slice uses only synthetic strings, numbers, timestamps, and status values.
+- No secrets, tokens, cookies, private endpoints, customer data, or personal data are needed.
+- Durable artifacts will record only file paths, metrics, validation outcomes, and sanitized command evidence.
+
+Implementation plan:
+
+1. Extend `pkg/markdown/funcs_test.go` behavior coverage through `ExecuteInline` for `comma`, `relTime`, `bar`, `truncate`, `statusLabel`, and `statusLead`.
+2. Add same-package tests for `context_feed_values.go` conversion helpers that do not have a direct exported/template-bound surface.
+3. Keep production code unchanged unless tests expose a real helper bug.
+
+Validation plan:
+
+- Run `go test ./pkg/markdown`.
+- Run `go test -count=1 -coverprofile=/tmp/update-ipsets-markdown-slice30.cover -covermode=atomic ./pkg/markdown` and inspect `go tool cover -func`.
+- Run `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice30.json`.
+- Run `make lint`, `make staticcheck`, `make golangci-lint`, `CI=true make coverage`, and `make test-strict`.
+- Run whitespace and durable-artifact forbidden-name scans over the changed files before commit.
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: no update needed unless a repeatable markdown-helper testing lesson is found.
+- Specs: no update expected because markdown helper behavior is unchanged.
+- End-user/operator docs: no update expected.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: this SOW remains in `.agents/sow/current/`; Slice 30 results will be recorded after validation.
+
+Open-source reference evidence:
+
+- None checked. This slice covers existing deterministic local helper behavior rather than adding a new external renderer, parser, protocol, or library.
+
+Open decisions:
+
+- No new user design decision is required because the slice is behavior-preserving test coverage under the previously approved quality plan.
+
+## Slice 30 Results
+
+Changes made:
+
+- Added behavior tests for Markdown template helper functions in `pkg/markdown/funcs_test.go`.
+- Added behavior tests for `TemplateStore.Dir` in `pkg/markdown/generate_test.go`.
+- Added same-package deterministic conversion tests for `pkg/markdown/context_feed_values.go`.
+- Covered numeric formatting variants, percentage/date/relative-time helpers, duration rendering, bar rendering, truncation, status labels/leads, inline template parse errors, and context value conversion helpers.
+- Split new helper tests into focused top-level tests after `tools/archposture` caught an oversized `TestFuncs` regression.
+- Production code was unchanged.
+
+Measured result:
+
+- Baseline: `pkg/markdown` coverage was `70.8%` by `go test` output.
+- After tests: `pkg/markdown` coverage is `79.3%`.
+- `statusLabel` and `statusLead` moved from `0.0%` to `100.0%`.
+- `barFill` moved from `0.0%` to `90.0%`.
+- `truncate` moved from `0.0%` to `100.0%`.
+- `relTime` moved from `45.5%` to `100.0%`.
+- Context feed value helpers `strVal`, `intVal`, `firstIntVal`, `int64Val`, `uintVal`, `uint32Val`, `float64Val`, `boolVal`, and `toFloat` are now `100.0%`.
+- Root coverage by `go tool cover -func=coverage.out` moved from `73.8%` to `74.0%`.
+- `tools/archposture` after this slice: source files `636`, source lines `128319`, large files `49`, large functions `25`, and production large functions `0`.
+
+Tests or equivalent validation:
+
+- `go test ./pkg/markdown`: passed.
+- `go test -count=1 -coverprofile=/tmp/update-ipsets-markdown-slice30.cover -covermode=atomic ./pkg/markdown`: passed, `79.3%`.
+- `go tool cover -func=/tmp/update-ipsets-markdown-slice30.cover`: passed; targeted helper coverage listed above.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice30.json`: passed.
+- `make lint`: passed.
+- `make staticcheck`: passed.
+- `make golangci-lint`: passed with `0 issues`.
+- `CI=true make coverage`: passed, root total `74.0%`.
+- `make test-strict`: passed.
+- `git diff --check`: passed.
+
+Artifact maintenance gate:
+
+- AGENTS.md: no update needed.
+- Runtime project skills: no update needed; the posture regression was caught by existing project hygiene rules.
+- Specs: no update needed; markdown helper behavior is unchanged.
+- End-user/operator docs: no update needed.
+- End-user/operator skills: no update needed.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 30 is validated and pending PR merge.
 
 ## Slice 27 Results
 
@@ -3775,7 +3898,7 @@ Open decisions:
 
 ## Outcome
 
-First through twenty-eighth implementation slices are complete, validated locally, and merged. The twenty-ninth implementation slice is complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through twenty-ninth implementation slices are complete, validated locally, and merged. The thirtieth implementation slice is complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
