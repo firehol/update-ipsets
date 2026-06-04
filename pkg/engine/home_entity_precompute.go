@@ -15,54 +15,25 @@ type countryDetailASNAggregate struct {
 }
 
 type countryDetailBuilder struct {
-	code             string
-	feeds            []countryDetailFeedBase
-	categoryTotals   map[string]*detailCategoryAggregate
-	maintainerTotals map[string]*detailMaintainerAggregate
-	asnTotals        map[uint32]*countryDetailASNAggregate
-	totalAttributed  uint64
+	code            string
+	feeds           []countryDetailFeedBase
+	facets          detailFacetAccumulator
+	asnTotals       map[uint32]*countryDetailASNAggregate
+	totalAttributed uint64
 }
 
 func newCountryDetailBuilder(code string) *countryDetailBuilder {
 	return &countryDetailBuilder{
-		code:             strings.ToUpper(strings.TrimSpace(code)),
-		categoryTotals:   make(map[string]*detailCategoryAggregate),
-		maintainerTotals: make(map[string]*detailMaintainerAggregate),
-		asnTotals:        make(map[uint32]*countryDetailASNAggregate),
+		code:      strings.ToUpper(strings.TrimSpace(code)),
+		facets:    newDetailFacetAccumulator(),
+		asnTotals: make(map[uint32]*countryDetailASNAggregate),
 	}
 }
 
 func (b *countryDetailBuilder) addFeed(row countryDetailFeedBase, maintainerURL string) {
 	b.feeds = append(b.feeds, row)
 	b.totalAttributed += row.AttributedIPs
-
-	categoryAgg := b.categoryTotals[row.Category]
-	if categoryAgg == nil {
-		categoryAgg = &detailCategoryAggregate{}
-		b.categoryTotals[row.Category] = categoryAgg
-	}
-	categoryAgg.feedCount++
-	categoryAgg.attributedIPs += row.AttributedIPs
-
-	maintainerName := strings.TrimSpace(row.Maintainer)
-	if maintainerName == "" {
-		return
-	}
-	slug := maintainerSlugify(maintainerName)
-	maintainerAgg := b.maintainerTotals[slug]
-	if maintainerAgg == nil {
-		maintainerAgg = &detailMaintainerAggregate{
-			slug: slug,
-			name: maintainerName,
-			url:  maintainerURL,
-		}
-		b.maintainerTotals[slug] = maintainerAgg
-	}
-	if maintainerAgg.url == "" && maintainerURL != "" {
-		maintainerAgg.url = maintainerURL
-	}
-	maintainerAgg.feedCount++
-	maintainerAgg.attributedIPs += row.AttributedIPs
+	b.facets.add(row.Category, row.Maintainer, maintainerURL, row.AttributedIPs)
 }
 
 func (b *countryDetailBuilder) addASN(asn uint32, name string, count uint64) {
@@ -92,43 +63,8 @@ func (b *countryDetailBuilder) build(geoProvider, asnProvider HomeSummaryProvide
 		return b.feeds[i].Name < b.feeds[j].Name
 	})
 
-	topCategories := make([]DetailCategorySummary, 0, len(b.categoryTotals))
-	for category, agg := range b.categoryTotals {
-		topCategories = append(topCategories, DetailCategorySummary{
-			Category:      category,
-			FeedCount:     agg.feedCount,
-			AttributedIPs: agg.attributedIPs,
-		})
-	}
-	sort.Slice(topCategories, func(i, j int) bool {
-		if topCategories[i].AttributedIPs != topCategories[j].AttributedIPs {
-			return topCategories[i].AttributedIPs > topCategories[j].AttributedIPs
-		}
-		if topCategories[i].FeedCount != topCategories[j].FeedCount {
-			return topCategories[i].FeedCount > topCategories[j].FeedCount
-		}
-		return topCategories[i].Category < topCategories[j].Category
-	})
-
-	topMaintainers := make([]DetailMaintainerSummary, 0, len(b.maintainerTotals))
-	for _, agg := range b.maintainerTotals {
-		topMaintainers = append(topMaintainers, DetailMaintainerSummary{
-			Slug:          agg.slug,
-			Name:          agg.name,
-			URL:           agg.url,
-			FeedCount:     agg.feedCount,
-			AttributedIPs: agg.attributedIPs,
-		})
-	}
-	sort.Slice(topMaintainers, func(i, j int) bool {
-		if topMaintainers[i].AttributedIPs != topMaintainers[j].AttributedIPs {
-			return topMaintainers[i].AttributedIPs > topMaintainers[j].AttributedIPs
-		}
-		if topMaintainers[i].FeedCount != topMaintainers[j].FeedCount {
-			return topMaintainers[i].FeedCount > topMaintainers[j].FeedCount
-		}
-		return topMaintainers[i].Name < topMaintainers[j].Name
-	})
+	topCategories := b.facets.topCategories()
+	topMaintainers := b.facets.topMaintainers()
 
 	topASNs := make([]CountryDetailASN, 0, len(b.asnTotals))
 	for asn, agg := range b.asnTotals {
@@ -156,8 +92,8 @@ func (b *countryDetailBuilder) build(geoProvider, asnProvider HomeSummaryProvide
 		Totals: CountryDetailTotals{
 			FeedsMatching:       len(b.feeds),
 			AttributedIPsInFeed: b.totalAttributed,
-			Categories:          len(b.categoryTotals),
-			Maintainers:         len(b.maintainerTotals),
+			Categories:          b.facets.categoryCount(),
+			Maintainers:         b.facets.maintainerCount(),
 			ASNs:                len(b.asnTotals),
 		},
 		Feeds:          b.feeds,
@@ -177,8 +113,7 @@ type asnDetailBuilder struct {
 	name               string
 	description        string
 	feeds              []asnDetailFeedBase
-	categoryTotals     map[string]*detailCategoryAggregate
-	maintainerTotals   map[string]*detailMaintainerAggregate
+	facets             detailFacetAccumulator
 	countryTotals      map[string]*asnDetailCountryAggregate
 	distributionCounts map[string]uint64
 	totalAttributed    uint64
@@ -188,8 +123,7 @@ type asnDetailBuilder struct {
 func newASNDetailBuilder(asn uint32) *asnDetailBuilder {
 	return &asnDetailBuilder{
 		asn:                asn,
-		categoryTotals:     make(map[string]*detailCategoryAggregate),
-		maintainerTotals:   make(map[string]*detailMaintainerAggregate),
+		facets:             newDetailFacetAccumulator(),
 		countryTotals:      make(map[string]*asnDetailCountryAggregate),
 		distributionCounts: make(map[string]uint64),
 	}
@@ -201,34 +135,7 @@ func (b *asnDetailBuilder) addFeed(row asnDetailFeedBase, maintainerURL, observe
 	if b.name == "" && observedName != "" {
 		b.name = observedName
 	}
-
-	categoryAgg := b.categoryTotals[row.Category]
-	if categoryAgg == nil {
-		categoryAgg = &detailCategoryAggregate{}
-		b.categoryTotals[row.Category] = categoryAgg
-	}
-	categoryAgg.feedCount++
-	categoryAgg.attributedIPs += row.AttributedIPs
-
-	maintainerName := strings.TrimSpace(row.Maintainer)
-	if maintainerName == "" {
-		return
-	}
-	slug := maintainerSlugify(maintainerName)
-	maintainerAgg := b.maintainerTotals[slug]
-	if maintainerAgg == nil {
-		maintainerAgg = &detailMaintainerAggregate{
-			slug: slug,
-			name: maintainerName,
-			url:  maintainerURL,
-		}
-		b.maintainerTotals[slug] = maintainerAgg
-	}
-	if maintainerAgg.url == "" && maintainerURL != "" {
-		maintainerAgg.url = maintainerURL
-	}
-	maintainerAgg.feedCount++
-	maintainerAgg.attributedIPs += row.AttributedIPs
+	b.facets.add(row.Category, row.Maintainer, maintainerURL, row.AttributedIPs)
 }
 
 func (b *asnDetailBuilder) addCountry(code string, count uint64) {
@@ -258,43 +165,8 @@ func (b *asnDetailBuilder) build(asnProvider, geoProvider HomeSummaryProvider) *
 		return b.feeds[i].Name < b.feeds[j].Name
 	})
 
-	topCategories := make([]DetailCategorySummary, 0, len(b.categoryTotals))
-	for category, agg := range b.categoryTotals {
-		topCategories = append(topCategories, DetailCategorySummary{
-			Category:      category,
-			FeedCount:     agg.feedCount,
-			AttributedIPs: agg.attributedIPs,
-		})
-	}
-	sort.Slice(topCategories, func(i, j int) bool {
-		if topCategories[i].AttributedIPs != topCategories[j].AttributedIPs {
-			return topCategories[i].AttributedIPs > topCategories[j].AttributedIPs
-		}
-		if topCategories[i].FeedCount != topCategories[j].FeedCount {
-			return topCategories[i].FeedCount > topCategories[j].FeedCount
-		}
-		return topCategories[i].Category < topCategories[j].Category
-	})
-
-	topMaintainers := make([]DetailMaintainerSummary, 0, len(b.maintainerTotals))
-	for _, agg := range b.maintainerTotals {
-		topMaintainers = append(topMaintainers, DetailMaintainerSummary{
-			Slug:          agg.slug,
-			Name:          agg.name,
-			URL:           agg.url,
-			FeedCount:     agg.feedCount,
-			AttributedIPs: agg.attributedIPs,
-		})
-	}
-	sort.Slice(topMaintainers, func(i, j int) bool {
-		if topMaintainers[i].AttributedIPs != topMaintainers[j].AttributedIPs {
-			return topMaintainers[i].AttributedIPs > topMaintainers[j].AttributedIPs
-		}
-		if topMaintainers[i].FeedCount != topMaintainers[j].FeedCount {
-			return topMaintainers[i].FeedCount > topMaintainers[j].FeedCount
-		}
-		return topMaintainers[i].Name < topMaintainers[j].Name
-	})
+	topCategories := b.facets.topCategories()
+	topMaintainers := b.facets.topMaintainers()
 
 	topCountries := make([]ASNDetailCountry, 0, len(b.countryTotals))
 	for code, agg := range b.countryTotals {
@@ -334,8 +206,8 @@ func (b *asnDetailBuilder) build(asnProvider, geoProvider HomeSummaryProvider) *
 		Totals: ASNDetailTotals{
 			FeedsMatching: len(b.feeds),
 			AttributedIPs: b.totalAttributed,
-			Categories:    len(b.categoryTotals),
-			Maintainers:   len(b.maintainerTotals),
+			Categories:    b.facets.categoryCount(),
+			Maintainers:   b.facets.maintainerCount(),
 			Countries:     len(b.countryTotals),
 		},
 		Feeds:          b.feeds,
