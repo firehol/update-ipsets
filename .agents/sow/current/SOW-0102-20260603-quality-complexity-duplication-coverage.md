@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: eighteenth implementation slice validated; retention refactor PR pending
+Sub-state: nineteenth implementation slice validated; runtime resolver PR pending
 
 ## Requirements
 
@@ -2338,9 +2338,138 @@ Artifact maintenance gate:
 - End-user/operator skills: no update needed.
 - SOW lifecycle: remains in `.agents/sow/current/`; Slice 18 is validated and pending PR merge.
 
+## Pre-Implementation Gate - Slice 19
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after the Slice 18 merge, local `tools/archposture` reports `pkg/engine/runtime.go:81` `resolveRuntime` at 134 lines with complexity 32.
+- Facts: `go test -coverprofile=/tmp/update-ipsets-runtime-slice19-baseline.cover -covermode=atomic ./pkg/engine` reports `pkg/engine` coverage at `71.3%`; `go tool cover` reports `resolveRuntime` at `70.7%` and package total statement coverage at `71.3%`.
+- Working theory: `resolveRuntime` is large because it combines nil-config validation, user-mode path template override selection, variable expansion, direct field mapping, duration conversion, root/user kernel-apply policy, and fallback defaults for directories, timeouts, queues, and worker pools.
+
+Evidence reviewed:
+
+- `pkg/engine/runtime.go`
+- `pkg/engine/runtime_test.go`
+- `pkg/engine/engine.go`
+- `pkg/config/config.go`
+- `/tmp/update-ipsets-archposture-slice19-baseline.json`
+- `/tmp/update-ipsets-runtime-slice19-baseline.cover`
+- Project coding, testing, hygiene, Go best-practices, Go behavioral-testing, and content-surface skills.
+
+Affected contracts and surfaces:
+
+- Runtime path resolution for base, run-parent, cache, lib, history, errors, temp, web, and published file directories.
+- Shell-style template expansion variables: `HOME`, `run_parent_dir`, `RUN_PARENT_DIR`, `base_dir`, and `BASE_DIR`.
+- Non-root user-mode defaults under the user's home directory.
+- Root-only `IPSetsApply` behavior.
+- Runtime defaults for timeouts, download/concurrency settings, scheduling intervals, and worker pools.
+- SOW only; no docs or specs are expected to change because the slice is behavior-preserving.
+
+Existing patterns to reuse:
+
+- Existing `config.DefaultRuntime()` and `config.New()` defaults.
+- Existing `expandTemplate` and shell-style expansion helpers.
+- Existing `autoHeavyPhaseWorkers`, `HeavyPhaseWorkers`, and `BackgroundWorkers` helpers.
+- Existing runtime tests for user-mode defaults, queue defaults, web artifact cache controls, heavy workers, background workers, and runtime overrides.
+
+Risk and blast radius:
+
+- Runtime defaults affect install-time, daemon, admin, local user, and CI behavior.
+- User-mode path fallback depends on the effective UID, so tests must not assume root/non-root behavior without checking `os.Geteuid`.
+- Template variable order matters because several runtime paths can depend on resolved `run_parent_dir` and `base_dir`.
+- `IPSetsApply` must stay disabled for non-root runs even when config enables it.
+- No scheduler, downloader, public serving, install script, or UI behavior should change.
+
+Sensitive data handling plan:
+
+- This slice uses only local source code, synthetic config values, temporary paths, and local posture/coverage metrics.
+- No secrets, tokens, cookies, private endpoints, customer data, or personal data are needed.
+- Durable artifacts will record only file paths, metrics, validation outcomes, and sanitized command evidence.
+
+Implementation plan:
+
+1. Extract runtime template context creation and user-mode default selection into focused helpers.
+2. Extract direct runtime field mapping into a helper that performs only template expansion, duration conversion, and plain field copies.
+3. Extract fallback default normalization for paths, timeouts, queues, intervals, and worker pools into focused helpers.
+4. Preserve all field values, root/non-root behavior, template variables, and fallback constants.
+5. Add tests only if the refactor exposes an observable runtime branch not already covered.
+6. Re-run `pkg/engine` tests and coverage, `tools/archposture`, strict shuffled tests, lint/static checks, and root coverage.
+
+Validation plan:
+
+- Run `go test ./pkg/engine`.
+- Run `go test -coverprofile=/tmp/update-ipsets-runtime-slice19.cover -covermode=atomic ./pkg/engine` and inspect `go tool cover -func`.
+- Run `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice19.json` and confirm `resolveRuntime` no longer appears as a large-function target.
+- Run `go test -shuffle=on -count=3 ./pkg/engine`.
+- Run `make lint`, `make staticcheck`, `make golangci-lint`, `CI=true make coverage`, and `make test-strict`.
+- Run whitespace and durable-artifact forbidden-name scans over the changed files before commit.
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if a repeatable runtime-defaults refactor lesson is found.
+- Specs: no update expected because runtime semantics are intended to stay unchanged.
+- End-user/operator docs: no update expected.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: this SOW remains in `.agents/sow/current/`; Slice 19 results will be recorded after validation.
+
+Open decisions:
+
+- No new user design decision is required because the slice is behavior-preserving quality work under the previously approved quality plan.
+
+## Slice 19 Results
+
+Changes made:
+
+- Split `resolveRuntime` into focused helpers for:
+  - runtime path/template context creation;
+  - user-mode default template selection;
+  - direct runtime field mapping and duration conversion;
+  - path fallback defaults;
+  - download and queue fallback defaults;
+  - worker and interval fallback defaults.
+- Preserved path template variables, non-root user-mode path defaults, root-only `IPSetsApply`, runtime cache controls, timeout defaults, queue defaults, and worker defaults.
+
+Measured result:
+
+- Baseline: `pkg/engine/runtime.go:81` `resolveRuntime` was 134 lines with complexity 32 and `70.7%` direct coverage.
+- After refactor: no `pkg/engine/runtime.go` function appears in `tools/archposture` large-function output.
+- `pkg/engine/runtime.go` is 360 lines.
+- `resolveRuntime` direct coverage moved to `83.3%`.
+- `pkg/engine` coverage remains `71.3%`.
+- Root coverage by `go tool cover -func=coverage.out` remains `72.6%`.
+- `tools/archposture` after this slice: source files `627`, source lines `126696`, large files `51`, and large functions `31`.
+- Remaining top production complexity target: `pkg/engine/output.go:142` `(*Engine).buildSetMetadataFromEffectiveEntryInDirWithResolver`, 133 lines, complexity 27.
+
+Tests or equivalent validation:
+
+- `go test ./pkg/engine`: passed.
+- `go test -coverprofile=/tmp/update-ipsets-runtime-slice19.cover -covermode=atomic ./pkg/engine`: passed, `71.3%`.
+- `go tool cover -func=/tmp/update-ipsets-runtime-slice19.cover`: passed, total `71.3%`.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice19.json`: passed.
+- `go test -shuffle=on -count=3 ./pkg/engine`: passed.
+- `make lint`: passed.
+- `make staticcheck`: passed.
+- `make golangci-lint`: passed with `0 issues`.
+- `CI=true make coverage`: passed.
+- `make test-strict`: passed.
+- `git diff --check`: passed.
+- Durable-artifact forbidden-name scan over the changed SOW and Go files found no newly added personal name, authorship, tool, or vendor-attribution text.
+
+Artifact maintenance gate:
+
+- AGENTS.md: no update needed.
+- Runtime project skills: no update needed; no new durable process rule was found.
+- Specs: no update needed; runtime semantics are unchanged.
+- End-user/operator docs: no update needed.
+- End-user/operator skills: no update needed.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 19 is validated and pending PR merge.
+
 ## Outcome
 
-First through eighteenth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through nineteenth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
