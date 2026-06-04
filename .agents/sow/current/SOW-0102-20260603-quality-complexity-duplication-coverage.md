@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: twenty-sixth implementation slice validated; entity detail aggregation duplication PR pending
+Sub-state: twenty-seventh implementation slice validated; downloader canonical coverage PR pending
 
 ## Requirements
 
@@ -2067,7 +2067,139 @@ Artifact maintenance gate:
 - Specs: no update needed; entity detail payload semantics are unchanged.
 - End-user/operator docs: no update needed.
 - End-user/operator skills: no update needed.
-- SOW lifecycle: remains in `.agents/sow/current/`; Slice 26 is validated and pending PR merge.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 26 merged through PR #30 as merge commit `d116f9dca3eb7ac169f428d157e7d11d6f59646b`.
+
+## Pre-Implementation Gate - Slice 27
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after the Slice 26 merge, local `tools/archposture` still reports zero production large functions.
+- Facts: `go test -coverprofile=/tmp/update-ipsets-downloader-slice27-baseline.cover -covermode=atomic ./pkg/downloader` reports `pkg/downloader` coverage at `69.6%`.
+- Facts: `go tool cover` reports every function in `pkg/downloader/canonical.go` at `0.0%`: `PrepareCanonicalFeedBody`, `ParseProcessedFeedFile`, `ParseCanonicalFeedReader`, `ParseCanonicalFeedFile`, `RenderCanonicalFeedBody`, `canonicalOutputFamily`, `newSanitizeReader`, and `(*sanitizeReader).Read`.
+- Working theory: downloader canonicalization is a low-risk coverage slice because it has exported behavior-focused entrypoints, small deterministic inputs, no network requirement, and direct relevance to feed-body correctness.
+
+Evidence reviewed:
+
+- `pkg/downloader/canonical.go`
+- `pkg/downloader/downloader_test.go`
+- `pkg/downloader/edge_cases_test.go`
+- `pkg/downloader/internal_test.go`
+- `pkg/processor/run_stream.go`
+- `pkg/processor/stream_test.go`
+- `pkg/iprange/parse.go`
+- `pkg/iprange/print.go`
+- `/tmp/update-ipsets-downloader-slice27-baseline.cover`
+- `/tmp/update-ipsets-archposture-after-pr30.json`
+- Project coding, testing, hygiene, Go best-practices, Go behavioral-testing, and content-surface skills.
+
+Affected contracts and surfaces:
+
+- Canonical processed feed parsing from files and readers.
+- Canonical feed-body rendering for `ipset` and `netset` output families and aliases.
+- Sanitization of processed streams before IPv4 parsing.
+- Processor stream integration in `PrepareCanonicalFeedBody`.
+- SOW and tests only; no production code, docs, or specs are expected to change.
+
+Existing patterns to reuse:
+
+- Existing `pkg/downloader` same-package tests.
+- Existing `t.TempDir`, `t.Context`, inline fixture, and table-driven test style.
+- Existing processor `passthrough` / `remove_comments` steps for deterministic local processing.
+- Existing `iprange.ParseIPv4Token`, `IPSet.Contains`, `IPSet.Entries`, and `IPSet.UniqueCount` assertions.
+
+Risk and blast radius:
+
+- This slice should be test-only.
+- Tests must assert canonical behavior, not implementation call counts.
+- Sanitizer tests should cover observable normalized stream behavior without coupling to buffer chunk sizes.
+- No downloader HTTP behavior, scheduler behavior, public serving, install behavior, UI behavior, or processor implementation should change.
+
+Sensitive data handling plan:
+
+- This slice uses only synthetic IP fixtures and temporary files.
+- No secrets, tokens, cookies, private endpoints, customer data, or personal data are needed.
+- Durable artifacts will record only file paths, metrics, validation outcomes, and sanitized command evidence.
+
+Implementation plan:
+
+1. Add tests for canonical output family aliases and unsupported output errors.
+2. Add tests for rendering canonical `ipset` and `netset` bodies from a parsed set.
+3. Add tests for parsing canonical readers and files.
+4. Add tests for processed-file sanitization covering BOM, CRLF, blank lines, `0.0.0.0`, and `/0` filtering.
+5. Add a `PrepareCanonicalFeedBody` integration test using a temporary input file and processor steps.
+
+Validation plan:
+
+- Run `go test ./pkg/downloader`.
+- Run `go test -coverprofile=/tmp/update-ipsets-downloader-slice27.cover -covermode=atomic ./pkg/downloader` and inspect `go tool cover -func`.
+- Run `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice27.json`.
+- Run `make lint`, `make staticcheck`, `make golangci-lint`, `CI=true make coverage`, and `make test-strict`.
+- Run whitespace and durable-artifact forbidden-name scans over the changed files before commit.
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: no update needed unless a repeatable canonical-feed testing lesson is found.
+- Specs: no update expected because canonical downloader behavior is intended to stay unchanged.
+- End-user/operator docs: no update expected.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: this SOW remains in `.agents/sow/current/`; Slice 27 results will be recorded after validation.
+
+Open decisions:
+
+- No new user design decision is required because the slice is behavior-preserving test coverage under the previously approved quality plan.
+
+## Slice 27 Results
+
+Changes made:
+
+- Added behavior tests for downloader canonicalization in `pkg/downloader/canonical_test.go`.
+- Covered canonical output family aliases and unsupported output errors.
+- Covered rendering canonical `ipset` and `netset` feed bodies from parsed sets.
+- Covered canonical reader and file parsing.
+- Covered processed-file sanitization for BOM, CRLF, blank lines, `0.0.0.0`, and `/0` filtering.
+- Covered `PrepareCanonicalFeedBody` integration with a processor step and canonical rendering.
+- Production code was unchanged.
+
+Measured result:
+
+- Baseline: `pkg/downloader` coverage was `69.6%`.
+- Baseline: every function in `pkg/downloader/canonical.go` was `0.0%` covered.
+- After tests: `pkg/downloader` coverage is `86.5%`.
+- `PrepareCanonicalFeedBody` is `75.0%` covered.
+- `ParseProcessedFeedFile` is `90.0%` covered.
+- `ParseCanonicalFeedReader` is `100.0%` covered.
+- `ParseCanonicalFeedFile` is `88.9%` covered.
+- `RenderCanonicalFeedBody` is `90.9%` covered.
+- `canonicalOutputFamily` and `newSanitizeReader` are each `100.0%` covered.
+- `(*sanitizeReader).Read` is `80.6%` covered.
+- Root coverage by `go tool cover -func=coverage.out` moved from `72.9%` to `73.2%`.
+- `tools/archposture` after this slice: source files `634`, source lines `127556`, large files `49`, large functions `25`, and production large functions `0`.
+
+Tests or equivalent validation:
+
+- `go test ./pkg/downloader`: passed.
+- `go test -coverprofile=/tmp/update-ipsets-downloader-slice27.cover -covermode=atomic ./pkg/downloader`: passed, `86.5%`.
+- `go tool cover -func=/tmp/update-ipsets-downloader-slice27.cover`: passed; canonical functions covered as listed above.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice27.json`: passed.
+- `make lint`: passed.
+- `make staticcheck`: passed.
+- `make golangci-lint`: passed with `0 issues`.
+- `CI=true make coverage`: passed, root total `73.2%`.
+- `make test-strict`: passed.
+- `git diff --check`: passed.
+- Durable-artifact forbidden-name scan over added diff lines found no newly added personal name, authorship, tool, or vendor-attribution text.
+
+Artifact maintenance gate:
+
+- AGENTS.md: no update needed.
+- Runtime project skills: no update needed; no new durable process rule was found.
+- Specs: no update needed; canonical downloader behavior is unchanged.
+- End-user/operator docs: no update needed.
+- End-user/operator skills: no update needed.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 27 is validated and pending PR merge.
 
 ## Slice 25 Results
 
@@ -3392,7 +3524,7 @@ Open decisions:
 
 ## Outcome
 
-First through twenty-fifth implementation slices are complete, validated locally, and merged. The twenty-sixth implementation slice is complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through twenty-sixth implementation slices are complete, validated locally, and merged. The twenty-seventh implementation slice is complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
