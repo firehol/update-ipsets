@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: sixteenth implementation slice validated; integrity check PR pending
+Sub-state: seventeenth implementation slice validated; metadata writer PR pending
 
 ## Requirements
 
@@ -1553,7 +1553,6 @@ Lessons:
 Follow-up mapping:
 
 - Next measured complexity targets:
-  - `pkg/engine/metadata.go:16` `(*Engine).writeMetadataFiles`: 150 lines, complexity 28.
   - `pkg/engine/retention.go:58` `(*Engine).updateRetention`: 142 lines, complexity 32.
   - `pkg/engine/runtime.go:81` `resolveRuntime`: 134 lines, complexity 32.
   - `pkg/engine/output.go:142` `(*Engine).buildSetMetadataFromEffectiveEntryInDirWithResolver`: 133 lines, complexity 27.
@@ -2077,9 +2076,138 @@ Artifact maintenance gate:
 - End-user/operator skills: no update needed.
 - SOW lifecycle: remains in `.agents/sow/current/`; Slice 16 is validated and pending PR merge.
 
+## Pre-Implementation Gate - Slice 17
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after the Slice 16 merge, local `tools/archposture` reports `pkg/engine/metadata.go:16` `(*Engine).writeMetadataFiles` at 150 lines with complexity 28.
+- Facts: `go test -coverprofile=/tmp/update-ipsets-metadata-slice17-baseline.cover -covermode=atomic ./pkg/engine` reports `pkg/engine` coverage at `71.3%`; `go tool cover` reports `writeMetadataFiles` at `79.8%` and package total statement coverage at `71.3%`.
+- Working theory: `writeMetadataFiles` is large because it combines comparison artifact refresh, public metadata file generation, per-feed metadata/index accumulation, per-feed JSON/history/changesets/retention writing, generated-file ledger updates, optional git-side artifact writing, and operation timing.
+
+Evidence reviewed:
+
+- `pkg/engine/metadata.go`
+- `pkg/engine/file_contract_test.go`
+- `pkg/engine/output_metadata_test.go`
+- `pkg/engine/output_test.go`
+- `/tmp/update-ipsets-archposture-slice17-baseline.json`
+- `/tmp/update-ipsets-metadata-slice17-baseline.cover`
+- Project coding, testing, hygiene, Go best-practices, Go behavioral-testing, and content-surface skills.
+
+Affected contracts and surfaces:
+
+- Metadata/index artifact publication from the engine pipeline.
+- Generated-file ledger entries and logical timestamps for per-feed JSON, history, changesets, retention, index, all-ipsets, setinfo, and feed body outputs.
+- Optional git-side outputs: README, `.gitignore`, and timestamp script.
+- Public metadata JSON fields consumed by public APIs, integrity checks, and website pages.
+- SOW only; no docs or specs are expected to change because the slice is behavior-preserving.
+
+Existing patterns to reuse:
+
+- Existing timing instrumentation with `observeRunOperation`.
+- Existing generated-file ledger style using `output.GeneratedFile`.
+- Existing effective-entry resolver reuse for batch loops.
+- Existing test contracts that verify metadata fields, file contracts, and bash-compatible output behavior through engine fixtures.
+
+Risk and blast radius:
+
+- Generated-file timestamps are integrity data. Ledger path/timestamp changes can create false stale findings or hide stale artifacts.
+- Public metadata files must be written before indexes observe their updated unique-share fields.
+- Per-feed output filtering must still honor `perFeedNames`.
+- Base git artifacts must only be written when `output.HasGitDir(e.runtime.BaseDir)` is true.
+- No pipeline scheduling, downloader, public serving, install behavior, or UI behavior should change.
+
+Sensitive data handling plan:
+
+- This slice uses only local source code, synthetic engine fixtures, temporary files, and local posture/coverage metrics.
+- No secrets, tokens, cookies, private endpoints, customer data, or personal data are needed.
+- Durable artifacts will record only file paths, metrics, validation outcomes, and sanitized command evidence.
+
+Implementation plan:
+
+1. Move metadata write orchestration into a focused metadata writer file if that reduces file posture.
+2. Introduce a package-local write-run helper that owns generated-file accumulation, per-feed/index buffers, resolver state, output directories, and git-output state.
+3. Extract comparison/public metadata writes, per-feed output writes, index writes, and git artifact writes into focused helpers while preserving timing labels and error returns.
+4. Add tests only if a behavior branch is not already covered by exported engine metadata/file-contract behavior.
+5. Re-run `pkg/engine` tests and coverage, `tools/archposture`, strict shuffled tests, lint/static checks, and root coverage.
+
+Validation plan:
+
+- Run `go test ./pkg/engine`.
+- Run `go test -coverprofile=/tmp/update-ipsets-metadata-slice17.cover -covermode=atomic ./pkg/engine` and inspect `go tool cover -func`.
+- Run `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice17.json` and confirm `writeMetadataFiles` no longer appears as a large-function target.
+- Run `go test -shuffle=on -count=3 ./pkg/engine`.
+- Run `make lint`, `make staticcheck`, `make golangci-lint`, `CI=true make coverage`, and `make test-strict`.
+- Run whitespace and durable-artifact forbidden-name scans over the changed files before commit.
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if a repeatable metadata-writer refactor lesson is found.
+- Specs: no update expected because metadata semantics are intended to stay unchanged.
+- End-user/operator docs: no update expected.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: this SOW remains in `.agents/sow/current/`; Slice 17 results will be recorded after validation.
+
+Open decisions:
+
+- No new user design decision is required because the slice is behavior-preserving quality work under the previously approved quality plan.
+
+## Slice 17 Results
+
+Changes made:
+
+- Moved metadata write orchestration from `pkg/engine/metadata.go` into `pkg/engine/metadata_write.go`.
+- Split `writeMetadataFiles` into focused helpers for:
+  - comparison and unique-share refresh;
+  - public metadata list generation;
+  - per-feed metadata/index row accumulation;
+  - per-feed JSON/history/changesets/retention artifact writes;
+  - index and all-ipsets writes;
+  - optional git-side README, `.gitignore`, and timestamp-script writes;
+  - generated-file ledger appends.
+- Preserved timing labels, generated-file ledger paths, logical timestamps, redistributability flags, `perFeedNames` filtering, base-git behavior, resolver reuse, and error returns.
+
+Measured result:
+
+- Baseline: `pkg/engine/metadata.go:16` `(*Engine).writeMetadataFiles` was 150 lines with complexity 28 and `79.8%` direct coverage.
+- After refactor: no `pkg/engine/metadata*.go` function appears in `tools/archposture` large-function output.
+- `pkg/engine/metadata.go` moved to 111 lines.
+- `pkg/engine/metadata_write.go` is 253 lines.
+- `pkg/engine` coverage remains `71.3%`.
+- Root coverage by `go tool cover -func=coverage.out` remains `72.6%`.
+- `tools/archposture` after this slice: source files `626`, source lines `126576`, large files `51`, and large functions `33`.
+- Remaining top production complexity target: `pkg/engine/retention.go:58` `(*Engine).updateRetention`, 142 lines, complexity 32.
+
+Tests or equivalent validation:
+
+- `go test ./pkg/engine`: passed.
+- `go test -coverprofile=/tmp/update-ipsets-metadata-slice17.cover -covermode=atomic ./pkg/engine`: passed, `71.3%`.
+- `go tool cover -func=/tmp/update-ipsets-metadata-slice17.cover`: passed, total `71.3%`.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice17.json`: passed.
+- `go test -shuffle=on -count=3 ./pkg/engine`: passed.
+- `make lint`: passed.
+- `make staticcheck`: passed.
+- `make golangci-lint`: passed with `0 issues`.
+- `CI=true make coverage`: passed.
+- `make test-strict`: passed.
+- `git diff --check`: passed.
+- Durable-artifact forbidden-name scan over the changed SOW and Go files found no newly added personal name, authorship, tool, or vendor-attribution text.
+
+Artifact maintenance gate:
+
+- AGENTS.md: no update needed.
+- Runtime project skills: no update needed; no new durable process rule was found.
+- Specs: no update needed; metadata semantics are unchanged.
+- End-user/operator docs: no update needed.
+- End-user/operator skills: no update needed.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 17 is validated and pending PR merge.
+
 ## Outcome
 
-First through sixteenth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through seventeenth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
