@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: twenty-fifth implementation slice validated; ASN database processing PR pending
+Sub-state: twenty-sixth implementation slice validated; entity detail aggregation duplication PR pending
 
 ## Requirements
 
@@ -2023,6 +2023,52 @@ Open decisions:
 
 - No new user design decision is required because the slice is behavior-preserving quality work under the previously approved quality plan.
 
+## Slice 26 Results
+
+Changes made:
+
+- Added `pkg/engine/home_entity_facets.go` with a shared detail facet accumulator for category and maintainer totals.
+- Reused the shared accumulator from both country and ASN detail builders.
+- Removed duplicated category and maintainer aggregation from `countryDetailBuilder.addFeed` and `asnDetailBuilder.addFeed`.
+- Removed duplicated top-category and top-maintainer summary construction from country and ASN detail sidecar builds.
+- Preserved country-specific ASN rollups, ASN-specific country rollups, ASN country distribution, feed ordering, summary sorting, maintainer slug/URL fill-in behavior, and public payload schemas.
+
+Measured result:
+
+- Baseline source-only `jscpd`: `11` clones, `511` duplicated lines (`0.52%`), `4595` duplicated tokens (`0.53%`).
+- After refactor source-only `jscpd`: `9` clones, `433` duplicated lines (`0.44%`), `3761` duplicated tokens (`0.44%`).
+- Go clones moved from `6` to `4`; Go duplicated lines moved from `169` (`0.29%`) to `91` (`0.16%`).
+- The `home_entity_precompute.go` duplicate blocks are no longer reported by `jscpd`.
+- `pkg/engine` coverage remains `71.9%`.
+- Shared helper coverage includes `newDetailFacetAccumulator` at `100.0%`, `(*detailFacetAccumulator).add` at `94.7%`, `topCategories` at `80.0%`, and `topMaintainers` at `90.0%`.
+- `countryDetailBuilder.addFeed` and `asnDetailBuilder.addFeed` are each `100.0%` covered after the split.
+- Root coverage by `go tool cover -func=coverage.out` remains `72.9%`.
+- `tools/archposture` after this slice: source files `633`, source lines `127377`, large files `49`, large functions `25`, and production large functions `0`.
+
+Tests or equivalent validation:
+
+- `go test ./pkg/engine`: passed.
+- `go test -coverprofile=/tmp/update-ipsets-engine-slice26.cover -covermode=atomic ./pkg/engine`: passed, `71.9%`.
+- `go tool cover -func=/tmp/update-ipsets-engine-slice26.cover`: passed; shared facet helper covered through entity detail behavior tests.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice26.json`: passed.
+- Source-only `jscpd` with project hygiene exclusions: passed; clone count reduced from `11` to `9`.
+- `make lint`: passed.
+- `make staticcheck`: passed.
+- `make golangci-lint`: passed with `0 issues`.
+- `CI=true make coverage`: passed, root total `72.9%`.
+- `make test-strict`: passed.
+- `git diff --check`: passed.
+- Durable-artifact forbidden-name scan over added diff lines found no newly added personal name, authorship, tool, or vendor-attribution text.
+
+Artifact maintenance gate:
+
+- AGENTS.md: no update needed.
+- Runtime project skills: no update needed; no new durable process rule was found.
+- Specs: no update needed; entity detail payload semantics are unchanged.
+- End-user/operator docs: no update needed.
+- End-user/operator skills: no update needed.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 26 is validated and pending PR merge.
+
 ## Slice 25 Results
 
 Changes made:
@@ -2072,7 +2118,89 @@ Artifact maintenance gate:
 - Specs: no update needed; ASN provider lifecycle semantics are unchanged.
 - End-user/operator docs: no update needed.
 - End-user/operator skills: no update needed.
-- SOW lifecycle: remains in `.agents/sow/current/`; Slice 25 is validated and pending PR merge.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 25 merged through PR #29 as merge commit `05218cbe2d0ac4158037bb18f66e743a83def376`.
+
+## Pre-Implementation Gate - Slice 26
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after the Slice 25 merge, local `tools/archposture` reports zero production large functions.
+- Facts: source-only `jscpd` reports 11 clones and `511` duplicated source lines (`0.52%`) with tests, generated assets, SOW artifacts, dependencies, and archposture testdata excluded.
+- Facts: the largest backend duplication candidates include `pkg/engine/home_entity_precompute.go` country and ASN detail builders, where category and maintainer aggregation are repeated across `countryDetailBuilder` and `asnDetailBuilder`.
+- Facts: `go tool cover -func=coverage.out` reports `countryDetailBuilder.addFeed` at `95.0%`, `asnDetailBuilder.addFeed` at `95.5%`, `countryDetailBuilder.build` at `73.5%`, and `asnDetailBuilder.build` at `84.1%`.
+- Working theory: the repeated category/maintainer aggregation is a good next slice because it is real backend source duplication, not intentional optimized IPv4/IPv6 duplication, and it can be extracted without changing country/ASN-specific payload construction.
+
+Evidence reviewed:
+
+- `/tmp/update-ipsets-archposture-after-pr29.json`
+- `/tmp/update-ipsets-jscpd-slice26/jscpd-report.json`
+- `pkg/engine/home_entity_precompute.go`
+- `pkg/engine/home_detail_test.go`
+- `pkg/engine/entity_surgical_test.go`
+- `pkg/engine/home_entity_detail_live_test.go`
+- `coverage.out`
+- Project coding, testing, hygiene, Go best-practices, Go behavioral-testing, and content-surface skills.
+
+Affected contracts and surfaces:
+
+- Country detail sidecar category and maintainer rollups.
+- ASN detail sidecar category and maintainer rollups.
+- Sort order for top categories and top maintainers.
+- Feed rows, country/ASN-specific top lists, country distribution, provider metadata, totals, and public payload schemas must not change.
+- SOW only; no docs or specs are expected to change because the slice is behavior-preserving.
+
+Existing patterns to reuse:
+
+- Existing `detailCategoryAggregate` and `detailMaintainerAggregate` types.
+- Existing `DetailCategorySummary` and `DetailMaintainerSummary` payload rows.
+- Existing `maintainerSlugify` and maintainer URL fill-in behavior.
+- Existing entity detail tests that validate public country and ASN detail payload materialization.
+- Existing local `jscpd` source-only scan command from project hygiene.
+
+Risk and blast radius:
+
+- Public country and ASN detail payloads depend on these rollups.
+- Category and maintainer tie-break ordering must stay byte-for-byte compatible for existing tests and stable public artifacts.
+- The shared helper must not erase country-specific ASN rollups or ASN-specific country distribution logic.
+- No downloader, scheduler queueing, public serving fallback, install behavior, UI behavior, or ASN/geolocation attribution algorithm should change.
+
+Sensitive data handling plan:
+
+- This slice uses only local source code, synthetic test fixtures already in the repository, temporary paths, and local posture/duplication/coverage metrics.
+- No secrets, tokens, cookies, private endpoints, customer data, or personal data are needed.
+- Durable artifacts will record only file paths, metrics, validation outcomes, and sanitized command evidence.
+
+Implementation plan:
+
+1. Introduce a small shared detail facet accumulator for category and maintainer totals.
+2. Move category rollup addition and maintainer rollup addition into the shared accumulator.
+3. Move top-category and top-maintainer summary construction into shared helper methods.
+4. Update country and ASN detail builders to embed or own the shared accumulator while keeping country/ASN-specific fields separate.
+5. Re-run engine tests, coverage, archposture, and `jscpd` to prove behavior and duplication posture.
+
+Validation plan:
+
+- Run `go test ./pkg/engine`.
+- Run `go test -coverprofile=/tmp/update-ipsets-engine-slice26.cover -covermode=atomic ./pkg/engine` and inspect `go tool cover -func`.
+- Run `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice26.json`.
+- Run source-only `jscpd` with the project hygiene exclusions and compare clone counts against Slice 26 baseline.
+- Run `make lint`, `make staticcheck`, `make golangci-lint`, `CI=true make coverage`, and `make test-strict`.
+- Run whitespace and durable-artifact forbidden-name scans over the changed files before commit.
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if a repeatable duplication triage lesson is found.
+- Specs: no update expected because entity detail payload semantics are intended to stay unchanged.
+- End-user/operator docs: no update expected.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: this SOW remains in `.agents/sow/current/`; Slice 26 results will be recorded after validation.
+
+Open decisions:
+
+- No new user design decision is required because the slice is behavior-preserving quality work under the previously approved quality plan.
 
 ## Slice 16 Results
 
@@ -3264,7 +3392,7 @@ Open decisions:
 
 ## Outcome
 
-First through twenty-fourth implementation slices are complete, validated locally, and merged. The twenty-fifth implementation slice is complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through twenty-fifth implementation slices are complete, validated locally, and merged. The twenty-sixth implementation slice is complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
