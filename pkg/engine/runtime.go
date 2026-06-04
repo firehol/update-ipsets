@@ -56,8 +56,17 @@ type Runtime struct {
 	MinRunIntervalSeconds         int
 	ProcessingIntervalMinutes     int
 	SkipComparisonIfNoUpdates     bool
-	TrustProxyHeaders            bool
-	TrustCloudflareHeaders       bool
+	TrustProxyHeaders             bool
+	TrustCloudflareHeaders        bool
+}
+
+type runtimePathContext struct {
+	userMode      bool
+	vars          map[string]string
+	runParentDir  string
+	baseDir       string
+	cacheTemplate string
+	libTemplate   string
 }
 
 func resolveConfigPath(path string) (string, error) {
@@ -83,13 +92,16 @@ func resolveRuntime(cfg *config.Config, now time.Time) (Runtime, error) {
 		return Runtime{}, fmt.Errorf("nil config")
 	}
 
+	pathCtx := resolveRuntimePathContext(cfg.Runtime, config.DefaultRuntime(), now)
+	r := runtimeFromConfig(cfg.Runtime, pathCtx, now)
+	applyRuntimeDefaults(&r, pathCtx)
+	return r, nil
+}
+
+func resolveRuntimePathContext(rt, defaults config.RuntimeConfig, now time.Time) runtimePathContext {
 	home, _ := os.UserHomeDir()
-	defaults := config.DefaultRuntime()
 	userMode := os.Geteuid() != 0
-	runParentTemplate := cfg.Runtime.RunParentDir
-	if userMode && (runParentTemplate == "" || runParentTemplate == defaults.RunParentDir) {
-		runParentTemplate = filepath.Join(home, ".update-ipsets", "run")
-	}
+	runParentTemplate := runtimeTemplateForMode(rt.RunParentDir, defaults.RunParentDir, filepath.Join(home, ".update-ipsets", "run"), userMode)
 	runParentDir := expandTemplate(runParentTemplate, map[string]string{"HOME": home}, now)
 	if runParentDir == "" {
 		runParentDir = "/var/run"
@@ -99,87 +111,107 @@ func resolveRuntime(cfg *config.Config, now time.Time) (Runtime, error) {
 		"run_parent_dir": runParentDir,
 		"RUN_PARENT_DIR": runParentDir,
 	}
-	baseTemplate := cfg.Runtime.BaseDir
-	if userMode && (baseTemplate == "" || baseTemplate == defaults.BaseDir) {
-		baseTemplate = filepath.Join(home, ".update-ipsets", "ipsets")
-	}
+	baseTemplate := runtimeTemplateForMode(rt.BaseDir, defaults.BaseDir, filepath.Join(home, ".update-ipsets", "ipsets"), userMode)
 	baseDir := expandTemplate(baseTemplate, vars, now)
 	vars["base_dir"] = baseDir
 	vars["BASE_DIR"] = baseDir
 
-	cacheTemplate := cfg.Runtime.CacheDir
-	if userMode && (cacheTemplate == "" || cacheTemplate == defaults.CacheDir) {
-		cacheTemplate = filepath.Join(home, ".cache", "update-ipsets")
+	return runtimePathContext{
+		userMode:      userMode,
+		vars:          vars,
+		runParentDir:  runParentDir,
+		baseDir:       baseDir,
+		cacheTemplate: runtimeTemplateForMode(rt.CacheDir, defaults.CacheDir, filepath.Join(home, ".cache", "update-ipsets"), userMode),
+		libTemplate:   runtimeTemplateForMode(rt.LibDir, defaults.LibDir, filepath.Join(home, ".local", "share", "update-ipsets"), userMode),
 	}
-	libTemplate := cfg.Runtime.LibDir
-	if userMode && (libTemplate == "" || libTemplate == defaults.LibDir) {
-		libTemplate = filepath.Join(home, ".local", "share", "update-ipsets")
-	}
+}
 
-	r := Runtime{
-		BaseDir:                       baseDir,
-		RunParentDir:                  runParentDir,
-		LockFile:                      expandTemplate(cfg.Runtime.LockFile, vars, now),
-		CacheDir:                      expandTemplate(cacheTemplate, vars, now),
-		LibDir:                        expandTemplate(libTemplate, vars, now),
-		AdminSuppliedIPSets:           expandTemplate(cfg.Runtime.AdminSuppliedIPSets, vars, now),
-		DistributionSuppliedIPSets:    expandTemplate(cfg.Runtime.DistributionSuppliedIPSets, vars, now),
-		UserSuppliedIPSets:            expandTemplate(cfg.Runtime.UserSuppliedIPSets, vars, now),
-		HistoryDir:                    expandTemplate(cfg.Runtime.HistoryDir, vars, now),
-		ErrorsDir:                     expandTemplate(cfg.Runtime.ErrorsDir, vars, now),
-		TmpDir:                        expandTemplate(cfg.Runtime.TmpDir, vars, now),
-		WebDir:                        expandTemplate(cfg.Runtime.WebDir, vars, now),
-		WebOwner:                      expandTemplate(cfg.Runtime.WebOwner, vars, now),
-		WebDirForIPSets:               expandTemplate(cfg.Runtime.WebDirForIPSets, vars, now),
-		WebURL:                        expandTemplate(cfg.Runtime.WebURL, vars, now),
-		PublicBaseURL:                 expandTemplate(cfg.Runtime.PublicBaseURL, vars, now),
-		LocalCopyURL:                  expandTemplate(cfg.Runtime.LocalCopyURL, vars, now),
-		GitHubChangesURL:              expandTemplate(cfg.Runtime.GitHubChangesURL, vars, now),
-		GitHubSetInfo:                 expandTemplate(cfg.Runtime.GitHubSetInfo, vars, now),
-		UserAgent:                     expandTemplate(cfg.Runtime.UserAgent, vars, now),
-		MaxConnectTime:                time.Duration(cfg.Runtime.MaxConnectTime) * time.Second,
-		MaxDownloadTime:               time.Duration(cfg.Runtime.MaxDownloadTime) * time.Second,
-		MaxDownloadSize:               cfg.Runtime.MaxDownloadSize,
-		ParallelDownloads:             cfg.Runtime.ParallelDownloads,
-		IgnoreRepeatingDownloadErrors: cfg.Runtime.IgnoreRepeatingDownloadErrors,
-		ParallelDNSQueries:            cfg.Runtime.ParallelDNSQueries,
-		IPSetsApply:                   cfg.Runtime.IPSetsApply && !userMode,
-		PushToGit:                     cfg.Runtime.PushToGit,
-		PushToGitMerged:               cfg.Runtime.PushToGitMerged,
-		PushToGitCommitOptions:        cfg.Runtime.PushToGitCommitOptions,
-		PushToGitPushOptions:          cfg.Runtime.PushToGitPushOptions,
-		PushToGitWeb:                  cfg.Runtime.PushToGitWeb,
-		WebChartsEntries:              cfg.Runtime.WebChartsEntries,
-		WebArtifactCacheMaxEntries:    cfg.Runtime.WebArtifactCacheMaxEntries,
-		WebArtifactCacheMaxBytes:      cfg.Runtime.WebArtifactCacheMaxBytes,
-		WebArtifactCacheMaxFileBytes:  cfg.Runtime.WebArtifactCacheMaxFileBytes,
-		MaxProcessingWorkers:          cfg.Runtime.MaxProcessingWorkers,
-		MaxHeavyPhaseWorkers:          cfg.Runtime.MaxHeavyPhaseWorkers,
-		MaxBackgroundWorkers:          cfg.Runtime.MaxBackgroundWorkers,
-		MinRunIntervalSeconds:         cfg.Runtime.MinRunIntervalSeconds,
-		ProcessingIntervalMinutes:     cfg.Runtime.ProcessingIntervalMinutes,
-		SkipComparisonIfNoUpdates:     cfg.Runtime.SkipComparisonIfNoUpdates,
-		TrustProxyHeaders:            cfg.Runtime.TrustProxyHeaders,
-		TrustCloudflareHeaders:       cfg.Runtime.TrustCloudflareHeaders,
+func runtimeTemplateForMode(configured, defaultValue, userModeValue string, userMode bool) string {
+	if userMode && (configured == "" || configured == defaultValue) {
+		return userModeValue
 	}
+	return configured
+}
+
+func runtimeFromConfig(rt config.RuntimeConfig, pathCtx runtimePathContext, now time.Time) Runtime {
+	vars := pathCtx.vars
+	r := Runtime{
+		BaseDir:                       pathCtx.baseDir,
+		RunParentDir:                  pathCtx.runParentDir,
+		LockFile:                      expandTemplate(rt.LockFile, vars, now),
+		CacheDir:                      expandTemplate(pathCtx.cacheTemplate, vars, now),
+		LibDir:                        expandTemplate(pathCtx.libTemplate, vars, now),
+		AdminSuppliedIPSets:           expandTemplate(rt.AdminSuppliedIPSets, vars, now),
+		DistributionSuppliedIPSets:    expandTemplate(rt.DistributionSuppliedIPSets, vars, now),
+		UserSuppliedIPSets:            expandTemplate(rt.UserSuppliedIPSets, vars, now),
+		HistoryDir:                    expandTemplate(rt.HistoryDir, vars, now),
+		ErrorsDir:                     expandTemplate(rt.ErrorsDir, vars, now),
+		TmpDir:                        expandTemplate(rt.TmpDir, vars, now),
+		WebDir:                        expandTemplate(rt.WebDir, vars, now),
+		WebOwner:                      expandTemplate(rt.WebOwner, vars, now),
+		WebDirForIPSets:               expandTemplate(rt.WebDirForIPSets, vars, now),
+		WebURL:                        expandTemplate(rt.WebURL, vars, now),
+		PublicBaseURL:                 expandTemplate(rt.PublicBaseURL, vars, now),
+		LocalCopyURL:                  expandTemplate(rt.LocalCopyURL, vars, now),
+		GitHubChangesURL:              expandTemplate(rt.GitHubChangesURL, vars, now),
+		GitHubSetInfo:                 expandTemplate(rt.GitHubSetInfo, vars, now),
+		UserAgent:                     expandTemplate(rt.UserAgent, vars, now),
+		MaxConnectTime:                time.Duration(rt.MaxConnectTime) * time.Second,
+		MaxDownloadTime:               time.Duration(rt.MaxDownloadTime) * time.Second,
+		MaxDownloadSize:               rt.MaxDownloadSize,
+		ParallelDownloads:             rt.ParallelDownloads,
+		IgnoreRepeatingDownloadErrors: rt.IgnoreRepeatingDownloadErrors,
+		ParallelDNSQueries:            rt.ParallelDNSQueries,
+		IPSetsApply:                   rt.IPSetsApply && !pathCtx.userMode,
+		PushToGit:                     rt.PushToGit,
+		PushToGitMerged:               rt.PushToGitMerged,
+		PushToGitCommitOptions:        rt.PushToGitCommitOptions,
+		PushToGitPushOptions:          rt.PushToGitPushOptions,
+		PushToGitWeb:                  rt.PushToGitWeb,
+		WebChartsEntries:              rt.WebChartsEntries,
+		WebArtifactCacheMaxEntries:    rt.WebArtifactCacheMaxEntries,
+		WebArtifactCacheMaxBytes:      rt.WebArtifactCacheMaxBytes,
+		WebArtifactCacheMaxFileBytes:  rt.WebArtifactCacheMaxFileBytes,
+		MaxProcessingWorkers:          rt.MaxProcessingWorkers,
+		MaxHeavyPhaseWorkers:          rt.MaxHeavyPhaseWorkers,
+		MaxBackgroundWorkers:          rt.MaxBackgroundWorkers,
+		MinRunIntervalSeconds:         rt.MinRunIntervalSeconds,
+		ProcessingIntervalMinutes:     rt.ProcessingIntervalMinutes,
+		SkipComparisonIfNoUpdates:     rt.SkipComparisonIfNoUpdates,
+		TrustProxyHeaders:             rt.TrustProxyHeaders,
+		TrustCloudflareHeaders:        rt.TrustCloudflareHeaders,
+	}
+	return r
+}
+
+func applyRuntimeDefaults(r *Runtime, pathCtx runtimePathContext) {
+	applyRuntimePathDefaults(r, pathCtx)
+	applyRuntimeDownloadDefaults(r)
+	applyRuntimeWorkerDefaults(r)
+}
+
+func applyRuntimePathDefaults(r *Runtime, pathCtx runtimePathContext) {
 	if r.CacheDir == "" {
-		r.CacheDir = baseDir
+		r.CacheDir = pathCtx.baseDir
 	}
 	if r.LockFile == "" {
-		r.LockFile = filepath.Join(runParentDir, "update-ipsets.lock")
+		r.LockFile = filepath.Join(pathCtx.runParentDir, "update-ipsets.lock")
 	}
 	if r.LibDir == "" {
-		r.LibDir = filepath.Join(baseDir, "lib")
+		r.LibDir = filepath.Join(pathCtx.baseDir, "lib")
 	}
 	if r.HistoryDir == "" {
-		r.HistoryDir = filepath.Join(baseDir, "history")
+		r.HistoryDir = filepath.Join(pathCtx.baseDir, "history")
 	}
 	if r.ErrorsDir == "" {
-		r.ErrorsDir = filepath.Join(baseDir, "errors")
+		r.ErrorsDir = filepath.Join(pathCtx.baseDir, "errors")
 	}
 	if r.TmpDir == "" {
 		r.TmpDir = os.TempDir()
 	}
+}
+
+func applyRuntimeDownloadDefaults(r *Runtime) {
 	if r.MaxConnectTime <= 0 {
 		r.MaxConnectTime = 10 * time.Second
 	}
@@ -195,6 +227,9 @@ func resolveRuntime(cfg *config.Config, now time.Time) (Runtime, error) {
 	if r.ParallelDNSQueries <= 0 {
 		r.ParallelDNSQueries = 10
 	}
+}
+
+func applyRuntimeWorkerDefaults(r *Runtime) {
 	if r.MaxProcessingWorkers <= 0 {
 		r.MaxProcessingWorkers = 2
 	}
@@ -210,7 +245,6 @@ func resolveRuntime(cfg *config.Config, now time.Time) (Runtime, error) {
 	if r.ProcessingIntervalMinutes <= 0 {
 		r.ProcessingIntervalMinutes = 10
 	}
-	return r, nil
 }
 
 func (e *Engine) ApplyRuntimeOverrides(webDir, filesDir string) error {
