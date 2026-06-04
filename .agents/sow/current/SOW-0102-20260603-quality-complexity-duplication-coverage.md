@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: fourteenth implementation slice validated; web run lifecycle PR pending
+Sub-state: fifteenth implementation slice validated; entity feed sidecar PR pending
 
 ## Requirements
 
@@ -1553,8 +1553,10 @@ Lessons:
 Follow-up mapping:
 
 - Next measured complexity targets:
-  - `pkg/engine/entity_feed_sidecar.go:374` `(*Engine).buildSingleFeedEntitySidecar`: 171 lines, complexity 53.
   - `pkg/engine/integrity.go:110` `(*Engine).CheckIntegrityWithOptions`: 156 lines, complexity 36.
+  - `pkg/engine/metadata.go:16` `(*Engine).writeMetadataFiles`: 150 lines, complexity 28.
+  - `pkg/engine/retention.go:58` `(*Engine).updateRetention`: 142 lines, complexity 32.
+  - `pkg/engine/entity_feed_sidecar.go:370` `(*Engine).buildSelectedEntityDetailSidecarsFromFeedSidecars`: 122 lines, complexity 39.
 - Next measured duplication targets:
   - `ui/src/components/admin/feeds-table-header.tsx`: 130 duplicated lines.
   - `ui/src/pages/asn-detail.tsx` and `ui/src/pages/country-detail.tsx`: 20, 35, and 107 duplicated line blocks.
@@ -1813,9 +1815,138 @@ Artifact maintenance gate:
 - End-user/operator skills: no update needed.
 - SOW lifecycle: remains in `.agents/sow/current/`; Slice 14 is validated and pending PR merge.
 
+## Pre-Implementation Gate - Slice 15
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after the Slice 14 merge, local `tools/archposture` reports `pkg/engine/entity_feed_sidecar.go:374` `(*Engine).buildSingleFeedEntitySidecar` at 171 lines with complexity 53.
+- Facts: `go test -coverprofile=/tmp/update-ipsets-engine-slice15-baseline.cover -covermode=atomic ./pkg/engine` reports `pkg/engine` coverage at `71.1%`; `go tool cover` reports `buildSingleFeedEntitySidecar` at `65.0%` and package total statement coverage at `71.2%`.
+- Working theory: `buildSingleFeedEntitySidecar` is large because it combines feed eligibility, base sidecar construction, country comparison loading, ASN loading, optional joint country/ASN attribution, ASN name/count backfill, and final sorting/filtering.
+
+Evidence reviewed:
+
+- `pkg/engine/entity_feed_sidecar.go`
+- `pkg/engine/entity_surgical_test.go`
+- `pkg/engine/home_detail_test.go`
+- `pkg/engine/entity_integrity_test.go`
+- `/tmp/update-ipsets-archposture-slice15-baseline.json`
+- `/tmp/update-ipsets-engine-slice15-baseline.cover`
+- Project coding, testing, hygiene, Go best-practices, Go behavioral-testing, and content-surface skills.
+
+Affected contracts and surfaces:
+
+- Feed entity sidecar generation under `pkg/engine`.
+- Public country/ASN detail artifacts and indexes that consume feed entity sidecars.
+- Entity integrity checks and surgical refresh paths that compare or patch feed sidecars.
+- Generated sidecar JSON fields: feed, category, provenance, maintainer, unique IPs, last-change timestamp, provider names, countries, ASNs, joint country/ASN rows, attributed IP counts, and sort order.
+- SOW only; no docs or specs are expected to change because the slice is behavior-preserving.
+
+Existing patterns to reuse:
+
+- Existing small helper style in `entity_feed_sidecar.go` for indexing, actor contributions, country/ASN row construction, and sorted outputs.
+- Existing `latestSetCache` ownership pattern: create a local cache only when none is passed, and close it with the engine logger.
+- Existing tests that drive real entity sidecar JSON through engine fixtures rather than testing private implementation details.
+
+Risk and blast radius:
+
+- Entity sidecars are generated artifacts. A behavior change can corrupt country/ASN detail pages, indexes, integrity checks, and surgical refresh outputs.
+- Joint country/ASN attribution must still happen only when geo prepared data, ASN DB, country rows, and ASN rows are all available.
+- `latestSetCache` ownership must not leak file descriptors or close a caller-owned cache.
+- Sorting and filtering must remain stable: countries sorted by code, ASNs sorted by number, empty rows omitted.
+- No scheduler, public serving, downloader, install behavior, or UI behavior should change.
+
+Sensitive data handling plan:
+
+- This slice uses only local source code, synthetic engine fixtures, and local posture/coverage metrics.
+- No secrets, tokens, cookies, private endpoints, customer data, or personal data are needed.
+- Durable artifacts will record only file paths, metrics, validation outcomes, and sanitized command evidence.
+
+Implementation plan:
+
+1. Move feed sidecar build orchestration into a focused file if needed to reduce file posture.
+2. Extract base sidecar creation, country contribution loading, ASN contribution loading, joint attribution enrichment, ASN backfill, and final sidecar sorting/filtering into helper functions.
+3. Preserve current error wrapping, counter names, cache ownership, sorting, and empty-sidecar return behavior.
+4. Add tests only if a behavior branch is not already covered by exported or fixture-driven entity sidecar behavior.
+5. Re-run `pkg/engine` tests and coverage, `tools/archposture`, strict shuffled tests, lint/static checks, and root coverage.
+
+Validation plan:
+
+- Run `go test ./pkg/engine`.
+- Run `go test -coverprofile=/tmp/update-ipsets-engine-slice15.cover -covermode=atomic ./pkg/engine` and inspect `go tool cover -func`.
+- Run `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice15.json` and confirm `buildSingleFeedEntitySidecar` no longer appears as a large-function target.
+- Run `go test -shuffle=on -count=3 ./pkg/engine`.
+- Run `make lint`, `make staticcheck`, `make golangci-lint`, `CI=true make coverage`, and `make test-strict`.
+- Run whitespace and durable-artifact forbidden-name scans over the changed files before commit.
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if a repeatable entity-artifact refactor lesson is found.
+- Specs: no update expected because entity sidecar semantics are intended to stay unchanged.
+- End-user/operator docs: no update expected.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: this SOW remains in `.agents/sow/current/`; Slice 15 results will be recorded after validation.
+
+Open decisions:
+
+- No new user design decision is required because the slice is behavior-preserving quality work under the previously approved autonomy decision.
+
+## Slice 15 Results
+
+Changes made:
+
+- Extracted single-feed entity sidecar construction from `pkg/engine/entity_feed_sidecar.go` into `pkg/engine/entity_feed_sidecar_single.go`.
+- Split the old monolithic `buildSingleFeedEntitySidecar` flow into focused helpers for:
+  - base sidecar eligibility and metadata construction;
+  - country contribution loading;
+  - ASN contribution loading;
+  - optional joint country/ASN attribution;
+  - ASN name/count backfill from joint rows;
+  - final country and ASN sorting/filtering.
+- Preserved `latestSetCache` ownership semantics, existing metric counter names, error wrapping, empty-sidecar behavior, country sort order, ASN sort order, and omitted empty rows.
+- Kept batch build, staging, and worker orchestration in `pkg/engine/entity_feed_sidecar_build.go`.
+
+Measured result:
+
+- Baseline: `pkg/engine/entity_feed_sidecar.go:374` `(*Engine).buildSingleFeedEntitySidecar` was 171 lines with complexity 53 and `65.0%` direct coverage.
+- After refactor: `buildSingleFeedEntitySidecar` is 22 lines with `78.6%` direct coverage and no `pkg/engine/entity_feed_sidecar_single.go` function appears in `tools/archposture` large-function output.
+- `pkg/engine/entity_feed_sidecar.go` moved from 743 lines to 567 lines.
+- `pkg/engine/entity_feed_sidecar_single.go` is 237 lines.
+- `pkg/engine/entity_feed_sidecar_build.go` remains 254 lines and unchanged in behavior.
+- `pkg/engine` coverage moved from `71.1%` to `71.2%` by `go test` output; package total statement coverage by `go tool cover` remains `71.2%`.
+- Root coverage by `go tool cover -func=coverage.out` remains `72.6%`.
+- `tools/archposture` after this slice: source files `623`, source lines `126354`, large files `52`, and large functions `35`.
+- Remaining entity sidecar posture: `pkg/engine/entity_feed_sidecar.go` is still a review-size file at 567 lines, and `buildSelectedEntityDetailSidecarsFromFeedSidecars` remains a lower-priority large function at 122 lines with complexity 39.
+
+Tests or equivalent validation:
+
+- `go test ./pkg/engine`: passed.
+- `go test -coverprofile=/tmp/update-ipsets-engine-slice15.cover -covermode=atomic ./pkg/engine`: passed, `71.2%`.
+- `go tool cover -func=/tmp/update-ipsets-engine-slice15.cover`: passed, total `71.2%`.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice15.json`: passed.
+- `go test -shuffle=on -count=3 ./pkg/engine`: passed.
+- `make lint`: passed.
+- `make staticcheck`: passed.
+- `make golangci-lint`: passed with `0 issues`.
+- `CI=true make coverage`: passed.
+- `make test-strict`: passed.
+- `git diff --check`: passed.
+- Durable-artifact forbidden-name scan over the changed SOW and Go files found no newly added personal name, authorship, tool, or vendor-attribution text.
+
+Artifact maintenance gate:
+
+- AGENTS.md: no update needed.
+- Runtime project skills: no update needed; no new durable process rule was found.
+- Specs: no update needed; entity sidecar semantics are unchanged.
+- End-user/operator docs: no update needed.
+- End-user/operator skills: no update needed.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 15 is validated and pending PR merge.
+
 ## Outcome
 
-First through fourteenth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through fifteenth implementation slices are complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
@@ -1823,7 +1954,7 @@ Update project hygiene practice to always pair Codacy Cloud metrics with local a
 
 ## Followup
 
-Continue with one focused slice at a time, starting with either UI duplicate pages/components, config validation, server runtime, or entity feed sidecar generation after a fresh pre-implementation gate update for that chosen surface.
+Continue with one focused slice at a time, starting with the next measured complexity target, a high-signal duplicated UI block, or a targeted package coverage gap after a fresh pre-implementation gate update for that chosen surface.
 
 ## Regression Log
 
