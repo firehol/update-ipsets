@@ -52,6 +52,43 @@ func TestIndexFeedEntityJointSidecarProvidesConstantTimePatchRows(t *testing.T) 
 	}
 }
 
+func TestFeedEntitySidecarTargetDetection(t *testing.T) {
+	sidecar := &feedEntitySidecar{
+		Countries: []feedEntityCountryContribution{
+			{Code: " us ", AttributedIPs: 10},
+			{Code: "", AttributedIPs: 1},
+			{Code: "DE", AttributedIPs: 5},
+		},
+		ASNs: []feedEntityASNContribution{
+			{ASN: 0, AttributedIPs: 1},
+			{ASN: 13335, AttributedIPs: 15},
+			{ASN: 15169, AttributedIPs: 20},
+		},
+	}
+
+	countryTargets := map[string]struct{}{"US": {}}
+	if !feedEntitySidecarHasCountries(sidecar, countryTargets) {
+		t.Fatal("expected country target detection to match normalized US code")
+	}
+	if feedEntitySidecarHasCountries(sidecar, map[string]struct{}{"FR": {}}) {
+		t.Fatal("unexpected country target match")
+	}
+	if feedEntitySidecarHasCountries(nil, countryTargets) {
+		t.Fatal("nil sidecar should not match country targets")
+	}
+
+	asnTargets := map[uint32]struct{}{13335: {}}
+	if !feedEntitySidecarHasASNs(sidecar, asnTargets) {
+		t.Fatal("expected ASN target detection to match 13335")
+	}
+	if feedEntitySidecarHasASNs(sidecar, map[uint32]struct{}{64512: {}}) {
+		t.Fatal("unexpected ASN target match")
+	}
+	if feedEntitySidecarHasASNs(nil, asnTargets) {
+		t.Fatal("nil sidecar should not match ASN targets")
+	}
+}
+
 func TestLoadFeedEntitySidecarAcceptsLegacyMembershipArrays(t *testing.T) {
 	eng := newEngineFixture(t)
 	path := filepath.Join(eng.entityFeedsDir(), "sample.json")

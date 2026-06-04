@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: twenty-third implementation slice validated; operator status meaning PR pending
+Sub-state: twenty-fourth implementation slice validated; entity detail selection PR pending
 
 ## Requirements
 
@@ -2989,11 +2989,144 @@ Artifact maintenance gate:
 - Specs: no update needed; operator status semantics are unchanged.
 - End-user/operator docs: no update needed.
 - End-user/operator skills: no update needed.
-- SOW lifecycle: remains in `.agents/sow/current/`; Slice 23 is validated and pending PR merge.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 23 merged through PR #27 as merge commit `87843397dbb295a536b740b2f72aafd6bc7e9033`.
+
+## Pre-Implementation Gate - Slice 24
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after the Slice 23 merge, local `tools/archposture` reports `pkg/engine/entity_feed_sidecar.go:370` `(*Engine).buildSelectedEntityDetailSidecarsFromFeedSidecars` at 122 lines with complexity 39.
+- Facts: `go test -coverprofile=/tmp/update-ipsets-engine-slice24-baseline.cover -covermode=atomic ./pkg/engine` reports `pkg/engine` coverage at `71.6%`; `go tool cover` reports `buildSelectedEntityDetailSidecarsFromFeedSidecars` at `77.0%`, `feedEntitySidecarHasCountries` at `0.0%`, and `feedEntitySidecarHasASNs` at `0.0%`.
+- Working theory: the function is large because it combines provider setup, target-builder initialization, stable feed ordering, per-feed selection, country detail aggregation, ASN feed aggregation, ASN country-distribution aggregation, and final sidecar map construction.
+
+Evidence reviewed:
+
+- `pkg/engine/entity_feed_sidecar.go`
+- `pkg/engine/entity_surgical_test.go`
+- `pkg/engine/home_detail_test.go`
+- `pkg/engine/entity_artifact_selected_repair.go`
+- `/tmp/update-ipsets-archposture-after-pr27.json`
+- `/tmp/update-ipsets-engine-slice24-baseline.cover`
+- Project coding, testing, hygiene, Go best-practices, Go behavioral-testing, and content-surface skills.
+
+Affected contracts and surfaces:
+
+- Selected country detail sidecars rebuilt from committed feed sidecars.
+- Selected ASN detail sidecars rebuilt from committed feed sidecars.
+- Full rebuild behavior versus targeted repair behavior.
+- Provider metadata assigned to country and ASN detail sidecars.
+- Country/ASN feed contributions, ASN names, country distribution, maintainer URLs, and stable feed processing order.
+- SOW only; no docs or specs are expected to change because the slice is behavior-preserving.
+
+Existing patterns to reuse:
+
+- Existing `countryDetailBuilder` and `asnDetailBuilder` builder APIs.
+- Existing `indexFeedEntitySidecar`, `feedEntitySidecarHasCountries`, and `feedEntitySidecarHasASNs` helpers.
+- Existing provider lookup helpers: `preferredGeoProvider`, `preferredASNProvider`, `lookupSource`, `providerDisplayLabel`, and `sourceMaintainerURL`.
+- Existing entity detail tests that validate sidecar materialization, repair, promoted pending sidecars, and detail payload behavior.
+
+Risk and blast radius:
+
+- Entity detail sidecars feed public country/ASN detail payloads and integrity repair paths.
+- Targeted repair must not accidentally rebuild unrelated countries or ASNs.
+- Full rebuild must still discover all countries and ASNs present in feed sidecars.
+- ASN builders must keep the first non-empty ASN name and add country distribution after feed rows exist.
+- Country detail builders must keep country feed rows and nested ASN contributions.
+- No downloader, scheduler queueing, public serving fallback, install behavior, or UI behavior should change.
+
+Sensitive data handling plan:
+
+- This slice uses only local source code, synthetic test fixtures, temporary paths, and local posture/coverage metrics.
+- No secrets, tokens, cookies, private endpoints, customer data, or personal data are needed.
+- Durable artifacts will record only file paths, metrics, validation outcomes, and sanitized command evidence.
+
+Implementation plan:
+
+1. Introduce a focused builder state for selected entity details that owns provider metadata, target maps, full/targeted mode, and output builders.
+2. Extract stable feed-name ordering.
+3. Extract per-feed decision and country detail contribution logic.
+4. Extract ASN feed contribution and ASN country-distribution contribution logic.
+5. Extract final country and ASN sidecar map construction.
+6. Add focused tests for country/ASN target detection helpers and preserve existing entity detail behavior through existing engine tests.
+
+Validation plan:
+
+- Run `go test ./pkg/engine`.
+- Run `go test -coverprofile=/tmp/update-ipsets-engine-slice24.cover -covermode=atomic ./pkg/engine` and inspect `go tool cover -func`.
+- Run `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice24.json` and confirm `buildSelectedEntityDetailSidecarsFromFeedSidecars` no longer appears as a large-function target.
+- Run `make lint`, `make staticcheck`, `make golangci-lint`, `CI=true make coverage`, and `make test-strict`.
+- Run whitespace and durable-artifact forbidden-name scans over the changed files before commit.
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if a repeatable entity-sidecar lesson is found.
+- Specs: no update expected because selected entity detail semantics are intended to stay unchanged.
+- End-user/operator docs: no update expected.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: this SOW remains in `.agents/sow/current/`; Slice 24 results will be recorded after validation.
+
+Open decisions:
+
+- No new user design decision is required because the slice is behavior-preserving quality work under the previously approved quality plan.
+
+## Slice 24 Results
+
+Changes made:
+
+- Moved selected entity detail sidecar aggregation into `pkg/engine/entity_detail_selection.go`.
+- Reduced `buildSelectedEntityDetailSidecarsFromFeedSidecars` to a thin wrapper that creates a selected-detail builder and returns built country/ASN sidecars.
+- Split the selected-detail aggregation flow into focused helpers for:
+  - provider metadata setup;
+  - target-builder initialization;
+  - stable feed-name ordering;
+  - per-feed selection decisions;
+  - country detail contributions;
+  - ASN feed contributions;
+  - ASN country-distribution contributions;
+  - final country/ASN sidecar map construction.
+- Added focused tests for country and ASN target-detection helpers, including normalization, misses, zero ASN filtering, and nil sidecars.
+- Preserved full versus targeted behavior, provider metadata, maintainer URLs, country feed rows, nested ASN contributions, ASN names, and ASN country distributions.
+
+Measured result:
+
+- Baseline: `pkg/engine/entity_feed_sidecar.go:370` `(*Engine).buildSelectedEntityDetailSidecarsFromFeedSidecars` was 122 lines with complexity 39 and `77.0%` direct coverage.
+- Baseline helper coverage: `feedEntitySidecarHasCountries` `0.0%`; `feedEntitySidecarHasASNs` `0.0%`.
+- After refactor: no `pkg/engine/entity_feed_sidecar*.go` selected-detail function appears in `tools/archposture` large-function output.
+- `feedEntitySidecarHasCountries` and `feedEntitySidecarHasASNs` are each `100.0%` covered.
+- `pkg/engine` coverage moved from `71.6%` to `71.7%`.
+- Root coverage by `go tool cover -func=coverage.out` is `72.9%`.
+- `tools/archposture` after this slice: source files `630`, source lines `127073`, large files `49`, large functions `26`, and production large functions `1`.
+- Remaining top production complexity target: `pkg/engine/asn.go:39` `(*Engine).processASNDatabases`, 121 lines, complexity 22.
+
+Tests or equivalent validation:
+
+- `go test ./pkg/engine`: passed.
+- `go test -coverprofile=/tmp/update-ipsets-engine-slice24.cover -covermode=atomic ./pkg/engine`: passed, `71.7%`.
+- `go tool cover -func=/tmp/update-ipsets-engine-slice24.cover`: passed; target-detection helpers `100.0%`, package total `71.7%`.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice24.json`: passed.
+- `make lint`: passed.
+- `make staticcheck`: passed.
+- `make golangci-lint`: passed with `0 issues`.
+- `CI=true make coverage`: passed, root total `72.9%`.
+- `make test-strict`: passed.
+- `git diff --check`: passed.
+- Durable-artifact forbidden-name scan over the changed SOW and Go files found no newly added personal name, authorship, tool, or vendor-attribution text.
+
+Artifact maintenance gate:
+
+- AGENTS.md: no update needed.
+- Runtime project skills: no update needed; no new durable process rule was found.
+- Specs: no update needed; selected entity detail semantics are unchanged.
+- End-user/operator docs: no update needed.
+- End-user/operator skills: no update needed.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 24 is validated and pending PR merge.
 
 ## Outcome
 
-First through twenty-second implementation slices are complete, validated locally, and merged. The twenty-third implementation slice is complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through twenty-third implementation slices are complete, validated locally, and merged. The twenty-fourth implementation slice is complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
