@@ -6,10 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"time"
 
 	"github.com/firehol/update-ipsets/pkg/asnloc"
-	"github.com/firehol/update-ipsets/pkg/cache"
 	"github.com/firehol/update-ipsets/pkg/config"
 	"github.com/firehol/update-ipsets/pkg/iprange"
 )
@@ -53,106 +51,13 @@ func (e *Engine) processASNDatabases(ctx context.Context, opts RunOptions) (asnD
 			datasets.closeAll(e.logger)
 			return nil, err
 		}
-		name := src.Name
-		entry := e.state.Entry(name)
-		attempt := e.beginFeedAttempt(entry, reason)
-		var loopErr error
-		func() {
-			defer attempt.finish()
-
-			entry.ApplyProviderSourceConfig(cache.ProviderSourceConfigSnapshot{
-				Name:              name,
-				Category:          src.Category,
-				DefaultCategory:   "asn",
-				Info:              src.Info,
-				Maintainer:        src.Maintainer,
-				MaintainerURL:     src.MaintainerURL,
-				Frequency:         src.Frequency,
-				URL:               src.URL,
-				Downloader:        src.Downloader,
-				DownloaderOptions: src.DownloaderOptions,
-			})
-
-			spec, ok := lookupFormat(src.Format)
-			if !ok || spec.role != formatRoleASN {
-				e.logger.Error("ASN source has unknown or wrong-role format", "name", name, "format", src.Format)
-				entry.MarkProviderConfigError("unknown ASN format " + src.Format)
-				return
-			}
-
-			providerDir := filepath.Join(asnDir, name)
-			if err := os.MkdirAll(providerDir, generatedDirMode); err != nil {
-				entry.MarkProviderFilesystemFailure(err.Error())
-				loopErr = err
-				return
-			}
-			archivePath := filepath.Join(providerDir, "source")
-			processingArchivePath := preferStagedPath(archivePath)
-			dataPath := filepath.Join(providerDir, spec.dataFile)
-			archiveTime := time.Time{}
-			if archiveTime.IsZero() {
-				if info, err := os.Stat(processingArchivePath); err == nil {
-					archiveTime = info.ModTime().UTC()
-				}
-			}
-			if processingArchivePath != archivePath && spec.extract != nil {
-				entry.MarkProviderProcessing()
-				if err := spec.extract(processingArchivePath, dataPath); err != nil {
-					e.logger.Error("ASN staged extract failed", "name", name, "error", err)
-					entry.MarkProviderExtractFailed(err.Error())
-					return
-				}
-			} else if !fileExists(dataPath) && spec.extract != nil {
-				entry.MarkProviderProcessing()
-				if err := spec.extract(processingArchivePath, dataPath); err != nil {
-					e.logger.Error("ASN extract failed", "name", name, "error", err)
-					entry.MarkProviderExtractFailed(err.Error())
-					return
-				}
-			}
-			if !fileExists(dataPath) {
-				e.logger.Warn("ASN database not available, skipping source", "name", name, "path", dataPath)
-				entry.MarkProviderUnavailable("database file not found at " + dataPath)
-				return
-			}
-			entry.MarkProviderProcessing()
-			db, err := asnloc.Open(src.Format, dataPath)
-			if err != nil {
-				e.logger.Error("ASN open failed", "name", name, "format", src.Format, "path", dataPath, "error", err)
-				entry.MarkProviderOpenFailed(err.Error())
-				loopErr = fmt.Errorf("asn open %s: %w", name, err)
-				return
-			}
-			datasets[name] = db
-			entries := entry.Entries
-			uniqueIPs := entry.UniqueIPs
-			if networks, ipv4Covered, statsErr := db.Stats(); statsErr != nil {
-				e.logger.Warn("ASN stats failed", "name", name, "error", statsErr)
-			} else {
-				entries = networks
-				uniqueIPs = ipv4Covered
-			}
-			processedAt := e.now().UTC()
-			now := e.now().UTC()
-			clockSkewSeconds := int64(0)
-			if archiveTime.After(now) {
-				clockSkewSeconds = int64(archiveTime.Sub(now).Seconds())
-			}
-			stale := entry.RecordProviderLoaded(cache.ProviderLoadStats{
-				SourceUnix:       archiveTime.Unix(),
-				ProcessedUnix:    processedAt.Unix(),
-				ClockSkewSeconds: clockSkewSeconds,
-				Entries:          entries,
-				UniqueIPs:        uniqueIPs,
-			}, src.Frequency, processingArchivePath != archivePath)
-			e.logger.Info("ASN source loaded", "name", name, "networks", entry.Entries, "ipv4_covered", entry.UniqueIPs)
-			if stale {
-				e.logger.Warn("ASN using stale data after download failure", "name", name, "failures", entry.DownloadFailures)
-			}
-		}()
-		if loopErr != nil {
+		db, err := e.processASNProvider(src, asnDir, reason)
+		if err != nil {
 			datasets.closeAll(e.logger)
-			return nil, loopErr
+			return nil, err
+		}
+		if db != nil {
+			datasets[src.Name] = db
 		}
 	}
 	return datasets, nil
