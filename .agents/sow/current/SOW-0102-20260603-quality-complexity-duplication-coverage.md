@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: twenty-eighth implementation slice validated; config helper coverage PR pending
+Sub-state: twenty-ninth implementation slice validated; cache legacy migration coverage PR pending
 
 ## Requirements
 
@@ -2196,7 +2196,135 @@ Artifact maintenance gate:
 - Specs: no update needed; config helper behavior is unchanged.
 - End-user/operator docs: no update needed.
 - End-user/operator skills: no update needed.
-- SOW lifecycle: remains in `.agents/sow/current/`; Slice 28 is validated and pending PR merge.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 28 merged through PR #32 as merge commit `94b90d4491506deca40f8e90575ad806676d37d3`.
+
+## Pre-Implementation Gate - Slice 29
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after the Slice 28 merge, local `tools/archposture` still reports zero production large functions.
+- Facts: `go test -coverprofile=/tmp/update-ipsets-cache-baseline.cover -covermode=atomic ./pkg/cache` reports `pkg/cache` coverage at `78.3%`.
+- Facts: `go tool cover -func=/tmp/update-ipsets-cache-baseline.cover` reports the bash-era migration parser gaps in `pkg/cache/legacy.go`: `LoadWithMigration` at `63.6%`, `LoadLegacy` at `77.3%`, `parseLegacyShellValue` at `17.1%`, `applyLegacyValue` at `30.0%`, and the hex helpers at `0.0%`.
+- Working theory: legacy cache migration is a low-risk, high-signal coverage slice because it is operator-facing migration behavior from the bash implementation, isolated to `pkg/cache`, and testable through exported `LoadLegacy` and `LoadWithMigration` contracts.
+
+Evidence reviewed:
+
+- `pkg/cache/legacy.go`
+- `pkg/cache/legacy_test.go`
+- `pkg/cache/cache.go`
+- `pkg/cache/cache_test.go`
+- `/tmp/update-ipsets-cache-baseline.cover`
+- Fresh local `tools/archposture` output after the Slice 28 merge
+- Project coding, testing, hygiene, Go best-practices, Go behavioral-testing, and content-surface skills.
+
+Affected contracts and surfaces:
+
+- `pkg/cache` legacy bash cache migration.
+- Shell associative-array parsing used by `LoadLegacy`.
+- JSON-cache precedence and fallback migration behavior used by `LoadWithMigration`.
+- SOW and tests only; no production code, docs, specs, install behavior, downloader behavior, scheduler behavior, public serving, or UI behavior is expected to change.
+
+Existing patterns to reuse:
+
+- Existing same-package cache tests.
+- Existing exported `LoadLegacy` and `LoadWithMigration` tests using `t.TempDir` and restrictive fixture modes.
+- Existing behavior assertions on cache `Entry` fields rather than private parser state.
+- Existing shell-style inline fixtures for legacy cache declarations.
+
+Risk and blast radius:
+
+- This slice should be test-only.
+- Tests must avoid asserting private helper names or parser cursor internals; they should prove observable migrated `Entry` values and returned errors.
+- Bash-style quoting fixtures must be minimal and deterministic so they document supported migration behavior without becoming brittle snapshots.
+- No runtime cache write behavior, JSON schema, cache locking, file mode contract, or migration precedence should change.
+
+Sensitive data handling plan:
+
+- This slice uses only synthetic feed names, URLs, filenames, downloader options, and temporary files.
+- No secrets, tokens, cookies, private endpoints, customer data, or personal data are needed.
+- Durable artifacts will record only file paths, metrics, validation outcomes, and sanitized command evidence.
+
+Implementation plan:
+
+1. Add behavior tests for `LoadLegacy` covering double quotes, single quotes, ANSI-C quoted escapes, raw unquoted values, hex and octal escapes, escaped quotes, escaped backslashes, escaped whitespace, invalid associative arrays, and non-declare lines being ignored.
+2. Add behavior tests for migration field coverage across the remaining legacy `IPSET_*` fields applied by `applyLegacyValue`.
+3. Add behavior tests for `LoadWithMigration` precedence: existing JSON entries should win over legacy cache files, missing legacy files should return the empty JSON state, and invalid legacy files should return an error when migration is required.
+4. Keep production code unchanged unless tests expose a real parser bug.
+
+Validation plan:
+
+- Run `go test ./pkg/cache`.
+- Run `go test -count=1 -coverprofile=/tmp/update-ipsets-cache-slice29.cover -covermode=atomic ./pkg/cache` and inspect `go tool cover -func`.
+- Run `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice29.json`.
+- Run `make lint`, `make staticcheck`, `make golangci-lint`, `CI=true make coverage`, and `make test-strict`.
+- Run whitespace and durable-artifact forbidden-name scans over the changed files before commit.
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: no update needed unless a repeatable legacy-migration testing lesson is found.
+- Specs: no update expected because legacy migration behavior is unchanged.
+- End-user/operator docs: no update expected.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: this SOW remains in `.agents/sow/current/`; Slice 29 results will be recorded after validation.
+
+Open-source reference evidence:
+
+- None checked. This slice covers existing local legacy migration behavior rather than adding a new external parser, protocol, or library.
+
+Open decisions:
+
+- No new user design decision is required because the slice is behavior-preserving test coverage under the previously approved quality plan.
+
+## Slice 29 Results
+
+Changes made:
+
+- Added behavior tests for bash-era cache migration in `pkg/cache/legacy_test.go`.
+- Covered double-quoted, single-quoted, ANSI-C quoted, and raw unquoted shell values through `LoadLegacy`.
+- Covered escaped quotes, backslashes, whitespace, hex escapes, octal escapes, and literal backslash preservation.
+- Covered remaining legacy `IPSET_*` field migration into cache `Entry` fields.
+- Covered malformed legacy declarations returning errors.
+- Covered `LoadWithMigration` precedence for existing JSON cache state, missing legacy cache fallback, and invalid legacy cache errors.
+- Production code was unchanged.
+
+Measured result:
+
+- Baseline: `pkg/cache` coverage was `78.3%`.
+- After tests: `pkg/cache` coverage is `88.8%`.
+- `LoadWithMigration` moved from `63.6%` to `81.8%`.
+- `LoadLegacy` moved from `77.3%` to `86.4%`.
+- `parseLegacyDeclare` moved from `73.3%` to `93.3%`.
+- `parseLegacyAssocArray` moved from `84.0%` to `100.0%`.
+- `parseLegacyShellValue` moved from `17.1%` to `92.9%`.
+- `applyLegacyValue` moved from `30.0%` to `100.0%`.
+- `isHexDigit` moved from `0.0%` to `100.0%`.
+- Root coverage by `go tool cover -func=coverage.out` moved from `73.4%` to `73.8%`.
+- `tools/archposture` after this slice: source files `635`, source lines `127936`, large files `49`, large functions `25`, and production large functions `0`.
+
+Tests or equivalent validation:
+
+- `go test ./pkg/cache`: passed.
+- `go test -count=1 -coverprofile=/tmp/update-ipsets-cache-slice29.cover -covermode=atomic ./pkg/cache`: passed, `88.8%`.
+- `go tool cover -func=/tmp/update-ipsets-cache-slice29.cover`: passed; targeted legacy migration coverage listed above.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice29.json`: passed.
+- `make lint`: passed.
+- `make staticcheck`: passed.
+- `make golangci-lint`: passed with `0 issues`.
+- `CI=true make coverage`: passed, root total `73.8%`.
+- `make test-strict`: passed.
+- `git diff --check`: passed.
+
+Artifact maintenance gate:
+
+- AGENTS.md: no update needed.
+- Runtime project skills: no update needed; no new durable process rule was found.
+- Specs: no update needed; legacy migration behavior is unchanged.
+- End-user/operator docs: no update needed.
+- End-user/operator skills: no update needed.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 29 is validated and pending PR merge.
 
 ## Slice 27 Results
 
@@ -3647,7 +3775,7 @@ Open decisions:
 
 ## Outcome
 
-First through twenty-seventh implementation slices are complete, validated locally, and merged. The twenty-eighth implementation slice is complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through twenty-eighth implementation slices are complete, validated locally, and merged. The twenty-ninth implementation slice is complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
