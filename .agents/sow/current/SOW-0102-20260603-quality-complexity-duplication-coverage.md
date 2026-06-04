@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: twenty-fourth implementation slice validated; entity detail selection PR pending
+Sub-state: twenty-fifth implementation slice validated; ASN database processing PR pending
 
 ## Requirements
 
@@ -2023,6 +2023,57 @@ Open decisions:
 
 - No new user design decision is required because the slice is behavior-preserving quality work under the previously approved quality plan.
 
+## Slice 25 Results
+
+Changes made:
+
+- Moved ASN provider lifecycle details into `pkg/engine/asn_provider_processing.go`.
+- Kept `processASNDatabases` responsible for ASN source discovery, runtime ASN directory creation, context cancellation checks, result map ownership, and close-on-error cleanup.
+- Split the per-provider flow into focused helpers for:
+  - provider source metadata snapshots;
+  - ASN format validation;
+  - provider path construction and staged source selection;
+  - extraction decisions;
+  - database availability checks;
+  - ASN database open failures;
+  - loaded provider stat and stale-status recording.
+- Added focused tests for no ASN sources, invalid and wrong-role formats, missing database files, successful existing TSV loads, staged gzip source loads after download failures, and fatal open failures after a previous provider loaded successfully.
+- Preserved existing fatal/non-fatal provider behavior, staged source handling, stale load accounting, status strings, source metadata snapshots, and dataset cleanup ownership.
+
+Measured result:
+
+- Baseline: `pkg/engine/asn.go:39` `(*Engine).processASNDatabases` was 121 lines with complexity 22 and `63.3%` direct coverage.
+- After refactor: no production function appears in `tools/archposture` large-function output.
+- `processASNDatabases` direct coverage moved to `84.2%`.
+- New helper coverage includes `processASNProvider` at `100.0%`, `(*asnProviderProcessor).process` at `92.9%`, `applySourceConfig` at `100.0%`, `validateFormat` at `100.0%`, `databaseAvailable` at `100.0%`, `openDatabase` at `100.0%`, and `recordLoaded` at `90.0%`.
+- `pkg/engine` coverage moved from `71.7%` to `71.9%`.
+- Root coverage by `go tool cover -func=coverage.out` remains `72.9%`.
+- `tools/archposture` after this slice: source files `632`, source lines `127395`, large files `49`, large functions `25`, and production large functions `0`.
+- Remaining production complexity target: none reported by local `tools/archposture`.
+
+Tests or equivalent validation:
+
+- `go test ./pkg/engine`: passed.
+- `go test -coverprofile=/tmp/update-ipsets-engine-slice25.cover -covermode=atomic ./pkg/engine`: passed, `71.9%`.
+- `go tool cover -func=/tmp/update-ipsets-engine-slice25.cover`: passed; `processASNDatabases` `84.2%`, package total `71.9%`.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice25.json`: passed.
+- `make lint`: passed.
+- `make staticcheck`: passed.
+- `make golangci-lint`: passed with `0 issues`.
+- `CI=true make coverage`: passed, root total `72.9%`.
+- `make test-strict`: passed.
+- `git diff --check`: passed.
+- Durable-artifact forbidden-name scan over added diff lines found no newly added personal name, authorship, tool, or vendor-attribution text.
+
+Artifact maintenance gate:
+
+- AGENTS.md: no update needed.
+- Runtime project skills: no update needed; no new durable process rule was found.
+- Specs: no update needed; ASN provider lifecycle semantics are unchanged.
+- End-user/operator docs: no update needed.
+- End-user/operator skills: no update needed.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 25 is validated and pending PR merge.
+
 ## Slice 16 Results
 
 Changes made:
@@ -3122,11 +3173,98 @@ Artifact maintenance gate:
 - Specs: no update needed; selected entity detail semantics are unchanged.
 - End-user/operator docs: no update needed.
 - End-user/operator skills: no update needed.
-- SOW lifecycle: remains in `.agents/sow/current/`; Slice 24 is validated and pending PR merge.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 24 merged through PR #28 as merge commit `1350bc9ff4caea3dd9a72f282f3427db8c7d7180`.
+
+## Pre-Implementation Gate - Slice 25
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after the Slice 24 merge, local `tools/archposture` reports exactly one remaining production large function: `pkg/engine/asn.go:39` `(*Engine).processASNDatabases` at 121 lines with complexity 22.
+- Facts: `go test -coverprofile=/tmp/update-ipsets-engine-slice25-baseline.cover -covermode=atomic ./pkg/engine` reports `pkg/engine` coverage at `71.7%`; `go tool cover` reports `processASNDatabases` at `63.3%`.
+- Working theory: the function is large because it combines provider discovery, runtime directory setup, per-provider attempt lifecycle, source metadata snapshotting, format validation, staged archive selection, extraction, availability checks, ASN database opening, stats collection, freshness/stale accounting, logging, and cleanup.
+
+Evidence reviewed:
+
+- `pkg/engine/asn.go`
+- `pkg/engine/geoloc.go`
+- `pkg/engine/format_handlers.go`
+- `pkg/engine/asn_formats.go`
+- `pkg/asnloc/asnloc.go`
+- `pkg/asnloc/loader_iptoasn_test.go`
+- `pkg/engine/pipeline_integrity_scenario_test.go`
+- `pkg/engine/engine_fixture_test.go`
+- `/tmp/update-ipsets-archposture-main.json`
+- `/tmp/update-ipsets-engine-slice25-baseline.cover`
+- Project coding, testing, hygiene, Go best-practices, Go behavioral-testing, and content-surface skills.
+
+Affected contracts and surfaces:
+
+- ASN provider source metadata captured in cache entries.
+- ASN format validation and wrong-role rejection.
+- ASN provider directory layout under `runtime.LibDir/asn/<provider>/`.
+- Staged archive handling through `preferStagedPath`.
+- Extraction policy for compressed ASN provider formats.
+- Missing database, failed open, loaded, and stale-after-download-failure status transitions.
+- ASN database handle ownership and close-on-error behavior.
+- SOW only; no docs or specs are expected to change because the slice is behavior-preserving.
+
+Existing patterns to reuse:
+
+- `processGeoIPDatabases` provider lifecycle structure where applicable.
+- Existing `cache.Entry` provider status transition APIs.
+- Existing `newEngineFixture` for engine tests.
+- Existing `asnloc.Open` parser behavior using small `iptoasn_combined_tsv` fixtures.
+- Existing generated file modes and temporary directory fixture patterns.
+- Existing `beginFeedAttempt` / `attempt.finish` lifecycle inside provider loops.
+
+Risk and blast radius:
+
+- ASN providers are supporting databases for ASN comparison artifacts, entity details, IP context, homepage summaries, and integrity repair paths.
+- Refactoring must not change when stale staged sources are accepted or how stale cached provider loads are recorded.
+- Loaded database handles must still be closed if a later provider fails or context cancellation interrupts the run.
+- Missing or malformed providers must keep current non-fatal versus fatal behavior: config, extraction, and missing database errors mark the provider and continue, while open failures return an error after cleanup.
+- No downloader, scheduler queueing, public serving fallback, install behavior, UI behavior, or ASN attribution algorithm should change.
+
+Sensitive data handling plan:
+
+- This slice uses only local source code, synthetic ASN fixtures, temporary paths, and local posture/coverage metrics.
+- No secrets, tokens, cookies, private endpoints, customer data, or personal data are needed.
+- Durable artifacts will record only file paths, metrics, validation outcomes, and sanitized command evidence.
+
+Implementation plan:
+
+1. Introduce a focused ASN provider processing context that owns the source, provider directory paths, format spec, cache entry, reason, and time calculations.
+2. Split per-provider processing into helpers for source metadata snapshotting, format validation, provider path construction, extraction/availability handling, database open, and loaded-stat recording.
+3. Keep `processASNDatabases` as the orchestrator for source discovery, context cancellation checks, result map ownership, and close-on-error cleanup.
+4. Add focused engine tests for no ASN sources, invalid ASN format, wrong-role format, missing database file, successful plain TSV provider load, and open failure cleanup/status behavior.
+5. Preserve existing pipeline tests as broad integration coverage for ASN fan-out behavior.
+
+Validation plan:
+
+- Run `go test ./pkg/engine`.
+- Run `go test -coverprofile=/tmp/update-ipsets-engine-slice25.cover -covermode=atomic ./pkg/engine` and inspect `go tool cover -func`.
+- Run `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice25.json` and confirm `processASNDatabases` no longer appears as a production large-function target.
+- Run `make lint`, `make staticcheck`, `make golangci-lint`, `CI=true make coverage`, and `make test-strict`.
+- Run whitespace and durable-artifact forbidden-name scans over the changed files before commit.
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if a repeatable ASN provider lifecycle lesson is found.
+- Specs: no update expected because ASN provider lifecycle semantics are intended to stay unchanged.
+- End-user/operator docs: no update expected.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: this SOW remains in `.agents/sow/current/`; Slice 25 results will be recorded after validation.
+
+Open decisions:
+
+- No new user design decision is required because the slice is behavior-preserving quality work under the previously approved quality plan.
 
 ## Outcome
 
-First through twenty-third implementation slices are complete, validated locally, and merged. The twenty-fourth implementation slice is complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through twenty-fourth implementation slices are complete, validated locally, and merged. The twenty-fifth implementation slice is complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
