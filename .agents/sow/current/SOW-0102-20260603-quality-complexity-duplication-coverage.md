@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: twenty-second implementation slice validated; downloader internal fetch PR pending
+Sub-state: twenty-third implementation slice validated; operator status meaning PR pending
 
 ## Requirements
 
@@ -2865,11 +2865,135 @@ Artifact maintenance gate:
 - Specs: no update needed; downloader/internal-source semantics are unchanged.
 - End-user/operator docs: no update needed.
 - End-user/operator skills: no update needed.
-- SOW lifecycle: remains in `.agents/sow/current/`; Slice 22 is validated and pending PR merge.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 22 merged through PR #26 as merge commit `0b98ed0a96e56994aa859c18672baaafd507b9fe`.
+
+## Pre-Implementation Gate - Slice 23
+
+Status: ready.
+
+Problem / root-cause model:
+
+- Facts: after the Slice 22 merge, local `tools/archposture` reports `pkg/engine/operator_status.go:23` `OperatorStatusMeaning` at 123 lines with complexity 35.
+- Facts: `go test -coverprofile=/tmp/update-ipsets-engine-slice23-baseline.cover -covermode=atomic ./pkg/engine` reports `pkg/engine` coverage at `71.3%`; `go tool cover` reports `OperatorStatusMeaning` at `16.7%` and `fallbackOperatorStatusLabel` at `0.0%`.
+- Working theory: `OperatorStatusMeaning` is large because static raw-status-to-label mappings live in one switch alongside two context-dependent cases and fallback label formatting.
+
+Evidence reviewed:
+
+- `pkg/engine/operator_status.go`
+- `pkg/engine/operator_status_test.go`
+- `pkg/web/admin_status_meta.go`
+- `pkg/engine/download_status.go`
+- `pkg/engine/processing_result.go`
+- `/tmp/update-ipsets-archposture-after-pr26.json`
+- `/tmp/update-ipsets-engine-slice23-baseline.cover`
+- Project coding, testing, hygiene, Go best-practices, Go behavioral-testing, and content-surface skills.
+
+Affected contracts and surfaces:
+
+- Admin API/feed status metadata populated through `pkg/web/admin_status_meta.go`.
+- Operator-facing labels and problem classes for download, processing, provider, running, updated, empty, stale, and fallback statuses.
+- Context-sensitive meaning for raw `failed` based on feed/local-input failure context and download failure count.
+- Context-sensitive meaning for raw `empty` based on feed versus artifact context.
+- SOW only; no docs or specs are expected to change because the slice is behavior-preserving.
+
+Existing patterns to reuse:
+
+- Existing `OperatorStatus`, `OperatorProblemClassDownloader`, and `OperatorProblemClassProcessing` types.
+- Existing tests that verify processing failures, downloader failures, and ambiguous `failed` status resolution.
+- Existing fallback label formatter for unknown raw status strings.
+
+Risk and blast radius:
+
+- Admin status labels are operator-facing and must not drift silently.
+- `failed` must still classify a feed with zero download failures as processing and other failed cases as downloader.
+- `empty` must still use a feed-specific label for feeds and an artifact-specific label for artifacts.
+- Fallback label formatting must preserve trimming, underscore replacement, title casing, and empty-string behavior.
+- No downloader, scheduler, pipeline artifact, public serving, install behavior, or UI behavior should change.
+
+Sensitive data handling plan:
+
+- This slice uses only local source code, synthetic status strings, and local posture/coverage metrics.
+- No secrets, tokens, cookies, private endpoints, customer data, or personal data are needed.
+- Durable artifacts will record only file paths, metrics, validation outcomes, and sanitized command evidence.
+
+Implementation plan:
+
+1. Move static status meanings into a package-private lookup table.
+2. Keep context-sensitive `failed` and `empty` handling explicit in `OperatorStatusMeaning`.
+3. Keep fallback behavior in `fallbackOperatorStatusLabel`.
+4. Add table-driven tests covering all static mappings, feed/artifact empty labels, ambiguous failed classification, empty raw status, and fallback formatting.
+5. Re-run engine tests and coverage, `tools/archposture`, strict shuffled tests, and lint/static checks.
+
+Validation plan:
+
+- Run `go test ./pkg/engine`.
+- Run `go test -coverprofile=/tmp/update-ipsets-engine-slice23.cover -covermode=atomic ./pkg/engine` and inspect `go tool cover -func`.
+- Run `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice23.json` and confirm `OperatorStatusMeaning` no longer appears as a large-function target.
+- Run `make lint`, `make staticcheck`, `make golangci-lint`, `CI=true make coverage`, and `make test-strict`.
+- Run whitespace and durable-artifact forbidden-name scans over the changed files before commit.
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update only if a repeatable operator-status mapping lesson is found.
+- Specs: no update expected because operator status semantics are intended to stay unchanged.
+- End-user/operator docs: no update expected.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: this SOW remains in `.agents/sow/current/`; Slice 23 results will be recorded after validation.
+
+Open decisions:
+
+- No new user design decision is required because the slice is behavior-preserving quality work under the previously approved quality plan.
+
+## Slice 23 Results
+
+Changes made:
+
+- Replaced the monolithic `OperatorStatusMeaning` switch with:
+  - a static status-to-meaning lookup table;
+  - explicit `failed` handling for feed/download-failure context;
+  - explicit `empty` handling for feed versus artifact context;
+  - the existing fallback label formatter.
+- Removed an unreachable defensive branch in `fallbackOperatorStatusLabel`; `strings.Fields` never returns empty fields.
+- Replaced narrow operator-status tests with table-driven coverage for all static mappings, context-sensitive `failed` and `empty` cases, empty raw status, whitespace-only fallback, underscore fallback, and multi-space fallback.
+- Preserved all operator-facing labels and problem classes.
+
+Measured result:
+
+- Baseline: `pkg/engine/operator_status.go:23` `OperatorStatusMeaning` was 123 lines with complexity 35 and `16.7%` direct coverage; `fallbackOperatorStatusLabel` was `0.0%`.
+- After refactor: no `pkg/engine/operator_status.go` function appears in `tools/archposture` large-function output.
+- `OperatorStatusMeaning`, `failedOperatorStatus`, `emptyOperatorStatus`, and `fallbackOperatorStatusLabel` are each `100.0%` covered.
+- `pkg/engine` coverage moved from `71.3%` to `71.6%`.
+- Root coverage by `go tool cover -func=coverage.out` is `72.8%`.
+- `tools/archposture` after this slice: source files `629`, source lines `126961`, large files `50`, large functions `27`, and production large functions `2`.
+- Remaining top production complexity target: `pkg/engine/entity_feed_sidecar.go:370` `(*Engine).buildSelectedEntityDetailSidecarsFromFeedSidecars`, 122 lines, complexity 39.
+
+Tests or equivalent validation:
+
+- `go test ./pkg/engine`: passed.
+- `go test -coverprofile=/tmp/update-ipsets-engine-slice23.cover -covermode=atomic ./pkg/engine`: passed, `71.6%`.
+- `go tool cover -func=/tmp/update-ipsets-engine-slice23.cover`: passed; status helpers `100.0%`, package total `71.6%`.
+- `go run ./tools/archposture -root . > /tmp/update-ipsets-archposture-slice23.json`: passed.
+- `make lint`: passed.
+- `make staticcheck`: passed.
+- `make golangci-lint`: passed with `0 issues`.
+- `CI=true make coverage`: passed, root total `72.8%`.
+- `make test-strict`: passed.
+- `git diff --check`: passed.
+- Durable-artifact forbidden-name scan over the changed SOW and Go files found no newly added personal name, authorship, tool, or vendor-attribution text.
+
+Artifact maintenance gate:
+
+- AGENTS.md: no update needed.
+- Runtime project skills: no update needed; no new durable process rule was found.
+- Specs: no update needed; operator status semantics are unchanged.
+- End-user/operator docs: no update needed.
+- End-user/operator skills: no update needed.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 23 is validated and pending PR merge.
 
 ## Outcome
 
-First through twenty-first implementation slices are complete, validated locally, and merged. The twenty-second implementation slice is complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through twenty-second implementation slices are complete, validated locally, and merged. The twenty-third implementation slice is complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
