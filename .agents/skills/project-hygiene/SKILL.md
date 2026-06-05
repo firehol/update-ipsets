@@ -141,6 +141,14 @@ tokens or credentials to durable artifacts.
   `jscpd` scan for duplicate blocks, excluding generated assets, dependencies,
   SOW artifacts, test data, and `_test.go` files unless the SOW explicitly
   targets test maintainability. Record before/after counts in the SOW.
+- For Codacy file-health work, query the Codacy Files API in addition to
+  `codacy issues`. `codacy issues` can be clean while the Files page still
+  reports poor complexity, duplication, or coverage. Treat cyclomatic
+  complexity as the Codacy `metric` engine in `.codacy.yml`; `lizard`
+  exclusions do not by themselves prove that Codacy file complexity metrics are
+  excluded. If top file complexity or duplication is dominated by test or
+  benchmark files, fix the Codacy metric/duplication configuration first and
+  keep production source files visible.
 - The official Codacy Analysis CLI GitHub Action runs local analyzers and can
   be too slow for this repository when configured to export all findings. For
   GitHub Code Scanning visibility, prefer exporting already-computed Codacy

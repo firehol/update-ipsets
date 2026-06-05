@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: thirtieth implementation slice validated; markdown helper coverage PR pending
+Sub-state: thirty-first implementation slice locally validated; Codacy file metric configuration PR pending
 
 ## Requirements
 
@@ -36,6 +36,7 @@ Inferences:
 Unknowns:
 
 - Whether this first focused slice is large enough to move Codacy's repository-wide structural percentages after merge is unknown until Codacy reanalyzes `main`.
+- Whether Codacy Cloud applies wildcard excludes under `engines.duplication.exclude_paths` for all duplicate file-health metrics is unknown until the pull request or `main` reanalysis runs. Official documentation shows config-file path excludes and `duplication` engine configuration, but also warns that duplication ignores can require full paths outside the more flexible configuration-file flow.
 
 ### Acceptance Criteria
 
@@ -3896,9 +3897,150 @@ Open decisions:
 
 - No new user design decision is required because the slice is behavior-preserving quality work under the previously approved quality plan.
 
+## Slice 30 Merge Reconciliation
+
+Facts:
+
+- PR #34, `Test markdown helper coverage`, merged at `2026-06-04T07:08:20Z`.
+- PR #34 merge commit is `50beb25ba92bcd48a26b314fce1a7147049f4b90`.
+- The local `main` branch contains the merge commit before Slice 31 work started.
+
+SOW lifecycle update:
+
+- Slice 30 is no longer pending merge.
+- This SOW remains in `.agents/sow/current/` because additional quality, complexity, duplication, and coverage work remains.
+
+## Pre-Implementation Gate - Slice 31
+
+Status: ready.
+
+Surface and audience:
+
+- Surface: Codacy configuration, project hygiene skill, and SOW.
+- Audience: maintainers, future agents, and repository operators reviewing scanner posture.
+- Purpose: make Codacy file-health metrics actionable by removing test/benchmark metric noise while preserving production source visibility.
+- Success criteria: Codacy complexity and duplication rankings stop being dominated by test/benchmark files, production files remain visible, and local source-only structural checks remain available for production refactoring priorities.
+- Forbidden content: raw tokens, private authentication data, scanner session cookies, and personal names.
+
+Problem and root-cause model:
+
+- Codacy Cloud reports no open code quality issues on `main`, but file-health metrics still fail goals through high complex-file and duplicated-file percentages.
+- Codacy Files API evidence shows the top file complexity and duplication rankings are dominated by `*_test.go` files.
+- The existing `.codacy.yml` excludes tests for `opengrep`, but Codacy's file complexity metric is configured as `metric`, not `lizard`.
+- The existing `.codacy.yml` excludes the `lizard` tool across application paths, but that does not prevent Codacy Files page `metric` complexity values from being reported.
+- Local source-only `jscpd` finds a much smaller production duplication footprint than Codacy's test-inclusive file ranking.
+
+Evidence reviewed:
+
+- Codacy repository state at commit `50beb25ba92bcd48a26b314fce1a7147049f4b90`: `issuesCount: 0`, coverage `71%`, complex files `27%`, duplicated files `16%`, complex-file goal `10%`, duplicated-file goal `10%`.
+- Codacy top complexity file counts: `11/20` are tests or benchmarks.
+- Codacy top duplication file counts: `17/20` are tests.
+- Codacy top real production complexity files include `pkg/engine/runtime_ledger_cache.go`, `pkg/engine/download_stage.go`, `ui/src/lib/explorer-state.ts`, `pkg/engine/helpers.go`, `pkg/engine/critical.go`, `pkg/web/admin.go`, `pkg/processor/primitives.go`, `pkg/config/extract.go`, and `pkg/engine/entity_integrity_refs.go`.
+- Codacy top real production duplication files include `pkg/engine/download_stage.go`, `pkg/iprange/set_ops.go`, and `pkg/iprange/set6_ops.go`.
+- Local source-only `jscpd` with test/generated/dependency exclusions found `9` clones and `0.44%` duplicated lines.
+- Local Codacy-like `jscpd` including tests found `34` clones and `0.87%` duplicated lines.
+- Official Codacy documentation says Codacy configuration can ignore files globally, for duplication, for cyclomatic complexity, or for a specific tool.
+- Official Codacy documentation says cyclomatic complexity is referred to as `metric` in the Codacy configuration file.
+- Official Codacy documentation says duplication is CPD-backed and warns that duplication analysis ignores can require full file paths outside the more flexible configuration-file flow.
+
+Affected contracts and surfaces:
+
+- `.codacy.yml` scanner configuration for Codacy Cloud file-health metrics.
+- Project hygiene skill guidance for future Codacy file metric triage.
+- SOW quality evidence and follow-up priority ordering.
+- No production code, runtime behavior, public serving, install behavior, CI workflow, or coverage upload behavior is intended to change.
+
+Existing patterns to reuse:
+
+- Existing `.codacy.yml` engine-scoped `exclude_paths`.
+- Existing project hygiene rule to pair Codacy repository-level metrics with local source-only structural scans.
+- Existing SOW artifact maintenance pattern for scanner configuration decisions.
+
+Risk and blast radius:
+
+- Over-excluding paths could hide scanner findings. The slice uses metric/duplication-scoped excludes instead of top-level global `exclude_paths` so production files and non-metric scanner surfaces remain visible.
+- Under-excluding paths may leave Codacy duplication file metrics noisy if Codacy Cloud requires exact duplication paths despite configuration-file globs. This is tracked explicitly and will be verified after Codacy analyzes the pull request or `main`.
+- Test maintainability issues can still be addressed intentionally through local `jscpd` runs that include tests; they should not drive production file-health goals by default.
+- No code behavior changes are expected.
+
+Sensitive data handling plan:
+
+- Codacy API data is queried through the locally authenticated CLI/API client without writing tokens to files or logs.
+- Durable artifacts record only sanitized scanner metrics, file paths, commit IDs, command names, and public documentation URLs.
+- No cookies, API tokens, private endpoints, user session data, or personal data are written to repository files.
+
+Implementation plan:
+
+1. Add `.codacy.yml` `engines.metric.exclude_paths` for Go, TypeScript, TSX, and e2e test paths.
+2. Add `.codacy.yml` `engines.duplication.exclude_paths` for the same test paths.
+3. Keep production source files visible to Codacy.
+4. Update `project-hygiene` so future Codacy file-health work uses the Files API and knows that Codacy complexity is the `metric` engine.
+5. Validate YAML syntax and run local source-only and test-inclusive duplicate scans to preserve the before/after interpretation.
+6. Push a focused PR and inspect Codacy's PR/main reanalysis.
+
+Validation plan:
+
+- Validate `.codacy.yml` syntax.
+- Run `codacy repository gh firehol update-ipsets --output json` to preserve the current baseline.
+- Run the Codacy Files API for top complexity and duplication to preserve the current baseline.
+- Run source-only `jscpd` with test/generated/dependency exclusions.
+- Run test-inclusive Codacy-like `jscpd` to confirm why Codacy metrics were noisy.
+- Run `git diff --check`.
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected.
+- Runtime project skills: update `.agents/skills/project-hygiene/SKILL.md` with the Codacy Files API and `metric` lesson.
+- Specs: no update expected because scanner configuration does not change product behavior.
+- End-user/operator docs: no update expected.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: this SOW remains in `.agents/sow/current/`; Slice 31 results will be recorded after validation and PR status.
+
+Open decisions:
+
+- The user approved proceeding with the Codacy file-by-file metric correction after the evidence showed test files dominate the top complexity and duplication rankings.
+- No production refactor starts in this slice; production targets are addressed only after Codacy configuration noise is corrected or explicitly proven still valid.
+
+## Slice 31 Results
+
+Changes made:
+
+- Added `.codacy.yml` `engines.metric.exclude_paths` for Go test files, TypeScript/TSX test files, TypeScript/TSX spec files, UI e2e files, and UI test helpers.
+- Added `.codacy.yml` `engines.duplication.exclude_paths` for the same test-oriented paths.
+- Kept production source files visible to Codacy.
+- Updated `.agents/skills/project-hygiene/SKILL.md` so future Codacy file-health work uses the Codacy Files API and treats file complexity as the Codacy `metric` engine.
+- Reconciled Slice 30 merge state in this SOW.
+- Production code was unchanged.
+
+Measured result:
+
+- Codacy Cloud baseline before this branch remains commit `50beb25ba92bcd48a26b314fce1a7147049f4b90`: `issuesCount: 0`, coverage `71%`, complex files `27%`, duplicated files `16%`.
+- Codacy Files API baseline still shows `11/20` top complexity files and `17/20` top duplication files are tests or benchmark files because this branch has not yet been analyzed by Codacy Cloud.
+- Local source-only `jscpd` with tests/generated/dependencies excluded reports `9` clones and `0.44%` duplicated lines.
+- Local Codacy-like `jscpd` including tests reports `34` clones and `0.87%` duplicated lines.
+- The Codacy Cloud impact is pending pull-request or `main` reanalysis.
+
+Tests or equivalent validation:
+
+- `ruby -e 'require "yaml"; YAML.load_file(".codacy.yml"); puts "codacy yaml ok"'`: passed.
+- `codacy repository gh firehol update-ipsets --output json`: passed and preserved the current `main` baseline.
+- Codacy Files API top complexity and duplication query: passed and preserved the current `main` file-metric baseline.
+- Source-only `npx --yes jscpd@4.2.4 ... --ignore '**/*_test.go,pkg/web/static/**,ui/dist/**,ui/node_modules/**,.agents/**,tools/archposture/testdata/**' ...`: passed, `9` clones.
+- Codacy-like test-inclusive `npx --yes jscpd@4.2.4 ... --ignore 'pkg/web/static/**,ui/dist/**,ui/node_modules/**,.agents/**,tools/archposture/testdata/**' ...`: passed, `34` clones.
+- `git diff --check`: passed.
+
+Artifact maintenance gate:
+
+- AGENTS.md: no update needed.
+- Runtime project skills: updated `.agents/skills/project-hygiene/SKILL.md`.
+- Specs: no update needed; scanner configuration does not alter product behavior.
+- End-user/operator docs: no update needed.
+- End-user/operator skills: no update needed.
+- SOW lifecycle: remains in `.agents/sow/current/`; Slice 31 is locally validated and pending Codacy PR/main analysis.
+
 ## Outcome
 
-First through twenty-ninth implementation slices are complete, validated locally, and merged. The thirtieth implementation slice is complete and validated locally. The SOW remains open for the next focused coverage, complexity, or duplication slice.
+First through thirtieth implementation slices are complete, validated locally, and merged. The thirty-first implementation slice is locally validated and pending Codacy PR/main analysis. The SOW remains open for the next focused coverage, complexity, or duplication slice.
 
 ## Lessons Extracted
 
