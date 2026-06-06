@@ -1,5 +1,23 @@
 ---
 engines:
+  duplication:
+    exclude_paths:
+      - "**/*_test.go"
+      - "**/*.test.ts"
+      - "**/*.test.tsx"
+      - "**/*.spec.ts"
+      - "**/*.spec.tsx"
+      - "ui/e2e/**"
+      - "ui/src/test/**"
+  metric:
+    exclude_paths:
+      - "**/*_test.go"
+      - "**/*.test.ts"
+      - "**/*.test.tsx"
+      - "**/*.spec.ts"
+      - "**/*.spec.tsx"
+      - "ui/e2e/**"
+      - "ui/src/test/**"
   opengrep:
     exclude_paths:
       - "**/*_test.go"
