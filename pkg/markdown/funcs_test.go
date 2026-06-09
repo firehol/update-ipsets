@@ -126,27 +126,39 @@ func TestTemplateMinsFunction(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
+		name string
 		mins int
 		want string
 	}{
-		{30, "30m"},
-		{60, "1h"},
-		{90, "1.5h"},
-		{1440, "1d"},
-		{0, ""},
+		{name: "30 minutes", mins: 30, want: "30m"},
+		{name: "60 minutes", mins: 60, want: "1h"},
+		{name: "90 minutes", mins: 90, want: "1.5h"},
+		{name: "one day", mins: 1440, want: "1d"},
+		{name: "zero", mins: 0, want: ""},
 	}
 	for _, tc := range cases {
-		got, err := markdown.ExecuteInline("{{mins .}}", tc.mins)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if got != tc.want {
-			t.Fatalf("mins(%d)=%q; want %q", tc.mins, got, tc.want)
-		}
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := markdown.ExecuteInline("{{mins .}}", tc.mins)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tc.want {
+				t.Fatalf("mins(%d)=%q; want %q", tc.mins, got, tc.want)
+			}
+		})
 	}
 }
 
 func TestTemplateRelTimeFunction(t *testing.T) {
+	t.Parallel()
+
+	// Capture `now` once and use a small negative offset for the "current" case
+	// so the test stays within the function's "just now" (< 1 minute) bucket
+	// even when the test runner is under heavy load. Capturing exact `now` and
+	// asserting exact "just now" was flaky because the wall-clock could cross
+	// the 1-minute boundary between capture and assertion.
 	now := time.Now()
 	cases := []struct {
 		name string
@@ -154,7 +166,7 @@ func TestTemplateRelTimeFunction(t *testing.T) {
 		want string
 	}{
 		{name: "zero", in: 0, want: ""},
-		{name: "current", in: now.UnixMilli(), want: "just now"},
+		{name: "current", in: now.Add(-100 * time.Millisecond).UnixMilli(), want: "just now"},
 		{name: "minutes", in: now.Add(-5 * time.Minute).UnixMilli(), want: "5m ago"},
 		{name: "hours", in: now.Add(-2 * time.Hour).UnixMilli(), want: "2h ago"},
 		{name: "days", in: now.Add(-3 * 24 * time.Hour).UnixMilli(), want: "3d ago"},
@@ -162,13 +174,17 @@ func TestTemplateRelTimeFunction(t *testing.T) {
 		{name: "years", in: now.Add(-400 * 24 * time.Hour).UnixMilli(), want: "1y ago"},
 	}
 	for _, tc := range cases {
-		got, err := markdown.ExecuteInline("{{relTime .}}", tc.in)
-		if err != nil {
-			t.Fatalf("unexpected error: %v", err)
-		}
-		if got != tc.want {
-			t.Fatalf("%s: relTime(%d)=%q; want %q", tc.name, tc.in, got, tc.want)
-		}
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := markdown.ExecuteInline("{{relTime .}}", tc.in)
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if got != tc.want {
+				t.Fatalf("%s: relTime(%d)=%q; want %q", tc.name, tc.in, got, tc.want)
+			}
+		})
 	}
 }
 
