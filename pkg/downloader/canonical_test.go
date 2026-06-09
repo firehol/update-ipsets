@@ -130,14 +130,46 @@ func TestPrepareCanonicalFeedBody(t *testing.T) {
 }
 
 func TestSanitizeReaderNormalizesProcessedStream(t *testing.T) {
-	input := "\ufeff 1.2.3.4\r\n\n0.0.0.0\n5.6.7.0/0\n  8.8.8.8\t\r\n9.9.9.9   10.10.10.10\r\n"
-	got, err := io.ReadAll(newSanitizeReader(strings.NewReader(input)))
-	if err != nil {
-		t.Fatalf("ReadAll(newSanitizeReader): %v", err)
+	t.Parallel()
+
+	cases := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{
+			name:  "normalizes processed stream",
+			input: "\ufeff 1.2.3.4\r\n\n0.0.0.0\n5.6.7.0/0\n  8.8.8.8\t\r\n9.9.9.9   10.10.10.10\r\n",
+			want:  "1.2.3.4\n8.8.8.8\n9.9.9.9 10.10.10.10\n",
+		},
+		{
+			name:  "empty input returns empty stream",
+			input: "",
+			want:  "",
+		},
+		{
+			name:  "bom only is stripped to empty stream",
+			input: "\ufeff",
+			want:  "",
+		},
+		{
+			name:  "bom mid stream is preserved not stripped",
+			input: "1.1.1.1\n\ufeff2.2.2.2\n",
+			want:  "1.1.1.1\n\ufeff2.2.2.2\n",
+		},
 	}
-	want := "1.2.3.4\n8.8.8.8\n9.9.9.9 10.10.10.10\n"
-	if string(got) != want {
-		t.Fatalf("sanitized stream = %q, want %q", got, want)
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			got, err := io.ReadAll(newSanitizeReader(strings.NewReader(tc.input)))
+			if err != nil {
+				t.Fatalf("ReadAll(newSanitizeReader): %v", err)
+			}
+			if string(got) != tc.want {
+				t.Fatalf("sanitized stream = %q, want %q", got, tc.want)
+			}
+		})
 	}
 }
 
