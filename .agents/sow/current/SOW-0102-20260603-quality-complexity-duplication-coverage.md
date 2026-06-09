@@ -1233,7 +1233,7 @@ Acceptance criteria evidence:
   - `tools/archposture` baseline: source files `587`, source lines `122880`, large files `59`, large functions `49`.
   - Codacy Cloud pre-edit duplication baseline was `14%`.
   - Source-only `jscpd` first actionable local scan during this slice found `14` clones, `676` duplicated lines, and `334` duplicated Go lines.
-- Final local results:
+- First-slice local results:
   - Root coverage is `70.8%`.
   - `pkg/iprange` coverage is `67.3%`.
   - `internal/telemetry` coverage is `91.9%`.
