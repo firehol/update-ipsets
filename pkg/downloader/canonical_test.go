@@ -103,7 +103,7 @@ func TestParseProcessedFeedFileSanitizesInput(t *testing.T) {
 		t.Fatalf("ParseProcessedFeedFile: %v", err)
 	}
 	assertCanonicalSetContains(t, set, "1.2.3.4", "8.8.8.8")
-	assertCanonicalSetOmits(t, set, "0.0.0.0", "5.6.7.1")
+	assertCanonicalSetOmits(t, set, "0.0.0.0", "5.6.7.0", "5.6.7.1")
 	if got, want := set.UniqueCount(), uint64(2); got != want {
 		t.Fatalf("processed unique count = %d, want %d", got, want)
 	}
