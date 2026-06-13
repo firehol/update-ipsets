@@ -21,6 +21,9 @@ type webPublishBatch struct {
 	*stagedPublishBatch
 }
 
+const webPublishStagePattern = ".update-ipsets-web-*"
+const webPublishStagePrefix = ".update-ipsets-web-"
+
 func newStagedPublishBatch(liveDir, owner, pattern string) (*stagedPublishBatch, error) {
 	if err := os.MkdirAll(liveDir, generatedDirMode); err != nil {
 		return nil, err
@@ -42,7 +45,7 @@ func newStagedPublishBatch(liveDir, owner, pattern string) (*stagedPublishBatch,
 }
 
 func (e *Engine) newWebPublishBatch() (*webPublishBatch, error) {
-	batch, err := newStagedPublishBatch(e.outputDir(), e.runtime.WebOwner, ".update-ipsets-web-*")
+	batch, err := newStagedPublishBatch(e.outputDir(), e.runtime.WebOwner, webPublishStagePattern)
 	if err != nil {
 		return nil, err
 	}

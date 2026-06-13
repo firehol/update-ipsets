@@ -932,6 +932,12 @@ export interface AdminStatus {
     }>;
     background_limit?: number;
     background_running?: number;
+    max_ingest_workers?: number;
+    parallel_downloads?: number;
+    parallel_dns_queries?: number;
+    max_processing_workers?: number;
+    max_heavy_phase_workers?: number;
+    max_background_workers?: number;
     lifetime_metrics?: {
       operations?: AdminTimingStat[];
       counters?: AdminCounterStat[];

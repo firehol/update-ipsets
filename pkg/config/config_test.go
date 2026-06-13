@@ -171,6 +171,13 @@ merges:
 	}
 }
 
+func TestFireholCatalogSetsIngestWorkerCeiling(t *testing.T) {
+	cfg := loadCatalog(t)
+	if got, want := cfg.Runtime.MaxIngestWorkers, 1; got != want {
+		t.Fatalf("firehol catalog max_ingest_workers = %d, want %d", got, want)
+	}
+}
+
 func TestLoadDirectoryPropagatesCriticalMetadataOnMerge(t *testing.T) {
 	dir := t.TempDir()
 	content := []byte(`

@@ -53,6 +53,15 @@ func prepareEngineForRun(eng *engine.Engine, opts Options) error {
 	if err := eng.ApplyRuntimeOverrides(opts.WebDir, opts.FilesDir); err != nil {
 		return err
 	}
+	stageCleanup, err := eng.CleanupStalePublishStages()
+	if err != nil {
+		opts.Logger.Warn("failed to cleanup stale publish stages", "error", err)
+	}
+	if stageCleanup.TotalRemoved() > 0 {
+		opts.Logger.Info("cleaned stale publish stages",
+			"web_removed", stageCleanup.WebRemoved,
+			"entity_removed", stageCleanup.EntityRemoved)
+	}
 	if err := eng.CleanupStaleCriticalInfrastructureArtifacts(); err != nil {
 		opts.Logger.Warn("failed to cleanup stale critical infrastructure artifacts", "error", err)
 	}

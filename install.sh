@@ -55,6 +55,47 @@ run() {
   fi
 }
 
+repair_stale_publish_stages() {
+  local install_dir="$1"
+  local min_age_minutes=120
+  local web_root="${install_dir}/web"
+  local entity_root="${install_dir}/lib/entities"
+
+  echo -e "${GREEN}Removing stale generated publish stage directories...${NC}"
+  if [ -d "${web_root}" ]; then
+    run sudo find "${web_root}" \
+      -ignore_readdir_race \
+      -mindepth 1 \
+      -maxdepth 1 \
+      -type d \
+      -name '.update-ipsets-web-*' \
+      -mmin "+${min_age_minutes}" \
+      -exec rm -rf -- {} +
+  fi
+  if [ -d "${entity_root}" ]; then
+    run sudo find "${entity_root}" \
+      -ignore_readdir_race \
+      -mindepth 1 \
+      -maxdepth 1 \
+      -type d \
+      -name '.update-ipsets-entities-*' \
+      -mmin "+${min_age_minutes}" \
+      -exec rm -rf -- {} +
+  fi
+}
+
+SERVICE_STOPPED_FOR_INSTALL=0
+stop_active_service_for_mutable_repair() {
+  if [ "$RESTART" -ne 1 ]; then
+    return 0
+  fi
+  if systemctl is-active --quiet update-ipsets; then
+    echo -e "${GREEN}Stopping update-ipsets before repairing mutable runtime trees...${NC}"
+    run sudo systemctl stop update-ipsets
+    SERVICE_STOPPED_FOR_INSTALL=1
+  fi
+}
+
 # Parse arguments: positional = install dir, --no-restart anywhere = skip restart.
 INSTALL_DIR="/opt/update-ipsets"
 RESTART=1
@@ -160,6 +201,14 @@ run sudo mkdir -p \
     "${INSTALL_DIR}/web/files" \
     "${INSTALL_DIR}/run" \
     "${INSTALL_DIR}/tmp"
+
+if [ "$RESTART" -eq 0 ] && systemctl is-active --quiet update-ipsets; then
+    echo -e "${YELLOW}Skipping stale publish stage repair while update-ipsets is running with --no-restart.${NC}"
+    echo "      Restart the service and run the installer without --no-restart to repair generated stage directories safely."
+else
+    stop_active_service_for_mutable_repair
+    repair_stale_publish_stages "${INSTALL_DIR}"
+fi
 
 # Create service identity if missing. The group is explicit because some
 # useradd policies do not create a same-name group for system users.
@@ -365,7 +414,10 @@ run sudo systemctl daemon-reload
 # ----------------------------------------------------------------------------
 
 if [ "$RESTART" -eq 1 ]; then
-    if systemctl is-active --quiet update-ipsets; then
+    if [ "$SERVICE_STOPPED_FOR_INSTALL" -eq 1 ]; then
+        echo -e "${GREEN}[7/7] Starting update-ipsets…${NC}"
+        run sudo systemctl start update-ipsets
+    elif systemctl is-active --quiet update-ipsets; then
         echo -e "${GREEN}[7/7] Restarting update-ipsets…${NC}"
         run sudo systemctl restart update-ipsets
     elif systemctl is-enabled --quiet update-ipsets 2>/dev/null; then

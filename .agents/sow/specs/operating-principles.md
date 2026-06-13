@@ -133,6 +133,11 @@ Startup SHOULD prefer guarded integrity/repair checks over unconditional
 full-surface rebuilds. If durable artifacts are already current, daemon restart
 MUST NOT rebuild them just because the process restarted.
 
+Daemon startup SHOULD remove stale publish staging directories left by aborted
+or killed runs. This cleanup MUST be limited to known generated staging
+prefixes under configured publication roots, MUST NOT remove published
+artifacts, and MUST NOT run as a broad historical rescan or rebuild.
+
 ## Graceful shutdown rule
 
 On normal termination, the product SHOULD shut down gracefully.

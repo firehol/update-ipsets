@@ -134,6 +134,12 @@ type StatusSnapshot struct {
 	LifetimeMetrics              *LifetimeMetricsSnapshot `json:"lifetime_metrics,omitempty"`
 	ConfigPath                   string                   `json:"config_path"`
 	BaseDir                      string                   `json:"base_dir"`
+	MaxIngestWorkers             int                      `json:"max_ingest_workers,omitempty"`
+	ParallelDownloads            int                      `json:"parallel_downloads"`
+	ParallelDNSQueries           int                      `json:"parallel_dns_queries"`
+	MaxProcessingWorkers         int                      `json:"max_processing_workers"`
+	MaxHeavyPhaseWorkers         int                      `json:"max_heavy_phase_workers"`
+	MaxBackgroundWorkers         int                      `json:"max_background_workers"`
 	SourceCount                  int                      `json:"source_count"`
 	MergeCount                   int                      `json:"merge_count"`
 	EntityRefreshPending         int                      `json:"entity_refresh_pending,omitempty"`

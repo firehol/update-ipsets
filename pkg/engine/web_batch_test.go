@@ -145,3 +145,118 @@ func TestStagedPublishBatchAppliesGeneratedFileTimestamps(t *testing.T) {
 		t.Fatalf("published mtime = %s, want logical timestamp %s", got, logical)
 	}
 }
+
+func TestCleanupStalePublishStageDirsOnlyRemovesOldKnownStages(t *testing.T) {
+	root := t.TempDir()
+	cutoff := time.Date(2026, 6, 13, 12, 0, 0, 0, time.UTC)
+	oldStage := filepath.Join(root, ".update-ipsets-web-old")
+	activeStage := filepath.Join(root, ".update-ipsets-web-active")
+	otherHidden := filepath.Join(root, ".other-stage")
+	publishedDir := filepath.Join(root, "countries")
+	publishedFile := filepath.Join(root, "sample.json")
+	for _, dir := range []string{oldStage, activeStage, otherHidden, publishedDir} {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatalf("MkdirAll(%q) error = %v", dir, err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(oldStage, "leftover.json"), []byte("{}\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(old stage) error = %v", err)
+	}
+	if err := os.WriteFile(publishedFile, []byte("{}\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(published) error = %v", err)
+	}
+	oldTime := cutoff.Add(-time.Hour)
+	futureTime := cutoff.Add(time.Hour)
+	if err := os.Chtimes(oldStage, oldTime, oldTime); err != nil {
+		t.Fatalf("Chtimes(old stage) error = %v", err)
+	}
+	if err := os.Chtimes(activeStage, futureTime, futureTime); err != nil {
+		t.Fatalf("Chtimes(active stage) error = %v", err)
+	}
+	if err := os.Chtimes(otherHidden, oldTime, oldTime); err != nil {
+		t.Fatalf("Chtimes(other hidden) error = %v", err)
+	}
+
+	removed, err := cleanupStalePublishStageDirs(root, webPublishStagePrefix, cutoff)
+	if err != nil {
+		t.Fatalf("cleanupStalePublishStageDirs() error = %v", err)
+	}
+	if removed != 1 {
+		t.Fatalf("removed = %d, want 1", removed)
+	}
+	if _, err := os.Stat(oldStage); !os.IsNotExist(err) {
+		t.Fatalf("old stage still exists or unexpected stat error: %v", err)
+	}
+	for _, path := range []string{activeStage, otherHidden, publishedDir, publishedFile} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("expected %q to remain, stat error = %v", path, err)
+		}
+	}
+}
+
+func TestEngineCleanupStalePublishStagesCoversWebAndEntities(t *testing.T) {
+	cutoff := time.Date(2026, 6, 13, 12, 0, 0, 0, time.UTC)
+	eng := newEngineFixture(t, withNow(func() time.Time { return cutoff }))
+	if err := eng.ensureDirectories(); err != nil {
+		t.Fatalf("ensureDirectories() error = %v", err)
+	}
+	webStage := filepath.Join(eng.outputDir(), ".update-ipsets-web-old")
+	entityStage := filepath.Join(eng.entitiesDir(), ".update-ipsets-entities-old")
+	for _, dir := range []string{webStage, entityStage} {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatalf("MkdirAll(%q) error = %v", dir, err)
+		}
+		oldTime := cutoff.Add(-time.Hour)
+		if err := os.Chtimes(dir, oldTime, oldTime); err != nil {
+			t.Fatalf("Chtimes(%q) error = %v", dir, err)
+		}
+	}
+
+	result, err := eng.CleanupStalePublishStages()
+	if err != nil {
+		t.Fatalf("CleanupStalePublishStages() error = %v", err)
+	}
+	if got, want := result.WebRemoved, 1; got != want {
+		t.Fatalf("web removed = %d, want %d", got, want)
+	}
+	if got, want := result.EntityRemoved, 1; got != want {
+		t.Fatalf("entity removed = %d, want %d", got, want)
+	}
+	for _, path := range []string{webStage, entityStage} {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("expected %q to be removed, stat error = %v", path, err)
+		}
+	}
+}
+
+func TestEngineCleanupStalePublishStagesKeepsRecentStages(t *testing.T) {
+	now := time.Date(2026, 6, 13, 12, 0, 0, 0, time.UTC)
+	eng := newEngineFixture(t, withNow(func() time.Time { return now }))
+	if err := eng.ensureDirectories(); err != nil {
+		t.Fatalf("ensureDirectories() error = %v", err)
+	}
+	webStage := filepath.Join(eng.outputDir(), ".update-ipsets-web-recent")
+	entityStage := filepath.Join(eng.entitiesDir(), ".update-ipsets-entities-recent")
+	recentTime := now.Add(-time.Minute)
+	for _, dir := range []string{webStage, entityStage} {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatalf("MkdirAll(%q) error = %v", dir, err)
+		}
+		if err := os.Chtimes(dir, recentTime, recentTime); err != nil {
+			t.Fatalf("Chtimes(%q) error = %v", dir, err)
+		}
+	}
+
+	result, err := eng.CleanupStalePublishStages()
+	if err != nil {
+		t.Fatalf("CleanupStalePublishStages() error = %v", err)
+	}
+	if result.TotalRemoved() != 0 {
+		t.Fatalf("removed = %+v, want no recent stage removals", result)
+	}
+	for _, path := range []string{webStage, entityStage} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("expected recent stage %q to remain, stat error = %v", path, err)
+		}
+	}
+}

@@ -143,6 +143,7 @@ type RuntimeConfig struct {
 	GitHubSetInfo                 string `yaml:"github_setinfo,omitempty"`
 	IPSetsApply                   bool   `yaml:"ipsets_apply,omitempty"`
 	// Daemon resource controls — keep the daemon lightweight.
+	MaxIngestWorkers          int  `yaml:"max_ingest_workers,omitempty"`
 	MaxProcessingWorkers      int  `yaml:"max_processing_workers,omitempty"`
 	MaxHeavyPhaseWorkers      int  `yaml:"max_heavy_phase_workers,omitempty"`
 	MaxBackgroundWorkers      int  `yaml:"max_background_workers,omitempty"`

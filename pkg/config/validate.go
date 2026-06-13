@@ -348,6 +348,7 @@ func validateRuntimeURLs(runtime RuntimeConfig) error {
 func validateRuntimeResourceControls(runtime RuntimeConfig) error {
 	for field, value := range map[string]int{
 		"runtime.web_artifact_cache_max_entries": runtime.WebArtifactCacheMaxEntries,
+		"runtime.max_ingest_workers":             runtime.MaxIngestWorkers,
 	} {
 		if value < 0 {
 			return fmt.Errorf("%s must be zero or positive, got %d", field, value)

@@ -73,6 +73,9 @@ runtime:
   web_dir_for_ipsets: ${WEB_DIR_FOR_IPSETS-}
   ipsets_apply: true
   # Daemon resource controls — keep the daemon lightweight.
+  # max_ingest_workers: optional ceiling for all ingest worker pools.
+  # Set 0 to disable this shared ceiling and use the per-domain values below.
+  max_ingest_workers: 1
   # max_processing_workers: max parallel source-processing goroutines (default 2)
   max_processing_workers: 2
   # max_heavy_phase_workers: max parallel heavy-phase goroutines for

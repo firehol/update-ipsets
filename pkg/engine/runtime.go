@@ -50,6 +50,7 @@ type Runtime struct {
 	WebArtifactCacheMaxEntries    int
 	WebArtifactCacheMaxBytes      int64
 	WebArtifactCacheMaxFileBytes  int64
+	MaxIngestWorkers              int
 	MaxProcessingWorkers          int
 	MaxHeavyPhaseWorkers          int
 	MaxBackgroundWorkers          int
@@ -172,6 +173,7 @@ func runtimeFromConfig(rt config.RuntimeConfig, pathCtx runtimePathContext, now 
 		WebArtifactCacheMaxEntries:    rt.WebArtifactCacheMaxEntries,
 		WebArtifactCacheMaxBytes:      rt.WebArtifactCacheMaxBytes,
 		WebArtifactCacheMaxFileBytes:  rt.WebArtifactCacheMaxFileBytes,
+		MaxIngestWorkers:              rt.MaxIngestWorkers,
 		MaxProcessingWorkers:          rt.MaxProcessingWorkers,
 		MaxHeavyPhaseWorkers:          rt.MaxHeavyPhaseWorkers,
 		MaxBackgroundWorkers:          rt.MaxBackgroundWorkers,
@@ -188,6 +190,7 @@ func applyRuntimeDefaults(r *Runtime, pathCtx runtimePathContext) {
 	applyRuntimePathDefaults(r, pathCtx)
 	applyRuntimeDownloadDefaults(r)
 	applyRuntimeWorkerDefaults(r)
+	applyRuntimeIngestWorkerCeiling(r)
 }
 
 func applyRuntimePathDefaults(r *Runtime, pathCtx runtimePathContext) {
@@ -245,6 +248,27 @@ func applyRuntimeWorkerDefaults(r *Runtime) {
 	if r.ProcessingIntervalMinutes <= 0 {
 		r.ProcessingIntervalMinutes = 10
 	}
+}
+
+func applyRuntimeIngestWorkerCeiling(r *Runtime) {
+	if r.MaxIngestWorkers <= 0 {
+		return
+	}
+	r.ParallelDownloads = clampRuntimeWorkers(r.ParallelDownloads, r.MaxIngestWorkers)
+	r.ParallelDNSQueries = clampRuntimeWorkers(r.ParallelDNSQueries, r.MaxIngestWorkers)
+	r.MaxProcessingWorkers = clampRuntimeWorkers(r.MaxProcessingWorkers, r.MaxIngestWorkers)
+	r.MaxHeavyPhaseWorkers = clampRuntimeWorkers(r.MaxHeavyPhaseWorkers, r.MaxIngestWorkers)
+	r.MaxBackgroundWorkers = clampRuntimeWorkers(r.MaxBackgroundWorkers, r.MaxIngestWorkers)
+}
+
+func clampRuntimeWorkers(value, ceiling int) int {
+	if value < 1 {
+		value = 1
+	}
+	if ceiling > 0 && value > ceiling {
+		return ceiling
+	}
+	return value
 }
 
 func (e *Engine) ApplyRuntimeOverrides(webDir, filesDir string) error {

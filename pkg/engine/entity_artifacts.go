@@ -10,12 +10,15 @@ import (
 
 const entityArtifactsVersion = "3"
 
+const entityPublishStagePattern = ".update-ipsets-entities-*"
+const entityPublishStagePrefix = ".update-ipsets-entities-"
+
 type entityPublishBatch struct {
 	*stagedPublishBatch
 }
 
 func (e *Engine) newEntityPublishBatch() (*entityPublishBatch, error) {
-	batch, err := newStagedPublishBatch(e.entitiesDir(), "", ".update-ipsets-entities-*")
+	batch, err := newStagedPublishBatch(e.entitiesDir(), "", entityPublishStagePattern)
 	if err != nil {
 		return nil, err
 	}

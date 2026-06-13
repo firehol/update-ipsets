@@ -14,6 +14,12 @@ func TestValidateRejectsNegativeWebArtifactCacheControls(t *testing.T) {
 			},
 		},
 		{
+			name: "ingest workers",
+			mutate: func(rt *RuntimeConfig) {
+				rt.MaxIngestWorkers = -1
+			},
+		},
+		{
 			name: "bytes",
 			mutate: func(rt *RuntimeConfig) {
 				rt.WebArtifactCacheMaxBytes = -1

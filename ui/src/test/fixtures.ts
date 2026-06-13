@@ -139,6 +139,12 @@ export function sampleAdminStatus(
       background_tasks: [],
       background_limit: 1,
       background_running: 0,
+      max_ingest_workers: 1,
+      parallel_downloads: 1,
+      parallel_dns_queries: 1,
+      max_processing_workers: 1,
+      max_heavy_phase_workers: 1,
+      max_background_workers: 1,
     },
     queues: {
       download_waiting: [],

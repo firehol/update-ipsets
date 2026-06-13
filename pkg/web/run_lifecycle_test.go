@@ -10,7 +10,9 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"io"
+	"log/slog"
 	"math/big"
 	"net"
 	"net/http"
@@ -19,6 +21,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/firehol/update-ipsets/pkg/engine"
 )
 
 func TestRunServesHTTPS(t *testing.T) {
@@ -202,6 +206,74 @@ func TestRunRejectsDisabledAdminWithoutAcknowledgement(t *testing.T) {
 	})
 	if err == nil || !strings.Contains(err.Error(), "--allow-unauthenticated-admin") {
 		t.Fatalf("expected unauthenticated-admin acknowledgement error, got %v", err)
+	}
+}
+
+func TestPrepareEngineForRunCleansOnlyOldPublishStages(t *testing.T) {
+	root := t.TempDir()
+	cfgPath := filepath.Join(root, "config.yaml")
+	cfg := fmt.Sprintf(`
+runtime:
+  base_dir: %q
+  history_dir: %q
+  lib_dir: %q
+  errors_dir: %q
+  web_dir: %q
+  cache_dir: %q
+  tmp_dir: %q
+  ipsets_apply: false
+sources:
+  sample:
+    static:
+      - 10.0.0.1
+    frequency: 0
+    ipv: ipv4
+    output: netset
+    processor:
+      - passthrough
+`, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"), filepath.Join(root, "tmp"))
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	eng, err := engine.New(cfgPath, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	oldWebStage := filepath.Join(eng.Runtime().WebDir, ".update-ipsets-web-old")
+	recentWebStage := filepath.Join(eng.Runtime().WebDir, ".update-ipsets-web-recent")
+	oldEntityStage := filepath.Join(eng.Runtime().LibDir, "entities", ".update-ipsets-entities-old")
+	recentEntityStage := filepath.Join(eng.Runtime().LibDir, "entities", ".update-ipsets-entities-recent")
+	for _, dir := range []string{oldWebStage, recentWebStage, oldEntityStage, recentEntityStage} {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatalf("MkdirAll(%q) error = %v", dir, err)
+		}
+	}
+	oldTime := time.Now().Add(-10 * time.Minute)
+	recentTime := time.Now().Add(-time.Minute)
+	for _, dir := range []string{oldWebStage, oldEntityStage} {
+		if err := os.Chtimes(dir, oldTime, oldTime); err != nil {
+			t.Fatalf("Chtimes(%q) error = %v", dir, err)
+		}
+	}
+	for _, dir := range []string{recentWebStage, recentEntityStage} {
+		if err := os.Chtimes(dir, recentTime, recentTime); err != nil {
+			t.Fatalf("Chtimes(%q) error = %v", dir, err)
+		}
+	}
+
+	if err := prepareEngineForRun(eng, Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}); err != nil {
+		t.Fatal(err)
+	}
+	for _, path := range []string{oldWebStage, oldEntityStage} {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("expected old stage %q to be removed, stat err = %v", path, err)
+		}
+	}
+	for _, path := range []string{recentWebStage, recentEntityStage} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("expected recent stage %q to remain, stat err = %v", path, err)
+		}
 	}
 }
 

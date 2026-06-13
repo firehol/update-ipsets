@@ -51,6 +51,8 @@ Controls operational behavior such as:
 
 - directories and storage locations
 - download concurrency and limits
+- ingest concurrency ceiling across daemon acquisition, parsing, processing,
+  heavy-phase, and background ingest pools
 - source-processing concurrency
 - heavy-phase concurrency
 - background-work concurrency
@@ -67,6 +69,13 @@ Controls operational behavior such as:
   - default healthy/risky cadence floors
   - category-specific healthy/risky cadence floors
   - archival threshold after prolonged continuous `unavailable`
+
+The runtime model MUST support `max_ingest_workers` as an optional ceiling for
+ingest-side worker pools. When this value is greater than zero, the effective
+download, DNS parsing, source-processing, heavy-phase, and background worker
+counts MUST NOT exceed it. Public/admin request serving MUST NOT acquire this
+ingest ceiling. A value of zero disables the ceiling and leaves the per-domain
+runtime controls as the effective limits.
 
 ### Categories
 
