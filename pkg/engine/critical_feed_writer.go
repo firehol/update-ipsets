@@ -10,12 +10,13 @@ import (
 )
 
 type criticalFeedWriter struct {
-	e        *Engine
-	name     string
-	datasets *criticalDatasets
-	outDir   string
-	src      *closableSource
-	feedIPs  uint64
+	e          *Engine
+	name       string
+	datasets   *criticalDatasets
+	outDir     string
+	src        *closableSource
+	feedIPs    uint64
+	feedFilter rangeOverlapFilter
 
 	totalSet           *iprange.IPSet
 	tierSets           map[string]*iprange.IPSet
@@ -49,6 +50,7 @@ func (e *Engine) newCriticalFeedWriter(name string, datasets *criticalDatasets, 
 		outDir:             outDir,
 		src:                src,
 		feedIPs:            feedIPs,
+		feedFilter:         buildRangeOverlapFilter(src.RangeSource),
 		totalSet:           iprange.New(name + "_critical_infrastructure"),
 		tierSets:           map[string]*iprange.IPSet{},
 		tierProviderCounts: map[string]int{},
@@ -114,6 +116,10 @@ func (w *criticalFeedWriter) writeProviderPayload(providerName string, provider 
 }
 
 func (w *criticalFeedWriter) scanProviderOverlap(providerName string, provider *criticalProviderSet) (uint64, error) {
+	if rangeOverlapFiltersDisjoint(w.feedFilter, provider.overlapFilter) {
+		w.e.observeRunCounter("critical.overlap_skipped_filter", 1, 0)
+		return 0, nil
+	}
 	var criticalIPs uint64
 	countedProvider := false
 	for r := range iprange.IntersectIter(w.src.RangeSource, provider.Set) {

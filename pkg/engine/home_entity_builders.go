@@ -433,6 +433,7 @@ func (e *Engine) buildCountryDetailSidecar(code string, view entityOutputView) (
 		return nil, fmt.Errorf("country code is required")
 	}
 	providers := e.entityDetailProviders()
+	defer providers.Close()
 	builder := newCountryDetailBuilder(normalized)
 	matches := e.addCountryDetailFeedMatches(builder, providers.geo.Name, view)
 	e.addCountryDetailASNMatches(builder, matches, providers)
@@ -447,6 +448,7 @@ func (e *Engine) buildASNDetailSidecar(asn uint32, view entityOutputView) (*asnD
 		return nil, fmt.Errorf("asn must be a positive integer")
 	}
 	providers := e.entityDetailProviders()
+	defer providers.Close()
 	builder := newASNDetailBuilder(asn)
 	if providers.asn.Name == "" {
 		return builder.buildAllowEmpty(providers.asn, providers.geo), nil

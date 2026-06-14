@@ -87,6 +87,57 @@ This includes operations such as:
 
 The preferred model is file-backed or iterator-based processing.
 
+Pairwise and provider-reference overlap counting SHOULD use exact cheap filters
+before scanning both range streams. Acceptable filters include identical
+normalized range-content identity, disjoint range bounds, and disjoint occupied
+prefix sets. These filters MUST be conservative: if either side lacks enough
+evidence, the engine must execute the full overlap count rather than assume
+zero or equality.
+
+When several ASN providers are evaluated against the same feed and bogon
+reference set, the provider-independent bogon overlap count SHOULD be computed
+once per feed and reused across providers. Provider-specific ASN attribution
+must still count the non-bogon residual through the provider database so public
+`bogon_ips`, `unknown_ips`, and `by_asn` semantics remain unchanged.
+
+Feed-local retention diffing MUST NOT require loading the previous committed
+latest set into heap when a valid binary latest set is available. The previous
+set SHOULD be opened as a file-backed range source, the removed-IP count SHOULD
+be counted by streaming iteration, and only the new cohort set that must be
+persisted may be materialized as an in-memory set.
+
+Retention cohort reconciliation SHOULD also open existing binary cohort files as
+file-backed range sources. When removals require a cohort rewrite, the engine
+SHOULD materialize only the still-listed cohort that must be persisted and avoid
+materializing a separate removed set.
+
+Binary set writers for latest snapshots and retention cohorts MUST stream to
+their destination or atomic staging file with fixed-size buffers. They MUST NOT
+build an additional whole-file byte slice or whole-payload range byte slice on
+top of the active `IPSet` being persisted.
+
+## Publication I/O contract
+
+Public artifact, entity artifact, and raw mirror publication SHOULD avoid
+rewriting byte-identical live files. When a staged artifact and the existing
+live artifact have identical bytes, the publish step may update the live file's
+metadata in place instead of replacing the file. When a committed canonical feed
+file and the existing raw mirror file have identical bytes, mirror publication
+may do the same. Comparisons MUST be bounded and streaming/file-backed rather
+than loading large artifacts wholesale into heap.
+
+Entity feed sidecar rebuild workers MUST NOT buffer one completed sidecar per
+target feed before staging or aggregation can consume them. Worker result
+buffers SHOULD be bounded by worker concurrency so full catalog rebuilds do not
+retain every completed feed sidecar in a channel while slower staging work
+catches up.
+
+Admin/status response builders SHOULD reuse already-created snapshots inside a
+single response construction path when the same source of truth is needed by
+multiple sections. They MUST NOT trade this for stale cross-request state; each
+request still reports a fresh status view according to the existing admin API
+semantics.
+
 ## History contract
 
 The product MUST preserve historical evidence, but it MUST NOT treat every
@@ -111,12 +162,61 @@ The product SHOULD:
 - process them one provider at a time where possible
 - keep the last committed good provider data if a refresh fails
 
+Ad-hoc provider lookup caches that survive between public requests MUST be
+releasable on successful reload or provider-file replacement without invalidating
+in-flight readers. Caches that live on request-serving objects MUST keep stable
+object identity across reloads so live requests do not race with pointer
+replacement. Their entries must have clear ownership: new lookups must stop
+acquiring retired entries, and retired provider databases must close after the
+last active lookup or builder releases them.
+
 Compressed provider inputs MUST also remain bounded after expansion. Provider
 gzip and tar/gzip extraction paths MUST enforce an expanded-payload ceiling
 before committing a local provider file, reject entries that exceed that
 ceiling, and clean up incomplete temporary files. Temporary files created for
 provider extraction MUST be private to the service user unless an explicit
 operator-facing install contract requires broader access.
+
+## Managed service memory guardrail
+
+Managed systemd installs SHOULD set a Go runtime soft memory target below the
+service cgroup hard memory limit. The soft target does not replace bounded
+algorithms or file-backed processing, but it tells the Go runtime to collect and
+return managed memory before the kernel reaches the service `MemoryMax`.
+
+The default managed unit uses:
+
+- `MemoryHigh=1536M`
+- `MemoryMax=2G`
+- `GOMEMLIMIT=1536MiB`
+
+These defaults leave headroom for memory that the Go runtime soft limit does not
+directly manage, including kernel file cache, slab, mmap/file-backed reads, and
+other operating-system-held memory charged to the service cgroup.
+
+## Artifact acquisition and extraction contract
+
+Custom artifact transports MUST keep disk, file-cache, and heap pressure bounded
+by the input actually consumed by the application.
+
+The product MUST:
+
+- fetch only the required artifact member when the upstream transport supports
+  direct member addressing
+- avoid retaining unconsumed sibling files from a broader upstream directory
+- use private per-run scratch directories for partial acquisition and
+  materialization
+- clean stale private scratch before reusing the artifact workspace
+- preserve the last committed parent input when acquisition or materialization
+  fails
+- apply the configured acquisition timeout to custom transports as well as the
+  generic downloader path
+
+Artifact materializers that derive multiple child feeds from one parent input
+SHOULD retain only the child classes or parts required by the currently selected
+outputs when this does not change generated child bodies. They may still scan
+the complete parent input when needed for parsing correctness, diagnostics, or
+warning preservation, but they SHOULD NOT keep unselected child data in heap.
 
 ## Staging contract
 

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/firehol/update-ipsets/internal/telemetry"
+	"github.com/firehol/update-ipsets/pkg/asnloc"
 	"github.com/firehol/update-ipsets/pkg/cache"
 	"github.com/firehol/update-ipsets/pkg/config"
 	"github.com/firehol/update-ipsets/pkg/downloader"
@@ -382,8 +383,12 @@ func (e *Engine) Reload() error {
 		return err
 	}
 	rt.ConfigPath = e.runtime.ConfigPath
+	var staleASNLookups map[string]*asnloc.Database
 	e.mu.Lock()
-	defer e.mu.Unlock()
+	defer func() {
+		e.mu.Unlock()
+		closeASNLookupDatabases(staleASNLookups, e.logger)
+	}()
 	e.cfg = cfg
 	e.runtime = rt
 	e.applyRuntimeOverridesLocked()
@@ -394,7 +399,11 @@ func (e *Engine) Reload() error {
 		e.backgroundLimiter.SetLimit(rt.BackgroundWorkers())
 	}
 	e.geoProviders = newGeoProviderCache()
-	e.asnLookupCache = newASNDatabaseCache()
+	if e.asnLookupCache == nil {
+		e.asnLookupCache = newASNDatabaseCache()
+	} else {
+		staleASNLookups = e.asnLookupCache.retireAll()
+	}
 	e.ledgerCache = newRuntimeLedgerCache()
 	if err := e.ensureDirectories(); err != nil {
 		e.configReloadCount++

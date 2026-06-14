@@ -277,6 +277,22 @@ sources:
 	}
 }
 
+func TestDelayedPublishStageCleanupStopsOnContextCancel(t *testing.T) {
+	eng, _ := testHandler(t, Options{EnableAll: true})
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	done := startDelayedPublishStageCleanup(ctx, eng, Options{
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	}, time.Now().UTC())
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("delayed publish-stage cleanup did not stop after context cancellation")
+	}
+}
+
 func writeTestCertificate(t *testing.T) (string, string) {
 	t.Helper()
 

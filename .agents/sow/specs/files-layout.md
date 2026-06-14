@@ -301,12 +301,20 @@ Stable children of that directory are:
 
 - `enabled`
   - artifact enable marker
+- `fetch/`
+  - private acquisition workspace for custom artifact transports
+  - may contain the current transport-local parent input when an artifact family
+    needs one before generic source staging
+  - MUST NOT retain unconsumed upstream sibling files, persistent partial files,
+    or stale per-run fetch directories
 - `source`
   - committed parent artifact input
 - `source.new`
   - staged parent artifact input
 - `extract/`
   - child materialization workspace and outputs owned by that artifact family
+  - per-run materialization directories are private scratch and MUST be safe to
+    remove before a new materialization attempt
 
 Artifact-child public feeds then use materialized local input from this private
 area, but the child configuration MUST NOT require the operator to know these
@@ -664,6 +672,12 @@ canonical feed body under `data/`.
 The mirror is publication-owned and MUST be updated atomically from committed
 canonical feed files rather than by recomputing the feed.
 
+When the committed canonical feed file and existing mirror file are
+byte-identical, mirror publication MAY keep the mirror file in place and update
+its mode, owner, and mtime to match the committed feed file instead of copying
+through a new temporary file. If comparison cannot prove identity, publication
+MUST fall back to the normal temporary-copy-and-rename path.
+
 Mirror/download publication follows the same public-feed boundary as the rest
 of the public website artifacts. Hidden feeds and supporting provider datasets
 MUST NOT be exposed as raw mirror downloads.
@@ -685,12 +699,36 @@ maintain:
 These files are compatibility/convenience outputs for repository publication
 and are not required in non-git deployments.
 
+The `.git/` directories under generated publication trees are private Git
+object stores, not product data. When generated Git publication is enabled, the
+runtime MAY run Git auto-maintenance after sync attempts. During managed
+installs where mutable runtime repair is allowed and the service is stopped, the
+installer MAY compact/prune these generated Git object stores without changing
+working-tree content.
+
 ## Staging and temporary naming rules
 
 Stable rules:
 
 - staged durable replacements use the `.new` sibling naming convention
 - incomplete scratch writes use temporary names that are not authoritative
+- public and entity artifact publish may touch an existing live artifact in
+  place instead of replacing it when the staged artifact has identical bytes;
+  the live artifact still inherits the staged artifact's logical mtime and
+  committed permission contract
+- raw mirror/download publication may touch an existing live mirror file in
+  place instead of replacing it when the committed canonical feed file has
+  identical bytes; the live mirror file still inherits the canonical feed file's
+  mtime and committed permission contract
+- public and entity artifact publish stages use hidden directories under their
+  owning publication roots, such as `.update-ipsets-web-*` and
+  `.update-ipsets-entities-*`; these directories are scratch state and MUST NOT
+  be served as public content
+- daemon startup MUST clean old publish-stage leftovers; because process death
+  can leave pre-start stage directories that are still inside the immediate
+  cleanup grace period, the daemon SHOULD run a delayed cleanup that removes
+  only publish-stage directories whose mtimes predate the current process start
+  time
 
 Examples:
 

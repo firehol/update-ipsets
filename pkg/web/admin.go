@@ -523,8 +523,9 @@ func buildAdminStatus(eng *engine.Engine, runner *scheduler.Runner) adminStatus 
 	engineStatus := eng.StatusSnapshot()
 	activity := runner.ActivitySnapshot()
 	snapshot := runner.Snapshot()
-	feeds := buildAdminFeedsWithStatus(eng, runner, activity, snapshot)
-	artifacts := buildAdminArtifactsWithQueues(eng, runner, activity)
+	entriesWithArtifacts := eng.EntriesSnapshotWithArtifacts()
+	feeds := buildAdminFeedsWithStatusEntries(eng, runner, activity, snapshot, entriesWithArtifacts)
+	artifacts := buildAdminArtifactsWithQueuesEntries(eng, runner, activity, entriesWithArtifacts)
 
 	summary := summarizeAdminFeeds(len(cfg.Sources), feeds)
 
@@ -630,11 +631,14 @@ func buildAdminArtifacts(eng *engine.Engine, runner *scheduler.Runner) []adminAr
 }
 
 func buildAdminArtifactsWithQueues(eng *engine.Engine, runner *scheduler.Runner, queues scheduler.ActivitySnapshot) []adminArtifact {
+	return buildAdminArtifactsWithQueuesEntries(eng, runner, queues, eng.EntriesSnapshotWithArtifacts())
+}
+
+func buildAdminArtifactsWithQueuesEntries(eng *engine.Engine, runner *scheduler.Runner, queues scheduler.ActivitySnapshot, entries []cache.Entry) []adminArtifact {
 	cfg := eng.Config()
 	if cfg == nil || len(cfg.Artifacts) == 0 {
 		return nil
 	}
-	entries := eng.EntriesSnapshotWithArtifacts()
 	entryIndex := make(map[string]*cache.Entry, len(entries))
 	for i := range entries {
 		entryIndex[entries[i].Name] = &entries[i]
@@ -691,9 +695,12 @@ func buildAdminArtifactsWithQueues(eng *engine.Engine, runner *scheduler.Runner,
 }
 
 func buildAdminFeedsWithStatus(eng *engine.Engine, runner *scheduler.Runner, activity scheduler.ActivitySnapshot, snap scheduler.Snapshot) []adminFeed {
+	return buildAdminFeedsWithStatusEntries(eng, runner, activity, snap, eng.EntriesSnapshot())
+}
+
+func buildAdminFeedsWithStatusEntries(eng *engine.Engine, runner *scheduler.Runner, activity scheduler.ActivitySnapshot, snap scheduler.Snapshot, entries []cache.Entry) []adminFeed {
 	cfg := eng.Config()
 	policy := feedhealth.PolicyFromRuntime(cfg.Runtime)
-	entries := eng.EntriesSnapshot()
 	now := time.Now().UTC()
 	liveStates := liveFeedStates(activity)
 	enableAll := runnerEnableAll(runner)

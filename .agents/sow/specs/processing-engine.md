@@ -134,6 +134,13 @@ Feed-local processing MUST produce or maintain at least:
 - retention summaries
 - feed-local change and rotation measurements
 
+The internal history ledger remains append-only evidence. The engine MAY avoid
+rescanning that ledger for same-timestamp observations only when the newly
+observed entries and unique-IP counts exactly match the cached last observation.
+If a same-timestamp observation changes counts, the engine MUST preserve the
+existing correction behavior and reload or recompute the effective ledger state
+so min/max, version, and public history-tail facts remain correct.
+
 For retention/state ownership, the engine MUST keep distinct:
 
 - current-membership retention cohorts that preserve the start time of the
@@ -143,6 +150,24 @@ For retention/state ownership, the engine MUST keep distinct:
 
 The engine MUST NOT treat downloader-owned `data/history/...` snapshots as a
 substitute for those retention facts.
+
+Retention diffing SHOULD use file-backed or iterator-based reads for the
+previous committed latest set when that binary set is available. The engine MAY
+precompute the retention diff before replacing the committed latest set, but it
+MUST NOT write retention artifacts until the canonical feed body and latest
+binary set have been finalized successfully. The diff implementation SHOULD
+materialize only the new currently-listed cohort set that must be persisted;
+removed counts SHOULD be counted through bounded iteration.
+
+Latest binary set and retention cohort writers SHOULD write through bounded
+buffers into their atomic destination path. They SHOULD NOT allocate a second
+whole-file binary payload while an in-memory `IPSet` is already live for the
+same feed.
+
+When reconciling existing retention cohorts after removals, the engine SHOULD
+open binary cohort files through file-backed range sources. It SHOULD
+materialize only the still-listed cohort that must be rewritten and count
+removed IPs without building a separate removed set.
 
 If the input is valid but empty, the engine MUST still produce the empty-result
 publication defined by the product contract.
@@ -160,6 +185,13 @@ on:
 
 The engine MUST also keep peer-facing comparison artifacts current.
 
+Live lookup support state, such as the public IP-search ASN lookup cache, MUST
+respect provider refresh and reload boundaries. Successful reloads and
+provider-file replacements must retire old lookup entries so subsequent lookups
+open current provider data. In-flight lookups or builders may finish with the
+database they already acquired, but retired databases must be closed after that
+work releases them.
+
 Pairwise comparison rule:
 
 - when feed `A` changes or is reprocessed in a way that can affect comparison
@@ -175,6 +207,21 @@ Pairwise comparison rule:
   and additive merge inputs are positive lineage; subtractive merge inputs are
   dependencies, not positive lineage, and MUST NOT by themselves make two feeds
   related.
+
+The implementation MAY skip an expensive pairwise overlap scan only when it has
+an exact proof that the result is unchanged or zero, such as identical
+normalized range content, disjoint min/max bounds, or disjoint occupied address
+prefixes. Any prefix, bound, or fingerprint shortcut MUST be conservative:
+uncertainty means run the full overlap count and publish the exact result.
+The same rule applies to provider-reference overlap scans such as bogon and
+critical-infrastructure overlaps: exact zero-overlap proofs may skip scans,
+but uncertain pairs must run the existing exact overlap logic.
+
+ASN comparison artifacts MAY compute the provider-independent bogon overlap
+once per feed when several ASN providers are evaluated in the same run. Each
+provider MUST still count ASN attribution over the feed's non-bogon residual
+through its own database, so `bogon_ips`, `unknown_ips`, `attributed_ips`, and
+`by_asn` remain equivalent to a full per-provider `CountFeedWithBogons` pass.
 
 This ensures public comparisons remain "current now", not merely "current the
 last time each feed changed independently".

@@ -32,7 +32,14 @@ func (e *Engine) buildFeedEntitySidecars(ctx context.Context, names []string, vi
 	geoProvider := e.preferredGeoProvider()
 	asnProvider := e.preferredASNProvider()
 	geoPrepared := e.loadGeoProviderForLookup(geoProvider)
-	asnDB := e.loadASNProviderForLookup(asnProvider)
+	asnLease := e.loadASNProviderForLookup(asnProvider)
+	if asnLease != nil {
+		defer asnLease.Close()
+	}
+	var asnDB *asnloc.Database
+	if asnLease != nil {
+		asnDB = asnLease.Database()
+	}
 
 	out := make(map[string]*feedEntitySidecar, len(names))
 	if task != nil {
@@ -154,7 +161,7 @@ func (e *Engine) stageFeedEntitySidecarsFromLoadedProviders(ctx context.Context,
 
 func (e *Engine) startFeedEntitySidecarBuild(ctx context.Context, names []string, workers int, view entityOutputView, geoProvider, asnProvider string, geoPrepared *geoPreparedProvider, asnDB *asnloc.Database, setCacheForWorker func() (*latestSetCache, func())) (context.Context, context.CancelFunc, <-chan feedEntitySidecarBuildResult) {
 	entries := e.state.SnapshotEntries()
-	results := make(chan feedEntitySidecarBuildResult, len(names))
+	results := make(chan feedEntitySidecarBuildResult, feedEntitySidecarResultBufferSize(len(names), workers))
 	ctx, cancel := context.WithCancel(ctx)
 	jobs := make(chan string)
 	var wg sync.WaitGroup
@@ -175,7 +182,7 @@ func (e *Engine) startFeedEntitySidecarBuild(ctx context.Context, names []string
 					}
 					sidecar, err := e.buildSingleFeedEntitySidecar(name, view, resolver, geoProvider, asnProvider, geoPrepared, asnDB, setCache)
 					if err != nil {
-						sendFeedEntitySidecarBuildError(results, feedEntitySidecarBuildResult{name: name, err: fmt.Errorf("build feed entity sidecar %s: %w", name, err)})
+						sendFeedEntitySidecarBuildError(ctx, results, feedEntitySidecarBuildResult{name: name, err: fmt.Errorf("build feed entity sidecar %s: %w", name, err)})
 						cancel()
 						return
 					}
@@ -188,6 +195,19 @@ func (e *Engine) startFeedEntitySidecarBuild(ctx context.Context, names []string
 	}
 	closeResultsWhenFeedEntitySidecarBuildDone(ctx, names, jobs, results, &wg)
 	return ctx, cancel, results
+}
+
+func feedEntitySidecarResultBufferSize(names, workers int) int {
+	if names <= 0 {
+		return 0
+	}
+	if workers < 1 {
+		workers = 1
+	}
+	if workers > names {
+		return names
+	}
+	return workers
 }
 
 func closeResultsWhenFeedEntitySidecarBuildDone(ctx context.Context, names []string, jobs chan<- string, results chan<- feedEntitySidecarBuildResult, wg *sync.WaitGroup) {
@@ -215,8 +235,11 @@ func sendFeedEntitySidecarBuildResult(ctx context.Context, results chan<- feedEn
 	}
 }
 
-func sendFeedEntitySidecarBuildError(results chan<- feedEntitySidecarBuildResult, result feedEntitySidecarBuildResult) {
-	results <- result
+func sendFeedEntitySidecarBuildError(ctx context.Context, results chan<- feedEntitySidecarBuildResult, result feedEntitySidecarBuildResult) {
+	select {
+	case results <- result:
+	case <-ctx.Done():
+	}
 }
 
 func (e *Engine) stageFeedEntitySidecarResult(result feedEntitySidecarBuildResult, geoProvider, asnProvider, geoRefPath string, geoRefTime time.Time, asnRefPath string, asnRefTime time.Time, webStageDir string, entityBatch *stagedPublishBatch) (bool, error) {

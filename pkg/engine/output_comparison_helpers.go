@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -37,7 +39,69 @@ func rangeBounds(src *closableSource) (uint32, uint32, bool) {
 	if src == nil || src.RangeSource == nil {
 		return 0, 0, false
 	}
-	switch set := src.RangeSource.(type) {
+	return rangeSourceBounds(src.RangeSource)
+}
+
+const (
+	comparisonPrefixBits        = 20
+	comparisonPrefixShift       = 32 - comparisonPrefixBits
+	comparisonPrefixWords       = 1 << (comparisonPrefixBits - 6)
+	comparisonSparsePrefixBits  = 24
+	comparisonSparsePrefixShift = 32 - comparisonSparsePrefixBits
+	comparisonSparsePrefixLimit = 8192
+)
+
+type comparisonPrefixBitmap [comparisonPrefixWords]uint64
+
+type comparisonContentHash struct {
+	sum   [sha256.Size]byte
+	valid bool
+}
+
+type comparisonSetSignature struct {
+	prefixBitmap *comparisonPrefixBitmap
+	sparsePrefix *comparisonSparsePrefixSet
+	contentHash  comparisonContentHash
+}
+
+type comparisonSparsePrefixSet struct {
+	prefixes []uint32
+}
+
+type comparisonSparsePrefixBuilder struct {
+	prefixes []uint32
+	last     uint32
+	haveLast bool
+	overflow bool
+}
+
+type rangeOverlapFilter struct {
+	lo           uint32
+	hi           uint32
+	valid        bool
+	hasRange     bool
+	prefixBitmap *comparisonPrefixBitmap
+	sparsePrefix *comparisonSparsePrefixSet
+}
+
+func buildRangeOverlapFilter(src iprange.RangeSource) rangeOverlapFilter {
+	signature := buildComparisonSetSignature(src)
+	lo, hi, hasRange := rangeSourceBounds(src)
+	return rangeOverlapFilter{
+		lo:           lo,
+		hi:           hi,
+		valid:        true,
+		hasRange:     hasRange,
+		prefixBitmap: signature.prefixBitmap,
+		sparsePrefix: signature.sparsePrefix,
+	}
+}
+
+func rangeSourceBounds(src iprange.RangeSource) (uint32, uint32, bool) {
+	if src == nil {
+		return 0, 0, false
+	}
+	switch set := src.(type) {
 	case iprange.FileSet:
 		if set.Len() == 0 {
 			return 0, 0, false
@@ -58,36 +122,74 @@ func rangeBounds(src *closableSource) (uint32, uint32, bool) {
 		}
 		return set.Ranges[0].Lo, set.Ranges[len(set.Ranges)-1].Hi, true
 	default:
-		return 0, 0, false
+		first := true
+		var lo, hi uint32
+		for r := range set.Iter() {
+			if first {
+				lo = r.Lo
+				first = false
+			}
+			hi = r.Hi
+		}
+		return lo, hi, !first
 	}
 }
 
-const (
-	comparisonPrefixBits  = 20
-	comparisonPrefixShift = 32 - comparisonPrefixBits
-	comparisonPrefixWords = 1 << (comparisonPrefixBits - 6)
-)
+func rangeOverlapFiltersDisjoint(a, b rangeOverlapFilter) bool {
+	if !a.valid || !b.valid {
+		return false
+	}
+	// Valid filters with no ranges are known-empty sources. Invalid filters are
+	// handled above and must fall through to exact counting.
+	if !a.hasRange || !b.hasRange {
+		return true
+	}
+	if a.hi < b.lo || b.hi < a.lo {
+		return true
+	}
+	if !comparisonSparsePrefixOverlap(a.sparsePrefix, b.sparsePrefix) {
+		return true
+	}
+	return !comparisonPrefixOverlap(a.prefixBitmap, b.prefixBitmap)
+}
 
-type comparisonPrefixBitmap [comparisonPrefixWords]uint64
-
-func buildComparisonPrefixBitmap(src iprange.RangeSource) *comparisonPrefixBitmap {
+func buildComparisonSetSignature(src iprange.RangeSource) comparisonSetSignature {
 	if src == nil {
-		return nil
+		return comparisonSetSignature{}
 	}
 	var bitmap comparisonPrefixBitmap
 	hasRanges := false
+	hasher := sha256.New()
+	var hashBuf [8]byte
+	sparse := comparisonSparsePrefixBuilder{}
 	for r := range src.Iter() {
 		hasRanges = true
+		binary.BigEndian.PutUint32(hashBuf[0:4], r.Lo)
+		binary.BigEndian.PutUint32(hashBuf[4:8], r.Hi)
+		_, _ = hasher.Write(hashBuf[:])
 		start := r.Lo >> comparisonPrefixShift
 		end := r.Hi >> comparisonPrefixShift
 		for prefix := start; prefix <= end; prefix++ {
 			bitmap[prefix>>6] |= uint64(1) << (prefix & 63)
 		}
+		sparse.addRange(r.Lo>>comparisonSparsePrefixShift, r.Hi>>comparisonSparsePrefixShift)
 	}
 	if !hasRanges {
-		return nil
+		return comparisonSetSignature{}
 	}
-	return &bitmap
+	sum := hasher.Sum(nil)
+	var contentHash comparisonContentHash
+	copy(contentHash.sum[:], sum)
+	contentHash.valid = true
+	return comparisonSetSignature{
+		prefixBitmap: &bitmap,
+		sparsePrefix: sparse.set(),
+		contentHash:  contentHash,
+	}
+}
+
+func buildComparisonPrefixBitmap(src iprange.RangeSource) *comparisonPrefixBitmap {
+	return buildComparisonSetSignature(src).prefixBitmap
 }
 
 func comparisonPrefixOverlap(a, b *comparisonPrefixBitmap) bool {
@@ -100,6 +202,65 @@ func comparisonPrefixOverlap(a, b *comparisonPrefixBitmap) bool {
 		}
 	}
 	return false
+}
+
+func (b *comparisonSparsePrefixBuilder) addRange(start, end uint32) {
+	if b.overflow {
+		return
+	}
+	if b.haveLast && start <= b.last {
+		if end <= b.last {
+			return
+		}
+		start = b.last + 1
+	}
+	count := uint64(end) - uint64(start) + 1
+	if uint64(len(b.prefixes))+count > comparisonSparsePrefixLimit {
+		b.prefixes = nil
+		b.overflow = true
+		return
+	}
+	for prefix := start; prefix <= end; prefix++ {
+		b.prefixes = append(b.prefixes, prefix)
+		if prefix == end {
+			break
+		}
+	}
+	b.last = end
+	b.haveLast = true
+}
+
+func (b *comparisonSparsePrefixBuilder) set() *comparisonSparsePrefixSet {
+	if b == nil || b.overflow || len(b.prefixes) == 0 {
+		return nil
+	}
+	return &comparisonSparsePrefixSet{prefixes: b.prefixes}
+}
+
+func comparisonSparsePrefixOverlap(a, b *comparisonSparsePrefixSet) bool {
+	if a == nil || b == nil {
+		return true
+	}
+	i, j := 0, 0
+	for i < len(a.prefixes) && j < len(b.prefixes) {
+		switch {
+		case a.prefixes[i] == b.prefixes[j]:
+			return true
+		case a.prefixes[i] < b.prefixes[j]:
+			i++
+		default:
+			j++
+		}
+	}
+	return false
+}
+
+func comparisonSetsIdentical(a, b comparisonSetInfo) bool {
+	return a.ips > 0 &&
+		a.ips == b.ips &&
+		a.contentHash.valid &&
+		b.contentHash.valid &&
+		a.contentHash.sum == b.contentHash.sum
 }
 
 // leafAncestors returns the set of positive leaf (primary, non-derivative)

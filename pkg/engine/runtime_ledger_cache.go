@@ -630,6 +630,12 @@ func (e *Engine) observeHistoryPoint(name string, point HistoryPoint, entry, bas
 	}
 	if point.Timestamp <= st.historyStats.lastTS {
 		if point.Timestamp == st.historyStats.lastTS {
+			if point.Entries == st.historyStats.lastEntries && point.UniqueIPs == st.historyStats.lastUniqueIPs {
+				st.historyTail = appendObservedHistoryTail(st.historyTail, point, e.webChartsEntries())
+				st.historyLimit = e.webChartsEntries()
+				e.observeRunCounter("sources.finalize.observe_history_same_timestamp_noop", 1, 0)
+				return st.historyStats.apply(entry, frequency)
+			}
 			stats, tail, err := loadHistoryLedgerState(filepath.Join(e.runtime.LibDir, name, "history.csv"), name, e.webChartsEntries())
 			if err == nil {
 				st.historyLoaded = true

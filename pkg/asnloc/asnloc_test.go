@@ -191,6 +191,47 @@ func TestCountFeedWithBogons(t *testing.T) {
 	}
 }
 
+func TestCountFeedExcludingMatchesBogonResidual(t *testing.T) {
+	db := testASNDatabase()
+	set := iprange.New("feed")
+	addRange(t, set, 0xC0000200, 0xC00002FF) // 192.0.2.0/24
+	addRange(t, set, 0xCB007100, 0xCB007103) // 203.0.113.0/30
+
+	bogons := iprange.New("bogons")
+	addRange(t, bogons, 0xC0000280, 0xC00002FF) // second half of 192.0.2.0/24
+	addRange(t, bogons, 0xCB007102, 0xCB007103) // half of 203.0.113.0/30
+
+	wantCounts, wantNames, _, err := db.CountFeedWithBogons(set, bogons)
+	if err != nil {
+		t.Fatalf("CountFeedWithBogons() error = %v", err)
+	}
+	gotCounts, gotNames, err := db.CountFeedExcluding(set, bogons)
+	if err != nil {
+		t.Fatalf("CountFeedExcluding() error = %v", err)
+	}
+	if gotCounts[64500] != wantCounts[64500] || gotCounts[64501] != wantCounts[64501] || gotCounts[0] != wantCounts[0] {
+		t.Fatalf("CountFeedExcluding() counts = %#v, want %#v", gotCounts, wantCounts)
+	}
+	if gotNames[64500] != wantNames[64500] || gotNames[64501] != wantNames[64501] {
+		t.Fatalf("CountFeedExcluding() names = %#v, want %#v", gotNames, wantNames)
+	}
+
+	plainCounts, plainNames, err := db.CountFeed(set)
+	if err != nil {
+		t.Fatalf("CountFeed() error = %v", err)
+	}
+	gotCounts, gotNames, err = db.CountFeedExcluding(set, nil)
+	if err != nil {
+		t.Fatalf("CountFeedExcluding(nil) error = %v", err)
+	}
+	if gotCounts[64500] != plainCounts[64500] || gotCounts[64501] != plainCounts[64501] || gotCounts[0] != plainCounts[0] {
+		t.Fatalf("CountFeedExcluding(nil) counts = %#v, want %#v", gotCounts, plainCounts)
+	}
+	if gotNames[64500] != plainNames[64500] || gotNames[64501] != plainNames[64501] {
+		t.Fatalf("CountFeedExcluding(nil) names = %#v, want %#v", gotNames, plainNames)
+	}
+}
+
 func TestCountFeedPropagatesLookupError(t *testing.T) {
 	wantErr := errors.New("lookup failed")
 	db := &Database{be: errorBackend{err: wantErr}}

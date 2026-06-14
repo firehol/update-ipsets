@@ -58,7 +58,9 @@ These are starting points. Monitor actual usage and adjust.
 | Medium (100–300 feeds) | 512M | 768M | 512MiB |
 | Large (300+ feeds) | 768M–1G | 1G–1.5G | 768MiB |
 
-The installed unit ships with `MemoryMax=2G`. For most deployments this is generous. Lower it if the server shares resources with other services.
+The installed unit ships with `MemoryHigh=1536M`, `MemoryMax=2G`, and
+`GOMEMLIMIT=1536MiB`. For most deployments this is generous. Lower these values
+if the server shares resources with other services.
 
 ## Monitoring memory usage
 

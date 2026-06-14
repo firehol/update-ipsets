@@ -113,13 +113,7 @@ func (e *Engine) processAndCommit(ctx context.Context, runName string, src *conf
 		return processingException(ProcessingExceptionParse, err.Error(), err)
 	}
 	finalSet := initialSet
-	// Load the previous binary set before finalize() overwrites latest.
-	previousSet, err := e.loadLatestSet(ctx, runName)
-	if err != nil {
-		// Non-fatal: treat as empty previous set (first run or corrupt file).
-		e.logger.Warn("could not load previous binary set, treating as first run", "source", runName, "error", err)
-		previousSet = nil
-	}
+	retentionDiff := e.retentionDiffWithPreviousLatest(ctx, runName, finalSet)
 
 	started = time.Now()
 	if err := e.finalize(runName, src, output, sourcePath, finalSet, sourceMTime, observedAt); err != nil {
@@ -134,11 +128,8 @@ func (e *Engine) processAndCommit(ctx context.Context, runName string, src *conf
 	e.observeRunOperation("sources.finalize", finalizeDur)
 	e.observeFeedOperation(runName, "sources.finalize", finalizeDur)
 
-	if previousSet == nil {
-		previousSet = iprange.New(runName)
-	}
 	started = time.Now()
-	if err := e.updateRetention(ctx, runName, previousSet, finalSet, sourceMTime); err != nil {
+	if err := e.updateRetentionFromDiff(ctx, runName, retentionDiff, finalSet, sourceMTime); err != nil {
 		retentionDur := time.Since(started)
 		e.observeRunOperation("sources.update_retention", retentionDur)
 		e.observeFeedOperation(runName, "sources.update_retention", retentionDur)
@@ -164,4 +155,23 @@ func (e *Engine) processAndCommit(ctx context.Context, runName string, src *conf
 	entry.MarkSourceProcessingComplete(false)
 	e.logger.Info("source updated", "source", runName, "entries", finalSet.Entries(), "unique_ips", finalSet.UniqueCount())
 	return processingOK("updated successfully", true)
+}
+
+func (e *Engine) retentionDiffWithPreviousLatest(ctx context.Context, name string, current *iprange.IPSet) retentionUpdateDiff {
+	previous, err := e.openPreviousLatestSet(ctx, name)
+	if err != nil {
+		e.logger.Warn("could not open previous binary set, treating as first run", "source", name, "error", err)
+		return retentionDiff(iprange.New(name), current)
+	}
+	defer func() {
+		if err := previous.Close(); err != nil {
+			e.logger.Warn("could not close previous binary set", "source", name, "error", err)
+		}
+	}()
+	diff, err := e.retentionDiffFromSources(ctx, name, previous.RangeSource, current)
+	if err != nil {
+		e.logger.Warn("could not diff previous binary set, treating as first run", "source", name, "error", err)
+		return retentionDiff(iprange.New(name), current)
+	}
+	return diff
 }

@@ -71,16 +71,24 @@ func WriteBinary(w io.Writer, set *IPSet) error {
 		return err
 	}
 
-	payload := make([]byte, len(set.Ranges)*8)
-	off := 0
-	for _, r := range set.Ranges {
-		nativeEndian.PutUint32(payload[off:off+4], r.Lo)
-		nativeEndian.PutUint32(payload[off+4:off+8], r.Hi)
-		off += 8
-	}
-	if _, err := bw.Write(payload); err != nil {
-		opErr = err
-		return err
+	const recordsPerChunk = 8192
+	payload := make([]byte, recordsPerChunk*8)
+	for start := 0; start < len(set.Ranges); {
+		n := len(set.Ranges) - start
+		if n > recordsPerChunk {
+			n = recordsPerChunk
+		}
+		off := 0
+		for _, r := range set.Ranges[start : start+n] {
+			nativeEndian.PutUint32(payload[off:off+4], r.Lo)
+			nativeEndian.PutUint32(payload[off+4:off+8], r.Hi)
+			off += 8
+		}
+		if _, err := bw.Write(payload[:off]); err != nil {
+			opErr = err
+			return err
+		}
+		start += n
 	}
 	opErr = bw.Flush()
 	return opErr

@@ -153,6 +153,18 @@ func (d *Database) CountFeed(src iprange.RangeSource) (counts map[uint32]uint64,
 	return counts, names, err
 }
 
+// CountFeedExcluding walks every range in src except ranges covered by exclude.
+// It is the residual counting half of CountFeedWithBogons, exposed so callers
+// comparing the same feed against multiple ASN providers can compute the
+// provider-independent excluded count once and reuse it.
+func (d *Database) CountFeedExcluding(src, exclude iprange.RangeSource) (counts map[uint32]uint64, names map[uint32]string, err error) {
+	if exclude == nil {
+		return d.CountFeed(src)
+	}
+	counts, names, _, err = d.countFeedRanges(iprange.ExcludeIter(src, exclude))
+	return counts, names, err
+}
+
 // CountFeedWithBogons is like CountFeed but with a bogon-aware split.
 // IPs in the feed that overlap with bogonSet are counted as bogon and
 // never looked up in the ASN database (which would either return ASN 0
@@ -183,8 +195,7 @@ func (d *Database) CountFeedWithBogons(src iprange.RangeSource, bogonSet iprange
 	// Bogon contribution: intersection of the feed with the bogon set.
 	bogonCount = iprange.OverlapCountIter(src, bogonSet)
 	// Database walk for the bogon-free residual of the feed.
-	residual := iprange.ExcludeIter(src, bogonSet)
-	counts, names, _, err = d.countFeedRanges(residual)
+	counts, names, err = d.CountFeedExcluding(src, bogonSet)
 	return counts, names, bogonCount, err
 }
 

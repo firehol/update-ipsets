@@ -13,6 +13,10 @@ description: "Install, daemon, admin, and runtime operation guidance for update-
 - Default local service name: `update-ipsets` (evidence: `install.sh`).
 - Default local daemon listen in install flow: `:18888` (evidence: `install.sh`, `README.md`, `ui/vite.config.ts`).
 - Runtime catalog install path: `/opt/update-ipsets/etc/config/` (evidence: `install.sh`, `README.md`).
+- Managed install memory defaults are `MemoryHigh=1536M`, `MemoryMax=2G`, and
+  `GOMEMLIMIT=1536MiB`; `GOMEMLIMIT` is a Go runtime soft target and does not
+  replace cgroup hard limits or bounded algorithms (evidence: `install.sh`,
+  `.agents/sow/specs/memory-management.md`).
 - Managed install ownership: install root, `bin/`, and `etc/` are
   `root:iplists`; binary and config are readable/executable to `iplists` by
   group permissions and are not world-readable. Mutable runtime directories are
@@ -31,6 +35,11 @@ description: "Install, daemon, admin, and runtime operation guidance for update-
   files. For managed live installs, use race-aware traversal such as GNU
   `find ... -ignore_readdir_race` on daemon-owned runtime/publication trees, or
   stop the daemon first if strict traversal is required.
+- Managed installs may compact generated `data/` and `web/` Git object stores
+  during mutable runtime repair, after ownership repair and only when the
+  service is stopped or not running. This is private Git maintenance for
+  generated publication trees; it must not rewrite feed files or public
+  artifacts.
 
 ## Important environment
 

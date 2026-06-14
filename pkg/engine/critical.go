@@ -19,10 +19,11 @@ import (
 )
 
 type criticalProviderSet struct {
-	Name    string
-	Meta    CriticalInfrastructureProvider
-	Set     iprange.RangeSource
-	sources []*closableSource
+	Name          string
+	Meta          CriticalInfrastructureProvider
+	Set           iprange.RangeSource
+	overlapFilter rangeOverlapFilter
+	sources       []*closableSource
 }
 
 type criticalDatasets struct {
@@ -420,10 +421,11 @@ func (e *Engine) loadCriticalInfrastructureSources(ctx context.Context, provider
 			continue
 		}
 		out.Providers[name] = &criticalProviderSet{
-			Name:    name,
-			Meta:    criticalProviderFromSource(src),
-			Set:     latest.RangeSource,
-			sources: []*closableSource{latest},
+			Name:          name,
+			Meta:          criticalProviderFromSource(src),
+			Set:           latest.RangeSource,
+			overlapFilter: buildRangeOverlapFilter(latest.RangeSource),
+			sources:       []*closableSource{latest},
 		}
 		out.Names = append(out.Names, name)
 	}

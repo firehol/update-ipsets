@@ -123,6 +123,7 @@ func (e *Engine) writeASNComparisonFiles(ctx context.Context, datasets asnDatase
 	if len(targetNames) == 0 {
 		return nil
 	}
+	bogonSplits := e.precomputeASNBogonSplits(ctx, targetNames, datasets, bogonUnion, setCache)
 
 	numWorkers := e.runtime.HeavyPhaseWorkers()
 	if numWorkers < 1 {
@@ -143,11 +144,7 @@ func (e *Engine) writeASNComparisonFiles(ctx context.Context, datasets asnDatase
 				return nil
 			}
 
-			var bogonRangeSrc iprange.RangeSource
-			if bogonUnion != nil {
-				bogonRangeSrc = bogonUnion
-			}
-			counts, names, bogonIPs, err := db.CountFeedWithBogons(src.RangeSource, bogonRangeSrc)
+			counts, names, bogonIPs, err := countASNFeedWithBogonSplit(db, src.RangeSource, bogonUnion, bogonSplits, name)
 			if checkErr := checkFileSetErr(src.RangeSource, name, e.logger); checkErr != nil {
 				return nil
 			}
@@ -173,6 +170,55 @@ func (e *Engine) writeASNComparisonFiles(ctx context.Context, datasets asnDatase
 		}
 	}
 	return nil
+}
+
+func (e *Engine) precomputeASNBogonSplits(ctx context.Context, targetNames []string, datasets asnDatasets, bogonUnion *iprange.IPSet, setCache *latestSetCache) map[string]uint64 {
+	if bogonUnion == nil || len(datasets) <= 1 || len(targetNames) == 0 || setCache == nil {
+		return nil
+	}
+	splits := make(map[string]uint64, len(targetNames))
+	bogonFilter := buildRangeOverlapFilter(bogonUnion)
+	for _, name := range targetNames {
+		if err := contextErr(ctx); err != nil {
+			return splits
+		}
+		src, err := setCache.Open(name)
+		if err != nil {
+			e.logger.Warn("ASN bogon split skipped: cannot open set", "set", name, "error", err)
+			continue
+		}
+		filter := buildRangeOverlapFilter(src.RangeSource)
+		if checkErr := checkFileSetErr(src.RangeSource, name, e.logger); checkErr != nil {
+			continue
+		}
+		if rangeOverlapFiltersDisjoint(filter, bogonFilter) {
+			splits[name] = 0
+			e.observeRunCounter("asn.bogon_split_skipped_filter", 1, 0)
+			continue
+		}
+		splits[name] = iprange.OverlapCountIter(src.RangeSource, bogonUnion)
+		if checkErr := checkFileSetErr(src.RangeSource, name, e.logger); checkErr != nil {
+			delete(splits, name)
+			continue
+		}
+		e.observeRunCounter("asn.bogon_split_precomputed", 1, 0)
+	}
+	return splits
+}
+
+func countASNFeedWithBogonSplit(db *asnloc.Database, src iprange.RangeSource, bogonUnion *iprange.IPSet, bogonSplits map[string]uint64, name string) (map[uint32]uint64, map[uint32]string, uint64, error) {
+	if bogonUnion != nil && bogonSplits != nil {
+		if bogonIPs, ok := bogonSplits[name]; ok {
+			counts, names, err := db.CountFeedExcluding(src, bogonUnion)
+			return counts, names, bogonIPs, err
+		}
+	}
+
+	var bogonRangeSrc iprange.RangeSource
+	if bogonUnion != nil {
+		bogonRangeSrc = bogonUnion
+	}
+	return db.CountFeedWithBogons(src, bogonRangeSrc)
 }
 
 // buildASNFeedJSON assembles the per-feed-per-provider JSON payload from

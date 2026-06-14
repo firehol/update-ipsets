@@ -38,7 +38,23 @@ func (e *Engine) updateRetention(ctx context.Context, name string, previous, cur
 	}
 
 	updatedAtUnix := updatedAt.UTC().Unix()
-	diff := retentionDiff(previous, current)
+	diff, err := e.retentionDiffFromSources(ctx, name, previous, current)
+	if err != nil {
+		return err
+	}
+	return e.updateRetentionWithDiff(ctx, name, paths, diff, current, updatedAt, updatedAtUnix)
+}
+
+func (e *Engine) updateRetentionFromDiff(ctx context.Context, name string, diff retentionUpdateDiff, current *iprange.IPSet, updatedAt time.Time) error {
+	ctx = nonNilContext(ctx)
+	paths, err := e.prepareRetentionUpdatePaths(name)
+	if err != nil {
+		return err
+	}
+	return e.updateRetentionWithDiff(ctx, name, paths, diff, current, updatedAt, updatedAt.UTC().Unix())
+}
+
+func (e *Engine) updateRetentionWithDiff(ctx context.Context, name string, paths retentionUpdatePaths, diff retentionUpdateDiff, current *iprange.IPSet, updatedAt time.Time, updatedAtUnix int64) error {
 	if err := e.recordRetentionDelta(name, paths, diff, updatedAt, updatedAtUnix); err != nil {
 		return err
 	}
@@ -80,6 +96,36 @@ func retentionDiff(previous, current *iprange.IPSet) retentionUpdateDiff {
 		added:   newSet.UniqueCount(),
 		removed: removedSet.UniqueCount(),
 	}
+}
+
+func (e *Engine) retentionDiffFromSources(ctx context.Context, name string, previous, current iprange.RangeSource) (retentionUpdateDiff, error) {
+	ctx = nonNilContext(ctx)
+	newSet, err := collectIter(ctx, name+"_new", iprange.ExcludeIter(current, previous))
+	if err != nil {
+		return retentionUpdateDiff{}, err
+	}
+	if err := checkFileSetErr(current, name, e.logger); err != nil {
+		return retentionUpdateDiff{}, err
+	}
+	if err := checkFileSetErr(previous, name, e.logger); err != nil {
+		return retentionUpdateDiff{}, err
+	}
+
+	removed, err := countUniqueIter(ctx, name+"_removed", iprange.ExcludeIter(previous, current))
+	if err != nil {
+		return retentionUpdateDiff{}, err
+	}
+	if err := checkFileSetErr(previous, name, e.logger); err != nil {
+		return retentionUpdateDiff{}, err
+	}
+	if err := checkFileSetErr(current, name, e.logger); err != nil {
+		return retentionUpdateDiff{}, err
+	}
+	return retentionUpdateDiff{
+		newSet:  newSet,
+		added:   newSet.UniqueCount(),
+		removed: removed,
+	}, nil
 }
 
 func (e *Engine) recordRetentionDelta(name string, paths retentionUpdatePaths, diff retentionUpdateDiff, updatedAt time.Time, updatedAtUnix int64) error {
@@ -161,15 +207,25 @@ func (e *Engine) retentionCohortTimestamp(name, baseName string) (int64, bool) {
 
 func (e *Engine) reconcileRetentionCohort(ctx context.Context, name string, paths retentionUpdatePaths, started, updatedAt int64, current *iprange.IPSet, past map[int]uint64, baseName string, addedAt int64, result *retentionReconcileResult) error {
 	path := filepath.Join(paths.newDir, baseName)
-	oldSet, err := loadSnapshotSet(ctx, baseName, e.runtime.LibDir, filepath.Join(name, "new", baseName))
+	oldSource, err := openRetentionCohortSet(ctx, baseName, e.runtime.LibDir, filepath.Join(name, "new", baseName), path)
 	if err != nil {
 		return err
 	}
+	defer func() { _ = oldSource.Close() }()
 
-	still := iprange.Intersect(oldSet, current)
-	removedSet := iprange.Exclude(oldSet, still)
+	still, err := collectIter(ctx, baseName+"_still", iprange.IntersectIter(oldSource.RangeSource, current))
+	if err != nil {
+		return err
+	}
+	if err := checkFileSetErr(oldSource.RangeSource, name, e.logger); err != nil {
+		return err
+	}
 	stillCount := still.UniqueCount()
-	removedCount := removedSet.UniqueCount()
+	oldCount := oldSource.UniqueIPs()
+	var removedCount uint64
+	if oldCount > stillCount {
+		removedCount = oldCount - stillCount
+	}
 	hours := retentionHours(updatedAt, addedAt)
 	if removedCount > 0 {
 		if err := e.recordRetentionRemoval(name, paths.dir, started, updatedAt, addedAt, hours, removedCount, past); err != nil {

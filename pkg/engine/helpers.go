@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
@@ -614,17 +613,6 @@ func touchFileAt(path string, mod time.Time) error {
 		}
 	}
 	return os.Chtimes(path, mod, mod)
-}
-
-func writeBinaryPath(path string, set *iprange.IPSet, mod time.Time) error {
-	var buf bytes.Buffer
-	if err := iprange.WriteBinary(&buf, set); err != nil {
-		return err
-	}
-	if err := writeFileAtomic(path, buf.Bytes(), generatedFileMode); err != nil {
-		return err
-	}
-	return touchFileAt(path, mod)
 }
 
 func (e *Engine) feedProcessingTimestamp(name string) time.Time {

@@ -28,6 +28,14 @@ func (e *Engine) CleanupStalePublishStages() (StalePublishStageCleanupResult, er
 	if e.now != nil {
 		cutoff = e.now().UTC().Add(-stalePublishStageMinAge)
 	}
+	return e.CleanupPublishStagesBefore(cutoff)
+}
+
+func (e *Engine) CleanupPublishStagesBefore(cutoff time.Time) (StalePublishStageCleanupResult, error) {
+	if e == nil {
+		return StalePublishStageCleanupResult{}, nil
+	}
+	cutoff = cutoff.UTC()
 	webRemoved, webErr := cleanupStalePublishStageDirs(e.outputDir(), webPublishStagePrefix, cutoff)
 	entityRemoved, entityErr := cleanupStalePublishStageDirs(e.entitiesDir(), entityPublishStagePrefix, cutoff)
 	return StalePublishStageCleanupResult{

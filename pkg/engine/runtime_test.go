@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/firehol/update-ipsets/pkg/asnloc"
 	"github.com/firehol/update-ipsets/pkg/config"
 )
 
@@ -236,6 +237,47 @@ func TestReloadAppliesChangedIngestWorkerCeiling(t *testing.T) {
 	}
 	if got, want := snap.BackgroundLimit, 1; got != want {
 		t.Fatalf("reloaded background limiter = %d, want %d", got, want)
+	}
+}
+
+func TestReloadRetiresASNLookupCacheWithoutReplacingCache(t *testing.T) {
+	root := t.TempDir()
+	cfgPath := filepath.Join(root, "config.yaml")
+	writeRuntimeReloadConfig(t, cfgPath, root, 2)
+
+	eng, err := New(cfgPath, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cache := eng.asnLookupCache
+	lease, err := cache.acquire("asn", "/tmp/asn.source", 1, func() (*asnloc.Database, error) {
+		return &asnloc.Database{Provider: "test"}, nil
+	})
+	if err != nil {
+		t.Fatalf("acquire() error = %v", err)
+	}
+	entry := lease.entry
+
+	writeRuntimeReloadConfig(t, cfgPath, root, 1)
+	if err := eng.Reload(); err != nil {
+		t.Fatal(err)
+	}
+	if eng.asnLookupCache != cache {
+		t.Fatalf("reload replaced ASN lookup cache pointer")
+	}
+	if got := len(cache.dbs); got != 0 {
+		t.Fatalf("ASN lookup cache retained %d entries after reload, want 0", got)
+	}
+	if !entry.retired {
+		t.Fatalf("leased ASN lookup entry was not retired by reload")
+	}
+	if entry.closed {
+		t.Fatalf("leased ASN lookup entry was closed before release")
+	}
+
+	lease.Close()
+	if !entry.closed {
+		t.Fatalf("retired ASN lookup entry was not closed after lease release")
 	}
 }
 

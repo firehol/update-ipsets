@@ -22,6 +22,8 @@ type comparisonSetInfo struct {
 	hi           uint32
 	hasRange     bool
 	prefixBitmap *comparisonPrefixBitmap
+	sparsePrefix *comparisonSparsePrefixSet
+	contentHash  comparisonContentHash
 }
 
 type comparisonUpdateFilter map[string]struct{}
@@ -46,6 +48,8 @@ type comparisonPairStats struct {
 	skippedEmpty  atomic.Int64
 	skippedRange  atomic.Int64
 	skippedPrefix atomic.Int64
+	skippedSparse atomic.Int64
+	identical     atomic.Int64
 }
 
 type comparisonMergeStats struct {
@@ -104,7 +108,7 @@ func (e *Engine) prepareComparisonSetInfos(names []string, setCache *latestSetCa
 			e.logger.Warn("comparison skipped: cannot open set", "set", name, "error", err)
 			continue
 		}
-		prefixBitmap := buildComparisonPrefixBitmap(src.RangeSource)
+		signature := buildComparisonSetSignature(src.RangeSource)
 		if ioErr := checkFileSetErr(src.RangeSource, name, e.logger); ioErr != nil {
 			continue
 		}
@@ -116,7 +120,9 @@ func (e *Engine) prepareComparisonSetInfos(names []string, setCache *latestSetCa
 			lo:           lo,
 			hi:           hi,
 			hasRange:     hasRange,
-			prefixBitmap: prefixBitmap,
+			prefixBitmap: signature.prefixBitmap,
+			sparsePrefix: signature.sparsePrefix,
+			contentHash:  signature.contentHash,
 		})
 	}
 	e.observeRunOperation("metadata.comparison_prepare_sets", time.Since(prepareStarted))
@@ -196,6 +202,14 @@ func (e *Engine) compareSetPair(ctx context.Context, pair comparisonPair, infos 
 		stats.recordSkippedRange()
 		return comparisonPairResult{i: pair.i, j: pair.j, common: 0}, true
 	}
+	if comparisonSetsIdentical(infos[pair.i], infos[pair.j]) {
+		stats.recordIdentical()
+		return comparisonPairResult{i: pair.i, j: pair.j, common: infos[pair.i].ips}, true
+	}
+	if !comparisonSparsePrefixOverlap(infos[pair.i].sparsePrefix, infos[pair.j].sparsePrefix) {
+		stats.recordSkippedSparse()
+		return comparisonPairResult{i: pair.i, j: pair.j, common: 0}, true
+	}
 	if !comparisonPrefixOverlap(infos[pair.i].prefixBitmap, infos[pair.j].prefixBitmap) {
 		stats.recordSkippedPrefix()
 		return comparisonPairResult{i: pair.i, j: pair.j, common: 0}, true
@@ -242,6 +256,15 @@ func (s *comparisonPairStats) recordSkippedPrefix() {
 	s.skippedPrefix.Add(1)
 }
 
+func (s *comparisonPairStats) recordSkippedSparse() {
+	s.skipped.Add(1)
+	s.skippedSparse.Add(1)
+}
+
+func (s *comparisonPairStats) recordIdentical() {
+	s.identical.Add(1)
+}
+
 func (e *Engine) observeComparisonPairStats(stats *comparisonPairStats) {
 	if stats == nil {
 		return
@@ -270,6 +293,12 @@ func (e *Engine) observeComparisonPairStats(stats *comparisonPairStats) {
 	}
 	if skipped := stats.skippedPrefix.Load(); skipped > 0 {
 		e.observeRunCounter("metadata.comparison_pair_skipped_prefix", skipped, 0)
+	}
+	if skipped := stats.skippedSparse.Load(); skipped > 0 {
+		e.observeRunCounter("metadata.comparison_pair_skipped_sparse_prefix", skipped, 0)
+	}
+	if identical := stats.identical.Load(); identical > 0 {
+		e.observeRunCounter("metadata.comparison_pair_identical", identical, 0)
 	}
 }
 

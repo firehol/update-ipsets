@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -146,6 +147,227 @@ func TestStagedPublishBatchAppliesGeneratedFileTimestamps(t *testing.T) {
 	}
 }
 
+func TestStagedPublishBatchTouchesIdenticalLiveFileInPlace(t *testing.T) {
+	liveDir := t.TempDir()
+	rel := "sample.json"
+	livePath := filepath.Join(liveDir, rel)
+	body := []byte(`{"name":"sample"}` + "\n")
+	if err := os.WriteFile(livePath, body, 0o600); err != nil {
+		t.Fatalf("WriteFile(live) error = %v", err)
+	}
+	oldTime := time.Date(2026, 4, 28, 9, 0, 0, 0, time.UTC)
+	if err := os.Chtimes(livePath, oldTime, oldTime); err != nil {
+		t.Fatalf("Chtimes(live) error = %v", err)
+	}
+	before, err := os.Stat(livePath)
+	if err != nil {
+		t.Fatalf("Stat(live before) error = %v", err)
+	}
+
+	batch, err := newStagedPublishBatch(liveDir, "", ".test-web-*")
+	if err != nil {
+		t.Fatalf("newStagedPublishBatch() error = %v", err)
+	}
+	defer batch.cleanup()
+	stagePath := filepath.Join(batch.stageDir, rel)
+	if err := os.WriteFile(stagePath, body, 0o600); err != nil {
+		t.Fatalf("WriteFile(stage) error = %v", err)
+	}
+	logical := oldTime.Add(time.Hour)
+	if err := os.Chtimes(stagePath, logical, logical); err != nil {
+		t.Fatalf("Chtimes(stage) error = %v", err)
+	}
+
+	published, err := batch.publish()
+	if err != nil {
+		t.Fatalf("publish() error = %v", err)
+	}
+	if len(published) != 1 || published[0] != livePath {
+		t.Fatalf("published = %v, want [%s]", published, livePath)
+	}
+	after, err := os.Stat(livePath)
+	if err != nil {
+		t.Fatalf("Stat(live after) error = %v", err)
+	}
+	if !os.SameFile(before, after) {
+		t.Fatal("identical live file was replaced instead of touched in place")
+	}
+	if got := after.ModTime().UTC(); !got.Equal(logical) {
+		t.Fatalf("live mtime = %s, want %s", got, logical)
+	}
+	if _, err := os.Stat(stagePath); !os.IsNotExist(err) {
+		t.Fatalf("stage file still exists or stat failed with %v", err)
+	}
+}
+
+func TestEntityPublishBatchTouchesIdenticalLiveFileInPlace(t *testing.T) {
+	eng := newEngineFixture(t)
+	batch, err := eng.newEntityPublishBatch()
+	if err != nil {
+		t.Fatalf("newEntityPublishBatch() error = %v", err)
+	}
+	defer batch.cleanup()
+
+	livePath := eng.entityVersionPath()
+	body := []byte(entityArtifactsVersion + "\n")
+	if err := os.WriteFile(livePath, body, 0o600); err != nil {
+		t.Fatalf("WriteFile(live) error = %v", err)
+	}
+	oldTime := time.Date(2026, 4, 28, 10, 0, 0, 0, time.UTC)
+	if err := os.Chtimes(livePath, oldTime, oldTime); err != nil {
+		t.Fatalf("Chtimes(live) error = %v", err)
+	}
+	before, err := os.Stat(livePath)
+	if err != nil {
+		t.Fatalf("Stat(live before) error = %v", err)
+	}
+
+	stagePath := filepath.Join(batch.stageDir, "version")
+	if err := os.WriteFile(stagePath, body, 0o600); err != nil {
+		t.Fatalf("WriteFile(stage) error = %v", err)
+	}
+	logical := oldTime.Add(time.Hour)
+	if err := os.Chtimes(stagePath, logical, logical); err != nil {
+		t.Fatalf("Chtimes(stage) error = %v", err)
+	}
+
+	published, err := batch.publish()
+	if err != nil {
+		t.Fatalf("publish() error = %v", err)
+	}
+	if len(published) != 1 || published[0] != livePath {
+		t.Fatalf("published = %v, want [%s]", published, livePath)
+	}
+	after, err := os.Stat(livePath)
+	if err != nil {
+		t.Fatalf("Stat(live after) error = %v", err)
+	}
+	if !os.SameFile(before, after) {
+		t.Fatal("identical entity file was replaced instead of touched in place")
+	}
+	if got := after.ModTime().UTC(); !got.Equal(logical) {
+		t.Fatalf("live mtime = %s, want %s", got, logical)
+	}
+	if _, err := os.Stat(stagePath); !os.IsNotExist(err) {
+		t.Fatalf("stage file still exists or stat failed with %v", err)
+	}
+}
+
+func TestStagedPublishBatchPublishesChangedLiveFile(t *testing.T) {
+	liveDir := t.TempDir()
+	rel := "sample.json"
+	livePath := filepath.Join(liveDir, rel)
+	if err := os.WriteFile(livePath, []byte("old\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(live) error = %v", err)
+	}
+
+	batch, err := newStagedPublishBatch(liveDir, "", ".test-web-*")
+	if err != nil {
+		t.Fatalf("newStagedPublishBatch() error = %v", err)
+	}
+	defer batch.cleanup()
+	stagePath := filepath.Join(batch.stageDir, rel)
+	if err := os.WriteFile(stagePath, []byte("new\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(stage) error = %v", err)
+	}
+
+	published, err := batch.publish()
+	if err != nil {
+		t.Fatalf("publish() error = %v", err)
+	}
+	if len(published) != 1 || published[0] != livePath {
+		t.Fatalf("published = %v, want [%s]", published, livePath)
+	}
+	body, err := os.ReadFile(livePath)
+	if err != nil {
+		t.Fatalf("ReadFile(live) error = %v", err)
+	}
+	if got, want := string(body), "new\n"; got != want {
+		t.Fatalf("live body = %q, want %q", got, want)
+	}
+	if _, err := os.Stat(stagePath); !os.IsNotExist(err) {
+		t.Fatalf("stage file still exists or stat failed with %v", err)
+	}
+}
+
+func TestSameRegularFileContent(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, body string) string {
+		t.Helper()
+		path := filepath.Join(dir, name)
+		if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+			t.Fatalf("WriteFile(%q) error = %v", name, err)
+		}
+		return path
+	}
+	largeBody := strings.Repeat("x", 32*1024+7)
+	symlinkTarget := write("symlink-target", "body\n")
+	symlinkPath := filepath.Join(dir, "symlink-right")
+	if err := os.Symlink(symlinkTarget, symlinkPath); err != nil {
+		t.Fatalf("Symlink() error = %v", err)
+	}
+	cases := []struct {
+		name  string
+		left  string
+		right string
+		want  bool
+	}{
+		{
+			name:  "missing right file",
+			left:  write("missing-left", "body\n"),
+			right: filepath.Join(dir, "missing-right"),
+			want:  false,
+		},
+		{
+			name:  "different size",
+			left:  write("different-size-left", "short\n"),
+			right: write("different-size-right", "longer\n"),
+			want:  false,
+		},
+		{
+			name:  "same size different content",
+			left:  write("same-size-left", "old\n"),
+			right: write("same-size-right", "new\n"),
+			want:  false,
+		},
+		{
+			name:  "right side symlink",
+			left:  write("symlink-left", "body\n"),
+			right: symlinkPath,
+			want:  false,
+		},
+		{
+			name:  "identical empty files",
+			left:  write("empty-left", ""),
+			right: write("empty-right", ""),
+			want:  true,
+		},
+		{
+			name:  "identical small files",
+			left:  write("small-left", "body\n"),
+			right: write("small-right", "body\n"),
+			want:  true,
+		},
+		{
+			name:  "identical file across buffer boundary",
+			left:  write("large-left", largeBody),
+			right: write("large-right", largeBody),
+			want:  true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := sameRegularFileContent(tc.left, tc.right)
+			if err != nil {
+				t.Fatalf("sameRegularFileContent() error = %v", err)
+			}
+			if got != tc.want {
+				t.Fatalf("sameRegularFileContent() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestCleanupStalePublishStageDirsOnlyRemovesOldKnownStages(t *testing.T) {
 	root := t.TempDir()
 	cutoff := time.Date(2026, 6, 13, 12, 0, 0, 0, time.UTC)
@@ -225,6 +447,56 @@ func TestEngineCleanupStalePublishStagesCoversWebAndEntities(t *testing.T) {
 	for _, path := range []string{webStage, entityStage} {
 		if _, err := os.Stat(path); !os.IsNotExist(err) {
 			t.Fatalf("expected %q to be removed, stat error = %v", path, err)
+		}
+	}
+}
+
+func TestEngineCleanupPublishStagesBeforeKeepsCurrentProcessStages(t *testing.T) {
+	cutoff := time.Date(2026, 6, 13, 12, 0, 0, 0, time.UTC)
+	eng := newEngineFixture(t)
+	if err := eng.ensureDirectories(); err != nil {
+		t.Fatalf("ensureDirectories() error = %v", err)
+	}
+	oldWebStage := filepath.Join(eng.outputDir(), ".update-ipsets-web-old-process")
+	currentWebStage := filepath.Join(eng.outputDir(), ".update-ipsets-web-current-process")
+	oldEntityStage := filepath.Join(eng.entitiesDir(), ".update-ipsets-entities-old-process")
+	currentEntityStage := filepath.Join(eng.entitiesDir(), ".update-ipsets-entities-current-process")
+	for _, dir := range []string{oldWebStage, currentWebStage, oldEntityStage, currentEntityStage} {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatalf("MkdirAll(%q) error = %v", dir, err)
+		}
+	}
+	for _, dir := range []string{oldWebStage, oldEntityStage} {
+		oldTime := cutoff.Add(-time.Minute)
+		if err := os.Chtimes(dir, oldTime, oldTime); err != nil {
+			t.Fatalf("Chtimes(%q) error = %v", dir, err)
+		}
+	}
+	for _, dir := range []string{currentWebStage, currentEntityStage} {
+		currentTime := cutoff.Add(time.Minute)
+		if err := os.Chtimes(dir, currentTime, currentTime); err != nil {
+			t.Fatalf("Chtimes(%q) error = %v", dir, err)
+		}
+	}
+
+	result, err := eng.CleanupPublishStagesBefore(cutoff)
+	if err != nil {
+		t.Fatalf("CleanupPublishStagesBefore() error = %v", err)
+	}
+	if got, want := result.WebRemoved, 1; got != want {
+		t.Fatalf("web removed = %d, want %d", got, want)
+	}
+	if got, want := result.EntityRemoved, 1; got != want {
+		t.Fatalf("entity removed = %d, want %d", got, want)
+	}
+	for _, path := range []string{oldWebStage, oldEntityStage} {
+		if _, err := os.Stat(path); !os.IsNotExist(err) {
+			t.Fatalf("expected %q to be removed, stat error = %v", path, err)
+		}
+	}
+	for _, path := range []string{currentWebStage, currentEntityStage} {
+		if _, err := os.Stat(path); err != nil {
+			t.Fatalf("expected %q to remain, stat error = %v", path, err)
 		}
 	}
 }

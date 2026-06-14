@@ -67,7 +67,8 @@ sudo systemctl restart update-ipsets
 
 **What to check:**
 
-1. Is `GOMEMLIMIT` set? This tells the Go runtime to be more aggressive about garbage collection.
+1. Is `GOMEMLIMIT` set? The installed unit sets it by default. Custom units or
+   drop-ins may override it.
    ```bash
    systemctl show update-ipsets | grep GOMEMLIMIT
    ```

@@ -63,6 +63,7 @@ func Update(ctx context.Context, opts Options) (*Report, error) {
 		if err := FetchBuildzone(runCtx, FetchOptions{
 			RsyncURL: opts.RsyncURL,
 			DataDir:  filepath.Join(opts.WorkDir, "data"),
+			Timeout:  opts.Timeout,
 		}); err != nil {
 			return nil, err
 		}
@@ -79,7 +80,7 @@ func Update(ctx context.Context, opts Options) (*Report, error) {
 		return nil, fmt.Errorf("stat buildzone: %w", err)
 	}
 
-	parsed, err := ParseBuildzone(file)
+	parsed, err := parseBuildzoneForLists(file, outputSpecLists(opts.Specs))
 	if err != nil {
 		return nil, err
 	}
@@ -108,4 +109,19 @@ func Update(ctx context.Context, opts Options) (*Report, error) {
 	default:
 		return report, nil
 	}
+}
+
+func outputSpecLists(specs []OutputSpec) []string {
+	seen := make(map[string]bool)
+	lists := make([]string, 0, len(specs))
+	for _, spec := range specs {
+		for _, list := range spec.Lists {
+			if list == "" || seen[list] {
+				continue
+			}
+			seen[list] = true
+			lists = append(lists, list)
+		}
+	}
+	return lists
 }

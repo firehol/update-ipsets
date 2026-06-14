@@ -166,6 +166,7 @@ func SyncGit(opts SyncOptions, files []GeneratedFile) error {
 	if !opts.PushToGit || opts.BaseDir == "" || !isGitRepo(opts.BaseDir) {
 		return nil
 	}
+	defer runGitAutoGC(opts.BaseDir)
 
 	tracked := make([]string, 0, len(files)+3)
 	for _, file := range files {
@@ -216,6 +217,15 @@ func SyncGit(opts SyncOptions, files []GeneratedFile) error {
 	}
 	slog.Info("git push completed", "dir", opts.BaseDir)
 	return nil
+}
+
+func runGitAutoGC(dir string) {
+	cmd := exec.Command("git", "gc", "--auto")
+	cmd.Dir = dir
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		slog.Warn("git auto-gc failed", "dir", dir, "output", strings.TrimSpace(string(output)))
+	}
 }
 
 func runGit(dir string, args ...string) error {

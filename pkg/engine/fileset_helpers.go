@@ -166,6 +166,21 @@ func collectIter(ctx context.Context, name string, iter func(yield func(iprange.
 	return set, nil
 }
 
+func countUniqueIter(ctx context.Context, name string, iter func(yield func(iprange.Range) bool)) (uint64, error) {
+	var total uint64
+	var count int
+	for r := range iter {
+		count++
+		if count%4096 == 0 {
+			if err := ctx.Err(); err != nil {
+				return 0, fmt.Errorf("countUniqueIter %s cancelled: %w", name, err)
+			}
+		}
+		total += r.Size()
+	}
+	return total, nil
+}
+
 // checkFileSetErr checks whether a RangeSource (which may be a FileSet)
 // encountered an I/O error during iteration. Returns the error if any.
 func checkFileSetErr(src iprange.RangeSource, name string, logger *slog.Logger) error {

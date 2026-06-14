@@ -439,14 +439,26 @@ The downloader MUST honor per-item configuration for at least:
 - artifact parent type and deliveries
 - artifact-specific acquisition bounds when one artifact family needs a
   different size cap than the global downloader default
+- artifact-specific acquisition timeout when one artifact family uses a custom
+  transport outside the generic HTTP/file downloader
 - artifact-specific acquisition credentials from environment variables when a
   supported artifact family requires authenticated transport. For the current
   DroneBL rsync artifact family, the downloader MUST prefer
   `DRONEBL_RSYNC_PASSWORD` and fall back to `RSYNC_PASSWORD`.
+- artifact-specific acquisition scope. A custom artifact transport MUST fetch
+  only the parent input consumed by the application when the upstream transport
+  supports addressing that input directly. It MUST NOT persist unconsumed
+  sibling upstream files as a side effect of acquisition.
 - provider roles
 - enabled/disabled state
 - runtime health-derived archival/composition exclusion state where scheduling or
   merge composition depends on it
+
+For the current DroneBL rsync artifact family, the consumed parent input is the
+`buildzone` file. The rsync acquisition path MUST target that file directly,
+MUST avoid persistent partial/progress artifacts in the committed fetch area,
+MUST promote the fetched file atomically only after success, and MUST leave the
+last committed parent input usable when acquisition fails.
 
 ## Admin visibility and controls
 

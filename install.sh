@@ -84,7 +84,24 @@ repair_stale_publish_stages() {
   fi
 }
 
+repair_git_object_stores() {
+  local install_dir="$1"
+
+  if ! command -v git >/dev/null 2>&1; then
+    echo -e "${YELLOW}Skipping generated git repository maintenance; git is not installed.${NC}"
+    return 0
+  fi
+
+  echo -e "${GREEN}Compacting generated git repository object stores...${NC}"
+  for repo in "${install_dir}/data" "${install_dir}/web"; do
+    if sudo test -d "${repo}/.git"; then
+      run sudo -u iplists git -C "${repo}" gc --prune=now
+    fi
+  done
+}
+
 SERVICE_STOPPED_FOR_INSTALL=0
+MUTABLE_REPAIR_ALLOWED=0
 stop_active_service_for_mutable_repair() {
   if [ "$RESTART" -ne 1 ]; then
     return 0
@@ -208,6 +225,7 @@ if [ "$RESTART" -eq 0 ] && systemctl is-active --quiet update-ipsets; then
 else
     stop_active_service_for_mutable_repair
     repair_stale_publish_stages "${INSTALL_DIR}"
+    MUTABLE_REPAIR_ALLOWED=1
 fi
 
 # Create service identity if missing. The group is explicit because some
@@ -297,6 +315,12 @@ run sudo find \
     "${INSTALL_DIR}/tmp" \
     -ignore_readdir_race \
     -type f -exec chmod 0600 {} +
+
+if [ "$MUTABLE_REPAIR_ALLOWED" -eq 1 ]; then
+    repair_git_object_stores "${INSTALL_DIR}"
+else
+    echo -e "${YELLOW}Skipping generated git repository maintenance while update-ipsets may be running.${NC}"
+fi
 
 # Per-feed HTML description pages are embedded into the binary at
 # build time (pkg/web/static/feed-descriptions/*.html via //go:embed).
@@ -400,7 +424,9 @@ ReadWritePaths=${INSTALL_DIR}/data ${INSTALL_DIR}/cache ${INSTALL_DIR}/lib ${INS
 
 # Resource limits
 LimitNOFILE=65536
+MemoryHigh=1536M
 MemoryMax=2G
+Environment=GOMEMLIMIT=1536MiB
 
 [Install]
 WantedBy=multi-user.target

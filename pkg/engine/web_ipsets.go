@@ -71,6 +71,22 @@ func copyFileViaNew(srcRoot, srcRel, dst, owner string) (time.Time, error) {
 		return time.Time{}, err
 	}
 	mod := info.ModTime()
+	if srcPath, ok := safeRuntimeFilePath(srcRoot, srcRel); ok {
+		if same, _ := sameRegularFileContent(srcPath, dst); same {
+			if err := os.Chmod(dst, generatedFileMode); err != nil {
+				return time.Time{}, err
+			}
+			if !mod.IsZero() {
+				if err := os.Chtimes(dst, mod, mod); err != nil {
+					return time.Time{}, err
+				}
+			}
+			if err := chownPath(owner, dst); err != nil {
+				return time.Time{}, err
+			}
+			return mod, nil
+		}
+	}
 
 	out, err := os.CreateTemp(filepath.Dir(dst), ".new-*")
 	if err != nil {

@@ -49,6 +49,26 @@ func (e *Engine) loadLatestSet(ctx context.Context, name string) (*iprange.IPSet
 	return loadSnapshotSet(ctx, name, e.runtime.LibDir, latestRel)
 }
 
+func (e *Engine) openPreviousLatestSet(ctx context.Context, name string) (*closableSource, error) {
+	for _, filename := range []string{"latest", "latest.set"} {
+		rel := filepath.Join(name, filename)
+		path := filepath.Join(e.runtime.LibDir, rel)
+		if !fileExists(path) {
+			continue
+		}
+		fs, err := iprange.OpenFileSet(path)
+		if err == nil {
+			return &closableSource{RangeSource: fs, close: fs.Close}, nil
+		}
+		set, loadErr := loadSnapshotSet(ctx, name, e.runtime.LibDir, rel)
+		if loadErr != nil {
+			return nil, loadErr
+		}
+		return &closableSource{RangeSource: set, close: nil}, nil
+	}
+	return &closableSource{RangeSource: iprange.New(name), close: nil}, nil
+}
+
 func isIgnoredRetentionSnapshotName(name string) bool {
 	return strings.HasPrefix(name, ".")
 }

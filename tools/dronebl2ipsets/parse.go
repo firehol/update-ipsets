@@ -18,6 +18,20 @@ type ListData struct {
 }
 
 func ParseBuildzone(r io.Reader) (*ParsedBuildzone, error) {
+	return parseBuildzone(r, nil)
+}
+
+func parseBuildzoneForLists(r io.Reader, lists []string) (*ParsedBuildzone, error) {
+	selected := map[string]bool{"global": true}
+	for _, list := range lists {
+		if list != "" {
+			selected[list] = true
+		}
+	}
+	return parseBuildzone(r, selected)
+}
+
+func parseBuildzone(r io.Reader, selected map[string]bool) (*ParsedBuildzone, error) {
 	parsed := &ParsedBuildzone{Lists: map[string]*ListData{}}
 	current := "global"
 	parsed.ensure(current)
@@ -35,15 +49,19 @@ func ParseBuildzone(r io.Reader) (*ParsedBuildzone, error) {
 			fields := strings.Fields(line)
 			if len(fields) >= 3 {
 				current = fields[2]
-				parsed.ensure(current)
+				if shouldStoreBuildzoneList(selected, current) {
+					parsed.ensure(current)
+				}
 			}
 		case strings.HasPrefix(line, "$") || strings.HasPrefix(line, "@"):
 			continue
 		case strings.HasPrefix(line, ":"):
 			current = listNameForClass(line)
-			parsed.ensure(current)
+			if shouldStoreBuildzoneList(selected, current) {
+				parsed.ensure(current)
+			}
 		default:
-			if err := parsed.parseIPLine(current, line); err != nil {
+			if err := parsed.parseIPLine(current, line, shouldStoreBuildzoneList(selected, current)); err != nil {
 				parsed.Warnings = append(parsed.Warnings, err.Error())
 			}
 		}
@@ -52,6 +70,10 @@ func ParseBuildzone(r io.Reader) (*ParsedBuildzone, error) {
 		return nil, fmt.Errorf("read buildzone: %w", err)
 	}
 	return parsed, nil
+}
+
+func shouldStoreBuildzoneList(selected map[string]bool, name string) bool {
+	return selected == nil || selected[name]
 }
 
 func (p *ParsedBuildzone) ensure(name string) *ListData {
@@ -66,7 +88,7 @@ func (p *ParsedBuildzone) ensure(name string) *ListData {
 	return data
 }
 
-func (p *ParsedBuildzone) parseIPLine(listName, line string) error {
+func (p *ParsedBuildzone) parseIPLine(listName, line string, store bool) error {
 	exclude := false
 	token := line
 	if strings.HasPrefix(token, "!") {
@@ -91,6 +113,9 @@ func (p *ParsedBuildzone) parseIPLine(listName, line string) error {
 		return fmt.Errorf("cannot parse IP token %q: %w", token, err)
 	}
 
+	if !store {
+		return nil
+	}
 	data := p.ensure(listName)
 	if exclude {
 		return data.Exclude.AddRange(rng)

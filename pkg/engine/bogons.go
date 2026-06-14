@@ -17,10 +17,11 @@ import (
 // the closable backing sources (FileSet handles or in-memory IPSets)
 // so the caller can release them after the run.
 type bogonProviderSet struct {
-	Name    string
-	Format  string
-	Set     iprange.RangeSource
-	sources []*closableSource
+	Name          string
+	Format        string
+	Set           iprange.RangeSource
+	overlapFilter rangeOverlapFilter
+	sources       []*closableSource
 }
 
 // bogonDatasets is the result of loadBogonProviders, keyed by provider
@@ -80,10 +81,11 @@ func (e *Engine) loadBogonSources(ctx context.Context) (*bogonDatasets, error) {
 			continue
 		}
 		out.Providers[name] = &bogonProviderSet{
-			Name:    name,
-			Format:  src.Format,
-			Set:     latest.RangeSource,
-			sources: []*closableSource{latest},
+			Name:          name,
+			Format:        src.Format,
+			Set:           latest.RangeSource,
+			overlapFilter: buildRangeOverlapFilter(latest.RangeSource),
+			sources:       []*closableSource{latest},
 		}
 		out.Names = append(out.Names, name)
 	}
@@ -170,6 +172,10 @@ func (e *Engine) writeBogonComparisonFiles(ctx context.Context, datasets *bogonD
 	if len(targetNames) == 0 {
 		return nil
 	}
+	targets := e.bogonComparisonTargets(ctx, targetNames, setCache)
+	if len(targets) == 0 {
+		return nil
+	}
 
 	rfcRanges, err := getRFCReservedRanges()
 	if err != nil {
@@ -190,21 +196,30 @@ func (e *Engine) writeBogonComparisonFiles(ctx context.Context, datasets *bogonD
 			if err := contextErr(ctx); err != nil {
 				return err
 			}
-			src, err := setCache.Open(name)
-			if err != nil {
-				e.logger.Warn("bogon comparison skipped: cannot open set",
-					"set", name, "provider", providerName, "error", err)
+			target, ok := targets[name]
+			if !ok {
 				return nil
 			}
 
-			feedIPs := src.UniqueIPs()
-			if checkErr := checkFileSetErr(src.RangeSource, name, e.logger); checkErr != nil {
-				return nil
-			}
-
-			bogonIPs := iprange.OverlapCountIter(src.RangeSource, provider.Set)
-			if checkErr := checkFileSetErr(src.RangeSource, name, e.logger); checkErr != nil {
-				return nil
+			feedIPs := target.feedIPs
+			var (
+				src      *closableSource
+				bogonIPs uint64
+			)
+			if rangeOverlapFiltersDisjoint(target.filter, provider.overlapFilter) {
+				e.observeRunCounter("bogons.overlap_skipped_filter", 1, 0)
+			} else {
+				var err error
+				src, err = setCache.Open(name)
+				if err != nil {
+					e.logger.Warn("bogon comparison skipped: cannot open set",
+						"set", name, "provider", providerName, "error", err)
+					return nil
+				}
+				bogonIPs = iprange.OverlapCountIter(src.RangeSource, provider.Set)
+				if checkErr := checkFileSetErr(src.RangeSource, name, e.logger); checkErr != nil {
+					return nil
+				}
 			}
 			if err := contextErr(ctx); err != nil {
 				return err
@@ -219,6 +234,17 @@ func (e *Engine) writeBogonComparisonFiles(ctx context.Context, datasets *bogonD
 				payload.Percent = 100 * float64(bogonIPs) / float64(feedIPs)
 			}
 			if provider.Format == RFCReservedFormat && bogonIPs > 0 {
+				if src == nil {
+					// A zero-overlap prefilter does not need the feed body, but
+					// RFC by-range output still needs the source when overlaps exist.
+					var err error
+					src, err = setCache.Open(name)
+					if err != nil {
+						e.logger.Warn("bogon comparison skipped: cannot open set",
+							"set", name, "provider", providerName, "error", err)
+						return nil
+					}
+				}
 				payload.ByRange = computeRFCByRangeBreakdown(src.RangeSource, rfcRanges)
 				if checkErr := checkFileSetErr(src.RangeSource, name, e.logger); checkErr != nil {
 					return nil
@@ -239,6 +265,34 @@ func (e *Engine) writeBogonComparisonFiles(ctx context.Context, datasets *bogonD
 		}
 	}
 	return nil
+}
+
+type bogonComparisonTarget struct {
+	feedIPs uint64
+	filter  rangeOverlapFilter
+}
+
+func (e *Engine) bogonComparisonTargets(ctx context.Context, names []string, setCache *latestSetCache) map[string]bogonComparisonTarget {
+	targets := make(map[string]bogonComparisonTarget, len(names))
+	for _, name := range names {
+		if err := contextErr(ctx); err != nil {
+			return targets
+		}
+		src, err := setCache.Open(name)
+		if err != nil {
+			e.logger.Warn("bogon comparison skipped: cannot open set", "set", name, "error", err)
+			continue
+		}
+		filter := buildRangeOverlapFilter(src.RangeSource)
+		if checkErr := checkFileSetErr(src.RangeSource, name, e.logger); checkErr != nil {
+			continue
+		}
+		targets[name] = bogonComparisonTarget{
+			feedIPs: src.UniqueIPs(),
+			filter:  filter,
+		}
+	}
+	return targets
 }
 
 // computeRFCByRangeBreakdown computes the per-RFC-range IP count for

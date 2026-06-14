@@ -237,6 +237,71 @@ func TestObserveHistoryPointReloadsSameTimestampCorrectionFromLedger(t *testing.
 	}
 }
 
+func TestObserveHistoryPointSameTimestampSameCountsUsesCachedStats(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	libDir := filepath.Join(root, "lib")
+	webDir := filepath.Join(root, "web")
+	eng := newEngineFixture(t, withRuntime(func(rt *Runtime) {
+		rt.LibDir = libDir
+		rt.WebDir = webDir
+		rt.WebChartsEntries = 2
+	}))
+	const (
+		name = "sample"
+		base = int64(1700000000)
+	)
+	if err := appendCSV(filepath.Join(webDir, name+"_history.csv"), "DateTime,Entries,UniqueIPs\n", "1700000000,10,100\n"); err != nil {
+		t.Fatalf("append public history row 1: %v", err)
+	}
+	if err := appendCSV(filepath.Join(webDir, name+"_history.csv"), "DateTime,Entries,UniqueIPs\n", "1700003600,20,200\n"); err != nil {
+		t.Fatalf("append public history row 2: %v", err)
+	}
+
+	baseline := &cache.Entry{
+		Name:                name,
+		Version:             2,
+		StartedDate:         base,
+		SourceDate:          base + 3600,
+		Entries:             20,
+		UniqueIPs:           200,
+		EntriesMin:          10,
+		EntriesMax:          20,
+		IPsMin:              100,
+		IPsMax:              200,
+		AverageUpdateMins:   60,
+		MinUpdateMins:       60,
+		MaxUpdateMins:       60,
+		HistoryTotalGapSecs: 3600,
+		HistoryMinGapSecs:   3600,
+		HistoryMaxGapSecs:   3600,
+	}
+	entry := &cache.Entry{}
+	point := HistoryPoint{
+		Timestamp: base + 3600,
+		Name:      name,
+		Entries:   20,
+		UniqueIPs: 200,
+	}
+	if !eng.observeHistoryPoint(name, point, entry, baseline, 60) {
+		t.Fatal("expected same-timestamp no-op to use cached stats without internal ledger")
+	}
+	if got, want := entry.Version, 2; got != want {
+		t.Fatalf("version after no-op = %d, want %d", got, want)
+	}
+	if got, want := entry.Entries, 20; got != want {
+		t.Fatalf("entries after no-op = %d, want %d", got, want)
+	}
+	tail := eng.historyTailFromRuntime(name)
+	if got, want := len(tail), 2; got != want {
+		t.Fatalf("tail len after no-op = %d, want %d", got, want)
+	}
+	if got, want := tail[1].Timestamp, point.Timestamp; got != want {
+		t.Fatalf("tail timestamp after no-op = %d, want %d", got, want)
+	}
+}
+
 func TestObserveHistoryPointBootstrapsFromRoundedEntryStats(t *testing.T) {
 	t.Parallel()
 

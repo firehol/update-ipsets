@@ -13,6 +13,7 @@ The installer writes `/etc/systemd/system/update-ipsets.service`. This unit:
 - Configures systemd notify and watchdog support
 - Enables OpenTelemetry export to the local Netdata instance
 - Restricts filesystem writes to the mutable directories under `/opt/update-ipsets/`: `data`, `cache`, `lib`, `web`, `run`, and `tmp`
+- Sets `MemoryHigh=1536M`, `MemoryMax=2G`, and `GOMEMLIMIT=1536MiB`
 - Writes logs to the `iplists` journal namespace
 - Restarts automatically on failure (after 30 seconds)
 

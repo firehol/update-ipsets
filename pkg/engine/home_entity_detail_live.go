@@ -11,11 +11,17 @@ type entityDetailProviderSet struct {
 	asn         HomeSummaryProvider
 	geoPrepared *geoPreparedProvider
 	asnDB       *asnloc.Database
+	asnLease    *asnDatabaseLease
 }
 
 func (e *Engine) entityDetailProviders() entityDetailProviderSet {
 	geoProvider := e.preferredGeoProvider()
 	asnProvider := e.preferredASNProvider()
+	asnLease := e.loadASNProviderForLookup(asnProvider)
+	var asnDB *asnloc.Database
+	if asnLease != nil {
+		asnDB = asnLease.Database()
+	}
 	return entityDetailProviderSet{
 		geo: HomeSummaryProvider{
 			Name:  geoProvider,
@@ -26,7 +32,14 @@ func (e *Engine) entityDetailProviders() entityDetailProviderSet {
 			Label: providerDisplayLabel(e.lookupSource(asnProvider)),
 		},
 		geoPrepared: e.loadGeoProviderForLookup(geoProvider),
-		asnDB:       e.loadASNProviderForLookup(asnProvider),
+		asnDB:       asnDB,
+		asnLease:    asnLease,
+	}
+}
+
+func (p entityDetailProviderSet) Close() {
+	if p.asnLease != nil {
+		p.asnLease.Close()
 	}
 }
 

@@ -661,6 +661,21 @@ they become committed publication data the publishing path MUST set or preserve
 the logical mtime assigned by the producer. Public artifact freshness MUST NOT
 depend on the instant a staged file was renamed into the live tree.
 
+When a staged public or entity artifact is byte-identical to the existing live
+artifact, the publishing path MAY keep the live file in place and update its
+mode, ownership, and logical mtime instead of replacing it. This optimization
+MUST be observably equivalent to replacement: the live path, content,
+permissions, owner, and producer-assigned mtime must match the staged artifact
+after publication. If byte comparison cannot be completed safely, publication
+MUST fall back to the normal replacement path.
+
+When raw redistributable feed files are mirrored to `runtime.web_dir_for_ipsets`,
+the mirror copy path MAY keep an existing mirror file in place when the
+committed canonical feed file is byte-identical. It MUST still apply the
+generated-file mode, configured owner, and canonical feed file mtime. If
+comparison cannot prove identity, the mirror copy path MUST fall back to the
+normal temporary-copy-and-rename path.
+
 If batch processing fails before publication:
 
 - staged `.new` and claimed `.processing` inputs MUST remain available for

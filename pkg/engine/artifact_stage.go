@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"github.com/firehol/update-ipsets/pkg/cache"
 	"github.com/firehol/update-ipsets/pkg/config"
@@ -50,6 +51,7 @@ func (e *Engine) fetchAndStageDroneBLArtifact(ctx context.Context, artifact *con
 	if err := dronebl.FetchBuildzone(ctx, dronebl.FetchOptions{
 		RsyncURL: rsyncURL,
 		DataDir:  fetchDir,
+		Timeout:  e.runtime.MaxDownloadTime,
 	}); err != nil {
 		e.incrementFailure(entry)
 		entry.MarkDownloadFetchFailed(err.Error())
@@ -159,6 +161,9 @@ func (e *Engine) materializeDroneBLChildren(ctx context.Context, artifact *confi
 	if err := os.MkdirAll(extractDir, generatedDirMode); err != nil {
 		return DownloadDecision{Name: name}, err
 	}
+	if err := cleanupDroneBLExtractDir(extractDir); err != nil {
+		return DownloadDecision{Name: name}, err
+	}
 	outDir, err := os.MkdirTemp(extractDir, "outputs-")
 	if err != nil {
 		return DownloadDecision{Name: name}, err
@@ -266,4 +271,21 @@ func appendUniqueName(values []string, extra string) []string {
 
 func fileURL(path string) string {
 	return (&url.URL{Scheme: "file", Path: path}).String()
+}
+
+func cleanupDroneBLExtractDir(extractDir string) error {
+	entries, err := os.ReadDir(extractDir)
+	if err != nil {
+		return fmt.Errorf("read DroneBL extract directory: %w", err)
+	}
+	for _, entry := range entries {
+		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), "outputs-") {
+			continue
+		}
+		path := filepath.Join(extractDir, entry.Name())
+		if err := os.RemoveAll(path); err != nil {
+			return fmt.Errorf("remove stale DroneBL extract directory %s: %w", entry.Name(), err)
+		}
+	}
+	return nil
 }

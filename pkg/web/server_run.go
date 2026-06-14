@@ -13,6 +13,8 @@ import (
 	"github.com/firehol/update-ipsets/pkg/systemd"
 )
 
+const delayedPublishStageCleanupDelay = 5 * time.Minute
+
 func Run(ctx context.Context, eng *engine.Engine, opts Options) error {
 	if ctx == nil {
 		ctx = context.Background()
@@ -21,6 +23,7 @@ func Run(ctx context.Context, eng *engine.Engine, opts Options) error {
 	if err := validateRunOptions(eng, opts); err != nil {
 		return err
 	}
+	startedAt := time.Now().UTC()
 	if err := prepareEngineForRun(eng, opts); err != nil {
 		return err
 	}
@@ -31,7 +34,7 @@ func Run(ctx context.Context, eng *engine.Engine, opts Options) error {
 	runner := scheduler.New(eng, opts.EnableAll, opts.Logger)
 	queueStartupIntegrityRecovery(eng, opts, runner)
 
-	waitForBackground := startRunBackgroundWork(runCtx, eng, opts, runner)
+	waitForBackground := startRunBackgroundWork(runCtx, eng, opts, runner, startedAt)
 	defer func() {
 		cancel()
 		waitForBackground()
@@ -109,7 +112,7 @@ func queueStartupIntegrityRecovery(eng *engine.Engine, opts Options, runner *sch
 	}
 }
 
-func startRunBackgroundWork(ctx context.Context, eng *engine.Engine, opts Options, runner *scheduler.Runner) func() {
+func startRunBackgroundWork(ctx context.Context, eng *engine.Engine, opts Options, runner *scheduler.Runner, startedAt time.Time) func() {
 	startupEntityArtifactsDone := make(chan struct{})
 	go func() {
 		defer close(startupEntityArtifactsDone)
@@ -126,10 +129,37 @@ func startRunBackgroundWork(ctx context.Context, eng *engine.Engine, opts Option
 		runner.Run(ctx)
 	}()
 
+	delayedStageCleanupDone := startDelayedPublishStageCleanup(ctx, eng, opts, startedAt)
+
 	return func() {
 		<-startupEntityArtifactsDone
 		<-runnerDone
+		<-delayedStageCleanupDone
 	}
+}
+
+func startDelayedPublishStageCleanup(ctx context.Context, eng *engine.Engine, opts Options, cutoff time.Time) <-chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		timer := time.NewTimer(delayedPublishStageCleanupDelay)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+		}
+		stageCleanup, err := eng.CleanupPublishStagesBefore(cutoff)
+		if err != nil {
+			opts.Logger.Warn("failed to cleanup pre-start publish stages", "error", err)
+		}
+		if stageCleanup.TotalRemoved() > 0 {
+			opts.Logger.Info("cleaned pre-start publish stages",
+				"web_removed", stageCleanup.WebRemoved,
+				"entity_removed", stageCleanup.EntityRemoved)
+		}
+	}()
+	return done
 }
 
 func buildRunServers(ctx context.Context, eng *engine.Engine, opts Options, runner *scheduler.Runner) []namedServer {

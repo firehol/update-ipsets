@@ -54,10 +54,140 @@ type asnDatabaseCacheEntry struct {
 	db         *asnloc.Database
 	path       string
 	sizeModKey int64
+	refs       int
+	retired    bool
+	closed     bool
+}
+
+type asnDatabaseLease struct {
+	cache *asnDatabaseCache
+	entry *asnDatabaseCacheEntry
+	db    *asnloc.Database
+	once  sync.Once
 }
 
 func newASNDatabaseCache() *asnDatabaseCache {
 	return &asnDatabaseCache{dbs: make(map[string]*asnDatabaseCacheEntry)}
+}
+
+func (l *asnDatabaseLease) Database() *asnloc.Database {
+	if l == nil {
+		return nil
+	}
+	return l.db
+}
+
+func (l *asnDatabaseLease) Close() {
+	if l == nil {
+		return
+	}
+	l.once.Do(func() {
+		if l.cache == nil || l.entry == nil {
+			return
+		}
+		if db := l.cache.release(l.entry); db != nil {
+			_ = db.Close()
+		}
+	})
+}
+
+func (c *asnDatabaseCache) acquire(provider, path string, sizeModKey int64, open func() (*asnloc.Database, error)) (*asnDatabaseLease, error) {
+	if c == nil {
+		return nil, fmt.Errorf("asn lookup cache is not initialized")
+	}
+	c.mu.Lock()
+	if cached, ok := c.dbs[provider]; ok && cached.db != nil && !cached.retired && !cached.closed && cached.path == path && cached.sizeModKey == sizeModKey {
+		cached.refs++
+		lease := &asnDatabaseLease{cache: c, entry: cached, db: cached.db}
+		c.mu.Unlock()
+		return lease, nil
+	}
+
+	db, err := open()
+	if err != nil {
+		c.mu.Unlock()
+		return nil, err
+	}
+
+	var toClose *asnloc.Database
+	if existing, ok := c.dbs[provider]; ok && existing != nil {
+		toClose = existing.retireLocked()
+	}
+	entry := &asnDatabaseCacheEntry{
+		db:         db,
+		path:       path,
+		sizeModKey: sizeModKey,
+		refs:       1,
+	}
+	c.dbs[provider] = entry
+	lease := &asnDatabaseLease{cache: c, entry: entry, db: db}
+	c.mu.Unlock()
+
+	if toClose != nil {
+		_ = toClose.Close()
+	}
+	return lease, nil
+}
+
+func (c *asnDatabaseCache) release(entry *asnDatabaseCacheEntry) *asnloc.Database {
+	if c == nil || entry == nil {
+		return nil
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if entry.refs > 0 {
+		entry.refs--
+	}
+	if entry.refs == 0 && entry.retired && !entry.closed {
+		entry.closed = true
+		return entry.db
+	}
+	return nil
+}
+
+func (c *asnDatabaseCache) retireAll() map[string]*asnloc.Database {
+	if c == nil {
+		return nil
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if len(c.dbs) == 0 {
+		return nil
+	}
+	dbs := make(map[string]*asnloc.Database, len(c.dbs))
+	for provider, entry := range c.dbs {
+		if entry == nil {
+			continue
+		}
+		if db := entry.retireLocked(); db != nil {
+			dbs[provider] = db
+		}
+	}
+	c.dbs = make(map[string]*asnDatabaseCacheEntry)
+	return dbs
+}
+
+func (e *asnDatabaseCacheEntry) retireLocked() *asnloc.Database {
+	if e == nil || e.retired {
+		return nil
+	}
+	e.retired = true
+	if e.refs == 0 && !e.closed {
+		e.closed = true
+		return e.db
+	}
+	return nil
+}
+
+func closeASNLookupDatabases(dbs map[string]*asnloc.Database, logger interface{ Warn(string, ...any) }) {
+	for provider, db := range dbs {
+		if db == nil {
+			continue
+		}
+		if err := db.Close(); err != nil && logger != nil {
+			logger.Warn("ASN lookup database close failed", "provider", provider, "error", err)
+		}
+	}
 }
 
 // LookupIPContext returns the best-effort geography + ASN attribution
@@ -80,7 +210,12 @@ func (e *Engine) LookupIPContext(ipStr string) (*IPContext, error) {
 		}
 	}
 	if provider := e.preferredASNProvider(); provider != "" {
-		if db := e.loadASNProviderForLookup(provider); db != nil {
+		if lease := e.loadASNProviderForLookup(provider); lease != nil {
+			defer lease.Close()
+			db := lease.Database()
+			if db == nil {
+				return ctx, nil
+			}
 			record, _, lookupErr := db.Lookup(ipv4)
 			if lookupErr == nil && record.ASN != 0 {
 				ctx.ASN = record.ASN
@@ -120,12 +255,11 @@ func (e *Engine) loadGeoProviderForLookup(provider string) *geoPreparedProvider 
 	return prepared
 }
 
-// loadASNProviderForLookup returns the engine's cached ASN database
-// for the given provider, opening it from disk when cold. The cache
-// is invalidated when the underlying file's size or modification
-// time changes so a provider refresh automatically becomes visible.
-func (e *Engine) loadASNProviderForLookup(provider string) *asnloc.Database {
-	if e == nil || e.cfg == nil {
+// loadASNProviderForLookup returns a lease for the engine's cached ASN
+// database for the given provider, opening it from disk when cold. Callers
+// must close the lease when the lookup/build operation is complete.
+func (e *Engine) loadASNProviderForLookup(provider string) *asnDatabaseLease {
+	if e == nil || e.cfg == nil || e.asnLookupCache == nil {
 		return nil
 	}
 	src := e.lookupSource(provider)
@@ -145,26 +279,13 @@ func (e *Engine) loadASNProviderForLookup(provider string) *asnloc.Database {
 		return nil
 	}
 
-	e.asnLookupCache.mu.Lock()
-	defer e.asnLookupCache.mu.Unlock()
-	if cached, ok := e.asnLookupCache.dbs[provider]; ok && cached.db != nil && cached.path == path && cached.sizeModKey == key {
-		return cached.db
-	}
-
-	// File changed or never loaded — open fresh.
-	db, err := asnloc.Open(src.Format, path)
+	lease, err := e.asnLookupCache.acquire(provider, path, key, func() (*asnloc.Database, error) {
+		return asnloc.Open(src.Format, path)
+	})
 	if err != nil {
 		return nil
 	}
-	if existing, ok := e.asnLookupCache.dbs[provider]; ok && existing != nil && existing.db != nil {
-		_ = existing.db.Close()
-	}
-	e.asnLookupCache.dbs[provider] = &asnDatabaseCacheEntry{
-		db:         db,
-		path:       path,
-		sizeModKey: key,
-	}
-	return db
+	return lease
 }
 
 // lookupCountryInPreparedProvider binary-searches the provider's

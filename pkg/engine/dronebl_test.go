@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -122,5 +124,42 @@ func TestEntriesSnapshotWithArtifactsIncludesArtifactParents(t *testing.T) {
 	}
 	if got[0].DownloadFailures != 3 {
 		t.Fatalf("artifact download_failures = %d, want 3", got[0].DownloadFailures)
+	}
+}
+
+func TestCleanupDroneBLExtractDirRemovesOnlyOutputScratchDirs(t *testing.T) {
+	extractDir := t.TempDir()
+	for _, name := range []string{"outputs-old", "outputs-interrupted"} {
+		path := filepath.Join(extractDir, name)
+		if err := os.Mkdir(path, 0o700); err != nil {
+			t.Fatalf("create %s: %v", name, err)
+		}
+		if err := os.WriteFile(filepath.Join(path, "child.source"), []byte("scratch\n"), 0o600); err != nil {
+			t.Fatalf("write scratch file in %s: %v", name, err)
+		}
+	}
+	keptDir := filepath.Join(extractDir, "manual")
+	if err := os.Mkdir(keptDir, 0o700); err != nil {
+		t.Fatalf("create kept dir: %v", err)
+	}
+	keptFile := filepath.Join(extractDir, "outputs-note")
+	if err := os.WriteFile(keptFile, []byte("not a directory\n"), 0o600); err != nil {
+		t.Fatalf("write kept file: %v", err)
+	}
+
+	if err := cleanupDroneBLExtractDir(extractDir); err != nil {
+		t.Fatalf("cleanupDroneBLExtractDir: %v", err)
+	}
+
+	for _, name := range []string{"outputs-old", "outputs-interrupted"} {
+		if _, err := os.Stat(filepath.Join(extractDir, name)); !os.IsNotExist(err) {
+			t.Fatalf("scratch dir %s still exists or stat failed with %v", name, err)
+		}
+	}
+	if _, err := os.Stat(keptDir); err != nil {
+		t.Fatalf("kept dir was removed: %v", err)
+	}
+	if _, err := os.Stat(keptFile); err != nil {
+		t.Fatalf("kept file was removed: %v", err)
 	}
 }

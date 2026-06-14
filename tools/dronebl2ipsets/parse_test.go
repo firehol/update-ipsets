@@ -60,6 +60,59 @@ func TestParseBuildzoneRecognizesMissingClasses(t *testing.T) {
 	}
 }
 
+func TestParseBuildzoneForListsStoresOnlySelectedListsAndPreservesWarnings(t *testing.T) {
+	const fixture = `
+10.0.0.1
+:5:
+5.5.5.5
+:99:
+not-an-ip
+99.99.99.99
+`
+	parsed, err := parseBuildzoneForLists(strings.NewReader(fixture), []string{"bottler"})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if _, ok := parsed.Lists["global"]; !ok {
+		t.Fatal("global list was not retained")
+	}
+	if _, ok := parsed.Lists["bottler"]; !ok {
+		t.Fatal("selected bottler list was not retained")
+	}
+	if _, ok := parsed.Lists["unknown"]; ok {
+		t.Fatal("unselected unknown list was retained")
+	}
+	if got, want := len(parsed.Warnings), 1; got != want {
+		t.Fatalf("warnings = %d, want %d", got, want)
+	}
+	if got, want := parsed.Warnings[0], `cannot parse line "not-an-ip"`; got != want {
+		t.Fatalf("warning = %q, want %q", got, want)
+	}
+}
+
+func TestBuildOutputsFromFilteredParseMatchesFullParse(t *testing.T) {
+	specs := testOutputSpecs()
+	full, err := ParseBuildzone(strings.NewReader(buildzoneFixture))
+	if err != nil {
+		t.Fatal(err)
+	}
+	filtered, err := parseBuildzoneForLists(strings.NewReader(buildzoneFixture), outputSpecLists(specs))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	fullOutputs := BuildOutputs(full, specs)
+	filteredOutputs := BuildOutputs(filtered, specs)
+	for _, spec := range specs {
+		fullBody := cidrString(t, fullOutputs[spec.Name])
+		filteredBody := cidrString(t, filteredOutputs[spec.Name])
+		if filteredBody != fullBody {
+			t.Fatalf("filtered output %q mismatch:\ngot:\n%swant:\n%s", spec.Name, filteredBody, fullBody)
+		}
+	}
+}
+
 func TestBuildOutputsMatchesLegacyGroupingAndNewClasses(t *testing.T) {
 	parsed, err := ParseBuildzone(strings.NewReader(buildzoneFixture))
 	if err != nil {
@@ -171,13 +224,19 @@ func TestWriteSourceFileWritesCIDRAndPreservesMtime(t *testing.T) {
 
 func expectOutput(t *testing.T, set *RangeSet, want string) {
 	t.Helper()
+	got := cidrString(t, set)
+	if got != want {
+		t.Fatalf("output mismatch:\ngot:\n%swant:\n%s", got, want)
+	}
+}
+
+func cidrString(t *testing.T, set *RangeSet) string {
+	t.Helper()
 	var buf bytes.Buffer
 	if err := set.WriteCIDR(&buf); err != nil {
 		t.Fatal(err)
 	}
-	if got := buf.String(); got != want {
-		t.Fatalf("output mismatch:\ngot:\n%swant:\n%s", got, want)
-	}
+	return buf.String()
 }
 
 func mustIP(t *testing.T, value string) uint32 {

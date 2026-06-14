@@ -1,11 +1,13 @@
 package engine
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/firehol/update-ipsets/pkg/asnloc"
 	"github.com/firehol/update-ipsets/pkg/config"
 	"github.com/firehol/update-ipsets/pkg/downloader"
 	"github.com/firehol/update-ipsets/pkg/iprange"
@@ -176,6 +178,157 @@ func TestBuildBogonUnionMerges(t *testing.T) {
 	want := uint64(201) // 100..300 inclusive
 	if got != want {
 		t.Fatalf("union unique count = %d, want %d", got, want)
+	}
+}
+
+func TestWriteASNComparisonFilesReusesPrecomputedBogonSplit(t *testing.T) {
+	root := t.TempDir()
+	baseDir := filepath.Join(root, "base")
+	webDir := filepath.Join(root, "web")
+	if err := os.MkdirAll(baseDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(webDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	cfg := config.New()
+	cfg.Sources["sample"] = &config.Source{Name: "sample", Frequency: 60, IPV: "ipv4", Output: "ipset"}
+	cfg.Sources["iptoasn"] = &config.Source{Name: "iptoasn", Frequency: 60, Use: []string{config.UseASN}, Format: "iptoasn_combined_tsv"}
+	cfg.Sources["caida"] = &config.Source{Name: "caida", Frequency: 60, Use: []string{config.UseASN}, Format: "caida_prefix2as"}
+	eng := newEngineFixture(t, withConfig(cfg), withRuntime(func(rt *Runtime) {
+		rt.BaseDir = baseDir
+		rt.WebDir = webDir
+		rt.LibDir = filepath.Join(root, "lib")
+		rt.MaxHeavyPhaseWorkers = 1
+	}))
+	if err := os.WriteFile(filepath.Join(baseDir, "sample.ipset"), []byte("192.0.2.0/24\n203.0.113.0/30\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	entry := eng.state.Entry("sample")
+	entry.Name = "sample"
+	entry.File = "sample.ipset"
+	entry.Version = 1
+
+	iptoasnPath := filepath.Join(root, "iptoasn.tsv")
+	if err := os.WriteFile(iptoasnPath, []byte("192.0.2.0\t192.0.2.127\t64500\tZZ\tEXAMPLE-A\n192.0.2.128\t192.0.2.255\t64501\tZZ\tEXAMPLE-B\n203.0.113.0\t203.0.113.1\t64502\tZZ\tEXAMPLE-C\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	caidaPath := filepath.Join(root, "caida.pfx2as")
+	if err := os.WriteFile(caidaPath, []byte("192.0.2.0\t25\t64500\n192.0.2.128\t25\t64501\n203.0.113.0\t31\t64502\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	iptoasnDB, err := asnloc.Open("iptoasn_combined_tsv", iptoasnPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = iptoasnDB.Close() }()
+	caidaDB, err := asnloc.Open("caida_prefix2as", caidaPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = caidaDB.Close() }()
+
+	bogons := iprange.New("bogons")
+	if err := bogons.AddRange(iprange.Range{Lo: 0xC0000280, Hi: 0xC00002FF}); err != nil { // 192.0.2.128-255
+		t.Fatal(err)
+	}
+	if err := bogons.AddRange(iprange.Range{Lo: 0xCB007102, Hi: 0xCB007103}); err != nil { // 203.0.113.2-3
+		t.Fatal(err)
+	}
+	bogons.Optimize()
+
+	if err := eng.writeASNComparisonFiles(t.Context(), asnDatasets{"iptoasn": iptoasnDB, "caida": caidaDB}, bogons, []string{"sample"}, webDir, nil); err != nil {
+		t.Fatal(err)
+	}
+	for _, provider := range []string{"iptoasn", "caida"} {
+		data, err := os.ReadFile(filepath.Join(webDir, "sample_asn_"+provider+".json"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		var payload asnFeedJSON
+		if err := json.Unmarshal(data, &payload); err != nil {
+			t.Fatal(err)
+		}
+		if payload.BogonIPs != 130 || payload.UnknownIPs != 0 || payload.AttributedIPs != 130 || payload.FeedIPs != 260 {
+			t.Fatalf("%s payload = %+v, want bogon=130 unknown=0 attributed=130 feed=260", provider, payload)
+		}
+	}
+}
+
+func TestCountASNFeedWithBogonSplitFallsBackWhenSplitMissing(t *testing.T) {
+	root := t.TempDir()
+	iptoasnPath := filepath.Join(root, "iptoasn.tsv")
+	if err := os.WriteFile(iptoasnPath, []byte("192.0.2.0\t192.0.2.127\t64500\tZZ\tEXAMPLE-A\n192.0.2.128\t192.0.2.255\t64501\tZZ\tEXAMPLE-B\n203.0.113.0\t203.0.113.1\t64502\tZZ\tEXAMPLE-C\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	db, err := asnloc.Open("iptoasn_combined_tsv", iptoasnPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = db.Close() }()
+
+	feed := iprange.New("sample")
+	if err := feed.AddRange(iprange.Range{Lo: 0xC0000200, Hi: 0xC00002FF}); err != nil { // 192.0.2.0/24
+		t.Fatal(err)
+	}
+	if err := feed.AddRange(iprange.Range{Lo: 0xCB007100, Hi: 0xCB007103}); err != nil { // 203.0.113.0/30
+		t.Fatal(err)
+	}
+	feed.Optimize()
+
+	bogons := iprange.New("bogons")
+	if err := bogons.AddRange(iprange.Range{Lo: 0xC0000280, Hi: 0xC00002FF}); err != nil { // 192.0.2.128-255
+		t.Fatal(err)
+	}
+	if err := bogons.AddRange(iprange.Range{Lo: 0xCB007102, Hi: 0xCB007103}); err != nil { // 203.0.113.2-3
+		t.Fatal(err)
+	}
+	bogons.Optimize()
+
+	counts, _, bogonIPs, err := countASNFeedWithBogonSplit(db, feed, bogons, map[string]uint64{}, "sample")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bogonIPs != 130 || counts[64500] != 128 || counts[64502] != 2 {
+		t.Fatalf("fallback counts = %#v bogonIPs=%d, want attributed residual and 130 bogons", counts, bogonIPs)
+	}
+}
+
+func TestPrecomputeASNBogonSplitsRecordsDisjointZero(t *testing.T) {
+	root := t.TempDir()
+	baseDir := filepath.Join(root, "base")
+	if err := os.MkdirAll(baseDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	cfg := config.New()
+	cfg.Sources["sample"] = &config.Source{Name: "sample", Frequency: 60, IPV: "ipv4", Output: "ipset"}
+	eng := newEngineFixture(t, withConfig(cfg), withRuntime(func(rt *Runtime) {
+		rt.BaseDir = baseDir
+		rt.LibDir = filepath.Join(root, "lib")
+	}))
+	if err := os.WriteFile(filepath.Join(baseDir, "sample.ipset"), []byte("198.51.100.0/24\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	entry := eng.state.Entry("sample")
+	entry.Name = "sample"
+	entry.File = "sample.ipset"
+	entry.Version = 1
+
+	bogons := iprange.New("bogons")
+	if err := bogons.AddRange(iprange.Range{Lo: 0x0A000000, Hi: 0x0AFFFFFF}); err != nil { // 10.0.0.0/8
+		t.Fatal(err)
+	}
+	bogons.Optimize()
+
+	setCache := newLatestSetCache(eng)
+	defer setCache.CloseAll(eng.logger)
+	splits := eng.precomputeASNBogonSplits(t.Context(), []string{"sample"}, asnDatasets{"first": nil, "second": nil}, bogons, setCache)
+	got, ok := splits["sample"]
+	if !ok {
+		t.Fatal("expected disjoint feed to have an explicit precomputed split")
+	}
+	if got != 0 {
+		t.Fatalf("disjoint split = %d, want 0", got)
 	}
 }
 
