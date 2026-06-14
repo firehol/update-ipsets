@@ -4,7 +4,7 @@
 
 Status: in-progress
 
-Sub-state: DroneBL, publish-stage, Git-object, retention, binary writer, comparison, history no-op, provider-overlap, ASN lookup-cache, admin snapshot, and memory-guardrail fixes implemented; local validation and external review complete; commit/live-install approval pending
+Sub-state: DroneBL, publish-stage, Git-object, retention, binary writer, comparison, history no-op, provider-overlap, ASN lookup-cache, admin snapshot, and memory-guardrail fixes implemented; local validation, external review, commit, push, and local install smoke complete; long-term live observation and SOW-0104 retention-compaction decision pending
 
 ## Requirements
 
@@ -72,9 +72,10 @@ Inferences:
 
 Remaining unknowns:
 
-- The local test suite and external reviewers prove functional equivalence, but
-  the installed-service CPU, memory, file-cache, slab, OOM, and disk-growth
-  impact still requires explicit install/live validation approval.
+- The local test suite and external reviewers prove functional equivalence, and
+  the local managed install smoke passed. Longer installed-service CPU, memory,
+  file-cache, slab, OOM, and disk-growth impact still needs observation over
+  real update cycles.
 - Retention storage compaction remains intentionally unresolved in this SOW
   because it requires a functional/product decision captured in SOW-0104.
 - Exact phase-level peak memory instrumentation is not implemented here because
@@ -863,8 +864,9 @@ Open decisions:
    - Risk: too-low limit can increase CPU/GC or slow runs.
    - Verification: `install.sh` now writes `MemoryHigh=1536M`,
      `MemoryMax=2G`, and `GOMEMLIMIT=1536MiB`; operator docs, memory spec, and
-     project operations skill were updated to match. Live validation remains
-     pending install approval.
+     project operations skill were updated to match. Local install smoke confirmed
+     systemd reports `MemoryHigh=1610612736`, `MemoryMax=2147483648`, and
+     `GOMEMLIMIT=1536MiB`.
 
 11. Binary latest and retention cohort writes double-buffer serialized payloads.
    - Classification: needed-but-inefficient.
@@ -1345,7 +1347,27 @@ Tests or equivalent validation:
 
 Real-use evidence:
 
-- Live-install validation is pending explicit install/live mutation approval.
+- Implementation commit `7f29116` was pushed to `origin/main`.
+- Local `./install.sh` completed successfully and installed binary version
+  `7f29116`.
+- Local managed service smoke after install:
+  - `systemctl is-active update-ipsets` returned `active`.
+  - `systemctl show update-ipsets` reported `SubState=running`, `NRestarts=0`,
+    `MemoryHigh=1610612736`, `MemoryMax=2147483648`, and
+    `GOMEMLIMIT=1536MiB`.
+  - `curl http://127.0.0.1:18888/healthz` returned `ok`.
+  - `curl http://127.0.0.1:18888/api/v1/status` returned JSON with
+    `engine.running=true`, `source_count=423`, and `merge_count=13`.
+  - `curl http://127.0.0.1:18888/api/v1/sets` returned the public sets payload.
+- Admin smoke on `100.97.171.108:18889` did not connect because the local
+  `local-admin-dev.conf` systemd drop-in overrides
+  `UPDATE_IPSETS_ADMIN_LISTEN_ARG=` to blank; `ss` showed only
+  `127.0.0.1:18888` listening. This is a local override observation, not a
+  SOW-0103 implementation change.
+- A read-only disk snapshot during active entity publication reported
+  `/opt/update-ipsets` around 13 GiB, but `du` raced with temporary
+  `.update-ipsets-*` stage files being removed. Treat this as an approximate
+  smoke snapshot, not a stable disk-growth measurement.
 - Existing sanitized live evidence remains the basis for prioritizing this
   milestone: DroneBL fetch retained unconsumed sibling files and stale extract
   scratch existed before the fix.
@@ -1565,9 +1587,9 @@ Follow-up mapping:
   tracks retention storage compaction. This is intentionally outside SOW-0103
   because changing cohort storage affects first-seen/current-retention contracts
   and requires a product decision.
-- Live-install validation remains pending explicit approval to mutate the
-  installed service. This is not a separate SOW yet; it is the rollout/validation
-  gate for SOW-0103 after commit/install approval.
+- Local install smoke has completed. Long-term installed-service observation
+  remains needed to confirm sustained CPU, memory, OOM, and disk-growth behavior
+  over real update cycles.
 
 ## Completion Audit - 2026-06-14
 
@@ -1599,21 +1621,24 @@ Follow-up mapping:
     non-blocking rather than sent for user decision.
   - Result: satisfied.
 - Requirement: stop for live-system mutation, commit, push, or install approval.
-  - Evidence: no commit, push, install, service restart, or live mutable action
-    has been performed. SOW outcome and follow-up sections record commit,
-    install, and live validation as the remaining explicit approval gate.
-  - Result: satisfied; this is the current stop point.
+  - Evidence: the user explicitly approved commit, push, and local install. The
+    implementation was committed as `7f29116`, pushed to `origin/main`, installed
+    locally, and smoke-tested. No production switch or remote production mutation
+    was performed.
+  - Result: satisfied for the approved local scope.
 
 ## Outcome
 
-Implementation is locally ready but not closed. The SOW-0103 non-functional
-resource ledger is terminal: each identified CPU, memory, disk, and performance
-theory is either implemented and locally validated, rejected with evidence under
-the no-functional-change constraint, or mapped to a concrete follow-up requiring
-a functional/product decision.
+Implementation is committed, pushed, locally installed, and smoke-tested, but
+the SOW remains in progress for sustained live observation. The SOW-0103
+non-functional resource ledger is terminal: each identified CPU, memory, disk,
+and performance theory is either implemented and locally validated, rejected
+with evidence under the no-functional-change constraint, or mapped to a concrete
+follow-up requiring a functional/product decision.
 
-Local validation and external review are complete. Commit, install, and live
-service validation remain pending explicit approval.
+Local validation, external review, commit, push, and local install smoke are
+complete. Longer live observation remains to prove sustained OOM, CPU, and disk
+behavior over real update cycles.
 
 ## Lessons Extracted
 
@@ -1635,9 +1660,11 @@ service validation remain pending explicit approval.
   owns retention storage compaction because it requires product decisions about
   first-seen, current-membership, removal evidence, migration, and historical
   API behavior.
-- After commit/install approval, validate the installed service with sanitized
-  live evidence for CPU, cgroup memory breakdown, OOM events, disk growth,
-  publish-stage cleanup, DroneBL fetch behavior, and admin/integrity status.
+- Continue installed-service observation with sanitized live evidence for CPU,
+  cgroup memory breakdown, OOM events, disk growth, publish-stage cleanup,
+  DroneBL fetch behavior, and admin/integrity status.
+- Decide whether the local `local-admin-dev.conf` drop-in should keep admin
+  disabled or be changed to expose admin on localhost/Tailscale for validation.
 
 ## Regression Log
 
