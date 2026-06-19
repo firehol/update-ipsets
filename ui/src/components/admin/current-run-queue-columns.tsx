@@ -1,4 +1,5 @@
 import type {
+  AdminActiveOperation,
   AdminActiveQueueItem,
   AdminFeed,
   AdminQueueItem,
@@ -20,7 +21,8 @@ import {
 
 const LIVE_QUEUE_ITEM_BUTTON_CLASS =
   "flex min-h-14 w-full items-start gap-3 px-6 py-2 text-left transition-colors hover:bg-muted/40";
-const LIVE_QUEUE_ITEM_STATIC_CLASS = "flex min-h-14 items-start gap-3 px-6 py-2";
+const LIVE_QUEUE_ITEM_STATIC_CLASS =
+  "flex min-h-14 items-start gap-3 px-6 py-2";
 
 export function QueueColumn({
   title,
@@ -148,6 +150,7 @@ export function ActiveDownloadColumn({
 export function ProcessingNowColumn({
   running,
   currentPhase,
+  activeOperations,
   processingBatch,
   feedIndex,
   nowMs,
@@ -155,6 +158,7 @@ export function ProcessingNowColumn({
 }: {
   running: boolean;
   currentPhase: string | undefined;
+  activeOperations: AdminActiveOperation[];
   processingBatch: NonNullable<AdminStatus["queues"]>["processing_active"];
   feedIndex: Map<string, AdminFeed>;
   nowMs: number;
@@ -190,6 +194,10 @@ export function ProcessingNowColumn({
           <ul className="divide-y divide-border/40">
             {processingBatch.map((batchFeed) => {
               const feed = feedIndex.get(batchFeed.name);
+              const operation = bestActiveOperationForFeed(
+                batchFeed.name,
+                activeOperations,
+              );
               const startedAt = parseGoTime(batchFeed.started_at);
               const elapsedMs =
                 startedAt > 0 && nowMs > 0
@@ -202,6 +210,8 @@ export function ProcessingNowColumn({
                   reason={batchFeed.reason}
                   startedAt={startedAt}
                   detail={batchFeed.detail}
+                  operation={operation}
+                  nowMs={nowMs}
                   right={elapsedMs > 0 ? formatDuration(elapsedMs) : "running"}
                   onClick={feed ? () => onFeedClick(feed) : undefined}
                 />
@@ -219,6 +229,8 @@ function ProcessingFeedItem({
   reason,
   startedAt,
   detail,
+  operation,
+  nowMs,
   right,
   onClick,
 }: {
@@ -226,6 +238,8 @@ function ProcessingFeedItem({
   reason?: string;
   startedAt: number;
   detail?: string;
+  operation?: AdminActiveOperation;
+  nowMs: number;
   right: string;
   onClick?: () => void;
 }) {
@@ -246,6 +260,9 @@ function ProcessingFeedItem({
               {detail}
             </div>
           </HoverTip>
+        )}
+        {operation && (
+          <ActiveOperationProgress operation={operation} nowMs={nowMs} />
         )}
       </div>
       <div className="shrink-0 text-right">
@@ -278,6 +295,135 @@ function ProcessingFeedItem({
   );
 }
 
+function ActiveOperationProgress({
+  operation,
+  nowMs,
+}: {
+  operation: AdminActiveOperation;
+  nowMs: number;
+}) {
+  const progress = operationProgress(operation, nowMs);
+  return (
+    <div className="mt-2 space-y-1">
+      <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+        <span className="min-w-0 truncate">{operationLabel(operation)}</span>
+        <span className="shrink-0 tabular-nums text-foreground">
+          {progress.label}
+        </span>
+      </div>
+      {progress.hasTotal && (
+        <div
+          role="progressbar"
+          aria-label={`${operationLabel(operation)} progress`}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progress.percent}
+          className="h-1.5 overflow-hidden rounded-full bg-muted"
+        >
+          <div
+            className="h-full rounded-full bg-primary"
+            style={{ width: `${progress.percent}%` }}
+          />
+        </div>
+      )}
+      <div className="flex items-center justify-between gap-2 text-[10px] tabular-nums text-muted-foreground">
+        <span>{progress.size}</span>
+        <span>{progress.rate}</span>
+      </div>
+    </div>
+  );
+}
+
+function bestActiveOperationForFeed(
+  name: string,
+  operations: AdminActiveOperation[],
+): AdminActiveOperation | undefined {
+  const candidates = operations.filter((operation) => operation.feed === name);
+  if (candidates.length === 0) return undefined;
+  return candidates.sort(
+    (left, right) => operationScore(right) - operationScore(left),
+  )[0];
+}
+
+function operationScore(operation: AdminActiveOperation): number {
+  let score = 0;
+  if ((operation.total ?? 0) > 0) score += 100;
+  if ((operation.current ?? 0) > 0) score += 10;
+  if (operation.operation === "retention.reconcile_cohorts") score += 5;
+  return score;
+}
+
+function operationProgress(operation: AdminActiveOperation, nowMs: number) {
+  const current = Math.max(0, operation.current ?? 0);
+  const total = Math.max(0, operation.total ?? 0);
+  const hasTotal = true;
+  const percent =
+    operation.completion_pct ??
+    (hasTotal
+      ? Math.min(100, Math.max(0, Math.round((current / total) * 100)))
+      : 0);
+  const elapsedMs = operationElapsedMs(operation, nowMs);
+  const unit = operation.unit || "items";
+  const size = `${formatWorkCount(current)} / ${formatWorkCount(total)} ${unit}`;
+  return {
+    hasTotal,
+    percent,
+    label: hasTotal ? `${percent}%` : formatDuration(elapsedMs),
+    size,
+    rate: operationRate(operation.rate_per_second, current, elapsedMs, unit),
+  };
+}
+
+function operationElapsedMs(
+  operation: AdminActiveOperation,
+  nowMs: number,
+): number {
+  const startedAt = parseGoTime(operation.started_at);
+  if (startedAt > 0 && nowMs > 0) {
+    return Math.max(0, nowMs - startedAt * 1000);
+  }
+  return Math.max(0, operation.elapsed_ms ?? 0);
+}
+
+function operationRate(
+  backendRate: number | undefined,
+  current: number,
+  elapsedMs: number,
+  unit: string,
+): string {
+  const perSecond =
+    backendRate !== undefined && backendRate >= 0
+      ? backendRate
+      : elapsedMs > 0
+        ? current / (elapsedMs / 1000)
+        : 0;
+  if (!Number.isFinite(perSecond) || perSecond <= 0) return "rate —";
+  const formatted =
+    perSecond < 10 ? perSecond.toFixed(1) : Math.round(perSecond).toString();
+  return `${formatted} ${unit}/s`;
+}
+
+function operationLabel(operation: AdminActiveOperation): string {
+  switch (operation.operation) {
+    case "sources.process_feed":
+      return "Processing feed";
+    case "sources.update_retention":
+      return "Updating retention";
+    case "retention.reconcile_cohorts":
+      return "Scanning retention cohorts";
+    default:
+      return operation.stage
+        ? `${operation.operation} · ${operation.stage}`
+        : operation.operation;
+  }
+}
+
+function formatWorkCount(value: number): string {
+  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(
+    value,
+  );
+}
+
 function QueueFeedItem({
   name,
   sublabel,
@@ -298,7 +444,12 @@ function QueueFeedItem({
       <div className="min-w-0 flex-1">
         <div className="font-mono text-[12px] text-foreground truncate flex items-center gap-1.5">
           {blocked && (
-            <span className="text-status-warning text-[10px]" title="Waiting for parent download">⏳</span>
+            <span
+              className="text-status-warning text-[10px]"
+              title="Waiting for parent download"
+            >
+              ⏳
+            </span>
           )}
           {name}
         </div>

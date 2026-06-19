@@ -32,7 +32,7 @@ func Run(ctx context.Context, eng *engine.Engine, opts Options) error {
 	defer cancel()
 
 	runner := scheduler.New(eng, opts.EnableAll, opts.Logger)
-	queueStartupIntegrityRecovery(eng, opts, runner)
+	queueStartupIntegrityRecovery(runCtx, eng, opts, runner)
 
 	waitForBackground := startRunBackgroundWork(runCtx, eng, opts, runner, startedAt)
 	defer func() {
@@ -73,9 +73,13 @@ func prepareEngineForRun(eng *engine.Engine, opts Options) error {
 
 // queueStartupIntegrityRecovery repairs split secondary artifacts from the
 // first scheduler tick without making transient filesystem findings fatal.
-func queueStartupIntegrityRecovery(eng *engine.Engine, opts Options, runner *scheduler.Runner) {
+func queueStartupIntegrityRecovery(ctx context.Context, eng *engine.Engine, opts Options, runner *scheduler.Runner) {
 	integrityWebDir := outputDirFromOptions(eng.Runtime().BaseDir, choose(opts.WebDir, eng.Runtime().WebDir))
-	findings := eng.CheckIntegrityWithOptions(engine.IntegrityOptions{EnableAll: opts.EnableAll, WebDir: integrityWebDir})
+	findings, err := eng.CheckIntegrityWithOptionsContext(ctx, engine.IntegrityOptions{EnableAll: opts.EnableAll, WebDir: integrityWebDir})
+	if err != nil {
+		opts.Logger.Warn("startup integrity check cancelled", "error", err)
+		return
+	}
 	if len(findings) == 0 {
 		opts.Logger.Info("integrity check passed — all feeds have up-to-date and readable secondary files")
 		return

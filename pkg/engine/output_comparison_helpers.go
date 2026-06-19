@@ -1,12 +1,9 @@
 package engine
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/binary"
-	"encoding/json"
-	"os"
-	"path/filepath"
-	"strings"
 	"sync/atomic"
 	"time"
 
@@ -154,8 +151,14 @@ func rangeOverlapFiltersDisjoint(a, b rangeOverlapFilter) bool {
 }
 
 func buildComparisonSetSignature(src iprange.RangeSource) comparisonSetSignature {
+	signature, _ := buildComparisonSetSignatureContext(context.Background(), src)
+	return signature
+}
+
+func buildComparisonSetSignatureContext(ctx context.Context, src iprange.RangeSource) (comparisonSetSignature, error) {
+	ctx = nonNilContext(ctx)
 	if src == nil {
-		return comparisonSetSignature{}
+		return comparisonSetSignature{}, nil
 	}
 	var bitmap comparisonPrefixBitmap
 	hasRanges := false
@@ -163,6 +166,9 @@ func buildComparisonSetSignature(src iprange.RangeSource) comparisonSetSignature
 	var hashBuf [8]byte
 	sparse := comparisonSparsePrefixBuilder{}
 	for r := range src.Iter() {
+		if err := contextErr(ctx); err != nil {
+			return comparisonSetSignature{}, err
+		}
 		hasRanges = true
 		binary.BigEndian.PutUint32(hashBuf[0:4], r.Lo)
 		binary.BigEndian.PutUint32(hashBuf[4:8], r.Hi)
@@ -175,7 +181,7 @@ func buildComparisonSetSignature(src iprange.RangeSource) comparisonSetSignature
 		sparse.addRange(r.Lo>>comparisonSparsePrefixShift, r.Hi>>comparisonSparsePrefixShift)
 	}
 	if !hasRanges {
-		return comparisonSetSignature{}
+		return comparisonSetSignature{}, nil
 	}
 	sum := hasher.Sum(nil)
 	var contentHash comparisonContentHash
@@ -185,7 +191,7 @@ func buildComparisonSetSignature(src iprange.RangeSource) comparisonSetSignature
 		prefixBitmap: &bitmap,
 		sparsePrefix: sparse.set(),
 		contentHash:  contentHash,
-	}
+	}, nil
 }
 
 func buildComparisonPrefixBitmap(src iprange.RangeSource) *comparisonPrefixBitmap {
@@ -348,81 +354,4 @@ func mergeCompareRows(existing, fresh []CompareRow) []CompareRow {
 		out = append(out, r)
 	}
 	return out
-}
-
-func (e *Engine) sanitizeComparisonArtifacts(outDir string) error {
-	liveOutDir := e.outputDir()
-	paths := map[string]string{}
-	collect := func(dir string) {
-		if dir == "" {
-			return
-		}
-		entries, err := os.ReadDir(dir)
-		if err != nil {
-			if !os.IsNotExist(err) && e.logger != nil {
-				e.logger.Warn("comparison sanitize: cannot read directory", "dir", dir, "error", err)
-			}
-			return
-		}
-		for _, entry := range entries {
-			name := entry.Name()
-			if entry.IsDir() || !strings.HasSuffix(name, "_comparison.json") {
-				continue
-			}
-			paths[name] = dir
-		}
-	}
-	collect(liveOutDir)
-	// Staged output wins over live output when both contain the same artifact.
-	collect(outDir)
-
-	var cleaned int64
-	for rel, rootDir := range paths {
-		data, changed, err := sanitizedComparisonArtifactData(rootDir, rel)
-		if err != nil {
-			if e.logger != nil {
-				e.logger.Warn("comparison sanitize: cannot parse artifact", "file", filepath.Join(rootDir, rel), "error", err)
-			}
-			continue
-		}
-		if !changed {
-			continue
-		}
-		if err := writeFileAtomic(filepath.Join(outDir, rel), data, generatedFileMode); err != nil {
-			return err
-		}
-		cleaned++
-	}
-	if cleaned > 0 {
-		e.observeRunCounter("metadata.comparison_zero_rows_removed", cleaned, 0)
-	}
-	return nil
-}
-
-func sanitizedComparisonArtifactData(rootDir, rel string) ([]byte, bool, error) {
-	data, err := readFileInRoot(rootDir, rel)
-	if err != nil {
-		return nil, false, err
-	}
-	var rows []CompareRow
-	if err := json.Unmarshal(data, &rows); err != nil {
-		return nil, false, err
-	}
-	filtered := rows[:0]
-	changed := false
-	for _, row := range rows {
-		if row.Common == 0 {
-			changed = true
-			continue
-		}
-		filtered = append(filtered, row)
-	}
-	if !changed {
-		return nil, false, nil
-	}
-	out, err := jsonMarshalTabIndent(filtered)
-	if err != nil {
-		return nil, false, err
-	}
-	return append(out, '\n'), true, nil
 }

@@ -48,7 +48,7 @@ func (e *Engine) publishHealthTransitionHomeAggregate(ctx context.Context) error
 		return err
 	}
 	generated := []output.GeneratedFile{homeAggregate}
-	return e.publishHealthTransitionGenerated(webBatch, generated)
+	return e.publishHealthTransitionGenerated(ctx, webBatch, generated)
 }
 
 func (e *Engine) publishHealthTransitionEntityPayloads(ctx context.Context, affectedCountries map[string]struct{}, affectedASNs map[uint32]struct{}, task *BackgroundTaskHandle) error {
@@ -99,7 +99,7 @@ func (e *Engine) publishHealthTransitionEntityPayloads(ctx context.Context, affe
 		return err
 	}
 	generated = append(generated, homeAggregate)
-	return e.publishHealthTransitionGenerated(webBatch, generated)
+	return e.publishHealthTransitionGenerated(ctx, webBatch, generated)
 }
 
 func (e *Engine) stageHealthTransitionCountryPayload(webBatch *webPublishBatch, generated []output.GeneratedFile, health *feedHealthClassifier, code string) ([]output.GeneratedFile, error) {
@@ -150,11 +150,11 @@ func (e *Engine) stageHealthTransitionASNPayload(webBatch *webPublishBatch, gene
 	return generated, nil
 }
 
-func (e *Engine) publishHealthTransitionGenerated(webBatch *webPublishBatch, generated []output.GeneratedFile) error {
-	if err := webBatch.applyGeneratedFileTimestamps(generated); err != nil {
+func (e *Engine) publishHealthTransitionGenerated(ctx context.Context, webBatch *webPublishBatch, generated []output.GeneratedFile) error {
+	if err := webBatch.applyGeneratedFileTimestampsContext(ctx, generated); err != nil {
 		return err
 	}
-	published, err := webBatch.publish()
+	published, err := webBatch.publishContext(ctx)
 	if err != nil {
 		return err
 	}

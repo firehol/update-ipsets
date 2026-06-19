@@ -56,7 +56,9 @@ func (e *Engine) writeEntityArtifacts(ctx context.Context, updatedNames []string
 	if err := state.stageFeedSidecars(); err != nil {
 		return nil, err
 	}
-	state.collectAffectedEntities()
+	if err := state.collectAffectedEntities(); err != nil {
+		return nil, err
+	}
 	if state.hasNoAffectedEntities() {
 		return state.stageNoAffectedArtifacts()
 	}
@@ -139,6 +141,9 @@ func (s *entityArtifactWriteState) stageFeedSidecars() error {
 		}
 	}
 	for _, name := range s.targetFeeds {
+		if err := contextErr(s.ctx); err != nil {
+			return err
+		}
 		if err := s.stageFeedSidecar(name); err != nil {
 			return err
 		}
@@ -150,6 +155,9 @@ func (s *entityArtifactWriteState) stageFeedSidecars() error {
 func (s *entityArtifactWriteState) markStaleFeedSidecarDeletesForFullRebuild() error {
 	e := s.engine
 	for name := range s.liveSidecars {
+		if err := contextErr(s.ctx); err != nil {
+			return err
+		}
 		if _, ok := s.newSidecars[name]; !ok {
 			s.entityBatch.markDelete(e.entityFeedSidecarRelPath(name))
 		}
@@ -159,6 +167,9 @@ func (s *entityArtifactWriteState) markStaleFeedSidecarDeletesForFullRebuild() e
 		return err
 	}
 	for _, path := range existingPendingSidecars {
+		if err := contextErr(s.ctx); err != nil {
+			return err
+		}
 		name := strings.TrimSuffix(filepath.Base(path), ".json")
 		s.entityBatch.markDelete(e.entityFeedPendingRelPath(name))
 	}
@@ -226,14 +237,20 @@ func (s *entityArtifactWriteState) mergeAllSidecars() {
 	}
 }
 
-func (s *entityArtifactWriteState) collectAffectedEntities() {
+func (s *entityArtifactWriteState) collectAffectedEntities() error {
 	if s.full {
 		for _, sidecar := range s.allSidecars {
+			if err := contextErr(s.ctx); err != nil {
+				return err
+			}
 			s.addAffectedSidecarEntities(sidecar)
 		}
-		return
+		return nil
 	}
 	for _, name := range s.targetFeeds {
+		if err := contextErr(s.ctx); err != nil {
+			return err
+		}
 		if _, ok := s.changedFeeds[name]; !ok {
 			continue
 		}
@@ -244,6 +261,7 @@ func (s *entityArtifactWriteState) collectAffectedEntities() {
 			s.addAffectedSidecarEntities(newSidecar)
 		}
 	}
+	return nil
 }
 
 func (s *entityArtifactWriteState) addAffectedSidecarEntities(sidecar *feedEntitySidecar) {
@@ -287,24 +305,32 @@ func (s *entityArtifactWriteState) markStaleDetailDeletesForFullRebuild() error 
 	if !s.full {
 		return nil
 	}
-	s.markStaleCountryDeletesForFullRebuild(existingCountryFiles)
-	s.markStaleASNDeletesForFullRebuild(existingASNFiles)
-	return nil
+	if err := s.markStaleCountryDeletesForFullRebuild(existingCountryFiles); err != nil {
+		return err
+	}
+	return s.markStaleASNDeletesForFullRebuild(existingASNFiles)
 }
 
-func (s *entityArtifactWriteState) markStaleCountryDeletesForFullRebuild(existingCountryFiles []string) {
+func (s *entityArtifactWriteState) markStaleCountryDeletesForFullRebuild(existingCountryFiles []string) error {
 	e := s.engine
 	for _, path := range existingCountryFiles {
+		if err := contextErr(s.ctx); err != nil {
+			return err
+		}
 		code := strings.TrimSuffix(filepath.Base(path), ".json")
 		if _, ok := s.affectedCountries[strings.ToUpper(code)]; !ok {
 			s.entityBatch.markDelete(e.entityCountrySidecarRelPath(code))
 		}
 	}
+	return nil
 }
 
-func (s *entityArtifactWriteState) markStaleASNDeletesForFullRebuild(existingASNFiles []string) {
+func (s *entityArtifactWriteState) markStaleASNDeletesForFullRebuild(existingASNFiles []string) error {
 	e := s.engine
 	for _, path := range existingASNFiles {
+		if err := contextErr(s.ctx); err != nil {
+			return err
+		}
 		raw := strings.TrimSuffix(filepath.Base(path), ".json")
 		asn, err := strconv.ParseUint(raw, 10, 32)
 		if err != nil {
@@ -314,6 +340,7 @@ func (s *entityArtifactWriteState) markStaleASNDeletesForFullRebuild(existingASN
 			s.entityBatch.markDelete(e.entityASNSidecarRelPath(uint32(asn)))
 		}
 	}
+	return nil
 }
 
 func (s *entityArtifactWriteState) writeSelectedEntityDetails() error {
@@ -331,11 +358,17 @@ func (s *entityArtifactWriteState) writeSelectedEntityDetails() error {
 	progress := 0
 	total := s.entityDetailProgressTotal()
 	for _, code := range sortedStringSet(s.affectedCountries) {
+		if err := contextErr(s.ctx); err != nil {
+			return err
+		}
 		if err := s.writeCountryDetail(code, countrySidecars[code], health, &progress, total); err != nil {
 			return err
 		}
 	}
 	for _, asn := range sortedUint32Set(s.affectedASNs) {
+		if err := contextErr(s.ctx); err != nil {
+			return err
+		}
 		if err := s.writeASNDetail(asn, asnSidecars[asn], health, &progress, total); err != nil {
 			return err
 		}

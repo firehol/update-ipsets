@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -41,6 +42,10 @@ type comparisonPairResult struct {
 
 type comparisonPairStats struct {
 	candidates    int64
+	ledgerLookup  atomic.Int64
+	ledgerHit     atomic.Int64
+	ledgerMiss    atomic.Int64
+	ledgerSkipped atomic.Int64
 	overlapCount  atomic.Int64
 	overlapTotal  atomic.Int64
 	overlapMax    atomic.Int64
@@ -77,12 +82,32 @@ func (e *Engine) writeComparisonFiles(ctx context.Context, updatedNames []string
 		defer setCache.CloseAll(e.logger)
 	}
 
-	infos := e.prepareComparisonSetInfos(names, setCache)
+	infos, err := e.prepareComparisonSetInfos(ctx, names, setCache)
+	if err != nil {
+		return err
+	}
 	if len(infos) < 2 {
 		return nil
 	}
 
-	pairResults, pairStats := e.runComparisonPairs(ctx, infos, newComparisonUpdateFilter(updatedNames), setCache)
+	updated := newComparisonUpdateFilter(updatedNames)
+	var ledger *comparisonPairLedgerSnapshot
+	if len(updated) > 0 {
+		var entries int
+		var bytes int64
+		var loadErr error
+		ledger, entries, bytes, loadErr = e.loadComparisonPairLedger()
+		if loadErr != nil {
+			e.logger.Warn("comparison pair ledger ignored", "error", loadErr)
+			e.observeRunCounter("metadata.comparison_pair_ledger_ignored", 1, bytes)
+			ledger = newComparisonPairLedgerSnapshot()
+		} else if entries > 0 {
+			e.observeRunCounter("metadata.comparison_pair_ledger_read", 1, bytes)
+			e.observeRunCounter("metadata.comparison_pair_ledger_entries_read", int64(entries), 0)
+		}
+	}
+
+	pairResults, pairStats := e.runComparisonPairs(ctx, infos, updated, setCache, ledger)
 	if err := contextErr(ctx); err != nil {
 		return err
 	}
@@ -92,13 +117,27 @@ func (e *Engine) writeComparisonFiles(ctx context.Context, updatedNames []string
 	if err := e.writeMergedComparisonRows(outDir, grouped); err != nil {
 		return err
 	}
-	return e.sanitizeComparisonArtifacts(outDir)
+	entries, bytes, err := e.writeComparisonPairLedger(infos, pairResults)
+	if err != nil {
+		e.logger.Warn("comparison pair ledger write failed", "error", err)
+		e.observeRunCounter("metadata.comparison_pair_ledger_write_failed", 1, bytes)
+		return nil
+	}
+	if entries > 0 {
+		e.observeRunCounter("metadata.comparison_pair_ledger_write", 1, bytes)
+		e.observeRunCounter("metadata.comparison_pair_ledger_entries_write", int64(entries), 0)
+	}
+	return nil
 }
 
-func (e *Engine) prepareComparisonSetInfos(names []string, setCache *latestSetCache) []comparisonSetInfo {
+func (e *Engine) prepareComparisonSetInfos(ctx context.Context, names []string, setCache *latestSetCache) ([]comparisonSetInfo, error) {
+	ctx = nonNilContext(ctx)
 	prepareStarted := time.Now()
 	infos := make([]comparisonSetInfo, 0, len(names))
 	for _, name := range names {
+		if err := contextErr(ctx); err != nil {
+			return nil, err
+		}
 		snap := e.state.EntrySnapshot(name)
 		if snap == nil || !e.hasUsableSet(name) {
 			continue
@@ -108,7 +147,10 @@ func (e *Engine) prepareComparisonSetInfos(names []string, setCache *latestSetCa
 			e.logger.Warn("comparison skipped: cannot open set", "set", name, "error", err)
 			continue
 		}
-		signature := buildComparisonSetSignature(src.RangeSource)
+		signature, err := buildComparisonSetSignatureContext(ctx, src.RangeSource)
+		if err != nil {
+			return nil, err
+		}
 		if ioErr := checkFileSetErr(src.RangeSource, name, e.logger); ioErr != nil {
 			continue
 		}
@@ -126,7 +168,7 @@ func (e *Engine) prepareComparisonSetInfos(names []string, setCache *latestSetCa
 		})
 	}
 	e.observeRunOperation("metadata.comparison_prepare_sets", time.Since(prepareStarted))
-	return infos
+	return infos, nil
 }
 
 func newComparisonUpdateFilter(updatedNames []string) comparisonUpdateFilter {
@@ -145,7 +187,7 @@ func (f comparisonUpdateFilter) includes(name string) bool {
 	return ok
 }
 
-func (e *Engine) runComparisonPairs(ctx context.Context, infos []comparisonSetInfo, updated comparisonUpdateFilter, setCache *latestSetCache) ([]comparisonPairResult, *comparisonPairStats) {
+func (e *Engine) runComparisonPairs(ctx context.Context, infos []comparisonSetInfo, updated comparisonUpdateFilter, setCache *latestSetCache, ledger *comparisonPairLedgerSnapshot) ([]comparisonPairResult, *comparisonPairStats) {
 	numWorkers := e.runtime.HeavyPhaseWorkers()
 	if numWorkers < 1 {
 		numWorkers = 1
@@ -154,6 +196,7 @@ func (e *Engine) runComparisonPairs(ctx context.Context, infos []comparisonSetIn
 	pairCh := make(chan comparisonPair)
 	var pairMu sync.Mutex
 	var pairResults []comparisonPairResult
+	var ledgerResults []comparisonPairResult
 	var wg sync.WaitGroup
 	stats := &comparisonPairStats{}
 
@@ -174,8 +217,22 @@ func (e *Engine) runComparisonPairs(ctx context.Context, infos []comparisonSetIn
 sendPairs:
 	for i := 0; i < len(infos); i++ {
 		for j := i + 1; j < len(infos); j++ {
-			if !updated.includes(infos[i].name) && !updated.includes(infos[j].name) {
-				continue
+			if ledger != nil {
+				stats.ledgerLookup.Add(1)
+				if common, ok := ledger.lookup(infos[i], infos[j]); ok {
+					stats.ledgerHit.Add(1)
+					ledgerResults = append(ledgerResults, comparisonPairResult{i: i, j: j, common: common})
+					continue
+				}
+				stats.ledgerMiss.Add(1)
+				if !updated.includes(infos[i].name) && !updated.includes(infos[j].name) {
+					stats.ledgerSkipped.Add(1)
+					continue
+				}
+			} else {
+				if !updated.includes(infos[i].name) && !updated.includes(infos[j].name) {
+					continue
+				}
 			}
 			stats.candidates++
 			select {
@@ -187,6 +244,9 @@ sendPairs:
 	}
 	close(pairCh)
 	wg.Wait()
+	if len(ledgerResults) > 0 {
+		pairResults = append(pairResults, ledgerResults...)
+	}
 	return pairResults, stats
 }
 
@@ -227,8 +287,11 @@ func (e *Engine) compareSetPair(ctx context.Context, pair comparisonPair, infos 
 	}
 
 	started := time.Now()
-	common := iprange.OverlapCountIter(srcA, srcB)
+	common, err := iprange.OverlapCountIterContext(ctx, srcA, srcB)
 	recordAtomicDuration(&stats.overlapCount, &stats.overlapTotal, &stats.overlapMax, time.Since(started))
+	if err != nil {
+		return comparisonPairResult{}, false
+	}
 	ioErrA := checkFileSetErr(srcA.RangeSource, infos[pair.i].name, e.logger)
 	ioErrB := checkFileSetErr(srcB.RangeSource, infos[pair.j].name, e.logger)
 	if ioErrA != nil || ioErrB != nil {
@@ -271,6 +334,18 @@ func (e *Engine) observeComparisonPairStats(stats *comparisonPairStats) {
 	}
 	if stats.candidates > 0 {
 		e.observeRunCounter("metadata.comparison_pair_candidates", stats.candidates, 0)
+	}
+	if count := stats.ledgerLookup.Load(); count > 0 {
+		e.observeRunCounter("metadata.comparison_pair_ledger_lookup", count, 0)
+	}
+	if count := stats.ledgerHit.Load(); count > 0 {
+		e.observeRunCounter("metadata.comparison_pair_ledger_hit", count, 0)
+	}
+	if count := stats.ledgerMiss.Load(); count > 0 {
+		e.observeRunCounter("metadata.comparison_pair_ledger_miss", count, 0)
+	}
+	if count := stats.ledgerSkipped.Load(); count > 0 {
+		e.observeRunCounter("metadata.comparison_pair_ledger_miss_unchanged_skipped", count, 0)
 	}
 	if count := stats.overlapCount.Load(); count > 0 {
 		e.observeRunCounter("metadata.comparison_pair_overlap", count, 0)
@@ -394,8 +469,43 @@ func (e *Engine) writeMergedComparisonRowsForFeed(outDir, name string, group []C
 	if err != nil {
 		return err
 	}
+	data = append(data, '\n')
+	logicalTime := e.feedProcessingTimestamp(name)
 	path := filepath.Join(outDir, name+"_comparison.json")
-	return writeFileAtomicAt(path, append(data, '\n'), generatedFileMode, e.feedProcessingTimestamp(name))
+	if e.comparisonArtifactAlreadyCurrent(path, data, logicalTime) {
+		return nil
+	}
+	if filepath.Clean(outDir) != filepath.Clean(e.outputDir()) && !fileExists(path) {
+		livePath := filepath.Join(e.outputDir(), name+"_comparison.json")
+		if e.comparisonArtifactAlreadyCurrent(livePath, data, logicalTime) {
+			return nil
+		}
+	}
+	return writeFileAtomicAt(path, data, generatedFileMode, logicalTime)
+}
+
+func (e *Engine) comparisonArtifactAlreadyCurrent(path string, data []byte, logicalTime time.Time) bool {
+	if e != nil && e.runtime.WebOwner != "" {
+		return false
+	}
+	info, err := os.Lstat(path)
+	if err != nil || !info.Mode().IsRegular() {
+		return false
+	}
+	if info.Mode().Perm() != generatedFileMode {
+		return false
+	}
+	if !logicalTime.IsZero() && !info.ModTime().UTC().Equal(logicalTime.UTC()) {
+		return false
+	}
+	if info.Size() != int64(len(data)) {
+		return false
+	}
+	existing, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	return bytes.Equal(existing, data)
 }
 
 func (e *Engine) readExistingComparisonRows(name string) []CompareRow {

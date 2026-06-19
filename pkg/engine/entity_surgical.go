@@ -23,6 +23,7 @@ func (e *Engine) RefreshEntityArtifactsForFeedUpdates(ctx context.Context, feedN
 		return e.RebuildEntityArtifactsWithTrigger(ctx, trigger)
 	}
 	return e.withBackgroundTask(
+		ctx,
 		"Entity artifacts refresh",
 		trigger,
 		"planning",

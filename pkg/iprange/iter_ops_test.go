@@ -1,6 +1,8 @@
 package iprange
 
 import (
+	"context"
+	"errors"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
@@ -419,6 +421,20 @@ func TestOverlapCountIter(t *testing.T) {
 				t.Fatalf("OverlapCountIter: got %d, want %d", got, tc.want)
 			}
 		})
+	}
+}
+
+func TestOverlapCountIterContextCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	a := setFromRanges("a", Range{Lo: 1, Hi: 10})
+	b := setFromRanges("b", Range{Lo: 1, Hi: 10})
+	got, err := OverlapCountIterContext(ctx, a, b)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("OverlapCountIterContext() error = %v, want context.Canceled", err)
+	}
+	if got != 0 {
+		t.Fatalf("OverlapCountIterContext() = %d, want 0 after cancellation", got)
 	}
 }
 

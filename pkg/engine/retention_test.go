@@ -142,8 +142,12 @@ func TestReconcileRetentionCohortUsesFileBackedSource(t *testing.T) {
 	}
 	started := addedAt - 3600
 	updatedAt := addedAt + 7200
-	if err := eng.reconcileRetentionCohort(t.Context(), "sample", paths, started, updatedAt, current, map[int]uint64{}, baseName, addedAt, &result); err != nil {
+	update, err := eng.reconcileRetentionCohort(t.Context(), "sample", paths, started, updatedAt, current, map[int]uint64{}, baseName, addedAt, &result)
+	if err != nil {
 		t.Fatalf("reconcileRetentionCohort() error = %v", err)
+	}
+	if !update.rewritten || update.deleted || update.oldIPs != 20 || update.keptIPs != 15 || update.removedIPs != 5 {
+		t.Fatalf("cohort update = %+v, want rewritten 20->15 with 5 removed", update)
 	}
 
 	if got, want := result.cohorts[addedAt], uint64(15); got != want {

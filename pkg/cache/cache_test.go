@@ -506,7 +506,16 @@ func TestEntryApplyProcessingSourceConfigStoresCopy(t *testing.T) {
 }
 
 func TestEntrySourceProcessingStatusTransitions(t *testing.T) {
-	entry := &Entry{LastStatus: "old", LastError: "old error"}
+	entry := &Entry{
+		LastStatus:    "old",
+		LastError:     "old error",
+		SourceDate:    1699999900,
+		ProcessedDate: 1699999950,
+		StartedDate:   1699999900,
+	}
+	wantSourceDate := entry.SourceDate
+	wantProcessedDate := entry.ProcessedDate
+	wantStartedDate := entry.StartedDate
 	entry.MarkSourceProcessingDisabled(1700000000)
 	if entry.LastStatus != "disabled" || entry.LastError != "" || entry.CheckedDate != 1700000000 {
 		t.Fatalf("unexpected disabled processing status: %+v", entry)
@@ -536,6 +545,9 @@ func TestEntrySourceProcessingStatusTransitions(t *testing.T) {
 	entry.MarkSourceRetentionFailed("retention failed")
 	if entry.LastStatus != "retention_failed" || entry.LastError != "retention failed" {
 		t.Fatalf("unexpected retention status: %+v", entry)
+	}
+	if entry.SourceDate != wantSourceDate || entry.ProcessedDate != wantProcessedDate || entry.StartedDate != wantStartedDate {
+		t.Fatalf("failure status transitions changed source dates: %+v", entry)
 	}
 }
 

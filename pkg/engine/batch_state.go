@@ -16,7 +16,11 @@ func (e *Engine) setRunPhase(phase RunPhase) {
 	e.mu.Unlock()
 	observeEnginePhaseCurrent(phase)
 	if current != nil {
-		current.setPhase(phase)
+		if completed, ok := current.setPhase(phase); ok {
+			if completed.Phase != phase {
+				e.logRunPhaseSummary(completed)
+			}
+		}
 	}
 }
 

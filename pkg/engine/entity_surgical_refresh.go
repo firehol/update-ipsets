@@ -22,6 +22,7 @@ type entitySurgicalRefreshState struct {
 
 	targetFeeds []string
 	deltas      []feedEntityDelta
+	presence    *entityArtifactFeedPresence
 
 	affectedCountries map[string]struct{}
 	affectedASNs      map[uint32]struct{}
@@ -82,6 +83,7 @@ func (e *Engine) newEntitySurgicalRefreshState(ctx context.Context, feedNames []
 		web:               webBatch,
 		ent:               entityBatch,
 		targetFeeds:       filterPublicOutputNames(e, feedNames),
+		presence:          newEntityArtifactFeedPresence(e),
 		affectedCountries: map[string]struct{}{},
 		affectedASNs:      map[uint32]struct{}{},
 	}, nil
@@ -102,7 +104,7 @@ func (s *entitySurgicalRefreshState) loadFeedDeltas() error {
 		if err := contextErr(s.ctx); err != nil {
 			return err
 		}
-		delta, err := s.e.buildFeedEntityDelta(name)
+		delta, err := s.e.buildFeedEntityDeltaWithPresence(name, s.presence)
 		if err != nil {
 			if errors.Is(err, errEntitySurgicalNeedsFullRebuild) {
 				s.e.observeRunCounter("entity.refresh.full_rebuild_fallback", 1, 0)
@@ -146,7 +148,7 @@ func (s *entitySurgicalRefreshState) publishNoDeltaVersion() error {
 	if err := writeFileAtomic(filepath.Join(s.ent.stageDir, "version"), []byte(entityArtifactsVersion+"\n"), generatedFileMode); err != nil {
 		return err
 	}
-	_, err := s.ent.publish()
+	_, err := s.ent.publishContext(s.ctx)
 	return err
 }
 
@@ -373,13 +375,13 @@ func (s *entitySurgicalRefreshState) publishPatchedArtifacts() error {
 	if s.task != nil {
 		s.task.Update("publishing", "publishing patched entity artifacts", s.total, s.total)
 	}
-	if _, err := s.ent.publish(); err != nil {
+	if _, err := s.ent.publishContext(s.ctx); err != nil {
 		return err
 	}
-	if err := s.web.applyGeneratedFileTimestamps(s.generated); err != nil {
+	if err := s.web.applyGeneratedFileTimestampsContext(s.ctx, s.generated); err != nil {
 		return err
 	}
-	published, err := s.web.publish()
+	published, err := s.web.publishContext(s.ctx)
 	if err != nil {
 		return err
 	}

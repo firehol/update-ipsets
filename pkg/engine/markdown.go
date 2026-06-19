@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
@@ -27,7 +28,8 @@ func (e *Engine) initMarkdownTemplates() {
 	e.markdownTemplates = store
 }
 
-func (e *Engine) writeMarkdownFilesForFeeds(feedNames []string, outDir string) ([]output.GeneratedFile, error) {
+func (e *Engine) writeMarkdownFilesForFeeds(ctx context.Context, feedNames []string, outDir string) ([]output.GeneratedFile, error) {
+	ctx = nonNilContext(ctx)
 	if e.markdownTemplates == nil {
 		return nil, nil
 	}
@@ -43,14 +45,17 @@ func (e *Engine) writeMarkdownFilesForFeeds(feedNames []string, outDir string) (
 	var generated []output.GeneratedFile
 
 	for _, name := range feedNames {
-		ctx, err := reader.BuildFeedContext(name)
+		if err := contextErr(ctx); err != nil {
+			return nil, err
+		}
+		feedCtx, err := reader.BuildFeedContext(name)
 		if err != nil {
 			e.logger.Debug("markdown context build skipped", "feed", name, "error", err)
 			continue
 		}
 
 		rel := e.publicFeedMarkdownRelPath(name)
-		if err := e.markdownTemplates.WriteToDir("feed.md.tmpl", ctx, outDir, rel); err != nil {
+		if err := e.markdownTemplates.WriteToDir("feed.md.tmpl", feedCtx, outDir, rel); err != nil {
 			e.logger.Warn("markdown generation failed", "feed", name, "error", err)
 			continue
 		}

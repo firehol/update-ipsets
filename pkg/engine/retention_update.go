@@ -30,6 +30,71 @@ type retentionReconcileResult struct {
 	incomplete     int
 }
 
+type retentionReconcileStats struct {
+	totalEntries     int
+	scannedEntries   int
+	skippedEntries   int
+	malformedEntries int
+	processedCohorts int
+	rewrittenCohorts int
+	deletedCohorts   int
+	inputIPs         uint64
+	keptIPs          uint64
+	removedIPs       uint64
+}
+
+type retentionCohortUpdate struct {
+	oldIPs     uint64
+	keptIPs    uint64
+	removedIPs uint64
+	rewritten  bool
+	deleted    bool
+}
+
+func (s *retentionReconcileStats) record(update retentionCohortUpdate) {
+	if s == nil {
+		return
+	}
+	s.processedCohorts++
+	if update.rewritten {
+		s.rewrittenCohorts++
+	}
+	if update.deleted {
+		s.deletedCohorts++
+	}
+	s.inputIPs += update.oldIPs
+	s.keptIPs += update.keptIPs
+	s.removedIPs += update.removedIPs
+}
+
+func (s retentionReconcileStats) progressCounters() map[string]int64 {
+	return map[string]int64{
+		"total_entries":     int64(s.totalEntries),
+		"scanned_entries":   int64(s.scannedEntries),
+		"skipped_entries":   int64(s.skippedEntries),
+		"malformed_entries": int64(s.malformedEntries),
+		"processed_cohorts": int64(s.processedCohorts),
+		"rewritten_cohorts": int64(s.rewrittenCohorts),
+		"deleted_cohorts":   int64(s.deletedCohorts),
+		"input_ips":         int64Clamp(s.inputIPs),
+		"kept_ips":          int64Clamp(s.keptIPs),
+		"removed_ips":       int64Clamp(s.removedIPs),
+	}
+}
+
+func shouldReportRetentionProgress(idx, total int, _ retentionReconcileStats) bool {
+	processedEntries := idx + 1
+	return processedEntries == total || processedEntries%256 == 0
+}
+
+func int64Clamp(value uint64) int64 {
+	const maxInt64 = uint64(1<<63 - 1)
+	if value > maxInt64 {
+		return int64(maxInt64)
+	}
+	return int64(value)
+}
+
 func (e *Engine) updateRetention(ctx context.Context, name string, previous, current *iprange.IPSet, updatedAt time.Time) error {
 	ctx = nonNilContext(ctx)
 	paths, err := e.prepareRetentionUpdatePaths(name)
@@ -73,7 +138,7 @@ func (e *Engine) updateRetentionWithDiff(ctx context.Context, name string, paths
 		return err
 	}
 	e.replaceRetentionCohorts(name, result.cohorts)
-	return writeRetentionOutputs(paths.dir, name, started, updatedAtUnix, result.incomplete, past, result.currentBuckets, result.cohorts)
+	return writeRetentionOutputs(ctx, paths.dir, name, started, updatedAtUnix, result.incomplete, past, result.currentBuckets, result.cohorts)
 }
 
 func (e *Engine) prepareRetentionUpdatePaths(name string) (retentionUpdatePaths, error) {
@@ -161,14 +226,38 @@ func (e *Engine) retentionStartedAt(name string, fallback int64) int64 {
 	return started
 }
 
-func (e *Engine) refreshRetentionWithoutRemovals(ctx context.Context, name string, paths retentionUpdatePaths, started, updatedAt int64, past map[int]uint64) error {
+func (e *Engine) refreshRetentionWithoutRemovals(ctx context.Context, name string, paths retentionUpdatePaths, started, updatedAt int64, past map[int]uint64) (err error) {
+	opStarted := time.Now()
 	cohorts := e.retentionCohortsFromRuntime(ctx, name)
 	currentBuckets, incomplete := buildCurrentRetentionBuckets(cohorts, updatedAt, started)
-	return writeRetentionOutputs(paths.dir, name, started, updatedAt, incomplete, past, currentBuckets, cohorts)
+	defer func() {
+		elapsedMS := telemetryDurationMillis(time.Since(opStarted))
+		status := "ok"
+		if err != nil {
+			status = "error"
+		}
+		e.observeRunCounter("retention.refresh_without_removals.cohorts", int64(len(cohorts)), 0)
+		e.logger.Info("retention refresh summary",
+			"source", name,
+			"status", status,
+			"work_unit", "cohorts",
+			"work_size", len(cohorts),
+			"work_completed", len(cohorts),
+			"completion_pct", completionPct(int64(len(cohorts)), int64(len(cohorts))),
+			"rate_per_second", ratePerSecond(int64(len(cohorts)), elapsedMS),
+			"cohorts", len(cohorts),
+			"current_buckets", len(currentBuckets),
+			"incomplete", incomplete,
+			"elapsed_ms", elapsedMS,
+		)
+	}()
+	return writeRetentionOutputs(ctx, paths.dir, name, started, updatedAt, incomplete, past, currentBuckets, cohorts)
 }
 
-func (e *Engine) reconcileRetentionCohorts(ctx context.Context, name string, paths retentionUpdatePaths, started, updatedAt int64, current *iprange.IPSet, past map[int]uint64) (retentionReconcileResult, error) {
-	result := retentionReconcileResult{
+func (e *Engine) reconcileRetentionCohorts(ctx context.Context, name string, paths retentionUpdatePaths, started, updatedAt int64, current *iprange.IPSet, past map[int]uint64) (result retentionReconcileResult, err error) {
+	opStarted := time.Now()
+	stats := retentionReconcileStats{}
+	result = retentionReconcileResult{
 		cohorts:        make(map[int64]uint64),
 		currentBuckets: map[int]uint64{},
 	}
@@ -176,16 +265,77 @@ func (e *Engine) reconcileRetentionCohorts(ctx context.Context, name string, pat
 	if err != nil {
 		return retentionReconcileResult{}, err
 	}
-	for _, entry := range files {
+	stats.totalEntries = len(files)
+	progress := e.beginActiveOperation("retention.reconcile_cohorts", name, "scan", "files", int64(len(files)))
+	defer func() {
+		elapsedMS := telemetryDurationMillis(time.Since(opStarted))
+		if progress != nil {
+			progress.Update(int64(stats.scannedEntries), int64(stats.totalEntries), stats.progressCounters())
+			progress.Finish()
+		}
+		status := "ok"
+		if err != nil {
+			status = "error"
+		}
+		e.observeRunCounter("retention.reconcile.total_entries", int64(stats.totalEntries), 0)
+		e.observeRunCounter("retention.reconcile.scanned_entries", int64(stats.scannedEntries), 0)
+		e.observeRunCounter("retention.reconcile.skipped_entries", int64(stats.skippedEntries), 0)
+		e.observeRunCounter("retention.reconcile.malformed_entries", int64(stats.malformedEntries), 0)
+		e.observeRunCounter("retention.reconcile.cohorts_processed", int64(stats.processedCohorts), 0)
+		e.observeRunCounter("retention.reconcile.cohorts_rewritten", int64(stats.rewrittenCohorts), 0)
+		e.observeRunCounter("retention.reconcile.cohorts_deleted", int64(stats.deletedCohorts), 0)
+		e.observeRunCounter("retention.reconcile.input_ips", int64Clamp(stats.inputIPs), 0)
+		e.observeRunCounter("retention.reconcile.kept_ips", int64Clamp(stats.keptIPs), 0)
+		e.observeRunCounter("retention.reconcile.removed_ips", int64Clamp(stats.removedIPs), 0)
+		e.logger.Info("retention reconcile summary",
+			"source", name,
+			"status", status,
+			"work_unit", "files",
+			"work_size", stats.totalEntries,
+			"work_completed", stats.scannedEntries,
+			"completion_pct", completionPct(int64(stats.scannedEntries), int64(stats.totalEntries)),
+			"rate_per_second", ratePerSecond(int64(stats.scannedEntries), elapsedMS),
+			"total_entries", stats.totalEntries,
+			"scanned_entries", stats.scannedEntries,
+			"skipped_entries", stats.skippedEntries,
+			"malformed_entries", stats.malformedEntries,
+			"processed_cohorts", stats.processedCohorts,
+			"rewritten_cohorts", stats.rewrittenCohorts,
+			"deleted_cohorts", stats.deletedCohorts,
+			"input_ips", stats.inputIPs,
+			"kept_ips", stats.keptIPs,
+			"removed_ips", stats.removedIPs,
+			"elapsed_ms", elapsedMS,
+		)
+	}()
+	for idx, entry := range files {
+		if err := contextErr(ctx); err != nil {
+			return retentionReconcileResult{}, err
+		}
+		stats.scannedEntries = idx + 1
 		if shouldSkipRetentionCohortEntry(entry) {
+			stats.skippedEntries++
+			if progress != nil && shouldReportRetentionProgress(idx, len(files), stats) {
+				progress.Update(int64(idx+1), int64(len(files)), stats.progressCounters())
+			}
 			continue
 		}
 		addedAt, ok := e.retentionCohortTimestamp(name, entry.Name())
 		if !ok {
+			stats.skippedEntries++
+			stats.malformedEntries++
+			if progress != nil && shouldReportRetentionProgress(idx, len(files), stats) {
+				progress.Update(int64(idx+1), int64(len(files)), stats.progressCounters())
+			}
 			continue
 		}
-		if err := e.reconcileRetentionCohort(ctx, name, paths, started, updatedAt, current, past, entry.Name(), addedAt, &result); err != nil {
+		update, err := e.reconcileRetentionCohort(ctx, name, paths, started, updatedAt, current, past, entry.Name(), addedAt, &result)
+		if err != nil {
 			return retentionReconcileResult{}, err
+		}
+		stats.record(update)
+		if progress != nil && shouldReportRetentionProgress(idx, len(files), stats) {
+			progress.Update(int64(idx+1), int64(len(files)), stats.progressCounters())
 		}
 	}
 	return result, nil
@@ -205,20 +355,20 @@ func (e *Engine) retentionCohortTimestamp(name, baseName string) (int64, bool) {
 	return addedAt, true
 }
 
-func (e *Engine) reconcileRetentionCohort(ctx context.Context, name string, paths retentionUpdatePaths, started, updatedAt int64, current *iprange.IPSet, past map[int]uint64, baseName string, addedAt int64, result *retentionReconcileResult) error {
+func (e *Engine) reconcileRetentionCohort(ctx context.Context, name string, paths retentionUpdatePaths, started, updatedAt int64, current *iprange.IPSet, past map[int]uint64, baseName string, addedAt int64, result *retentionReconcileResult) (retentionCohortUpdate, error) {
 	path := filepath.Join(paths.newDir, baseName)
 	oldSource, err := openRetentionCohortSet(ctx, baseName, e.runtime.LibDir, filepath.Join(name, "new", baseName), path)
 	if err != nil {
-		return err
+		return retentionCohortUpdate{}, err
 	}
 	defer func() { _ = oldSource.Close() }()
 
 	still, err := collectIter(ctx, baseName+"_still", iprange.IntersectIter(oldSource.RangeSource, current))
 	if err != nil {
-		return err
+		return retentionCohortUpdate{}, err
 	}
 	if err := checkFileSetErr(oldSource.RangeSource, name, e.logger); err != nil {
-		return err
+		return retentionCohortUpdate{}, err
 	}
 	stillCount := still.UniqueCount()
 	oldCount := oldSource.UniqueIPs()
@@ -226,14 +376,20 @@ func (e *Engine) reconcileRetentionCohort(ctx context.Context, name string, path
 	if oldCount > stillCount {
 		removedCount = oldCount - stillCount
 	}
+	update := retentionCohortUpdate{
+		oldIPs:     oldCount,
+		keptIPs:    stillCount,
+		removedIPs: removedCount,
+	}
 	hours := retentionHours(updatedAt, addedAt)
 	if removedCount > 0 {
 		if err := e.recordRetentionRemoval(name, paths.dir, started, updatedAt, addedAt, hours, removedCount, past); err != nil {
-			return err
+			return retentionCohortUpdate{}, err
 		}
 	}
 	if stillCount == 0 {
-		return removeRetentionCohortFile(path)
+		update.deleted = true
+		return update, removeRetentionCohortFile(path)
 	}
 
 	result.cohorts[addedAt] = stillCount
@@ -242,9 +398,10 @@ func (e *Engine) reconcileRetentionCohort(ctx context.Context, name string, path
 		result.incomplete = 1
 	}
 	if removedCount == 0 {
-		return nil
+		return update, nil
 	}
-	return writeBinaryPath(path, still, time.Unix(addedAt, 0).UTC())
+	update.rewritten = true
+	return update, writeBinaryPath(path, still, time.Unix(addedAt, 0).UTC())
 }
 
 func retentionHours(updatedAt, addedAt int64) int {
@@ -271,13 +428,22 @@ func removeRetentionCohortFile(path string) error {
 	return nil
 }
 
-func writeRetentionOutputs(dir, name string, started, updatedAt int64, incomplete int, past, current map[int]uint64, cohorts map[int64]uint64) error {
+func writeRetentionOutputs(ctx context.Context, dir, name string, started, updatedAt int64, incomplete int, past, current map[int]uint64, cohorts map[int64]uint64) error {
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
 	retention := buildRetentionDataFromBuckets(name, started, updatedAt, incomplete, past, current)
 	data, err := jsonMarshalTabIndent(retention)
 	if err != nil {
 		return err
 	}
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
 	if err := writeRetentionCohortIndex(filepath.Join(dir, "retention_cohorts.csv"), cohorts); err != nil {
+		return err
+	}
+	if err := contextErr(ctx); err != nil {
 		return err
 	}
 	if err := writeRetentionHistogramCache(filepath.Join(dir, "histogram"), retention); err != nil {

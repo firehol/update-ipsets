@@ -50,13 +50,13 @@ func (e *Engine) rewriteSelectedEntityArtifacts(ctx context.Context, countries m
 	}
 	generated = append(generated, homeAggregate)
 
-	if _, err := entityBatch.publish(); err != nil {
+	if _, err := entityBatch.publishContext(ctx); err != nil {
 		return err
 	}
-	if err := webBatch.applyGeneratedFileTimestamps(generated); err != nil {
+	if err := webBatch.applyGeneratedFileTimestampsContext(ctx, generated); err != nil {
 		return err
 	}
-	published, err := webBatch.publish()
+	published, err := webBatch.publishContext(ctx)
 	if err != nil {
 		return err
 	}
@@ -240,13 +240,13 @@ func (e *Engine) rewriteHomeAggregate(ctx context.Context, task *BackgroundTaskH
 		return err
 	}
 	generated := []output.GeneratedFile{homeAggregate}
-	if err := webBatch.applyGeneratedFileTimestamps(generated); err != nil {
+	if err := webBatch.applyGeneratedFileTimestampsContext(ctx, generated); err != nil {
 		return err
 	}
 	if task != nil {
 		task.Update("publishing", "publishing homepage aggregate artifact", 1, 1)
 	}
-	published, err := webBatch.publish()
+	published, err := webBatch.publishContext(ctx)
 	if err != nil {
 		return err
 	}

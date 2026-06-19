@@ -34,14 +34,7 @@ func (r *Runner) runQueuedProcessing(ctx context.Context) {
 	r.metrics.recordBatchStart(len(items))
 	names := queuedProcessingNames(items)
 	reason := combineReasons(items)
-	// Once the downloader has admitted a feed body to the processing
-	// queue, the processor must run the full pipeline for that staged
-	// or committed body. The scheduler therefore always enters RunOnce
-	// with Reprocess=true for queued processing work, regardless of why
-	// the item was admitted. This prevents the old mtime/same-set
-	// short-circuits inside processConcreteSource from skipping
-	// finalize/retention/publication after queue admission.
-	reprocess := true
+	reprocess := queuedProcessingReprocess(items)
 	r.markProcessingActive(items)
 	batchStarted := time.Now()
 	runOnceStarted := time.Now()
@@ -107,6 +100,27 @@ func (r *Runner) runQueuedProcessing(ctx context.Context) {
 	}
 	if len(entityTargets) > 0 {
 		r.eng.QueueEntityArtifactsRefreshForFeedUpdates(ctx, entityTargets, reason.String())
+	}
+}
+
+func queuedProcessingReprocess(items []queuedWork) bool {
+	for _, item := range items {
+		if queuedProcessingReasonReprocess(item.Reason) {
+			return true
+		}
+	}
+	return false
+}
+
+func queuedProcessingReasonReprocess(reason runreason.Reason) bool {
+	switch reason {
+	case runreason.ReasonManualReprocess,
+		runreason.ReasonIntegrityReprocess,
+		runreason.ReasonStartupIntegrityReprocess,
+		runreason.ReasonProviderDefaults:
+		return true
+	default:
+		return false
 	}
 }
 

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -68,12 +69,17 @@ func (e *Engine) writeInsights(name string, outDir string) error {
 //
 // Errors are logged but not returned: a bad snapshot for one feed
 // should not abort the heavy block.
-func (e *Engine) writeInsightsForFeeds(updatedNames []string, outDir string) {
+func (e *Engine) writeInsightsForFeeds(ctx context.Context, updatedNames []string, outDir string) error {
+	ctx = nonNilContext(ctx)
 	for _, name := range insightTargetNames(e.cfg, updatedNames, e.publicOutputNames(), outDir, e.outputDir()) {
+		if err := contextErr(ctx); err != nil {
+			return err
+		}
 		if err := e.writeInsights(name, outDir); err != nil {
 			e.logger.Warn("insights write failed", "set", name, "error", err)
 		}
 	}
+	return nil
 }
 
 func insightTargetNames(cfg *config.Config, updatedNames []string, outputNames []string, stageDir string, liveDir string) []string {

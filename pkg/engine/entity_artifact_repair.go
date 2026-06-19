@@ -15,6 +15,7 @@ func (e *Engine) repairEntityArtifactsWithPlan(ctx context.Context, trigger stri
 		taskName = "Entity artifacts rebuild"
 	}
 	return e.withBackgroundTask(
+		ctx,
 		taskName,
 		trigger,
 		"planning",

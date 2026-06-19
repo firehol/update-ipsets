@@ -42,14 +42,18 @@ export function CurrentRunPanel({
   onFeedClick: (feed: AdminFeed) => void;
 }) {
   const queryClient = useQueryClient();
-  const [confirmAction, setConfirmAction] = useState<"run_due" | "reprocess_all" | null>(null);
+  const [confirmAction, setConfirmAction] = useState<
+    "run_due" | "reprocess_all" | null
+  >(null);
   const nowMs = useNow();
 
   const invalidateAdmin = () => {
     queryClient.invalidateQueries({ queryKey: queryKeys.adminStatus() });
     queryClient.invalidateQueries({ queryKey: queryKeys.adminFeeds() });
     queryClient.invalidateQueries({ queryKey: queryKeys.adminIntegrityRoot() });
-    queryClient.invalidateQueries({ queryKey: queryKeys.adminEntityIntegrity() });
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.adminEntityIntegrity(),
+    });
   };
 
   const runAll = useMutation({
@@ -83,13 +87,12 @@ export function CurrentRunPanel({
   const running = status.engine.running;
   const lastReport = status.engine.last_report;
   const feedIndex = new Map(feeds.map((feed) => [feed.name, feed]));
-  const downloadWaiting = [...(status.queues?.download_waiting ?? [])]
-    .sort(
-      (left, right) =>
-        Number(left.blocked ?? false) - Number(right.blocked ?? false) ||
-        parseGoTime(left.queued_at) - parseGoTime(right.queued_at) ||
-        left.name.localeCompare(right.name),
-    );
+  const downloadWaiting = [...(status.queues?.download_waiting ?? [])].sort(
+    (left, right) =>
+      Number(left.blocked ?? false) - Number(right.blocked ?? false) ||
+      parseGoTime(left.queued_at) - parseGoTime(right.queued_at) ||
+      left.name.localeCompare(right.name),
+  );
   const downloadActive = [...(status.queues?.download_active ?? [])].sort(
     (left, right) =>
       parseGoTime(left.started_at) - parseGoTime(right.started_at) ||
@@ -107,7 +110,8 @@ export function CurrentRunPanel({
   );
   const downloadRefetchPending = status.queues?.download_refetch_pending ?? [];
   const processingDeferred = status.queues?.processing_deferred ?? [];
-  const recentHealthTransitions = status.queues?.recent_health_transitions ?? [];
+  const recentHealthTransitions =
+    status.queues?.recent_health_transitions ?? [];
   const backgroundTasks = [...(status.engine.background_tasks ?? [])].sort(
     (left, right) =>
       parseGoTime(left.started_at) - parseGoTime(right.started_at) ||
@@ -236,6 +240,7 @@ export function CurrentRunPanel({
         <ProcessingNowColumn
           running={running}
           currentPhase={status.engine.current_phase}
+          activeOperations={status.engine.active_operations ?? []}
           processingBatch={processingBatch}
           feedIndex={feedIndex}
           nowMs={nowMs}
@@ -266,7 +271,10 @@ export function CurrentRunPanel({
         <div className={LIVE_QUEUE_VIEWPORT_CLASS}>
           {backgroundTasks.length === 0 &&
           status.engine.entity_refresh_pending == null &&
-          !(status.engine.entity_rebuild_pending && backgroundTasks.every((t) => t.name !== "Entity artifacts rebuild")) &&
+          !(
+            status.engine.entity_rebuild_pending &&
+            backgroundTasks.every((t) => t.name !== "Entity artifacts rebuild")
+          ) &&
           recentHealthTransitions.length === 0 ? (
             <div className={LIVE_QUEUE_EMPTY_CLASS}>
               No background maintenance task is currently running.
@@ -274,23 +282,35 @@ export function CurrentRunPanel({
           ) : (
             <>
               {status.engine.entity_rebuild_pending &&
-                backgroundTasks.every((t) => t.name !== "Entity artifacts rebuild") && (
+                backgroundTasks.every(
+                  (t) => t.name !== "Entity artifacts rebuild",
+                ) && (
                   <div className="border-b border-border/60 px-6 py-3 text-sm text-muted-foreground">
                     Entity artifacts rebuild: waiting for worker slot
                   </div>
                 )}
               {status.engine.entity_refresh_pending != null &&
                 status.engine.entity_refresh_pending > 0 &&
-                !backgroundTasks.some((t) => t.trigger === "feed_update" && t.name === "Entity artifacts refresh") && (
+                !backgroundTasks.some(
+                  (t) =>
+                    t.trigger === "feed_update" &&
+                    t.name === "Entity artifacts refresh",
+                ) && (
                   <div className="border-b border-border/60 px-6 py-3 text-sm text-muted-foreground">
-                    Entity refresh: {status.engine.entity_refresh_pending} feeds coalescing
+                    Entity refresh: {status.engine.entity_refresh_pending} feeds
+                    coalescing
                   </div>
                 )}
               {status.engine.entity_health_pending != null &&
                 status.engine.entity_health_pending > 0 &&
-                !backgroundTasks.some((t) => t.trigger === "health_transition" && t.name === "Entity artifacts refresh") && (
+                !backgroundTasks.some(
+                  (t) =>
+                    t.trigger === "health_transition" &&
+                    t.name === "Entity artifacts refresh",
+                ) && (
                   <div className="border-b border-border/60 px-6 py-3 text-sm text-muted-foreground">
-                    Entity health refresh: {status.engine.entity_health_pending} feeds coalescing
+                    Entity health refresh: {status.engine.entity_health_pending}{" "}
+                    feeds coalescing
                   </div>
                 )}
               {backgroundTasks.map((task) => (
@@ -308,7 +328,9 @@ export function CurrentRunPanel({
                   </div>
                   <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
                     {task.trigger && (
-                      <span>trigger: {formatBackgroundTrigger(task.trigger)}</span>
+                      <span>
+                        trigger: {formatBackgroundTrigger(task.trigger)}
+                      </span>
                     )}
                     {task.stage && <span>stage: {task.stage}</span>}
                     {typeof task.total === "number" && task.total > 0 && (
@@ -390,8 +412,8 @@ function HealthTransitionsList({
             key={`${t.feed}-${t.at}`}
             className="text-xs text-muted-foreground"
           >
-            <span className="font-mono text-foreground">{t.feed}</span>
-            : {t.from_class || "new"} → {t.to_class},{" "}
+            <span className="font-mono text-foreground">{t.feed}</span>:{" "}
+            {t.from_class || "new"} → {t.to_class},{" "}
             {relativeTime(parseGoTime(t.at))}
           </li>
         ))}

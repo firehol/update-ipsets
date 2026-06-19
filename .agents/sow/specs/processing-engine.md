@@ -417,6 +417,7 @@ Operators MUST be able to observe at least:
 - being processed now
 - queue wait age
 - current processing phase or reason
+- active per-feed and per-operation progress when work is running
 - last processing result
 - whether enough local input exists for reprocess
 
@@ -440,6 +441,9 @@ The engine MUST be authoritative for at least:
 - processing start time for the current/last run
 - last run reason
 - last processing duration
+- active operation name, phase, feed name when applicable, stage, unit of work,
+  completed work, total work, completion percentage, elapsed time, and rate
+  per second
 - primary output size / unique-IP measurements
 - retention measurements
 - change-rate and rotation measurements
@@ -447,6 +451,13 @@ The engine MUST be authoritative for at least:
 
 The engine also writes the latest engine terminal status and message when
 processing-stage work is the latest completed action.
+
+Structured processing diagnostics MUST define the unit of work for every
+reported progress surface. Logs and admin status MUST NOT expose a bare counter
+without enough context for an operator to know whether the count represents
+feeds, files, operations, IPs, entries, or bytes. For completed runs and phases,
+diagnostics SHOULD expose phase-scoped operation counts, phase work size,
+completion percentage when bounded, and rate.
 
 At minimum, engine-controlled persisted fields MUST include equivalents of:
 

@@ -359,44 +359,6 @@ func TestWriteComparisonFilesRemovesStaleZeroOverlapRows(t *testing.T) {
 	}
 }
 
-func TestSanitizeComparisonArtifactsStagesUntouchedLiveZeroRows(t *testing.T) {
-	root := t.TempDir()
-	webDir := filepath.Join(root, "web")
-	stageDir := filepath.Join(root, "stage")
-	if err := os.MkdirAll(webDir, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(stageDir, 0o700); err != nil {
-		t.Fatal(err)
-	}
-	livePath := filepath.Join(webDir, "orphan_comparison.json")
-	if err := os.WriteFile(livePath, []byte(`[
-		{"name":"zero","ips":10,"common":0},
-		{"name":"positive","ips":10,"common":4}
-	]`+"\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-
-	eng := newEngineFixture(t, withRuntime(func(rt *Runtime) {
-		rt.WebDir = webDir
-	}))
-	if err := eng.sanitizeComparisonArtifacts(stageDir); err != nil {
-		t.Fatal(err)
-	}
-
-	data, err := os.ReadFile(filepath.Join(stageDir, "orphan_comparison.json"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var rows []CompareRow
-	if err := json.Unmarshal(data, &rows); err != nil {
-		t.Fatal(err)
-	}
-	if len(rows) != 1 || rows[0].Name != "positive" || rows[0].Common != 4 {
-		t.Fatalf("sanitized rows = %+v, want only positive row", rows)
-	}
-}
-
 func TestRenderHeaderDropsRetiredToolNames(t *testing.T) {
 	eng := newEngineFixture(t, withRuntime(func(rt *Runtime) {
 		rt.BaseDir = "/tmp/update-ipsets-test"

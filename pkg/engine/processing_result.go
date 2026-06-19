@@ -24,6 +24,13 @@ type FeedProcessingResult struct {
 	Processed bool
 	Message   string
 	Err       error
+	Work      FeedProcessingWork
+}
+
+type FeedProcessingWork struct {
+	InputBytes int64
+	Entries    int64
+	UniqueIPs  int64
 }
 
 func processingOK(message string, processed bool) FeedProcessingResult {
@@ -33,6 +40,11 @@ func processingOK(message string, processed bool) FeedProcessingResult {
 		Processed: processed,
 		Message:   message,
 	}
+}
+
+func (r FeedProcessingResult) withWork(work FeedProcessingWork) FeedProcessingResult {
+	r.Work = work
+	return r
 }
 
 func processingException(exception ProcessingException, message string, err error) FeedProcessingResult {

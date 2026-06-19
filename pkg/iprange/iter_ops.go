@@ -2,6 +2,7 @@ package iprange
 
 import (
 	"container/heap"
+	"context"
 	"iter"
 	"time"
 
@@ -33,6 +34,16 @@ func CountUniqueIter(src RangeSource) uint64 {
 // without materializing the intersection. Uses a two-pointer sweep over both
 // iterators. O(n+m) time, O(1) memory beyond the iterators.
 func OverlapCountIter(a, b RangeSource) uint64 {
+	count, _ := OverlapCountIterContext(context.Background(), a, b)
+	return count
+}
+
+// OverlapCountIterContext counts the intersection like OverlapCountIter while
+// allowing callers to stop long comparisons when their work context is done.
+func OverlapCountIterContext(ctx context.Context, a, b RangeSource) (uint64, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	started := time.Now()
 	defer func() {
 		attrs := []attribute.KeyValue{attribute.String("ip.version", "4")}
@@ -41,9 +52,12 @@ func OverlapCountIter(a, b RangeSource) uint64 {
 	}()
 	var count uint64
 	for r := range IntersectIter(a, b) {
+		if err := ctx.Err(); err != nil {
+			return count, err
+		}
 		count += r.Size()
 	}
-	return count
+	return count, ctx.Err()
 }
 
 // IntersectIter yields ranges representing the intersection of a and b.

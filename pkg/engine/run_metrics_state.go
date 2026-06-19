@@ -57,10 +57,48 @@ func (e *Engine) observeRunCounter(name string, count, bytes int64) {
 	}
 	observability.Observe(observability.BackgroundContext(), name, count, bytes, 0)
 	e.lifetimeCounters.Add(name, count, bytes)
+	e.mu.RLock()
+	current := e.currentMetrics
+	e.mu.RUnlock()
+	if current != nil {
+		current.observeCounter(name, count, bytes)
+	}
 }
 
 func (e *Engine) ObserveCounter(name string, count, bytes int64) {
 	e.observeRunCounter(name, count, bytes)
+}
+
+func (e *Engine) feedMetricsSnapshot(name string) (FeedTimingSnapshot, bool) {
+	if e == nil || name == "" {
+		return FeedTimingSnapshot{}, false
+	}
+	e.mu.RLock()
+	current := e.currentMetrics
+	e.mu.RUnlock()
+	if current == nil {
+		return FeedTimingSnapshot{}, false
+	}
+	return current.feedSnapshot(name)
+}
+
+func (e *Engine) observeFeedWork(name string, result FeedProcessingResult, elapsed time.Duration) {
+	if e == nil || name == "" {
+		return
+	}
+	e.observeRunCounter("sources.feeds_processed", 1, result.Work.InputBytes)
+	if result.Work.Entries > 0 {
+		e.observeRunCounter("sources.entries_processed", result.Work.Entries, 0)
+	}
+	if result.Work.UniqueIPs > 0 {
+		e.observeRunCounter("sources.unique_ips_processed", result.Work.UniqueIPs, 0)
+	}
+	e.mu.RLock()
+	current := e.currentMetrics
+	e.mu.RUnlock()
+	if current != nil {
+		current.observeFeedWork(name, result, elapsed)
+	}
 }
 
 func (e *Engine) lifetimeMetricsSnapshot() *LifetimeMetricsSnapshot {

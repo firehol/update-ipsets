@@ -127,6 +127,7 @@ type StatusSnapshot struct {
 	LastReason                   runreason.Reason         `json:"last_reason,omitempty"`
 	CurrentPhase                 RunPhase                 `json:"current_phase,omitempty"`
 	ActiveFeeds                  []ActiveFeed             `json:"active_feeds,omitempty"`
+	ActiveOperations             []ActiveOperation        `json:"active_operations,omitempty"`
 	BackgroundTasks              []BackgroundTaskSnapshot `json:"background_tasks,omitempty"`
 	BackgroundLimit              int                      `json:"background_limit,omitempty"`
 	BackgroundRunning            int                      `json:"background_running,omitempty"`
@@ -164,6 +165,21 @@ type ActiveFeed struct {
 	StartedAt time.Time        `json:"started_at,omitempty"`
 }
 
+type ActiveOperation struct {
+	Operation     string           `json:"operation"`
+	Phase         RunPhase         `json:"phase,omitempty"`
+	Feed          string           `json:"feed,omitempty"`
+	Stage         string           `json:"stage,omitempty"`
+	Unit          string           `json:"unit"`
+	StartedAt     time.Time        `json:"started_at,omitempty"`
+	ElapsedMS     int64            `json:"elapsed_ms"`
+	Current       int64            `json:"current"`
+	Total         int64            `json:"total"`
+	CompletionPct int              `json:"completion_pct"`
+	RatePerSecond float64          `json:"rate_per_second"`
+	Counters      map[string]int64 `json:"counters,omitempty"`
+}
+
 type Engine struct {
 	cfg                       *config.Config
 	runtime                   Runtime
@@ -182,6 +198,7 @@ type Engine struct {
 	lastReason                runreason.Reason
 	currentPhase              RunPhase
 	activeFeeds               map[string]ActiveFeed
+	activeOperations          map[string]ActiveOperation
 	backgroundTaskSeq         uint64
 	backgroundTasks           map[string]backgroundTaskState
 	backgroundLimiter         *backgroundLimiter

@@ -216,6 +216,22 @@ No other ordinary runtime condition may place a feed there directly.
 The UI MUST NOT expose a separate pseudo-batch or pseudo-queue that has no
 operator meaning.
 
+`being processed now` MUST show more than the feed name and phase when the
+backend reports active operation progress. For each active feed, the admin UI
+SHOULD render:
+
+- the current operation/stage label
+- the declared unit of work
+- completed work and total work
+- completion percentage when the operation is bounded
+- processing rate in the same unit per second
+- a stable progress bar or equivalent compact visual indicator
+
+The progress unit and rate MUST come from the backend status contract or be
+derived directly from backend-provided `current`, `total`, `unit`, `elapsed_ms`,
+and `rate_per_second` fields. The UI MUST NOT infer semantic units from feed
+names or operation-name substrings.
+
 ## Background-work visibility
 
 The daemon MUST NOT perform invisible background work.

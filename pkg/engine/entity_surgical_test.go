@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"testing"
 )
 
@@ -148,6 +149,61 @@ func TestBuildFeedEntityDeltaFallsBackForLegacyCommittedSidecar(t *testing.T) {
 	}
 }
 
+func TestBuildFeedEntityDeltaFallsBackWhenCommittedSidecarMissingButDetailsReferenceFeed(t *testing.T) {
+	eng := newEngineFixture(t)
+	writeCountryDetailSidecarForEntitySurgicalTest(t, eng, countryDetailSidecar{
+		Code: "US",
+		Feeds: []countryDetailFeedBase{
+			{Name: "sample", Category: "test", AttributedIPs: 1, UniqueIPs: 1},
+		},
+	})
+
+	_, err := eng.buildFeedEntityDelta("sample")
+	if !errors.Is(err, errEntitySurgicalNeedsFullRebuild) {
+		t.Fatalf("expected full rebuild fallback, got %v", err)
+	}
+}
+
+func TestBuildFeedEntityDeltaWithPresenceReusesCompletedMissingFeedScan(t *testing.T) {
+	eng := newEngineFixture(t)
+	writeCountryDetailSidecarForEntitySurgicalTest(t, eng, countryDetailSidecar{
+		Code: "US",
+		Feeds: []countryDetailFeedBase{
+			{Name: "present", Category: "test", AttributedIPs: 1, UniqueIPs: 1},
+		},
+	})
+	writeASNDetailSidecarForEntitySurgicalTest(t, eng, asnDetailSidecar{
+		ASN: 13335,
+		Feeds: []asnDetailFeedBase{
+			{Name: "present", Category: "test", AttributedIPs: 1, UniqueIPs: 1},
+		},
+	})
+
+	presence := newEntityArtifactFeedPresence(eng)
+	first, err := eng.buildFeedEntityDeltaWithPresence("missing-a", presence)
+	if err != nil {
+		t.Fatalf("first missing feed delta failed: %v", err)
+	}
+	second, err := eng.buildFeedEntityDeltaWithPresence("missing-b", presence)
+	if err != nil {
+		t.Fatalf("second missing feed delta failed: %v", err)
+	}
+	if first.old != nil || first.new != nil || second.old != nil || second.new != nil {
+		t.Fatalf("expected empty deltas, got first=%#v second=%#v", first, second)
+	}
+
+	_, err = eng.buildFeedEntityDeltaWithPresence("present", presence)
+	if !errors.Is(err, errEntitySurgicalNeedsFullRebuild) {
+		t.Fatalf("expected cached full rebuild fallback, got %v", err)
+	}
+	if got, want := lifetimeCounterCount(t, eng, "entity.repair_feed_scan.country_sidecar_read"), int64(1); got != want {
+		t.Fatalf("country sidecar reads = %d, want %d", got, want)
+	}
+	if got, want := lifetimeCounterCount(t, eng, "entity.repair_feed_scan.asn_sidecar_read"), int64(1); got != want {
+		t.Fatalf("ASN sidecar reads = %d, want %d", got, want)
+	}
+}
+
 func TestBuildFeedEntityDeltaPreservesUnreadablePendingSidecarError(t *testing.T) {
 	eng := newEngineFixture(t)
 	pendingPath := filepath.Join(eng.entityFeedPendingDir(), "sample.json")
@@ -166,4 +222,34 @@ func TestBuildFeedEntityDeltaPreservesUnreadablePendingSidecarError(t *testing.T
 	if !errors.As(err, &syntaxErr) {
 		t.Fatalf("expected JSON syntax error in chain, got %v", err)
 	}
+}
+
+func writeCountryDetailSidecarForEntitySurgicalTest(t *testing.T, eng *Engine, sidecar countryDetailSidecar) {
+	t.Helper()
+	path := filepath.Join(eng.entityCountriesDir(), sidecar.Code+".json")
+	if err := writeJSONFile(path, sidecar); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeASNDetailSidecarForEntitySurgicalTest(t *testing.T, eng *Engine, sidecar asnDetailSidecar) {
+	t.Helper()
+	path := filepath.Join(eng.entityASNsDir(), strconv.FormatUint(uint64(sidecar.ASN), 10)+".json")
+	if err := writeJSONFile(path, sidecar); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func lifetimeCounterCount(t *testing.T, eng *Engine, name string) int64 {
+	t.Helper()
+	snapshot := eng.lifetimeMetricsSnapshot()
+	if snapshot == nil {
+		return 0
+	}
+	for _, counter := range snapshot.Counters {
+		if counter.Name == name {
+			return counter.Count
+		}
+	}
+	return 0
 }

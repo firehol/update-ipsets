@@ -165,6 +165,7 @@ func (e *Engine) runQueuedEntityArtifactRefresh(ctx context.Context, trigger str
 			return
 		}
 		err := e.withBackgroundTask(
+			ctx,
 			"Entity artifacts refresh",
 			trigger,
 			"coalescing",
@@ -199,6 +200,7 @@ func (e *Engine) runQueuedEntityHealthRefresh(ctx context.Context) {
 			return
 		}
 		err := e.withBackgroundTask(
+			ctx,
 			"Entity artifacts refresh",
 			"health_transition",
 			"coalescing",

@@ -16,7 +16,7 @@ import (
 
 type engineFixtureOption func(*Engine)
 
-func newEngineFixture(t *testing.T, opts ...engineFixtureOption) *Engine {
+func newEngineFixture(t testing.TB, opts ...engineFixtureOption) *Engine {
 	t.Helper()
 
 	root := t.TempDir()

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strconv"
@@ -51,15 +52,37 @@ func newBackgroundLimiter(limit int) *backgroundLimiter {
 }
 
 func (l *backgroundLimiter) Acquire() {
+	_ = l.AcquireContext(context.Background())
+}
+
+func (l *backgroundLimiter) AcquireContext(ctx context.Context) error {
 	if l == nil {
-		return
+		return nil
 	}
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
+	stopWake := context.AfterFunc(ctx, func() {
+		l.mu.Lock()
+		l.cond.Broadcast()
+		l.mu.Unlock()
+	})
+	defer stopWake()
+
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	for l.running >= l.limit {
+		if err := contextErr(ctx); err != nil {
+			return err
+		}
 		l.cond.Wait()
 	}
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
 	l.running++
+	return nil
 }
 
 func (l *backgroundLimiter) Release() {
@@ -159,7 +182,8 @@ func (h *BackgroundTaskHandle) Finish() {
 	delete(h.engine.backgroundTasks, h.id)
 }
 
-func (e *Engine) withBackgroundTask(name, trigger, stage, detail string, current, total int, fn func(task *BackgroundTaskHandle) error) error {
+func (e *Engine) withBackgroundTask(ctx context.Context, name, trigger, stage, detail string, current, total int, fn func(task *BackgroundTaskHandle) error) error {
+	ctx = nonNilContext(ctx)
 	component := backgroundMetricComponent(name)
 	e.observeRunCounter("background.tasks.started", 1, 0)
 	observeBackgroundTask(component, "started")
@@ -179,10 +203,15 @@ func (e *Engine) withBackgroundTask(name, trigger, stage, detail string, current
 
 	if e.backgroundLimiter != nil {
 		waitStarted := time.Now()
-		e.backgroundLimiter.Acquire()
+		err := e.backgroundLimiter.AcquireContext(ctx)
 		wait := time.Since(waitStarted)
 		e.observeRunOperation("background.worker_wait", wait)
 		observeBackgroundWorkerWait(component, wait)
+		if err != nil {
+			e.observeRunCounter("background.tasks.failed", 1, 0)
+			observeBackgroundTask(component, "failed")
+			return err
+		}
 		e.observeBackgroundWorkerGauges(component)
 		defer func() {
 			e.backgroundLimiter.Release()
@@ -190,6 +219,11 @@ func (e *Engine) withBackgroundTask(name, trigger, stage, detail string, current
 		}()
 	}
 
+	if err := contextErr(ctx); err != nil {
+		e.observeRunCounter("background.tasks.failed", 1, 0)
+		observeBackgroundTask(component, "failed")
+		return err
+	}
 	task.Update(stage, detail, current, total)
 	err := fn(task)
 	if err != nil {

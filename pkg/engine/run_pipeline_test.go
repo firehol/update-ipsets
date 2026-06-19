@@ -32,6 +32,38 @@ func TestBuildPipelineRunPlan(t *testing.T) {
 			},
 		},
 		{
+			name: "no updates without skip comparison flag still does not publish",
+			setup: func(t *testing.T) *Engine {
+				return engineForRunPlanTest(t, map[string]*config.Source{
+					"sample": runPlanPlainSource("sample"),
+				}, Runtime{SkipComparisonIfNoUpdates: false})
+			},
+			report: &Report{},
+			assert: func(t *testing.T, plan pipelineRunPlan) {
+				if plan.shouldPublish {
+					t.Fatal("no-update run without an independent repair reason should not publish")
+				}
+			},
+		},
+		{
+			name: "manual reprocess with no updates still publishes",
+			setup: func(t *testing.T) *Engine {
+				return engineForRunPlanTest(t, map[string]*config.Source{
+					"sample": runPlanPlainSource("sample"),
+				}, Runtime{SkipComparisonIfNoUpdates: true})
+			},
+			report: &Report{},
+			opts:   RunOptions{Selected: []string{"sample"}, Reprocess: true, Manual: true},
+			assert: func(t *testing.T, plan pipelineRunPlan) {
+				if !plan.shouldPublish {
+					t.Fatal("manual reprocess should publish even when the selected feed does not report an update")
+				}
+				if plan.skipHeavy {
+					t.Fatal("manual reprocess should force heavy phases")
+				}
+			},
+		},
+		{
 			name: "database selection forces heavy phase",
 			setup: func(t *testing.T) *Engine {
 				return engineForRunPlanTest(t, map[string]*config.Source{

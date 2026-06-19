@@ -347,8 +347,16 @@ func validateRuntimeURLs(runtime RuntimeConfig) error {
 
 func validateRuntimeResourceControls(runtime RuntimeConfig) error {
 	for field, value := range map[string]int{
-		"runtime.web_artifact_cache_max_entries": runtime.WebArtifactCacheMaxEntries,
-		"runtime.max_ingest_workers":             runtime.MaxIngestWorkers,
+		"runtime.web_artifact_cache_max_entries":   runtime.WebArtifactCacheMaxEntries,
+		"runtime.parallel_downloads":               runtime.ParallelDownloads,
+		"runtime.ignore_repeating_download_errors": runtime.IgnoreRepeatingDownloadErrors,
+		"runtime.parallel_dns_queries":             runtime.ParallelDNSQueries,
+		"runtime.max_ingest_workers":               runtime.MaxIngestWorkers,
+		"runtime.max_processing_workers":           runtime.MaxProcessingWorkers,
+		"runtime.max_heavy_phase_workers":          runtime.MaxHeavyPhaseWorkers,
+		"runtime.max_background_workers":           runtime.MaxBackgroundWorkers,
+		"runtime.min_run_interval_seconds":         runtime.MinRunIntervalSeconds,
+		"runtime.processing_interval_minutes":      runtime.ProcessingIntervalMinutes,
 	} {
 		if value < 0 {
 			return fmt.Errorf("%s must be zero or positive, got %d", field, value)

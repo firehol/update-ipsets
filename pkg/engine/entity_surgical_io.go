@@ -6,11 +6,41 @@ import (
 	"time"
 )
 
-func (e *Engine) entityArtifactsContainFeed(name string) (bool, error) {
+func (e *Engine) entityArtifactsContainFeedWithPresence(name string, presence *entityArtifactFeedPresence) (bool, error) {
+	if presence != nil {
+		return presence.contains(name)
+	}
+	return newEntityArtifactFeedPresence(e).contains(name)
+}
+
+type entityArtifactFeedPresence struct {
+	e        *Engine
+	complete bool
+	names    map[string]struct{}
+}
+
+func newEntityArtifactFeedPresence(e *Engine) *entityArtifactFeedPresence {
+	return &entityArtifactFeedPresence{e: e}
+}
+
+func (p *entityArtifactFeedPresence) contains(name string) (bool, error) {
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return false, nil
 	}
+	if p == nil || p.e == nil {
+		return false, nil
+	}
+	if p.complete {
+		_, ok := p.names[name]
+		return ok, nil
+	}
+	return p.scan(name)
+}
+
+func (p *entityArtifactFeedPresence) scan(target string) (bool, error) {
+	e := p.e
+	seen := map[string]struct{}{}
 	countryFiles, err := sortedJSONFiles(e.entityCountriesDir())
 	if err != nil {
 		return false, err
@@ -27,7 +57,8 @@ func (e *Engine) entityArtifactsContainFeed(name string) (bool, error) {
 			return false, err
 		}
 		for _, row := range sidecar.Feeds {
-			if row.Name == name {
+			seen[row.Name] = struct{}{}
+			if row.Name == target {
 				return true, nil
 			}
 		}
@@ -48,11 +79,14 @@ func (e *Engine) entityArtifactsContainFeed(name string) (bool, error) {
 			return false, err
 		}
 		for _, row := range sidecar.Feeds {
-			if row.Name == name {
+			seen[row.Name] = struct{}{}
+			if row.Name == target {
 				return true, nil
 			}
 		}
 	}
+	p.names = seen
+	p.complete = true
 	return false, nil
 }
 

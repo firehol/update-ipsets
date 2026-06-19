@@ -2,6 +2,7 @@ package engine
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"io/fs"
 	"os"
@@ -71,10 +72,18 @@ func (b *stagedPublishBatch) markDelete(rel string) {
 }
 
 func (b *stagedPublishBatch) applyGeneratedFileTimestamps(files []output.GeneratedFile) error {
+	return b.applyGeneratedFileTimestampsContext(context.Background(), files)
+}
+
+func (b *stagedPublishBatch) applyGeneratedFileTimestampsContext(ctx context.Context, files []output.GeneratedFile) error {
+	ctx = nonNilContext(ctx)
 	if b == nil || len(files) == 0 {
 		return nil
 	}
 	for _, file := range files {
+		if err := contextErr(ctx); err != nil {
+			return err
+		}
 		if file.Timestamp.IsZero() {
 			continue
 		}
@@ -106,12 +115,23 @@ func (b *stagedPublishBatch) applyGeneratedFileTimestamps(files []output.Generat
 }
 
 func (b *stagedPublishBatch) publish() ([]string, error) {
+	return b.publishContext(context.Background())
+}
+
+func (b *stagedPublishBatch) publishContext(ctx context.Context) ([]string, error) {
+	ctx = nonNilContext(ctx)
 	if b == nil {
 		return nil, nil
+	}
+	if err := contextErr(ctx); err != nil {
+		return nil, err
 	}
 	published := make([]string, 0, 32)
 	if err := filepath.WalkDir(b.stageDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
+			return err
+		}
+		if err := contextErr(ctx); err != nil {
 			return err
 		}
 		rel, err := filepath.Rel(b.stageDir, path)
@@ -141,7 +161,7 @@ func (b *stagedPublishBatch) publish() ([]string, error) {
 		if err := os.Chmod(path, generatedFileMode); err != nil {
 			return err
 		}
-		if same, _ := sameRegularFileContent(path, dst); same {
+		if same, _ := sameRegularFileContentContext(ctx, path, dst); same {
 			info, err := os.Stat(path)
 			if err != nil {
 				return err
@@ -180,6 +200,9 @@ func (b *stagedPublishBatch) publish() ([]string, error) {
 		}
 		slices.Sort(rels)
 		for _, rel := range rels {
+			if err := contextErr(ctx); err != nil {
+				return nil, err
+			}
 			dst := filepath.Join(b.liveDir, rel)
 			if err := os.RemoveAll(dst); err != nil {
 				return nil, err
@@ -192,6 +215,14 @@ func (b *stagedPublishBatch) publish() ([]string, error) {
 }
 
 func sameRegularFileContent(left, right string) (bool, error) {
+	return sameRegularFileContentContext(context.Background(), left, right)
+}
+
+func sameRegularFileContentContext(ctx context.Context, left, right string) (bool, error) {
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
+		return false, err
+	}
 	leftInfo, err := os.Lstat(left)
 	if err != nil {
 		return false, err
@@ -223,6 +254,9 @@ func sameRegularFileContent(left, right string) (bool, error) {
 	rightBuf := make([]byte, 32*1024)
 	remaining := leftInfo.Size()
 	for remaining > 0 {
+		if err := contextErr(ctx); err != nil {
+			return false, err
+		}
 		chunkSize := int64(len(leftBuf))
 		if remaining < chunkSize {
 			chunkSize = remaining

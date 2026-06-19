@@ -1,7 +1,11 @@
 /** TypeScript mirrors of the JSON shapes served under /api/v1/*. Keep field
  * names aligned with Go json tags so backend contract drift is visible. */
 
-import type { EnrichmentCurrentStatusState, FeedEnrichment, FeedEnrichmentCurrentStatus } from "./enrichment-types";
+import type {
+  EnrichmentCurrentStatusState,
+  FeedEnrichment,
+  FeedEnrichmentCurrentStatus,
+} from "./enrichment-types";
 
 /* ============================================================================
    Per-feed metadata — what /<name>.json and /api/v1/sets/<name> return.
@@ -761,6 +765,21 @@ export interface AdminActiveQueueItem {
   detail?: string;
 }
 
+export interface AdminActiveOperation {
+  operation: string;
+  phase?: string;
+  feed?: string;
+  stage?: string;
+  unit: string;
+  started_at?: string;
+  elapsed_ms: number;
+  current: number;
+  total: number;
+  completion_pct: number;
+  rate_per_second: number;
+  counters?: Record<string, number>;
+}
+
 export interface AdminArtifact {
   name: string;
   type: string;
@@ -919,6 +938,7 @@ export interface AdminStatus {
       reason?: string;
       started_at?: string;
     }>;
+    active_operations?: AdminActiveOperation[];
     background_tasks?: Array<{
       id: string;
       name: string;

@@ -77,6 +77,12 @@ counts MUST NOT exceed it. Public/admin request serving MUST NOT acquire this
 ingest ceiling. A value of zero disables the ceiling and leaves the per-domain
 runtime controls as the effective limits.
 
+Runtime resource-control integers that default when set to zero MUST reject
+negative authored values during validation. This includes download/DNS worker
+counts, processing/heavy/background worker counts, ingest ceiling, scheduling
+interval controls, download-error suppression count, and public artifact cache
+limits. Zero keeps its existing default or disabled meaning.
+
 ### Categories
 
 Defines the public taxonomy used to group and describe feeds.

@@ -128,6 +128,7 @@ func (e *Engine) RebuildEntityArtifactsWithTrigger(ctx context.Context, trigger 
 		return err
 	}
 	return e.withBackgroundTask(
+		ctx,
 		"Entity artifacts rebuild",
 		trigger,
 		"planning",
@@ -154,6 +155,7 @@ func (e *Engine) RefreshEntityArtifactsForHealthTransitions(ctx context.Context,
 		return e.RebuildEntityArtifactsWithTrigger(ctx, "health_transition")
 	}
 	return e.withBackgroundTask(
+		ctx,
 		"Entity artifacts refresh",
 		"health_transition",
 		"scanning memberships",
@@ -206,13 +208,13 @@ func (e *Engine) rebuildEntityArtifactsFromLive(ctx context.Context, task *Backg
 	if task != nil {
 		task.Update("publishing", "publishing rebuilt entity artifacts", 1, 1)
 	}
-	if _, err := entityBatch.publish(); err != nil {
+	if _, err := entityBatch.publishContext(ctx); err != nil {
 		return err
 	}
-	if err := webBatch.applyGeneratedFileTimestamps(generated); err != nil {
+	if err := webBatch.applyGeneratedFileTimestampsContext(ctx, generated); err != nil {
 		return err
 	}
-	published, err := webBatch.publish()
+	published, err := webBatch.publishContext(ctx)
 	if err != nil {
 		return err
 	}
@@ -248,13 +250,13 @@ func (e *Engine) rebuildEntityArtifactsForFeeds(ctx context.Context, feedNames [
 	if task != nil {
 		task.Update("publishing", "publishing repaired entity artifacts", 1, 1)
 	}
-	if _, err := entityBatch.publish(); err != nil {
+	if _, err := entityBatch.publishContext(ctx); err != nil {
 		return err
 	}
-	if err := webBatch.applyGeneratedFileTimestamps(generated); err != nil {
+	if err := webBatch.applyGeneratedFileTimestampsContext(ctx, generated); err != nil {
 		return err
 	}
-	published, err := webBatch.publish()
+	published, err := webBatch.publishContext(ctx)
 	if err != nil {
 		return err
 	}

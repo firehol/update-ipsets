@@ -439,6 +439,9 @@ func (e *Engine) Compose(ctx context.Context, include, exclude []string, format 
 	default:
 		return nil, fmt.Errorf("unsupported compose format %q", format)
 	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	var buf bytes.Buffer
 	lw := &limitedWriter{w: &buf, limit: composeMaxOutput}
 	if err := result.Write(lw, opts); err != nil {

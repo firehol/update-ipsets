@@ -30,8 +30,16 @@ func newSharedLatestSetCache(engine *Engine) *sharedLatestSetCache {
 }
 
 func (c *sharedLatestSetCache) Acquire(name string) (*closableSource, func(), error) {
+	return c.AcquireContext(context.Background(), name)
+}
+
+func (c *sharedLatestSetCache) AcquireContext(ctx context.Context, name string) (*closableSource, func(), error) {
+	ctx = nonNilContext(ctx)
 	if c == nil || c.engine == nil {
 		return nil, nil, nil
+	}
+	if err := contextErr(ctx); err != nil {
+		return nil, nil, err
 	}
 
 	c.mu.Lock()
@@ -41,7 +49,7 @@ func (c *sharedLatestSetCache) Acquire(name string) (*closableSource, func(), er
 		return entry.src, c.releaseFunc(name, entry), nil
 	}
 
-	src, err := c.engine.openLatestSet(context.Background(), name)
+	src, err := c.engine.openLatestSet(ctx, name)
 	if err != nil {
 		c.mu.Unlock()
 		return nil, nil, err

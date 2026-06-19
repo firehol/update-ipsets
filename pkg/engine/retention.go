@@ -33,22 +33,6 @@ func loadSnapshotSet(ctx context.Context, name, rootDir, rel string) (*iprange.I
 	return iprange.ParseReader(ctx, name, file, iprange.DefaultParseOptions())
 }
 
-// loadLatestSet reads the previous latest snapshot for a given name.
-// Returns an empty set if the file does not exist. This must be called
-// before finalize() overwrites latest with the new data.
-func (e *Engine) loadLatestSet(ctx context.Context, name string) (*iprange.IPSet, error) {
-	latestRel := filepath.Join(name, "latest")
-	latestPath := filepath.Join(e.runtime.LibDir, latestRel)
-	if !fileExists(latestPath) {
-		// Fallback: earlier Go builds used "latest.set".
-		latestRel = filepath.Join(name, "latest.set")
-		if !fileExists(filepath.Join(e.runtime.LibDir, latestRel)) {
-			return iprange.New(name), nil
-		}
-	}
-	return loadSnapshotSet(ctx, name, e.runtime.LibDir, latestRel)
-}
-
 func (e *Engine) openPreviousLatestSet(ctx context.Context, name string) (*closableSource, error) {
 	for _, filename := range []string{"latest", "latest.set"} {
 		rel := filepath.Join(name, filename)

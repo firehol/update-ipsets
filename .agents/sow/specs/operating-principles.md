@@ -81,6 +81,8 @@ For request-scoped dynamic lookups over local feed state:
 
 - the product SHOULD reuse already-open local indexes / filesets when that can
   be done safely
+- request contexts MUST be propagated into local file/index cache opens and
+  final response materialization checkpoints
 - request handling MUST NOT repeatedly reopen the same committed local files
   when a correct local cache can avoid that cost
 - if timing metadata such as `first_seen` is exposed, the request path SHOULD
@@ -298,6 +300,14 @@ The product MUST NOT rely on operator intuition to identify resource waste.
 Resource-relevant work SHOULD emit monotonic counters and operation timings that
 can be compared across admin-status snapshots.
 
+Diagnostic progress surfaces MUST define their unit of work. A new progress
+counter, structured log field, or admin-status field MUST make clear whether it
+counts feeds, files, operations, IPs, entries, bytes, or another bounded unit.
+When total work is known, the same surface SHOULD include completed work, total
+work, completion percentage, elapsed time, and rate in that unit per second.
+Run and phase summaries SHOULD include phase-scoped operation counts and rates
+instead of only process-wide cumulative counters.
+
 At minimum, telemetry SHOULD cover:
 
 - download requests, HTTP statuses, and transferred bytes
@@ -454,6 +464,9 @@ This means:
 
 - only affected feeds SHOULD be reprocessed when possible
 - only affected peer comparison rows SHOULD be refreshed when possible
+- incremental peer comparison SHOULD reuse exact-overlap results for unchanged
+  normalized feed pairs through a drop-safe internal ledger, while still
+  rebuilding public rows from current metadata and lineage
 - only affected country/ASN entity-detail payloads SHOULD be refreshed when
   possible, and any expensive country<->ASN intersection work SHOULD be reused
   from per-feed sidecars instead of repeated once per entity page

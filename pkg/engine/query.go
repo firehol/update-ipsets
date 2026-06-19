@@ -90,7 +90,7 @@ func (e *Engine) queryNamedIPv4(ctx context.Context, name string, snap *cache.En
 
 func (e *Engine) openLatestSetForQuery(ctx context.Context, name string) (*closableSource, func(), error) {
 	if e != nil && e.querySetCache != nil {
-		src, release, err := e.querySetCache.Acquire(name)
+		src, release, err := e.querySetCache.AcquireContext(ctx, name)
 		if src != nil || err != nil {
 			return src, release, err
 		}
@@ -448,7 +448,11 @@ func (e *Engine) CompareSet(ctx context.Context, name string) ([]CompareRow, err
 			continue
 		}
 		e.observeRunCounter("http.compare_set.candidate_open", 1, 0)
-		common := iprange.OverlapCountIter(targetSrc, candSrc)
+		common, err := iprange.OverlapCountIterContext(ctx, targetSrc, candSrc)
+		if err != nil {
+			_ = candSrc.Close()
+			return nil, err
+		}
 		if ioErr := checkFileSetErr(targetSrc.RangeSource, name, e.logger); ioErr != nil {
 			_ = candSrc.Close()
 			e.logger.Error("CompareSet: I/O error on target set", "set", name, "err", ioErr)
@@ -535,6 +539,7 @@ func (e *Engine) StatusSnapshot() StatusSnapshot {
 		LastReason:                   e.lastReason,
 		CurrentPhase:                 e.currentPhase,
 		ActiveFeeds:                  e.snapshotActiveFeedsLocked(),
+		ActiveOperations:             e.snapshotActiveOperationsLocked(time.Now().UTC()),
 		BackgroundTasks:              e.snapshotBackgroundTasksLocked(),
 		BackgroundLimit:              backgroundLimit,
 		BackgroundRunning:            backgroundRunning,

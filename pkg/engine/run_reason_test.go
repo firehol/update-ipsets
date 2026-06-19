@@ -135,6 +135,43 @@ func TestStatusSnapshotIncludesActiveFeeds(t *testing.T) {
 	}
 }
 
+func TestStatusSnapshotIncludesActiveOperations(t *testing.T) {
+	eng := newEngineFixture(t)
+
+	op := eng.beginActiveOperation("retention.reconcile_cohorts", "sample", "scan", "files", 10)
+	op.Update(4, 10, map[string]int64{"processed_cohorts": 4})
+
+	status := eng.StatusSnapshot()
+	if len(status.ActiveOperations) != 1 {
+		t.Fatalf("expected 1 active operation, got %d", len(status.ActiveOperations))
+	}
+	active := status.ActiveOperations[0]
+	if active.Operation != "retention.reconcile_cohorts" || active.Feed != "sample" || active.Stage != "scan" {
+		t.Fatalf("unexpected active operation: %+v", active)
+	}
+	if active.Current != 4 || active.Total != 10 {
+		t.Fatalf("active operation progress = %d/%d, want 4/10", active.Current, active.Total)
+	}
+	if active.Unit != "files" {
+		t.Fatalf("active operation unit = %q, want files", active.Unit)
+	}
+	if active.CompletionPct != 40 {
+		t.Fatalf("active operation completion = %d, want 40", active.CompletionPct)
+	}
+	if active.RatePerSecond < 0 {
+		t.Fatalf("active operation rate = %f, want non-negative", active.RatePerSecond)
+	}
+	if got := active.Counters["processed_cohorts"]; got != 4 {
+		t.Fatalf("processed_cohorts counter = %d, want 4", got)
+	}
+
+	op.Finish()
+	status = eng.StatusSnapshot()
+	if len(status.ActiveOperations) != 0 {
+		t.Fatalf("expected no active operations after finish, got %d", len(status.ActiveOperations))
+	}
+}
+
 func TestStatusSnapshotIncludesPhase(t *testing.T) {
 	eng := newEngineFixture(t)
 

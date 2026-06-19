@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -82,6 +84,45 @@ func TestStagedPublishBatchPublishesNestedFiles(t *testing.T) {
 	}
 }
 
+func TestStagedPublishBatchPublishContextCancelledBeforeStartLeavesLiveUntouched(t *testing.T) {
+	liveDir := t.TempDir()
+	rel := "sample.json"
+	livePath := filepath.Join(liveDir, rel)
+	if err := os.WriteFile(livePath, []byte("old\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(live) error = %v", err)
+	}
+
+	batch, err := newStagedPublishBatch(liveDir, "", ".test-web-*")
+	if err != nil {
+		t.Fatalf("newStagedPublishBatch() error = %v", err)
+	}
+	defer batch.cleanup()
+	stagePath := filepath.Join(batch.stageDir, rel)
+	if err := os.WriteFile(stagePath, []byte("new\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(stage) error = %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	published, err := batch.publishContext(ctx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("publishContext() error = %v, want context.Canceled", err)
+	}
+	if len(published) != 0 {
+		t.Fatalf("publishContext() published = %v, want none", published)
+	}
+	body, err := os.ReadFile(livePath)
+	if err != nil {
+		t.Fatalf("ReadFile(live) error = %v", err)
+	}
+	if got, want := string(body), "old\n"; got != want {
+		t.Fatalf("live body = %q, want %q", got, want)
+	}
+	if _, err := os.Stat(stagePath); err != nil {
+		t.Fatalf("stage file should remain for caller cleanup, stat err = %v", err)
+	}
+}
+
 func TestStagedPublishBatchDeletesMarkedFilesAndPrunesParents(t *testing.T) {
 	liveDir := t.TempDir()
 	oldPath := filepath.Join(liveDir, "countries", "ZZ.json")
@@ -111,6 +152,27 @@ func TestStagedPublishBatchDeletesMarkedFilesAndPrunesParents(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(liveDir, "countries")); !os.IsNotExist(err) {
 		t.Fatalf("expected empty countries dir to be pruned, stat err = %v", err)
+	}
+}
+
+func TestSameRegularFileContentContextCancelled(t *testing.T) {
+	dir := t.TempDir()
+	left := filepath.Join(dir, "left")
+	right := filepath.Join(dir, "right")
+	if err := os.WriteFile(left, []byte("same\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(left) error = %v", err)
+	}
+	if err := os.WriteFile(right, []byte("same\n"), 0o600); err != nil {
+		t.Fatalf("WriteFile(right) error = %v", err)
+	}
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	same, err := sameRegularFileContentContext(ctx, left, right)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("sameRegularFileContentContext() error = %v, want context.Canceled", err)
+	}
+	if same {
+		t.Fatal("sameRegularFileContentContext() returned true for cancelled context")
 	}
 }
 

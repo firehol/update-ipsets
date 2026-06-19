@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/firehol/update-ipsets/pkg/cache"
 	"github.com/firehol/update-ipsets/pkg/config"
@@ -75,7 +76,16 @@ func (e *Engine) processRunSources(ctx context.Context, opts RunOptions, reason 
 				mu.Unlock()
 				return
 			}
+			started := time.Now()
+			feedOp := e.beginActiveOperation("sources.process_feed", name, "process", "operation", 1)
 			result := e.processSource(ctx, src, opts, reason)
+			if feedOp != nil {
+				feedOp.Update(1, 1, nil)
+				feedOp.Finish()
+			}
+			elapsed := time.Since(started)
+			e.observeFeedWork(name, result, elapsed)
+			e.logFeedProcessingSummary(name, elapsed, result)
 			mu.Lock()
 			results[name] = &sourceResult{name: name, result: result}
 			mu.Unlock()
@@ -83,6 +93,7 @@ func (e *Engine) processRunSources(ctx context.Context, opts RunOptions, reason 
 	}
 
 	batchNames := e.processingBatchNames(opts.Selected)
+	e.observeRunCounter("sources.feeds_expected", int64(len(batchNames)), 0)
 	for _, name := range batchNames {
 		src := e.cfg.Sources[name]
 		if src == nil {
@@ -332,9 +343,11 @@ func (e *Engine) writeRunMetadataAndInsights(ctx context.Context, opts RunOption
 			return nil, err
 		}
 		e.setRunPhase(RunPhaseInsights)
-		e.writeInsightsForFeeds(plan.insightUpdated, webOutDir)
+		if err := e.writeInsightsForFeeds(ctx, plan.insightUpdated, webOutDir); err != nil {
+			return nil, err
+		}
 	}
-	mdGenerated, err := e.writeMarkdownFilesForFeeds(plan.perFeedNames, webOutDir)
+	mdGenerated, err := e.writeMarkdownFilesForFeeds(ctx, plan.perFeedNames, webOutDir)
 	if err != nil {
 		e.logger.Warn("markdown generation error", "error", err)
 	} else {
@@ -343,29 +356,36 @@ func (e *Engine) writeRunMetadataAndInsights(ctx context.Context, opts RunOption
 	return generated, nil
 }
 
-func (e *Engine) publishRunArtifacts(opts RunOptions, report *Report, plan pipelineRunPlan, generated []output.GeneratedFile, webBatch *webPublishBatch, entityBatch *entityPublishBatch) error {
+func (e *Engine) publishRunArtifacts(ctx context.Context, opts RunOptions, report *Report, plan pipelineRunPlan, generated []output.GeneratedFile, webBatch *webPublishBatch, entityBatch *entityPublishBatch) error {
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
 	if opts.BeforePublish != nil {
 		if err := opts.BeforePublish(report); err != nil {
 			return err
 		}
 	}
-	if err := webBatch.applyGeneratedFileTimestamps(generated); err != nil {
+	if err := webBatch.applyGeneratedFileTimestampsContext(ctx, generated); err != nil {
 		return err
 	}
 	e.setRunPhase(RunPhasePublish)
-	published, err := webBatch.publish()
+	published, err := webBatch.publishContext(ctx)
 	if err != nil {
 		return err
 	}
 	if entityBatch != nil {
+		if err := contextErr(ctx); err != nil {
+			return err
+		}
 		e.entityArtifactsMu.Lock()
-		_, err := entityBatch.publish()
+		_, err := entityBatch.publishContext(ctx)
 		e.entityArtifactsMu.Unlock()
 		if err != nil {
 			return err
 		}
 	}
-	copied, err := e.copyUpdatedIPSetsToWeb(report.Updated)
+	copied, err := e.copyUpdatedIPSetsToWebContext(ctx, report.Updated)
 	if err != nil {
 		return err
 	}

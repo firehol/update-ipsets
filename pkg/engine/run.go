@@ -50,6 +50,9 @@ func (e *Engine) RunOnce(ctx context.Context, opts RunOptions) (*Report, error) 
 		runErr = fmt.Errorf("run already in progress")
 		return report, runErr
 	}
+	runDiagnostics := newEngineRunDiagnostics(runReason, opts, runStarted)
+	stopProgressLogging := e.startRunProgressLogger(ctx, runDiagnostics)
+	defer stopProgressLogging()
 	defer func() {
 		report.EndedAt = e.now().UTC()
 		// Persist cache state even on early abort so partial progress is not lost.
@@ -63,6 +66,7 @@ func (e *Engine) RunOnce(ctx context.Context, opts RunOptions) (*Report, error) 
 			"failed", len(report.Failed),
 			"elapsed", elapsed.Round(time.Millisecond).String(),
 		)
+		e.logRunDiagnosticSummary(report, runErr, runDiagnostics)
 		e.markRunEnd(report, runErr)
 	}()
 
@@ -122,7 +126,7 @@ func (e *Engine) RunOnce(ctx context.Context, opts RunOptions) (*Report, error) 
 		runErr = err
 		return report, err
 	}
-	if err := e.publishRunArtifacts(opts, report, plan, generated, webBatch, entityBatch); err != nil {
+	if err := e.publishRunArtifacts(ctx, opts, report, plan, generated, webBatch, entityBatch); err != nil {
 		runErr = err
 		return report, err
 	}
@@ -207,6 +211,7 @@ func (e *Engine) tryMarkRunStart(t time.Time, reason runreason.Reason) bool {
 	e.currentReason = reason
 	e.currentPhase = RunPhasePreflight
 	e.activeFeeds = make(map[string]ActiveFeed)
+	e.activeOperations = make(map[string]ActiveOperation)
 	e.currentMetrics = newRunMetrics(t, RunPhasePreflight)
 	return true
 }
@@ -221,6 +226,7 @@ func (e *Engine) markRunEnd(report *Report, err error) {
 	e.currentReason = runreason.ReasonUnknown
 	e.currentPhase = RunPhaseUnknown
 	e.activeFeeds = nil
+	e.activeOperations = nil
 	observeEnginePhaseCurrent(RunPhaseUnknown)
 	if e.currentMetrics != nil {
 		e.currentMetrics.finish()

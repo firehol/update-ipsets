@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"slices"
@@ -38,11 +39,24 @@ func (e *Engine) CheckIntegrity() []IntegrityFinding {
 }
 
 func (e *Engine) CheckIntegrityWithOptions(opts IntegrityOptions) []IntegrityFinding {
+	findings, _ := e.CheckIntegrityWithOptionsContext(context.Background(), opts)
+	return findings
+}
+
+func (e *Engine) CheckIntegrityContext(ctx context.Context) ([]IntegrityFinding, error) {
+	return e.CheckIntegrityWithOptionsContext(ctx, IntegrityOptions{})
+}
+
+func (e *Engine) CheckIntegrityWithOptionsContext(ctx context.Context, opts IntegrityOptions) ([]IntegrityFinding, error) {
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
+		return nil, err
+	}
 	check, ok := e.newIntegrityCheck(opts)
 	if !ok {
-		return nil
+		return nil, nil
 	}
-	return check.findings()
+	return check.findings(ctx)
 }
 
 type integrityCheck struct {
@@ -81,19 +95,25 @@ func (e *Engine) newIntegrityCheck(opts IntegrityOptions) (integrityCheck, bool)
 	}, true
 }
 
-func (c integrityCheck) findings() []IntegrityFinding {
+func (c integrityCheck) findings(ctx context.Context) ([]IntegrityFinding, error) {
 	var findings []IntegrityFinding
 	for _, name := range config.SortedSourceNames(c.e.cfg) {
+		if err := contextErr(ctx); err != nil {
+			return nil, err
+		}
 		source, ok := c.sourceContext(name)
 		if !ok {
 			continue
 		}
-		finding, ok := c.findingForSource(source)
+		finding, ok, err := c.findingForSource(ctx, source)
+		if err != nil {
+			return nil, err
+		}
 		if ok {
 			findings = append(findings, finding)
 		}
 	}
-	return findings
+	return findings, nil
 }
 
 func (c integrityCheck) sourceContext(name string) (integritySourceContext, bool) {
@@ -116,26 +136,32 @@ func (c integrityCheck) sourceContext(name string) (integritySourceContext, bool
 	}, true
 }
 
-func (c integrityCheck) findingForSource(source integritySourceContext) (IntegrityFinding, bool) {
+func (c integrityCheck) findingForSource(ctx context.Context, source integritySourceContext) (IntegrityFinding, bool, error) {
+	if err := contextErr(ctx); err != nil {
+		return IntegrityFinding{}, false, err
+	}
 	if blockedFeeds := c.e.integrityBlockedFeeds(source.name, source.src, c.resolver, c.opts.EnableAll); len(blockedFeeds) > 0 {
-		return c.blockedFeedFinding(source, blockedFeeds), true
+		return c.blockedFeedFinding(source, blockedFeeds), true, nil
 	}
 	if source.entry == nil || source.entry.ProcessedDate == 0 {
-		return c.neverProcessedFinding(source.name)
+		finding, ok := c.neverProcessedFinding(source.name)
+		return finding, ok, nil
 	}
 
 	processedTime := time.Unix(source.entry.ProcessedDate, 0).UTC()
 	sourcePath, sourceMTime, sourceOK := findSourceOutputFile(c.baseDir, source.name)
 	if !sourceOK {
-		return c.missingSourceFinding(source, processedTime)
+		finding, ok := c.missingSourceFinding(source, processedTime)
+		return finding, ok, nil
 	}
 	if c.e.now().UTC().Sub(processedTime) < integrityInFlightTolerance {
-		return IntegrityFinding{}, false
+		return IntegrityFinding{}, false, nil
 	}
 	if finding, ok := c.e.integrityHistoryDerivativeFinding(source.name, source.src, processedTime, sourcePath, sourceMTime); ok {
-		return finding, true
+		return finding, true, nil
 	}
-	return c.secondaryArtifactFinding(source, processedTime, sourcePath, sourceMTime)
+	finding, ok, err := c.secondaryArtifactFinding(ctx, source, processedTime, sourcePath, sourceMTime)
+	return finding, ok, err
 }
 
 func (c integrityCheck) blockedFeedFinding(source integritySourceContext, blockedFeeds []string) IntegrityFinding {
@@ -179,7 +205,7 @@ func (c integrityCheck) missingSourceFinding(source integritySourceContext, proc
 	}, true
 }
 
-func (c integrityCheck) secondaryArtifactFinding(source integritySourceContext, processedTime time.Time, sourcePath string, sourceMTime time.Time) (IntegrityFinding, bool) {
+func (c integrityCheck) secondaryArtifactFinding(ctx context.Context, source integritySourceContext, processedTime time.Time, sourcePath string, sourceMTime time.Time) (IntegrityFinding, bool, error) {
 	finding := IntegrityFinding{
 		Feed:            source.name,
 		SourcePath:      sourcePath,
@@ -187,23 +213,29 @@ func (c integrityCheck) secondaryArtifactFinding(source integritySourceContext, 
 		SourceFileMTime: sourceMTime,
 		ProcessedAt:     processedTime,
 	}
-	artifactByRelPath := c.scanSecondaryArtifacts(&finding, source, processedTime)
+	artifactByRelPath, err := c.scanSecondaryArtifacts(ctx, &finding, source, processedTime)
+	if err != nil {
+		return IntegrityFinding{}, false, err
+	}
 	finding.BlockedFeeds = appendUniqueStrings(finding.BlockedFeeds, c.e.integrityBlockedBogonProviderArtifacts(finding, artifactByRelPath))
 	if integrityFindingClean(finding) {
-		return IntegrityFinding{}, false
+		return IntegrityFinding{}, false, nil
 	}
 	finalizeIntegrityFinding(&finding)
-	return finding, true
+	return finding, true, nil
 }
 
-func (c integrityCheck) scanSecondaryArtifacts(finding *IntegrityFinding, source integritySourceContext, processedTime time.Time) map[string]secondaryArtifactDescriptor {
+func (c integrityCheck) scanSecondaryArtifacts(ctx context.Context, finding *IntegrityFinding, source integritySourceContext, processedTime time.Time) (map[string]secondaryArtifactDescriptor, error) {
 	artifacts := c.e.expectedSecondaryArtifacts(source.name)
 	artifactByRelPath := make(map[string]secondaryArtifactDescriptor, len(artifacts))
 	for _, artifact := range artifacts {
+		if err := contextErr(ctx); err != nil {
+			return nil, err
+		}
 		artifactByRelPath[artifact.RelPath] = artifact
 		c.scanSecondaryArtifact(finding, source, artifact, processedTime)
 	}
-	return artifactByRelPath
+	return artifactByRelPath, nil
 }
 
 func (c integrityCheck) scanSecondaryArtifact(finding *IntegrityFinding, source integritySourceContext, artifact secondaryArtifactDescriptor, processedTime time.Time) {

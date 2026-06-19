@@ -84,6 +84,17 @@ cancelled, the queue runner MUST stop draining new pending names, wait for
 bounded in-flight work to settle, and avoid publishing a partial entity batch as
 a successful refresh.
 
+Publication, raw mirror-copy, comparison-preparation, retention-output,
+startup-integrity, insight, markdown, and entity-setup loops are required-work
+paths, but they MUST still observe their operation context at bounded
+checkpoints. A cancelled context MUST return a cancellation error instead of
+reporting successful publication or repair. Existing successful output remains
+unchanged when the context is live.
+
+Background worker admission MUST be context-aware. If a queued background task
+is cancelled before acquiring a worker slot, it MUST finish without acquiring or
+releasing a slot and without leaving a stale visible background-task entry.
+
 ## Processing model overview
 
 ```mermaid
@@ -553,6 +564,12 @@ The pipeline MUST route feed families like this:
   is missing or malformed, it MUST surface the fallback and use bounded repair
   or full-rebuild recovery rather than spinning, silently retrying, or leaving
   corrupted entity artifacts in place
+- when a surgical entity refresh sees missing committed per-feed sidecars for
+  multiple feeds in one batch, it MAY reuse a completed country/ASN aggregate
+  feed-presence scan for that batch. It MUST still trigger the same full-rebuild
+  fallback when any existing aggregate references a feed whose committed
+  sidecar is missing, and it MUST NOT cache an incomplete scan that stopped
+  early after finding a referenced feed.
 - if an existing committed per-feed entity sidecar uses an older
   membership-only format without contribution counts, the product MAY read it
   for migration detection, but ordinary surgical refresh MUST fall back to
@@ -590,6 +607,13 @@ When it runs, it MUST:
 6. clear the batch
 
 If the queue is empty, the loop MUST do nothing.
+
+Ordinary downloader-admitted processing work MUST NOT be treated as explicit
+operator or repair reprocess intent. If a scheduled processing batch yields no
+successful feed updates and no independent database, provider-default,
+critical-provider, integrity-repair, or operator-reprocess reason exists, the
+engine SHOULD avoid global heavy publication because no new public truth can be
+produced by that batch.
 
 The processing loop MUST NOT reject a queued feed merely because its feed body
 matches the previous feed body or the previous canonical output.
@@ -636,6 +660,25 @@ Pipeline-level requirements are:
 - peer-facing comparison and insight artifacts MUST reflect the latest known
   settled state once the required reprocessing completes
 
+Pairwise comparison generation MAY keep an internal cache-dir ledger keyed by
+the exact current feed pair, normalized content hashes, and comparison algorithm
+version. Incremental comparison runs MAY reuse a ledger entry only when both
+current normalized content hashes match the recorded pair. Ledger hits MUST
+still regenerate peer rows from current feed metadata, category, and lineage so
+metadata-only catalog changes are reflected without recomputing exact overlap.
+Ledger misses that touch an updated feed MUST compute exact overlap or the
+normal cheap skip result. Ledger misses for pairs where neither feed was updated
+MAY be skipped during an incremental run; those pairs are not republished from
+missing state.
+
+The comparison-pair ledger is an internal, drop-safe optimization. A missing,
+malformed, oversized, incompatible, or unwritable ledger MUST NOT block public
+artifact publication and MUST NOT change public comparison semantics. After each
+comparison publication attempt, the engine SHOULD atomically replace the ledger
+with entries for the current feed set represented by retained hits and fresh
+computations. Full/global comparison runs MUST ignore previous ledger contents
+for correctness and compute the current pair set directly.
+
 ## Publication contract
 
 Committed feed outputs and public artifacts MUST only be updated from complete
@@ -669,12 +712,22 @@ permissions, owner, and producer-assigned mtime must match the staged artifact
 after publication. If byte comparison cannot be completed safely, publication
 MUST fall back to the normal replacement path.
 
+Feed-scoped public artifact producers MAY avoid creating a staged replacement
+only when the existing target artifact is already equivalent to the artifact
+that would be produced: identical bytes, generated-file permissions, and the
+same producer-assigned logical mtime. If ownership correction is configured or
+any equivalence check cannot prove the artifact is already current, producers
+MUST fall back to normal staging and publication.
+
 When raw redistributable feed files are mirrored to `runtime.web_dir_for_ipsets`,
 the mirror copy path MAY keep an existing mirror file in place when the
 committed canonical feed file is byte-identical. It MUST still apply the
 generated-file mode, configured owner, and canonical feed file mtime. If
 comparison cannot prove identity, the mirror copy path MUST fall back to the
 normal temporary-copy-and-rename path.
+The mirror copy path MUST honor the current publish context during identity
+comparison and stream copying; cancellation MUST remove temporary copy files and
+MUST NOT replace an existing destination with a partial file.
 
 If batch processing fails before publication:
 

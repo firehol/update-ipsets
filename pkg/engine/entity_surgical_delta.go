@@ -26,6 +26,10 @@ type feedEntityDelta struct {
 var errEntitySurgicalNeedsFullRebuild = errors.New("entity surgical refresh requires full rebuild")
 
 func (e *Engine) buildFeedEntityDelta(name string) (feedEntityDelta, error) {
+	return e.buildFeedEntityDeltaWithPresence(name, nil)
+}
+
+func (e *Engine) buildFeedEntityDeltaWithPresence(name string, presence *entityArtifactFeedPresence) (feedEntityDelta, error) {
 	delta := feedEntityDelta{name: name}
 
 	oldPath := filepath.Join(e.entityFeedsDir(), name+".json")
@@ -34,7 +38,7 @@ func (e *Engine) buildFeedEntityDelta(name string) (feedEntityDelta, error) {
 		if !errors.Is(err, os.ErrNotExist) {
 			return delta, err
 		}
-		found, scanErr := e.entityArtifactsContainFeed(name)
+		found, scanErr := e.entityArtifactsContainFeedWithPresence(name, presence)
 		if scanErr != nil {
 			return delta, scanErr
 		}

@@ -96,12 +96,13 @@ func (e *Engine) processConcreteSource(ctx context.Context, runName string, src 
 	sourceMTime := info.ModTime().UTC()
 	observedAt := e.now().UTC()
 	entry.MarkSourceProcessingStarted()
-	return e.processAndCommit(ctx, runName, src, output, entry, processingBodyPath, sourceMTime, observedAt)
+	return e.processAndCommit(ctx, runName, src, output, entry, processingBodyPath, info.Size(), sourceMTime, observedAt)
 }
 
 // processAndCommit parses an already-prepared canonical feed body and commits
 // the downstream artifacts derived from it.
-func (e *Engine) processAndCommit(ctx context.Context, runName string, src *config.Source, output string, entry *cache.Entry, sourcePath string, sourceMTime, observedAt time.Time) FeedProcessingResult {
+func (e *Engine) processAndCommit(ctx context.Context, runName string, src *config.Source, output string, entry *cache.Entry, sourcePath string, sourceBytes int64, sourceMTime, observedAt time.Time) FeedProcessingResult {
+	work := FeedProcessingWork{InputBytes: sourceBytes}
 	started := time.Now()
 	initialSet, err := downloader.ParseCanonicalFeedFile(ctx, runName, sourcePath, e.runtime.ParallelDNSQueries)
 	parseDur := time.Since(started)
@@ -110,9 +111,11 @@ func (e *Engine) processAndCommit(ctx context.Context, runName string, src *conf
 	if err != nil {
 		entry.MarkSourceParseFailed(err.Error())
 		e.logger.Error("source processing failed", "source", runName, "stage", "parse", "error", err)
-		return processingException(ProcessingExceptionParse, err.Error(), err)
+		return processingException(ProcessingExceptionParse, err.Error(), err).withWork(work)
 	}
 	finalSet := initialSet
+	work.Entries = int64(finalSet.Entries())
+	work.UniqueIPs = int64Clamp(finalSet.UniqueCount())
 	retentionDiff := e.retentionDiffWithPreviousLatest(ctx, runName, finalSet)
 
 	started = time.Now()
@@ -122,20 +125,27 @@ func (e *Engine) processAndCommit(ctx context.Context, runName string, src *conf
 		e.observeFeedOperation(runName, "sources.finalize", finalizeDur)
 		entry.MarkSourceFinalizeFailed(err.Error())
 		e.logger.Error("source processing failed", "source", runName, "stage", "finalize", "error", err)
-		return processingException(ProcessingExceptionFinalize, err.Error(), err)
+		return processingException(ProcessingExceptionFinalize, err.Error(), err).withWork(work)
 	}
 	finalizeDur := time.Since(started)
 	e.observeRunOperation("sources.finalize", finalizeDur)
 	e.observeFeedOperation(runName, "sources.finalize", finalizeDur)
 
 	started = time.Now()
+	retentionOp := e.beginActiveOperation("sources.update_retention", runName, "update", "operation", 1)
 	if err := e.updateRetentionFromDiff(ctx, runName, retentionDiff, finalSet, sourceMTime); err != nil {
+		if retentionOp != nil {
+			retentionOp.Finish()
+		}
 		retentionDur := time.Since(started)
 		e.observeRunOperation("sources.update_retention", retentionDur)
 		e.observeFeedOperation(runName, "sources.update_retention", retentionDur)
 		entry.MarkSourceRetentionFailed(err.Error())
 		e.logger.Error("source processing failed", "source", runName, "stage", "retention", "error", err)
-		return processingException(ProcessingExceptionRetention, err.Error(), err)
+		return processingException(ProcessingExceptionRetention, err.Error(), err).withWork(work)
+	}
+	if retentionOp != nil {
+		retentionOp.Finish()
 	}
 	retentionDur := time.Since(started)
 	e.observeRunOperation("sources.update_retention", retentionDur)
@@ -150,11 +160,11 @@ func (e *Engine) processAndCommit(ctx context.Context, runName string, src *conf
 	if finalSet.UniqueCount() == 0 {
 		entry.MarkSourceProcessingComplete(true)
 		e.logger.Info("source updated to empty set", "source", runName)
-		return processingOK("updated successfully with empty set", true)
+		return processingOK("updated successfully with empty set", true).withWork(work)
 	}
 	entry.MarkSourceProcessingComplete(false)
 	e.logger.Info("source updated", "source", runName, "entries", finalSet.Entries(), "unique_ips", finalSet.UniqueCount())
-	return processingOK("updated successfully", true)
+	return processingOK("updated successfully", true).withWork(work)
 }
 
 func (e *Engine) retentionDiffWithPreviousLatest(ctx context.Context, name string, current *iprange.IPSet) retentionUpdateDiff {
