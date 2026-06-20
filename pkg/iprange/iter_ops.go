@@ -16,6 +16,9 @@ type RangeSource interface {
 // CountUniqueIter counts the total unique IPs from a RangeSource without
 // materializing the ranges into a slice.
 func CountUniqueIter(src RangeSource) uint64 {
+	if unique, ok := rangeSourceKnownUniqueIPs(src); ok {
+		return unique
+	}
 	var total uint64
 	for r := range src.Iter() {
 		total += r.Size()
@@ -54,6 +57,13 @@ func OverlapCountIterContext(ctx context.Context, a, b RangeSource) (uint64, err
 // Both inputs must be sorted, non-overlapping range sequences.
 // Output ranges are sorted and non-overlapping.
 func IntersectIter(a, b RangeSource) func(yield func(Range) bool) {
+	if left, ok := a.(*IPSet); ok {
+		if right, ok := b.(*IPSet); ok {
+			left.Optimize()
+			right.Optimize()
+			return intersectRangeSlices(left.Ranges, right.Ranges)
+		}
+	}
 	return func(yield func(Range) bool) {
 		nextA, stopA := iter.Pull(a.Iter())
 		defer stopA()
@@ -105,6 +115,13 @@ func IntersectIter(a, b RangeSource) func(yield func(Range) bool) {
 // Both inputs must be sorted, non-overlapping range sequences.
 // Output ranges are sorted and non-overlapping.
 func ExcludeIter(a, b RangeSource) func(yield func(Range) bool) {
+	if left, ok := a.(*IPSet); ok {
+		if right, ok := b.(*IPSet); ok {
+			left.Optimize()
+			right.Optimize()
+			return excludeRangeSlices(left.Ranges, right.Ranges)
+		}
+	}
 	return func(yield func(Range) bool) {
 		nextA, stopA := iter.Pull(a.Iter())
 		defer stopA()
@@ -164,6 +181,13 @@ func ExcludeIter(a, b RangeSource) func(yield func(Range) bool) {
 // Output ranges are sorted, non-overlapping, and coalesced (adjacent ranges
 // from different sides of the diff are merged).
 func DiffIter(a, b RangeSource) func(yield func(Range) bool) {
+	if left, ok := a.(*IPSet); ok {
+		if right, ok := b.(*IPSet); ok {
+			left.Optimize()
+			right.Optimize()
+			return diffRangeSlices(left.Ranges, right.Ranges)
+		}
+	}
 	return func(yield func(Range) bool) {
 		nextA, stopA := iter.Pull(a.Iter())
 		defer stopA()
@@ -284,6 +308,13 @@ func UnionIter(sources ...RangeSource) func(yield func(Range) bool) {
 
 // unionTwo merges two sorted range sources into a single non-overlapping stream.
 func unionTwo(a, b RangeSource) func(yield func(Range) bool) {
+	if left, ok := a.(*IPSet); ok {
+		if right, ok := b.(*IPSet); ok {
+			left.Optimize()
+			right.Optimize()
+			return unionTwoRangeSlices(left.Ranges, right.Ranges)
+		}
+	}
 	return func(yield func(Range) bool) {
 		nextA, stopA := iter.Pull(a.Iter())
 		defer stopA()
@@ -352,6 +383,241 @@ func canMerge(cur, next Range) bool {
 		return next.Lo <= cur.Hi
 	}
 	return next.Lo <= cur.Hi+1
+}
+
+func intersectRangeSlices(a, b []Range) func(yield func(Range) bool) {
+	return func(yield func(Range) bool) {
+		i, j := 0, 0
+		for i < len(a) && j < len(b) {
+			ra := a[i]
+			rb := b[j]
+			if ra.Hi < rb.Lo {
+				i++
+				continue
+			}
+			if rb.Hi < ra.Lo {
+				j++
+				continue
+			}
+			if !yield(Range{Lo: max(ra.Lo, rb.Lo), Hi: min(ra.Hi, rb.Hi)}) {
+				return
+			}
+			switch {
+			case ra.Hi < rb.Hi:
+				i++
+			case rb.Hi < ra.Hi:
+				j++
+			default:
+				i++
+				j++
+			}
+		}
+	}
+}
+
+func excludeRangeSlices(a, b []Range) func(yield func(Range) bool) {
+	return func(yield func(Range) bool) {
+		i, j := 0, 0
+		for i < len(a) {
+			ra := a[i]
+			for j < len(b) && b[j].Hi < ra.Lo {
+				j++
+			}
+			for j < len(b) && b[j].Lo <= ra.Hi {
+				rb := b[j]
+				if ra.Lo < rb.Lo {
+					if !yield(Range{Lo: ra.Lo, Hi: rb.Lo - 1}) {
+						return
+					}
+				}
+				if ra.Hi <= rb.Hi {
+					ra.Lo = 1
+					ra.Hi = 0
+					break
+				}
+				ra.Lo = rb.Hi + 1
+				j++
+			}
+			if ra.Lo <= ra.Hi {
+				if !yield(ra) {
+					return
+				}
+			}
+			i++
+		}
+	}
+}
+
+func diffRangeSlices(a, b []Range) func(yield func(Range) bool) {
+	return func(yield func(Range) bool) {
+		i, j := 0, 0
+		var pending Range
+		havePending := false
+		emit := func(r Range) bool {
+			if !havePending {
+				pending = r
+				havePending = true
+				return true
+			}
+			if canMerge(pending, r) {
+				if r.Hi > pending.Hi {
+					pending.Hi = r.Hi
+				}
+				return true
+			}
+			if !yield(pending) {
+				return false
+			}
+			pending = r
+			return true
+		}
+
+		var ra, rb Range
+		okA, okB := false, false
+		if i < len(a) {
+			ra = a[i]
+			okA = true
+		}
+		if j < len(b) {
+			rb = b[j]
+			okB = true
+		}
+
+		for okA && okB {
+			if ra.Hi < rb.Lo {
+				if !emit(ra) {
+					return
+				}
+				i++
+				okA = i < len(a)
+				if okA {
+					ra = a[i]
+				}
+				continue
+			}
+			if rb.Hi < ra.Lo {
+				if !emit(rb) {
+					return
+				}
+				j++
+				okB = j < len(b)
+				if okB {
+					rb = b[j]
+				}
+				continue
+			}
+			if ra.Lo < rb.Lo {
+				if !emit(Range{Lo: ra.Lo, Hi: rb.Lo - 1}) {
+					return
+				}
+			} else if rb.Lo < ra.Lo {
+				if !emit(Range{Lo: rb.Lo, Hi: ra.Lo - 1}) {
+					return
+				}
+			}
+			switch {
+			case ra.Hi < rb.Hi:
+				rb.Lo = ra.Hi + 1
+				i++
+				okA = i < len(a)
+				if okA {
+					ra = a[i]
+				}
+			case rb.Hi < ra.Hi:
+				ra.Lo = rb.Hi + 1
+				j++
+				okB = j < len(b)
+				if okB {
+					rb = b[j]
+				}
+			default:
+				i++
+				j++
+				okA = i < len(a)
+				okB = j < len(b)
+				if okA {
+					ra = a[i]
+				}
+				if okB {
+					rb = b[j]
+				}
+			}
+		}
+		for okA {
+			if !emit(ra) {
+				return
+			}
+			i++
+			okA = i < len(a)
+			if okA {
+				ra = a[i]
+			}
+		}
+		for okB {
+			if !emit(rb) {
+				return
+			}
+			j++
+			okB = j < len(b)
+			if okB {
+				rb = b[j]
+			}
+		}
+		if havePending {
+			yield(pending)
+		}
+	}
+}
+
+func unionTwoRangeSlices(a, b []Range) func(yield func(Range) bool) {
+	return func(yield func(Range) bool) {
+		i, j := 0, 0
+		pick := func() (Range, bool) {
+			if i < len(a) && j < len(b) {
+				if a[i].Lo <= b[j].Lo {
+					r := a[i]
+					i++
+					return r, true
+				}
+				r := b[j]
+				j++
+				return r, true
+			}
+			if i < len(a) {
+				r := a[i]
+				i++
+				return r, true
+			}
+			if j < len(b) {
+				r := b[j]
+				j++
+				return r, true
+			}
+			return Range{}, false
+		}
+
+		cur, ok := pick()
+		if !ok {
+			return
+		}
+		for {
+			next, ok := pick()
+			if !ok {
+				break
+			}
+			if canMerge(cur, next) {
+				if next.Hi > cur.Hi {
+					cur.Hi = next.Hi
+				}
+				continue
+			}
+			if !yield(cur) {
+				return
+			}
+			cur = next
+		}
+		yield(cur)
+	}
 }
 
 // mergeHeap is a min-heap of (Range, pull-function) entries, ordered by Lo.

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -285,7 +286,7 @@ func TestCountASNFeedWithBogonSplitFallsBackWhenSplitMissing(t *testing.T) {
 	}
 	bogons.Optimize()
 
-	counts, _, bogonIPs, err := countASNFeedWithBogonSplit(db, feed, bogons, map[string]uint64{}, "sample")
+	counts, _, bogonIPs, err := countASNFeedWithBogonSplit(context.Background(), db, feed, bogons, map[string]uint64{}, "sample")
 	if err != nil {
 		t.Fatal(err)
 	}

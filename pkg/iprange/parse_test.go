@@ -1,6 +1,7 @@
 package iprange
 
 import (
+	"bytes"
 	"context"
 	"strings"
 	"testing"
@@ -78,6 +79,35 @@ func TestParseReaderPreservesPermissiveIPv4Forms(t *testing.T) {
 		{Lo: mustIP(t, "8.0.0.1"), Hi: mustIP(t, "8.0.0.1")},
 		{Lo: mustIP(t, "10.0.0.2"), Hi: mustIP(t, "10.0.0.3")},
 		{Lo: mustIP(t, "192.168.0.1"), Hi: mustIP(t, "192.168.0.1")},
+	})
+}
+
+func TestParseReaderRangeCapacityHintPreservesIPv4Result(t *testing.T) {
+	input := strings.Join([]string{
+		"# header",
+		"1.2.3.4",
+		"bad line",
+		"10.0.0.0/24",
+		"192.0.2.10 - 192.0.2.12",
+		"example.net",
+	}, "\n") + "\n"
+
+	opts := DefaultParseOptions()
+	opts.RangeCapacityHint = 1024
+	opts.Resolver = staticResolver{
+		"example.net": {mustIP(t, "203.0.113.10")},
+	}
+	set, err := ParseReader(t.Context(), "hinted", bytes.NewReader([]byte(input)), opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	set.Optimize()
+
+	expectRanges(t, set, []Range{
+		{Lo: mustIP(t, "1.2.3.4"), Hi: mustIP(t, "1.2.3.4")},
+		{Lo: mustIP(t, "10.0.0.0"), Hi: mustIP(t, "10.0.0.255")},
+		{Lo: mustIP(t, "192.0.2.10"), Hi: mustIP(t, "192.0.2.12")},
+		{Lo: mustIP(t, "203.0.113.10"), Hi: mustIP(t, "203.0.113.10")},
 	})
 }
 

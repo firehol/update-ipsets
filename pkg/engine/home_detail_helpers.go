@@ -43,34 +43,13 @@ func countryFilteredRangeSource(src iprange.RangeSource, prepared *geoPreparedPr
 	targetCode := uint16(targetIndex)
 	return iprange.RangeSourceFromIter(
 		func(yield func(iprange.Range) bool) {
-			segmentIndex := 0
-			for sourceRange := range src.Iter() {
-				for segmentIndex < len(prepared.segments) && prepared.segments[segmentIndex].rng.Hi < sourceRange.Lo {
-					segmentIndex++
+			_ = iprange.WalkRangeOverlapsContext(nil, src, geoPreparedSegmentIndex(prepared.segments), func(overlap iprange.RangeOverlap) bool {
+				segment := prepared.segments[overlap.RightIndex]
+				if !geoPreparedSegmentHasCode(segment, targetCode) {
+					return true
 				}
-				idx := segmentIndex
-				for idx < len(prepared.segments) {
-					segment := prepared.segments[idx]
-					if sourceRange.Hi < segment.rng.Lo {
-						break
-					}
-					if geoPreparedSegmentHasCode(segment, targetCode) {
-						lo := max(sourceRange.Lo, segment.rng.Lo)
-						hi := min(sourceRange.Hi, segment.rng.Hi)
-						if lo <= hi && !yield(iprange.Range{Lo: lo, Hi: hi}) {
-							return
-						}
-					}
-					if sourceRange.Hi <= segment.rng.Hi {
-						break
-					}
-					idx++
-				}
-				segmentIndex = idx
-				if segmentIndex >= len(prepared.segments) {
-					return
-				}
-			}
+				return yield(overlap.Overlap)
+			})
 		},
 		-1,
 	)
@@ -83,50 +62,38 @@ func countCountriesForASNSource(src iprange.RangeSource, db *asnloc.Database, pr
 
 	counts := make(map[string]uint64)
 	var totalMapped uint64
-	segmentIndex := 0
 
-	for sourceRange := range src.Iter() {
-		for segmentIndex < len(prepared.segments) && prepared.segments[segmentIndex].rng.Hi < sourceRange.Lo {
-			segmentIndex++
-		}
-		idx := segmentIndex
-		for idx < len(prepared.segments) {
-			segment := prepared.segments[idx]
-			if sourceRange.Hi < segment.rng.Lo {
+	var lookupErr error
+	err := iprange.WalkRangeOverlapsContext(nil, src, geoPreparedSegmentIndex(prepared.segments), func(overlap iprange.RangeOverlap) bool {
+		segment := prepared.segments[overlap.RightIndex]
+		cur := overlap.Overlap.Lo
+		hi := overlap.Overlap.Hi
+		for {
+			rec, network, err := db.Lookup(cur)
+			if err != nil {
+				lookupErr = err
+				return false
+			}
+			end := max(cur, min(network.Hi, hi))
+			if rec.ASN == targetASN {
+				span := uint64(end-cur) + 1
+				totalMapped += span
+				for _, codeIndex := range segment.codes {
+					counts[prepared.countryCodes[codeIndex]] += span
+				}
+			}
+			if end == ^uint32(0) || end >= hi {
 				break
 			}
-
-			lo := max(sourceRange.Lo, segment.rng.Lo)
-			hi := min(sourceRange.Hi, segment.rng.Hi)
-			cur := lo
-			for {
-				rec, network, err := db.Lookup(cur)
-				if err != nil {
-					return nil, 0, err
-				}
-				end := max(cur, min(network.Hi, hi))
-				if rec.ASN == targetASN {
-					span := uint64(end-cur) + 1
-					totalMapped += span
-					for _, codeIndex := range segment.codes {
-						counts[prepared.countryCodes[codeIndex]] += span
-					}
-				}
-				if end == ^uint32(0) || end >= hi {
-					break
-				}
-				cur = end + 1
-			}
-
-			if sourceRange.Hi <= segment.rng.Hi {
-				break
-			}
-			idx++
+			cur = end + 1
 		}
-		segmentIndex = idx
-		if segmentIndex >= len(prepared.segments) {
-			break
-		}
+		return true
+	})
+	if lookupErr != nil {
+		return nil, 0, lookupErr
+	}
+	if err != nil {
+		return nil, 0, err
 	}
 
 	values := make([]CountryValue, 0, len(counts))

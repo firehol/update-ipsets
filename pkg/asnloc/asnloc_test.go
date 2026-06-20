@@ -1,6 +1,7 @@
 package asnloc
 
 import (
+	"context"
 	"errors"
 	"net"
 	"os"
@@ -240,6 +241,35 @@ func TestCountFeedPropagatesLookupError(t *testing.T) {
 
 	if _, _, err := db.CountFeed(set); !errors.Is(err, wantErr) {
 		t.Fatalf("CountFeed() error = %v, want %v", err, wantErr)
+	}
+}
+
+func TestCountFeedContextHonorsCancellation(t *testing.T) {
+	db := testASNDatabase()
+	set := iprange.New("feed")
+	addRange(t, set, 0xC0000200, 0xC00002FF)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	if _, _, err := db.CountFeedContext(ctx, set); !errors.Is(err, context.Canceled) {
+		t.Fatalf("CountFeedContext() error = %v, want context.Canceled", err)
+	}
+}
+
+func TestCountFeedWithBogonsContextHonorsCancellation(t *testing.T) {
+	db := testASNDatabase()
+	set := iprange.New("feed")
+	addRange(t, set, 0xC0000200, 0xC00002FF)
+	bogons := iprange.New("bogons")
+	addRange(t, bogons, 0xC0000280, 0xC00002FF)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	_, _, _, err := db.CountFeedWithBogonsContext(ctx, set, bogons)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("CountFeedWithBogonsContext() error = %v, want context.Canceled", err)
 	}
 }
 

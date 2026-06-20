@@ -7,6 +7,8 @@ import (
 	"testing"
 )
 
+var rangeOverlapFilterSink RangeOverlapFilter
+
 func TestCollectAndCountIterContext(t *testing.T) {
 	src := setFromRanges("src",
 		Range{Lo: 10, Hi: 12},
@@ -184,6 +186,87 @@ func TestRangeSourceSummaryAndOverlapFilter(t *testing.T) {
 	}
 	if !filterOnly.BoundsDisjoint(mustRangeSourceTestFilter(t, differentBounds)) {
 		t.Fatal("filter-only bounds should prove zero overlap")
+	}
+}
+
+func TestRangeOverlapFilterBroadSourceAllocationShape(t *testing.T) {
+	broad := New("broad")
+	for i := range rangeSummarySparsePrefixLimit + 512 {
+		prefix := uint32(i) << rangeSummarySparsePrefixShift
+		if err := broad.AddRange(Range{Lo: prefix, Hi: prefix}); err != nil {
+			t.Fatalf("AddRange() error = %v", err)
+		}
+	}
+	broad.Optimize()
+
+	filter, err := BuildRangeOverlapFilterContext(context.Background(), broad)
+	if err != nil {
+		t.Fatalf("BuildRangeOverlapFilterContext() error = %v", err)
+	}
+	if !filter.Valid() || !filter.HasRange() {
+		t.Fatalf("BuildRangeOverlapFilterContext() = %+v, want valid non-empty filter", filter)
+	}
+	if filter.SparsePrefixesDisjoint(mustRangeSourceTestFilter(t, setFromRanges("narrow", Range{Lo: 1, Hi: 1}))) {
+		t.Fatal("overflowed sparse prefixes must stay conservative")
+	}
+
+	allocs := testing.AllocsPerRun(20, func() {
+		got, err := BuildRangeOverlapFilterContext(context.Background(), broad)
+		if err != nil {
+			panic(err)
+		}
+		rangeOverlapFilterSink = got
+	})
+	if allocs > 6 {
+		t.Fatalf("BuildRangeOverlapFilterContext() broad-source allocations = %.0f, want <= 6", allocs)
+	}
+}
+
+func TestWalkRangeOverlapsContext(t *testing.T) {
+	src := setFromRanges("src",
+		Range{Lo: 10, Hi: 20},
+		Range{Lo: 30, Hi: 40},
+	)
+	targets := RangeList{
+		{Lo: 5, Hi: 12},
+		{Lo: 18, Hi: 32},
+		{Lo: 50, Hi: 60},
+	}
+
+	var got []RangeOverlap
+	if err := WalkRangeOverlapsContext(t.Context(), src, targets, func(overlap RangeOverlap) bool {
+		got = append(got, overlap)
+		return true
+	}); err != nil {
+		t.Fatalf("WalkRangeOverlapsContext() error = %v", err)
+	}
+
+	want := []RangeOverlap{
+		{Left: Range{Lo: 10, Hi: 20}, Right: Range{Lo: 5, Hi: 12}, RightIndex: 0, Overlap: Range{Lo: 10, Hi: 12}},
+		{Left: Range{Lo: 10, Hi: 20}, Right: Range{Lo: 18, Hi: 32}, RightIndex: 1, Overlap: Range{Lo: 18, Hi: 20}},
+		{Left: Range{Lo: 30, Hi: 40}, Right: Range{Lo: 18, Hi: 32}, RightIndex: 1, Overlap: Range{Lo: 30, Hi: 32}},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("WalkRangeOverlapsContext() yielded %d overlaps, want %d: %+v", len(got), len(want), got)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("WalkRangeOverlapsContext()[%d] = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}
+
+func TestWalkRangeOverlapsContextHonorsCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	err := WalkRangeOverlapsContext(ctx,
+		setFromRanges("src", Range{Lo: 1, Hi: 10}),
+		RangeList{{Lo: 1, Hi: 10}},
+		func(RangeOverlap) bool { return true },
+	)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("WalkRangeOverlapsContext() error = %v, want context.Canceled", err)
 	}
 }
 

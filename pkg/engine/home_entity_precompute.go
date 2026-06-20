@@ -239,62 +239,58 @@ func countCountryASNJointSource(src iprange.RangeSource, db *asnloc.Database, pr
 
 	counts := make(map[string]map[uint32]uint64)
 	names := make(map[uint32]string)
-	segmentIndex := 0
 
-	for sourceRange := range src.Iter() {
-		stats.sourceRanges++
-		for segmentIndex < len(prepared.segments) && prepared.segments[segmentIndex].rng.Hi < sourceRange.Lo {
-			segmentIndex++
+	var lastSource iprange.Range
+	var haveLastSource bool
+	var lookupErr error
+	err := iprange.WalkRangeOverlapsContext(nil, src, geoPreparedSegmentIndex(prepared.segments), func(overlap iprange.RangeOverlap) bool {
+		if !haveLastSource || overlap.Left != lastSource {
+			stats.sourceRanges++
+			lastSource = overlap.Left
+			haveLastSource = true
 		}
-		idx := segmentIndex
-		for idx < len(prepared.segments) {
-			segment := prepared.segments[idx]
-			if sourceRange.Hi < segment.rng.Lo {
+
+		segment := prepared.segments[overlap.RightIndex]
+		stats.geoSegments++
+
+		cur := overlap.Overlap.Lo
+		hi := overlap.Overlap.Hi
+		for {
+			stats.asnLookups++
+			rec, network, err := db.Lookup(cur)
+			if err != nil {
+				lookupErr = err
+				return false
+			}
+			end := max(cur, min(network.Hi, hi))
+			if rec.ASN != 0 {
+				span := uint64(end-cur) + 1
+				if rec.Name != "" {
+					names[rec.ASN] = rec.Name
+				}
+				for _, codeIndex := range segment.codes {
+					code := prepared.countryCodes[int(codeIndex)]
+					countryCounts := counts[code]
+					if countryCounts == nil {
+						countryCounts = make(map[uint32]uint64)
+						counts[code] = countryCounts
+					}
+					countryCounts[rec.ASN] += span
+					stats.countryASNHits++
+				}
+			}
+			if end == ^uint32(0) || end >= hi {
 				break
 			}
-			stats.geoSegments++
-
-			lo := max(sourceRange.Lo, segment.rng.Lo)
-			hi := min(sourceRange.Hi, segment.rng.Hi)
-			cur := lo
-			for {
-				stats.asnLookups++
-				rec, network, err := db.Lookup(cur)
-				if err != nil {
-					return nil, nil, stats, err
-				}
-				end := max(cur, min(network.Hi, hi))
-				if rec.ASN != 0 {
-					span := uint64(end-cur) + 1
-					if rec.Name != "" {
-						names[rec.ASN] = rec.Name
-					}
-					for _, codeIndex := range segment.codes {
-						code := prepared.countryCodes[int(codeIndex)]
-						countryCounts := counts[code]
-						if countryCounts == nil {
-							countryCounts = make(map[uint32]uint64)
-							counts[code] = countryCounts
-						}
-						countryCounts[rec.ASN] += span
-						stats.countryASNHits++
-					}
-				}
-				if end == ^uint32(0) || end >= hi {
-					break
-				}
-				cur = end + 1
-			}
-
-			if sourceRange.Hi <= segment.rng.Hi {
-				break
-			}
-			idx++
+			cur = end + 1
 		}
-		segmentIndex = idx
-		if segmentIndex >= len(prepared.segments) {
-			break
-		}
+		return true
+	})
+	if lookupErr != nil {
+		return nil, nil, stats, lookupErr
+	}
+	if err != nil {
+		return nil, nil, stats, err
 	}
 
 	return counts, names, stats, nil

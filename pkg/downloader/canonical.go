@@ -44,6 +44,9 @@ func ParseProcessedFeedFile(ctx context.Context, name, path string, dnsThreads i
 	opts := iprange.DefaultParseOptions()
 	opts.DefaultPrefix = 32
 	opts.DNSThreads = dnsThreads
+	if info, statErr := f.Stat(); statErr == nil {
+		opts.RangeCapacityHint = iprange.EstimateRangeCapacityHint(info.Size(), iprange.FamilyIPv4)
+	}
 	return iprange.ParseReader(ctx, name, reader, opts)
 }
 
@@ -64,6 +67,11 @@ func ParseCanonicalFeedFileWithOptions(ctx context.Context, name, path string, o
 		return nil, err
 	}
 	defer func() { _ = f.Close() }()
+	if opts.RangeCapacityHint <= 0 {
+		if info, statErr := f.Stat(); statErr == nil {
+			opts.RangeCapacityHint = iprange.EstimateRangeCapacityHint(info.Size(), iprange.FamilyIPv4)
+		}
+	}
 	opts.DefaultPrefix = 32
 	return ParseCanonicalFeedReader(ctx, name, f, opts)
 }

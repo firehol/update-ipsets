@@ -20,6 +20,7 @@ type latestSetCache struct {
 	errs map[string]error
 
 	summaries map[string]latestSetSummary
+	filters   map[string]latestSetFilter
 }
 
 func newLatestSetCache(engine *Engine) *latestSetCache {
@@ -28,12 +29,18 @@ func newLatestSetCache(engine *Engine) *latestSetCache {
 		sets:      make(map[string]*closableSource),
 		errs:      make(map[string]error),
 		summaries: make(map[string]latestSetSummary),
+		filters:   make(map[string]latestSetFilter),
 	}
 }
 
 type latestSetSummary struct {
 	summary iprange.RangeSourceSummary
 	err     error
+}
+
+type latestSetFilter struct {
+	filter iprange.RangeOverlapFilter
+	err    error
 }
 
 func (c *latestSetCache) Open(name string) (*closableSource, error) {
@@ -98,16 +105,55 @@ func (c *latestSetCache) Summary(ctx context.Context, name string) (iprange.Rang
 
 	c.mu.Lock()
 	c.summaries[name] = latestSetSummary{summary: summary, err: err}
+	c.filters[name] = latestSetFilter{filter: summary.OverlapFilter(), err: err}
 	c.mu.Unlock()
 	return summary, err
 }
 
 func (c *latestSetCache) OverlapFilter(ctx context.Context, name string) (iprange.RangeOverlapFilter, error) {
-	summary, err := c.Summary(ctx, name)
+	if c == nil {
+		return iprange.RangeOverlapFilter{}, nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	c.mu.Lock()
+	if cached, ok := c.summaries[name]; ok {
+		c.mu.Unlock()
+		if cached.err != nil {
+			return iprange.RangeOverlapFilter{}, cached.err
+		}
+		return cached.summary.OverlapFilter(), nil
+	}
+	if cached, ok := c.filters[name]; ok {
+		c.mu.Unlock()
+		return cached.filter, cached.err
+	}
+	c.mu.Unlock()
+
+	src, err := c.Open(name)
 	if err != nil {
+		c.mu.Lock()
+		c.filters[name] = latestSetFilter{err: err}
+		c.mu.Unlock()
 		return iprange.RangeOverlapFilter{}, err
 	}
-	return summary.OverlapFilter(), nil
+	if src == nil || src.RangeSource == nil {
+		return iprange.RangeOverlapFilter{}, nil
+	}
+	if !latestSetCacheable(src) {
+		defer src.Close()
+	}
+	filter, err := iprange.BuildRangeOverlapFilterContext(ctx, src.RangeSource)
+	if err == nil {
+		err = checkRangeSourceErr(src.RangeSource)
+	}
+
+	c.mu.Lock()
+	c.filters[name] = latestSetFilter{filter: filter, err: err}
+	c.mu.Unlock()
+	return filter, err
 }
 
 func latestSetCacheable(src *closableSource) bool {
@@ -137,6 +183,7 @@ func (c *latestSetCache) CloseAll(logger *slog.Logger) {
 	c.sets = make(map[string]*closableSource)
 	c.errs = make(map[string]error)
 	c.summaries = make(map[string]latestSetSummary)
+	c.filters = make(map[string]latestSetFilter)
 }
 
 func checkRangeSourceErr(src iprange.RangeSource) error {

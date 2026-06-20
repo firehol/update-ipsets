@@ -68,6 +68,43 @@ func TestLatestSetCacheReusesSummaries(t *testing.T) {
 	}
 }
 
+func TestLatestSetCacheOverlapFilterDoesNotBuildSummary(t *testing.T) {
+	eng, _ := newTestEngine(t, "1.2.3.4\n5.6.7.0/30\n")
+	runOnce(t, eng)
+
+	cache := newLatestSetCache(eng)
+	defer cache.CloseAll(eng.logger)
+
+	filter, err := cache.OverlapFilter(t.Context(), "alpha")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !filter.Valid() || !filter.HasRange() {
+		t.Fatalf("cached overlap filter = %+v, want valid non-empty filter", filter)
+	}
+	if len(cache.summaries) != 0 {
+		t.Fatalf("cached summaries after filter-only lookup = %d, want 0", len(cache.summaries))
+	}
+	if len(cache.filters) != 1 {
+		t.Fatalf("cached filters = %d, want 1", len(cache.filters))
+	}
+
+	summary, err := cache.Summary(t.Context(), "alpha")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !summary.ContentHash.Valid {
+		t.Fatal("expected summary lookup to build a valid content hash")
+	}
+	filter, err = cache.OverlapFilter(t.Context(), "alpha")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if filter.Disjoint(summary.OverlapFilter()) {
+		t.Fatal("filter-only and summary-derived filters for same source must not be disjoint")
+	}
+}
+
 func TestLatestSetCacheDoesNotReuseTextFallbackSets(t *testing.T) {
 	eng, root := newTestEngine(t, "1.2.3.4\n5.6.7.0/30\n")
 	runOnce(t, eng)

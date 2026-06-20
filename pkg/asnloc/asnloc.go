@@ -150,7 +150,24 @@ func (d *Database) Stats() (networks int, ipv4Covered uint64, err error) {
 // (unknown) is included in counts so callers can report it as "unknown"
 // coverage.
 func (d *Database) CountFeed(src iprange.RangeSource) (counts map[uint32]uint64, names map[uint32]string, err error) {
-	counts, names, _, err = d.countFeedRanges(src.Iter())
+	return d.CountFeedContext(context.Background(), src)
+}
+
+// CountFeedContext is CountFeed with cancellation support.
+func (d *Database) CountFeedContext(ctx context.Context, src iprange.RangeSource) (counts map[uint32]uint64, names map[uint32]string, err error) {
+	counts = map[uint32]uint64{}
+	names = map[uint32]string{}
+	if d == nil || src == nil {
+		return counts, names, nil
+	}
+	var countErr error
+	err = iprange.WalkRangesContext(ctx, src, func(r iprange.Range) bool {
+		_, countErr = d.countFeedRange(r, counts, names)
+		return countErr == nil
+	})
+	if countErr != nil {
+		return counts, names, countErr
+	}
 	return counts, names, err
 }
 
@@ -159,8 +176,13 @@ func (d *Database) CountFeed(src iprange.RangeSource) (counts map[uint32]uint64,
 // comparing the same feed against multiple ASN providers can compute the
 // provider-independent excluded count once and reuse it.
 func (d *Database) CountFeedExcluding(src, exclude iprange.RangeSource) (counts map[uint32]uint64, names map[uint32]string, err error) {
+	return d.CountFeedExcludingContext(context.Background(), src, exclude)
+}
+
+// CountFeedExcludingContext is CountFeedExcluding with cancellation support.
+func (d *Database) CountFeedExcludingContext(ctx context.Context, src, exclude iprange.RangeSource) (counts map[uint32]uint64, names map[uint32]string, err error) {
 	if exclude == nil {
-		return d.CountFeed(src)
+		return d.CountFeedContext(ctx, src)
 	}
 	counts = map[uint32]uint64{}
 	names = map[uint32]string{}
@@ -168,7 +190,7 @@ func (d *Database) CountFeedExcluding(src, exclude iprange.RangeSource) (counts 
 		return counts, names, nil
 	}
 	var countErr error
-	err = iprange.ExcludeRangesContext(context.Background(), src, exclude, func(r iprange.Range) bool {
+	err = iprange.ExcludeRangesContext(ctx, src, exclude, func(r iprange.Range) bool {
 		_, countErr = d.countFeedRange(r, counts, names)
 		if countErr != nil {
 			return false
@@ -204,14 +226,22 @@ func (d *Database) CountFeedExcluding(src, exclude iprange.RangeSource) (counts 
 // When bogonSet is nil, the result is identical to CountFeed and
 // bogonCount is zero.
 func (d *Database) CountFeedWithBogons(src iprange.RangeSource, bogonSet iprange.RangeSource) (counts map[uint32]uint64, names map[uint32]string, bogonCount uint64, err error) {
+	return d.CountFeedWithBogonsContext(context.Background(), src, bogonSet)
+}
+
+// CountFeedWithBogonsContext is CountFeedWithBogons with cancellation support.
+func (d *Database) CountFeedWithBogonsContext(ctx context.Context, src iprange.RangeSource, bogonSet iprange.RangeSource) (counts map[uint32]uint64, names map[uint32]string, bogonCount uint64, err error) {
 	if bogonSet == nil {
-		counts, names, err = d.CountFeed(src)
+		counts, names, err = d.CountFeedContext(ctx, src)
 		return counts, names, 0, err
 	}
 	// Bogon contribution: intersection of the feed with the bogon set.
-	bogonCount = iprange.OverlapCountIter(src, bogonSet)
+	bogonCount, err = iprange.OverlapCountIterContext(ctx, src, bogonSet)
+	if err != nil {
+		return map[uint32]uint64{}, map[uint32]string{}, 0, err
+	}
 	// Database walk for the bogon-free residual of the feed.
-	counts, names, err = d.CountFeedExcluding(src, bogonSet)
+	counts, names, err = d.CountFeedExcludingContext(ctx, src, bogonSet)
 	return counts, names, bogonCount, err
 }
 

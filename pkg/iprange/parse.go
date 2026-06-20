@@ -13,12 +13,13 @@ import (
 )
 
 type ParseOptions struct {
-	DefaultPrefix  int
-	UseCIDRNetwork bool
-	DNSThreads     int
-	Resolver       Resolver
-	Progress       func(ParseProgress)
-	Stats          *OperationStats
+	DefaultPrefix     int
+	UseCIDRNetwork    bool
+	DNSThreads        int
+	Resolver          Resolver
+	Progress          func(ParseProgress)
+	Stats             *OperationStats
+	RangeCapacityHint int
 }
 
 type ParseProgress struct {
@@ -42,6 +43,49 @@ func DefaultParseOptions() ParseOptions {
 		DNSThreads:     5,
 		Resolver:       DefaultResolver{},
 	}
+}
+
+const (
+	maxParseRangeCapacityHint = 1 << 18
+	parseIPv4BytesPerRange    = 16
+	parseIPv6BytesPerRange    = 32
+)
+
+type remainingLenReader interface {
+	Len() int
+}
+
+// EstimateRangeCapacityHint returns a bounded initial range-slice capacity
+// estimate for text input of the given address family.
+func EstimateRangeCapacityHint(inputBytes int64, family AddressFamily) int {
+	if inputBytes <= 0 {
+		return 0
+	}
+	bytesPerRange := parseIPv4BytesPerRange
+	if family == FamilyIPv6 {
+		bytesPerRange = parseIPv6BytesPerRange
+	}
+	hint := inputBytes / int64(bytesPerRange)
+	if hint <= 0 {
+		hint = 1
+	}
+	if hint > maxParseRangeCapacityHint {
+		return maxParseRangeCapacityHint
+	}
+	return int(hint)
+}
+
+func parseRangeCapacityHint(explicit int, r io.Reader, family AddressFamily) int {
+	if explicit > 0 {
+		if explicit > maxParseRangeCapacityHint {
+			return maxParseRangeCapacityHint
+		}
+		return explicit
+	}
+	if lr, ok := r.(remainingLenReader); ok {
+		return EstimateRangeCapacityHint(int64(lr.Len()), family)
+	}
+	return 0
 }
 
 // ParseReader parses an IPv4 list from r and returns the resulting set.
@@ -81,6 +125,7 @@ func ParseReader(ctx context.Context, name string, r io.Reader, opts ParseOption
 	if opts.Resolver == nil {
 		opts.Resolver = DefaultResolver{}
 	}
+	capacityHint := parseRangeCapacityHint(opts.RangeCapacityHint, r, FamilyIPv4)
 
 	// Use a buffered reader so we can peek at the first bytes to detect
 	// the binary format without buffering the entire input.
@@ -99,6 +144,9 @@ func ParseReader(ctx context.Context, name string, r io.Reader, opts ParseOption
 	}
 
 	set := New(name)
+	if capacityHint > 0 {
+		set.Ranges = make([]Range, 0, capacityHint)
+	}
 	var hostnames []hostnameRequest
 	firstLine := true
 	var progress ParseProgress
@@ -238,6 +286,11 @@ func LoadPath(ctx context.Context, path string, opts ParseOptions) (*IPSet, erro
 		return nil, err
 	}
 	defer func() { _ = f.Close() }()
+	if opts.RangeCapacityHint <= 0 {
+		if info, statErr := f.Stat(); statErr == nil {
+			opts.RangeCapacityHint = EstimateRangeCapacityHint(info.Size(), FamilyIPv4)
+		}
+	}
 	return ParseReader(ctx, path, f, opts)
 }
 

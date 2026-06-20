@@ -90,10 +90,11 @@ The preferred model is file-backed or iterator-based processing.
 Generic range-source algorithms used by engine hot paths MUST live in
 `pkg/iprange`, not in engine-local helper implementations. This includes exact
 range-source comparison, iterator materialization/counting, normalized
-range-content hashing, bounds extraction, and conservative overlap filters.
-The engine MAY own domain-specific orchestration, artifact policy, and
-provider-specific attribution loops, but reusable range/set algebra belongs in
-the standalone `pkg/iprange` package.
+range-content hashing, bounds extraction, conservative overlap filters, and
+policy-free source-vs-index overlap walking. The engine MAY own
+domain-specific orchestration, artifact policy, and provider-specific
+attribution loops, but reusable range/set algebra belongs in the standalone
+`pkg/iprange` package.
 
 `pkg/iprange` hot paths MUST be allocation-storm free. Per-range insertions,
 per-IP lookups, file-backed lookups, source algebra, and parser inner loops
@@ -101,6 +102,11 @@ MUST avoid framework callbacks, interface boxing, and avoidable per-item heap
 allocation. When counters are needed, `pkg/iprange` returns plain local stats
 to the caller; the caller owns exporting those counters to logs, admin status,
 OpenTelemetry, or another telemetry framework.
+
+Parser range-slice preallocation MAY use explicit or input-size-derived
+capacity hints only when the hint is bounded. Capacity hints MUST be treated as
+best-effort performance hints and MUST NOT change parsing acceptance,
+normalization, hostname resolution, or error semantics.
 
 Pairwise and provider-reference overlap counting SHOULD use exact cheap filters
 before scanning both range streams. Acceptable filters include identical

@@ -88,6 +88,22 @@ func TestParseReader6BareIPv4UsesIPv4PrefixingBeforeMapping(t *testing.T) {
 	}
 }
 
+func TestParseReader6RangeCapacityHintPreservesResult(t *testing.T) {
+	opts := DefaultParseOptions6()
+	opts.RangeCapacityHint = 1024
+	set := parse6Str(t, "# header\n2001:db8::1\nbad line\n2001:db8::10-2001:db8::12\n", opts)
+	set.Optimize()
+	if len(set.Ranges) != 2 {
+		t.Fatalf("ranges = %d, want 2", len(set.Ranges))
+	}
+	if got := Uint128ToIPv6(set.Ranges[0].Lo); got != "2001:db8::1" {
+		t.Fatalf("first range lo = %s, want 2001:db8::1", got)
+	}
+	if got := set.Ranges[1].Size(); got != u128FromUint64(3) {
+		t.Fatalf("second range size = %s, want 3", got.String())
+	}
+}
+
 func TestParseReaderWrongBinaryFamilyErrors(t *testing.T) {
 	v6 := makeTestSet6(Range6{Lo: u128FromUint64(1), Hi: u128FromUint64(2)})
 	v6.Optimize()

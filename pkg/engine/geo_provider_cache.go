@@ -5,7 +5,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"iter"
 	"path/filepath"
 	"slices"
 	"sort"
@@ -18,6 +17,19 @@ import (
 type geoPreparedSegment struct {
 	rng   iprange.Range
 	codes []uint16
+}
+
+type geoPreparedSegmentIndex []geoPreparedSegment
+
+func (s geoPreparedSegmentIndex) Len() int {
+	return len(s)
+}
+
+func (s geoPreparedSegmentIndex) Range(i int) (iprange.Range, error) {
+	if i < 0 || i >= len(s) {
+		return iprange.Range{}, fmt.Errorf("geo segment index %d out of bounds [0, %d)", i, len(s))
+	}
+	return s[i].rng, nil
 }
 
 type geoPreparedProvider struct {
@@ -254,40 +266,15 @@ func (p *geoPreparedProvider) CountSource(src iprange.RangeSource) ([]CountryVal
 	counts := make([]uint64, len(p.countryCodes))
 	var totalMapped uint64
 
-	nextSource, stopSource := iter.Pull(src.Iter())
-	defer stopSource()
-
-	sourceRange, okSource := nextSource()
-	segmentIndex := 0
-	for okSource && segmentIndex < len(p.segments) {
-		segment := p.segments[segmentIndex]
-		if sourceRange.Hi < segment.rng.Lo {
-			sourceRange, okSource = nextSource()
-			continue
-		}
-		if segment.rng.Hi < sourceRange.Lo {
-			segmentIndex++
-			continue
-		}
-
-		lo := max(sourceRange.Lo, segment.rng.Lo)
-		hi := min(sourceRange.Hi, segment.rng.Hi)
-		span := uint64(hi-lo) + 1
+	_ = iprange.WalkRangeOverlapsContext(nil, src, geoPreparedSegmentIndex(p.segments), func(overlap iprange.RangeOverlap) bool {
+		segment := p.segments[overlap.RightIndex]
+		span := overlap.Overlap.Size()
 		totalMapped += span
 		for _, codeIndex := range segment.codes {
 			counts[int(codeIndex)] += span
 		}
-
-		switch {
-		case sourceRange.Hi < segment.rng.Hi:
-			sourceRange, okSource = nextSource()
-		case segment.rng.Hi < sourceRange.Hi:
-			segmentIndex++
-		default:
-			sourceRange, okSource = nextSource()
-			segmentIndex++
-		}
-	}
+		return true
+	})
 
 	values := make([]CountryValue, 0, len(counts))
 	for idx, count := range counts {

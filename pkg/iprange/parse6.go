@@ -28,6 +28,7 @@ func ParseReader6(ctx context.Context, name string, r io.Reader, opts ParseOptio
 	if opts.Resolver == nil {
 		opts.Resolver = DefaultResolver{}
 	}
+	capacityHint := parseRangeCapacityHint(opts.RangeCapacityHint, r, FamilyIPv6)
 
 	br := bufio.NewReaderSize(r, 64*1024)
 	header6, err := br.Peek(len(BinaryHeaderV20IPv6))
@@ -44,6 +45,9 @@ func ParseReader6(ctx context.Context, name string, r io.Reader, opts ParseOptio
 	}
 
 	set := New6(name)
+	if capacityHint > 0 {
+		set.Ranges = make([]Range6, 0, capacityHint)
+	}
 	var hostnames []hostnameRequest
 	firstLine := true
 
@@ -139,6 +143,11 @@ func LoadPath6(ctx context.Context, path string, opts ParseOptions) (*IPSet6, er
 		return nil, err
 	}
 	defer func() { _ = f.Close() }()
+	if opts.RangeCapacityHint <= 0 {
+		if info, statErr := f.Stat(); statErr == nil {
+			opts.RangeCapacityHint = EstimateRangeCapacityHint(info.Size(), FamilyIPv6)
+		}
+	}
 	return ParseReader6(ctx, path, f, opts)
 }
 

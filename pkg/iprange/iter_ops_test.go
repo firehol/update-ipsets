@@ -73,6 +73,13 @@ func TestCountUniqueIter(t *testing.T) {
 	}
 }
 
+func TestCountUniqueIterUsesKnownCount(t *testing.T) {
+	src := panicIterCountSource{count: 42}
+	if got := CountUniqueIter(src); got != 42 {
+		t.Fatalf("CountUniqueIter() = %d, want known count 42", got)
+	}
+}
+
 func TestOverlapCountIter6InMemoryAndFileSet(t *testing.T) {
 	left := makeTestSet6(
 		Range6{Lo: u128FromUint64(10), Hi: u128FromUint64(20)},
@@ -141,6 +148,26 @@ func TestIPv6IteratorsInMemory(t *testing.T) {
 		{Lo: u128FromUint64(20), Hi: u128FromUint64(30)},
 	})
 	expectRange6Slice(t, "source ranges after iteration", left.Ranges, leftRanges)
+}
+
+func TestIPv4IteratorsInMemoryDoNotMutateInputs(t *testing.T) {
+	leftRanges := []Range{
+		{Lo: 1, Hi: 5},
+		{Lo: 10, Hi: 15},
+		{Lo: 20, Hi: 25},
+	}
+	left := setFromRanges("left", leftRanges...)
+	right := setFromRanges("right",
+		Range{Lo: 3, Hi: 12},
+		Range{Lo: 22, Hi: 30},
+	)
+
+	_ = collectIter(IntersectIter(left, right))
+	_ = collectIter(ExcludeIter(left, right))
+	_ = collectIter(DiffIter(left, right))
+	_ = collectIter(UnionIter(left, right))
+
+	expectRangeSlice(t, "source ranges after iteration", left.Ranges, leftRanges)
 }
 
 // --- IntersectIter -----------------------------------------------------------
@@ -776,6 +803,24 @@ func countIterIPs(it func(yield func(Range) bool)) uint64 {
 		total += r.Size()
 	}
 	return total
+}
+
+type panicIterCountSource struct {
+	count uint64
+}
+
+func (s panicIterCountSource) Len() int {
+	return 1
+}
+
+func (s panicIterCountSource) UniqueIPs() uint64 {
+	return s.count
+}
+
+func (s panicIterCountSource) Iter() func(func(Range) bool) {
+	return func(func(Range) bool) {
+		panic("CountUniqueIter should use the known count")
+	}
 }
 
 func randomSet(rng *rand.Rand, name string, numRanges int) *IPSet {

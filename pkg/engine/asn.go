@@ -164,7 +164,7 @@ func (e *Engine) writeASNComparisonFiles(ctx context.Context, datasets asnDatase
 				return nil
 			}
 
-			counts, names, bogonIPs, err := countASNFeedWithBogonSplit(db, src.RangeSource, bogonUnion, bogonSplits, name)
+			counts, names, bogonIPs, err := countASNFeedWithBogonSplit(ctx, db, src.RangeSource, bogonUnion, bogonSplits, name)
 			if checkErr := checkFileSetErr(src.RangeSource, name, e.logger); checkErr != nil {
 				return nil
 			}
@@ -244,10 +244,10 @@ func (e *Engine) precomputeASNBogonSplits(ctx context.Context, targetNames []str
 	return splits
 }
 
-func countASNFeedWithBogonSplit(db *asnloc.Database, src iprange.RangeSource, bogonUnion *iprange.IPSet, bogonSplits map[string]uint64, name string) (map[uint32]uint64, map[uint32]string, uint64, error) {
+func countASNFeedWithBogonSplit(ctx context.Context, db *asnloc.Database, src iprange.RangeSource, bogonUnion *iprange.IPSet, bogonSplits map[string]uint64, name string) (map[uint32]uint64, map[uint32]string, uint64, error) {
 	if bogonUnion != nil && bogonSplits != nil {
 		if bogonIPs, ok := bogonSplits[name]; ok {
-			counts, names, err := db.CountFeedExcluding(src, bogonUnion)
+			counts, names, err := db.CountFeedExcludingContext(ctx, src, bogonUnion)
 			return counts, names, bogonIPs, err
 		}
 	}
@@ -256,7 +256,7 @@ func countASNFeedWithBogonSplit(db *asnloc.Database, src iprange.RangeSource, bo
 	if bogonUnion != nil {
 		bogonRangeSrc = bogonUnion
 	}
-	return db.CountFeedWithBogons(src, bogonRangeSrc)
+	return db.CountFeedWithBogonsContext(ctx, src, bogonRangeSrc)
 }
 
 // buildASNFeedJSON assembles the per-feed-per-provider JSON payload from
