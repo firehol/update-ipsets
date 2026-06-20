@@ -37,6 +37,37 @@ func TestLatestSetCacheReusesOpenSets(t *testing.T) {
 	}
 }
 
+func TestLatestSetCacheReusesSummaries(t *testing.T) {
+	eng, _ := newTestEngine(t, "1.2.3.4\n5.6.7.0/30\n")
+	runOnce(t, eng)
+
+	cache := newLatestSetCache(eng)
+	defer cache.CloseAll(eng.logger)
+
+	first, err := cache.Summary(t.Context(), "alpha")
+	if err != nil {
+		t.Fatal(err)
+	}
+	filter, err := cache.OverlapFilter(t.Context(), "alpha")
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := cache.Summary(t.Context(), "alpha")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !first.ContentHash.Equal(second.ContentHash) {
+		t.Fatal("expected cached summaries to keep the same content hash")
+	}
+	if !filter.Valid() || !filter.HasRange() {
+		t.Fatalf("cached overlap filter = %+v, want valid non-empty filter", filter)
+	}
+	if len(cache.summaries) != 1 {
+		t.Fatalf("cached summaries = %d, want 1", len(cache.summaries))
+	}
+}
+
 func TestLatestSetCacheDoesNotReuseTextFallbackSets(t *testing.T) {
 	eng, root := newTestEngine(t, "1.2.3.4\n5.6.7.0/30\n")
 	runOnce(t, eng)

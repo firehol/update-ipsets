@@ -9,9 +9,6 @@ import (
 	"sort"
 	"strings"
 	"sync/atomic"
-	"time"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 var ErrFileSet6Closed = errors.New("fileset6 is closed")
@@ -124,28 +121,17 @@ func parseBinaryHeader6(r io.Reader) (binaryHeader6, error) {
 }
 
 func OpenFileSet6(path string) (FileSet6, error) {
-	started := time.Now()
-	_, span := iprangeStart(iprangeBackground(), "iprange.load.binary", attribute.String("ip.version", "6"))
-	var opErr error
-	var bytes int64
-	defer func() {
-		iprangeEnd(span, opErr)
-		iprangeObserve(iprangeBackground(), "iprange.load.binary", 1, bytes, time.Since(started), attribute.String("ip.version", "6"), attribute.String("iprange.source", "fileset"))
-	}()
 	f, err := os.Open(path) // nosemgrep: exported local fileset API; callers intentionally provide the binary set path.
 	if err != nil {
-		opErr = err
 		return nil, err
 	}
 
 	fi, err := f.Stat()
 	if err != nil {
 		_ = f.Close()
-		opErr = err
 		return nil, err
 	}
 	fileSize := fi.Size()
-	bytes = fileSize
 	if fileSize == 0 {
 		_ = f.Close()
 		return &emptyFileSet6{}, nil
@@ -154,25 +140,21 @@ func OpenFileSet6(path string) (FileSet6, error) {
 	hdr, err := parseBinaryHeader6(f)
 	if err != nil {
 		_ = f.Close()
-		opErr = fmt.Errorf("%s: %w", path, err)
-		return nil, opErr
+		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	if !hdr.optimized {
 		_ = f.Close()
-		opErr = fmt.Errorf("%s: %w", path, ErrNotOptimized)
-		return nil, opErr
+		return nil, fmt.Errorf("%s: %w", path, ErrNotOptimized)
 	}
 
 	expectedSize := hdr.dataOffset + 4 + int64(hdr.records)*32
 	if fileSize != expectedSize {
 		_ = f.Close()
-		opErr = fmt.Errorf("%s: file size %d does not match expected %d", path, fileSize, expectedSize)
-		return nil, opErr
+		return nil, fmt.Errorf("%s: file size %d does not match expected %d", path, fileSize, expectedSize)
 	}
 
 	fs, err := openFileSet6Platform(f, path, fileSize, hdr)
 	if err != nil {
-		opErr = err
 		return nil, err
 	}
 	return fs, nil
@@ -203,9 +185,14 @@ func (e *emptyFileSet6) Close() error {
 }
 
 func fileSetContains6(ip Uint128, n int, readRange func(int) (Range6, error)) bool {
-	iprangeCount(iprangeBackground(), "iprange.contains.ops", 1, attribute.String("ip.version", "6"), attribute.String("iprange.source", "fileset"))
-	iprangeCount(iprangeBackground(), "iprange.binary.searches", 1, attribute.String("ip.version", "6"), attribute.String("iprange.source", "fileset"))
+	ok, _ := fileSetContains6WithStats(ip, n, readRange)
+	return ok
+}
+
+func fileSetContains6WithStats(ip Uint128, n int, readRange func(int) (Range6, error)) (bool, OperationStats) {
+	stats := OperationStats{Lookups: 1, BinarySearches: 1}
 	i := sort.Search(n, func(i int) bool {
+		stats.Comparisons++
 		r, err := readRange(i)
 		if err != nil {
 			return true
@@ -213,13 +200,14 @@ func fileSetContains6(ip Uint128, n int, readRange func(int) (Range6, error)) bo
 		return !r.Hi.LessThan(ip)
 	})
 	if i >= n {
-		return false
+		return false, stats
 	}
 	r, err := readRange(i)
 	if err != nil {
-		return false
+		return false, stats
 	}
-	return !r.Lo.GreaterThan(ip)
+	stats.Comparisons++
+	return !r.Lo.GreaterThan(ip), stats
 }
 
 func decodeRange6(buf []byte) Range6 {

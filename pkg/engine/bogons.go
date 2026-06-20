@@ -311,7 +311,7 @@ func (e *Engine) bogonComparisonTargets(ctx context.Context, names []string, set
 			e.logger.Warn("bogon comparison skipped: cannot open set", "set", name, "error", err)
 			continue
 		}
-		filter, err := iprange.BuildRangeOverlapFilterContext(ctx, src.RangeSource)
+		filter, err := setCache.OverlapFilter(ctx, name)
 		if err != nil {
 			e.logger.Warn("bogon comparison skipped: overlap filter failed", "set", name, "error", err)
 			continue

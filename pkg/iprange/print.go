@@ -3,9 +3,6 @@ package iprange
 import (
 	"fmt"
 	"io"
-	"time"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 type PrintFormat int
@@ -39,10 +36,6 @@ func (s *IPSet) Write(w io.Writer, opts PrintOptions) error {
 	if opts.Format == PrintBinary {
 		return WriteBinary(w, s)
 	}
-	started := time.Now()
-	defer func() {
-		iprangeObserve(iprangeBackground(), "iprange.save.text", 1, int64(s.Lines), time.Since(started), attribute.String("ip.version", "4"))
-	}()
 
 	switch opts.Format {
 	case PrintCIDR:

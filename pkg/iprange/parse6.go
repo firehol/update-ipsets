@@ -7,9 +7,6 @@ import (
 	"io"
 	"os"
 	"strings"
-	"time"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 func DefaultParseOptions6() ParseOptions {
@@ -19,18 +16,7 @@ func DefaultParseOptions6() ParseOptions {
 }
 
 func ParseReader6(ctx context.Context, name string, r io.Reader, opts ParseOptions) (*IPSet6, error) {
-	started := time.Now()
-	ctx, span := iprangeStart(ctx, "iprange.load.text", attribute.String("ip.version", "6"))
-	var opErr error
-	textLoad := true
-	defer func() {
-		iprangeEnd(span, opErr)
-		if textLoad {
-			iprangeObserve(ctx, "iprange.load.text", 1, 0, time.Since(started), attribute.String("ip.version", "6"))
-		}
-	}()
 	if opts.DefaultPrefix < 0 || opts.DefaultPrefix > 128 {
-		opErr = ErrInvalidPrefix
 		return nil, ErrInvalidPrefix
 	}
 	if opts.DNSThreads <= 0 {
@@ -43,17 +29,15 @@ func ParseReader6(ctx context.Context, name string, r io.Reader, opts ParseOptio
 	br := bufio.NewReaderSize(r, 64*1024)
 	header6, err := br.Peek(len(BinaryHeaderV20IPv6))
 	if err == nil && string(header6) == BinaryHeaderV20IPv6 {
-		textLoad = false
-		set, err := ReadBinary6(name, br)
-		if err != nil {
-			opErr = err
+		set, stats, err := ReadBinary6WithStats(name, br)
+		if opts.Stats != nil {
+			opts.Stats.Add(stats)
 		}
 		return set, err
 	}
 	header4, err := br.Peek(len(BinaryHeaderV10))
 	if err == nil && string(header4) == BinaryHeaderV10 {
-		opErr = fmt.Errorf("%s: IPv4 binary set loaded in IPv6 mode", name)
-		return nil, opErr
+		return nil, fmt.Errorf("%s: IPv4 binary set loaded in IPv6 mode", name)
 	}
 
 	set := New6(name)
@@ -61,6 +45,10 @@ func ParseReader6(ctx context.Context, name string, r io.Reader, opts ParseOptio
 	firstLine := true
 
 	if err := forEachTextLine(br, func(line string) error {
+		if opts.Stats != nil {
+			opts.Stats.LinesRead++
+			opts.Stats.BytesRead += int64(len(line))
+		}
 		if firstLine {
 			firstLine = false
 			line = strings.TrimPrefix(line, "\xEF\xBB\xBF")
@@ -84,6 +72,9 @@ func ParseReader6(ctx context.Context, name string, r io.Reader, opts ParseOptio
 				if err := set.Add6(lo, hi); err != nil {
 					return err
 				}
+				if opts.Stats != nil {
+					opts.Stats.RangesAccepted++
+				}
 				return nil
 			}
 		}
@@ -93,15 +84,20 @@ func ParseReader6(ctx context.Context, name string, r io.Reader, opts ParseOptio
 			if err := set.Add6(lo, hi); err != nil {
 				return err
 			}
+			if opts.Stats != nil {
+				opts.Stats.RangesAccepted++
+			}
 			return nil
 		}
 
 		if looksLikeHostname(trimmed) {
 			hostnames = append(hostnames, hostnameRequest{host: trimmed})
+			if opts.Stats != nil {
+				opts.Stats.HostnamesQueued++
+			}
 		}
 		return nil
 	}); err != nil {
-		opErr = err
 		return nil, err
 	}
 
@@ -121,6 +117,10 @@ func ParseReader6(ctx context.Context, name string, r io.Reader, opts ParseOptio
 			if err := set.Add6(ip, ip); err != nil {
 				return nil, err
 			}
+		}
+		if opts.Stats != nil {
+			opts.Stats.HostnamesCompleted = int64(len(hostnames))
+			opts.Stats.HostnamesResolved = int64(len(resolved4) + len(resolved6))
 		}
 	}
 

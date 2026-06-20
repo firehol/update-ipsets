@@ -108,6 +108,42 @@ func RangeSourceUniqueIPs(ctx context.Context, src RangeSource) (uint64, error) 
 	return total, RangeSourceErr(src)
 }
 
+// RangeSourceContains checks whether src contains ip and returns plain local
+// counters for the lookup. Known indexed sources use binary search; arbitrary
+// RangeSource values fall back to a sorted linear scan.
+func RangeSourceContains(ctx context.Context, src RangeSource, ip uint32) (bool, OperationStats, error) {
+	ctx = rangeSourceContext(ctx)
+	if src == nil {
+		return false, OperationStats{}, nil
+	}
+	if err := ctx.Err(); err != nil {
+		return false, OperationStats{}, err
+	}
+	switch set := src.(type) {
+	case *IPSet:
+		ok, stats := set.containsWithStats(ip)
+		return ok, stats, nil
+	case FileSet:
+		ok, stats := fileSetContainsWithStats(ip, set.Len(), set.Range)
+		return ok, stats, RangeSourceErr(set)
+	}
+
+	stats := OperationStats{Lookups: 1}
+	for r := range src.Iter() {
+		stats.RangesScanned++
+		stats.Comparisons++
+		if r.Hi < ip {
+			continue
+		}
+		stats.Comparisons++
+		return r.Lo <= ip, stats, RangeSourceErr(src)
+	}
+	if err := RangeSourceErr(src); err != nil {
+		return false, stats, err
+	}
+	return false, stats, ctx.Err()
+}
+
 // RangeSourceBoundsContext returns the first and last IPv4 values covered by
 // src. ok is false for nil or empty sources.
 func RangeSourceBoundsContext(ctx context.Context, src RangeSource) (bounds Range, ok bool, err error) {
@@ -278,6 +314,9 @@ func (f RangeOverlapFilter) PrefixesDisjoint(other RangeOverlapFilter) bool {
 	if !f.hasRange || !other.hasRange {
 		return true
 	}
+	if f.prefixBitmap == nil && other.prefixBitmap == nil {
+		return !rangeSparseCoarsePrefixOverlap(f.sparsePrefix, other.sparsePrefix)
+	}
 	return !rangePrefixOverlap(f.prefixBitmap, other.prefixBitmap)
 }
 
@@ -315,7 +354,7 @@ func BuildRangeSourceSummaryContext(ctx context.Context, src RangeSource) (Range
 		return RangeSourceSummary{}, nil
 	}
 
-	var bitmap rangePrefixBitmap
+	var bitmap *rangePrefixBitmap
 	hasRanges := false
 	hasher := sha256.New()
 	var hashBuf [8]byte
@@ -336,10 +375,16 @@ func BuildRangeSourceSummaryContext(ctx context.Context, src RangeSource) (Range
 		_, _ = hasher.Write(hashBuf[:])
 		start := r.Lo >> rangeSummaryPrefixShift
 		end := r.Hi >> rangeSummaryPrefixShift
-		for prefix := start; prefix <= end; prefix++ {
-			bitmap[prefix>>6] |= uint64(1) << (prefix & 63)
+		sparseStart := r.Lo >> rangeSummarySparsePrefixShift
+		sparseEnd := r.Hi >> rangeSummarySparsePrefixShift
+		if bitmap == nil && sparse.wouldOverflow(sparseStart, sparseEnd) {
+			bitmap = &rangePrefixBitmap{}
+			bitmap.addSparsePrefixes(sparse.prefixes)
 		}
-		sparse.addRange(r.Lo>>rangeSummarySparsePrefixShift, r.Hi>>rangeSummarySparsePrefixShift)
+		if bitmap != nil {
+			bitmap.addRange(start, end)
+		}
+		sparse.addRange(sparseStart, sparseEnd)
 	}
 	if err := RangeSourceErr(src); err != nil {
 		return RangeSourceSummary{}, err
@@ -361,7 +406,7 @@ func BuildRangeSourceSummaryContext(ctx context.Context, src RangeSource) (Range
 		valid:        true,
 		hasRange:     true,
 		bounds:       bounds,
-		prefixBitmap: &bitmap,
+		prefixBitmap: bitmap,
 		sparsePrefix: sparse.set(),
 	}
 	return RangeSourceSummary{
@@ -472,6 +517,20 @@ func (b *rangeSparsePrefixBuilder) addRange(start, end uint32) {
 	b.haveLast = true
 }
 
+func (b *rangeSparsePrefixBuilder) wouldOverflow(start, end uint32) bool {
+	if b == nil || b.overflow {
+		return false
+	}
+	if b.haveLast && start <= b.last {
+		if end <= b.last {
+			return false
+		}
+		start = b.last + 1
+	}
+	count := uint64(end) - uint64(start) + 1
+	return uint64(len(b.prefixes))+count > rangeSummarySparsePrefixLimit
+}
+
 func (b *rangeSparsePrefixBuilder) set() *rangeSparsePrefixSet {
 	if b == nil || b.overflow || len(b.prefixes) == 0 {
 		return nil
@@ -497,6 +556,27 @@ func rangeSparsePrefixOverlap(a, b *rangeSparsePrefixSet) bool {
 	return false
 }
 
+func rangeSparseCoarsePrefixOverlap(a, b *rangeSparsePrefixSet) bool {
+	if a == nil || b == nil {
+		return true
+	}
+	const shift = rangeSummarySparsePrefixBits - rangeSummaryPrefixBits
+	i, j := 0, 0
+	for i < len(a.prefixes) && j < len(b.prefixes) {
+		left := a.prefixes[i] >> shift
+		right := b.prefixes[j] >> shift
+		switch {
+		case left == right:
+			return true
+		case left < right:
+			i++
+		default:
+			j++
+		}
+	}
+	return false
+}
+
 func rangePrefixOverlap(a, b *rangePrefixBitmap) bool {
 	if a == nil || b == nil {
 		return true
@@ -507,4 +587,26 @@ func rangePrefixOverlap(a, b *rangePrefixBitmap) bool {
 		}
 	}
 	return false
+}
+
+func (b *rangePrefixBitmap) addRange(start, end uint32) {
+	if b == nil {
+		return
+	}
+	for prefix := start; prefix <= end; prefix++ {
+		b[prefix>>6] |= uint64(1) << (prefix & 63)
+		if prefix == end {
+			break
+		}
+	}
+}
+
+func (b *rangePrefixBitmap) addSparsePrefixes(prefixes []uint32) {
+	if b == nil {
+		return
+	}
+	for _, sparsePrefix := range prefixes {
+		prefix := sparsePrefix >> (rangeSummarySparsePrefixBits - rangeSummaryPrefixBits)
+		b[prefix>>6] |= uint64(1) << (prefix & 63)
+	}
 }

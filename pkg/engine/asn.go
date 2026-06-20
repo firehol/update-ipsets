@@ -215,7 +215,7 @@ func (e *Engine) precomputeASNBogonSplits(ctx context.Context, targetNames []str
 				e.logger.Warn("ASN bogon split skipped: cannot open set", "set", name, "error", err)
 				return
 			}
-			filter, err := iprange.BuildRangeOverlapFilterContext(ctx, src.RangeSource)
+			filter, err := setCache.OverlapFilter(ctx, name)
 			if err != nil {
 				e.logger.Warn("ASN bogon split skipped: overlap filter failed", "set", name, "error", err)
 				return

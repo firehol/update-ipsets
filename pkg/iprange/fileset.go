@@ -11,9 +11,6 @@ import (
 	"sort"
 	"strings"
 	"sync/atomic"
-	"time"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 var (
@@ -242,28 +239,17 @@ func parseUint64(s string) (uint64, error) {
 //
 // A zero-byte file is treated as an empty set (0 ranges, 0 unique IPs).
 func OpenFileSet(path string) (FileSet, error) {
-	started := time.Now()
-	_, span := iprangeStart(iprangeBackground(), "iprange.load.binary", attribute.String("ip.version", "4"))
-	var opErr error
-	var bytes int64
-	defer func() {
-		iprangeEnd(span, opErr)
-		iprangeObserve(iprangeBackground(), "iprange.load.binary", 1, bytes, time.Since(started), attribute.String("ip.version", "4"), attribute.String("iprange.source", "fileset"))
-	}()
 	f, err := os.Open(path) // nosemgrep: exported local fileset API; callers intentionally provide the binary set path.
 	if err != nil {
-		opErr = err
 		return nil, err
 	}
 
 	fi, err := f.Stat()
 	if err != nil {
 		_ = f.Close()
-		opErr = err
 		return nil, err
 	}
 	fileSize := fi.Size()
-	bytes = fileSize
 
 	// Empty file => empty set. WriteBinary writes nothing for empty sets,
 	// so this is the canonical on-disk representation of an empty IPSet.
@@ -275,29 +261,25 @@ func OpenFileSet(path string) (FileSet, error) {
 	hdr, err := parseBinaryHeader(f)
 	if err != nil {
 		_ = f.Close()
-		opErr = fmt.Errorf("%s: %w", path, err)
-		return nil, opErr
+		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 
 	// Reject non-optimized data: binary search requires sorted, non-overlapping
 	// ranges which only the optimized format guarantees.
 	if !hdr.optimized {
 		_ = f.Close()
-		opErr = fmt.Errorf("%s: %w", path, ErrNotOptimized)
-		return nil, opErr
+		return nil, fmt.Errorf("%s: %w", path, ErrNotOptimized)
 	}
 
 	// The binary payload is: 4 bytes endianness marker + records*8 bytes.
 	expectedSize := hdr.dataOffset + 4 + int64(hdr.records)*8
 	if fileSize != expectedSize {
 		_ = f.Close()
-		opErr = fmt.Errorf("%s: file size %d does not match expected %d", path, fileSize, expectedSize)
-		return nil, opErr
+		return nil, fmt.Errorf("%s: file size %d does not match expected %d", path, fileSize, expectedSize)
 	}
 
 	fs, err := openFileSetPlatform(f, path, fileSize, hdr)
 	if err != nil {
-		opErr = err
 		return nil, err
 	}
 	return fs, nil
@@ -334,9 +316,14 @@ func (e *emptyFileSet) Close() error {
 // via setErr() so callers can check Err() to distinguish "not found" from
 // "read failed".
 func fileSetContains(ip uint32, n int, readRange func(int) (Range, error)) bool {
-	iprangeCount(iprangeBackground(), "iprange.contains.ops", 1, attribute.String("ip.version", "4"), attribute.String("iprange.source", "fileset"))
-	iprangeCount(iprangeBackground(), "iprange.binary.searches", 1, attribute.String("ip.version", "4"), attribute.String("iprange.source", "fileset"))
+	ok, _ := fileSetContainsWithStats(ip, n, readRange)
+	return ok
+}
+
+func fileSetContainsWithStats(ip uint32, n int, readRange func(int) (Range, error)) (bool, OperationStats) {
+	stats := OperationStats{Lookups: 1, BinarySearches: 1}
 	i := sort.Search(n, func(i int) bool {
+		stats.Comparisons++
 		r, err := readRange(i)
 		if err != nil {
 			return true // treat read errors as "past the target"
@@ -344,13 +331,14 @@ func fileSetContains(ip uint32, n int, readRange func(int) (Range, error)) bool 
 		return r.Hi >= ip
 	})
 	if i >= n {
-		return false
+		return false, stats
 	}
 	r, err := readRange(i)
 	if err != nil {
-		return false
+		return false, stats
 	}
-	return r.Lo <= ip
+	stats.Comparisons++
+	return r.Lo <= ip, stats
 }
 
 // validateEndianness reads the 4-byte endianness marker at the given offset

@@ -18,14 +18,22 @@ type latestSetCache struct {
 	mu   sync.Mutex
 	sets map[string]*closableSource
 	errs map[string]error
+
+	summaries map[string]latestSetSummary
 }
 
 func newLatestSetCache(engine *Engine) *latestSetCache {
 	return &latestSetCache{
-		engine: engine,
-		sets:   make(map[string]*closableSource),
-		errs:   make(map[string]error),
+		engine:    engine,
+		sets:      make(map[string]*closableSource),
+		errs:      make(map[string]error),
+		summaries: make(map[string]latestSetSummary),
 	}
+}
+
+type latestSetSummary struct {
+	summary iprange.RangeSourceSummary
+	err     error
 }
 
 func (c *latestSetCache) Open(name string) (*closableSource, error) {
@@ -55,6 +63,53 @@ func (c *latestSetCache) Open(name string) (*closableSource, error) {
 	return src, nil
 }
 
+func (c *latestSetCache) Summary(ctx context.Context, name string) (iprange.RangeSourceSummary, error) {
+	if c == nil {
+		return iprange.RangeSourceSummary{}, nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	c.mu.Lock()
+	if cached, ok := c.summaries[name]; ok {
+		c.mu.Unlock()
+		return cached.summary, cached.err
+	}
+	c.mu.Unlock()
+
+	src, err := c.Open(name)
+	if err != nil {
+		c.mu.Lock()
+		c.summaries[name] = latestSetSummary{err: err}
+		c.mu.Unlock()
+		return iprange.RangeSourceSummary{}, err
+	}
+	if src == nil || src.RangeSource == nil {
+		return iprange.RangeSourceSummary{}, nil
+	}
+	if !latestSetCacheable(src) {
+		defer src.Close()
+	}
+	summary, err := iprange.BuildRangeSourceSummaryContext(ctx, src.RangeSource)
+	if err == nil {
+		err = checkRangeSourceErr(src.RangeSource)
+	}
+
+	c.mu.Lock()
+	c.summaries[name] = latestSetSummary{summary: summary, err: err}
+	c.mu.Unlock()
+	return summary, err
+}
+
+func (c *latestSetCache) OverlapFilter(ctx context.Context, name string) (iprange.RangeOverlapFilter, error) {
+	summary, err := c.Summary(ctx, name)
+	if err != nil {
+		return iprange.RangeOverlapFilter{}, err
+	}
+	return summary.OverlapFilter(), nil
+}
+
 func latestSetCacheable(src *closableSource) bool {
 	if src == nil {
 		return false
@@ -81,4 +136,9 @@ func (c *latestSetCache) CloseAll(logger *slog.Logger) {
 	}
 	c.sets = make(map[string]*closableSource)
 	c.errs = make(map[string]error)
+	c.summaries = make(map[string]latestSetSummary)
+}
+
+func checkRangeSourceErr(src iprange.RangeSource) error {
+	return iprange.RangeSourceErr(src)
 }

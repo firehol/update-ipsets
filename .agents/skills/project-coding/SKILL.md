@@ -61,6 +61,15 @@ description: "Go, React, config, and repo conventions for update-ipsets. MUST be
 - Merge-derived feeds may carry supported `use:` roles. When adding one, prove the role propagates from merge YAML to the expanded `Source`, the provider list, generated artifact expectations, and public serving path (from SOW-0025 regression).
 - Configured subtractive merge inputs are strict dependencies for any otherwise-computable merge; do not skip disabled/archived/unmaintained/missing subtractive parents and publish a broader set (from SOW-0025 regression).
 - Keep `pkg/iprange` standalone; it must not import other project packages.
+- Keep `pkg/iprange` telemetry-framework agnostic. Do not import
+  OpenTelemetry or project packages there. Return plain local operation stats
+  from `pkg/iprange` APIs when callers need counters; engine/CLI/daemon callers
+  own exporting those stats to OpenTelemetry, logs, admin status, or other
+  surfaces (from SOW-0110).
+- Keep `pkg/iprange` hot paths allocation-storm free. Per-range inserts,
+  per-IP lookups, file-backed lookups, parser inner loops, and source algebra
+  must not use telemetry callbacks, avoidable interface boxing, or avoidable
+  per-item heap allocation (from SOW-0110).
 - Do not edit generated frontend bundle files: `pkg/web/static/assets/*` or generated `pkg/web/static/index.html`. Edit `ui/`.
 - Do not put expensive historical rescans on daemon startup critical path.
 - Public sitemap entity detail URLs must come from the published/staged entity
@@ -73,7 +82,7 @@ description: "Go, React, config, and repo conventions for update-ipsets. MUST be
 - Pass `context.Context` through long-running download, processing, scheduler, web, and engine operations (example: `pkg/downloader/downloader.go`).
 - Return errors with context and wrap underlying failures with `%w` (example: `pkg/downloader/downloader.go`).
 - Use structured `log/slog` for daemon/operator logs (examples: `cmd/update-ipsets/daemon.go`, `pkg/scheduler/scheduler.go`).
-- Use OpenTelemetry helpers and existing telemetry counters/spans for material CPU, memory, network, and I/O operations (examples: `internal/observability/observability.go`, `pkg/downloader/downloader.go`, `pkg/processor/processor.go`).
+- Use OpenTelemetry helpers and existing telemetry counters/spans for material CPU, memory, network, and I/O operations outside standalone hot-path libraries (examples: `internal/observability/observability.go`, `pkg/downloader/downloader.go`, `pkg/processor/processor.go`).
 - OpenTelemetry metric labels must be bounded identity, not runtime
   measurements. Do not add process IDs, queue depths, batch sizes,
   selected-feed counts, byte counts, fan-in counts, or other ephemeral values

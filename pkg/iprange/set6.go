@@ -3,9 +3,6 @@ package iprange
 import (
 	"errors"
 	"sort"
-	"time"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 var errNilIPSet = errors.New("nil ipset")
@@ -42,7 +39,6 @@ func (s *IPSet6) Clone() *IPSet6 {
 }
 
 func (s *IPSet6) AddRange6(r Range6) error {
-	iprangeCount(iprangeBackground(), "iprange.add.ops", 1, attribute.String("ip.version", "6"))
 	if !r.Valid() {
 		return ErrInvalidRange
 	}
@@ -61,10 +57,6 @@ func (s *IPSet6) Optimize() {
 	if s.Optimized {
 		return
 	}
-	started := time.Now()
-	defer func() {
-		iprangeObserve(iprangeBackground(), "iprange.optimize.ops", 1, int64(len(s.Ranges))*32, time.Since(started), attribute.String("ip.version", "6"))
-	}()
 	if len(s.Ranges) == 0 {
 		s.UniqueIPs = uint128Zero
 		s.Optimized = true
@@ -126,10 +118,6 @@ func (s *IPSet6) UniqueCount() Uint128 {
 }
 
 func (s *IPSet6) Merge(other *IPSet6) error {
-	started := time.Now()
-	defer func() {
-		iprangeObserve(iprangeBackground(), "iprange.merge.ops", 1, 0, time.Since(started), attribute.String("ip.version", "6"))
-	}()
 	if s == nil || other == nil {
 		return errNilIPSet
 	}
@@ -157,14 +145,19 @@ func (s *IPSet6) Iter() func(yield func(Range6) bool) {
 }
 
 func (s *IPSet6) Contains(ip Uint128) bool {
+	ok, _ := s.containsWithStats(ip)
+	return ok
+}
+
+func (s *IPSet6) containsWithStats(ip Uint128) (bool, OperationStats) {
 	s.Optimize()
-	iprangeCount(iprangeBackground(), "iprange.contains.ops", 1, attribute.String("ip.version", "6"))
-	iprangeCount(iprangeBackground(), "iprange.binary.searches", 1, attribute.String("ip.version", "6"), attribute.String("iprange.source", "memory"))
+	stats := OperationStats{Lookups: 1, BinarySearches: 1}
 	i := sort.Search(len(s.Ranges), func(i int) bool {
+		stats.Comparisons++
 		return !s.Ranges[i].Hi.LessThan(ip)
 	})
 	if i >= len(s.Ranges) {
-		return false
+		return false, stats
 	}
-	return !s.Ranges[i].Lo.GreaterThan(ip)
+	return !s.Ranges[i].Lo.GreaterThan(ip), stats
 }

@@ -60,6 +60,27 @@ func TestParseReaderHostname(t *testing.T) {
 	})
 }
 
+func TestParseReaderPreservesPermissiveIPv4Forms(t *testing.T) {
+	input := strings.Join([]string{
+		"010.0.0.1 # octal first octet",
+		"0x0a.0.0.2 ; hex first octet",
+		"10.3",
+		"192.168.0.1\r",
+	}, "\n") + "\n"
+
+	set, err := ParseReader(t.Context(), "permissive", strings.NewReader(input), DefaultParseOptions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	set.Optimize()
+
+	expectRanges(t, set, []Range{
+		{Lo: mustIP(t, "8.0.0.1"), Hi: mustIP(t, "8.0.0.1")},
+		{Lo: mustIP(t, "10.0.0.2"), Hi: mustIP(t, "10.0.0.3")},
+		{Lo: mustIP(t, "192.168.0.1"), Hi: mustIP(t, "192.168.0.1")},
+	})
+}
+
 func TestParseReaderReportsProgress(t *testing.T) {
 	opts := DefaultParseOptions()
 	opts.Resolver = staticResolver{

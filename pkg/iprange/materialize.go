@@ -3,9 +3,6 @@ package iprange
 import (
 	"container/heap"
 	"context"
-	"time"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 const materializeContextCheckEvery = 4096
@@ -14,48 +11,104 @@ const materializeContextCheckEvery = 4096
 // optimized IPSet. Known package-owned source types use direct indexed scans;
 // arbitrary RangeSource implementations fall back to UnionIter.
 func UnionSourcesContext(ctx context.Context, name string, sources ...RangeSource) (*IPSet, error) {
+	set, _, err := UnionSourcesWithStatsContext(ctx, name, sources...)
+	return set, err
+}
+
+func UnionSourcesWithStatsContext(ctx context.Context, name string, sources ...RangeSource) (*IPSet, OperationStats, error) {
 	ctx = rangeSourceContext(ctx)
+	stats := sourceInputStats(sources...)
 	if set, ok, err := unionSourcesIndexed(ctx, name, sources); ok {
-		return set, err
+		if set != nil {
+			stats.RangesEmitted = int64(len(set.Ranges))
+		}
+		return set, stats, err
 	}
-	return CollectIterContext(ctx, name, UnionIter(sources...))
+	set, err := CollectIterContext(ctx, name, UnionIter(sources...))
+	if set != nil {
+		stats.RangesEmitted = int64(len(set.Ranges))
+	}
+	return set, stats, err
 }
 
 // IntersectSourcesContext materializes the intersection of two sorted range
 // sources as an optimized IPSet. Known package-owned source types use direct
 // indexed scans; arbitrary RangeSource implementations fall back to IntersectIter.
 func IntersectSourcesContext(ctx context.Context, name string, a, b RangeSource) (*IPSet, error) {
+	set, _, err := IntersectSourcesWithStatsContext(ctx, name, a, b)
+	return set, err
+}
+
+func IntersectSourcesWithStatsContext(ctx context.Context, name string, a, b RangeSource) (*IPSet, OperationStats, error) {
 	ctx = rangeSourceContext(ctx)
+	stats := sourceInputStats(a, b)
 	if set, ok, err := intersectSourcesIndexed(ctx, name, a, b); ok {
-		return set, err
+		if set != nil {
+			stats.RangesEmitted = int64(len(set.Ranges))
+		}
+		return set, stats, err
 	}
-	return CollectIterContext(ctx, name, IntersectIter(a, b))
+	set, err := CollectIterContext(ctx, name, IntersectIter(a, b))
+	if set != nil {
+		stats.RangesEmitted = int64(len(set.Ranges))
+	}
+	return set, stats, err
 }
 
 // ExcludeSourcesContext materializes a\b as an optimized IPSet. Known
 // package-owned source types use direct indexed scans; arbitrary RangeSource
 // implementations fall back to ExcludeIter.
 func ExcludeSourcesContext(ctx context.Context, name string, a, b RangeSource) (*IPSet, error) {
+	set, _, err := ExcludeSourcesWithStatsContext(ctx, name, a, b)
+	return set, err
+}
+
+func ExcludeSourcesWithStatsContext(ctx context.Context, name string, a, b RangeSource) (*IPSet, OperationStats, error) {
 	ctx = rangeSourceContext(ctx)
+	stats := sourceInputStats(a, b)
 	if set, ok, err := excludeSourcesIndexed(ctx, name, a, b); ok {
-		return set, err
+		if set != nil {
+			stats.RangesEmitted = int64(len(set.Ranges))
+		}
+		return set, stats, err
 	}
-	return CollectIterContext(ctx, name, ExcludeIter(a, b))
+	set, err := CollectIterContext(ctx, name, ExcludeIter(a, b))
+	if set != nil {
+		stats.RangesEmitted = int64(len(set.Ranges))
+	}
+	return set, stats, err
 }
 
 // ExcludeCountContext counts unique IPs in a\b without materializing the
 // resulting ranges.
 func ExcludeCountContext(ctx context.Context, a, b RangeSource) (uint64, error) {
+	count, _, err := ExcludeCountWithStatsContext(ctx, a, b)
+	return count, err
+}
+
+func ExcludeCountWithStatsContext(ctx context.Context, a, b RangeSource) (uint64, OperationStats, error) {
 	ctx = rangeSourceContext(ctx)
+	stats := sourceInputStats(a, b)
 	var total uint64
 	addRange := func(r Range) bool {
 		total += r.Size()
+		stats.RangesEmitted++
 		return true
 	}
 	if ok, err := excludeRangesIndexed(ctx, a, b, addRange); ok {
-		return total, err
+		return total, stats, err
 	}
-	return CountIterContext(ctx, DefaultName, ExcludeIter(a, b))
+	for r := range ExcludeIter(a, b) {
+		if err := ctx.Err(); err != nil {
+			return total, stats, err
+		}
+		total += r.Size()
+		stats.RangesEmitted++
+	}
+	if err := firstRangeSourceErr(a, b); err != nil {
+		return total, stats, err
+	}
+	return total, stats, ctx.Err()
 }
 
 // ExcludeRangesContext walks ranges in a\b without forcing callers through
@@ -82,17 +135,25 @@ func ExcludeRangesContext(ctx context.Context, a, b RangeSource, yield func(Rang
 	return ctx.Err()
 }
 
+func sourceInputStats(sources ...RangeSource) OperationStats {
+	stats := OperationStats{Sources: int64(len(sources))}
+	for _, src := range sources {
+		if src == nil {
+			continue
+		}
+		n := int64(src.Len())
+		stats.RangesRead += n
+		stats.RangesScanned += n
+	}
+	return stats
+}
+
 func unionSourcesIndexed(ctx context.Context, name string, sources []RangeSource) (*IPSet, bool, error) {
-	started := time.Now()
 	indexed, unlock, ok, err := indexedRangeSources(sources)
 	if !ok || err != nil {
 		return nil, ok, err
 	}
 	defer unlock()
-	defer func() {
-		iprangeObserve(iprangeBackground(), "iprange.union.ops", 1, 0, time.Since(started), attribute.String("ip.version", "4"))
-		iprangeObserve(iprangeBackground(), "iprange.merge.ops", 1, 0, time.Since(started), attribute.String("ip.version", "4"))
-	}()
 
 	if err := ctx.Err(); err != nil {
 		return nil, true, err
@@ -110,15 +171,11 @@ func unionSourcesIndexed(ctx context.Context, name string, sources []RangeSource
 }
 
 func intersectSourcesIndexed(ctx context.Context, name string, a, b RangeSource) (*IPSet, bool, error) {
-	started := time.Now()
 	indexed, unlock, ok, err := indexedRangeSources([]RangeSource{a, b})
 	if !ok || err != nil {
 		return nil, ok, err
 	}
 	defer unlock()
-	defer func() {
-		iprangeObserve(iprangeBackground(), "iprange.intersect.ops", 1, 0, time.Since(started), attribute.String("ip.version", "4"))
-	}()
 
 	if err := ctx.Err(); err != nil {
 		return nil, true, err
@@ -165,15 +222,11 @@ func intersectSourcesIndexed(ctx context.Context, name string, a, b RangeSource)
 }
 
 func excludeSourcesIndexed(ctx context.Context, name string, a, b RangeSource) (*IPSet, bool, error) {
-	started := time.Now()
 	indexed, unlock, ok, err := indexedRangeSources([]RangeSource{a, b})
 	if !ok || err != nil {
 		return nil, ok, err
 	}
 	defer unlock()
-	defer func() {
-		iprangeObserve(iprangeBackground(), "iprange.exclude.ops", 1, 0, time.Since(started), attribute.String("ip.version", "4"))
-	}()
 
 	out := newMaterializedSet(name, indexed[0].len())
 	err = excludeIndexed(ctx, indexed[0], indexed[1], func(r Range) bool {
@@ -184,15 +237,11 @@ func excludeSourcesIndexed(ctx context.Context, name string, a, b RangeSource) (
 }
 
 func excludeRangesIndexed(ctx context.Context, a, b RangeSource, yield func(Range) bool) (bool, error) {
-	started := time.Now()
 	indexed, unlock, ok, err := indexedRangeSources([]RangeSource{a, b})
 	if !ok || err != nil {
 		return ok, err
 	}
 	defer unlock()
-	defer func() {
-		iprangeObserve(iprangeBackground(), "iprange.exclude.ops", 1, 0, time.Since(started), attribute.String("ip.version", "4"))
-	}()
 
 	return true, excludeIndexed(ctx, indexed[0], indexed[1], yield)
 }

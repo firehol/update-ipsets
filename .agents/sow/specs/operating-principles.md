@@ -325,6 +325,12 @@ SHOULD expose byte, line, accepted-range, and hostname-resolution counters so a
 source phase that spends minutes on local input can be distinguished from
 retention, finalization, or downstream phase work.
 
+The standalone `pkg/iprange` library MUST NOT import or assume a telemetry
+framework. It MAY return plain local operation stats for parsing, binary I/O,
+source algebra, and lookups. Engine, CLI, daemon, or admin callers own turning
+those local stats into OpenTelemetry metrics, structured logs, admin status, or
+another operator surface.
+
 At minimum, telemetry SHOULD cover:
 
 - download requests, HTTP statuses, and transferred bytes
@@ -441,9 +447,10 @@ accepted. Individual OpenTelemetry signals MUST be suppressible with
 variables.
 
 Primitive operation metrics MUST collapse operation-specific names into a small
-stable surface. The default `iprange` OpenTelemetry namespace MUST include only
-`iprange.operations` and `iprange.operation.duration_ms`, with labels limited
-to `ip.version` and `iprange.operation`.
+stable surface. When callers export `pkg/iprange` stats to OpenTelemetry, the
+default namespace MUST include only `iprange.operations` and
+`iprange.operation.duration_ms`, with labels limited to `ip.version` and
+`iprange.operation`.
 
 Queue and phase metrics MUST also use stable family names:
 

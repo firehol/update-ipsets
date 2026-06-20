@@ -44,9 +44,8 @@ func (e *Engine) newCriticalFeedWriter(ctx context.Context, name string, dataset
 	if checkErr := checkFileSetErr(src.RangeSource, name, e.logger); checkErr != nil {
 		return nil, checkErr
 	}
-	feedFilter, err := iprange.BuildRangeOverlapFilterContext(ctx, src.RangeSource)
+	feedFilter, err := setCache.OverlapFilter(ctx, name)
 	if err != nil {
-		_ = src.Close()
 		return nil, fmt.Errorf("critical infrastructure feed overlap filter %s: %w", name, err)
 	}
 	return &criticalFeedWriter{

@@ -179,6 +179,11 @@ These are the patterns that matter on hot paths. Apply them where measurement ju
 - DO check escape analysis with `go build -gcflags='-m' ./...` when chasing allocations (https://goperf.dev/01-common-patterns/stack-alloc/). A surprising heap escape often comes from passing a value to `interface{}` (`any`) or capturing it in a closure.
 - DO benchmark with `testing.B.Loop` (Go 1.24+, https://go.dev/doc/go1.24). It removes timer-management boilerplate and is more accurate than `b.N`-based loops.
 - DO honor `GOMEMLIMIT` for containerized deployments (https://weaviate.io/blog/gomemlimit-a-game-changer-for-high-memory-applications). Set it ~10-20% below the cgroup hard limit so the GC becomes aggressive before OOM kill.
+- DO keep standalone hot-path packages such as `pkg/iprange` free of
+  telemetry-framework imports and per-item callbacks. Return plain local stats
+  from the operation when counters are needed, and let engine/CLI callers
+  export them. Verify parser, lookup, file-backed, and source-algebra hot paths
+  with `-benchmem` before claiming an optimization (from SOW-0110).
 
 DON'T:
 
@@ -187,6 +192,10 @@ DON'T:
 - DON'T pool objects that hold large buffers. `sync.Pool` victimization in GC can keep them pinned across cycles, defeating the win. Pool small reusable objects only.
 - DON'T pool objects across goroutine ownership boundaries. The contract is: get -> use -> put. Never share a pooled object between goroutines or store one in a long-lived struct.
 - DON'T use `interface{}`/`any` in hot loops if the concrete type is known. Conversion to `any` boxes the value to the heap.
+- DON'T add OpenTelemetry spans/counters, logging callbacks, or other
+  framework hooks directly inside `pkg/iprange` per-range/per-lookup/parser
+  loops. That package is optimized for performance and accuracy first; caller
+  layers own observability export (from SOW-0110).
 - DON'T trigger upstream downloads from public read paths. Cache-first serving is a project rule (see `project-coding`); reads serve published artifacts and return missing rather than computing on demand.
 - DON'T enable gzip middleware blindly. It defeats `sendfile`, costs CPU, and breaks `Content-Length`. Negotiate per-route based on content type and size; pre-compress static assets when feasible.
 - DON'T expose `net/http/pprof` on a public listener. Bind it to a separate internal listener or gate it behind authentication (https://go.dev/doc/diagnostics).

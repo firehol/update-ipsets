@@ -4,9 +4,6 @@ import (
 	"container/heap"
 	"context"
 	"iter"
-	"time"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 // RangeSource provides sequential access to sorted, non-overlapping ranges.
@@ -19,10 +16,6 @@ type RangeSource interface {
 // CountUniqueIter counts the total unique IPs from a RangeSource without
 // materializing the ranges into a slice.
 func CountUniqueIter(src RangeSource) uint64 {
-	started := time.Now()
-	defer func() {
-		iprangeObserve(iprangeBackground(), "iprange.count_unique.ops", 1, 0, time.Since(started), attribute.String("ip.version", "4"))
-	}()
 	var total uint64
 	for r := range src.Iter() {
 		total += r.Size()
@@ -44,12 +37,6 @@ func OverlapCountIterContext(ctx context.Context, a, b RangeSource) (uint64, err
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	started := time.Now()
-	defer func() {
-		attrs := []attribute.KeyValue{attribute.String("ip.version", "4")}
-		iprangeObserve(iprangeBackground(), "iprange.compare.ops", 1, 0, time.Since(started), attrs...)
-		iprangeObserve(iprangeBackground(), "iprange.overlap.ops", 1, 0, time.Since(started), attrs...)
-	}()
 	if count, ok, err := overlapCountFastPath(ctx, a, b); ok {
 		return count, err
 	}
@@ -68,10 +55,6 @@ func OverlapCountIterContext(ctx context.Context, a, b RangeSource) (uint64, err
 // Output ranges are sorted and non-overlapping.
 func IntersectIter(a, b RangeSource) func(yield func(Range) bool) {
 	return func(yield func(Range) bool) {
-		started := time.Now()
-		defer func() {
-			iprangeObserve(iprangeBackground(), "iprange.intersect.ops", 1, 0, time.Since(started), attribute.String("ip.version", "4"))
-		}()
 		nextA, stopA := iter.Pull(a.Iter())
 		defer stopA()
 		nextB, stopB := iter.Pull(b.Iter())
@@ -123,10 +106,6 @@ func IntersectIter(a, b RangeSource) func(yield func(Range) bool) {
 // Output ranges are sorted and non-overlapping.
 func ExcludeIter(a, b RangeSource) func(yield func(Range) bool) {
 	return func(yield func(Range) bool) {
-		started := time.Now()
-		defer func() {
-			iprangeObserve(iprangeBackground(), "iprange.exclude.ops", 1, 0, time.Since(started), attribute.String("ip.version", "4"))
-		}()
 		nextA, stopA := iter.Pull(a.Iter())
 		defer stopA()
 		nextB, stopB := iter.Pull(b.Iter())
@@ -186,10 +165,6 @@ func ExcludeIter(a, b RangeSource) func(yield func(Range) bool) {
 // from different sides of the diff are merged).
 func DiffIter(a, b RangeSource) func(yield func(Range) bool) {
 	return func(yield func(Range) bool) {
-		started := time.Now()
-		defer func() {
-			iprangeObserve(iprangeBackground(), "iprange.diff.ops", 1, 0, time.Since(started), attribute.String("ip.version", "4"))
-		}()
 		nextA, stopA := iter.Pull(a.Iter())
 		defer stopA()
 		nextB, stopB := iter.Pull(b.Iter())
@@ -292,14 +267,6 @@ func DiffIter(a, b RangeSource) func(yield func(Range) bool) {
 func UnionIter(sources ...RangeSource) func(yield func(Range) bool) {
 	wrap := func(inner func(yield func(Range) bool)) func(yield func(Range) bool) {
 		return func(yield func(Range) bool) {
-			started := time.Now()
-			defer func() {
-				attrs := []attribute.KeyValue{
-					attribute.String("ip.version", "4"),
-				}
-				iprangeObserve(iprangeBackground(), "iprange.union.ops", 1, 0, time.Since(started), attrs...)
-				iprangeObserve(iprangeBackground(), "iprange.merge.ops", 1, 0, time.Since(started), attrs...)
-			}()
 			inner(yield)
 		}
 	}

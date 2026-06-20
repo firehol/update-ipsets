@@ -147,7 +147,7 @@ func (e *Engine) prepareComparisonSetInfos(ctx context.Context, names []string, 
 			progress.Add(1, int64(len(names)), nil)
 			continue
 		}
-		summary, err := iprange.BuildRangeSourceSummaryContext(ctx, src.RangeSource)
+		summary, err := setCache.Summary(ctx, name)
 		if err != nil {
 			progress.Add(1, int64(len(names)), nil)
 			return nil, err

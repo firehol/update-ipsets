@@ -95,6 +95,13 @@ The engine MAY own domain-specific orchestration, artifact policy, and
 provider-specific attribution loops, but reusable range/set algebra belongs in
 the standalone `pkg/iprange` package.
 
+`pkg/iprange` hot paths MUST be allocation-storm free. Per-range insertions,
+per-IP lookups, file-backed lookups, source algebra, and parser inner loops
+MUST avoid framework callbacks, interface boxing, and avoidable per-item heap
+allocation. When counters are needed, `pkg/iprange` returns plain local stats
+to the caller; the caller owns exporting those counters to logs, admin status,
+OpenTelemetry, or another telemetry framework.
+
 Pairwise and provider-reference overlap counting SHOULD use exact cheap filters
 before scanning both range streams. Acceptable filters include identical
 normalized range-content identity, disjoint range bounds, and disjoint occupied

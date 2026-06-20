@@ -1,11 +1,6 @@
 package iprange
 
-import (
-	"fmt"
-	"time"
-
-	"go.opentelemetry.io/otel/attribute"
-)
+import "fmt"
 
 func optimizedView6(s *IPSet6) *IPSet6 {
 	if s.Optimized {
@@ -15,10 +10,6 @@ func optimizedView6(s *IPSet6) *IPSet6 {
 }
 
 func Combine6(a, b *IPSet6) *IPSet6 {
-	started := time.Now()
-	defer func() {
-		iprangeObserve(iprangeBackground(), "iprange.merge.ops", 1, 0, time.Since(started), attribute.String("ip.version", "6"), attribute.String("iprange.operation", "combine"))
-	}()
 	out := New6("combined")
 	out.Lines = a.Lines + b.Lines
 	out.Ranges = make([]Range6, 0, len(a.Ranges)+len(b.Ranges))
@@ -28,10 +19,6 @@ func Combine6(a, b *IPSet6) *IPSet6 {
 }
 
 func Exclude6(a, b *IPSet6) *IPSet6 {
-	started := time.Now()
-	defer func() {
-		iprangeObserve(iprangeBackground(), "iprange.exclude.ops", 1, 0, time.Since(started), attribute.String("ip.version", "6"))
-	}()
 	left := optimizedView6(a)
 	right := optimizedView6(b)
 	out := New6(a.Name)
@@ -119,10 +106,6 @@ func Exclude6(a, b *IPSet6) *IPSet6 {
 }
 
 func Intersect6(a, b *IPSet6) *IPSet6 {
-	started := time.Now()
-	defer func() {
-		iprangeObserve(iprangeBackground(), "iprange.intersect.ops", 1, 0, time.Since(started), attribute.String("ip.version", "6"))
-	}()
 	left := optimizedView6(a)
 	right := optimizedView6(b)
 	out := New6("common")
@@ -178,10 +161,6 @@ func Intersect6(a, b *IPSet6) *IPSet6 {
 }
 
 func Diff6(a, b *IPSet6) *IPSet6 {
-	started := time.Now()
-	defer func() {
-		iprangeObserve(iprangeBackground(), "iprange.diff.ops", 1, 0, time.Since(started), attribute.String("ip.version", "6"))
-	}()
 	left := optimizedView6(a)
 	right := optimizedView6(b)
 	out := New6("diff")
@@ -310,10 +289,6 @@ type CountRow6 struct {
 }
 
 func CompareAll6(sets []*IPSet6) ([]CompareRow6, error) {
-	started := time.Now()
-	defer func() {
-		iprangeObserve(iprangeBackground(), "iprange.compare.ops", 1, 0, time.Since(started), attribute.String("ip.version", "6"), attribute.String("iprange.mode", "all"))
-	}()
 	if len(sets) < 2 {
 		return nil, fmt.Errorf("compare requires at least two ipsets")
 	}
@@ -322,9 +297,7 @@ func CompareAll6(sets []*IPSet6) ([]CompareRow6, error) {
 		sets[i].Optimize()
 		for j := i + 1; j < len(sets); j++ {
 			sets[j].Optimize()
-			combined := Combine6(sets[i], sets[j])
-			combined.Optimize()
-			common := sets[i].UniqueIPs.Add(sets[j].UniqueIPs).Sub(combined.UniqueIPs)
+			common := OverlapCountIter6(sets[i], sets[j])
 			rows = append(rows, CompareRow6{
 				Name1:       sets[i].Name,
 				Name2:       sets[j].Name,
@@ -332,7 +305,7 @@ func CompareAll6(sets []*IPSet6) ([]CompareRow6, error) {
 				Entries2:    len(sets[j].Ranges),
 				Unique1:     sets[i].UniqueIPs,
 				Unique2:     sets[j].UniqueIPs,
-				CombinedIPs: combined.UniqueIPs,
+				CombinedIPs: sets[i].UniqueIPs.Add(sets[j].UniqueIPs).Sub(common),
 				CommonIPs:   common,
 			})
 		}
@@ -341,10 +314,6 @@ func CompareAll6(sets []*IPSet6) ([]CompareRow6, error) {
 }
 
 func CompareNext6(before, after []*IPSet6) ([]CompareRow6, error) {
-	started := time.Now()
-	defer func() {
-		iprangeObserve(iprangeBackground(), "iprange.compare.ops", 1, 0, time.Since(started), attribute.String("ip.version", "6"), attribute.String("iprange.mode", "next"))
-	}()
 	if len(before) == 0 || len(after) == 0 {
 		return nil, fmt.Errorf("compare-next requires inputs on both sides")
 	}
@@ -353,9 +322,7 @@ func CompareNext6(before, after []*IPSet6) ([]CompareRow6, error) {
 		left.Optimize()
 		for _, right := range after {
 			right.Optimize()
-			combined := Combine6(left, right)
-			combined.Optimize()
-			common := left.UniqueIPs.Add(right.UniqueIPs).Sub(combined.UniqueIPs)
+			common := OverlapCountIter6(left, right)
 			rows = append(rows, CompareRow6{
 				Name1:       left.Name,
 				Name2:       right.Name,
@@ -363,7 +330,7 @@ func CompareNext6(before, after []*IPSet6) ([]CompareRow6, error) {
 				Entries2:    len(right.Ranges),
 				Unique1:     left.UniqueIPs,
 				Unique2:     right.UniqueIPs,
-				CombinedIPs: combined.UniqueIPs,
+				CombinedIPs: left.UniqueIPs.Add(right.UniqueIPs).Sub(common),
 				CommonIPs:   common,
 			})
 		}
@@ -372,10 +339,6 @@ func CompareNext6(before, after []*IPSet6) ([]CompareRow6, error) {
 }
 
 func CompareFirst6(sets []*IPSet6) ([]CompareFirstRow6, error) {
-	started := time.Now()
-	defer func() {
-		iprangeObserve(iprangeBackground(), "iprange.compare.ops", 1, 0, time.Since(started), attribute.String("ip.version", "6"), attribute.String("iprange.mode", "first"))
-	}()
 	if len(sets) < 2 {
 		return nil, fmt.Errorf("compare-first requires at least two ipsets")
 	}
@@ -384,9 +347,7 @@ func CompareFirst6(sets []*IPSet6) ([]CompareFirstRow6, error) {
 	rows := make([]CompareFirstRow6, 0, len(sets)-1)
 	for _, candidate := range sets[1:] {
 		candidate.Optimize()
-		combined := Combine6(base, candidate)
-		combined.Optimize()
-		common := base.UniqueIPs.Add(candidate.UniqueIPs).Sub(combined.UniqueIPs)
+		common := OverlapCountIter6(base, candidate)
 		rows = append(rows, CompareFirstRow6{
 			Name:      candidate.Name,
 			Entries:   len(candidate.Ranges),
@@ -398,10 +359,6 @@ func CompareFirst6(sets []*IPSet6) ([]CompareFirstRow6, error) {
 }
 
 func CountUniqueMerged6(sets []*IPSet6) (CountRow6, error) {
-	started := time.Now()
-	defer func() {
-		iprangeObserve(iprangeBackground(), "iprange.count_unique.ops", 1, 0, time.Since(started), attribute.String("ip.version", "6"), attribute.String("iprange.mode", "merged"))
-	}()
 	merged, err := mergeAll6(sets)
 	if err != nil {
 		return CountRow6{}, err
@@ -415,10 +372,6 @@ func CountUniqueMerged6(sets []*IPSet6) (CountRow6, error) {
 }
 
 func CountUniqueAll6(sets []*IPSet6) ([]CountRow6, error) {
-	started := time.Now()
-	defer func() {
-		iprangeObserve(iprangeBackground(), "iprange.count_unique.ops", 1, 0, time.Since(started), attribute.String("ip.version", "6"), attribute.String("iprange.mode", "all"))
-	}()
 	if len(sets) == 0 {
 		return nil, fmt.Errorf("no ipsets provided")
 	}

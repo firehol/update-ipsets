@@ -3,9 +3,6 @@ package iprange
 import (
 	"container/heap"
 	"iter"
-	"time"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 type RangeSource6 interface {
@@ -14,10 +11,6 @@ type RangeSource6 interface {
 }
 
 func CountUniqueIter6(src RangeSource6) Uint128 {
-	started := time.Now()
-	defer func() {
-		iprangeObserve(iprangeBackground(), "iprange.count_unique.ops", 1, 0, time.Since(started), attribute.String("ip.version", "6"))
-	}()
 	var total Uint128
 	for r := range src.Iter() {
 		total = total.Add(r.Size())
@@ -26,12 +19,6 @@ func CountUniqueIter6(src RangeSource6) Uint128 {
 }
 
 func OverlapCountIter6(a, b RangeSource6) Uint128 {
-	started := time.Now()
-	defer func() {
-		attrs := []attribute.KeyValue{attribute.String("ip.version", "6")}
-		iprangeObserve(iprangeBackground(), "iprange.compare.ops", 1, 0, time.Since(started), attrs...)
-		iprangeObserve(iprangeBackground(), "iprange.overlap.ops", 1, 0, time.Since(started), attrs...)
-	}()
 	var count Uint128
 	for r := range IntersectIter6(a, b) {
 		count = count.Add(r.Size())
@@ -41,10 +28,6 @@ func OverlapCountIter6(a, b RangeSource6) Uint128 {
 
 func IntersectIter6(a, b RangeSource6) func(yield func(Range6) bool) {
 	return func(yield func(Range6) bool) {
-		started := time.Now()
-		defer func() {
-			iprangeObserve(iprangeBackground(), "iprange.intersect.ops", 1, 0, time.Since(started), attribute.String("ip.version", "6"))
-		}()
 		nextA, stopA := iter.Pull(a.Iter())
 		defer stopA()
 		nextB, stopB := iter.Pull(b.Iter())
@@ -90,10 +73,6 @@ func IntersectIter6(a, b RangeSource6) func(yield func(Range6) bool) {
 
 func ExcludeIter6(a, b RangeSource6) func(yield func(Range6) bool) {
 	return func(yield func(Range6) bool) {
-		started := time.Now()
-		defer func() {
-			iprangeObserve(iprangeBackground(), "iprange.exclude.ops", 1, 0, time.Since(started), attribute.String("ip.version", "6"))
-		}()
 		nextA, stopA := iter.Pull(a.Iter())
 		defer stopA()
 		nextB, stopB := iter.Pull(b.Iter())
@@ -142,10 +121,6 @@ func ExcludeIter6(a, b RangeSource6) func(yield func(Range6) bool) {
 
 func DiffIter6(a, b RangeSource6) func(yield func(Range6) bool) {
 	return func(yield func(Range6) bool) {
-		started := time.Now()
-		defer func() {
-			iprangeObserve(iprangeBackground(), "iprange.diff.ops", 1, 0, time.Since(started), attribute.String("ip.version", "6"))
-		}()
 		nextA, stopA := iter.Pull(a.Iter())
 		defer stopA()
 		nextB, stopB := iter.Pull(b.Iter())
@@ -255,14 +230,6 @@ func UnionIter6(sources ...RangeSource6) func(yield func(Range6) bool) {
 		union = unionKWay6(sources)
 	}
 	return func(yield func(Range6) bool) {
-		started := time.Now()
-		defer func() {
-			attrs := []attribute.KeyValue{
-				attribute.String("ip.version", "6"),
-			}
-			iprangeObserve(iprangeBackground(), "iprange.union.ops", 1, 0, time.Since(started), attrs...)
-			iprangeObserve(iprangeBackground(), "iprange.merge.ops", 1, 0, time.Since(started), attrs...)
-		}()
 		union(yield)
 	}
 }

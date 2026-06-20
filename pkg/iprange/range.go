@@ -117,24 +117,31 @@ func Broadcast(addr uint32, prefix int) uint32 {
 }
 
 func ParseIPv4Token(token string) (uint32, error) {
-	parts := strings.Split(strings.TrimSpace(token), ".")
-	if len(parts) == 0 || len(parts) > 4 {
+	trimmed := strings.TrimSpace(token)
+	if trimmed == "" {
 		return 0, fmt.Errorf("%w: %q", ErrInvalidIPv4, token)
 	}
 
-	values := make([]uint64, len(parts))
-	for i, part := range parts {
-		if part == "" {
+	var values [4]uint64
+	parts := 0
+	start := 0
+	for i := 0; i <= len(trimmed); i++ {
+		if i != len(trimmed) && trimmed[i] != '.' {
+			continue
+		}
+		if i == start || parts == len(values) {
 			return 0, fmt.Errorf("%w: %q", ErrInvalidIPv4, token)
 		}
-		v, err := strconv.ParseUint(part, 0, 32)
+		v, err := strconv.ParseUint(trimmed[start:i], 0, 32)
 		if err != nil {
 			return 0, fmt.Errorf("%w: %q", ErrInvalidIPv4, token)
 		}
-		values[i] = v
+		values[parts] = v
+		parts++
+		start = i + 1
 	}
 
-	switch len(values) {
+	switch parts {
 	case 1:
 		return uint32(values[0]), nil
 	case 2:
