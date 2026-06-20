@@ -77,6 +77,27 @@ func TestRangeSourcesEqualContextInMemoryAndFileSet(t *testing.T) {
 	if equal {
 		t.Fatal("RangeSourcesEqualContext(different) = true, want false")
 	}
+
+	rightFile := writeRangeSourceTestFileSet(t, right)
+	defer func() { _ = rightFile.Close() }()
+	differentFile := writeRangeSourceTestFileSet(t, different)
+	defer func() { _ = differentFile.Close() }()
+
+	equal, err = RangeSourcesEqualContext(t.Context(), leftFile, rightFile)
+	if err != nil {
+		t.Fatalf("RangeSourcesEqualContext(file, file) error = %v", err)
+	}
+	if !equal {
+		t.Fatal("RangeSourcesEqualContext(file, file) = false, want true")
+	}
+
+	equal, err = RangeSourcesEqualContext(t.Context(), leftFile, differentFile)
+	if err != nil {
+		t.Fatalf("RangeSourcesEqualContext(file, different file) error = %v", err)
+	}
+	if equal {
+		t.Fatal("RangeSourcesEqualContext(file, different file) = true, want false")
+	}
 }
 
 func TestRangeSourcesEqualContextHonorsCancellation(t *testing.T) {
@@ -152,6 +173,17 @@ func TestRangeSourceSummaryAndOverlapFilter(t *testing.T) {
 	}
 	if (RangeOverlapFilter{}).Disjoint(leftSummary.OverlapFilter()) {
 		t.Fatal("unknown filters must fall through to exact overlap")
+	}
+
+	filterOnly, err := BuildRangeOverlapFilterContext(t.Context(), leftFile)
+	if err != nil {
+		t.Fatalf("BuildRangeOverlapFilterContext(file) error = %v", err)
+	}
+	if filterOnly.Disjoint(leftSummary.OverlapFilter()) {
+		t.Fatal("filter-only and summary-derived filters for the same source must not be disjoint")
+	}
+	if !filterOnly.BoundsDisjoint(mustRangeSourceTestFilter(t, differentBounds)) {
+		t.Fatal("filter-only bounds should prove zero overlap")
 	}
 }
 

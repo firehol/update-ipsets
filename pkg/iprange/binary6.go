@@ -2,7 +2,6 @@ package iprange
 
 import (
 	"bufio"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -24,54 +23,60 @@ func WriteBinary6WithStats(w io.Writer, set *IPSet6) (OperationStats, error) {
 	}
 
 	cw := &countingWriter{w: w}
-	bw := bufio.NewWriterSize(cw, 64*1024)
-	if _, err := fmt.Fprint(bw, BinaryHeaderV20IPv6); err != nil {
+	if _, err := fmt.Fprint(cw, BinaryHeaderV20IPv6); err != nil {
 		return stats, err
 	}
-	if _, err := fmt.Fprintln(bw, "ipv6"); err != nil {
+	if _, err := fmt.Fprintln(cw, "ipv6"); err != nil {
 		return stats, err
 	}
 	if set.Optimized {
-		if _, err := fmt.Fprintln(bw, "optimized"); err != nil {
+		if _, err := fmt.Fprintln(cw, "optimized"); err != nil {
 			return stats, err
 		}
-	} else if _, err := fmt.Fprintln(bw, "non-optimized"); err != nil {
+	} else if _, err := fmt.Fprintln(cw, "non-optimized"); err != nil {
 		return stats, err
 	}
-	if _, err := fmt.Fprintf(bw, "record size %d\n", 32); err != nil {
+	if _, err := fmt.Fprintf(cw, "record size %d\n", 32); err != nil {
 		return stats, err
 	}
-	if _, err := fmt.Fprintf(bw, "records %d\n", len(set.Ranges)); err != nil {
+	if _, err := fmt.Fprintf(cw, "records %d\n", len(set.Ranges)); err != nil {
 		return stats, err
 	}
-	if _, err := fmt.Fprintf(bw, "bytes %d\n", len(set.Ranges)*32+4); err != nil {
+	if _, err := fmt.Fprintf(cw, "bytes %d\n", len(set.Ranges)*32+4); err != nil {
 		return stats, err
 	}
-	if _, err := fmt.Fprintf(bw, "lines %d\n", set.Lines); err != nil {
+	if _, err := fmt.Fprintf(cw, "lines %d\n", set.Lines); err != nil {
 		return stats, err
 	}
-	if _, err := fmt.Fprintf(bw, "unique ips %s\n", set.UniqueIPs.String()); err != nil {
+	if _, err := fmt.Fprintf(cw, "unique ips %s\n", set.UniqueIPs.String()); err != nil {
 		return stats, err
 	}
-	if err := binary.Write(bw, nativeEndian, binaryEndiannessMarker); err != nil {
+	var marker [4]byte
+	nativeEndian.PutUint32(marker[:], binaryEndiannessMarker)
+	if _, err := cw.Write(marker[:]); err != nil {
 		return stats, err
 	}
 
-	payload := make([]byte, len(set.Ranges)*32)
-	off := 0
-	for _, r := range set.Ranges {
-		nativeEndian.PutUint64(payload[off:off+8], r.Lo.Hi)
-		nativeEndian.PutUint64(payload[off+8:off+16], r.Lo.Lo)
-		nativeEndian.PutUint64(payload[off+16:off+24], r.Hi.Hi)
-		nativeEndian.PutUint64(payload[off+24:off+32], r.Hi.Lo)
-		off += 32
-		stats.RangesWritten++
-	}
-	if _, err := bw.Write(payload); err != nil {
-		return stats, err
-	}
-	if err := bw.Flush(); err != nil {
-		return stats, err
+	var payload [4096]byte
+	const recordsPerChunk = len(payload) / 32
+	for start := 0; start < len(set.Ranges); {
+		n := len(set.Ranges) - start
+		if n > recordsPerChunk {
+			n = recordsPerChunk
+		}
+		off := 0
+		for _, r := range set.Ranges[start : start+n] {
+			nativeEndian.PutUint64(payload[off:off+8], r.Lo.Hi)
+			nativeEndian.PutUint64(payload[off+8:off+16], r.Lo.Lo)
+			nativeEndian.PutUint64(payload[off+16:off+24], r.Hi.Hi)
+			nativeEndian.PutUint64(payload[off+24:off+32], r.Hi.Lo)
+			off += 32
+		}
+		if _, err := cw.Write(payload[:off]); err != nil {
+			return stats, err
+		}
+		stats.RangesWritten += int64(n)
+		start += n
 	}
 	stats.BytesWritten = cw.n
 	return stats, nil
@@ -162,11 +167,12 @@ func ReadBinary6WithStats(name string, r io.Reader) (*IPSet6, OperationStats, er
 		return nil, stats, fmt.Errorf("%s: invalid payload size %d", name, payloadBytes)
 	}
 
-	var marker uint32
-	if err := binary.Read(br, nativeEndian, &marker); err != nil {
+	var markerBuf [4]byte
+	if _, err := io.ReadFull(br, markerBuf[:]); err != nil {
 		stats.BytesRead = cr.n
 		return nil, stats, err
 	}
+	marker := nativeEndian.Uint32(markerBuf[:])
 	if marker != binaryEndiannessMarker {
 		stats.BytesRead = cr.n
 		return nil, stats, fmt.Errorf("%s: incompatible endianness", name)

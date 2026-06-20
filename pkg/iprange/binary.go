@@ -2,7 +2,6 @@ package iprange
 
 import (
 	"bufio"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -25,38 +24,39 @@ func WriteBinaryWithStats(w io.Writer, set *IPSet) (OperationStats, error) {
 	}
 
 	cw := &countingWriter{w: w}
-	bw := bufio.NewWriterSize(cw, 64*1024)
-	if _, err := fmt.Fprint(bw, BinaryHeaderV10); err != nil {
+	if _, err := fmt.Fprint(cw, BinaryHeaderV10); err != nil {
 		return stats, err
 	}
 	if set.Optimized {
-		if _, err := fmt.Fprintln(bw, "optimized"); err != nil {
+		if _, err := fmt.Fprintln(cw, "optimized"); err != nil {
 			return stats, err
 		}
-	} else if _, err := fmt.Fprintln(bw, "non-optimized"); err != nil {
+	} else if _, err := fmt.Fprintln(cw, "non-optimized"); err != nil {
 		return stats, err
 	}
-	if _, err := fmt.Fprintf(bw, "record size %d\n", 8); err != nil {
+	if _, err := fmt.Fprintf(cw, "record size %d\n", 8); err != nil {
 		return stats, err
 	}
-	if _, err := fmt.Fprintf(bw, "records %d\n", len(set.Ranges)); err != nil {
+	if _, err := fmt.Fprintf(cw, "records %d\n", len(set.Ranges)); err != nil {
 		return stats, err
 	}
-	if _, err := fmt.Fprintf(bw, "bytes %d\n", len(set.Ranges)*8+4); err != nil {
+	if _, err := fmt.Fprintf(cw, "bytes %d\n", len(set.Ranges)*8+4); err != nil {
 		return stats, err
 	}
-	if _, err := fmt.Fprintf(bw, "lines %d\n", set.Lines); err != nil {
+	if _, err := fmt.Fprintf(cw, "lines %d\n", set.Lines); err != nil {
 		return stats, err
 	}
-	if _, err := fmt.Fprintf(bw, "unique ips %d\n", set.UniqueIPs); err != nil {
+	if _, err := fmt.Fprintf(cw, "unique ips %d\n", set.UniqueIPs); err != nil {
 		return stats, err
 	}
-	if err := binary.Write(bw, nativeEndian, binaryEndiannessMarker); err != nil {
+	var marker [4]byte
+	nativeEndian.PutUint32(marker[:], binaryEndiannessMarker)
+	if _, err := cw.Write(marker[:]); err != nil {
 		return stats, err
 	}
 
-	const recordsPerChunk = 8192
-	payload := make([]byte, recordsPerChunk*8)
+	var payload [4096]byte
+	const recordsPerChunk = len(payload) / 8
 	for start := 0; start < len(set.Ranges); {
 		n := len(set.Ranges) - start
 		if n > recordsPerChunk {
@@ -68,14 +68,11 @@ func WriteBinaryWithStats(w io.Writer, set *IPSet) (OperationStats, error) {
 			nativeEndian.PutUint32(payload[off+4:off+8], r.Hi)
 			off += 8
 		}
-		if _, err := bw.Write(payload[:off]); err != nil {
+		if _, err := cw.Write(payload[:off]); err != nil {
 			return stats, err
 		}
 		stats.RangesWritten += int64(n)
 		start += n
-	}
-	if err := bw.Flush(); err != nil {
-		return stats, err
 	}
 	stats.BytesWritten = cw.n
 	return stats, nil
@@ -151,11 +148,12 @@ func ReadBinaryWithStats(name string, r io.Reader) (*IPSet, OperationStats, erro
 		return nil, stats, fmt.Errorf("%s: inconsistent binary counters", name)
 	}
 
-	var marker uint32
-	if err := binary.Read(br, nativeEndian, &marker); err != nil {
+	var markerBuf [4]byte
+	if _, err := io.ReadFull(br, markerBuf[:]); err != nil {
 		stats.BytesRead = cr.n
 		return nil, stats, err
 	}
+	marker := nativeEndian.Uint32(markerBuf[:])
 	if marker != binaryEndiannessMarker {
 		stats.BytesRead = cr.n
 		return nil, stats, fmt.Errorf("%s: incompatible endianness", name)
@@ -163,15 +161,13 @@ func ReadBinaryWithStats(name string, r io.Reader) (*IPSet, OperationStats, erro
 
 	set := New(name)
 	set.Ranges = make([]Range, records)
+	var rangeBuf [8]byte
 	for i := 0; i < records; i++ {
-		if err := binary.Read(br, nativeEndian, &set.Ranges[i].Lo); err != nil {
+		if _, err := io.ReadFull(br, rangeBuf[:]); err != nil {
 			stats.BytesRead = cr.n
-			return nil, stats, err
+			return nil, stats, fmt.Errorf("%s: reading range %d: %w", name, i+1, err)
 		}
-		if err := binary.Read(br, nativeEndian, &set.Ranges[i].Hi); err != nil {
-			stats.BytesRead = cr.n
-			return nil, stats, err
-		}
+		set.Ranges[i] = decodeRange(rangeBuf[:])
 		if !set.Ranges[i].Valid() {
 			stats.BytesRead = cr.n
 			return nil, stats, fmt.Errorf("%s: invalid binary range %d", name, i+1)
@@ -210,6 +206,9 @@ type countingWriter struct {
 func (w *countingWriter) Write(p []byte) (int, error) {
 	n, err := w.w.Write(p)
 	w.n += int64(n)
+	if err == nil && n != len(p) {
+		err = io.ErrShortWrite
+	}
 	return n, err
 }
 

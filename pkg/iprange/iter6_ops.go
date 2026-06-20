@@ -11,6 +11,9 @@ type RangeSource6 interface {
 }
 
 func CountUniqueIter6(src RangeSource6) Uint128 {
+	if unique, ok := rangeSource6KnownUniqueIPs(src); ok {
+		return unique
+	}
 	var total Uint128
 	for r := range src.Iter() {
 		total = total.Add(r.Size())
@@ -19,6 +22,9 @@ func CountUniqueIter6(src RangeSource6) Uint128 {
 }
 
 func OverlapCountIter6(a, b RangeSource6) Uint128 {
+	if count, ok := overlapCount6FastPath(a, b); ok {
+		return count
+	}
 	var count Uint128
 	for r := range IntersectIter6(a, b) {
 		count = count.Add(r.Size())
@@ -26,7 +32,124 @@ func OverlapCountIter6(a, b RangeSource6) Uint128 {
 	return count
 }
 
+func overlapCount6FastPath(a, b RangeSource6) (Uint128, bool) {
+	if left, ok := a.(*IPSet6); ok {
+		if right, ok := b.(*IPSet6); ok {
+			left.Optimize()
+			right.Optimize()
+			return overlapCount6Ranges(left.Ranges, right.Ranges), true
+		}
+	}
+	indexed, unlock, ok, err := indexedRangeSources6([]RangeSource6{a, b})
+	if !ok || err != nil {
+		return uint128Zero, ok
+	}
+	if unlock != nil {
+		defer unlock()
+	}
+	count, err := overlapCount6Indexed(indexed[0], indexed[1])
+	if err != nil {
+		return uint128Zero, true
+	}
+	return count, true
+}
+
+func overlapCount6Ranges(a, b []Range6) Uint128 {
+	var count Uint128
+	i, j := 0, 0
+	for i < len(a) && j < len(b) {
+		ra := a[i]
+		rb := b[j]
+		if ra.Hi.LessThan(rb.Lo) {
+			i++
+			continue
+		}
+		if rb.Hi.LessThan(ra.Lo) {
+			j++
+			continue
+		}
+		lo := ra.Lo
+		if rb.Lo.GreaterThan(lo) {
+			lo = rb.Lo
+		}
+		hi := ra.Hi
+		if rb.Hi.LessThan(hi) {
+			hi = rb.Hi
+		}
+		count = count.Add(Range6{Lo: lo, Hi: hi}.Size())
+		if ra.Hi.LessThan(rb.Hi) {
+			i++
+		} else if rb.Hi.LessThan(ra.Hi) {
+			j++
+		} else {
+			i++
+			j++
+		}
+	}
+	return count
+}
+
+func overlapCount6Indexed(a, b indexedRangeSource6) (Uint128, error) {
+	var count Uint128
+	i, j := 0, 0
+	for i < a.len() && j < b.len() {
+		ra, err := a.at(i)
+		if err != nil {
+			return uint128Zero, err
+		}
+		rb, err := b.at(j)
+		if err != nil {
+			return uint128Zero, err
+		}
+		if ra.Hi.LessThan(rb.Lo) {
+			i++
+			continue
+		}
+		if rb.Hi.LessThan(ra.Lo) {
+			j++
+			continue
+		}
+		lo := ra.Lo
+		if rb.Lo.GreaterThan(lo) {
+			lo = rb.Lo
+		}
+		hi := ra.Hi
+		if rb.Hi.LessThan(hi) {
+			hi = rb.Hi
+		}
+		count = count.Add(Range6{Lo: lo, Hi: hi}.Size())
+		if ra.Hi.LessThan(rb.Hi) {
+			i++
+		} else if rb.Hi.LessThan(ra.Hi) {
+			j++
+		} else {
+			i++
+			j++
+		}
+	}
+	return count, nil
+}
+
+func rangeSource6KnownUniqueIPs(src RangeSource6) (Uint128, bool) {
+	switch s := src.(type) {
+	case *IPSet6:
+		s.Optimize()
+		return s.UniqueIPs, true
+	case FileSet6:
+		return s.UniqueIPs(), true
+	default:
+		return uint128Zero, false
+	}
+}
+
 func IntersectIter6(a, b RangeSource6) func(yield func(Range6) bool) {
+	if left, ok := a.(*IPSet6); ok {
+		if right, ok := b.(*IPSet6); ok {
+			left.Optimize()
+			right.Optimize()
+			return intersectIter6Ranges(left.Ranges, right.Ranges)
+		}
+	}
 	return func(yield func(Range6) bool) {
 		nextA, stopA := iter.Pull(a.Iter())
 		defer stopA()
@@ -71,7 +194,54 @@ func IntersectIter6(a, b RangeSource6) func(yield func(Range6) bool) {
 	}
 }
 
+func intersectIter6Ranges(a, b []Range6) func(yield func(Range6) bool) {
+	return func(yield func(Range6) bool) {
+		i, j := 0, 0
+		for i < len(a) && j < len(b) {
+			ra := a[i]
+			rb := b[j]
+			if ra.Hi.LessThan(rb.Lo) {
+				i++
+				continue
+			}
+			if rb.Hi.LessThan(ra.Lo) {
+				j++
+				continue
+			}
+
+			lo := ra.Lo
+			if rb.Lo.GreaterThan(lo) {
+				lo = rb.Lo
+			}
+			hi := ra.Hi
+			if rb.Hi.LessThan(hi) {
+				hi = rb.Hi
+			}
+
+			if !yield(Range6{Lo: lo, Hi: hi}) {
+				return
+			}
+
+			if ra.Hi.LessThan(rb.Hi) {
+				i++
+			} else if rb.Hi.LessThan(ra.Hi) {
+				j++
+			} else {
+				i++
+				j++
+			}
+		}
+	}
+}
+
 func ExcludeIter6(a, b RangeSource6) func(yield func(Range6) bool) {
+	if left, ok := a.(*IPSet6); ok {
+		if right, ok := b.(*IPSet6); ok {
+			left.Optimize()
+			right.Optimize()
+			return excludeIter6Ranges(left.Ranges, right.Ranges)
+		}
+	}
 	return func(yield func(Range6) bool) {
 		nextA, stopA := iter.Pull(a.Iter())
 		defer stopA()
@@ -115,6 +285,39 @@ func ExcludeIter6(a, b RangeSource6) func(yield func(Range6) bool) {
 				ra.Lo = rb.Hi.Incr()
 				rb, okB = nextB()
 			}
+		}
+	}
+}
+
+func excludeIter6Ranges(a, b []Range6) func(yield func(Range6) bool) {
+	return func(yield func(Range6) bool) {
+		i, j := 0, 0
+		for i < len(a) {
+			ra := a[i]
+			for j < len(b) && b[j].Hi.LessThan(ra.Lo) {
+				j++
+			}
+			consumed := false
+			for j < len(b) && !ra.Hi.LessThan(b[j].Lo) {
+				rb := b[j]
+				if ra.Lo.LessThan(rb.Lo) {
+					if !yield(Range6{Lo: ra.Lo, Hi: rb.Lo.Sub64(1)}) {
+						return
+					}
+				}
+				if !ra.Hi.GreaterThan(rb.Hi) {
+					consumed = true
+					break
+				}
+				ra.Lo = rb.Hi.Incr()
+				j++
+			}
+			if !consumed {
+				if !yield(ra) {
+					return
+				}
+			}
+			i++
 		}
 	}
 }
@@ -235,6 +438,13 @@ func UnionIter6(sources ...RangeSource6) func(yield func(Range6) bool) {
 }
 
 func unionTwo6(a, b RangeSource6) func(yield func(Range6) bool) {
+	if left, ok := a.(*IPSet6); ok {
+		if right, ok := b.(*IPSet6); ok {
+			left.Optimize()
+			right.Optimize()
+			return unionTwo6Ranges(left.Ranges, right.Ranges)
+		}
+	}
 	return func(yield func(Range6) bool) {
 		nextA, stopA := iter.Pull(a.Iter())
 		defer stopA()
@@ -291,6 +501,45 @@ func unionTwo6(a, b RangeSource6) func(yield func(Range6) bool) {
 		}
 
 		yield(cur)
+	}
+}
+
+func unionTwo6Ranges(a, b []Range6) func(yield func(Range6) bool) {
+	return func(yield func(Range6) bool) {
+		i, j := 0, 0
+		var cur Range6
+		haveCur := false
+
+		for i < len(a) || j < len(b) {
+			var next Range6
+			if j >= len(b) || (i < len(a) && !a[i].Lo.GreaterThan(b[j].Lo)) {
+				next = a[i]
+				i++
+			} else {
+				next = b[j]
+				j++
+			}
+
+			if !haveCur {
+				cur = next
+				haveCur = true
+				continue
+			}
+			if canMerge6(cur, next) {
+				if next.Hi.GreaterThan(cur.Hi) {
+					cur.Hi = next.Hi
+				}
+				continue
+			}
+			if !yield(cur) {
+				return
+			}
+			cur = next
+		}
+
+		if haveCur {
+			yield(cur)
+		}
 	}
 }
 

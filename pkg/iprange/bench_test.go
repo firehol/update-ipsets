@@ -530,6 +530,25 @@ func BenchmarkBuildRangeSourceSummaryFileSet(b *testing.B) {
 	}
 }
 
+func BenchmarkBuildRangeOverlapFilterFileSet(b *testing.B) {
+	for _, size := range []int{1_000, 10_000, 100_000} {
+		b.Run(fmt.Sprintf("n=%d", size), func(b *testing.B) {
+			fsA, _ := benchPairFileSets(b, size)
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				filter, err := BuildRangeOverlapFilterContext(b.Context(), fsA)
+				if err != nil {
+					b.Fatal(err)
+				}
+				if !filter.Valid() {
+					b.Fatal("overlap filter invalid")
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkRangeSourceContentHashFileSet(b *testing.B) {
 	for _, size := range []int{1_000, 10_000, 100_000} {
 		b.Run(fmt.Sprintf("n=%d", size), func(b *testing.B) {

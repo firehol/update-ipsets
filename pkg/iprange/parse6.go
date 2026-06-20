@@ -2,11 +2,14 @@ package iprange
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"net/netip"
 	"os"
 	"strings"
+	"unsafe"
 )
 
 func DefaultParseOptions6() ParseOptions {
@@ -44,28 +47,28 @@ func ParseReader6(ctx context.Context, name string, r io.Reader, opts ParseOptio
 	var hostnames []hostnameRequest
 	firstLine := true
 
-	if err := forEachTextLine(br, func(line string) error {
+	if err := forEachTextLineBytes(br, func(line []byte) error {
 		if opts.Stats != nil {
 			opts.Stats.LinesRead++
 			opts.Stats.BytesRead += int64(len(line))
 		}
 		if firstLine {
 			firstLine = false
-			line = strings.TrimPrefix(line, "\xEF\xBB\xBF")
+			line = trimBOMBytes(line)
 		}
-		trimmed := stripInlineComment(line)
-		if trimmed == "" {
+		trimmed := stripInlineCommentBytes(line)
+		if len(trimmed) == 0 {
 			return nil
 		}
 
-		if strings.Contains(trimmed, "-") {
-			left, right, ok := splitRangeLine(trimmed)
+		if bytes.IndexByte(trimmed, '-') >= 0 {
+			left, right, ok := splitRangeLineBytes(trimmed)
 			if ok {
-				lo, _, errLeft := parseIPv6OrMappedEndpoint(left, opts)
+				lo, _, errLeft := parseIPv6OrMappedEndpointBytes(left, opts)
 				if errLeft != nil {
 					return nil
 				}
-				_, hi, errRight := parseIPv6OrMappedEndpoint(right, opts)
+				_, hi, errRight := parseIPv6OrMappedEndpointBytes(right, opts)
 				if errRight != nil {
 					return nil
 				}
@@ -79,7 +82,7 @@ func ParseReader6(ctx context.Context, name string, r io.Reader, opts ParseOptio
 			}
 		}
 
-		lo, hi, err := parseIPv6OrMappedEndpoint(trimmed, opts)
+		lo, hi, err := parseIPv6OrMappedEndpointBytes(trimmed, opts)
 		if err == nil {
 			if err := set.Add6(lo, hi); err != nil {
 				return err
@@ -90,8 +93,8 @@ func ParseReader6(ctx context.Context, name string, r io.Reader, opts ParseOptio
 			return nil
 		}
 
-		if looksLikeHostname(trimmed) {
-			hostnames = append(hostnames, hostnameRequest{host: trimmed})
+		if looksLikeHostnameBytes(trimmed) {
+			hostnames = append(hostnames, hostnameRequest{host: string(trimmed)})
 			if opts.Stats != nil {
 				opts.Stats.HostnamesQueued++
 			}
@@ -174,4 +177,114 @@ func parseIPv6OrMappedEndpoint(token string, opts ParseOptions) (Uint128, Uint12
 	}
 
 	return parseIPv6Endpoint(token, opts)
+}
+
+func parseIPv6OrMappedEndpointBytes(token []byte, opts ParseOptions) (Uint128, Uint128, error) {
+	trimmed := bytes.TrimSpace(token)
+	if looksLikeIPv6Bytes(trimmed) {
+		return parseIPv6EndpointBytes(trimmed, opts)
+	}
+
+	if idx := bytes.IndexByte(trimmed, '/'); idx >= 0 {
+		addr, err := parseIPv4TokenBytes(trimmed[:idx])
+		if err == nil {
+			prefix, pErr := parsePrefixBytes(trimmed[idx+1:])
+			if pErr == nil && prefix >= 0 && prefix <= 32 {
+				lo := IPv4ToMapped6(Network(addr, prefix))
+				hi := IPv4ToMapped6(Broadcast(addr, prefix))
+				return lo, hi, nil
+			}
+		}
+	}
+
+	addr, err := parseIPv4TokenBytes(trimmed)
+	if err == nil {
+		mapped := IPv4ToMapped6(addr)
+		if opts.DefaultPrefix < 0 || opts.DefaultPrefix > 128 {
+			return uint128Zero, uint128Zero, ErrInvalidPrefix
+		}
+		if opts.DefaultPrefix >= 32 {
+			return mapped, mapped, nil
+		}
+		lo := addr
+		if opts.UseCIDRNetwork {
+			lo = Network(addr, opts.DefaultPrefix)
+		}
+		return IPv4ToMapped6(lo), IPv4ToMapped6(Broadcast(lo, opts.DefaultPrefix)), nil
+	}
+
+	return parseIPv6EndpointBytes(trimmed, opts)
+}
+
+func parseIPv6EndpointBytes(token []byte, opts ParseOptions) (Uint128, Uint128, error) {
+	if idx := bytes.IndexByte(token, '/'); idx >= 0 {
+		addr, err := parseIPv6TokenBytes(token[:idx])
+		if err != nil {
+			return uint128Zero, uint128Zero, err
+		}
+		prefix, err := parsePrefix6Bytes(token[idx+1:])
+		if err != nil {
+			return uint128Zero, uint128Zero, err
+		}
+		lo := addr
+		if opts.UseCIDRNetwork {
+			lo = Network6(addr, prefix)
+		}
+		return lo, Broadcast6(lo, prefix), nil
+	}
+
+	addr, err := parseIPv6TokenBytes(token)
+	if err != nil {
+		return uint128Zero, uint128Zero, err
+	}
+	if opts.DefaultPrefix == 128 {
+		return addr, addr, nil
+	}
+	lo := addr
+	if opts.UseCIDRNetwork {
+		lo = Network6(addr, opts.DefaultPrefix)
+	}
+	return lo, Broadcast6(lo, opts.DefaultPrefix), nil
+}
+
+func parseIPv6TokenBytes(token []byte) (Uint128, error) {
+	trimmed := bytes.TrimSpace(token)
+	if len(trimmed) == 0 {
+		return uint128Zero, ErrInvalidIPv6
+	}
+	addr, err := netip.ParseAddr(bytesToUnsafeString(trimmed))
+	if err != nil {
+		return uint128Zero, fmt.Errorf("%w: %q", ErrInvalidIPv6, string(trimmed))
+	}
+	bytes := addr.As16()
+	return u128FromBytes(bytes[:]), nil
+}
+
+func parsePrefix6Bytes(token []byte) (int, error) {
+	trimmed := bytes.TrimSpace(token)
+	if len(trimmed) == 0 {
+		return 0, ErrInvalidPrefix
+	}
+	n := 0
+	for _, ch := range trimmed {
+		if ch < '0' || ch > '9' {
+			return ParsePrefix6(string(trimmed))
+		}
+		n = n*10 + int(ch-'0')
+		if n > 128 {
+			return 0, ErrInvalidPrefix
+		}
+	}
+	return n, nil
+}
+
+func looksLikeIPv6Bytes(token []byte) bool {
+	return bytes.IndexByte(token, ':') >= 0
+}
+
+func bytesToUnsafeString(b []byte) string {
+	if len(b) == 0 {
+		return ""
+	}
+	return unsafe.String(unsafe.SliceData(b), len(b))
 }

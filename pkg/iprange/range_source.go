@@ -420,11 +420,54 @@ func BuildRangeSourceSummaryContext(ctx context.Context, src RangeSource) (Range
 // BuildRangeOverlapFilterContext scans src once and returns only its
 // conservative overlap filter.
 func BuildRangeOverlapFilterContext(ctx context.Context, src RangeSource) (RangeOverlapFilter, error) {
-	summary, err := BuildRangeSourceSummaryContext(ctx, src)
-	if err != nil {
+	ctx = rangeSourceContext(ctx)
+	if src == nil {
+		return RangeOverlapFilter{}, nil
+	}
+
+	var bitmap *rangePrefixBitmap
+	hasRanges := false
+	sparse := rangeSparsePrefixBuilder{}
+	var bounds Range
+
+	for r := range src.Iter() {
+		if err := ctx.Err(); err != nil {
+			return RangeOverlapFilter{}, err
+		}
+		if !hasRanges {
+			bounds.Lo = r.Lo
+			hasRanges = true
+		}
+		bounds.Hi = r.Hi
+		start := r.Lo >> rangeSummaryPrefixShift
+		end := r.Hi >> rangeSummaryPrefixShift
+		sparseStart := r.Lo >> rangeSummarySparsePrefixShift
+		sparseEnd := r.Hi >> rangeSummarySparsePrefixShift
+		if bitmap == nil && sparse.wouldOverflow(sparseStart, sparseEnd) {
+			bitmap = &rangePrefixBitmap{}
+			bitmap.addSparsePrefixes(sparse.prefixes)
+		}
+		if bitmap != nil {
+			bitmap.addRange(start, end)
+		}
+		sparse.addRange(sparseStart, sparseEnd)
+	}
+	if err := RangeSourceErr(src); err != nil {
 		return RangeOverlapFilter{}, err
 	}
-	return summary.OverlapFilter(), nil
+	if err := ctx.Err(); err != nil {
+		return RangeOverlapFilter{}, err
+	}
+	if !hasRanges {
+		return RangeOverlapFilter{valid: true}, nil
+	}
+	return RangeOverlapFilter{
+		valid:        true,
+		hasRange:     true,
+		bounds:       bounds,
+		prefixBitmap: bitmap,
+		sparsePrefix: sparse.set(),
+	}, nil
 }
 
 // RangeSourcesEqualContext compares two normalized range streams exactly.
@@ -437,6 +480,15 @@ func RangeSourcesEqualContext(ctx context.Context, left, right RangeSource) (boo
 		if r, ok := rangeSourceKnownUniqueIPs(right); ok && l != r {
 			return false, nil
 		}
+	}
+	if indexed, unlock, ok, err := indexedRangeSources([]RangeSource{left, right}); ok {
+		if unlock != nil {
+			defer unlock()
+		}
+		if err != nil {
+			return false, err
+		}
+		return rangeSourcesEqualIndexed(ctx, indexed[0], indexed[1], left, right)
 	}
 
 	nextLeft, stopLeft := iter.Pull(left.Iter())
@@ -460,6 +512,39 @@ func RangeSourcesEqualContext(ctx context.Context, left, right RangeSource) (boo
 			return false, firstRangeSourceErr(left, right)
 		}
 	}
+}
+
+func rangeSourcesEqualIndexed(ctx context.Context, left, right indexedRangeSource, originalLeft, originalRight RangeSource) (bool, error) {
+	if left.len() != right.len() {
+		return false, firstRangeSourceErr(originalLeft, originalRight)
+	}
+	if leftUnique, ok := left.uniqueCount(); ok {
+		if rightUnique, ok := right.uniqueCount(); ok && leftUnique != rightUnique {
+			return false, firstRangeSourceErr(originalLeft, originalRight)
+		}
+	}
+	for i := 0; i < left.len(); i++ {
+		if i&(materializeContextCheckEvery-1) == 0 {
+			if err := ctx.Err(); err != nil {
+				return false, err
+			}
+		}
+		leftRange, err := left.at(i)
+		if err != nil {
+			return false, err
+		}
+		rightRange, err := right.at(i)
+		if err != nil {
+			return false, err
+		}
+		if leftRange != rightRange {
+			return false, firstRangeSourceErr(originalLeft, originalRight)
+		}
+	}
+	if err := firstRangeSourceErr(originalLeft, originalRight); err != nil {
+		return false, err
+	}
+	return true, ctx.Err()
 }
 
 func rangeSourceKnownUniqueIPs(src RangeSource) (uint64, bool) {

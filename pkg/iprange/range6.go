@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"math"
-	"net"
+	"net/netip"
 	"strconv"
 	"strings"
 )
@@ -442,15 +442,12 @@ func writeHexUint16(buf []byte, v uint16) int {
 }
 
 func ParseIPv6Token(token string) (Uint128, error) {
-	ip := net.ParseIP(token)
-	if ip == nil {
+	addr, err := netip.ParseAddr(token)
+	if err != nil {
 		return uint128Zero, fmt.Errorf("%w: %q", ErrInvalidIPv6, token)
 	}
-	ip = ip.To16()
-	if ip == nil {
-		return uint128Zero, fmt.Errorf("%w: %q", ErrInvalidIPv6, token)
-	}
-	return u128FromBytes(ip), nil
+	bytes := addr.As16()
+	return u128FromBytes(bytes[:]), nil
 }
 
 func ParsePrefix6(token string) (int, error) {

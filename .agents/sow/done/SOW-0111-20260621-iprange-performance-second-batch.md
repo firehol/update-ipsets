@@ -2,10 +2,11 @@
 
 ## Status
 
-Status: open
+Status: completed
 
-Sub-state: Created as the concrete follow-up from SOW-0110; implementation has
-not started.
+Sub-state: Implementation started after SOW-0110 was committed and pushed as
+`f8947f5`. Implementation and validation are complete locally; SOW close,
+commit, and push were approved by the user and completed with this SOW close.
 
 ## Requirements
 
@@ -268,77 +269,197 @@ Open decisions:
 
 - Created as follow-up from SOW-0110 and user approval to start the second
   performance batch after committing the current work.
+- Moved to `current/` and marked `in-progress` after SOW-0110 commit `f8947f5`
+  was pushed to `origin/main`.
+- Added behavioral tests before implementation for:
+  - exact `RangeSourcesEqualContext` behavior across in-memory and file-backed
+    sources;
+  - filter-only `BuildRangeOverlapFilterContext` behavior;
+  - IPv6 parser compatibility around BOM, comments, CRLF, ranges, mapped IPv4,
+    hostnames, and CIDR;
+  - IPv6 overlap counts across memory and file-backed source combinations;
+  - IPv6 iterator outputs for intersection, exclusion, union, and input
+    non-mutation.
+- Implemented indexed `RangeSourcesEqualContext` for package-owned source
+  types while keeping generic fallback behavior.
+- Split filter-only overlap construction from full source summary hashing so
+  callers that only need conservative overlap bounds do not compute content
+  hashes.
+- Reworked IPv6 parsing to use byte-line processing and `net/netip` token
+  parsing while preserving hostname resolution behavior.
+- Added IPv6 indexed source adapters for in-memory, mmap-backed, and pread
+  file-backed sources, and used them where the API can report operation errors.
+- Added direct in-memory IPv6 range sweeps for overlap count, intersection,
+  exclusion, and two-source union to remove `iter.Pull` overhead from those
+  hot paths.
+- Reworked IPv4 and IPv6 binary read/write loops to avoid full payload
+  materialization and buffered-writer heap growth where stack chunks are
+  sufficient.
+- Preserved binary writer short-write behavior by returning
+  `io.ErrShortWrite` when an underlying writer reports a partial write without
+  an error.
 
 ## Validation
 
 Acceptance criteria evidence:
 
-- Pending implementation.
+- Indexed equality:
+  - `BenchmarkRangeSourcesEqualContextFileSet/n=100000` improved from about
+    `17.18 ms/op`, `448 B/op`, `14 allocs/op` to about `1.23 ms/op`,
+    `432 B/op`, `6 allocs/op`.
+  - Behavioral equality tests cover equal and different file-backed sources.
+- IPv6 parser allocation-light parity:
+  - `BenchmarkParseIPs6` improved from about `1.72 ms/op`, `1.54 MB/op`,
+    `10,023 allocs/op` to about `1.22 ms/op`, `1.38 MB/op`, `23 allocs/op`.
+  - Parser behavior tests cover comments, BOM, CRLF, ranges, CIDR, and mapped
+    IPv4.
+- IPv6 overlap/source algebra:
+  - `BenchmarkOverlapCount6InMemory/n=100000` baseline from pushed commit
+    `f8947f5`: `18.32 ms/op`, `492 B/op`, `14 allocs/op`.
+  - Current `BenchmarkOverlapCount6InMemory/n=100000`: `1.03 ms/op`,
+    `0 B/op`, `0 allocs/op`.
+  - `BenchmarkIntersectIter6InMemory/n=100000`: `22.59 ms/op`,
+    `495 B/op`, `14 allocs/op` -> `1.20 ms/op`, `88 B/op`, `3 allocs/op`.
+  - `BenchmarkUnionIter6InMemory/n=100000`: `23.14 ms/op`, `600 B/op`,
+    `19 allocs/op` -> `1.77 ms/op`, `136 B/op`, `5 allocs/op`.
+  - `BenchmarkExcludeIter6InMemory/n=100000`: `19.97 ms/op`, `493 B/op`,
+    `14 allocs/op` -> `1.32 ms/op`, `88 B/op`, `3 allocs/op`.
+- Filter-only overlap construction:
+  - `BenchmarkBuildRangeOverlapFilterFileSet/n=100000` improved from about
+    `2.06 ms/op`, `272717 B/op`, `29 allocs/op` to about `1.07 ms/op`,
+    `272480 B/op`, `26 allocs/op`.
+  - Full `BenchmarkBuildRangeSourceSummaryFileSet` still computes content hash
+    and remains available for callers that need identity.
+- Binary I/O:
+  - `BenchmarkBinaryRoundTrip` improved from about `17.09 us/op`,
+    `135983 B/op`, `26 allocs/op` to about `4.27 us/op`, `8897 B/op`,
+    `24 allocs/op`.
+  - `BenchmarkBinary6RoundTrip` improved from about `10.91 us/op`,
+    `70559 B/op`, `27 allocs/op` to about `3.62 us/op`, `9250 B/op`,
+    `27 allocs/op`.
+- `pkg/iprange` remains standalone and telemetry-framework agnostic.
 
 Tests or equivalent validation:
 
-- Pending implementation.
+- Passed: `go test -count=1 ./pkg/iprange -run 'TestRangeSourcesEqualContextInMemoryAndFileSet|TestRangeSourceSummaryAndOverlapFilter|TestParseReader6CommentsBOMRangesAndCR'`
+- Passed: `go test -count=1 ./pkg/iprange -run 'TestOverlapCountIter6InMemoryAndFileSet'`
+- Passed: `go test -count=1 ./pkg/iprange -run 'TestIPv6IteratorsInMemory'`
+- Passed: `go test -count=1 ./pkg/iprange -run 'TestIPv6IteratorsInMemory|TestOverlapCountIter6InMemoryAndFileSet|Test.*6|Test.*Binary|TestFileSet|TestParseReaderWrongBinaryFamilyErrors|TestOperationStats'`
+- Passed: `go test -count=1 ./pkg/iprange -run 'TestBinary|Test.*Binary|TestFileSet|TestFileSet6|TestParseReaderWrongBinaryFamilyErrors|TestOperationStats'`
+- Passed: `go test -count=1 ./pkg/iprange`
+- Passed: `go test -count=1 ./pkg/iprange ./pkg/engine ./pkg/asnloc`
+- Passed: `go test -race -count=1 ./pkg/iprange ./pkg/engine ./pkg/asnloc`
+- Passed: `make build`
+- Passed: `make lint`
+- Failed, unrelated existing gate: `make test` passed normal Go packages,
+  including `pkg/iprange`, `pkg/engine`, and `pkg/asnloc`, then failed
+  `tools/archposture` because `ui/src/lib/api-types.ts` is recorded as
+  growing from `1045` to `1099` lines.
+- Passed: `git diff --check`
 
 Real-use evidence:
 
-- Pending implementation.
+- Production-facing engine packages that use the `pkg/iprange` source APIs
+  pass normal and race tests.
+- Benchmarks use file-backed sets and large synthetic range sets up to
+  `100000` ranges to exercise the same source shapes used by engine processing.
 
 Reviewer findings:
 
-- Pending implementation.
+- External reviewers were not run for this second batch because the user did
+  not request them for this milestone.
+- Self-review found and fixed a draft IPv6 exclusion fast-path issue that would
+  have trimmed the source slice in place. `TestIPv6IteratorsInMemory` now
+  asserts input ranges remain unchanged after iteration.
 
 Same-failure scan:
 
-- Pending implementation.
+- Passed: `go list -deps ./pkg/iprange | rg '^github\\.com/firehol/update-ipsets/(internal|pkg/)' | rg -v '^github\\.com/firehol/update-ipsets/pkg/iprange$' || true`
+  - No project package imports outside `pkg/iprange`.
+- Passed: `rg -n 'go\\.opentelemetry\\.io|otel\\.|iprangeObserve|iprangeStart|iprangeCount|iprangeBackground' pkg/iprange || true`
+  - No telemetry-framework references in `pkg/iprange`.
+- Passed: `rg -n 'time\\.Sleep|testify|gomock|mockery' pkg/iprange --glob '*_test.go' || true`
+  - No sleeps or mock/assertion frameworks in `pkg/iprange` tests.
 
 Sensitive data gate:
 
-- Pending implementation.
+- Passed. Only synthetic ranges, benchmark-generated temporary files, source
+  paths, and command outcomes were recorded. No raw secrets, customer data,
+  private endpoints, proprietary incidents, or personal names were added to
+  durable artifacts.
 
 Artifact maintenance gate:
 
-- AGENTS.md: pending.
-- Runtime project skills: pending.
-- Specs: pending.
-- End-user/operator docs: pending.
-- End-user/operator skills: pending.
-- SOW lifecycle: pending.
+- AGENTS.md: no update needed; SOW-0110 already added the durable
+  telemetry/performance rules used here.
+- Runtime project skills: no update needed; `project-coding` and
+  `project-go-best-practices` already require standalone, telemetry-agnostic,
+  allocation-storm-free `pkg/iprange` hot paths.
+- Specs: no update needed; exported behavior and product contracts are
+  unchanged.
+- End-user/operator docs: no update needed; behavior is compatible and this is
+  internal performance work.
+- End-user/operator skills: no update needed.
+- SOW lifecycle: SOW moved to `done/`, status changed to `completed`, and the
+  lifecycle close is committed with the implementation.
 
 Specs update:
 
-- Pending implementation.
+- No spec update needed. This SOW changes implementation performance and
+  allocation behavior without changing public product behavior, configuration,
+  pipeline semantics, file layout, or operator-facing contracts.
 
 Project skills update:
 
-- Pending implementation.
+- No project skill update needed; the relevant durable rules already exist.
 
 End-user/operator docs update:
 
-- Pending implementation.
+- No end-user/operator docs update needed.
 
 End-user/operator skills update:
 
-- Pending implementation.
+- No end-user/operator skill update needed.
 
 Lessons:
 
-- Pending implementation.
+- Direct in-memory IPv6 sweeps are necessary for parity with IPv4 hot paths.
+  `iter.Pull` is useful for generic compatibility, but it is too expensive for
+  package-owned in-memory source algebra at large range counts.
+- Error-returning APIs can use indexed file-backed scans safely. No-error
+  iterator APIs should keep generic file-backed iteration unless the public
+  contract is changed to surface read errors.
+- Filter-only metadata should not reuse content-hashing builders when callers
+  only need overlap bounds.
+- Parser allocation storms can hide in string conversion around otherwise
+  efficient address parsing; behavior tests must cover compatibility before
+  moving parser inner loops to bytes.
 
 Follow-up mapping:
 
-- Pending implementation.
+- No valid second-batch item is left as an untracked deferral in this SOW.
+- Full `make test` remains blocked by the unrelated `tools/archposture`
+  baseline issue for `ui/src/lib/api-types.ts`; this SOW does not modify UI
+  generated API types.
 
 ## Outcome
 
-Pending.
+Implementation and validation completed, then the user approved SOW close,
+commit, and push.
 
 ## Lessons Extracted
 
-Pending.
+- Keep package-owned source algebra on direct typed paths when benchmarked hot.
+- Keep generic iterators as compatibility fallback, not as the default for
+  known in-memory source types.
+- Separate source identity work from overlap-filter work so callers pay only
+  for the information they need.
 
 ## Followup
 
-None yet.
+- None for `pkg/iprange` second-batch scope.
+- Unrelated repository hygiene remains: `tools/archposture` reports
+  `ui/src/lib/api-types.ts` line-count drift from `1045` to `1099`.
 
 ## Regression Log
 

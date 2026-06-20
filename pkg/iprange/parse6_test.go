@@ -42,6 +42,27 @@ func TestParseReader6MixedIPv4IPv6(t *testing.T) {
 	}
 }
 
+func TestParseReader6CommentsBOMRangesAndCR(t *testing.T) {
+	input := "\xEF\xBB\xBF# header\r\n" +
+		" 2001:db8::1 ; comment\r\n" +
+		"2001:db8::10 - 2001:db8::12 # comment\r\n" +
+		"::ffff:192.0.2.1/128\r\n"
+	set := parse6Str(t, input, DefaultParseOptions6())
+	set.Optimize()
+	if len(set.Ranges) != 3 {
+		t.Fatalf("ranges = %d, want 3", len(set.Ranges))
+	}
+	if got := Uint128ToIPv6(set.Ranges[0].Lo); got != "::ffff:c000:201" {
+		t.Fatalf("first range lo = %s, want mapped IPv4 address", got)
+	}
+	if got := Uint128ToIPv6(set.Ranges[1].Lo); got != "2001:db8::1" {
+		t.Fatalf("second range lo = %s, want 2001:db8::1", got)
+	}
+	if got := set.Ranges[2].Size(); got != u128FromUint64(3) {
+		t.Fatalf("third range size = %s, want 3", got.String())
+	}
+}
+
 func TestParseReader6AcceptsVeryLongGarbageLine(t *testing.T) {
 	input := strings.Repeat("x", 3*1024*1024) + "\n2001:db8::1\n"
 	set := parse6Str(t, input, DefaultParseOptions6())
