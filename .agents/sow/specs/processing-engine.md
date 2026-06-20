@@ -417,6 +417,10 @@ Operators MUST be able to observe at least:
 - being processed now
 - queue wait age
 - current processing phase or reason
+- current processing batch membership, including total, completed, active, and
+  pending feeds
+- current run phase plan, including phase order, current phase position, total
+  phases, and whether the plan is final or still tentative
 - active per-feed, per-phase, and per-operation progress when work is running
 - last processing result
 - whether enough local input exists for reprocess
@@ -465,6 +469,15 @@ feed/provider comparison fan-outs, metadata/index generation, entity sidecar
 fan-outs, and publish/copy loops. Such phase-level active operations MUST use
 the current engine phase and MUST report the same unit, current, total,
 completion, elapsed, and rate fields as feed-level active operations.
+
+Source processing MUST NOT expose only one broad "process feed" progress
+wrapper when material subwork is still running inside it. Long-running source
+subwork SHOULD expose its own active operation, including at least canonical
+body parsing, hostname resolution when present, previous-latest diffing,
+finalization, retention update, and rotation-stat refresh. Parser progress
+SHOULD report bytes and line/range/hostname counters so operators can
+distinguish a large local input parse from later diff, retention, or finalize
+work.
 
 At minimum, engine-controlled persisted fields MUST include equivalents of:
 

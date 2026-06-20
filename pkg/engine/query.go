@@ -538,6 +538,8 @@ func (e *Engine) StatusSnapshot() StatusSnapshot {
 		CurrentReason:                e.currentReason,
 		LastReason:                   e.lastReason,
 		CurrentPhase:                 e.currentPhase,
+		CurrentBatch:                 e.snapshotRunBatchLocked(),
+		PhasePlan:                    e.snapshotRunPhasePlanLocked(),
 		ActiveFeeds:                  e.snapshotActiveFeedsLocked(),
 		ActiveOperations:             e.snapshotActiveOperationsLocked(time.Now().UTC()),
 		BackgroundTasks:              e.snapshotBackgroundTasksLocked(),

@@ -98,6 +98,7 @@ func (e *Engine) RunOnce(ctx context.Context, opts RunOptions) (*Report, error) 
 	}
 
 	plan := e.buildPipelineRunPlan(report, opts)
+	e.setRunPhasePlan(plannedRunPhases(plan), true)
 	if !plan.shouldPublish {
 		e.logger.Info("not publishing web files: no feeds updated in this run")
 		return report, nil
@@ -210,6 +211,9 @@ func (e *Engine) tryMarkRunStart(t time.Time, reason runreason.Reason) bool {
 	e.lastStarted = t
 	e.currentReason = reason
 	e.currentPhase = RunPhasePreflight
+	e.currentBatch = nil
+	e.currentPhasePlan = initialRunPhasePlan()
+	e.currentPhasePlanFinal = false
 	e.activeFeeds = make(map[string]ActiveFeed)
 	e.activeOperations = make(map[string]ActiveOperation)
 	e.currentMetrics = newRunMetrics(t, RunPhasePreflight)
@@ -225,6 +229,9 @@ func (e *Engine) markRunEnd(report *Report, err error) {
 	e.lastReason = e.currentReason
 	e.currentReason = runreason.ReasonUnknown
 	e.currentPhase = RunPhaseUnknown
+	e.currentBatch = nil
+	e.currentPhasePlan = nil
+	e.currentPhasePlanFinal = false
 	e.activeFeeds = nil
 	e.activeOperations = nil
 	observeEnginePhaseCurrent(RunPhaseUnknown)

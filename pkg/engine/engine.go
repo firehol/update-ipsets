@@ -126,6 +126,8 @@ type StatusSnapshot struct {
 	CurrentReason                runreason.Reason         `json:"current_reason,omitempty"`
 	LastReason                   runreason.Reason         `json:"last_reason,omitempty"`
 	CurrentPhase                 RunPhase                 `json:"current_phase,omitempty"`
+	CurrentBatch                 *RunBatchSnapshot        `json:"current_batch,omitempty"`
+	PhasePlan                    *RunPhasePlanSnapshot    `json:"phase_plan,omitempty"`
 	ActiveFeeds                  []ActiveFeed             `json:"active_feeds,omitempty"`
 	ActiveOperations             []ActiveOperation        `json:"active_operations,omitempty"`
 	BackgroundTasks              []BackgroundTaskSnapshot `json:"background_tasks,omitempty"`
@@ -165,6 +167,32 @@ type ActiveFeed struct {
 	StartedAt time.Time        `json:"started_at,omitempty"`
 }
 
+type RunBatchSnapshot struct {
+	Total            int       `json:"total"`
+	Completed        int       `json:"completed"`
+	Active           int       `json:"active"`
+	Pending          int       `json:"pending"`
+	Names            []string  `json:"names,omitempty"`
+	CompletedNames   []string  `json:"completed_names,omitempty"`
+	ActiveNames      []string  `json:"active_names,omitempty"`
+	PendingNames     []string  `json:"pending_names,omitempty"`
+	SourceTotal      int       `json:"source_total,omitempty"`
+	SourceCompleted  int       `json:"source_completed,omitempty"`
+	HistoryTotal     int       `json:"history_total,omitempty"`
+	HistoryCompleted int       `json:"history_completed,omitempty"`
+	MergeTotal       int       `json:"merge_total,omitempty"`
+	MergeCompleted   int       `json:"merge_completed,omitempty"`
+	StartedAt        time.Time `json:"started_at,omitempty"`
+}
+
+type RunPhasePlanSnapshot struct {
+	Phases          []RunPhase `json:"phases,omitempty"`
+	Current         RunPhase   `json:"current,omitempty"`
+	CurrentPosition int        `json:"current_position,omitempty"`
+	Total           int        `json:"total,omitempty"`
+	Final           bool       `json:"final"`
+}
+
 type ActiveOperation struct {
 	Operation     string           `json:"operation"`
 	Phase         RunPhase         `json:"phase,omitempty"`
@@ -197,6 +225,9 @@ type Engine struct {
 	currentReason             runreason.Reason
 	lastReason                runreason.Reason
 	currentPhase              RunPhase
+	currentBatch              *runBatchState
+	currentPhasePlan          []RunPhase
+	currentPhasePlanFinal     bool
 	activeFeeds               map[string]ActiveFeed
 	activeOperations          map[string]ActiveOperation
 	backgroundTaskSeq         uint64

@@ -60,6 +60,38 @@ func TestParseReaderHostname(t *testing.T) {
 	})
 }
 
+func TestParseReaderReportsProgress(t *testing.T) {
+	opts := DefaultParseOptions()
+	opts.Resolver = staticResolver{
+		"example.net": {mustIP(t, "203.0.113.10")},
+	}
+	var progress []ParseProgress
+	opts.Progress = func(p ParseProgress) {
+		progress = append(progress, p)
+	}
+
+	set, err := ParseReader(t.Context(), "progress", strings.NewReader("1.2.3.4\nexample.net\n"), opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if set.UniqueCount() != 2 {
+		t.Fatalf("unique IPs = %d, want 2", set.UniqueCount())
+	}
+	if len(progress) == 0 {
+		t.Fatal("expected progress callbacks")
+	}
+	final := progress[len(progress)-1]
+	if final.Stage != "resolve" {
+		t.Fatalf("final progress stage = %q, want resolve", final.Stage)
+	}
+	if final.BytesRead <= 0 || final.LinesRead != 2 || final.RangesAccepted != 1 {
+		t.Fatalf("unexpected parse progress: %+v", final)
+	}
+	if final.HostnamesQueued != 1 || final.HostnamesCompleted != 1 || final.HostnamesResolved != 1 {
+		t.Fatalf("unexpected hostname progress: %+v", final)
+	}
+}
+
 type staticResolver map[string][]uint32
 
 func (s staticResolver) LookupIPv4(_ context.Context, host string) ([]uint32, error) {

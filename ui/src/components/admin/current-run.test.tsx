@@ -91,3 +91,98 @@ test("shows phase-level progress when no feed-specific operation is active", () 
     }),
   ).toHaveAttribute("aria-valuenow", "50");
 });
+
+test("shows whole processing batch and phase plan", () => {
+  const feeds = [
+    sampleAdminFeed({ name: "stopforumspam" }),
+    sampleAdminFeed({ name: "dronebl_anonymizers" }),
+    sampleAdminFeed({ name: "firehol_level1", kind: "merge" }),
+  ];
+  const status = sampleAdminStatus({
+    engine: {
+      running: true,
+      current_phase: "sources",
+      current_batch: {
+        total: 3,
+        completed: 1,
+        active: 1,
+        pending: 1,
+        names: ["stopforumspam", "dronebl_anonymizers", "firehol_level1"],
+        completed_names: ["stopforumspam"],
+        active_names: ["dronebl_anonymizers"],
+        pending_names: ["firehol_level1"],
+        source_total: 2,
+        source_completed: 1,
+        merge_total: 1,
+        merge_completed: 0,
+      },
+      phase_plan: {
+        phases: ["preflight", "sources", "metadata", "publish"],
+        current: "sources",
+        current_position: 2,
+        total: 4,
+        final: true,
+      },
+    },
+    queues: {
+      processing_active: [
+        {
+          name: "dronebl_anonymizers",
+          reason: "scheduled_due",
+          started_at: "2026-06-20T10:00:00Z",
+        },
+      ],
+    },
+  });
+
+  renderUI(
+    <CurrentRunPanel status={status} feeds={feeds} onFeedClick={vi.fn()} />,
+  );
+
+  expect(screen.getByText("1 done · 1 active · 1 pending")).toBeVisible();
+  expect(
+    screen.getByText("stopforumspam, dronebl_anonymizers, firehol_level1"),
+  ).toBeVisible();
+  expect(screen.getByText("2/4 · Sources")).toBeVisible();
+  expect(screen.getByText(/sources 1\/2/i)).toBeVisible();
+  expect(screen.getByText(/merges 0\/1/i)).toBeVisible();
+});
+
+test("shows deferred processing as blocked waiting work", () => {
+  const feeds = [
+    sampleAdminFeed({ name: "alpha_feed" }),
+    sampleAdminFeed({ name: "beta_feed" }),
+  ];
+  const status = sampleAdminStatus({
+    queues: {
+      processing_waiting: [
+        {
+          name: "alpha_feed",
+          reason: "scheduled_due",
+          queued_at: "2026-06-20T10:00:00Z",
+        },
+      ],
+      processing_deferred: [
+        {
+          name: "beta_feed",
+          reason: "manual_reprocess",
+          queued_at: "2026-06-20T10:01:00Z",
+        },
+      ],
+    },
+  });
+
+  renderUI(
+    <CurrentRunPanel status={status} feeds={feeds} onFeedClick={vi.fn()} />,
+  );
+
+  expect(screen.getByText("2 feeds")).toBeVisible();
+  expect(screen.getByText("alpha_feed")).toBeVisible();
+  expect(screen.getByText("beta_feed")).toBeVisible();
+  expect(
+    screen.getByText(
+      /blocked by active processing batch; rerun after it finishes/i,
+    ),
+  ).toBeVisible();
+  expect(screen.queryByText(/\+1 pending/i)).not.toBeInTheDocument();
+});

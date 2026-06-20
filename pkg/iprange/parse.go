@@ -17,6 +17,17 @@ type ParseOptions struct {
 	UseCIDRNetwork bool
 	DNSThreads     int
 	Resolver       Resolver
+	Progress       func(ParseProgress)
+}
+
+type ParseProgress struct {
+	Stage              string
+	BytesRead          int64
+	LinesRead          int64
+	RangesAccepted     int64
+	HostnamesQueued    int64
+	HostnamesCompleted int64
+	HostnamesResolved  int64
 }
 
 type hostnameRequest struct {
@@ -100,8 +111,27 @@ func ParseReader(ctx context.Context, name string, r io.Reader, opts ParseOption
 	set := New(name)
 	var hostnames []hostnameRequest
 	firstLine := true
+	var progress ParseProgress
+	lastProgressAt := time.Now()
+	lastProgressBytes := int64(0)
+	notifyProgress := func(stage string, force bool) {
+		if opts.Progress == nil {
+			return
+		}
+		now := time.Now()
+		if !force && progress.BytesRead-lastProgressBytes < 1024*1024 && now.Sub(lastProgressAt) < time.Second {
+			return
+		}
+		progress.Stage = stage
+		opts.Progress(progress)
+		lastProgressAt = now
+		lastProgressBytes = progress.BytesRead
+	}
 
 	if err := forEachTextLine(br, func(line string) error {
+		progress.LinesRead++
+		progress.BytesRead += int64(len(line))
+		defer notifyProgress("read", false)
 		// Strip UTF-8 BOM from the first line.
 		if firstLine {
 			firstLine = false
@@ -127,6 +157,8 @@ func ParseReader(ctx context.Context, name string, r io.Reader, opts ParseOption
 				if err := set.Add(lo, hi); err != nil {
 					return err
 				}
+				progress.RangesAccepted++
+				notifyProgress("read", false)
 				return nil
 			}
 		}
@@ -136,22 +168,28 @@ func ParseReader(ctx context.Context, name string, r io.Reader, opts ParseOption
 			if err := set.Add(lo, hi); err != nil {
 				return err
 			}
+			progress.RangesAccepted++
+			notifyProgress("read", false)
 			return nil
 		}
 
 		if looksLikeHostname(trimmed) {
 			hostnames = append(hostnames, hostnameRequest{host: trimmed})
+			progress.HostnamesQueued++
+			notifyProgress("read", false)
 			return nil
 		}
 
 		// Unparseable line: silently skip (see ParseReader doc above
 		// for the rationale). The engine will detect a fully-empty
 		// result and surface it as `last_status: empty`.
+		notifyProgress("read", false)
 		return nil
 	}); err != nil {
 		opErr = err
 		return nil, err
 	}
+	notifyProgress("read", true)
 
 	if len(hostnames) > 0 {
 		// DNS resolution failures are non-fatal: a single dead host
@@ -159,7 +197,16 @@ func ParseReader(ctx context.Context, name string, r io.Reader, opts ParseOption
 		// thrown away. ResolveHostnames returns whatever it managed
 		// to resolve along with the error; we use the partial
 		// result and discard the error.
-		resolved, _ := ResolveHostnames(ctx, hostnamesToStrings(hostnames), opts.DNSThreads, opts.Resolver)
+		notifyProgress("resolve", true)
+		resolved, _ := ResolveHostnamesWithProgress(ctx, hostnamesToStrings(hostnames), opts.DNSThreads, opts.Resolver, func(done, resolved int64) {
+			progress.HostnamesCompleted = done
+			progress.HostnamesResolved = resolved
+			progress.HostnamesQueued = int64(len(hostnames))
+			notifyProgress("resolve", true)
+		})
+		progress.HostnamesCompleted = int64(len(hostnames))
+		progress.HostnamesResolved = int64(len(resolved))
+		notifyProgress("resolve", true)
 		for _, ip := range resolved {
 			if err := set.Add(ip, ip); err != nil {
 				return nil, err

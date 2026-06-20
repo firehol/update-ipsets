@@ -2928,6 +2928,84 @@ Validation:
 - `pnpm --dir ui build` passed; Vite still reports existing font-resolution
   and chunk-size warnings, not test/build failures.
 
+### Goal 5A Whole-Batch And Source-Substage Progress Correction - 2026-06-20
+
+Problem:
+
+- Production/operator observation showed the admin "Being Processed Now" tile
+  still reported only `1 feed` and phase `Sources` while a larger source batch
+  was in progress.
+- The same observation showed sources such as `stopforumspam` spending minutes
+  in "processing local input" / "Processing feed 0%" / "0/1 operation" while a
+  CPU core was saturated.
+
+Facts:
+
+- `pkg/engine/run_pipeline.go` computed the full processing batch with
+  `processingBatchNames`, but `StatusSnapshot` exposed only
+  `ActiveFeedsSnapshot`, so the UI could not know the whole batch.
+- `pkg/scheduler/scheduler.go` and `pkg/scheduler/queue_state.go` used
+  `processing_active` for currently active feed workers, not for all feeds in
+  the current source batch.
+- `pkg/engine/run_pipeline.go` wrapped each feed in one synthetic
+  `sources.process_feed` active operation with total `1`, so parsing, diffing,
+  finalization, retention, and rotation work were hidden behind a misleading
+  `0/1 operation` display.
+- `pkg/iprange/parse.go` parsed text input line-by-line and optionally resolved
+  hostnames, but it had no progress callback before this correction.
+
+Implementation:
+
+- Added backend `current_batch` status with total, completed, active, pending,
+  feed names, and source/retention-derivative/merge completion counts.
+- Added backend `phase_plan` status with phase order, current phase position,
+  total phases, and a `final` marker. The initial source-phase plan is
+  tentative until source results decide whether downstream publish/heavy phases
+  will run.
+- Removed the misleading synthetic `sources.process_feed` one-operation
+  wrapper.
+- Added source-substage active operations for canonical body parsing, hostname
+  resolution, previous-latest diffing, finalization, retention update, and
+  rotation-stat refresh.
+- Added parser progress callbacks reporting bytes read, lines read, accepted
+  ranges, queued/completed hostname lookups, and resolved IPs.
+- Updated the admin UI to show whole-batch counts/feed names, source/retention
+  derivative/merge completion counts, phase `N/M`, phase chips, and the real
+  source substage operation label/progress.
+- Corrected the waiting-queue UI model for deferred scheduler work:
+  downloader refetch requests and processing rerun requests are displayed as
+  blocked waiting rows, not as a separate `+pending` count on top of a waiting
+  queue.
+
+Behavior boundary:
+
+- Feed outputs, retention semantics, comparison artifacts, entity artifacts,
+  public API behavior, scheduler cadence, worker limits, and publication logic
+  are unchanged.
+- This correction only changes operator status, diagnostics, and admin UI
+  visibility.
+
+Validation:
+
+- `go test -count=1 ./pkg/iprange ./pkg/downloader ./pkg/engine ./pkg/scheduler ./pkg/web`
+  passed.
+- `pnpm --dir ui exec vitest run src/components/admin/current-run.test.tsx`
+  passed, including the blocked-waiting-row regression for deferred processing.
+- `pnpm --dir ui lint` passed.
+- `pnpm --dir ui build` passed; Vite still reports existing font-resolution
+  and chunk-size warnings, not test/build failures.
+- `git diff --check` passed.
+
+Specs updated:
+
+- `.agents/sow/specs/processing-engine.md` records current-batch, phase-plan,
+  and source-substage progress requirements.
+- `.agents/sow/specs/admin-ui.md` records the whole-batch and phase `N/M`
+  display contract for "Being Processed Now" and the blocked waiting-row
+  contract for deferred scheduler work.
+- `.agents/sow/specs/operating-principles.md` records whole-batch/phase-plan
+  status and parser progress requirements for long local-input work.
+
 ## Outcome
 
 Diagnosis evidence and remediation plan drafted. Goal 1 scheduler,
@@ -2936,8 +3014,10 @@ locally with validation passing. External review found and the implementation
 fixed one static-analysis blocker. The final external-review iteration returned
 six `PRODUCTION GRADE` verdicts with no blockers. Goal 1 is complete for this
 SOW unless new production evidence contradicts the current findings. Goal 5A
-diagnostic accounting is implemented locally and validated; the next retention
-work should use the new measurements before changing retention algorithms.
+diagnostic accounting, live phase progress, whole-batch status, and
+source-substage progress are implemented locally and validated; the next
+retention work should use the new measurements before changing retention
+algorithms.
 
 ## Lessons Extracted
 

@@ -52,14 +52,19 @@ func ParseCanonicalFeedReader(ctx context.Context, name string, r io.Reader, opt
 }
 
 func ParseCanonicalFeedFile(ctx context.Context, name, path string, dnsThreads int) (*iprange.IPSet, error) {
+	opts := iprange.DefaultParseOptions()
+	opts.DefaultPrefix = 32
+	opts.DNSThreads = dnsThreads
+	return ParseCanonicalFeedFileWithOptions(ctx, name, path, opts)
+}
+
+func ParseCanonicalFeedFileWithOptions(ctx context.Context, name, path string, opts iprange.ParseOptions) (*iprange.IPSet, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = f.Close() }()
-	opts := iprange.DefaultParseOptions()
 	opts.DefaultPrefix = 32
-	opts.DNSThreads = dnsThreads
 	return ParseCanonicalFeedReader(ctx, name, f, opts)
 }
 

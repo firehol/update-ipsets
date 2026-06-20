@@ -2,7 +2,12 @@ import { useState } from "react";
 import { Clock, Play, RefreshCw } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import type { AdminFeed, AdminStatus, HealthTransition } from "@/lib/api-types";
+import type {
+  AdminFeed,
+  AdminQueueItem,
+  AdminStatus,
+  HealthTransition,
+} from "@/lib/api-types";
 import { adminRunAll } from "@/lib/api-client/admin";
 import { queryKeys } from "@/lib/query-keys";
 import { HoverTip } from "@/components/editorial/hover-tip";
@@ -87,7 +92,15 @@ export function CurrentRunPanel({
   const running = status.engine.running;
   const lastReport = status.engine.last_report;
   const feedIndex = new Map(feeds.map((feed) => [feed.name, feed]));
-  const downloadWaiting = [...(status.queues?.download_waiting ?? [])].sort(
+  const downloadRefetchPending = status.queues?.download_refetch_pending ?? [];
+  const processingDeferred = status.queues?.processing_deferred ?? [];
+  const downloadWaiting = [
+    ...(status.queues?.download_waiting ?? []),
+    ...blockedQueueItems(
+      downloadRefetchPending,
+      "blocked by active download; refetch after it finishes",
+    ),
+  ].sort(
     (left, right) =>
       Number(left.blocked ?? false) - Number(right.blocked ?? false) ||
       parseGoTime(left.queued_at) - parseGoTime(right.queued_at) ||
@@ -98,8 +111,15 @@ export function CurrentRunPanel({
       parseGoTime(left.started_at) - parseGoTime(right.started_at) ||
       left.name.localeCompare(right.name),
   );
-  const processingWaiting = [...(status.queues?.processing_waiting ?? [])].sort(
+  const processingWaiting = [
+    ...(status.queues?.processing_waiting ?? []),
+    ...blockedQueueItems(
+      processingDeferred,
+      "blocked by active processing batch; rerun after it finishes",
+    ),
+  ].sort(
     (left, right) =>
+      Number(left.blocked ?? false) - Number(right.blocked ?? false) ||
       parseGoTime(left.queued_at) - parseGoTime(right.queued_at) ||
       left.name.localeCompare(right.name),
   );
@@ -108,8 +128,6 @@ export function CurrentRunPanel({
       parseGoTime(left.started_at) - parseGoTime(right.started_at) ||
       left.name.localeCompare(right.name),
   );
-  const downloadRefetchPending = status.queues?.download_refetch_pending ?? [];
-  const processingDeferred = status.queues?.processing_deferred ?? [];
   const recentHealthTransitions =
     status.queues?.recent_health_transitions ?? [];
   const backgroundTasks = [...(status.engine.background_tasks ?? [])].sort(
@@ -218,8 +236,6 @@ export function CurrentRunPanel({
           onFeedClick={onFeedClick}
           itemLabel="item"
           emptyText="No item is waiting for a download worker."
-          pendingCount={downloadRefetchPending.length}
-          pendingItems={downloadRefetchPending}
         />
         <ActiveDownloadColumn
           items={downloadActive}
@@ -234,12 +250,12 @@ export function CurrentRunPanel({
           onFeedClick={onFeedClick}
           itemLabel="feed"
           emptyText="No feed is waiting for the processing loop."
-          pendingCount={processingDeferred.length}
-          pendingItems={processingDeferred}
         />
         <ProcessingNowColumn
           running={running}
           currentPhase={status.engine.current_phase}
+          currentBatch={status.engine.current_batch}
+          phasePlan={status.engine.phase_plan}
           activeOperations={status.engine.active_operations ?? []}
           processingBatch={processingBatch}
           feedIndex={feedIndex}
@@ -370,6 +386,17 @@ export function CurrentRunPanel({
       </div>
     </section>
   );
+}
+
+function blockedQueueItems(
+  items: AdminQueueItem[],
+  detail: string,
+): AdminQueueItem[] {
+  return items.map((item) => ({
+    ...item,
+    blocked: true,
+    detail: item.detail ? `${detail}; ${item.detail}` : detail,
+  }));
 }
 
 function formatBackgroundTrigger(trigger: string): string {

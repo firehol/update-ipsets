@@ -780,6 +780,32 @@ export interface AdminActiveOperation {
   counters?: Record<string, number>;
 }
 
+export interface AdminRunBatch {
+  total: number;
+  completed: number;
+  active: number;
+  pending: number;
+  names?: string[];
+  completed_names?: string[];
+  active_names?: string[];
+  pending_names?: string[];
+  source_total?: number;
+  source_completed?: number;
+  history_total?: number;
+  history_completed?: number;
+  merge_total?: number;
+  merge_completed?: number;
+  started_at?: string;
+}
+
+export interface AdminRunPhasePlan {
+  phases?: string[];
+  current?: string;
+  current_position?: number;
+  total?: number;
+  final: boolean;
+}
+
 export interface AdminArtifact {
   name: string;
   type: string;
@@ -933,6 +959,8 @@ export interface AdminStatus {
     current_reason?: string;
     last_reason?: string;
     current_phase?: string;
+    current_batch?: AdminRunBatch;
+    phase_plan?: AdminRunPhasePlan;
     active_feeds?: Array<{
       name: string;
       reason?: string;

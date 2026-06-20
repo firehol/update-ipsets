@@ -314,6 +314,17 @@ bounded work unit, it MUST still be visible through phase timing; the product
 MUST NOT invent synthetic totals that would hide the real absence of a bounded
 operation.
 
+Operator status for a running engine batch SHOULD expose the whole batch and
+the phase plan, not only the currently active worker names. When the exact
+post-source phase list cannot be known until source results are classified,
+the status MAY mark the phase plan as tentative; it MUST NOT present a guessed
+phase total as final.
+
+Parsing large local source bodies is material engine work. Parser progress
+SHOULD expose byte, line, accepted-range, and hostname-resolution counters so a
+source phase that spends minutes on local input can be distinguished from
+retention, finalization, or downstream phase work.
+
 At minimum, telemetry SHOULD cover:
 
 - download requests, HTTP statuses, and transferred bytes

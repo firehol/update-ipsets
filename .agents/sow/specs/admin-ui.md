@@ -214,7 +214,29 @@ Processing lists are feed-only operator views.
 No other ordinary runtime condition may place a feed there directly.
 
 The UI MUST NOT expose a separate pseudo-batch or pseudo-queue that has no
-operator meaning.
+operator meaning. The backend-owned current processing batch is operator
+meaningful and MUST be shown separately from the active-worker list when the
+backend reports it. That batch display SHOULD include:
+
+- total feeds in the batch
+- completed, active, and pending counts
+- enough feed names to identify which feeds are included, with access to the
+  full backend-provided name list when compacted
+- source, retention-derivative, and merge completion counts when reported
+
+`being processed now` MUST also show the current run phase as a position in
+the backend-provided phase plan, for example "2/10 Sources". If the backend
+marks the phase plan as tentative, the UI MUST communicate that the later
+phases are still being decided instead of inventing a final total.
+
+When the scheduler reports deferred refetch or deferred processing work, the
+admin UI MUST present those entries as blocked waiting-queue rows, not as a
+secondary `+pending` counter on top of a waiting queue. The operator model is:
+
+- waiting entries are eligible for the next worker or batch
+- blocked waiting entries are in the queue but blocked by their active previous
+  download or processing batch
+- active entries are already selected by the downloader or engine
 
 `being processed now` MUST show more than the feed name and phase when the
 backend reports active operation progress. For each active feed and for each

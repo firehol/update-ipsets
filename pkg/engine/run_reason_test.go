@@ -173,6 +173,52 @@ func TestStatusSnapshotIncludesActiveOperations(t *testing.T) {
 	}
 }
 
+func TestStatusSnapshotIncludesCurrentBatchAndPhasePlan(t *testing.T) {
+	now := time.Date(2026, 6, 20, 12, 0, 0, 0, time.UTC)
+	cfg := config.New()
+	cfg.Sources["plain"] = &config.Source{Name: "plain", URL: "https://example.test/plain.txt", Frequency: 60, IPV: "ipv4", Output: "ipset"}
+	cfg.Sources["plain_1h"] = &config.Source{Name: "plain_1h", Frequency: 60, IPV: "ipv4", Output: "ipset", Provenance: config.ProvenanceSecondaryRetention}
+	cfg.Sources["merged"] = &config.Source{Name: "merged", Frequency: 60, IPV: "ipv4", Output: "ipset", Provenance: config.ProvenanceSecondaryMerge}
+	eng := newEngineFixture(t, withConfig(cfg), withNow(func() time.Time { return now }))
+
+	if !eng.tryMarkRunStart(now, runreason.ReasonManualRun) {
+		t.Fatal("expected run start")
+	}
+	defer eng.markRunEnd(&Report{}, nil)
+	eng.startRunBatch([]string{"plain", "plain_1h", "merged"})
+	eng.markRunBatchCompleted("plain")
+	attempt := eng.beginFeedAttempt(&cache.Entry{Name: "plain_1h"}, runreason.ReasonDependencyUpdate)
+	defer attempt.finish()
+	eng.setRunPhase(RunPhaseSources)
+	eng.setRunPhasePlan([]RunPhase{RunPhasePreflight, RunPhaseSources, RunPhaseMetadata, RunPhasePublish}, true)
+
+	status := eng.StatusSnapshot()
+	if status.CurrentBatch == nil {
+		t.Fatal("expected current batch")
+	}
+	if status.CurrentBatch.Total != 3 || status.CurrentBatch.Completed != 1 || status.CurrentBatch.Active != 1 || status.CurrentBatch.Pending != 1 {
+		t.Fatalf("unexpected batch counts: %+v", status.CurrentBatch)
+	}
+	if status.CurrentBatch.SourceTotal != 1 || status.CurrentBatch.SourceCompleted != 1 {
+		t.Fatalf("unexpected source counts: %+v", status.CurrentBatch)
+	}
+	if status.CurrentBatch.HistoryTotal != 1 || status.CurrentBatch.HistoryCompleted != 0 {
+		t.Fatalf("unexpected history counts: %+v", status.CurrentBatch)
+	}
+	if status.CurrentBatch.MergeTotal != 1 || status.CurrentBatch.MergeCompleted != 0 {
+		t.Fatalf("unexpected merge counts: %+v", status.CurrentBatch)
+	}
+	if got, want := status.CurrentBatch.ActiveNames, []string{"plain_1h"}; len(got) != len(want) || got[0] != want[0] {
+		t.Fatalf("active names = %v, want %v", got, want)
+	}
+	if status.PhasePlan == nil {
+		t.Fatal("expected phase plan")
+	}
+	if status.PhasePlan.CurrentPosition != 2 || status.PhasePlan.Total != 4 || !status.PhasePlan.Final {
+		t.Fatalf("unexpected phase plan: %+v", status.PhasePlan)
+	}
+}
+
 func TestStatusSnapshotIncludesPhase(t *testing.T) {
 	eng := newEngineFixture(t)
 

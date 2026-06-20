@@ -104,7 +104,39 @@ func (e *Engine) processConcreteSource(ctx context.Context, runName string, src 
 func (e *Engine) processAndCommit(ctx context.Context, runName string, src *config.Source, output string, entry *cache.Entry, sourcePath string, sourceBytes int64, sourceMTime, observedAt time.Time) FeedProcessingResult {
 	work := FeedProcessingWork{InputBytes: sourceBytes}
 	started := time.Now()
-	initialSet, err := downloader.ParseCanonicalFeedFile(ctx, runName, sourcePath, e.runtime.ParallelDNSQueries)
+	parseOp := e.beginActiveOperation("sources.parse_feed_body", runName, "read", "bytes", sourceBytes)
+	var resolveOp *activeOperationHandle
+	parseOpts := iprange.DefaultParseOptions()
+	parseOpts.DefaultPrefix = 32
+	parseOpts.DNSThreads = e.runtime.ParallelDNSQueries
+	parseOpts.Progress = func(progress iprange.ParseProgress) {
+		switch progress.Stage {
+		case "resolve":
+			if resolveOp == nil {
+				if parseOp != nil {
+					parseOp.Update(sourceBytes, sourceBytes, parseProgressCounters(progress))
+					parseOp.Finish()
+					parseOp = nil
+				}
+				resolveOp = e.beginActiveOperation("sources.resolve_hostnames", runName, "resolve", "hostnames", progress.HostnamesQueued)
+			}
+			if resolveOp != nil {
+				resolveOp.Update(progress.HostnamesCompleted, progress.HostnamesQueued, parseProgressCounters(progress))
+			}
+		default:
+			if parseOp != nil {
+				parseOp.Update(progress.BytesRead, sourceBytes, parseProgressCounters(progress))
+			}
+		}
+	}
+	initialSet, err := downloader.ParseCanonicalFeedFileWithOptions(ctx, runName, sourcePath, parseOpts)
+	if parseOp != nil {
+		parseOp.Update(sourceBytes, sourceBytes, nil)
+		parseOp.Finish()
+	}
+	if resolveOp != nil {
+		resolveOp.Finish()
+	}
 	parseDur := time.Since(started)
 	e.observeRunOperation("sources.parse_feed_body", parseDur)
 	e.observeFeedOperation(runName, "sources.parse_feed_body", parseDur)
@@ -116,16 +148,36 @@ func (e *Engine) processAndCommit(ctx context.Context, runName string, src *conf
 	finalSet := initialSet
 	work.Entries = int64(finalSet.Entries())
 	work.UniqueIPs = int64Clamp(finalSet.UniqueCount())
+	diffTotal := int64(finalSet.Entries())
+	if entrySnapshot := entry.Snapshot(); entrySnapshot.Entries > 0 {
+		diffTotal += int64(entrySnapshot.Entries)
+	}
+	diffOp := e.beginActiveOperation("sources.diff_previous_latest", runName, "diff", "ranges", diffTotal)
 	retentionDiff := e.retentionDiffWithPreviousLatest(ctx, runName, finalSet)
+	if diffOp != nil {
+		diffOp.Update(diffTotal, diffTotal, map[string]int64{
+			"added_ips":   int64Clamp(retentionDiff.added),
+			"removed_ips": int64Clamp(retentionDiff.removed),
+		})
+		diffOp.Finish()
+	}
 
 	started = time.Now()
+	finalizeOp := e.beginActiveOperation("sources.finalize", runName, "write", "operation", 1)
 	if err := e.finalize(runName, src, output, sourcePath, finalSet, sourceMTime, observedAt); err != nil {
+		if finalizeOp != nil {
+			finalizeOp.Finish()
+		}
 		finalizeDur := time.Since(started)
 		e.observeRunOperation("sources.finalize", finalizeDur)
 		e.observeFeedOperation(runName, "sources.finalize", finalizeDur)
 		entry.MarkSourceFinalizeFailed(err.Error())
 		e.logger.Error("source processing failed", "source", runName, "stage", "finalize", "error", err)
 		return processingException(ProcessingExceptionFinalize, err.Error(), err).withWork(work)
+	}
+	if finalizeOp != nil {
+		finalizeOp.Update(1, 1, nil)
+		finalizeOp.Finish()
 	}
 	finalizeDur := time.Since(started)
 	e.observeRunOperation("sources.finalize", finalizeDur)
@@ -152,7 +204,12 @@ func (e *Engine) processAndCommit(ctx context.Context, runName string, src *conf
 	e.observeFeedOperation(runName, "sources.update_retention", retentionDur)
 
 	started = time.Now()
+	rotationOp := e.beginActiveOperation("sources.refresh_rotation", runName, "refresh", "operation", 1)
 	e.refreshRotationStatsFromLedger(runName, entry)
+	if rotationOp != nil {
+		rotationOp.Update(1, 1, nil)
+		rotationOp.Finish()
+	}
 	rotationDur := time.Since(started)
 	e.observeRunOperation("sources.refresh_rotation", rotationDur)
 	e.observeFeedOperation(runName, "sources.refresh_rotation", rotationDur)
@@ -184,4 +241,15 @@ func (e *Engine) retentionDiffWithPreviousLatest(ctx context.Context, name strin
 		return retentionDiff(iprange.New(name), current)
 	}
 	return diff
+}
+
+func parseProgressCounters(progress iprange.ParseProgress) map[string]int64 {
+	return map[string]int64{
+		"bytes_read":          progress.BytesRead,
+		"lines_read":          progress.LinesRead,
+		"ranges_accepted":     progress.RangesAccepted,
+		"hostnames_queued":    progress.HostnamesQueued,
+		"hostnames_completed": progress.HostnamesCompleted,
+		"hostnames_resolved":  progress.HostnamesResolved,
+	}
 }

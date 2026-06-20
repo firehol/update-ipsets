@@ -52,6 +52,7 @@ func (e *Engine) processRunSources(ctx context.Context, opts RunOptions, reason 
 	)
 	enqueue := func(name string, reason runreason.Reason) {
 		wg.Go(func() {
+			defer e.markRunBatchCompleted(name)
 			select {
 			case sem <- struct{}{}:
 			case <-ctx.Done():
@@ -77,12 +78,7 @@ func (e *Engine) processRunSources(ctx context.Context, opts RunOptions, reason 
 				return
 			}
 			started := time.Now()
-			feedOp := e.beginActiveOperation("sources.process_feed", name, "process", "operation", 1)
 			result := e.processSource(ctx, src, opts, reason)
-			if feedOp != nil {
-				feedOp.Update(1, 1, nil)
-				feedOp.Finish()
-			}
 			elapsed := time.Since(started)
 			e.observeFeedWork(name, result, elapsed)
 			e.logFeedProcessingSummary(name, elapsed, result)
@@ -93,6 +89,7 @@ func (e *Engine) processRunSources(ctx context.Context, opts RunOptions, reason 
 	}
 
 	batchNames := e.processingBatchNames(opts.Selected)
+	e.startRunBatch(batchNames)
 	e.observeRunCounter("sources.feeds_expected", int64(len(batchNames)), 0)
 	for _, name := range batchNames {
 		src := e.cfg.Sources[name]

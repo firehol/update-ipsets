@@ -3,6 +3,8 @@ import type {
   AdminActiveQueueItem,
   AdminFeed,
   AdminQueueItem,
+  AdminRunBatch,
+  AdminRunPhasePlan,
   AdminStatus,
 } from "@/lib/api-types";
 import {
@@ -31,8 +33,6 @@ export function QueueColumn({
   onFeedClick,
   emptyText,
   itemLabel,
-  pendingCount,
-  pendingItems,
 }: {
   title: string;
   items: AdminQueueItem[];
@@ -40,8 +40,6 @@ export function QueueColumn({
   onFeedClick: (feed: AdminFeed) => void;
   emptyText: string;
   itemLabel: "feed" | "item";
-  pendingCount?: number;
-  pendingItems?: AdminQueueItem[];
 }) {
   return (
     <div className="bg-card">
@@ -49,19 +47,6 @@ export function QueueColumn({
         <div className="eyebrow">{title}</div>
         <div className="text-[11px] tabular-nums text-muted-foreground">
           {items.length} {items.length === 1 ? itemLabel : `${itemLabel}s`}
-          {pendingCount != null && pendingCount > 0 && (
-            <HoverTip
-              text={
-                pendingItems?.map((i) => i.name).join(", ") ??
-                `${pendingCount} pending`
-              }
-            >
-              <span className="ml-1 text-status-warning">
-                {" "}
-                · +{pendingCount} pending
-              </span>
-            </HoverTip>
-          )}
         </div>
       </div>
       <div className={LIVE_QUEUE_VIEWPORT_CLASS}>
@@ -150,6 +135,8 @@ export function ActiveDownloadColumn({
 export function ProcessingNowColumn({
   running,
   currentPhase,
+  currentBatch,
+  phasePlan,
   activeOperations,
   processingBatch,
   feedIndex,
@@ -159,6 +146,8 @@ export function ProcessingNowColumn({
   running: boolean;
   currentPhase: string | undefined;
   activeOperations: AdminActiveOperation[];
+  currentBatch?: AdminRunBatch;
+  phasePlan?: AdminRunPhasePlan;
   processingBatch: NonNullable<AdminStatus["queues"]>["processing_active"];
   feedIndex: Map<string, AdminFeed>;
   nowMs: number;
@@ -180,19 +169,27 @@ export function ProcessingNowColumn({
       <div className="flex items-baseline justify-between border-b border-border/60 px-6 py-3">
         <div className="eyebrow">Being Processed Now</div>
         <div className="text-[11px] tabular-nums text-muted-foreground">
-          {processingBatch?.length ?? 0}{" "}
-          {(processingBatch?.length ?? 0) === 1 ? "feed" : "feeds"}
+          {currentBatch?.total ?? processingBatch?.length ?? 0}{" "}
+          {(currentBatch?.total ?? processingBatch?.length ?? 0) === 1
+            ? "feed"
+            : "feeds"}
         </div>
       </div>
       <div className="border-b border-border/40 px-6 py-3">
+        {currentBatch && <RunBatchSummary batch={currentBatch} />}
         <HoverTip text={describeRunPhase(currentPhase)}>
-          <div className="flex items-center justify-between gap-3 text-xs">
+          <div className="mt-3 flex items-center justify-between gap-3 text-xs">
             <span className="text-muted-foreground">Phase</span>
-            <span className="font-medium text-foreground">
-              {running ? formatRunPhase(currentPhase) : "Idle"}
+            <span className="font-medium text-foreground tabular-nums">
+              {running
+                ? phasePlanLabel(phasePlan, currentPhase)
+                : "Idle"}
             </span>
           </div>
         </HoverTip>
+        {phasePlan?.phases && phasePlan.phases.length > 0 && (
+          <PhasePlanStrip phasePlan={phasePlan} currentPhase={currentPhase} />
+        )}
         {phaseOperations.length > 0 && (
           <div className="mt-3 space-y-3">
             {phaseOperations.slice(0, 3).map((operation) => (
@@ -244,6 +241,106 @@ export function ProcessingNowColumn({
       </div>
     </div>
   );
+}
+
+function RunBatchSummary({
+  batch,
+}: {
+  batch: AdminRunBatch;
+}) {
+  const names = batch.names ?? [];
+  const visibleNames = names.slice(0, 8);
+  const hidden = Math.max(0, names.length - visibleNames.length);
+  return (
+    <div className="space-y-2">
+      <HoverTip text={names.length > 0 ? names.join(", ") : "No feeds"}>
+        <div className="flex items-center justify-between gap-3 text-xs">
+          <span className="text-muted-foreground">Batch</span>
+          <span className="font-medium text-foreground tabular-nums">
+            {formatWorkCount(batch.completed)} done ·{" "}
+            {formatWorkCount(batch.active)} active ·{" "}
+            {formatWorkCount(batch.pending)} pending
+          </span>
+        </div>
+      </HoverTip>
+      {names.length > 0 && (
+        <div className="truncate font-mono text-[10px] text-muted-foreground">
+          {visibleNames.join(", ")}
+          {hidden > 0 && ` +${hidden} more`}
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2 text-[10px] tabular-nums text-muted-foreground">
+        <span>
+          sources {formatWorkCount(batch.source_completed ?? 0)}/
+          {formatWorkCount(batch.source_total ?? 0)}
+        </span>
+        {(batch.history_total ?? 0) > 0 && (
+          <span>
+            retention {formatWorkCount(batch.history_completed ?? 0)}/
+            {formatWorkCount(batch.history_total ?? 0)}
+          </span>
+        )}
+        {(batch.merge_total ?? 0) > 0 && (
+          <span>
+            merges {formatWorkCount(batch.merge_completed ?? 0)}/
+            {formatWorkCount(batch.merge_total ?? 0)}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PhasePlanStrip({
+  phasePlan,
+  currentPhase,
+}: {
+  phasePlan: AdminRunPhasePlan;
+  currentPhase: string | undefined;
+}) {
+  const phases = phasePlan.phases ?? [];
+  const currentIndex = phases.findIndex((phase) => phase === currentPhase);
+  return (
+    <div className="mt-2 flex flex-wrap gap-1">
+      {phases.map((phase, index) => {
+        const active = phase === currentPhase;
+        const done = currentIndex >= 0 && index < currentIndex;
+        return (
+          <HoverTip key={phase} text={describeRunPhase(phase)}>
+            <span
+              className={[
+                "rounded-sm border px-1.5 py-0.5 text-[9px] uppercase tracking-wider",
+                active
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : done
+                    ? "border-status-healthy/40 text-status-healthy"
+                    : "border-border text-muted-foreground",
+              ].join(" ")}
+            >
+              {formatRunPhase(phase)}
+            </span>
+          </HoverTip>
+        );
+      })}
+      {!phasePlan.final && (
+        <span className="rounded-sm border border-border px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">
+          planning
+        </span>
+      )}
+    </div>
+  );
+}
+
+function phasePlanLabel(
+  phasePlan: AdminRunPhasePlan | undefined,
+  currentPhase: string | undefined,
+): string {
+  if (!phasePlan || !phasePlan.total || !phasePlan.current_position) {
+    return formatRunPhase(currentPhase);
+  }
+  return `${phasePlan.current_position}/${phasePlan.total} · ${formatRunPhase(
+    currentPhase,
+  )}`;
 }
 
 function ProcessingFeedItem({
@@ -431,8 +528,18 @@ function operationLabel(operation: AdminActiveOperation): string {
   switch (operation.operation) {
     case "sources.process_feed":
       return "Processing feed";
+    case "sources.parse_feed_body":
+      return "Parsing source body";
+    case "sources.resolve_hostnames":
+      return "Resolving hostnames";
+    case "sources.diff_previous_latest":
+      return "Diffing previous latest";
+    case "sources.finalize":
+      return "Finalizing feed";
     case "sources.update_retention":
       return "Updating retention";
+    case "sources.refresh_rotation":
+      return "Refreshing rotation stats";
     case "retention.reconcile_cohorts":
       return "Scanning retention cohorts";
     case "geoip.load_providers":
@@ -523,10 +630,10 @@ function QueueFeedItem({
         <div className="font-mono text-[12px] text-foreground truncate flex items-center gap-1.5">
           {blocked && (
             <span
-              className="text-status-warning text-[10px]"
-              title="Waiting for parent download"
+              className="rounded-sm border border-status-warning/40 px-1 py-0.5 text-[9px] uppercase tracking-wider text-status-warning"
+              title="Blocked waiting queue item"
             >
-              ⏳
+              blocked
             </span>
           )}
           {name}

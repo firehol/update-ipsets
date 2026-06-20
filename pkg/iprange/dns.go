@@ -31,6 +31,10 @@ func (DefaultResolver) LookupIPv4(ctx context.Context, host string) ([]uint32, e
 }
 
 func ResolveHostnames(ctx context.Context, hosts []string, threads int, resolver Resolver) ([]uint32, error) {
+	return ResolveHostnamesWithProgress(ctx, hosts, threads, resolver, nil)
+}
+
+func ResolveHostnamesWithProgress(ctx context.Context, hosts []string, threads int, resolver Resolver, progress func(completed, resolvedIPs int64)) ([]uint32, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
@@ -80,14 +84,24 @@ func ResolveHostnames(ctx context.Context, hosts []string, threads int, resolver
 
 	out := make([]uint32, 0, len(hosts))
 	var firstErr error
+	var completed int64
+	var resolvedIPs int64
 	for res := range results {
+		completed++
 		if res.err != nil {
 			if firstErr == nil {
 				firstErr = res.err
 			}
+			if progress != nil {
+				progress(completed, resolvedIPs)
+			}
 			continue
 		}
 		out = append(out, res.ips...)
+		resolvedIPs += int64(len(res.ips))
+		if progress != nil {
+			progress(completed, resolvedIPs)
+		}
 	}
 	if err := ctx.Err(); err != nil && firstErr == nil {
 		firstErr = err
