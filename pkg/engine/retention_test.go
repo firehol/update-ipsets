@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"strings"
@@ -94,7 +95,7 @@ func TestRetentionDiffUsesFileBackedPreviousLatest(t *testing.T) {
 	}
 }
 
-func TestReconcileRetentionCohortUsesFileBackedSource(t *testing.T) {
+func TestReconcileRetentionCohortUsesFileBackedCompare(t *testing.T) {
 	root := t.TempDir()
 	libDir := filepath.Join(root, "lib")
 	eng := newEngineFixture(t, withRuntime(func(rt *Runtime) {
@@ -142,9 +143,10 @@ func TestReconcileRetentionCohortUsesFileBackedSource(t *testing.T) {
 	}
 	started := addedAt - 3600
 	updatedAt := addedAt + 7200
-	update, err := eng.reconcileRetentionCohort(t.Context(), "sample", paths, started, updatedAt, current, map[int]uint64{}, baseName, addedAt, &result)
+	currentSource := iprange.CompareSource{Name: "sample", Source: current}
+	update, err := eng.reconcileRetentionCohortFromCompare(t.Context(), "sample", paths, started, updatedAt, current, currentSource, map[int]uint64{}, baseName, addedAt, &result)
 	if err != nil {
-		t.Fatalf("reconcileRetentionCohort() error = %v", err)
+		t.Fatalf("reconcileRetentionCohortFromCompare() error = %v", err)
 	}
 	if !update.rewritten || update.deleted || update.oldIPs != 20 || update.keptIPs != 15 || update.removedIPs != 5 {
 		t.Fatalf("cohort update = %+v, want rewritten 20->15 with 5 removed", update)
@@ -169,6 +171,147 @@ func TestReconcileRetentionCohortUsesFileBackedSource(t *testing.T) {
 	}
 	if !rangeSourcesEqual(reloaded, current) {
 		t.Fatalf("rewritten cohort does not match still-listed current set")
+	}
+}
+
+func TestReconcileRetentionCohortsOnlyRewritesAffectedFiles(t *testing.T) {
+	root := t.TempDir()
+	libDir := filepath.Join(root, "lib")
+	eng := newEngineFixture(t, withRuntime(func(rt *Runtime) {
+		rt.LibDir = libDir
+	}))
+	paths, err := eng.prepareRetentionUpdatePaths("sample")
+	if err != nil {
+		t.Fatalf("prepareRetentionUpdatePaths() error = %v", err)
+	}
+
+	unchangedAt := int64(1_700_000_000)
+	rewriteAt := unchangedAt + 3600
+	deleteAt := unchangedAt + 7200
+	writeRetentionTestCohort(t, paths.newDir, unchangedAt, []iprange.Range{{Lo: 10, Hi: 19}})
+	writeRetentionTestCohort(t, paths.newDir, rewriteAt, []iprange.Range{{Lo: 30, Hi: 39}})
+	writeRetentionTestCohort(t, paths.newDir, deleteAt, []iprange.Range{{Lo: 50, Hi: 59}})
+
+	unchangedPath := filepath.Join(paths.newDir, strconvFormatInt(unchangedAt))
+	unchangedBefore, err := os.ReadFile(unchangedPath)
+	if err != nil {
+		t.Fatalf("read unchanged cohort before reconcile: %v", err)
+	}
+	unchangedInfoBefore, err := os.Stat(unchangedPath)
+	if err != nil {
+		t.Fatalf("stat unchanged cohort before reconcile: %v", err)
+	}
+
+	current := iprange.New("sample")
+	for _, r := range []iprange.Range{{Lo: 10, Hi: 19}, {Lo: 35, Hi: 39}} {
+		if err := current.AddRange(r); err != nil {
+			t.Fatalf("current AddRange(%v) error = %v", r, err)
+		}
+	}
+	current.Optimize()
+
+	started := unchangedAt - 3600
+	updatedAt := unchangedAt + 3*3600
+	result, err := eng.reconcileRetentionCohorts(t.Context(), "sample", paths, started, updatedAt, current, map[int]uint64{})
+	if err != nil {
+		t.Fatalf("reconcileRetentionCohorts() error = %v", err)
+	}
+
+	unchangedAfter, err := os.ReadFile(unchangedPath)
+	if err != nil {
+		t.Fatalf("read unchanged cohort after reconcile: %v", err)
+	}
+	unchangedInfoAfter, err := os.Stat(unchangedPath)
+	if err != nil {
+		t.Fatalf("stat unchanged cohort after reconcile: %v", err)
+	}
+	if !bytes.Equal(unchangedAfter, unchangedBefore) {
+		t.Fatalf("unchanged cohort body was rewritten")
+	}
+	if !unchangedInfoAfter.ModTime().Equal(unchangedInfoBefore.ModTime()) {
+		t.Fatalf("unchanged cohort mtime = %s, want %s", unchangedInfoAfter.ModTime(), unchangedInfoBefore.ModTime())
+	}
+
+	if got, want := result.cohorts[unchangedAt], uint64(10); got != want {
+		t.Fatalf("unchanged cohort count = %d, want %d", got, want)
+	}
+	if got, want := result.cohorts[rewriteAt], uint64(5); got != want {
+		t.Fatalf("rewritten cohort count = %d, want %d", got, want)
+	}
+	if _, ok := result.cohorts[deleteAt]; ok {
+		t.Fatalf("deleted cohort still present in result: %+v", result.cohorts)
+	}
+	if got, want := result.currentBuckets[3], uint64(10); got != want {
+		t.Fatalf("current bucket for unchanged cohort = %d, want %d", got, want)
+	}
+	if got, want := result.currentBuckets[2], uint64(5); got != want {
+		t.Fatalf("current bucket for rewritten cohort = %d, want %d", got, want)
+	}
+
+	rewrittenPath := filepath.Join(paths.newDir, strconvFormatInt(rewriteAt))
+	rewritten, err := loadSnapshotSet(t.Context(), "sample", libDir, filepath.Join("sample", "new", strconvFormatInt(rewriteAt)))
+	if err != nil {
+		t.Fatalf("load rewritten cohort: %v", err)
+	}
+	expectedRewrite := iprange.New("sample")
+	if err := expectedRewrite.AddRange(iprange.Range{Lo: 35, Hi: 39}); err != nil {
+		t.Fatalf("expected rewrite AddRange() error = %v", err)
+	}
+	expectedRewrite.Optimize()
+	if !rangeSourcesEqual(rewritten, expectedRewrite) {
+		t.Fatalf("rewritten cohort does not contain only retained IPs")
+	}
+	rewrittenInfo, err := os.Stat(rewrittenPath)
+	if err != nil {
+		t.Fatalf("stat rewritten cohort: %v", err)
+	}
+	if got, want := rewrittenInfo.ModTime().Unix(), rewriteAt; got != want {
+		t.Fatalf("rewritten cohort mtime = %d, want %d", got, want)
+	}
+	if _, err := os.Stat(filepath.Join(paths.newDir, strconvFormatInt(deleteAt))); !os.IsNotExist(err) {
+		t.Fatalf("deleted cohort stat error = %v, want not exist", err)
+	}
+
+	if err := writeRetentionCohortIndex(filepath.Join(paths.dir, "retention_cohorts.csv"), result.cohorts); err != nil {
+		t.Fatalf("write retention cohort index: %v", err)
+	}
+	resetRetentionCohortCacheForTest(eng, "sample")
+	if got := eng.queryMatchFirstSeen(t.Context(), "sample", 10); got != unchangedAt {
+		t.Fatalf("first_seen for unchanged IP = %d, want %d", got, unchangedAt)
+	}
+	if got := eng.queryMatchFirstSeen(t.Context(), "sample", 35); got != rewriteAt {
+		t.Fatalf("first_seen for retained rewritten IP = %d, want %d", got, rewriteAt)
+	}
+	if got := eng.queryMatchFirstSeen(t.Context(), "sample", 30); got != 0 {
+		t.Fatalf("first_seen for removed rewritten IP = %d, want 0", got)
+	}
+	if got := eng.queryMatchFirstSeen(t.Context(), "sample", 50); got != 0 {
+		t.Fatalf("first_seen for deleted cohort IP = %d, want 0", got)
+	}
+}
+
+func TestRetentionReconcileUsesIPrangeCompareNextBeforeMaterializing(t *testing.T) {
+	sourceBytes, err := os.ReadFile("retention_update.go")
+	if err != nil {
+		t.Fatalf("read retention_update.go: %v", err)
+	}
+	source := string(sourceBytes)
+	if !strings.Contains(source, "iprange.CompareNextSources") {
+		t.Fatalf("retention reconciliation must use pkg/iprange CompareNextSources")
+	}
+	if strings.Contains(source, "func (e *Engine) reconcileRetentionCohort(") {
+		t.Fatalf("retention reconciliation must not restore the old engine-owned per-cohort comparison")
+	}
+	sectionStart := strings.Index(source, "func (e *Engine) applyRetentionCohortCompare")
+	sectionEnd := strings.Index(source, "func retentionHours")
+	if sectionStart < 0 || sectionEnd < sectionStart {
+		t.Fatalf("cannot locate applyRetentionCohortCompare cost-shape section")
+	}
+	section := source[sectionStart:sectionEnd]
+	noChangeBranch := strings.Index(section, "if removedCount == 0")
+	materialize := strings.Index(section, "collectIter(")
+	if noChangeBranch < 0 || materialize < 0 || noChangeBranch > materialize {
+		t.Fatalf("unchanged cohorts must return before materializing the intersection")
 	}
 }
 

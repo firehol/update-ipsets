@@ -1,6 +1,7 @@
 package iprange
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -288,6 +289,13 @@ type CompareRow struct {
 	CommonIPs   uint64
 }
 
+// CompareSource names a range source for comparison output. Source may be an
+// in-memory *IPSet or a file-backed FileSet.
+type CompareSource struct {
+	Name   string
+	Source RangeSource
+}
+
 type CompareFirstRow struct {
 	Name      string
 	Entries   int
@@ -359,6 +367,127 @@ func CompareNext(before, after []*IPSet) ([]CompareRow, error) {
 		}
 	}
 	return rows, nil
+}
+
+// CompareNextSources compares every source in before with every source in after.
+// It produces the same row semantics as CompareNext while accepting streaming
+// RangeSource inputs, so file-backed sets do not need to be materialized.
+func CompareNextSources(ctx context.Context, before, after []CompareSource) ([]CompareRow, error) {
+	started := time.Now()
+	defer func() {
+		iprangeObserve(iprangeBackground(), "iprange.compare.ops", 1, 0, time.Since(started), attribute.String("ip.version", "4"), attribute.String("iprange.compare.mode", "next_sources"))
+	}()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if len(before) == 0 || len(after) == 0 {
+		return nil, fmt.Errorf("compare-next requires inputs on both sides")
+	}
+
+	left, err := prepareCompareSources(ctx, before)
+	if err != nil {
+		return nil, err
+	}
+	right, err := prepareCompareSources(ctx, after)
+	if err != nil {
+		return nil, err
+	}
+
+	rows := make([]CompareRow, 0, len(left)*len(right))
+	for _, l := range left {
+		for _, r := range right {
+			common, err := OverlapCountIterContext(ctx, l.source, r.source)
+			if err != nil {
+				return nil, err
+			}
+			if err := rangeSourceErr(l.source); err != nil {
+				return nil, fmt.Errorf("compare %s: %w", l.name, err)
+			}
+			if err := rangeSourceErr(r.source); err != nil {
+				return nil, fmt.Errorf("compare %s: %w", r.name, err)
+			}
+			rows = append(rows, CompareRow{
+				Name1:       l.name,
+				Name2:       r.name,
+				Entries1:    l.entries,
+				Entries2:    r.entries,
+				Unique1:     l.uniqueIPs,
+				Unique2:     r.uniqueIPs,
+				CombinedIPs: l.uniqueIPs + r.uniqueIPs - common,
+				CommonIPs:   common,
+			})
+		}
+	}
+	return rows, nil
+}
+
+type compareSourceMeta struct {
+	name      string
+	source    RangeSource
+	entries   int
+	uniqueIPs uint64
+}
+
+func prepareCompareSources(ctx context.Context, in []CompareSource) ([]compareSourceMeta, error) {
+	out := make([]compareSourceMeta, 0, len(in))
+	for i, src := range in {
+		if src.Source == nil {
+			return nil, fmt.Errorf("compare source %d has nil range source", i)
+		}
+		name := src.Name
+		if name == "" {
+			name = compareSourceDefaultName(src.Source)
+		}
+		uniqueIPs, err := compareSourceUniqueIPs(ctx, src.Source)
+		if err != nil {
+			return nil, fmt.Errorf("compare %s: %w", name, err)
+		}
+		if err := rangeSourceErr(src.Source); err != nil {
+			return nil, fmt.Errorf("compare %s: %w", name, err)
+		}
+		out = append(out, compareSourceMeta{
+			name:      name,
+			source:    src.Source,
+			entries:   src.Source.Len(),
+			uniqueIPs: uniqueIPs,
+		})
+	}
+	return out, nil
+}
+
+func compareSourceDefaultName(src RangeSource) string {
+	if set, ok := src.(*IPSet); ok && set.Name != "" {
+		return set.Name
+	}
+	return DefaultName
+}
+
+func compareSourceUniqueIPs(ctx context.Context, src RangeSource) (uint64, error) {
+	if counter, ok := src.(interface{ UniqueIPs() uint64 }); ok {
+		return counter.UniqueIPs(), nil
+	}
+	if counter, ok := src.(interface{ UniqueCount() uint64 }); ok {
+		return counter.UniqueCount(), nil
+	}
+	var total uint64
+	var count int
+	for r := range src.Iter() {
+		count++
+		if count%4096 == 0 {
+			if err := ctx.Err(); err != nil {
+				return 0, err
+			}
+		}
+		total += r.Size()
+	}
+	return total, ctx.Err()
+}
+
+func rangeSourceErr(src RangeSource) error {
+	if withErr, ok := src.(interface{ Err() error }); ok {
+		return withErr.Err()
+	}
+	return nil
 }
 
 func CompareFirst(sets []*IPSet) ([]CompareFirstRow, error) {

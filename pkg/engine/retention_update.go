@@ -261,6 +261,7 @@ func (e *Engine) reconcileRetentionCohorts(ctx context.Context, name string, pat
 		cohorts:        make(map[int64]uint64),
 		currentBuckets: map[int]uint64{},
 	}
+	currentSource := iprange.CompareSource{Name: name, Source: current}
 	files, err := os.ReadDir(paths.newDir)
 	if err != nil {
 		return retentionReconcileResult{}, err
@@ -329,7 +330,7 @@ func (e *Engine) reconcileRetentionCohorts(ctx context.Context, name string, pat
 			}
 			continue
 		}
-		update, err := e.reconcileRetentionCohort(ctx, name, paths, started, updatedAt, current, past, entry.Name(), addedAt, &result)
+		update, err := e.reconcileRetentionCohortFromCompare(ctx, name, paths, started, updatedAt, current, currentSource, past, entry.Name(), addedAt, &result)
 		if err != nil {
 			return retentionReconcileResult{}, err
 		}
@@ -355,23 +356,35 @@ func (e *Engine) retentionCohortTimestamp(name, baseName string) (int64, bool) {
 	return addedAt, true
 }
 
-func (e *Engine) reconcileRetentionCohort(ctx context.Context, name string, paths retentionUpdatePaths, started, updatedAt int64, current *iprange.IPSet, past map[int]uint64, baseName string, addedAt int64, result *retentionReconcileResult) (retentionCohortUpdate, error) {
+func (e *Engine) reconcileRetentionCohortFromCompare(ctx context.Context, name string, paths retentionUpdatePaths, started, updatedAt int64, current *iprange.IPSet, currentSource iprange.CompareSource, past map[int]uint64, baseName string, addedAt int64, result *retentionReconcileResult) (retentionCohortUpdate, error) {
 	path := filepath.Join(paths.newDir, baseName)
 	oldSource, err := openRetentionCohortSet(ctx, baseName, e.runtime.LibDir, filepath.Join(name, "new", baseName), path)
 	if err != nil {
 		return retentionCohortUpdate{}, err
 	}
-	defer func() { _ = oldSource.Close() }()
 
-	still, err := collectIter(ctx, baseName+"_still", iprange.IntersectIter(oldSource.RangeSource, current))
+	rows, err := iprange.CompareNextSources(ctx,
+		[]iprange.CompareSource{currentSource},
+		[]iprange.CompareSource{{Name: baseName, Source: oldSource.RangeSource}},
+	)
 	if err != nil {
+		_ = oldSource.Close()
 		return retentionCohortUpdate{}, err
 	}
-	if err := checkFileSetErr(oldSource.RangeSource, name, e.logger); err != nil {
-		return retentionCohortUpdate{}, err
+	if len(rows) != 1 {
+		_ = oldSource.Close()
+		return retentionCohortUpdate{}, fmt.Errorf("retention: compare-next returned %d rows for %s", len(rows), baseName)
 	}
-	stillCount := still.UniqueCount()
-	oldCount := oldSource.UniqueIPs()
+	return e.applyRetentionCohortCompare(ctx, name, paths, started, updatedAt, current, oldSource, baseName, path, addedAt, rows[0], past, result)
+}
+
+func (e *Engine) applyRetentionCohortCompare(ctx context.Context, name string, paths retentionUpdatePaths, started, updatedAt int64, current *iprange.IPSet, oldSource *closableSource, baseName, path string, addedAt int64, row iprange.CompareRow, past map[int]uint64, result *retentionReconcileResult) (retentionCohortUpdate, error) {
+	oldCount := row.Unique2
+	stillCount := row.CommonIPs
+	if stillCount > oldCount {
+		_ = oldSource.Close()
+		return retentionCohortUpdate{}, fmt.Errorf("retention: compare-next common count exceeds cohort size for %s: common=%d cohort=%d", baseName, stillCount, oldCount)
+	}
 	var removedCount uint64
 	if oldCount > stillCount {
 		removedCount = oldCount - stillCount
@@ -382,6 +395,48 @@ func (e *Engine) reconcileRetentionCohort(ctx context.Context, name string, path
 		removedIPs: removedCount,
 	}
 	hours := retentionHours(updatedAt, addedAt)
+	if oldCount == 0 {
+		if err := oldSource.Close(); err != nil {
+			return retentionCohortUpdate{}, err
+		}
+		update.deleted = true
+		return update, removeRetentionCohortFile(path)
+	}
+	if removedCount == 0 {
+		if err := oldSource.Close(); err != nil {
+			return retentionCohortUpdate{}, err
+		}
+		result.cohorts[addedAt] = stillCount
+		result.currentBuckets[hours] += stillCount
+		if addedAt <= started {
+			result.incomplete = 1
+		}
+		return update, nil
+	}
+
+	still, err := collectIter(ctx, baseName+"_still", iprange.IntersectIter(oldSource.RangeSource, current))
+	if err != nil {
+		_ = oldSource.Close()
+		return retentionCohortUpdate{}, err
+	}
+	if err := checkFileSetErr(oldSource.RangeSource, name, e.logger); err != nil {
+		_ = oldSource.Close()
+		return retentionCohortUpdate{}, err
+	}
+	materializedCount := still.UniqueCount()
+	if materializedCount != row.CommonIPs {
+		_ = oldSource.Close()
+		return retentionCohortUpdate{}, fmt.Errorf("retention: compare-next common count mismatch for %s: row=%d materialized=%d", baseName, row.CommonIPs, materializedCount)
+	}
+	removedCount = 0
+	if oldCount > materializedCount {
+		removedCount = oldCount - materializedCount
+	}
+	update.keptIPs = materializedCount
+	update.removedIPs = removedCount
+	if err := oldSource.Close(); err != nil {
+		return retentionCohortUpdate{}, err
+	}
 	if removedCount > 0 {
 		if err := e.recordRetentionRemoval(name, paths.dir, started, updatedAt, addedAt, hours, removedCount, past); err != nil {
 			return retentionCohortUpdate{}, err
