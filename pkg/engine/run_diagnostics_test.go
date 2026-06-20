@@ -56,6 +56,30 @@ func TestRunDiagnosticSummaryIncludesOperationsCountersAndActiveWork(t *testing.
 	}
 }
 
+func TestRunDiagnosticSummaryIncludesPhaseActiveOperation(t *testing.T) {
+	var logs bytes.Buffer
+	eng := newEngineFixture(t)
+	eng.logger = slog.New(slog.NewJSONHandler(&logs, nil))
+
+	started := time.Now().UTC().Add(-2 * time.Second)
+	if !eng.tryMarkRunStart(started, runreason.ReasonScheduledDue) {
+		t.Fatal("tryMarkRunStart returned false")
+	}
+	eng.setRunPhase(RunPhaseMetadata)
+	op := eng.beginActiveOperation("metadata.write_per_feed_outputs", "", "write", "feeds", 10)
+	op.Add(5, 10, nil)
+
+	report := &Report{
+		StartedAt: started,
+		EndedAt:   started.Add(2 * time.Second),
+	}
+	diag := newEngineRunDiagnostics(runreason.ReasonScheduledDue, RunOptions{}, started)
+	eng.logRunDiagnosticSummary(report, nil, diag)
+
+	entry := findJSONLogByMessage(t, logs.String(), "engine run diagnostic summary")
+	assertJSONOperation(t, entry["active_operations"], "metadata.write_per_feed_outputs", "")
+}
+
 func TestReconcileRetentionCohortsLogsExactAccounting(t *testing.T) {
 	var logs bytes.Buffer
 	root := t.TempDir()
@@ -203,7 +227,8 @@ func assertJSONOperation(t *testing.T, value any, wantOperation, wantFeed string
 	}
 	for _, item := range items {
 		obj, ok := item.(map[string]any)
-		if ok && obj["operation"] == wantOperation && obj["feed"] == wantFeed {
+		feed, _ := obj["feed"].(string)
+		if ok && obj["operation"] == wantOperation && feed == wantFeed {
 			if obj["unit"] == "" {
 				t.Fatalf("operation %q/%q missing unit in %+v", wantOperation, wantFeed, obj)
 			}

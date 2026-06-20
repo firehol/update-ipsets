@@ -117,6 +117,8 @@ func (e *Engine) stageFeedEntitySidecarsFromLoadedProviders(ctx context.Context,
 	if workers < 1 {
 		workers = 1
 	}
+	progress := e.beginActiveOperation("entities.stage_feed_sidecars", "", "build", "feeds", int64(len(targetFeeds)))
+	defer progress.Finish()
 	buildCtx, cancel, results := e.startFeedEntitySidecarBuild(ctx, targetFeeds, workers, view, geoProvider, asnProvider, geoPrepared, asnDB, func() (*latestSetCache, func()) {
 		return setCache, nil
 	})
@@ -125,6 +127,7 @@ func (e *Engine) stageFeedEntitySidecarsFromLoadedProviders(ctx context.Context,
 	refreshTargets := make([]string, 0, len(targetFeeds))
 	var errs joinedErrorCollector
 	for result := range results {
+		progress.Add(1, int64(len(targetFeeds)), nil)
 		if result.err != nil {
 			if errs.add(result.err) {
 				cancel()

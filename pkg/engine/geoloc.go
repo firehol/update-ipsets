@@ -24,6 +24,8 @@ func (e *Engine) processGeoIPDatabases(ctx context.Context, opts RunOptions) (ge
 	}
 
 	datasets := make(geoPreparedProviders, len(geoSources))
+	loadOp := e.beginActiveOperation("geoip.load_providers", "", "load", "providers", int64(len(geoSources)))
+	defer loadOp.Finish()
 	for _, src := range geoSources {
 		if err := contextErr(ctx); err != nil {
 			return nil, err
@@ -95,6 +97,7 @@ func (e *Engine) processGeoIPDatabases(ctx context.Context, opts RunOptions) (ge
 				e.logger.Warn("geolocation using stale data after download failure", "name", name, "failures", entry.DownloadFailures)
 			}
 		}()
+		loadOp.Add(1, int64(len(geoSources)), nil)
 		if loopErr != nil {
 			return nil, loopErr
 		}
@@ -125,16 +128,27 @@ func (e *Engine) writeCountryComparisonFiles(ctx context.Context, datasets geoPr
 	if len(targetNames) == 0 {
 		return nil
 	}
+	providers := make([]string, 0, len(datasets))
+	for provider, dataset := range datasets {
+		if dataset == nil || len(dataset.segments) == 0 {
+			continue
+		}
+		providers = append(providers, provider)
+	}
+	if len(providers) == 0 {
+		return nil
+	}
+	totalPairs := int64(len(providers) * len(targetNames))
+	compareOp := e.beginActiveOperation("geoip.write_comparisons", "", "compare", "feed_provider_pairs", totalPairs)
+	defer compareOp.Finish()
 
 	numWorkers := e.runtime.HeavyPhaseWorkers()
 	if numWorkers < 1 {
 		numWorkers = 1
 	}
 
-	for provider, dataset := range datasets {
-		if dataset == nil || len(dataset.segments) == 0 {
-			continue
-		}
+	for _, provider := range providers {
+		dataset := datasets[provider]
 
 		type geoResult struct {
 			name        string
@@ -147,6 +161,7 @@ func (e *Engine) writeCountryComparisonFiles(ctx context.Context, datasets geoPr
 			if err := contextErr(ctx); err != nil {
 				return err
 			}
+			defer compareOp.Add(1, totalPairs, nil)
 			src, err := setCache.Open(name)
 			if err != nil {
 				e.logger.Warn("geolocation comparison skipped: cannot open set", "set", name, "provider", provider, "error", err)

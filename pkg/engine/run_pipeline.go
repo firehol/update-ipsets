@@ -271,7 +271,14 @@ func (e *Engine) runFullHeavyPhases(ctx context.Context, opts RunOptions, report
 	if err := e.writeBogonComparisonFiles(ctx, bogonDS, plan.fanOutUpdated, webOutDir, setCache); err != nil {
 		return nil, err
 	}
+	bogonProviderTotal := int64(0)
+	if bogonDS != nil {
+		bogonProviderTotal = int64(len(bogonDS.Names))
+	}
+	unionOp := e.beginActiveOperation("bogons.build_union", "", "union", "providers", bogonProviderTotal)
 	bogonUnion, err := buildBogonUnion(bogonDS)
+	unionOp.Update(bogonProviderTotal, bogonProviderTotal, nil)
+	unionOp.Finish()
 	if err != nil {
 		return nil, err
 	}
@@ -366,11 +373,20 @@ func (e *Engine) publishRunArtifacts(ctx context.Context, opts RunOptions, repor
 			return err
 		}
 	}
-	if err := webBatch.applyGeneratedFileTimestampsContext(ctx, generated); err != nil {
+	e.setRunPhase(RunPhasePublish)
+	timestampOp := e.beginActiveOperation("publish.apply_timestamps", "", "timestamps", "files", int64(len(generated)))
+	if err := webBatch.applyGeneratedFileTimestampsContext(ctx, generated, timestampOp); err != nil {
+		timestampOp.Finish()
 		return err
 	}
-	e.setRunPhase(RunPhasePublish)
-	published, err := webBatch.publishContext(ctx)
+	timestampOp.Finish()
+	publishTotal, err := webBatch.publishWorkTotal(ctx)
+	if err != nil {
+		return err
+	}
+	publishOp := e.beginActiveOperation("publish.promote_web_artifacts", "", "publish", "files", publishTotal)
+	published, err := webBatch.publishContext(ctx, publishOp)
+	publishOp.Finish()
 	if err != nil {
 		return err
 	}
@@ -378,9 +394,17 @@ func (e *Engine) publishRunArtifacts(ctx context.Context, opts RunOptions, repor
 		if err := contextErr(ctx); err != nil {
 			return err
 		}
+		entityPublishOp := e.beginActiveOperation("publish.promote_entity_artifacts", "", "publish", "files", 0)
 		e.entityArtifactsMu.Lock()
-		_, err := entityBatch.publishContext(ctx)
+		entityPublishTotal, countErr := entityBatch.publishWorkTotal(ctx)
+		if countErr == nil {
+			entityPublishOp.Update(0, entityPublishTotal, nil)
+			_, err = entityBatch.publishContext(ctx, entityPublishOp)
+		} else {
+			err = countErr
+		}
 		e.entityArtifactsMu.Unlock()
+		entityPublishOp.Finish()
 		if err != nil {
 			return err
 		}

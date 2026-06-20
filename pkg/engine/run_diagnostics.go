@@ -300,6 +300,31 @@ func (h *activeOperationHandle) Update(current, total int64, counters map[string
 	h.e.mu.Unlock()
 }
 
+func (h *activeOperationHandle) Add(delta, total int64, counters map[string]int64) {
+	if h == nil || h.e == nil || h.id == "" {
+		return
+	}
+	if delta == 0 && total < 0 && len(counters) == 0 {
+		return
+	}
+	h.e.mu.Lock()
+	op, ok := h.e.activeOperations[h.id]
+	if ok {
+		op.Current += delta
+		if op.Current < 0 {
+			op.Current = 0
+		}
+		if total >= 0 {
+			op.Total = total
+		}
+		if len(counters) > 0 {
+			op.Counters = copyInt64Map(counters)
+		}
+		h.e.activeOperations[h.id] = op
+	}
+	h.e.mu.Unlock()
+}
+
 func (h *activeOperationHandle) Finish() {
 	if h == nil || h.e == nil || h.id == "" {
 		return

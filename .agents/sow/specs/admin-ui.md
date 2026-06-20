@@ -217,8 +217,8 @@ The UI MUST NOT expose a separate pseudo-batch or pseudo-queue that has no
 operator meaning.
 
 `being processed now` MUST show more than the feed name and phase when the
-backend reports active operation progress. For each active feed, the admin UI
-SHOULD render:
+backend reports active operation progress. For each active feed and for each
+phase-level active operation that has no feed, the admin UI SHOULD render:
 
 - the current operation/stage label
 - the declared unit of work

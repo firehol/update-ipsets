@@ -46,18 +46,26 @@ func (e *Engine) processASNDatabases(ctx context.Context, opts RunOptions) (asnD
 	}
 
 	datasets := asnDatasets{}
+	loadOp := e.beginActiveOperation("asn.load_providers", "", "load", "providers", int64(len(asnSources)))
+	defer loadOp.Finish()
 	for _, src := range asnSources {
 		if err := contextErr(ctx); err != nil {
 			datasets.closeAll(e.logger)
 			return nil, err
 		}
-		db, err := e.processASNProvider(src, asnDir, reason)
-		if err != nil {
+		if err := func() error {
+			defer loadOp.Add(1, int64(len(asnSources)), nil)
+			db, err := e.processASNProvider(src, asnDir, reason)
+			if err != nil {
+				return err
+			}
+			if db != nil {
+				datasets[src.Name] = db
+			}
+			return nil
+		}(); err != nil {
 			datasets.closeAll(e.logger)
 			return nil, err
-		}
-		if db != nil {
-			datasets[src.Name] = db
 		}
 	}
 	return datasets, nil
@@ -124,20 +132,32 @@ func (e *Engine) writeASNComparisonFiles(ctx context.Context, datasets asnDatase
 		return nil
 	}
 	bogonSplits := e.precomputeASNBogonSplits(ctx, targetNames, datasets, bogonUnion, setCache)
+	providers := make([]string, 0, len(datasets))
+	for provider, db := range datasets {
+		if db == nil {
+			continue
+		}
+		providers = append(providers, provider)
+	}
+	if len(providers) == 0 {
+		return nil
+	}
+	totalPairs := int64(len(providers) * len(targetNames))
+	compareOp := e.beginActiveOperation("asn.write_comparisons", "", "compare", "feed_provider_pairs", totalPairs)
+	defer compareOp.Finish()
 
 	numWorkers := e.runtime.HeavyPhaseWorkers()
 	if numWorkers < 1 {
 		numWorkers = 1
 	}
 
-	for provider, db := range datasets {
-		if db == nil {
-			continue
-		}
+	for _, provider := range providers {
+		db := datasets[provider]
 		if err := runBoundedNameJobs(ctx, numWorkers, targetNames, func(ctx context.Context, name string) error {
 			if err := contextErr(ctx); err != nil {
 				return err
 			}
+			defer compareOp.Add(1, totalPairs, nil)
 			src, err := setCache.Open(name)
 			if err != nil {
 				e.logger.Warn("ASN comparison skipped: cannot open set", "set", name, "provider", provider, "error", err)
@@ -176,32 +196,37 @@ func (e *Engine) precomputeASNBogonSplits(ctx context.Context, targetNames []str
 	if bogonUnion == nil || len(datasets) <= 1 || len(targetNames) == 0 || setCache == nil {
 		return nil
 	}
+	progress := e.beginActiveOperation("asn.precompute_bogon_splits", "", "precompute", "feeds", int64(len(targetNames)))
+	defer progress.Finish()
 	splits := make(map[string]uint64, len(targetNames))
 	bogonFilter := buildRangeOverlapFilter(bogonUnion)
 	for _, name := range targetNames {
 		if err := contextErr(ctx); err != nil {
 			return splits
 		}
-		src, err := setCache.Open(name)
-		if err != nil {
-			e.logger.Warn("ASN bogon split skipped: cannot open set", "set", name, "error", err)
-			continue
-		}
-		filter := buildRangeOverlapFilter(src.RangeSource)
-		if checkErr := checkFileSetErr(src.RangeSource, name, e.logger); checkErr != nil {
-			continue
-		}
-		if rangeOverlapFiltersDisjoint(filter, bogonFilter) {
-			splits[name] = 0
-			e.observeRunCounter("asn.bogon_split_skipped_filter", 1, 0)
-			continue
-		}
-		splits[name] = iprange.OverlapCountIter(src.RangeSource, bogonUnion)
-		if checkErr := checkFileSetErr(src.RangeSource, name, e.logger); checkErr != nil {
-			delete(splits, name)
-			continue
-		}
-		e.observeRunCounter("asn.bogon_split_precomputed", 1, 0)
+		func() {
+			defer progress.Add(1, int64(len(targetNames)), nil)
+			src, err := setCache.Open(name)
+			if err != nil {
+				e.logger.Warn("ASN bogon split skipped: cannot open set", "set", name, "error", err)
+				return
+			}
+			filter := buildRangeOverlapFilter(src.RangeSource)
+			if checkErr := checkFileSetErr(src.RangeSource, name, e.logger); checkErr != nil {
+				return
+			}
+			if rangeOverlapFiltersDisjoint(filter, bogonFilter) {
+				splits[name] = 0
+				e.observeRunCounter("asn.bogon_split_skipped_filter", 1, 0)
+				return
+			}
+			splits[name] = iprange.OverlapCountIter(src.RangeSource, bogonUnion)
+			if checkErr := checkFileSetErr(src.RangeSource, name, e.logger); checkErr != nil {
+				delete(splits, name)
+				return
+			}
+			e.observeRunCounter("asn.bogon_split_precomputed", 1, 0)
+		}()
 	}
 	return splits
 }

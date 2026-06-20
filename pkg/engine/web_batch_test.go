@@ -84,6 +84,39 @@ func TestStagedPublishBatchPublishesNestedFiles(t *testing.T) {
 	}
 }
 
+func TestStagedPublishBatchPublishWorkTotalCountsFilesAndDeletes(t *testing.T) {
+	liveDir := t.TempDir()
+	batch, err := newStagedPublishBatch(liveDir, "", ".test-web-*")
+	if err != nil {
+		t.Fatalf("newStagedPublishBatch() error = %v", err)
+	}
+	defer batch.cleanup()
+
+	stageFiles := []string{
+		"countries/index.json",
+		"countries/US.json",
+		"asns/index.json",
+	}
+	for _, rel := range stageFiles {
+		path := filepath.Join(batch.stageDir, rel)
+		if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+			t.Fatalf("MkdirAll(%q) error = %v", path, err)
+		}
+		if err := os.WriteFile(path, []byte("{}\n"), 0o600); err != nil {
+			t.Fatalf("WriteFile(%q) error = %v", path, err)
+		}
+	}
+	batch.markDelete("old/feed.json")
+
+	total, err := batch.publishWorkTotal(t.Context())
+	if err != nil {
+		t.Fatalf("publishWorkTotal() error = %v", err)
+	}
+	if total != 4 {
+		t.Fatalf("publishWorkTotal() = %d, want 4", total)
+	}
+}
+
 func TestStagedPublishBatchPublishContextCancelledBeforeStartLeavesLiveUntouched(t *testing.T) {
 	liveDir := t.TempDir()
 	rel := "sample.json"

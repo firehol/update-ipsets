@@ -417,7 +417,7 @@ Operators MUST be able to observe at least:
 - being processed now
 - queue wait age
 - current processing phase or reason
-- active per-feed and per-operation progress when work is running
+- active per-feed, per-phase, and per-operation progress when work is running
 - last processing result
 - whether enough local input exists for reprocess
 
@@ -458,6 +458,13 @@ without enough context for an operator to know whether the count represents
 feeds, files, operations, IPs, entries, or bytes. For completed runs and phases,
 diagnostics SHOULD expose phase-scoped operation counts, phase work size,
 completion percentage when bounded, and rate.
+
+Long-running bounded phase work MUST be represented as active operations even
+when the work is not tied to one feed. Examples include provider loads,
+feed/provider comparison fan-outs, metadata/index generation, entity sidecar
+fan-outs, and publish/copy loops. Such phase-level active operations MUST use
+the current engine phase and MUST report the same unit, current, total,
+completion, elapsed, and rate fields as feed-level active operations.
 
 At minimum, engine-controlled persisted fields MUST include equivalents of:
 

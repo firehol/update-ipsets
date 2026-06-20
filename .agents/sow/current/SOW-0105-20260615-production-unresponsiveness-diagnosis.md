@@ -2848,6 +2848,86 @@ Artifact maintenance:
 - SOW lifecycle: SOW remains current/open; Goal 5A is a diagnostic slice that
   feeds later retention optimization decisions.
 
+### Goal 5A Live Phase Progress Correction - 2026-06-20
+
+Problem:
+
+- Production/operator observation after installing the diagnostic slice showed
+  that the admin status could still display heavy phases such as `geoip`,
+  `asn`, `metadata`, and related phases without a live work size, rate, or
+  completion percentage.
+- The 2026-06-19 implementation recorded completed phase summaries and
+  source/retention active operations, but it did not expose live bounded work
+  for every heavy phase while that phase was running.
+
+Requirement correction:
+
+- Every engine phase must expose live active-operation progress when the phase
+  has a known bounded work loop.
+- The active operation must declare the unit of work, total work when known,
+  completed work, completion percentage, elapsed time, and rate in the same
+  unit per second.
+- Valid units for this correction are the concrete loop units already present
+  in code: providers, feed/provider pairs, feeds, generated files, staged files,
+  published files, copied files, or operations.
+- Phases with nested work may expose the dominant bounded outer unit first; a
+  later refinement may add sub-operation progress if production evidence shows
+  the outer unit is not precise enough.
+
+Implementation plan:
+
+- Add a safe active-operation increment helper so concurrent bounded workers can
+  update progress without each caller maintaining separate synchronization.
+- Add live active operations to provider load phases, Geo/ASN/Bogon/Critical
+  comparison fan-out, entity sidecar fan-out, metadata per-feed output,
+  insights, markdown, publish timestamp application, publish promotion/deletion,
+  and raw ipset copy work.
+- Preserve feed outputs, public artifacts, scheduler cadence, and existing
+  operation counters.
+
+Validation plan:
+
+- Add tests proving active operations can be incremented safely and admin status
+  reports bounded phase progress.
+- Run focused engine tests and affected package tests after implementation.
+
+Implementation update:
+
+- Added active-operation increment support for concurrent bounded workers.
+- Added live phase-level operations for GeoIP, bogon, ASN, critical
+  infrastructure, entity sidecar, metadata, insights, markdown, publish, and
+  raw ipset copy loops.
+- Metadata instrumentation now includes comparison preparation, pair scanning,
+  candidate comparison, comparison-row writes, unique-share recalculation,
+  homepage aggregate generation, public metadata, per-feed outputs, indexes,
+  Git artifacts, and markdown generation.
+- Publish progress now counts actual staged files plus explicit delete markers
+  before promotion, so completion percentage is based on the same units the
+  publish loop processes.
+- The `preflight` phase remains timing-only because the current implementation
+  has no meaningful bounded item loop there. Synthetic one-item progress was
+  intentionally not added because it would not explain resource usage.
+- The admin "Being Processed Now" view now renders phase-level active
+  operations with no feed, using the same work size, completion, and rate
+  contract as feed-level operations.
+- Specs updated:
+  `.agents/sow/specs/processing-engine.md`,
+  `.agents/sow/specs/admin-ui.md`, and
+  `.agents/sow/specs/operating-principles.md` now explicitly require
+  phase-level active-operation visibility for bounded phase work.
+
+Validation:
+
+- `git diff --check` passed.
+- `go test -count=1 ./pkg/engine` passed.
+- `go test -count=1 ./pkg/cache ./pkg/engine ./pkg/scheduler ./pkg/web`
+  passed.
+- `pnpm --dir ui exec vitest run src/components/admin/current-run.test.tsx`
+  passed.
+- `pnpm --dir ui lint` passed.
+- `pnpm --dir ui build` passed; Vite still reports existing font-resolution
+  and chunk-size warnings, not test/build failures.
+
 ## Outcome
 
 Diagnosis evidence and remediation plan drafted. Goal 1 scheduler,

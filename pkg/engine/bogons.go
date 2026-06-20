@@ -68,26 +68,31 @@ func (e *Engine) loadBogonSources(ctx context.Context) (*bogonDatasets, error) {
 	}
 
 	out := &bogonDatasets{Providers: make(map[string]*bogonProviderSet, len(bogonSources))}
+	loadOp := e.beginActiveOperation("bogons.load_providers", "", "load", "providers", int64(len(bogonSources)))
+	defer loadOp.Finish()
 	for _, src := range bogonSources {
 		if err := contextErr(ctx); err != nil {
 			out.closeAll()
 			return nil, err
 		}
-		name := src.Name
-		latest, err := e.openLatestSet(ctx, name)
-		if err != nil {
-			e.logger.Warn("bogon source skipped: latest set not available",
-				"source", name, "error", err)
-			continue
-		}
-		out.Providers[name] = &bogonProviderSet{
-			Name:          name,
-			Format:        src.Format,
-			Set:           latest.RangeSource,
-			overlapFilter: buildRangeOverlapFilter(latest.RangeSource),
-			sources:       []*closableSource{latest},
-		}
-		out.Names = append(out.Names, name)
+		func() {
+			defer loadOp.Add(1, int64(len(bogonSources)), nil)
+			name := src.Name
+			latest, err := e.openLatestSet(ctx, name)
+			if err != nil {
+				e.logger.Warn("bogon source skipped: latest set not available",
+					"source", name, "error", err)
+				return
+			}
+			out.Providers[name] = &bogonProviderSet{
+				Name:          name,
+				Format:        src.Format,
+				Set:           latest.RangeSource,
+				overlapFilter: buildRangeOverlapFilter(latest.RangeSource),
+				sources:       []*closableSource{latest},
+			}
+			out.Names = append(out.Names, name)
+		}()
 	}
 	return out, nil
 }
@@ -176,6 +181,20 @@ func (e *Engine) writeBogonComparisonFiles(ctx context.Context, datasets *bogonD
 	if len(targets) == 0 {
 		return nil
 	}
+	providerNames := make([]string, 0, len(datasets.Names))
+	for _, providerName := range datasets.Names {
+		provider := datasets.Providers[providerName]
+		if provider == nil || provider.Set == nil {
+			continue
+		}
+		providerNames = append(providerNames, providerName)
+	}
+	if len(providerNames) == 0 {
+		return nil
+	}
+	totalPairs := int64(len(providerNames) * len(targetNames))
+	compareOp := e.beginActiveOperation("bogons.write_comparisons", "", "compare", "feed_provider_pairs", totalPairs)
+	defer compareOp.Finish()
 
 	rfcRanges, err := getRFCReservedRanges()
 	if err != nil {
@@ -187,15 +206,13 @@ func (e *Engine) writeBogonComparisonFiles(ctx context.Context, datasets *bogonD
 		numWorkers = 1
 	}
 
-	for _, providerName := range datasets.Names {
+	for _, providerName := range providerNames {
 		provider := datasets.Providers[providerName]
-		if provider == nil || provider.Set == nil {
-			continue
-		}
 		if err := runBoundedNameJobs(ctx, numWorkers, targetNames, func(ctx context.Context, name string) error {
 			if err := contextErr(ctx); err != nil {
 				return err
 			}
+			defer compareOp.Add(1, totalPairs, nil)
 			target, ok := targets[name]
 			if !ok {
 				return nil

@@ -164,6 +164,17 @@ export function ProcessingNowColumn({
   nowMs: number;
   onFeedClick: (feed: AdminFeed) => void;
 }) {
+  const phaseOperations = activeOperations
+    .filter(
+      (operation) =>
+        !operation.feed &&
+        (!currentPhase || !operation.phase || operation.phase === currentPhase),
+    )
+    .sort(
+      (left, right) =>
+        parseGoTime(left.started_at) - parseGoTime(right.started_at),
+    );
+
   return (
     <div className="bg-card">
       <div className="flex items-baseline justify-between border-b border-border/60 px-6 py-3">
@@ -182,6 +193,17 @@ export function ProcessingNowColumn({
             </span>
           </div>
         </HoverTip>
+        {phaseOperations.length > 0 && (
+          <div className="mt-3 space-y-3">
+            {phaseOperations.slice(0, 3).map((operation) => (
+              <ActiveOperationProgress
+                key={`${operation.operation}:${operation.stage ?? ""}`}
+                operation={operation}
+                nowMs={nowMs}
+              />
+            ))}
+          </div>
+        )}
       </div>
       <div className={LIVE_QUEUE_VIEWPORT_CLASS}>
         {!processingBatch || processingBatch.length === 0 ? (
@@ -356,7 +378,7 @@ function operationScore(operation: AdminActiveOperation): number {
 function operationProgress(operation: AdminActiveOperation, nowMs: number) {
   const current = Math.max(0, operation.current ?? 0);
   const total = Math.max(0, operation.total ?? 0);
-  const hasTotal = true;
+  const hasTotal = total > 0;
   const percent =
     operation.completion_pct ??
     (hasTotal
@@ -364,7 +386,9 @@ function operationProgress(operation: AdminActiveOperation, nowMs: number) {
       : 0);
   const elapsedMs = operationElapsedMs(operation, nowMs);
   const unit = operation.unit || "items";
-  const size = `${formatWorkCount(current)} / ${formatWorkCount(total)} ${unit}`;
+  const size = hasTotal
+    ? `${formatWorkCount(current)} / ${formatWorkCount(total)} ${unit}`
+    : `${formatWorkCount(current)} ${unit}`;
   return {
     hasTotal,
     percent,
@@ -411,6 +435,60 @@ function operationLabel(operation: AdminActiveOperation): string {
       return "Updating retention";
     case "retention.reconcile_cohorts":
       return "Scanning retention cohorts";
+    case "geoip.load_providers":
+      return "Loading GeoIP providers";
+    case "geoip.write_comparisons":
+      return "Writing GeoIP comparisons";
+    case "bogons.load_providers":
+      return "Loading bogon providers";
+    case "bogons.write_comparisons":
+      return "Writing bogon comparisons";
+    case "bogons.build_union":
+      return "Building bogon union";
+    case "asn.load_providers":
+      return "Loading ASN providers";
+    case "asn.precompute_bogon_splits":
+      return "Precomputing ASN bogon splits";
+    case "asn.write_comparisons":
+      return "Writing ASN comparisons";
+    case "critical.load_providers":
+      return "Loading critical providers";
+    case "critical.write_comparisons":
+      return "Writing critical comparisons";
+    case "entities.stage_feed_sidecars":
+      return "Building entity feed sidecars";
+    case "metadata.prepare_comparison_sets":
+      return "Preparing comparison sets";
+    case "metadata.scan_comparison_pairs":
+      return "Scanning comparison pairs";
+    case "metadata.compare_pairs":
+      return "Comparing candidate pairs";
+    case "metadata.write_comparison_rows":
+      return "Writing comparison rows";
+    case "metadata.update_unique_shares":
+      return "Updating unique-share metrics";
+    case "metadata.write_home_aggregates":
+      return "Writing homepage aggregates";
+    case "metadata.write_public_metadata":
+      return "Writing public metadata";
+    case "metadata.write_per_feed_outputs":
+      return "Writing feed metadata";
+    case "metadata.write_indexes":
+      return "Writing metadata indexes";
+    case "metadata.write_git_artifacts":
+      return "Writing Git artifacts";
+    case "metadata.write_markdown":
+      return "Writing markdown pages";
+    case "insights.write_feeds":
+      return "Writing insights";
+    case "publish.apply_timestamps":
+      return "Applying artifact timestamps";
+    case "publish.promote_web_artifacts":
+      return "Publishing web artifacts";
+    case "publish.promote_entity_artifacts":
+      return "Publishing entity artifacts";
+    case "publish.copy_raw_ipsets":
+      return "Copying raw ipsets";
     default:
       return operation.stage
         ? `${operation.operation} · ${operation.stage}`

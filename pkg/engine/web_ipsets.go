@@ -20,6 +20,8 @@ func (e *Engine) copyUpdatedIPSetsToWebContext(ctx context.Context, updatedNames
 	}
 	names := dedupeStrings(updatedNames)
 	slices.Sort(names)
+	progress := e.beginActiveOperation("publish.copy_raw_ipsets", "", "copy", "feeds", int64(len(names)))
+	defer progress.Finish()
 
 	generated := make([]output.GeneratedFile, 0, len(names))
 	for _, name := range names {
@@ -27,27 +29,34 @@ func (e *Engine) copyUpdatedIPSetsToWebContext(ctx context.Context, updatedNames
 			return nil, err
 		}
 		if !e.isPublicFeedName(name) {
+			progress.Add(1, int64(len(names)), nil)
 			continue
 		}
 		if !e.isRedistributable(name) {
+			progress.Add(1, int64(len(names)), nil)
 			continue
 		}
 		entry := e.state.EntrySnapshot(name)
 		if entry == nil || entry.File == "" {
+			progress.Add(1, int64(len(names)), nil)
 			continue
 		}
 		if !rawFeedFileMatches(name, entry.File) {
+			progress.Add(1, int64(len(names)), nil)
 			return nil, fmt.Errorf("set %q has unexpected materialized file %q", name, entry.File)
 		}
 		if _, ok := safeRuntimeFilePath(e.runtime.BaseDir, entry.File); !ok {
+			progress.Add(1, int64(len(names)), nil)
 			return nil, fmt.Errorf("set %q has unsafe materialized file %q", name, entry.File)
 		}
 		dst := filepath.Join(e.runtime.WebDirForIPSets, entry.File)
 		mod, err := copyFileViaNewContext(ctx, e.runtime.BaseDir, entry.File, dst, e.runtime.WebOwner)
 		if err != nil {
 			if os.IsNotExist(err) {
+				progress.Add(1, int64(len(names)), nil)
 				continue
 			}
+			progress.Add(1, int64(len(names)), nil)
 			return nil, err
 		}
 		generated = append(generated, output.GeneratedFile{
@@ -55,6 +64,7 @@ func (e *Engine) copyUpdatedIPSetsToWebContext(ctx context.Context, updatedNames
 			Timestamp:       mod.UTC(),
 			Redistributable: true,
 		})
+		progress.Add(1, int64(len(names)), nil)
 	}
 	return generated, nil
 }

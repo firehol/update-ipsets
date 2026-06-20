@@ -75,39 +75,49 @@ func (b *stagedPublishBatch) applyGeneratedFileTimestamps(files []output.Generat
 	return b.applyGeneratedFileTimestampsContext(context.Background(), files)
 }
 
-func (b *stagedPublishBatch) applyGeneratedFileTimestampsContext(ctx context.Context, files []output.GeneratedFile) error {
+func (b *stagedPublishBatch) applyGeneratedFileTimestampsContext(ctx context.Context, files []output.GeneratedFile, progress ...*activeOperationHandle) error {
 	ctx = nonNilContext(ctx)
 	if b == nil || len(files) == 0 {
 		return nil
+	}
+	var op *activeOperationHandle
+	if len(progress) > 0 {
+		op = progress[0]
 	}
 	for _, file := range files {
 		if err := contextErr(ctx); err != nil {
 			return err
 		}
-		if file.Timestamp.IsZero() {
-			continue
-		}
-		rel, err := filepath.Rel(b.liveDir, file.Path)
-		if err != nil {
-			return err
-		}
-		rel, ok := cleanPublishRel(rel)
-		if !ok {
-			continue
-		}
-		stagePath := filepath.Join(b.stageDir, rel)
-		info, err := os.Stat(stagePath)
-		if err != nil {
-			if os.IsNotExist(err) {
-				continue
+		if err := func() error {
+			defer op.Add(1, int64(len(files)), nil)
+			if file.Timestamp.IsZero() {
+				return nil
 			}
-			return err
-		}
-		if info.IsDir() {
-			continue
-		}
-		ts := file.Timestamp.UTC()
-		if err := os.Chtimes(stagePath, ts, ts); err != nil {
+			rel, err := filepath.Rel(b.liveDir, file.Path)
+			if err != nil {
+				return err
+			}
+			rel, ok := cleanPublishRel(rel)
+			if !ok {
+				return nil
+			}
+			stagePath := filepath.Join(b.stageDir, rel)
+			info, err := os.Stat(stagePath)
+			if err != nil {
+				if os.IsNotExist(err) {
+					return nil
+				}
+				return err
+			}
+			if info.IsDir() {
+				return nil
+			}
+			ts := file.Timestamp.UTC()
+			if err := os.Chtimes(stagePath, ts, ts); err != nil {
+				return err
+			}
+			return nil
+		}(); err != nil {
 			return err
 		}
 	}
@@ -118,13 +128,50 @@ func (b *stagedPublishBatch) publish() ([]string, error) {
 	return b.publishContext(context.Background())
 }
 
-func (b *stagedPublishBatch) publishContext(ctx context.Context) ([]string, error) {
+func (b *stagedPublishBatch) publishWorkTotal(ctx context.Context) (int64, error) {
+	ctx = nonNilContext(ctx)
+	if b == nil {
+		return 0, nil
+	}
+	if err := contextErr(ctx); err != nil {
+		return 0, err
+	}
+	var total int64
+	if err := filepath.WalkDir(b.stageDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if err := contextErr(ctx); err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		rel, err := filepath.Rel(b.stageDir, path)
+		if err != nil {
+			return err
+		}
+		if _, ok := cleanPublishRel(rel); ok {
+			total++
+		}
+		return nil
+	}); err != nil {
+		return 0, err
+	}
+	return total + int64(len(b.deletes)), nil
+}
+
+func (b *stagedPublishBatch) publishContext(ctx context.Context, progress ...*activeOperationHandle) ([]string, error) {
 	ctx = nonNilContext(ctx)
 	if b == nil {
 		return nil, nil
 	}
 	if err := contextErr(ctx); err != nil {
 		return nil, err
+	}
+	var op *activeOperationHandle
+	if len(progress) > 0 {
+		op = progress[0]
 	}
 	published := make([]string, 0, 32)
 	if err := filepath.WalkDir(b.stageDir, func(path string, d fs.DirEntry, err error) error {
@@ -155,6 +202,7 @@ func (b *stagedPublishBatch) publishContext(ctx context.Context) ([]string, erro
 			}
 			return nil
 		}
+		defer op.Add(1, -1, nil)
 		if err := os.MkdirAll(filepath.Dir(dst), generatedDirMode); err != nil {
 			return err
 		}
@@ -207,6 +255,7 @@ func (b *stagedPublishBatch) publishContext(ctx context.Context) ([]string, erro
 			if err := os.RemoveAll(dst); err != nil {
 				return nil, err
 			}
+			op.Add(1, -1, nil)
 			published = append(published, dst)
 			pruneEmptyPublishParents(filepath.Dir(dst), b.liveDir)
 		}

@@ -51,3 +51,43 @@ test("shows active processing progress with work size, completion, and rate", ()
     }),
   ).toHaveAttribute("aria-valuenow", "40");
 });
+
+test("shows phase-level progress when no feed-specific operation is active", () => {
+  const status = sampleAdminStatus({
+    engine: {
+      running: true,
+      current_phase: "metadata",
+      active_operations: [
+        {
+          operation: "metadata.write_per_feed_outputs",
+          phase: "metadata",
+          stage: "write",
+          unit: "feeds",
+          current: 5,
+          total: 10,
+          completion_pct: 50,
+          rate_per_second: 1.25,
+          started_at: "2026-06-20T10:00:00Z",
+        },
+      ],
+    },
+    queues: {
+      processing_active: [],
+    },
+  });
+
+  renderUI(
+    <CurrentRunPanel status={status} feeds={[]} onFeedClick={vi.fn()} />,
+  );
+
+  expect(screen.getByText("Metadata")).toBeVisible();
+  expect(screen.getByText("Writing feed metadata")).toBeVisible();
+  expect(screen.getByText("50%")).toBeVisible();
+  expect(screen.getByText("5 / 10 feeds")).toBeVisible();
+  expect(screen.getByText("1.3 feeds/s")).toBeVisible();
+  expect(
+    screen.getByRole("progressbar", {
+      name: /writing feed metadata progress/i,
+    }),
+  ).toHaveAttribute("aria-valuenow", "50");
+});

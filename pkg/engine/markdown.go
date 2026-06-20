@@ -43,6 +43,8 @@ func (e *Engine) writeMarkdownFilesForFeeds(ctx context.Context, feedNames []str
 		markdown.WithPreferredGEOProvider(e.preferredGeoProvider()),
 	)
 	var generated []output.GeneratedFile
+	progress := e.beginActiveOperation("metadata.write_markdown", "", "markdown", "feeds", int64(len(feedNames)))
+	defer progress.Finish()
 
 	for _, name := range feedNames {
 		if err := contextErr(ctx); err != nil {
@@ -51,12 +53,14 @@ func (e *Engine) writeMarkdownFilesForFeeds(ctx context.Context, feedNames []str
 		feedCtx, err := reader.BuildFeedContext(name)
 		if err != nil {
 			e.logger.Debug("markdown context build skipped", "feed", name, "error", err)
+			progress.Add(1, int64(len(feedNames)), nil)
 			continue
 		}
 
 		rel := e.publicFeedMarkdownRelPath(name)
 		if err := e.markdownTemplates.WriteToDir("feed.md.tmpl", feedCtx, outDir, rel); err != nil {
 			e.logger.Warn("markdown generation failed", "feed", name, "error", err)
+			progress.Add(1, int64(len(feedNames)), nil)
 			continue
 		}
 
@@ -65,6 +69,7 @@ func (e *Engine) writeMarkdownFilesForFeeds(ctx context.Context, feedNames []str
 			Redistributable: true,
 		})
 		e.logger.Debug("markdown generated", "feed", name, "path", rel)
+		progress.Add(1, int64(len(feedNames)), nil)
 	}
 
 	if len(generated) > 0 {

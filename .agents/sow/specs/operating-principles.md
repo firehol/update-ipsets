@@ -308,6 +308,12 @@ work, completion percentage, elapsed time, and rate in that unit per second.
 Run and phase summaries SHOULD include phase-scoped operation counts and rates
 instead of only process-wide cumulative counters.
 
+Every material engine phase SHOULD expose live active-operation progress for
+bounded loops while that phase is running. When a phase has no meaningful
+bounded work unit, it MUST still be visible through phase timing; the product
+MUST NOT invent synthetic totals that would hide the real absence of a bounded
+operation.
+
 At minimum, telemetry SHOULD cover:
 
 - download requests, HTTP statuses, and transferred bytes

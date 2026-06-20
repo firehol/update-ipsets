@@ -133,6 +133,8 @@ func (e *Engine) writeComparisonFiles(ctx context.Context, updatedNames []string
 func (e *Engine) prepareComparisonSetInfos(ctx context.Context, names []string, setCache *latestSetCache) ([]comparisonSetInfo, error) {
 	ctx = nonNilContext(ctx)
 	prepareStarted := time.Now()
+	progress := e.beginActiveOperation("metadata.prepare_comparison_sets", "", "prepare", "feeds", int64(len(names)))
+	defer progress.Finish()
 	infos := make([]comparisonSetInfo, 0, len(names))
 	for _, name := range names {
 		if err := contextErr(ctx); err != nil {
@@ -140,18 +142,22 @@ func (e *Engine) prepareComparisonSetInfos(ctx context.Context, names []string, 
 		}
 		snap := e.state.EntrySnapshot(name)
 		if snap == nil || !e.hasUsableSet(name) {
+			progress.Add(1, int64(len(names)), nil)
 			continue
 		}
 		src, err := setCache.Open(name)
 		if err != nil {
 			e.logger.Warn("comparison skipped: cannot open set", "set", name, "error", err)
+			progress.Add(1, int64(len(names)), nil)
 			continue
 		}
 		signature, err := buildComparisonSetSignatureContext(ctx, src.RangeSource)
 		if err != nil {
+			progress.Add(1, int64(len(names)), nil)
 			return nil, err
 		}
 		if ioErr := checkFileSetErr(src.RangeSource, name, e.logger); ioErr != nil {
+			progress.Add(1, int64(len(names)), nil)
 			continue
 		}
 		lo, hi, hasRange := rangeBounds(src)
@@ -166,6 +172,7 @@ func (e *Engine) prepareComparisonSetInfos(ctx context.Context, names []string, 
 			sparsePrefix: signature.sparsePrefix,
 			contentHash:  signature.contentHash,
 		})
+		progress.Add(1, int64(len(names)), nil)
 	}
 	e.observeRunOperation("metadata.comparison_prepare_sets", time.Since(prepareStarted))
 	return infos, nil
@@ -192,6 +199,11 @@ func (e *Engine) runComparisonPairs(ctx context.Context, infos []comparisonSetIn
 	if numWorkers < 1 {
 		numWorkers = 1
 	}
+	totalPairs := int64(len(infos) * (len(infos) - 1) / 2)
+	scanOp := e.beginActiveOperation("metadata.scan_comparison_pairs", "", "scan", "pairs", totalPairs)
+	defer scanOp.Finish()
+	compareOp := e.beginActiveOperation("metadata.compare_pairs", "", "compare", "candidate_pairs", 0)
+	defer compareOp.Finish()
 
 	pairCh := make(chan comparisonPair)
 	var pairMu sync.Mutex
@@ -204,6 +216,7 @@ func (e *Engine) runComparisonPairs(ctx context.Context, infos []comparisonSetIn
 		wg.Go(func() {
 			for pair := range pairCh {
 				result, ok := e.compareSetPair(ctx, pair, infos, setCache, stats)
+				compareOp.Add(1, -1, nil)
 				if !ok {
 					continue
 				}
@@ -217,6 +230,7 @@ func (e *Engine) runComparisonPairs(ctx context.Context, infos []comparisonSetIn
 sendPairs:
 	for i := 0; i < len(infos); i++ {
 		for j := i + 1; j < len(infos); j++ {
+			scanOp.Add(1, totalPairs, nil)
 			if ledger != nil {
 				stats.ledgerLookup.Add(1)
 				if common, ok := ledger.lookup(infos[i], infos[j]); ok {
@@ -234,11 +248,12 @@ sendPairs:
 					continue
 				}
 			}
-			stats.candidates++
 			select {
 			case <-ctx.Done():
 				break sendPairs
 			case pairCh <- comparisonPair{i: i, j: j}:
+				stats.candidates++
+				compareOp.Update(-1, stats.candidates, nil)
 			}
 		}
 	}
@@ -439,11 +454,15 @@ func (r *comparisonRelatedness) familyFor(name string) map[string]bool {
 
 func (e *Engine) writeMergedComparisonRows(outDir string, grouped map[string][]CompareRow) error {
 	var stats comparisonMergeStats
+	progress := e.beginActiveOperation("metadata.write_comparison_rows", "", "write", "feeds", int64(len(grouped)))
+	defer progress.Finish()
 	for name, group := range grouped {
 		started := time.Now()
 		if err := e.writeMergedComparisonRowsForFeed(outDir, name, group); err != nil {
+			progress.Add(1, int64(len(grouped)), nil)
 			return err
 		}
+		progress.Add(1, int64(len(grouped)), nil)
 		stats.record(time.Since(started))
 	}
 	if stats.count > 0 {

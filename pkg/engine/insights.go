@@ -71,13 +71,17 @@ func (e *Engine) writeInsights(name string, outDir string) error {
 // should not abort the heavy block.
 func (e *Engine) writeInsightsForFeeds(ctx context.Context, updatedNames []string, outDir string) error {
 	ctx = nonNilContext(ctx)
-	for _, name := range insightTargetNames(e.cfg, updatedNames, e.publicOutputNames(), outDir, e.outputDir()) {
+	targetNames := insightTargetNames(e.cfg, updatedNames, e.publicOutputNames(), outDir, e.outputDir())
+	progress := e.beginActiveOperation("insights.write_feeds", "", "write", "feeds", int64(len(targetNames)))
+	defer progress.Finish()
+	for _, name := range targetNames {
 		if err := contextErr(ctx); err != nil {
 			return err
 		}
 		if err := e.writeInsights(name, outDir); err != nil {
 			e.logger.Warn("insights write failed", "set", name, "error", err)
 		}
+		progress.Add(1, int64(len(targetNames)), nil)
 	}
 	return nil
 }

@@ -91,18 +91,21 @@ func (r *metadataWriteRun) writeComparisonOutputs(skipComparisons bool, comparis
 	r.e.observeRunOperation("metadata.write_comparison_files", time.Since(started))
 
 	started = time.Now()
-	r.e.updateUniqueShares(comparisonNames, r.outDir)
+	r.e.updateUniqueSharesContext(r.ctx, comparisonNames, r.outDir)
 	r.e.observeRunOperation("metadata.update_unique_shares", time.Since(started))
 	return nil
 }
 
 func (r *metadataWriteRun) writePublicMetadataList() error {
 	started := time.Now()
+	progress := r.e.beginActiveOperation("metadata.write_public_metadata", "", "write", "operations", 1)
+	defer progress.Finish()
 	metadataFiles, err := r.e.writePublicMetadataFiles(r.outDir, r.outputNames)
 	if err != nil {
 		r.e.observeRunOperation("metadata.write_public_metadata_files", time.Since(started))
 		return err
 	}
+	progress.Update(1, 1, nil)
 	r.e.observeRunOperation("metadata.write_public_metadata_files", time.Since(started))
 	for _, name := range metadataFiles {
 		r.addGenerated(filepath.Join(r.liveOutDir, name), r.e.now().UTC(), true)
@@ -112,6 +115,8 @@ func (r *metadataWriteRun) writePublicMetadataList() error {
 
 func (r *metadataWriteRun) writePerFeedOutputs() error {
 	started := time.Now()
+	progress := r.e.beginActiveOperation("metadata.write_per_feed_outputs", "", "write", "feeds", int64(len(r.outputNames)))
+	defer progress.Finish()
 	for _, name := range r.outputNames {
 		if err := contextErr(r.ctx); err != nil {
 			return err
@@ -119,6 +124,7 @@ func (r *metadataWriteRun) writePerFeedOutputs() error {
 		entry := r.e.state.Entry(name)
 		viewEntry := r.viewResolver.entry(name, entry)
 		if viewEntry == nil {
+			progress.Add(1, int64(len(r.outputNames)), nil)
 			continue
 		}
 		meta := r.e.buildSetMetadataFromEffectiveEntryInDirWithResolver(name, viewEntry, r.outDir, r.enableAll, r.viewResolver)
@@ -126,9 +132,11 @@ func (r *metadataWriteRun) writePerFeedOutputs() error {
 		r.addFeedIndexRows(name, viewEntry, meta, redistributable)
 		if _, ok := r.perFeedSet[name]; ok {
 			if err := r.writePerFeedArtifacts(name, viewEntry, meta, redistributable); err != nil {
+				progress.Add(1, int64(len(r.outputNames)), nil)
 				return err
 			}
 		}
+		progress.Add(1, int64(len(r.outputNames)), nil)
 	}
 	r.e.observeRunOperation("metadata.write_per_feed_outputs", time.Since(started))
 	return nil
@@ -206,6 +214,8 @@ func (r *metadataWriteRun) writePerFeedDerivativeArtifacts(name string, processe
 
 func (r *metadataWriteRun) writeIndexOutputs() error {
 	started := time.Now()
+	progress := r.e.beginActiveOperation("metadata.write_indexes", "", "write", "files", 2)
+	defer progress.Finish()
 	data, err := jsonMarshalTabIndent(r.index)
 	if err != nil {
 		return err
@@ -215,6 +225,7 @@ func (r *metadataWriteRun) writeIndexOutputs() error {
 		return err
 	}
 	r.addGenerated(filepath.Join(r.liveOutDir, "index.json"), r.e.now().UTC(), true)
+	progress.Add(1, 2, nil)
 
 	data, err = jsonMarshalTabIndent(r.allIPSets)
 	if err != nil {
@@ -225,21 +236,27 @@ func (r *metadataWriteRun) writeIndexOutputs() error {
 		return err
 	}
 	r.addGenerated(filepath.Join(r.liveOutDir, "all-ipsets.json"), r.e.now().UTC(), true)
+	progress.Add(1, 2, nil)
 	r.e.observeRunOperation("metadata.write_indexes", time.Since(started))
 	return nil
 }
 
 func (r *metadataWriteRun) writeGitArtifacts() error {
 	started := time.Now()
+	progress := r.e.beginActiveOperation("metadata.write_git_artifacts", "", "write", "files", 3)
+	defer progress.Finish()
 	if err := output.WriteREADME(r.e.runtime.BaseDir, r.setInfo); err != nil {
 		return err
 	}
+	progress.Add(1, 3, nil)
 	if err := output.WriteGitIgnore(r.e.runtime.BaseDir, r.generated); err != nil {
 		return err
 	}
+	progress.Add(1, 3, nil)
 	if err := output.WriteTimestampScript(r.e.runtime.BaseDir, r.timestampFiles); err != nil {
 		return err
 	}
+	progress.Add(1, 3, nil)
 	r.e.observeRunOperation("metadata.write_git_artifacts", time.Since(started))
 	return nil
 }

@@ -128,20 +128,26 @@ func (e *Engine) buildHomeAggregatesInDir(ctx context.Context, inputDir string) 
 	view := newEntityOutputView(e, inputDir)
 
 	categories := map[string]*homeMutableCategoryAggregate{}
-	for _, entry := range e.EntriesSnapshot() {
+	entries := e.EntriesSnapshot()
+	progress := e.beginActiveOperation("metadata.write_home_aggregates", "", "aggregate", "feeds", int64(len(entries)))
+	defer progress.Finish()
+	for _, entry := range entries {
 		if err := contextErr(ctx); err != nil {
 			return nil, err
 		}
 		src := e.lookupSource(entry.Name)
 		if !homeSummaryEligible(e.cfg, src, nil) {
+			progress.Add(1, int64(len(entries)), nil)
 			continue
 		}
 		health := feedhealth.Classify(&entry, src, policy, now)
 		if !homeGlobeHealthEligible(health.Class) {
+			progress.Add(1, int64(len(entries)), nil)
 			continue
 		}
 		category := strings.TrimSpace(src.Category)
 		if category == "" {
+			progress.Add(1, int64(len(entries)), nil)
 			continue
 		}
 		agg := categories[category]
@@ -157,6 +163,7 @@ func (e *Engine) buildHomeAggregatesInDir(ctx context.Context, inputDir string) 
 		if geoProvider != "" {
 			payload, err := view.countryComparison(entry.Name, geoProvider)
 			if err != nil && !errors.Is(err, os.ErrNotExist) {
+				progress.Add(1, int64(len(entries)), nil)
 				return nil, fmt.Errorf("read homepage country aggregate input for %s/%s: %w", entry.Name, geoProvider, err)
 			}
 			if err == nil && payload != nil {
@@ -176,6 +183,7 @@ func (e *Engine) buildHomeAggregatesInDir(ctx context.Context, inputDir string) 
 		if asnProvider != "" {
 			asnPayload, err := view.topASNsWithError(entry.Name, asnProvider)
 			if err != nil && !errors.Is(err, os.ErrNotExist) {
+				progress.Add(1, int64(len(entries)), nil)
 				return nil, fmt.Errorf("read homepage ASN aggregate input for %s/%s: %w", entry.Name, asnProvider, err)
 			}
 			seen := map[uint32]struct{}{}
@@ -192,6 +200,7 @@ func (e *Engine) buildHomeAggregatesInDir(ctx context.Context, inputDir string) 
 		if contributed {
 			agg.contributingFeeds++
 		}
+		progress.Add(1, int64(len(entries)), nil)
 	}
 
 	payload := &homeAggregatesPayload{

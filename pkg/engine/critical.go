@@ -403,31 +403,36 @@ func (e *Engine) loadCriticalInfrastructureSources(ctx context.Context, provider
 		Providers:     make(map[string]*criticalProviderSet, len(sources)),
 		ProviderSetID: providerSetID,
 	}
+	loadOp := e.beginActiveOperation("critical.load_providers", "", "load", "providers", int64(len(sources)))
+	defer loadOp.Finish()
 	for _, src := range sources {
 		if err := contextErr(ctx); err != nil {
 			out.closeAll()
 			return nil, err
 		}
-		if src == nil || src.Critical == nil {
-			continue
-		}
-		name := src.Name
-		out.Configured = append(out.Configured, name)
-		latest, err := e.openLatestSet(ctx, name)
-		if err != nil {
-			e.logger.Warn("critical infrastructure source skipped: latest set not available",
-				"source", name, "error", err)
-			out.Missing = append(out.Missing, criticalMissingProviderJSON{Name: name, Reason: err.Error()})
-			continue
-		}
-		out.Providers[name] = &criticalProviderSet{
-			Name:          name,
-			Meta:          criticalProviderFromSource(src),
-			Set:           latest.RangeSource,
-			overlapFilter: buildRangeOverlapFilter(latest.RangeSource),
-			sources:       []*closableSource{latest},
-		}
-		out.Names = append(out.Names, name)
+		func() {
+			defer loadOp.Add(1, int64(len(sources)), nil)
+			if src == nil || src.Critical == nil {
+				return
+			}
+			name := src.Name
+			out.Configured = append(out.Configured, name)
+			latest, err := e.openLatestSet(ctx, name)
+			if err != nil {
+				e.logger.Warn("critical infrastructure source skipped: latest set not available",
+					"source", name, "error", err)
+				out.Missing = append(out.Missing, criticalMissingProviderJSON{Name: name, Reason: err.Error()})
+				return
+			}
+			out.Providers[name] = &criticalProviderSet{
+				Name:          name,
+				Meta:          criticalProviderFromSource(src),
+				Set:           latest.RangeSource,
+				overlapFilter: buildRangeOverlapFilter(latest.RangeSource),
+				sources:       []*closableSource{latest},
+			}
+			out.Names = append(out.Names, name)
+		}()
 	}
 	return out, nil
 }
@@ -452,6 +457,8 @@ func (e *Engine) writeCriticalInfrastructureFiles(ctx context.Context, datasets 
 	if len(targetNames) == 0 {
 		return nil
 	}
+	compareOp := e.beginActiveOperation("critical.write_comparisons", "", "compare", "feeds", int64(len(targetNames)))
+	defer compareOp.Finish()
 
 	numWorkers := e.runtime.HeavyPhaseWorkers()
 	if numWorkers < 1 {
@@ -465,6 +472,7 @@ func (e *Engine) writeCriticalInfrastructureFiles(ctx context.Context, datasets 
 		if err := contextErr(ctx); err != nil {
 			return err
 		}
+		defer compareOp.Add(1, int64(len(targetNames)), nil)
 		tiers, err := e.writeCriticalInfrastructureForFeed(name, datasets, outDir, setCache)
 		if err != nil {
 			return err

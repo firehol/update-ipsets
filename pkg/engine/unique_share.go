@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 
@@ -27,6 +28,11 @@ import (
 // Errors loading an individual comparison file are logged and skipped;
 // a missing or malformed file leaves the cached fields untouched.
 func (e *Engine) updateUniqueShares(names []string, outDir string) {
+	e.updateUniqueSharesContext(context.Background(), names, outDir)
+}
+
+func (e *Engine) updateUniqueSharesContext(ctx context.Context, names []string, outDir string) {
+	ctx = nonNilContext(ctx)
 	if e == nil || e.cfg == nil {
 		return
 	}
@@ -40,6 +46,8 @@ func (e *Engine) updateUniqueShares(names []string, outDir string) {
 	if targets == nil {
 		targets = e.publicOutputNames()
 	}
+	progress := e.beginActiveOperation("metadata.update_unique_shares", "", "update", "feeds", int64(len(targets)))
+	defer progress.Finish()
 
 	liveOutDir := e.outputDir()
 
@@ -73,12 +81,17 @@ func (e *Engine) updateUniqueShares(names []string, outDir string) {
 	}
 
 	for _, name := range targets {
+		if err := contextErr(ctx); err != nil {
+			return
+		}
 		entry := e.state.Entry(name)
 		if entry == nil {
+			progress.Add(1, int64(len(targets)), nil)
 			continue
 		}
 		selfSrc := e.lookupSource(name)
 		if selfSrc == nil {
+			progress.Add(1, int64(len(targets)), nil)
 			continue
 		}
 		selfMaintainer := strings.TrimSpace(strings.ToLower(entry.Maintainer))
@@ -86,14 +99,17 @@ func (e *Engine) updateUniqueShares(names []string, outDir string) {
 		rel := name + "_comparison.json"
 		data, err := readFirstExisting(singleCandidatePath(outDir, rel), singleCandidatePath(liveOutDir, rel))
 		if err != nil {
+			progress.Add(1, int64(len(targets)), nil)
 			continue
 		}
 		var rows []CompareRow
 		if err := json.Unmarshal(data, &rows); err != nil {
+			progress.Add(1, int64(len(targets)), nil)
 			continue
 		}
 		if entry.UniqueIPs == 0 {
 			applyUniqueShareResult(e.state, name, 0, 0)
+			progress.Add(1, int64(len(targets)), nil)
 			continue
 		}
 
@@ -135,6 +151,7 @@ func (e *Engine) updateUniqueShares(names []string, outDir string) {
 			unique = 100.0
 		}
 		applyUniqueShareResult(e.state, name, unique, samples)
+		progress.Add(1, int64(len(targets)), nil)
 	}
 }
 
