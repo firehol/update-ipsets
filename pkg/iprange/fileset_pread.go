@@ -22,7 +22,7 @@ type preadFileSet struct {
 }
 
 // openFileSetPread opens a pread-backed FileSet. Available on all platforms.
-func openFileSetPread(f *os.File, path string, fileSize int64, hdr binaryHeader) (FileSet, error) {
+func openFileSetPread(f *os.File, path string, fileSize int64, hdr binaryHeader, opts FileSetOpenOptions) (FileSet, error) {
 	if fileSize == 0 || hdr.records == 0 {
 		_ = f.Close()
 		return &emptyFileSet{}, nil
@@ -36,13 +36,15 @@ func openFileSetPread(f *os.File, path string, fileSize int64, hdr binaryHeader)
 
 	rangesOffset := hdr.dataOffset + 4 // skip the 4-byte marker
 
-	// Validate that ranges are sorted and non-overlapping.
-	preadRead := func(i int) (Range, error) {
-		return readRangeAt(f, rangesOffset, i)
-	}
-	if err := validateSortedRanges(hdr.records, preadRead); err != nil {
-		_ = f.Close()
-		return nil, fmt.Errorf("%s: payload validation: %w", path, err)
+	if !opts.TrustOptimizedPayload {
+		// Validate that ranges are sorted and non-overlapping.
+		preadRead := func(i int) (Range, error) {
+			return readRangeAt(f, rangesOffset, i)
+		}
+		if err := validateSortedRanges(hdr.records, preadRead); err != nil {
+			_ = f.Close()
+			return nil, fmt.Errorf("%s: payload validation: %w", path, err)
+		}
 	}
 
 	return &preadFileSet{

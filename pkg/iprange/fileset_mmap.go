@@ -29,19 +29,19 @@ type mmapFileSet struct {
 // openFileSetPlatform tries mmap first; falls back to pread on mmap
 // syscall failure only. Data validation errors are not retried because
 // the data is corrupt regardless of the I/O backend.
-func openFileSetPlatform(f *os.File, path string, fileSize int64, hdr binaryHeader) (FileSet, error) {
+func openFileSetPlatform(f *os.File, path string, fileSize int64, hdr binaryHeader, opts FileSetOpenOptions) (FileSet, error) {
 	if fileSize == 0 || hdr.records == 0 {
 		_ = f.Close()
 		return &emptyFileSet{}, nil
 	}
 
-	fs, err := openFileSetMmap(f, path, fileSize, hdr)
+	fs, err := openFileSetMmap(f, path, fileSize, hdr, opts)
 	if err != nil {
 		// Only fall back to pread when the mmap syscall itself failed
 		// (fd still open). Validation errors mean corrupt data.
 		var mmapErr *errMmapSyscall
 		if errors.As(err, &mmapErr) {
-			return openFileSetPread(f, path, fileSize, hdr)
+			return openFileSetPread(f, path, fileSize, hdr, opts)
 		}
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (e *errMmapSyscall) Unwrap() error { return e.err }
 // openFileSetMmap maps the entire file read-only. On mmap syscall failure
 // the fd is left open for pread fallback. On data validation failure the
 // fd is closed (data is bad regardless of backend).
-func openFileSetMmap(f *os.File, path string, fileSize int64, hdr binaryHeader) (FileSet, error) {
+func openFileSetMmap(f *os.File, path string, fileSize int64, hdr binaryHeader, opts FileSetOpenOptions) (FileSet, error) {
 	data, err := unix.Mmap(int(f.Fd()), 0, int(fileSize), unix.PROT_READ, unix.MAP_PRIVATE)
 	if err != nil {
 		// Mmap syscall failed — fd still open, caller can fall back to pread.
@@ -81,15 +81,17 @@ func openFileSetMmap(f *os.File, path string, fileSize int64, hdr binaryHeader) 
 
 	rangesData := data[rangeStart : rangeStart+hdr.records*8]
 
-	// Validate that ranges are sorted and non-overlapping. For mmap this
-	// is just pointer arithmetic over the mapped region — no extra I/O.
-	mmapRead := func(i int) (Range, error) {
-		off := i * 8
-		return decodeRange(rangesData[off : off+8]), nil
-	}
-	if err := validateSortedRanges(hdr.records, mmapRead); err != nil {
-		_ = unix.Munmap(data)
-		return nil, fmt.Errorf("%s: payload validation: %w", path, err)
+	if !opts.TrustOptimizedPayload {
+		// Validate that ranges are sorted and non-overlapping. For mmap this
+		// is just pointer arithmetic over the mapped region — no extra I/O.
+		mmapRead := func(i int) (Range, error) {
+			off := i * 8
+			return decodeRange(rangesData[off : off+8]), nil
+		}
+		if err := validateSortedRanges(hdr.records, mmapRead); err != nil {
+			_ = unix.Munmap(data)
+			return nil, fmt.Errorf("%s: payload validation: %w", path, err)
+		}
 	}
 
 	return &mmapFileSet{

@@ -201,6 +201,70 @@ func BenchmarkFileSetIter(b *testing.B) {
 	}
 }
 
+func BenchmarkReadFileSetMetadata(b *testing.B) {
+	for _, size := range []int{1_000, 10_000, 100_000} {
+		b.Run(fmt.Sprintf("n=%d", size), func(b *testing.B) {
+			path := benchFileSetFromRanges(b, size)
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				meta, err := ReadFileSetMetadata(path)
+				if err != nil {
+					b.Fatal(err)
+				}
+				if meta.Records == 0 {
+					b.Fatal("empty metadata")
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkOpenFileSetStrict(b *testing.B) {
+	for _, size := range []int{1_000, 10_000, 100_000} {
+		b.Run(fmt.Sprintf("n=%d", size), func(b *testing.B) {
+			path := benchFileSetFromRanges(b, size)
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				fs, err := OpenFileSet(path)
+				if err != nil {
+					b.Fatal(err)
+				}
+				if fs.Len() == 0 {
+					b.Fatal("empty fileset")
+				}
+				if err := fs.Close(); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkOpenFileSetTrusted(b *testing.B) {
+	for _, size := range []int{1_000, 10_000, 100_000} {
+		b.Run(fmt.Sprintf("n=%d", size), func(b *testing.B) {
+			path := benchFileSetFromRanges(b, size)
+			opts := FileSetOpenOptions{TrustOptimizedPayload: true}
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				fs, err := OpenFileSetWithOptions(path, opts)
+				if err != nil {
+					b.Fatal(err)
+				}
+				if fs.Len() == 0 {
+					b.Fatal("empty fileset")
+				}
+				if err := fs.Close(); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkSetIter(b *testing.B) {
 	for _, size := range []int{1000, 10_000, 100_000} {
 		b.Run(fmt.Sprintf("n=%d", size), func(b *testing.B) {
@@ -380,6 +444,20 @@ func BenchmarkExcludeIterInMemory(b *testing.B) {
 			b.ResetTimer()
 			for b.Loop() {
 				for range ExcludeIter(a, bb) {
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkExcludeIterFileSet(b *testing.B) {
+	for _, size := range []int{1_000, 10_000, 100_000} {
+		b.Run(fmt.Sprintf("n=%d", size), func(b *testing.B) {
+			fsA, fsB := benchPairFileSets(b, size)
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				for range ExcludeIter(fsA, fsB) {
 				}
 			}
 		})

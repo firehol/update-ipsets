@@ -59,6 +59,90 @@ func TestFileSetRoundTrip(t *testing.T) {
 	}
 }
 
+func TestReadFileSetMetadata(t *testing.T) {
+	set := newOptimizedSet("metadata",
+		Range{Lo: 100, Hi: 200},
+		Range{Lo: 300, Hi: 400},
+		Range{Lo: 1000, Hi: 2000},
+	)
+	path := writeTempSet(t, set)
+
+	meta, err := ReadFileSetMetadata(path)
+	if err != nil {
+		t.Fatalf("ReadFileSetMetadata() error = %v", err)
+	}
+	if !meta.Optimized {
+		t.Fatal("metadata should report optimized payload")
+	}
+	if meta.RecordSize != 8 {
+		t.Fatalf("RecordSize = %d, want 8", meta.RecordSize)
+	}
+	if meta.Records != len(set.Ranges) {
+		t.Fatalf("Records = %d, want %d", meta.Records, len(set.Ranges))
+	}
+	if meta.PayloadBytes != len(set.Ranges)*8+4 {
+		t.Fatalf("PayloadBytes = %d, want %d", meta.PayloadBytes, len(set.Ranges)*8+4)
+	}
+	if meta.Lines != set.Lines {
+		t.Fatalf("Lines = %d, want %d", meta.Lines, set.Lines)
+	}
+	if meta.UniqueIPs != set.UniqueIPs {
+		t.Fatalf("UniqueIPs = %d, want %d", meta.UniqueIPs, set.UniqueIPs)
+	}
+
+	emptyPath := filepath.Join(t.TempDir(), "empty.set")
+	if err := os.WriteFile(emptyPath, nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	emptyMeta, err := ReadFileSetMetadata(emptyPath)
+	if err != nil {
+		t.Fatalf("ReadFileSetMetadata(empty) error = %v", err)
+	}
+	if emptyMeta.Records != 0 || emptyMeta.UniqueIPs != 0 || emptyMeta.PayloadBytes != 0 {
+		t.Fatalf("empty metadata = %+v, want zero counters", emptyMeta)
+	}
+}
+
+func TestFileSetTrustedOpenSkipsSortedValidationOnlyWhenRequested(t *testing.T) {
+	set := newOptimizedSet("trusted",
+		Range{Lo: 10, Hi: 20},
+		Range{Lo: 30, Hi: 40},
+		Range{Lo: 50, Hi: 60},
+	)
+	path := writeUnsortedBinaryPayload(t, writeTempSet(t, set))
+
+	if _, err := OpenFileSet(path); err == nil {
+		t.Fatal("strict OpenFileSet should reject unsorted optimized payload")
+	}
+
+	meta, err := ReadFileSetMetadata(path)
+	if err != nil {
+		t.Fatalf("ReadFileSetMetadata() should accept structurally valid payload metadata: %v", err)
+	}
+	if meta.Records != len(set.Ranges) || meta.UniqueIPs != set.UniqueIPs {
+		t.Fatalf("metadata = %+v, want records=%d unique=%d", meta, len(set.Ranges), set.UniqueIPs)
+	}
+
+	fs, err := OpenFileSetWithOptions(path, FileSetOpenOptions{TrustOptimizedPayload: true})
+	if err != nil {
+		t.Fatalf("trusted OpenFileSetWithOptions() error = %v", err)
+	}
+	defer func() { _ = fs.Close() }()
+	if fs.Len() != len(set.Ranges) {
+		t.Fatalf("Len = %d, want %d", fs.Len(), len(set.Ranges))
+	}
+	if fs.UniqueIPs() != set.UniqueIPs {
+		t.Fatalf("UniqueIPs = %d, want %d", fs.UniqueIPs(), set.UniqueIPs)
+	}
+	first, err := fs.Range(0)
+	if err != nil {
+		t.Fatalf("Range(0): %v", err)
+	}
+	if first != set.Ranges[1] {
+		t.Fatalf("trusted open should expose payload as stored: first range = %v, want %v", first, set.Ranges[1])
+	}
+}
+
 func TestFileSetContains(t *testing.T) {
 	set := newOptimizedSet("contains",
 		Range{Lo: 100, Hi: 120},
@@ -264,6 +348,9 @@ func TestFileSetCorruptedTruncated(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for truncated file")
 	}
+	if _, err = ReadFileSetMetadata(truncPath); err == nil {
+		t.Fatal("expected metadata error for truncated file")
+	}
 }
 
 func TestFileSetCorruptedBadMagic(t *testing.T) {
@@ -307,6 +394,9 @@ func TestFileSetCorruptedWrongEndianness(t *testing.T) {
 	_, err = OpenFileSet(flipPath)
 	if err == nil {
 		t.Fatal("expected error for wrong endianness")
+	}
+	if _, err = ReadFileSetMetadata(flipPath); err == nil {
+		t.Fatal("expected metadata error for wrong endianness")
 	}
 }
 
@@ -485,4 +575,32 @@ func TestFileSetCorruptedExtraBytes(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for file with extra trailing bytes")
 	}
+}
+
+func writeUnsortedBinaryPayload(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var marker [4]byte
+	nativeEndian.PutUint32(marker[:], binaryEndiannessMarker)
+	idx := bytes.Index(data, marker[:])
+	if idx < 0 {
+		t.Fatal("could not find endianness marker in binary data")
+	}
+	firstRange := idx + len(marker)
+	if len(data) < firstRange+16 {
+		t.Fatalf("binary payload too short to swap ranges: %d bytes", len(data)-firstRange)
+	}
+	var tmp [8]byte
+	copy(tmp[:], data[firstRange:firstRange+8])
+	copy(data[firstRange:firstRange+8], data[firstRange+8:firstRange+16])
+	copy(data[firstRange+8:firstRange+16], tmp[:])
+
+	out := filepath.Join(t.TempDir(), "unsorted.set")
+	if err := os.WriteFile(out, data, 0600); err != nil {
+		t.Fatal(err)
+	}
+	return out
 }

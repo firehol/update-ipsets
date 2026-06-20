@@ -401,7 +401,7 @@ func TestFileSetPreadBackendRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fs, err := openFileSetPread(f, path, fi.Size(), hdr)
+	fs, err := openFileSetPread(f, path, fi.Size(), hdr, FileSetOpenOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -464,7 +464,7 @@ func TestFileSetPreadConcurrentCloseRead(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		fs, err := openFileSetPread(f, path, fi.Size(), hdr)
+		fs, err := openFileSetPread(f, path, fi.Size(), hdr, FileSetOpenOptions{})
 		if err != nil {
 			t.Fatal(err)
 		}

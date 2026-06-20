@@ -137,6 +137,15 @@ their destination or atomic staging file with fixed-size buffers. They MUST NOT
 build an additional whole-file byte slice or whole-payload range byte slice on
 top of the active `IPSet` being persisted.
 
+When a caller only needs binary set counters, it SHOULD read file-set metadata
+from the header and endianness marker without mapping, scanning, or validating
+the full range payload. Strict file-set opening MUST continue to validate that
+optimized payload ranges are sorted and non-overlapping. Explicit trusted
+internal opening MAY skip that O(n) sortedness validation only for
+application-generated optimized `.set` artifacts, and MUST still validate the
+header, exact file size, and endianness marker before exposing the file-backed
+range source.
+
 ## Publication I/O contract
 
 Public artifact, entity artifact, and raw mirror publication SHOULD avoid

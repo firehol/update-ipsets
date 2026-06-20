@@ -65,6 +65,18 @@ func IntersectIter(a, b RangeSource) func(yield func(Range) bool) {
 		}
 	}
 	return func(yield func(Range) bool) {
+		if indexed, unlock, ok, err := indexedRangeSources([]RangeSource{a, b}); ok {
+			if err != nil {
+				if unlock != nil {
+					unlock()
+				}
+				return
+			}
+			defer unlock()
+			intersectIndexedIter(indexed[0], indexed[1], yield)
+			return
+		}
+
 		nextA, stopA := iter.Pull(a.Iter())
 		defer stopA()
 		nextB, stopB := iter.Pull(b.Iter())
@@ -123,6 +135,18 @@ func ExcludeIter(a, b RangeSource) func(yield func(Range) bool) {
 		}
 	}
 	return func(yield func(Range) bool) {
+		if indexed, unlock, ok, err := indexedRangeSources([]RangeSource{a, b}); ok {
+			if err != nil {
+				if unlock != nil {
+					unlock()
+				}
+				return
+			}
+			defer unlock()
+			_ = excludeIndexed(context.Background(), indexed[0], indexed[1], yield)
+			return
+		}
+
 		nextA, stopA := iter.Pull(a.Iter())
 		defer stopA()
 		nextB, stopB := iter.Pull(b.Iter())
@@ -189,6 +213,18 @@ func DiffIter(a, b RangeSource) func(yield func(Range) bool) {
 		}
 	}
 	return func(yield func(Range) bool) {
+		if indexed, unlock, ok, err := indexedRangeSources([]RangeSource{a, b}); ok {
+			if err != nil {
+				if unlock != nil {
+					unlock()
+				}
+				return
+			}
+			defer unlock()
+			diffIndexedIter(indexed[0], indexed[1], yield)
+			return
+		}
+
 		nextA, stopA := iter.Pull(a.Iter())
 		defer stopA()
 		nextB, stopB := iter.Pull(b.Iter())
@@ -316,6 +352,18 @@ func unionTwo(a, b RangeSource) func(yield func(Range) bool) {
 		}
 	}
 	return func(yield func(Range) bool) {
+		if indexed, unlock, ok, err := indexedRangeSources([]RangeSource{a, b}); ok {
+			if err != nil {
+				if unlock != nil {
+					unlock()
+				}
+				return
+			}
+			defer unlock()
+			unionTwoIndexedIter(indexed[0], indexed[1], yield)
+			return
+		}
+
 		nextA, stopA := iter.Pull(a.Iter())
 		defer stopA()
 		nextB, stopB := iter.Pull(b.Iter())
@@ -649,6 +697,18 @@ func (h *mergeHeap) Pop() any {
 // unionKWay merges k sorted range sources using a min-heap.
 func unionKWay(sources []RangeSource) func(yield func(Range) bool) {
 	return func(yield func(Range) bool) {
+		if indexed, unlock, ok, err := indexedRangeSources(sources); ok {
+			if err != nil {
+				if unlock != nil {
+					unlock()
+				}
+				return
+			}
+			defer unlock()
+			unionKWayIndexedIter(indexed, yield)
+			return
+		}
+
 		h := make(mergeHeap, 0, len(sources))
 		var stops []func()
 

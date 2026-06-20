@@ -331,7 +331,96 @@ func TestIterOpsMixedSources(t *testing.T) {
 	}
 	defer func() { _ = fsB.Close() }()
 
-	got := collectIter(IntersectIter(a, fsB))
-	want := collectIter(IntersectIter(a, b))
-	expectRangeSlice(t, "mixed IntersectIter", got, want)
+	for _, tc := range []struct {
+		name string
+		got  []Range
+		want []Range
+	}{
+		{
+			name: "IntersectIter memory_fileset",
+			got:  collectIter(IntersectIter(a, fsB)),
+			want: collectIter(IntersectIter(a, b)),
+		},
+		{
+			name: "IntersectIter fileset_memory",
+			got:  collectIter(IntersectIter(fsB, a)),
+			want: collectIter(IntersectIter(b, a)),
+		},
+		{
+			name: "ExcludeIter memory_fileset",
+			got:  collectIter(ExcludeIter(a, fsB)),
+			want: collectIter(ExcludeIter(a, b)),
+		},
+		{
+			name: "ExcludeIter fileset_memory",
+			got:  collectIter(ExcludeIter(fsB, a)),
+			want: collectIter(ExcludeIter(b, a)),
+		},
+		{
+			name: "DiffIter memory_fileset",
+			got:  collectIter(DiffIter(a, fsB)),
+			want: collectIter(DiffIter(a, b)),
+		},
+		{
+			name: "DiffIter fileset_memory",
+			got:  collectIter(DiffIter(fsB, a)),
+			want: collectIter(DiffIter(b, a)),
+		},
+		{
+			name: "UnionIter memory_fileset",
+			got:  collectIter(UnionIter(a, fsB)),
+			want: collectIter(UnionIter(a, b)),
+		},
+		{
+			name: "UnionIter fileset_memory",
+			got:  collectIter(UnionIter(fsB, a)),
+			want: collectIter(UnionIter(b, a)),
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			expectRangeSlice(t, tc.name, tc.got, tc.want)
+		})
+	}
+
+	if got, want := OverlapCountIter(a, fsB), OverlapCountIter(a, b); got != want {
+		t.Fatalf("OverlapCountIter memory_fileset = %d, want %d", got, want)
+	}
+	if got, want := OverlapCountIter(fsB, a), OverlapCountIter(b, a); got != want {
+		t.Fatalf("OverlapCountIter fileset_memory = %d, want %d", got, want)
+	}
+}
+
+func TestUnionIterFileSetKWayMatchesInMemory(t *testing.T) {
+	a := setFromRanges("a",
+		Range{Lo: 1, Hi: 10},
+		Range{Lo: 40, Hi: 50},
+	)
+	b := setFromRanges("b",
+		Range{Lo: 8, Hi: 20},
+		Range{Lo: 70, Hi: 80},
+	)
+	c := setFromRanges("c",
+		Range{Lo: 21, Hi: 30},
+		Range{Lo: 45, Hi: 75},
+	)
+
+	fsA, err := OpenFileSet(writeTempSet(t, a))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = fsA.Close() }()
+	fsB, err := OpenFileSet(writeTempSet(t, b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = fsB.Close() }()
+	fsC, err := OpenFileSet(writeTempSet(t, c))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = fsC.Close() }()
+
+	want := collectIter(UnionIter(a, b, c))
+	expectRangeSlice(t, "fileset k-way union", collectIter(UnionIter(fsA, fsB, fsC)), want)
+	expectRangeSlice(t, "mixed k-way union", collectIter(UnionIter(a, fsB, fsC)), want)
 }

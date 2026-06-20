@@ -205,7 +205,7 @@ func (e *Engine) retentionCohortPath(name string, addedAt int64) (string, string
 }
 
 func openRetentionCohortSet(ctx context.Context, name, rootDir, rel, path string) (*closableSource, error) {
-	fs, err := iprange.OpenFileSet(path)
+	fs, err := iprange.OpenFileSetWithOptions(path, iprange.FileSetOpenOptions{TrustOptimizedPayload: true})
 	if err == nil {
 		return &closableSource{RangeSource: fs, close: fs.Close}, nil
 	}

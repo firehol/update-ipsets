@@ -59,6 +59,26 @@ type FileSet interface {
 	Close() error
 }
 
+// FileSetOpenOptions controls optional FileSet opening behavior.
+type FileSetOpenOptions struct {
+	// TrustOptimizedPayload skips the O(n) sorted/non-overlap payload scan.
+	// Use only for internally generated .set files whose writer path already
+	// guarantees optimized payload order. Header, size, and endianness checks
+	// still run.
+	TrustOptimizedPayload bool
+}
+
+// FileSetMetadata is the header-level metadata stored in an optimized .set
+// file. It can be read without scanning or mapping the full payload.
+type FileSetMetadata struct {
+	Optimized    bool
+	RecordSize   int
+	Records      int
+	PayloadBytes int
+	Lines        int
+	UniqueIPs    uint64
+}
+
 // binaryHeader holds metadata parsed from the text header of a .set file.
 type binaryHeader struct {
 	optimized  bool
@@ -239,6 +259,13 @@ func parseUint64(s string) (uint64, error) {
 //
 // A zero-byte file is treated as an empty set (0 ranges, 0 unique IPs).
 func OpenFileSet(path string) (FileSet, error) {
+	return OpenFileSetWithOptions(path, FileSetOpenOptions{})
+}
+
+// OpenFileSetWithOptions opens a binary .set file for read-only, out-of-core
+// access using explicit options. The zero-value options preserve the strict
+// OpenFileSet behavior.
+func OpenFileSetWithOptions(path string, opts FileSetOpenOptions) (FileSet, error) {
 	f, err := os.Open(path) // nosemgrep: exported local fileset API; callers intentionally provide the binary set path.
 	if err != nil {
 		return nil, err
@@ -271,18 +298,69 @@ func OpenFileSet(path string) (FileSet, error) {
 		return nil, fmt.Errorf("%s: %w", path, ErrNotOptimized)
 	}
 
-	// The binary payload is: 4 bytes endianness marker + records*8 bytes.
-	expectedSize := hdr.dataOffset + 4 + int64(hdr.records)*8
+	expectedSize := expectedFileSetSize(hdr)
 	if fileSize != expectedSize {
 		_ = f.Close()
 		return nil, fmt.Errorf("%s: file size %d does not match expected %d", path, fileSize, expectedSize)
 	}
 
-	fs, err := openFileSetPlatform(f, path, fileSize, hdr)
+	fs, err := openFileSetPlatform(f, path, fileSize, hdr, opts)
 	if err != nil {
 		return nil, err
 	}
 	return fs, nil
+}
+
+// ReadFileSetMetadata reads the binary .set header metadata without scanning
+// the range payload. It performs structural validation only: header parse,
+// optimized marker, exact file size, and endianness marker.
+func ReadFileSetMetadata(path string) (FileSetMetadata, error) {
+	f, err := os.Open(path) // nosemgrep: exported local fileset API; callers intentionally provide the binary set path.
+	if err != nil {
+		return FileSetMetadata{}, err
+	}
+	defer func() { _ = f.Close() }()
+
+	fi, err := f.Stat()
+	if err != nil {
+		return FileSetMetadata{}, err
+	}
+	fileSize := fi.Size()
+	if fileSize == 0 {
+		return FileSetMetadata{}, nil
+	}
+
+	hdr, err := parseBinaryHeader(f)
+	if err != nil {
+		return FileSetMetadata{}, fmt.Errorf("%s: %w", path, err)
+	}
+	if !hdr.optimized {
+		return FileSetMetadata{}, fmt.Errorf("%s: %w", path, ErrNotOptimized)
+	}
+	expectedSize := expectedFileSetSize(hdr)
+	if fileSize != expectedSize {
+		return FileSetMetadata{}, fmt.Errorf("%s: file size %d does not match expected %d", path, fileSize, expectedSize)
+	}
+	if err := validateEndiannessAt(f, hdr.dataOffset); err != nil {
+		return FileSetMetadata{}, fmt.Errorf("%s: %w", path, err)
+	}
+	return fileSetMetadataFromHeader(hdr), nil
+}
+
+func expectedFileSetSize(hdr binaryHeader) int64 {
+	// The binary payload is: 4 bytes endianness marker + records*8 bytes.
+	return hdr.dataOffset + 4 + int64(hdr.records)*8
+}
+
+func fileSetMetadataFromHeader(hdr binaryHeader) FileSetMetadata {
+	return FileSetMetadata{
+		Optimized:    hdr.optimized,
+		RecordSize:   hdr.recordSize,
+		Records:      hdr.records,
+		PayloadBytes: hdr.bytes,
+		Lines:        hdr.lines,
+		UniqueIPs:    hdr.uniqueIPs,
+	}
 }
 
 // emptyFileSet is returned for zero-byte (empty) .set files.

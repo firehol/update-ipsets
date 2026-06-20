@@ -547,10 +547,9 @@ func loadRetentionCohorts(ctx context.Context, dir string) (map[int64]uint64, er
 			continue
 		}
 		filePath := filepath.Join(newDir, entry.Name())
-		fs, err := iprange.OpenFileSet(filePath)
+		meta, err := iprange.ReadFileSetMetadata(filePath)
 		if err == nil {
-			out[addedAt] = fs.UniqueIPs()
-			_ = fs.Close()
+			out[addedAt] = meta.UniqueIPs
 			continue
 		}
 		set, err := loadSnapshotSet(ctx, entry.Name(), dir, filepath.Join("new", entry.Name()))
