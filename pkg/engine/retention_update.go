@@ -165,7 +165,7 @@ func retentionDiff(previous, current *iprange.IPSet) retentionUpdateDiff {
 
 func (e *Engine) retentionDiffFromSources(ctx context.Context, name string, previous, current iprange.RangeSource) (retentionUpdateDiff, error) {
 	ctx = nonNilContext(ctx)
-	newSet, err := collectIter(ctx, name+"_new", iprange.ExcludeIter(current, previous))
+	newSet, err := iprange.CollectIterContext(ctx, name+"_new", iprange.ExcludeIter(current, previous))
 	if err != nil {
 		return retentionUpdateDiff{}, err
 	}
@@ -176,7 +176,7 @@ func (e *Engine) retentionDiffFromSources(ctx context.Context, name string, prev
 		return retentionUpdateDiff{}, err
 	}
 
-	removed, err := countUniqueIter(ctx, name+"_removed", iprange.ExcludeIter(previous, current))
+	removed, err := iprange.CountIterContext(ctx, name+"_removed", iprange.ExcludeIter(previous, current))
 	if err != nil {
 		return retentionUpdateDiff{}, err
 	}
@@ -414,7 +414,7 @@ func (e *Engine) applyRetentionCohortCompare(ctx context.Context, name string, p
 		return update, nil
 	}
 
-	still, err := collectIter(ctx, baseName+"_still", iprange.IntersectIter(oldSource.RangeSource, current))
+	still, err := iprange.CollectIterContext(ctx, baseName+"_still", iprange.IntersectIter(oldSource.RangeSource, current))
 	if err != nil {
 		_ = oldSource.Close()
 		return retentionCohortUpdate{}, err

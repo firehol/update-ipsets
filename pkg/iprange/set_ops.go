@@ -400,10 +400,10 @@ func CompareNextSources(ctx context.Context, before, after []CompareSource) ([]C
 			if err != nil {
 				return nil, err
 			}
-			if err := rangeSourceErr(l.source); err != nil {
+			if err := RangeSourceErr(l.source); err != nil {
 				return nil, fmt.Errorf("compare %s: %w", l.name, err)
 			}
-			if err := rangeSourceErr(r.source); err != nil {
+			if err := RangeSourceErr(r.source); err != nil {
 				return nil, fmt.Errorf("compare %s: %w", r.name, err)
 			}
 			rows = append(rows, CompareRow{
@@ -438,11 +438,11 @@ func prepareCompareSources(ctx context.Context, in []CompareSource) ([]compareSo
 		if name == "" {
 			name = compareSourceDefaultName(src.Source)
 		}
-		uniqueIPs, err := compareSourceUniqueIPs(ctx, src.Source)
+		uniqueIPs, err := RangeSourceUniqueIPs(ctx, src.Source)
 		if err != nil {
 			return nil, fmt.Errorf("compare %s: %w", name, err)
 		}
-		if err := rangeSourceErr(src.Source); err != nil {
+		if err := RangeSourceErr(src.Source); err != nil {
 			return nil, fmt.Errorf("compare %s: %w", name, err)
 		}
 		out = append(out, compareSourceMeta{
@@ -460,34 +460,6 @@ func compareSourceDefaultName(src RangeSource) string {
 		return set.Name
 	}
 	return DefaultName
-}
-
-func compareSourceUniqueIPs(ctx context.Context, src RangeSource) (uint64, error) {
-	if counter, ok := src.(interface{ UniqueIPs() uint64 }); ok {
-		return counter.UniqueIPs(), nil
-	}
-	if counter, ok := src.(interface{ UniqueCount() uint64 }); ok {
-		return counter.UniqueCount(), nil
-	}
-	var total uint64
-	var count int
-	for r := range src.Iter() {
-		count++
-		if count%4096 == 0 {
-			if err := ctx.Err(); err != nil {
-				return 0, err
-			}
-		}
-		total += r.Size()
-	}
-	return total, ctx.Err()
-}
-
-func rangeSourceErr(src RangeSource) error {
-	if withErr, ok := src.(interface{ Err() error }); ok {
-		return withErr.Err()
-	}
-	return nil
 }
 
 func CompareFirst(sets []*IPSet) ([]CompareFirstRow, error) {

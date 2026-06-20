@@ -22,7 +22,7 @@ type criticalProviderSet struct {
 	Name          string
 	Meta          CriticalInfrastructureProvider
 	Set           iprange.RangeSource
-	overlapFilter rangeOverlapFilter
+	overlapFilter iprange.RangeOverlapFilter
 	sources       []*closableSource
 }
 
@@ -424,11 +424,19 @@ func (e *Engine) loadCriticalInfrastructureSources(ctx context.Context, provider
 				out.Missing = append(out.Missing, criticalMissingProviderJSON{Name: name, Reason: err.Error()})
 				return
 			}
+			filter, err := iprange.BuildRangeOverlapFilterContext(ctx, latest.RangeSource)
+			if err != nil {
+				e.logger.Warn("critical infrastructure source skipped: overlap filter failed",
+					"source", name, "error", err)
+				out.Missing = append(out.Missing, criticalMissingProviderJSON{Name: name, Reason: err.Error()})
+				_ = latest.Close()
+				return
+			}
 			out.Providers[name] = &criticalProviderSet{
 				Name:          name,
 				Meta:          criticalProviderFromSource(src),
 				Set:           latest.RangeSource,
-				overlapFilter: buildRangeOverlapFilter(latest.RangeSource),
+				overlapFilter: filter,
 				sources:       []*closableSource{latest},
 			}
 			out.Names = append(out.Names, name)
@@ -473,7 +481,7 @@ func (e *Engine) writeCriticalInfrastructureFiles(ctx context.Context, datasets 
 			return err
 		}
 		defer compareOp.Add(1, int64(len(targetNames)), nil)
-		tiers, err := e.writeCriticalInfrastructureForFeed(name, datasets, outDir, setCache)
+		tiers, err := e.writeCriticalInfrastructureForFeed(ctx, name, datasets, outDir, setCache)
 		if err != nil {
 			return err
 		}

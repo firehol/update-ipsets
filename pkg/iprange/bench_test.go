@@ -59,6 +59,27 @@ func BenchmarkCompare(b *testing.B) {
 	}
 }
 
+func BenchmarkCompareNextSourcesFileSet(b *testing.B) {
+	for _, size := range []int{1_000, 10_000, 100_000} {
+		b.Run(fmt.Sprintf("n=%d", size), func(b *testing.B) {
+			fsA, fsB := benchPairFileSets(b, size)
+			before := []CompareSource{{Name: "before", Source: fsA}}
+			after := []CompareSource{{Name: "after", Source: fsB}}
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				rows, err := CompareNextSources(b.Context(), before, after)
+				if err != nil {
+					b.Fatal(err)
+				}
+				if len(rows) != 1 {
+					b.Fatalf("CompareNextSources() returned %d rows, want 1", len(rows))
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkBinaryRoundTrip(b *testing.B) {
 	set := New("binary")
 	for i := 0; i < 4096; i++ {
@@ -359,6 +380,95 @@ func BenchmarkExcludeIterInMemory(b *testing.B) {
 			b.ResetTimer()
 			for b.Loop() {
 				for range ExcludeIter(a, bb) {
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkCollectIterContextFileSetUnion(b *testing.B) {
+	for _, size := range []int{1_000, 10_000, 100_000} {
+		b.Run(fmt.Sprintf("n=%d", size), func(b *testing.B) {
+			fsA, fsB := benchPairFileSets(b, size)
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				set, err := CollectIterContext(b.Context(), "union", UnionIter(fsA, fsB))
+				if err != nil {
+					b.Fatal(err)
+				}
+				if set.Len() == 0 {
+					b.Fatal("empty union")
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkRangeSourcesEqualContextFileSet(b *testing.B) {
+	for _, size := range []int{1_000, 10_000, 100_000} {
+		b.Run(fmt.Sprintf("n=%d", size), func(b *testing.B) {
+			path := benchFileSetFromRanges(b, size)
+			fsA, err := OpenFileSet(path)
+			if err != nil {
+				b.Fatal(err)
+			}
+			fsB, err := OpenFileSet(path)
+			if err != nil {
+				_ = fsA.Close()
+				b.Fatal(err)
+			}
+			b.Cleanup(func() {
+				_ = fsA.Close()
+				_ = fsB.Close()
+			})
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				equal, err := RangeSourcesEqualContext(b.Context(), fsA, fsB)
+				if err != nil {
+					b.Fatal(err)
+				}
+				if !equal {
+					b.Fatal("identical file-backed sets reported different")
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkBuildRangeSourceSummaryFileSet(b *testing.B) {
+	for _, size := range []int{1_000, 10_000, 100_000} {
+		b.Run(fmt.Sprintf("n=%d", size), func(b *testing.B) {
+			fsA, _ := benchPairFileSets(b, size)
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				summary, err := BuildRangeSourceSummaryContext(b.Context(), fsA)
+				if err != nil {
+					b.Fatal(err)
+				}
+				if !summary.ContentHash.Valid {
+					b.Fatal("summary missing content hash")
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkRangeSourceContentHashFileSet(b *testing.B) {
+	for _, size := range []int{1_000, 10_000, 100_000} {
+		b.Run(fmt.Sprintf("n=%d", size), func(b *testing.B) {
+			fsA, _ := benchPairFileSets(b, size)
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				hash, err := RangeSourceContentHashContext(b.Context(), fsA)
+				if err != nil {
+					b.Fatal(err)
+				}
+				if !hash.Valid {
+					b.Fatal("content hash invalid")
 				}
 			}
 		})

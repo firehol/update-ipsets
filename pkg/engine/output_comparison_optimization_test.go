@@ -14,23 +14,23 @@ import (
 )
 
 func TestComparisonSparsePrefixOverlap(t *testing.T) {
-	left := buildComparisonSetSignature(mustBitmapSet(t,
+	left := mustRangeSummary(t,
 		iprange.Range{Lo: 0x0A000001, Hi: 0x0A000001}, // 10.0.0.1
-	))
-	right := buildComparisonSetSignature(mustBitmapSet(t,
+	)
+	right := mustRangeSummary(t,
 		iprange.Range{Lo: 0x0A000201, Hi: 0x0A000201}, // 10.0.2.1, same /20 as left
-	))
-	if !comparisonPrefixOverlap(left.prefixBitmap, right.prefixBitmap) {
+	)
+	if left.OverlapFilter().PrefixesDisjoint(right.OverlapFilter()) {
 		t.Fatal("test setup expected coarse /20 prefixes to overlap")
 	}
-	if comparisonSparsePrefixOverlap(left.sparsePrefix, right.sparsePrefix) {
+	if !left.OverlapFilter().SparsePrefixesDisjoint(right.OverlapFilter()) {
 		t.Fatal("expected disjoint sparse /24 occupancy to skip the pair")
 	}
 
-	overlapping := buildComparisonSetSignature(mustBitmapSet(t,
+	overlapping := mustRangeSummary(t,
 		iprange.Range{Lo: 0x0A0000FE, Hi: 0x0A000101}, // spans 10.0.0.0/24 and 10.0.1.0/24
-	))
-	if !comparisonSparsePrefixOverlap(left.sparsePrefix, overlapping.sparsePrefix) {
+	)
+	if left.OverlapFilter().SparsePrefixesDisjoint(overlapping.OverlapFilter()) {
 		t.Fatal("expected shared sparse /24 occupancy to keep the pair")
 	}
 }
@@ -38,87 +38,102 @@ func TestComparisonSparsePrefixOverlap(t *testing.T) {
 func TestBuildComparisonSetSignatureContextCancelled(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
-	signature, err := buildComparisonSetSignatureContext(ctx, mustBitmapSet(t,
+	signature, err := iprange.BuildRangeSourceSummaryContext(ctx, mustBitmapSet(t,
 		iprange.Range{Lo: 1, Hi: 10},
 	))
 	if !errors.Is(err, context.Canceled) {
-		t.Fatalf("buildComparisonSetSignatureContext() error = %v, want context.Canceled", err)
+		t.Fatalf("BuildRangeSourceSummaryContext() error = %v, want context.Canceled", err)
 	}
-	if signature.contentHash.valid {
+	if signature.ContentHash.Valid {
 		t.Fatal("cancelled signature unexpectedly has a content hash")
 	}
 }
 
 func TestComparisonSparsePrefixOverflowFallsBack(t *testing.T) {
-	broad := buildComparisonSetSignature(mustBitmapSet(t,
+	broad := mustRangeSummary(t,
 		iprange.Range{Lo: 0, Hi: 0xFFFFFFFF},
-	))
-	narrow := buildComparisonSetSignature(mustBitmapSet(t,
+	)
+	narrow := mustRangeSummary(t,
 		iprange.Range{Lo: 0x0A000001, Hi: 0x0A000001},
-	))
-	if broad.sparsePrefix != nil {
-		t.Fatal("broad set should overflow the sparse prefix index")
-	}
-	if !comparisonSparsePrefixOverlap(broad.sparsePrefix, narrow.sparsePrefix) {
+	)
+	if broad.OverlapFilter().SparsePrefixesDisjoint(narrow.OverlapFilter()) {
 		t.Fatal("overflowed sparse index must fall back to possible overlap")
 	}
 }
 
 func TestRangeOverlapFiltersDisjoint(t *testing.T) {
-	left := buildRangeOverlapFilter(mustBitmapSet(t,
+	left := mustRangeOverlapFilter(t,
 		iprange.Range{Lo: 0x0A000001, Hi: 0x0A000001},
-	))
-	rightSameCoarsePrefix := buildRangeOverlapFilter(mustBitmapSet(t,
+	)
+	rightSameCoarsePrefix := mustRangeOverlapFilter(t,
 		iprange.Range{Lo: 0x0A000201, Hi: 0x0A000201},
-	))
-	if !rangeOverlapFiltersDisjoint(left, rightSameCoarsePrefix) {
+	)
+	if !left.Disjoint(rightSameCoarsePrefix) {
 		t.Fatal("same-/20, different-/24 filters should prove disjoint")
 	}
-	if rangeOverlapFiltersDisjoint(rangeOverlapFilter{}, left) {
+	if (iprange.RangeOverlapFilter{}).Disjoint(left) {
 		t.Fatal("unknown filters must fall through to full counting")
 	}
 
-	rightDifferentBounds := buildRangeOverlapFilter(mustBitmapSet(t,
+	rightDifferentBounds := mustRangeOverlapFilter(t,
 		iprange.Range{Lo: 0xC0000201, Hi: 0xC0000201},
-	))
-	if !rangeOverlapFiltersDisjoint(left, rightDifferentBounds) {
+	)
+	if !left.Disjoint(rightDifferentBounds) {
 		t.Fatal("non-overlapping bounds should prove disjoint")
 	}
 
-	overlapping := buildRangeOverlapFilter(mustBitmapSet(t,
+	overlapping := mustRangeOverlapFilter(t,
 		iprange.Range{Lo: 0x0A000001, Hi: 0x0A000002},
-	))
-	if rangeOverlapFiltersDisjoint(left, overlapping) {
+	)
+	if left.Disjoint(overlapping) {
 		t.Fatal("overlapping ranges must fall through to full counting")
 	}
 }
 
 func TestComparisonSetsIdentical(t *testing.T) {
-	left := buildComparisonSetSignature(mustBitmapSet(t,
+	left := mustRangeSummary(t,
 		iprange.Range{Lo: 0x0A000001, Hi: 0x0A000001},
 		iprange.Range{Lo: 0x0A000010, Hi: 0x0A000020},
-	))
-	right := buildComparisonSetSignature(mustBitmapSet(t,
+	)
+	right := mustRangeSummary(t,
 		iprange.Range{Lo: 0x0A000001, Hi: 0x0A000001},
 		iprange.Range{Lo: 0x0A000010, Hi: 0x0A000020},
-	))
-	changed := buildComparisonSetSignature(mustBitmapSet(t,
+	)
+	changed := mustRangeSummary(t,
 		iprange.Range{Lo: 0x0A000001, Hi: 0x0A000001},
 		iprange.Range{Lo: 0x0A000011, Hi: 0x0A000020},
-	))
-	sameCountChanged := buildComparisonSetSignature(mustBitmapSet(t,
+	)
+	sameCountChanged := mustRangeSummary(t,
 		iprange.Range{Lo: 0x0A000100, Hi: 0x0A000110},
 		iprange.Range{Lo: 0x0A000200, Hi: 0x0A000200},
-	))
-	if !comparisonSetsIdentical(comparisonSetInfo{ips: 18, contentHash: left.contentHash}, comparisonSetInfo{ips: 18, contentHash: right.contentHash}) {
+	)
+	if !comparisonSetsIdentical(comparisonSetInfo{ips: 18, contentHash: left.ContentHash}, comparisonSetInfo{ips: 18, contentHash: right.ContentHash}) {
 		t.Fatal("same range content should be detected as identical")
 	}
-	if comparisonSetsIdentical(comparisonSetInfo{ips: 18, contentHash: left.contentHash}, comparisonSetInfo{ips: 17, contentHash: changed.contentHash}) {
+	if comparisonSetsIdentical(comparisonSetInfo{ips: 18, contentHash: left.ContentHash}, comparisonSetInfo{ips: 17, contentHash: changed.ContentHash}) {
 		t.Fatal("different range content should not be detected as identical")
 	}
-	if comparisonSetsIdentical(comparisonSetInfo{ips: 18, contentHash: left.contentHash}, comparisonSetInfo{ips: 18, contentHash: sameCountChanged.contentHash}) {
+	if comparisonSetsIdentical(comparisonSetInfo{ips: 18, contentHash: left.ContentHash}, comparisonSetInfo{ips: 18, contentHash: sameCountChanged.ContentHash}) {
 		t.Fatal("different range content with same IP count should not be detected as identical")
 	}
+}
+
+func mustRangeSummary(t *testing.T, ranges ...iprange.Range) iprange.RangeSourceSummary {
+	t.Helper()
+	summary, err := iprange.BuildRangeSourceSummaryContext(t.Context(), mustBitmapSet(t, ranges...))
+	if err != nil {
+		t.Fatalf("BuildRangeSourceSummaryContext() error = %v", err)
+	}
+	return summary
+}
+
+func mustRangeOverlapFilter(t *testing.T, ranges ...iprange.Range) iprange.RangeOverlapFilter {
+	t.Helper()
+	filter, err := iprange.BuildRangeOverlapFilterContext(t.Context(), mustBitmapSet(t, ranges...))
+	if err != nil {
+		t.Fatalf("BuildRangeOverlapFilterContext() error = %v", err)
+	}
+	return filter
 }
 
 func TestWriteComparisonFilesUsesSparsePrefixToRemoveSameCoarsePrefixStaleRows(t *testing.T) {

@@ -22,25 +22,6 @@ type detailMaintainerAggregate struct {
 	attributedIPs uint64
 }
 
-type iterRangeSource struct {
-	seq func(yield func(iprange.Range) bool)
-	len int
-}
-
-func (s iterRangeSource) Len() int {
-	if s.len < 0 {
-		return 0
-	}
-	return s.len
-}
-
-func (s iterRangeSource) Iter() func(yield func(iprange.Range) bool) {
-	if s.seq == nil {
-		return func(func(iprange.Range) bool) {}
-	}
-	return s.seq
-}
-
 func detailSurfaceEligible(cfg *config.Config, src *config.Source) bool {
 	if src == nil || src.Hidden {
 		return false
@@ -57,11 +38,11 @@ func detailSurfaceEligible(cfg *config.Config, src *config.Source) bool {
 func countryFilteredRangeSource(src iprange.RangeSource, prepared *geoPreparedProvider, code string) iprange.RangeSource {
 	targetIndex := geoPreparedCodeIndex(prepared, strings.ToUpper(strings.TrimSpace(code)))
 	if src == nil || prepared == nil || targetIndex < 0 || len(prepared.segments) == 0 {
-		return iterRangeSource{}
+		return iprange.RangeSourceFromIter(nil, 0)
 	}
 	targetCode := uint16(targetIndex)
-	return iterRangeSource{
-		seq: func(yield func(iprange.Range) bool) {
+	return iprange.RangeSourceFromIter(
+		func(yield func(iprange.Range) bool) {
 			segmentIndex := 0
 			for sourceRange := range src.Iter() {
 				for segmentIndex < len(prepared.segments) && prepared.segments[segmentIndex].rng.Hi < sourceRange.Lo {
@@ -91,7 +72,8 @@ func countryFilteredRangeSource(src iprange.RangeSource, prepared *geoPreparedPr
 				}
 			}
 		},
-	}
+		-1,
+	)
 }
 
 func countCountriesForASNSource(src iprange.RangeSource, db *asnloc.Database, prepared *geoPreparedProvider, targetASN uint32) ([]CountryValue, uint64, error) {

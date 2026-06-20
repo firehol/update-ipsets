@@ -90,7 +90,10 @@ func TestRetentionDiffUsesFileBackedPreviousLatest(t *testing.T) {
 	if got.added != want.added || got.removed != want.removed {
 		t.Fatalf("diff added/removed = %d/%d, want %d/%d", got.added, got.removed, want.added, want.removed)
 	}
-	if !rangeSourcesEqual(got.newSet, want.newSet) {
+	if equal, err := iprange.RangeSourcesEqualContext(t.Context(), got.newSet, want.newSet); err != nil || !equal {
+		if err != nil {
+			t.Fatalf("RangeSourcesEqualContext() error = %v", err)
+		}
 		t.Fatalf("new set from file-backed diff does not match in-memory diff")
 	}
 }
@@ -169,7 +172,10 @@ func TestReconcileRetentionCohortUsesFileBackedCompare(t *testing.T) {
 	if err != nil {
 		t.Fatalf("load rewritten cohort: %v", err)
 	}
-	if !rangeSourcesEqual(reloaded, current) {
+	if equal, err := iprange.RangeSourcesEqualContext(t.Context(), reloaded, current); err != nil || !equal {
+		if err != nil {
+			t.Fatalf("RangeSourcesEqualContext() error = %v", err)
+		}
 		t.Fatalf("rewritten cohort does not match still-listed current set")
 	}
 }
@@ -258,7 +264,10 @@ func TestReconcileRetentionCohortsOnlyRewritesAffectedFiles(t *testing.T) {
 		t.Fatalf("expected rewrite AddRange() error = %v", err)
 	}
 	expectedRewrite.Optimize()
-	if !rangeSourcesEqual(rewritten, expectedRewrite) {
+	if equal, err := iprange.RangeSourcesEqualContext(t.Context(), rewritten, expectedRewrite); err != nil || !equal {
+		if err != nil {
+			t.Fatalf("RangeSourcesEqualContext() error = %v", err)
+		}
 		t.Fatalf("rewritten cohort does not contain only retained IPs")
 	}
 	rewrittenInfo, err := os.Stat(rewrittenPath)
@@ -309,7 +318,7 @@ func TestRetentionReconcileUsesIPrangeCompareNextBeforeMaterializing(t *testing.
 	}
 	section := source[sectionStart:sectionEnd]
 	noChangeBranch := strings.Index(section, "if removedCount == 0")
-	materialize := strings.Index(section, "collectIter(")
+	materialize := strings.Index(section, "CollectIterContext(")
 	if noChangeBranch < 0 || materialize < 0 || noChangeBranch > materialize {
 		t.Fatalf("unchanged cohorts must return before materializing the intersection")
 	}

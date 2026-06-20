@@ -218,19 +218,6 @@ func isCommentLine(line []byte) bool {
 	return len(line) > 0 && line[0] == '#'
 }
 
-func iterHasAny(iter func(yield func(iprange.Range) bool)) bool {
-	found := false
-	iter(func(iprange.Range) bool {
-		found = true
-		return false
-	})
-	return found
-}
-
-func rangeSourcesEqual(left, right iprange.RangeSource) bool {
-	return !iterHasAny(iprange.ExcludeIter(left, right)) && !iterHasAny(iprange.ExcludeIter(right, left))
-}
-
 type historySnapshot struct {
 	name string
 	path string
@@ -294,7 +281,7 @@ func historySnapshotPath(dir string, observedAt time.Time) (string, time.Time, e
 	return filepath.Join(dir, fmt.Sprintf("%d.set", when.Unix())), when, nil
 }
 
-func (e *Engine) appendHistorySnapshot(parent string, set *iprange.IPSet, observedAt time.Time) (bool, error) {
+func (e *Engine) appendHistorySnapshot(ctx context.Context, parent string, set *iprange.IPSet, observedAt time.Time) (bool, error) {
 	if parent == "" || set == nil {
 		return false, fmt.Errorf("history snapshot requires parent and set")
 	}
@@ -318,7 +305,11 @@ func (e *Engine) appendHistorySnapshot(parent string, set *iprange.IPSet, observ
 			return false, fmt.Errorf("open history snapshot %s: %w", slot, err)
 		}
 		defer func() { _ = existing.Close() }()
-		if rangeSourcesEqual(set, existing) {
+		equal, err := iprange.RangeSourcesEqualContext(ctx, set, existing)
+		if err != nil {
+			return false, fmt.Errorf("compare history snapshot %s: %w", slot, err)
+		}
+		if equal {
 			pruned, err := e.pruneHistorySnapshots(parent, snapshotTime)
 			if err != nil {
 				return false, err
@@ -448,7 +439,7 @@ func (e *Engine) composeHistoryDerivativeBody(ctx context.Context, src *config.S
 		rangeSources = append(rangeSources, fs)
 	}
 
-	union, err := collectIter(ctx, src.Name, iprange.UnionIter(rangeSources...))
+	union, err := iprange.CollectIterContext(ctx, src.Name, iprange.UnionIter(rangeSources...))
 	if err != nil {
 		return nil, nil, fmt.Errorf("history derivative collect union: %w", err)
 	}
@@ -493,7 +484,7 @@ func (e *Engine) composeMergeBody(ctx context.Context, src *config.Source, enabl
 		if err != nil {
 			return nil, nil, "", err
 		}
-		set, err = collectIter(ctx, src.Name, iprange.ExcludeIter(set, excludeSet))
+		set, err = iprange.CollectIterContext(ctx, src.Name, iprange.ExcludeIter(set, excludeSet))
 		if err != nil {
 			return nil, nil, "", fmt.Errorf("merge exclude collect: %w", err)
 		}

@@ -157,12 +157,12 @@ func (e *Engine) writeComparisonPairLedger(infos []comparisonSetInfo, results []
 
 func comparisonPairLedgerKeyForInfos(left, right comparisonSetInfo) comparisonPairLedgerKey {
 	leftHash := comparisonPairLedgerHash{
-		sum:   left.contentHash.sum,
-		valid: left.contentHash.valid,
+		sum:   left.contentHash.Sum,
+		valid: left.contentHash.Valid,
 	}
 	rightHash := comparisonPairLedgerHash{
-		sum:   right.contentHash.sum,
-		valid: right.contentHash.valid,
+		sum:   right.contentHash.Sum,
+		valid: right.contentHash.Valid,
 	}
 	leftName, rightName := left.name, right.name
 	if rightName < leftName {

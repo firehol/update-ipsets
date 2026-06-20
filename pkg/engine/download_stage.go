@@ -424,7 +424,7 @@ func (e *Engine) applyRawFeedDownloadResult(ctx context.Context, entry *cache.En
 			entry.MarkDownloadPrepareFailed(err.Error())
 			return DownloadDecision{Name: name, Status: DownloadStatusPrepareFailed, Message: err.Error()}, err
 		}
-		snapshotChanged, err := e.appendHistorySnapshot(name, set, modifiedAt)
+		snapshotChanged, err := e.appendHistorySnapshot(ctx, name, set, modifiedAt)
 		if err != nil {
 			e.incrementFailure(entry)
 			entry.MarkDownloadHistorySnapshotFailed(err.Error())
@@ -456,7 +456,7 @@ func (e *Engine) rebuildCanonicalFeedBodyFromRetainedRaw(ctx context.Context, en
 		entry.MarkDownloadPrepareFailed(err.Error())
 		return DownloadDecision{Name: name, Status: DownloadStatusPrepareFailed, Message: err.Error()}, true, err
 	}
-	snapshotChanged, err := e.appendHistorySnapshot(name, set, modifiedAt)
+	snapshotChanged, err := e.appendHistorySnapshot(ctx, name, set, modifiedAt)
 	if err != nil {
 		e.incrementFailure(entry)
 		entry.MarkDownloadHistorySnapshotFailed(err.Error())
@@ -554,7 +554,7 @@ func (e *Engine) fetchAndStageArtifactChild(ctx context.Context, src *config.Sou
 	if err != nil {
 		return decision, err
 	}
-	snapshotChanged, err := e.appendHistorySnapshot(name, set, info.ModTime().UTC())
+	snapshotChanged, err := e.appendHistorySnapshot(ctx, name, set, info.ModTime().UTC())
 	if err != nil {
 		e.incrementFailure(entry)
 		entry.MarkDownloadHistorySnapshotFailed(err.Error())
@@ -588,7 +588,7 @@ func (e *Engine) fetchAndStageHistoryDerivative(ctx context.Context, src *config
 	if err != nil {
 		return decision, err
 	}
-	snapshotChanged, err := e.appendHistorySnapshot(name, set, e.now().UTC())
+	snapshotChanged, err := e.appendHistorySnapshot(ctx, name, set, e.now().UTC())
 	if err != nil {
 		e.incrementFailure(entry)
 		entry.MarkDownloadHistorySnapshotFailed(err.Error())
@@ -627,7 +627,7 @@ func (e *Engine) fetchAndStageMerge(ctx context.Context, src *config.Source, for
 	if err != nil {
 		return decision, err
 	}
-	snapshotChanged, err := e.appendHistorySnapshot(name, set, e.now().UTC())
+	snapshotChanged, err := e.appendHistorySnapshot(ctx, name, set, e.now().UTC())
 	if err != nil {
 		e.incrementFailure(entry)
 		entry.MarkDownloadHistorySnapshotFailed(err.Error())

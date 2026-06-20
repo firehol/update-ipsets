@@ -89,6 +89,12 @@ description: "Go, React, config, and repo conventions for update-ipsets. MUST be
   persisted data, log/propagate them where the caller can act, and use explicit
   `_ = ...` only for best-effort cleanup or test teardown (from SOW-0045).
 - Preserve bounded-memory and cache-first behavior; prefer streaming, mmap/pread-backed sets, temp files, and iterator-based algorithms over heap-wide loads.
+- Generic `iprange.RangeSource` hot-path algorithms belong in standalone
+  `pkg/iprange`, not engine-local helpers. Exact source comparison, iterator
+  materialization/counting, normalized content hashing, bounds extraction, and
+  conservative overlap filters should be added to or reused from `pkg/iprange`;
+  engine code should only orchestrate domain/artifact policy around those
+  primitives (from SOW-0108).
 - Before optimizing an apparent hot path, prove the production caller path
   exists. If an unexported helper has no production callers, remove the dead
   helper instead of adding tests or complexity around it (from SOW-0031).

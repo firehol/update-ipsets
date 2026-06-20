@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/firehol/update-ipsets/pkg/config"
+	"github.com/firehol/update-ipsets/pkg/iprange"
 )
 
 func TestWriteComparisonFilesUsesPairLedgerForUnchangedUpdatedFeed(t *testing.T) {
@@ -507,11 +508,11 @@ func uniqueShareSnapshotForFeeds(t *testing.T, eng *Engine, names ...string) map
 
 func comparisonPairLedgerBenchmarkInfo(i int) comparisonSetInfo {
 	name := fmt.Sprintf("feed_%03d", i)
-	var hash comparisonContentHash
-	hash.valid = true
-	hash.sum[0] = byte(i >> 24)
-	hash.sum[1] = byte(i >> 16)
-	hash.sum[2] = byte(i >> 8)
-	hash.sum[3] = byte(i)
+	var hash iprange.RangeContentHash
+	hash.Valid = true
+	hash.Sum[0] = byte(i >> 24)
+	hash.Sum[1] = byte(i >> 16)
+	hash.Sum[2] = byte(i >> 8)
+	hash.Sum[3] = byte(i)
 	return comparisonSetInfo{name: name, ips: 1, category: "test", contentHash: hash}
 }

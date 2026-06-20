@@ -222,12 +222,12 @@ func (e *Engine) currentSetStats(name string, src *config.Source) (setStats, boo
 			mtime:     info.ModTime().UTC().Unix(),
 		}
 		if needsContentHash {
-			hash, ok := rangeSourceContentHash(fs)
-			if !ok {
+			hash, err := iprange.RangeSourceContentHashContext(context.Background(), fs)
+			if err != nil || !hash.Valid {
 				_ = fs.Close()
 				continue
 			}
-			stats.contentHash = hash
+			stats.contentHash = hash.Hex()
 		}
 		_ = fs.Close()
 		return stats, true
@@ -245,11 +245,19 @@ func (e *Engine) currentSetStats(name string, src *config.Source) (setStats, boo
 	if err != nil {
 		return setStats{}, false
 	}
+	contentHash := ""
+	if needsContentHash {
+		hash, err := iprange.RangeSourceContentHashContext(context.Background(), set)
+		if err != nil || !hash.Valid {
+			return setStats{}, false
+		}
+		contentHash = hash.Hex()
+	}
 	return setStats{
 		entries:     set.Entries(),
 		uniqueIPs:   set.UniqueCount(),
 		mtime:       info.ModTime().UTC().Unix(),
-		contentHash: ipSetContentHashIfNeeded(set, needsContentHash),
+		contentHash: contentHash,
 	}, true
 }
 

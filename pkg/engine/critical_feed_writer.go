@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"sort"
@@ -16,7 +17,7 @@ type criticalFeedWriter struct {
 	outDir     string
 	src        *closableSource
 	feedIPs    uint64
-	feedFilter rangeOverlapFilter
+	feedFilter iprange.RangeOverlapFilter
 
 	totalSet           *iprange.IPSet
 	tierSets           map[string]*iprange.IPSet
@@ -24,15 +25,15 @@ type criticalFeedWriter struct {
 	providerPayloads   []criticalProviderOverlapJSON
 }
 
-func (e *Engine) writeCriticalInfrastructureForFeed(name string, datasets *criticalDatasets, outDir string, setCache *latestSetCache) ([]string, error) {
-	writer, err := e.newCriticalFeedWriter(name, datasets, outDir, setCache)
+func (e *Engine) writeCriticalInfrastructureForFeed(ctx context.Context, name string, datasets *criticalDatasets, outDir string, setCache *latestSetCache) ([]string, error) {
+	writer, err := e.newCriticalFeedWriter(ctx, name, datasets, outDir, setCache)
 	if err != nil || writer == nil {
 		return nil, err
 	}
 	return writer.write()
 }
 
-func (e *Engine) newCriticalFeedWriter(name string, datasets *criticalDatasets, outDir string, setCache *latestSetCache) (*criticalFeedWriter, error) {
+func (e *Engine) newCriticalFeedWriter(ctx context.Context, name string, datasets *criticalDatasets, outDir string, setCache *latestSetCache) (*criticalFeedWriter, error) {
 	src, err := setCache.Open(name)
 	if err != nil {
 		e.logger.Warn("critical infrastructure comparison skipped: cannot open set",
@@ -43,6 +44,11 @@ func (e *Engine) newCriticalFeedWriter(name string, datasets *criticalDatasets, 
 	if checkErr := checkFileSetErr(src.RangeSource, name, e.logger); checkErr != nil {
 		return nil, checkErr
 	}
+	feedFilter, err := iprange.BuildRangeOverlapFilterContext(ctx, src.RangeSource)
+	if err != nil {
+		_ = src.Close()
+		return nil, fmt.Errorf("critical infrastructure feed overlap filter %s: %w", name, err)
+	}
 	return &criticalFeedWriter{
 		e:                  e,
 		name:               name,
@@ -50,7 +56,7 @@ func (e *Engine) newCriticalFeedWriter(name string, datasets *criticalDatasets, 
 		outDir:             outDir,
 		src:                src,
 		feedIPs:            feedIPs,
-		feedFilter:         buildRangeOverlapFilter(src.RangeSource),
+		feedFilter:         feedFilter,
 		totalSet:           iprange.New(name + "_critical_infrastructure"),
 		tierSets:           map[string]*iprange.IPSet{},
 		tierProviderCounts: map[string]int{},
@@ -116,7 +122,7 @@ func (w *criticalFeedWriter) writeProviderPayload(providerName string, provider 
 }
 
 func (w *criticalFeedWriter) scanProviderOverlap(providerName string, provider *criticalProviderSet) (uint64, error) {
-	if rangeOverlapFiltersDisjoint(w.feedFilter, provider.overlapFilter) {
+	if w.feedFilter.Disjoint(provider.overlapFilter) {
 		w.e.observeRunCounter("critical.overlap_skipped_filter", 1, 0)
 		return 0, nil
 	}

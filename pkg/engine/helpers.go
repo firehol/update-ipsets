@@ -1,9 +1,6 @@
 package engine
 
 import (
-	"crypto/sha256"
-	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -19,7 +16,6 @@ import (
 	"github.com/firehol/update-ipsets/pkg/cache"
 	"github.com/firehol/update-ipsets/pkg/config"
 	"github.com/firehol/update-ipsets/pkg/downloader"
-	"github.com/firehol/update-ipsets/pkg/iprange"
 	"github.com/firehol/update-ipsets/pkg/kernel"
 	"github.com/firehol/update-ipsets/pkg/output"
 )
@@ -366,42 +362,6 @@ func hashForOutput(output string) string {
 		return "ip"
 	}
 	return "net"
-}
-
-func ipSetContentHash(set *iprange.IPSet) string {
-	if set == nil {
-		return ""
-	}
-	set.Optimize()
-	hash, _ := rangeSourceContentHash(set)
-	return hash
-}
-
-func ipSetContentHashIfNeeded(set *iprange.IPSet, needed bool) string {
-	if !needed {
-		return ""
-	}
-	return ipSetContentHash(set)
-}
-
-func rangeSourceContentHash(src iprange.RangeSource) (string, bool) {
-	if src == nil {
-		return "", false
-	}
-	h := sha256.New()
-	var buf [8]byte
-	for r := range src.Iter() {
-		binary.BigEndian.PutUint32(buf[0:4], r.Lo)
-		binary.BigEndian.PutUint32(buf[4:8], r.Hi)
-		_, _ = h.Write(buf[:])
-	}
-	type errChecker interface {
-		Err() error
-	}
-	if ec, ok := src.(errChecker); ok && ec.Err() != nil {
-		return "", false
-	}
-	return hex.EncodeToString(h.Sum(nil)), true
 }
 
 func canonicalOutputFamily(output string) string {

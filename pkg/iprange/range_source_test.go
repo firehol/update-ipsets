@@ -1,0 +1,228 @@
+package iprange
+
+import (
+	"context"
+	"errors"
+	"path/filepath"
+	"testing"
+)
+
+func TestCollectAndCountIterContext(t *testing.T) {
+	src := setFromRanges("src",
+		Range{Lo: 10, Hi: 12},
+		Range{Lo: 20, Hi: 25},
+	)
+
+	got, err := CollectIterContext(t.Context(), "collected", src.Iter())
+	if err != nil {
+		t.Fatalf("CollectIterContext() error = %v", err)
+	}
+	expectRangeSlice(t, "CollectIterContext", got.Ranges, src.Ranges)
+
+	count, err := CountIterContext(t.Context(), "counted", src.Iter())
+	if err != nil {
+		t.Fatalf("CountIterContext() error = %v", err)
+	}
+	if count != src.UniqueCount() {
+		t.Fatalf("CountIterContext() = %d, want %d", count, src.UniqueCount())
+	}
+}
+
+func TestCollectIterContextHonorsCancellation(t *testing.T) {
+	src := setFromRanges("src")
+	for i := uint32(0); i < 10_000; i++ {
+		if err := src.AddRange(Range{Lo: i * 4, Hi: i*4 + 1}); err != nil {
+			t.Fatalf("AddRange() error = %v", err)
+		}
+	}
+	src.Optimize()
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err := CollectIterContext(ctx, "cancelled", src.Iter())
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("CollectIterContext() error = %v, want context.Canceled", err)
+	}
+}
+
+func TestRangeSourcesEqualContextInMemoryAndFileSet(t *testing.T) {
+	left := setFromRanges("left",
+		Range{Lo: 1, Hi: 5},
+		Range{Lo: 10, Hi: 20},
+	)
+	right := setFromRanges("right",
+		Range{Lo: 1, Hi: 5},
+		Range{Lo: 10, Hi: 20},
+	)
+	different := setFromRanges("different",
+		Range{Lo: 1, Hi: 5},
+		Range{Lo: 11, Hi: 20},
+	)
+
+	leftFile := writeRangeSourceTestFileSet(t, left)
+	defer func() { _ = leftFile.Close() }()
+
+	equal, err := RangeSourcesEqualContext(t.Context(), leftFile, right)
+	if err != nil {
+		t.Fatalf("RangeSourcesEqualContext(file, memory) error = %v", err)
+	}
+	if !equal {
+		t.Fatal("RangeSourcesEqualContext(file, memory) = false, want true")
+	}
+
+	equal, err = RangeSourcesEqualContext(t.Context(), leftFile, different)
+	if err != nil {
+		t.Fatalf("RangeSourcesEqualContext(different) error = %v", err)
+	}
+	if equal {
+		t.Fatal("RangeSourcesEqualContext(different) = true, want false")
+	}
+}
+
+func TestRangeSourcesEqualContextHonorsCancellation(t *testing.T) {
+	left := setFromRanges("left", Range{Lo: 1, Hi: 5})
+	right := setFromRanges("right", Range{Lo: 1, Hi: 5})
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	equal, err := RangeSourcesEqualContext(ctx, left, right)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("RangeSourcesEqualContext() error = %v, want context.Canceled", err)
+	}
+	if equal {
+		t.Fatal("RangeSourcesEqualContext() equal = true after cancellation")
+	}
+}
+
+func TestRangeSourceBoundsContext(t *testing.T) {
+	src := setFromRanges("bounds",
+		Range{Lo: 100, Hi: 120},
+		Range{Lo: 200, Hi: 230},
+	)
+	fs := writeRangeSourceTestFileSet(t, src)
+	defer func() { _ = fs.Close() }()
+
+	for _, source := range []RangeSource{src, fs} {
+		bounds, ok, err := RangeSourceBoundsContext(t.Context(), source)
+		if err != nil {
+			t.Fatalf("RangeSourceBoundsContext(%T) error = %v", source, err)
+		}
+		if !ok {
+			t.Fatalf("RangeSourceBoundsContext(%T) ok = false, want true", source)
+		}
+		if bounds != (Range{Lo: 100, Hi: 230}) {
+			t.Fatalf("RangeSourceBoundsContext(%T) = %+v, want 100..230", source, bounds)
+		}
+	}
+}
+
+func TestRangeSourceSummaryAndOverlapFilter(t *testing.T) {
+	left := setFromRanges("left", Range{Lo: 0x0A000001, Hi: 0x0A000001})
+	sameCoarseDifferentSparse := setFromRanges("same-coarse", Range{Lo: 0x0A000201, Hi: 0x0A000201})
+	differentBounds := setFromRanges("different-bounds", Range{Lo: 0xC0000201, Hi: 0xC0000201})
+	overlapping := setFromRanges("overlap", Range{Lo: 0x0A000001, Hi: 0x0A000002})
+
+	leftSummary, err := BuildRangeSourceSummaryContext(t.Context(), left)
+	if err != nil {
+		t.Fatalf("BuildRangeSourceSummaryContext(left) error = %v", err)
+	}
+	leftFile := writeRangeSourceTestFileSet(t, left)
+	defer func() { _ = leftFile.Close() }()
+	fileSummary, err := BuildRangeSourceSummaryContext(t.Context(), leftFile)
+	if err != nil {
+		t.Fatalf("BuildRangeSourceSummaryContext(file) error = %v", err)
+	}
+	if !leftSummary.ContentHash.Equal(fileSummary.ContentHash) {
+		t.Fatal("in-memory and file-backed summaries should have the same content hash")
+	}
+
+	sameCoarseFilter := mustRangeSourceTestFilter(t, sameCoarseDifferentSparse)
+	if leftSummary.OverlapFilter().PrefixesDisjoint(sameCoarseFilter) {
+		t.Fatal("same coarse prefix should not be a coarse-prefix disjoint proof")
+	}
+	if !leftSummary.OverlapFilter().SparsePrefixesDisjoint(sameCoarseFilter) {
+		t.Fatal("different sparse prefixes should prove zero overlap")
+	}
+
+	if !leftSummary.OverlapFilter().BoundsDisjoint(mustRangeSourceTestFilter(t, differentBounds)) {
+		t.Fatal("non-overlapping bounds should prove zero overlap")
+	}
+	if leftSummary.OverlapFilter().Disjoint(mustRangeSourceTestFilter(t, overlapping)) {
+		t.Fatal("overlapping ranges must not be reported disjoint")
+	}
+	if (RangeOverlapFilter{}).Disjoint(leftSummary.OverlapFilter()) {
+		t.Fatal("unknown filters must fall through to exact overlap")
+	}
+}
+
+func TestRangeSourceContentHashContext(t *testing.T) {
+	src := setFromRanges("hash",
+		Range{Lo: 10, Hi: 12},
+		Range{Lo: 20, Hi: 25},
+	)
+	fs := writeRangeSourceTestFileSet(t, src)
+	defer func() { _ = fs.Close() }()
+
+	summary, err := BuildRangeSourceSummaryContext(t.Context(), src)
+	if err != nil {
+		t.Fatalf("BuildRangeSourceSummaryContext() error = %v", err)
+	}
+	hash, err := RangeSourceContentHashContext(t.Context(), fs)
+	if err != nil {
+		t.Fatalf("RangeSourceContentHashContext() error = %v", err)
+	}
+	if !hash.Equal(summary.ContentHash) {
+		t.Fatalf("RangeSourceContentHashContext() = %s, want summary hash %s", hash.Hex(), summary.ContentHash.Hex())
+	}
+	if hash.Hex() == "" {
+		t.Fatal("RangeSourceContentHashContext() returned an empty hex hash")
+	}
+}
+
+func TestRangeSourceContentHashContextHonorsCancellation(t *testing.T) {
+	src := setFromRanges("src", Range{Lo: 1, Hi: 10})
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	hash, err := RangeSourceContentHashContext(ctx, src)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("RangeSourceContentHashContext() error = %v, want context.Canceled", err)
+	}
+	if hash.Valid {
+		t.Fatal("cancelled content hash unexpectedly valid")
+	}
+}
+
+func TestRangeSourceSummaryHonorsCancellation(t *testing.T) {
+	src := setFromRanges("src", Range{Lo: 1, Hi: 10})
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	summary, err := BuildRangeSourceSummaryContext(ctx, src)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("BuildRangeSourceSummaryContext() error = %v, want context.Canceled", err)
+	}
+	if summary.ContentHash.Valid {
+		t.Fatal("cancelled summary unexpectedly has a content hash")
+	}
+}
+
+func mustRangeSourceTestFilter(t *testing.T, src RangeSource) RangeOverlapFilter {
+	t.Helper()
+	filter, err := BuildRangeOverlapFilterContext(t.Context(), src)
+	if err != nil {
+		t.Fatalf("BuildRangeOverlapFilterContext() error = %v", err)
+	}
+	return filter
+}
+
+func writeRangeSourceTestFileSet(t *testing.T, set *IPSet) FileSet {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), set.Name+".set")
+	writeSet(t, path, set)
+	fs, err := OpenFileSet(path)
+	if err != nil {
+		t.Fatalf("OpenFileSet() error = %v", err)
+	}
+	return fs
+}

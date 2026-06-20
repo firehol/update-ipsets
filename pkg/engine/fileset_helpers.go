@@ -146,52 +146,12 @@ func (e *Engine) loadTextSet(ctx context.Context, name string) (*closableSource,
 	return &closableSource{RangeSource: set, close: nil}, nil
 }
 
-// collectIter materializes a range iterator into an in-memory IPSet.
-// Used when the result must be written with IPSet.Write (print formats).
-func collectIter(ctx context.Context, name string, iter func(yield func(iprange.Range) bool)) (*iprange.IPSet, error) {
-	set := iprange.New(name)
-	var count int
-	for r := range iter {
-		count++
-		if count%4096 == 0 {
-			if err := ctx.Err(); err != nil {
-				return nil, fmt.Errorf("collectIter %s cancelled: %w", name, err)
-			}
-		}
-		if err := set.AddRange(r); err != nil {
-			slog.Warn("collectIter: failed to add range", "set", name, "lo", r.Lo, "hi", r.Hi, "error", err)
-		}
-	}
-	set.Optimize()
-	return set, nil
-}
-
-func countUniqueIter(ctx context.Context, name string, iter func(yield func(iprange.Range) bool)) (uint64, error) {
-	var total uint64
-	var count int
-	for r := range iter {
-		count++
-		if count%4096 == 0 {
-			if err := ctx.Err(); err != nil {
-				return 0, fmt.Errorf("countUniqueIter %s cancelled: %w", name, err)
-			}
-		}
-		total += r.Size()
-	}
-	return total, nil
-}
-
 // checkFileSetErr checks whether a RangeSource (which may be a FileSet)
 // encountered an I/O error during iteration. Returns the error if any.
 func checkFileSetErr(src iprange.RangeSource, name string, logger *slog.Logger) error {
-	type errChecker interface {
-		Err() error
-	}
-	if ec, ok := src.(errChecker); ok {
-		if err := ec.Err(); err != nil {
-			logger.Warn("I/O error during FileSet operation", "set", name, "err", err)
-			return fmt.Errorf("I/O error reading set %s: %w", name, err)
-		}
+	if err := iprange.RangeSourceErr(src); err != nil {
+		logger.Warn("I/O error during FileSet operation", "set", name, "err", err)
+		return fmt.Errorf("I/O error reading set %s: %w", name, err)
 	}
 	return nil
 }

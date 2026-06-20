@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -11,7 +12,7 @@ import (
 	"github.com/firehol/update-ipsets/pkg/iprange"
 )
 
-func (e *Engine) finalize(name string, src *config.Source, output string, bodyPath string, finalSet *iprange.IPSet, sourceMTime time.Time, observedAt time.Time) error {
+func (e *Engine) finalize(ctx context.Context, name string, src *config.Source, output string, bodyPath string, finalSet *iprange.IPSet, sourceMTime time.Time, observedAt time.Time) error {
 	path := e.finalPath(name, output)
 	hash := hashForOutput(output)
 	entry := e.state.Entry(name)
@@ -74,7 +75,11 @@ func (e *Engine) finalize(name string, src *config.Source, output string, bodyPa
 	// provider_set_id; other feeds do not consume this field today.
 	contentHash := ""
 	if src.HasUse(config.UseCriticalInfrastructure) {
-		contentHash = ipSetContentHash(finalSet)
+		hash, err := iprange.RangeSourceContentHashContext(ctx, finalSet)
+		if err != nil {
+			return fmt.Errorf("content hash for %s: %w", name, err)
+		}
+		contentHash = hash.Hex()
 	}
 	entry.ApplyFinalizedSourceSet(cache.FinalizedSourceSetSnapshot{
 		File:          filepath.Base(path),

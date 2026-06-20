@@ -16,15 +16,11 @@ import (
 )
 
 type comparisonSetInfo struct {
-	name         string
-	ips          uint64
-	category     string
-	lo           uint32
-	hi           uint32
-	hasRange     bool
-	prefixBitmap *comparisonPrefixBitmap
-	sparsePrefix *comparisonSparsePrefixSet
-	contentHash  comparisonContentHash
+	name        string
+	ips         uint64
+	category    string
+	filter      iprange.RangeOverlapFilter
+	contentHash iprange.RangeContentHash
 }
 
 type comparisonUpdateFilter map[string]struct{}
@@ -151,7 +147,7 @@ func (e *Engine) prepareComparisonSetInfos(ctx context.Context, names []string, 
 			progress.Add(1, int64(len(names)), nil)
 			continue
 		}
-		signature, err := buildComparisonSetSignatureContext(ctx, src.RangeSource)
+		summary, err := iprange.BuildRangeSourceSummaryContext(ctx, src.RangeSource)
 		if err != nil {
 			progress.Add(1, int64(len(names)), nil)
 			return nil, err
@@ -160,17 +156,12 @@ func (e *Engine) prepareComparisonSetInfos(ctx context.Context, names []string, 
 			progress.Add(1, int64(len(names)), nil)
 			continue
 		}
-		lo, hi, hasRange := rangeBounds(src)
 		infos = append(infos, comparisonSetInfo{
-			name:         name,
-			ips:          src.UniqueIPs(),
-			category:     snap.Category,
-			lo:           lo,
-			hi:           hi,
-			hasRange:     hasRange,
-			prefixBitmap: signature.prefixBitmap,
-			sparsePrefix: signature.sparsePrefix,
-			contentHash:  signature.contentHash,
+			name:        name,
+			ips:         src.UniqueIPs(),
+			category:    snap.Category,
+			filter:      summary.OverlapFilter(),
+			contentHash: summary.ContentHash,
 		})
 		progress.Add(1, int64(len(names)), nil)
 	}
@@ -273,7 +264,7 @@ func (e *Engine) compareSetPair(ctx context.Context, pair comparisonPair, infos 
 		stats.recordSkippedEmpty()
 		return comparisonPairResult{i: pair.i, j: pair.j, common: 0}, true
 	}
-	if comparisonRangesDisjoint(infos[pair.i], infos[pair.j]) {
+	if infos[pair.i].filter.BoundsDisjoint(infos[pair.j].filter) {
 		stats.recordSkippedRange()
 		return comparisonPairResult{i: pair.i, j: pair.j, common: 0}, true
 	}
@@ -281,11 +272,11 @@ func (e *Engine) compareSetPair(ctx context.Context, pair comparisonPair, infos 
 		stats.recordIdentical()
 		return comparisonPairResult{i: pair.i, j: pair.j, common: infos[pair.i].ips}, true
 	}
-	if !comparisonSparsePrefixOverlap(infos[pair.i].sparsePrefix, infos[pair.j].sparsePrefix) {
+	if infos[pair.i].filter.SparsePrefixesDisjoint(infos[pair.j].filter) {
 		stats.recordSkippedSparse()
 		return comparisonPairResult{i: pair.i, j: pair.j, common: 0}, true
 	}
-	if !comparisonPrefixOverlap(infos[pair.i].prefixBitmap, infos[pair.j].prefixBitmap) {
+	if infos[pair.i].filter.PrefixesDisjoint(infos[pair.j].filter) {
 		stats.recordSkippedPrefix()
 		return comparisonPairResult{i: pair.i, j: pair.j, common: 0}, true
 	}
@@ -315,8 +306,8 @@ func (e *Engine) compareSetPair(ctx context.Context, pair comparisonPair, infos 
 	return comparisonPairResult{i: pair.i, j: pair.j, common: common}, true
 }
 
-func comparisonRangesDisjoint(a, b comparisonSetInfo) bool {
-	return a.hasRange && b.hasRange && (a.hi < b.lo || b.hi < a.lo)
+func comparisonSetsIdentical(a, b comparisonSetInfo) bool {
+	return a.ips > 0 && a.ips == b.ips && a.contentHash.Equal(b.contentHash)
 }
 
 func (s *comparisonPairStats) recordSkippedEmpty() {

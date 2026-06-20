@@ -381,7 +381,7 @@ func (e *Engine) Compose(ctx context.Context, include, exclude []string, format 
 	}
 	unionIter := iprange.UnionIter(rangeSrcs...)
 
-	result, err := collectIter(ctx, "composed", unionIter)
+	result, err := iprange.CollectIterContext(ctx, "composed", unionIter)
 	if err != nil {
 		_ = closeClosableSources(includeSrcs)
 		return nil, wrapServerError(err)
@@ -411,7 +411,7 @@ func (e *Engine) Compose(ctx context.Context, include, exclude []string, format 
 		if err != nil {
 			return nil, fmt.Errorf("compose exclude %s: %w", name, err)
 		}
-		result, err = collectIter(ctx, "composed", iprange.ExcludeIter(result, exclSrc.RangeSource))
+		result, err = iprange.CollectIterContext(ctx, "composed", iprange.ExcludeIter(result, exclSrc.RangeSource))
 		if err != nil {
 			_ = exclSrc.Close()
 			return nil, wrapServerError(err)

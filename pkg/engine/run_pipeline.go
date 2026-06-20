@@ -273,7 +273,7 @@ func (e *Engine) runFullHeavyPhases(ctx context.Context, opts RunOptions, report
 		bogonProviderTotal = int64(len(bogonDS.Names))
 	}
 	unionOp := e.beginActiveOperation("bogons.build_union", "", "union", "providers", bogonProviderTotal)
-	bogonUnion, err := buildBogonUnion(bogonDS)
+	bogonUnion, err := buildBogonUnion(ctx, bogonDS)
 	unionOp.Update(bogonProviderTotal, bogonProviderTotal, nil)
 	unionOp.Finish()
 	if err != nil {

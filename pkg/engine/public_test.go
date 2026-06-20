@@ -3,6 +3,7 @@ package engine
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -197,12 +198,12 @@ func TestCollectIterCancelsMidIteration(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	_, err := collectIter(ctx, "cancel_test", iter)
+	_, err := iprange.CollectIterContext(ctx, "cancel_test", iter)
 	if err == nil {
 		t.Fatal("collectIter with cancelled context should fail")
 	}
-	if !strings.Contains(err.Error(), "cancelled") {
-		t.Fatalf("error = %v, want cancelled", err)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("error = %v, want context.Canceled", err)
 	}
 }
 

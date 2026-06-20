@@ -87,6 +87,14 @@ This includes operations such as:
 
 The preferred model is file-backed or iterator-based processing.
 
+Generic range-source algorithms used by engine hot paths MUST live in
+`pkg/iprange`, not in engine-local helper implementations. This includes exact
+range-source comparison, iterator materialization/counting, normalized
+range-content hashing, bounds extraction, and conservative overlap filters.
+The engine MAY own domain-specific orchestration, artifact policy, and
+provider-specific attribution loops, but reusable range/set algebra belongs in
+the standalone `pkg/iprange` package.
+
 Pairwise and provider-reference overlap counting SHOULD use exact cheap filters
 before scanning both range streams. Acceptable filters include identical
 normalized range-content identity, disjoint range bounds, and disjoint occupied

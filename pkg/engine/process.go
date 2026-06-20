@@ -164,7 +164,7 @@ func (e *Engine) processAndCommit(ctx context.Context, runName string, src *conf
 
 	started = time.Now()
 	finalizeOp := e.beginActiveOperation("sources.finalize", runName, "write", "operation", 1)
-	if err := e.finalize(runName, src, output, sourcePath, finalSet, sourceMTime, observedAt); err != nil {
+	if err := e.finalize(ctx, runName, src, output, sourcePath, finalSet, sourceMTime, observedAt); err != nil {
 		if finalizeOp != nil {
 			finalizeOp.Finish()
 		}

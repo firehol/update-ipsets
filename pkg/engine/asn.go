@@ -199,7 +199,11 @@ func (e *Engine) precomputeASNBogonSplits(ctx context.Context, targetNames []str
 	progress := e.beginActiveOperation("asn.precompute_bogon_splits", "", "precompute", "feeds", int64(len(targetNames)))
 	defer progress.Finish()
 	splits := make(map[string]uint64, len(targetNames))
-	bogonFilter := buildRangeOverlapFilter(bogonUnion)
+	bogonFilter, err := iprange.BuildRangeOverlapFilterContext(ctx, bogonUnion)
+	if err != nil {
+		e.logger.Warn("ASN bogon split precompute skipped: bogon overlap filter failed", "error", err)
+		return splits
+	}
 	for _, name := range targetNames {
 		if err := contextErr(ctx); err != nil {
 			return splits
@@ -211,16 +215,25 @@ func (e *Engine) precomputeASNBogonSplits(ctx context.Context, targetNames []str
 				e.logger.Warn("ASN bogon split skipped: cannot open set", "set", name, "error", err)
 				return
 			}
-			filter := buildRangeOverlapFilter(src.RangeSource)
+			filter, err := iprange.BuildRangeOverlapFilterContext(ctx, src.RangeSource)
+			if err != nil {
+				e.logger.Warn("ASN bogon split skipped: overlap filter failed", "set", name, "error", err)
+				return
+			}
 			if checkErr := checkFileSetErr(src.RangeSource, name, e.logger); checkErr != nil {
 				return
 			}
-			if rangeOverlapFiltersDisjoint(filter, bogonFilter) {
+			if filter.Disjoint(bogonFilter) {
 				splits[name] = 0
 				e.observeRunCounter("asn.bogon_split_skipped_filter", 1, 0)
 				return
 			}
-			splits[name] = iprange.OverlapCountIter(src.RangeSource, bogonUnion)
+			bogonIPs, err := iprange.OverlapCountIterContext(ctx, src.RangeSource, bogonUnion)
+			if err != nil {
+				e.logger.Warn("ASN bogon split skipped: overlap count failed", "set", name, "error", err)
+				return
+			}
+			splits[name] = bogonIPs
 			if checkErr := checkFileSetErr(src.RangeSource, name, e.logger); checkErr != nil {
 				delete(splits, name)
 				return

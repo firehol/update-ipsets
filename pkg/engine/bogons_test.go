@@ -131,7 +131,7 @@ func TestBuildASNFeedJSONThreeBucketInvariant(t *testing.T) {
 // for an empty dataset, so callers can use the nil check as the
 // "no bogon split" signal.
 func TestBuildBogonUnionEmpty(t *testing.T) {
-	union, err := buildBogonUnion(nil)
+	union, err := buildBogonUnion(t.Context(), nil)
 	if err != nil {
 		t.Fatalf("nil dataset: %v", err)
 	}
@@ -139,7 +139,7 @@ func TestBuildBogonUnionEmpty(t *testing.T) {
 		t.Fatalf("nil dataset must return nil union, got %v", union)
 	}
 	empty := &bogonDatasets{Providers: map[string]*bogonProviderSet{}}
-	union, err = buildBogonUnion(empty)
+	union, err = buildBogonUnion(t.Context(), empty)
 	if err != nil {
 		t.Fatalf("empty dataset: %v", err)
 	}
@@ -167,7 +167,7 @@ func TestBuildBogonUnionMerges(t *testing.T) {
 		},
 		Names: []string{"a", "b"},
 	}
-	union, err := buildBogonUnion(ds)
+	union, err := buildBogonUnion(t.Context(), ds)
 	if err != nil {
 		t.Fatalf("buildBogonUnion: %v", err)
 	}
@@ -492,7 +492,10 @@ func TestComputeRFCByRangeBreakdown(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	out := computeRFCByRangeBreakdown(feed, ranges)
+	out, err := computeRFCByRangeBreakdown(t.Context(), feed, ranges)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(out) != 2 {
 		t.Fatalf("expected 2 non-zero range entries, got %d", len(out))
 	}

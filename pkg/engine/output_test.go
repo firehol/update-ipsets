@@ -247,14 +247,26 @@ func TestComparisonPrefixOverlap(t *testing.T) {
 	right := mustBitmapSet(t,
 		iprange.Range{Lo: 0x0A020001, Hi: 0x0A02FFFF}, // 10.2.0.1 - 10.2.255.255
 	)
-	if comparisonPrefixOverlap(buildComparisonPrefixBitmap(left), buildComparisonPrefixBitmap(right)) {
+	leftFilter, err := iprange.BuildRangeOverlapFilterContext(t.Context(), left)
+	if err != nil {
+		t.Fatalf("BuildRangeOverlapFilterContext(left) error = %v", err)
+	}
+	rightFilter, err := iprange.BuildRangeOverlapFilterContext(t.Context(), right)
+	if err != nil {
+		t.Fatalf("BuildRangeOverlapFilterContext(right) error = %v", err)
+	}
+	if !leftFilter.PrefixesDisjoint(rightFilter) {
 		t.Fatal("expected disjoint prefix occupancy to skip the pair")
 	}
 
 	overlapping := mustBitmapSet(t,
 		iprange.Range{Lo: 0x0A00F000, Hi: 0x0A0100FF}, // spans 10.0/16 and 10.1/16
 	)
-	if !comparisonPrefixOverlap(buildComparisonPrefixBitmap(left), buildComparisonPrefixBitmap(overlapping)) {
+	overlapFilter, err := iprange.BuildRangeOverlapFilterContext(t.Context(), overlapping)
+	if err != nil {
+		t.Fatalf("BuildRangeOverlapFilterContext(overlapping) error = %v", err)
+	}
+	if leftFilter.PrefixesDisjoint(overlapFilter) {
 		t.Fatal("expected shared prefix occupancy to keep the pair")
 	}
 }

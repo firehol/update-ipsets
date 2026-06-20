@@ -416,7 +416,7 @@ func TestCollectIter(t *testing.T) {
 	_ = set.Add(30, 40)
 	set.Optimize()
 
-	collected, err := collectIter(t.Context(), "result", set.Iter())
+	collected, err := iprange.CollectIterContext(t.Context(), "result", set.Iter())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -438,7 +438,7 @@ func TestCollectIterWithUnion(t *testing.T) {
 	setB.Optimize()
 
 	unionIter := iprange.UnionIter(setA, setB)
-	result, err := collectIter(t.Context(), "union", unionIter)
+	result, err := iprange.CollectIterContext(t.Context(), "union", unionIter)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -555,7 +555,7 @@ func TestClosableSourceIterMatchesIPSet(t *testing.T) {
 	defer func() { _ = src.Close() }()
 
 	// Count via iterator.
-	collected, err := collectIter(t.Context(), "collected", fs.Iter())
+	collected, err := iprange.CollectIterContext(t.Context(), "collected", fs.Iter())
 	if err != nil {
 		t.Fatal(err)
 	}

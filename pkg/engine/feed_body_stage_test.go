@@ -27,7 +27,7 @@ func TestAppendHistorySnapshotSameTimestampNoChangeReturnsFalse(t *testing.T) {
 	eng.retentionMaxWindow = map[string]time.Duration{"sample": 7 * 24 * time.Hour}
 	observedAt := time.Date(2026, 4, 21, 9, 0, 0, 0, time.UTC)
 
-	changed, err := eng.appendHistorySnapshot("sample", set, observedAt)
+	changed, err := eng.appendHistorySnapshot(t.Context(), "sample", set, observedAt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,7 +35,7 @@ func TestAppendHistorySnapshotSameTimestampNoChangeReturnsFalse(t *testing.T) {
 		t.Fatal("expected first history snapshot write to report change")
 	}
 
-	changed, err = eng.appendHistorySnapshot("sample", set, observedAt)
+	changed, err = eng.appendHistorySnapshot(t.Context(), "sample", set, observedAt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,7 +43,7 @@ func TestAppendHistorySnapshotSameTimestampNoChangeReturnsFalse(t *testing.T) {
 		t.Fatal("expected identical snapshot update at the same timestamp to be a no-op")
 	}
 
-	changed, err = eng.appendHistorySnapshot("sample", set, observedAt.Add(2*time.Hour))
+	changed, err = eng.appendHistorySnapshot(t.Context(), "sample", set, observedAt.Add(2*time.Hour))
 	if err != nil {
 		t.Fatal(err)
 	}
