@@ -126,7 +126,7 @@ func buildBogonUnion(ctx context.Context, datasets *bogonDatasets) (*iprange.IPS
 	if len(sources) == 0 {
 		return nil, nil
 	}
-	union, err := iprange.CollectIterContext(ctx, "bogon_union", iprange.UnionIter(sources...))
+	union, err := iprange.UnionSourcesContext(ctx, "bogon_union", sources...)
 	if err != nil {
 		return nil, fmt.Errorf("bogon union collect: %w", err)
 	}

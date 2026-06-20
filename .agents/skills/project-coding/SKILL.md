@@ -95,6 +95,12 @@ description: "Go, React, config, and repo conventions for update-ipsets. MUST be
   conservative overlap filters should be added to or reused from `pkg/iprange`;
   engine code should only orchestrate domain/artifact policy around those
   primitives (from SOW-0108).
+- Engine code that needs materialized range-source union, intersection,
+  exclusion, or exclusion counts should use `pkg/iprange` source-level APIs
+  (`UnionSourcesContext`, `IntersectSourcesContext`, `ExcludeSourcesContext`,
+  `ExcludeCountContext`, or `ExcludeRangesContext`) rather than composing
+  `CollectIterContext`/`CountIterContext` with `UnionIter`, `IntersectIter`, or
+  `ExcludeIter` in production hot paths (from SOW-0109).
 - Before optimizing an apparent hot path, prove the production caller path
   exists. If an unexported helper has no production callers, remove the dead
   helper instead of adding tests or complexity around it (from SOW-0031).

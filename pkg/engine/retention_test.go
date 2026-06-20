@@ -318,7 +318,7 @@ func TestRetentionReconcileUsesIPrangeCompareNextBeforeMaterializing(t *testing.
 	}
 	section := source[sectionStart:sectionEnd]
 	noChangeBranch := strings.Index(section, "if removedCount == 0")
-	materialize := strings.Index(section, "CollectIterContext(")
+	materialize := strings.Index(section, "IntersectSourcesContext(")
 	if noChangeBranch < 0 || materialize < 0 || noChangeBranch > materialize {
 		t.Fatalf("unchanged cohorts must return before materializing the intersection")
 	}

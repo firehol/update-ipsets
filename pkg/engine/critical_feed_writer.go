@@ -30,7 +30,7 @@ func (e *Engine) writeCriticalInfrastructureForFeed(ctx context.Context, name st
 	if err != nil || writer == nil {
 		return nil, err
 	}
-	return writer.write()
+	return writer.write(ctx)
 }
 
 func (e *Engine) newCriticalFeedWriter(ctx context.Context, name string, datasets *criticalDatasets, outDir string, setCache *latestSetCache) (*criticalFeedWriter, error) {
@@ -64,8 +64,8 @@ func (e *Engine) newCriticalFeedWriter(ctx context.Context, name string, dataset
 	}, nil
 }
 
-func (w *criticalFeedWriter) write() ([]string, error) {
-	if err := w.writeProviderPayloads(); err != nil {
+func (w *criticalFeedWriter) write(ctx context.Context) ([]string, error) {
+	if err := w.writeProviderPayloads(ctx); err != nil {
 		return nil, err
 	}
 	sortCriticalProviderPayloads(w.providerPayloads)
@@ -80,27 +80,27 @@ func (w *criticalFeedWriter) write() ([]string, error) {
 	return tiers, nil
 }
 
-func (w *criticalFeedWriter) writeProviderPayloads() error {
+func (w *criticalFeedWriter) writeProviderPayloads(ctx context.Context) error {
 	for _, providerName := range w.datasets.Names {
 		provider := w.datasets.Providers[providerName]
 		if provider == nil || provider.Set == nil {
 			continue
 		}
-		if err := w.writeProviderPayload(providerName, provider); err != nil {
+		if err := w.writeProviderPayload(ctx, providerName, provider); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (w *criticalFeedWriter) writeProviderPayload(providerName string, provider *criticalProviderSet) error {
+func (w *criticalFeedWriter) writeProviderPayload(ctx context.Context, providerName string, provider *criticalProviderSet) error {
 	if err := w.checkFeedSet(); err != nil {
 		return err
 	}
 	if err := w.checkProviderSet(providerName, provider); err != nil {
 		return err
 	}
-	criticalIPs, err := w.scanProviderOverlap(providerName, provider)
+	criticalIPs, err := w.scanProviderOverlap(ctx, providerName, provider)
 	if err != nil {
 		return err
 	}
@@ -121,25 +121,25 @@ func (w *criticalFeedWriter) writeProviderPayload(providerName string, provider 
 	return nil
 }
 
-func (w *criticalFeedWriter) scanProviderOverlap(providerName string, provider *criticalProviderSet) (uint64, error) {
+func (w *criticalFeedWriter) scanProviderOverlap(ctx context.Context, providerName string, provider *criticalProviderSet) (uint64, error) {
 	if w.feedFilter.Disjoint(provider.overlapFilter) {
 		w.e.observeRunCounter("critical.overlap_skipped_filter", 1, 0)
 		return 0, nil
 	}
-	var criticalIPs uint64
-	countedProvider := false
-	for r := range iprange.IntersectIter(w.src.RangeSource, provider.Set) {
-		criticalIPs += r.Size()
-		if !countedProvider {
-			countedProvider = true
-			w.ensureTierSet(provider.Meta.Tier)
-		}
-		if err := w.totalSet.AddRange(r); err != nil {
-			return 0, fmt.Errorf("critical infrastructure aggregate add for %s/%s: %w", w.name, providerName, err)
-		}
-		if err := w.tierSets[provider.Meta.Tier].AddRange(r); err != nil {
-			return 0, fmt.Errorf("critical infrastructure tier aggregate add for %s/%s: %w", w.name, providerName, err)
-		}
+	overlap, err := iprange.IntersectSourcesContext(ctx, w.name+"_critical_"+providerName, w.src.RangeSource, provider.Set)
+	if err != nil {
+		return 0, fmt.Errorf("critical infrastructure overlap for %s/%s: %w", w.name, providerName, err)
+	}
+	criticalIPs := overlap.UniqueCount()
+	if criticalIPs == 0 {
+		return 0, nil
+	}
+	w.ensureTierSet(provider.Meta.Tier)
+	if err := w.totalSet.Merge(overlap); err != nil {
+		return 0, fmt.Errorf("critical infrastructure aggregate merge for %s/%s: %w", w.name, providerName, err)
+	}
+	if err := w.tierSets[provider.Meta.Tier].Merge(overlap); err != nil {
+		return 0, fmt.Errorf("critical infrastructure tier aggregate merge for %s/%s: %w", w.name, providerName, err)
 	}
 	return criticalIPs, nil
 }

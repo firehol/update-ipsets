@@ -14,6 +14,7 @@
 package asnloc
 
 import (
+	"context"
 	"fmt"
 	"net"
 
@@ -161,7 +162,22 @@ func (d *Database) CountFeedExcluding(src, exclude iprange.RangeSource) (counts 
 	if exclude == nil {
 		return d.CountFeed(src)
 	}
-	counts, names, _, err = d.countFeedRanges(iprange.ExcludeIter(src, exclude))
+	counts = map[uint32]uint64{}
+	names = map[uint32]string{}
+	if d == nil {
+		return counts, names, nil
+	}
+	var countErr error
+	err = iprange.ExcludeRangesContext(context.Background(), src, exclude, func(r iprange.Range) bool {
+		_, countErr = d.countFeedRange(r, counts, names)
+		if countErr != nil {
+			return false
+		}
+		return true
+	})
+	if countErr != nil {
+		return counts, names, countErr
+	}
 	return counts, names, err
 }
 
@@ -208,31 +224,41 @@ func (d *Database) countFeedRanges(seq func(yield func(iprange.Range) bool)) (co
 		return counts, names, 0, nil
 	}
 	seq(func(r iprange.Range) bool {
-		cur := r.Lo
-		for {
-			rec, network, lookupErr := d.Lookup(cur)
-			if lookupErr != nil {
-				err = lookupErr
-				return false
-			}
-			// Defensive max(cur, ...) in case a backend ever returns a
-			// malformed network whose Hi is below the current cursor;
-			// without it the loop could run forever.
-			end := max(cur, min(network.Hi, r.Hi))
-			span := uint64(end-cur) + 1
-			counts[rec.ASN] += span
-			total += span
-			if rec.ASN != 0 && rec.Name != "" {
-				names[rec.ASN] = rec.Name
-			}
-			if end == ^uint32(0) || end >= r.Hi {
-				break
-			}
-			cur = end + 1
+		var rangeTotal uint64
+		rangeTotal, err = d.countFeedRange(r, counts, names)
+		total += rangeTotal
+		if err != nil {
+			return false
 		}
 		return true
 	})
 	return counts, names, total, err
+}
+
+func (d *Database) countFeedRange(r iprange.Range, counts map[uint32]uint64, names map[uint32]string) (uint64, error) {
+	var total uint64
+	cur := r.Lo
+	for {
+		rec, network, err := d.Lookup(cur)
+		if err != nil {
+			return total, err
+		}
+		// Defensive max(cur, ...) in case a backend ever returns a
+		// malformed network whose Hi is below the current cursor; without it
+		// the loop could run forever.
+		end := max(cur, min(network.Hi, r.Hi))
+		span := uint64(end-cur) + 1
+		counts[rec.ASN] += span
+		total += span
+		if rec.ASN != 0 && rec.Name != "" {
+			names[rec.ASN] = rec.Name
+		}
+		if end == ^uint32(0) || end >= r.Hi {
+			break
+		}
+		cur = end + 1
+	}
+	return total, nil
 }
 
 // uint32ToIP converts an IPv4 stored as a host-order uint32 into a net.IP.

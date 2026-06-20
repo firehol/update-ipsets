@@ -50,6 +50,9 @@ func OverlapCountIterContext(ctx context.Context, a, b RangeSource) (uint64, err
 		iprangeObserve(iprangeBackground(), "iprange.compare.ops", 1, 0, time.Since(started), attrs...)
 		iprangeObserve(iprangeBackground(), "iprange.overlap.ops", 1, 0, time.Since(started), attrs...)
 	}()
+	if count, ok, err := overlapCountFastPath(ctx, a, b); ok {
+		return count, err
+	}
 	var count uint64
 	for r := range IntersectIter(a, b) {
 		if err := ctx.Err(); err != nil {

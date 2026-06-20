@@ -171,6 +171,18 @@ func (m *mmapFileSet) Err() error {
 	return nil
 }
 
+func (m *mmapFileSet) lockFastReader() error {
+	if m.closed.Load() {
+		return ErrFileSetClosed
+	}
+	m.mu.RLock()
+	if m.closed.Load() {
+		m.mu.RUnlock()
+		return ErrFileSetClosed
+	}
+	return nil
+}
+
 func (m *mmapFileSet) Close() error {
 	if m.closed.Swap(true) {
 		return nil // already closed

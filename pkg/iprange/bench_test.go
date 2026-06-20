@@ -405,6 +405,80 @@ func BenchmarkCollectIterContextFileSetUnion(b *testing.B) {
 	}
 }
 
+func BenchmarkUnionSourcesContextFileSet(b *testing.B) {
+	for _, size := range []int{1_000, 10_000, 100_000} {
+		b.Run(fmt.Sprintf("n=%d", size), func(b *testing.B) {
+			fsA, fsB := benchPairFileSets(b, size)
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				set, err := UnionSourcesContext(b.Context(), "union", fsA, fsB)
+				if err != nil {
+					b.Fatal(err)
+				}
+				if set.Len() == 0 {
+					b.Fatal("empty union")
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkIntersectSourcesContextFileSet(b *testing.B) {
+	for _, size := range []int{1_000, 10_000, 100_000} {
+		b.Run(fmt.Sprintf("n=%d", size), func(b *testing.B) {
+			fsA, fsB := benchPairFileSets(b, size)
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				set, err := IntersectSourcesContext(b.Context(), "intersect", fsA, fsB)
+				if err != nil {
+					b.Fatal(err)
+				}
+				_ = set.Len()
+			}
+		})
+	}
+}
+
+func BenchmarkExcludeSourcesContextFileSet(b *testing.B) {
+	for _, size := range []int{1_000, 10_000, 100_000} {
+		b.Run(fmt.Sprintf("n=%d", size), func(b *testing.B) {
+			fsA, fsB := benchPairFileSets(b, size)
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				set, err := ExcludeSourcesContext(b.Context(), "exclude", fsA, fsB)
+				if err != nil {
+					b.Fatal(err)
+				}
+				if set.Len() == 0 {
+					b.Fatal("empty exclude")
+				}
+			}
+		})
+	}
+}
+
+func BenchmarkExcludeCountContextFileSet(b *testing.B) {
+	for _, size := range []int{1_000, 10_000, 100_000} {
+		b.Run(fmt.Sprintf("n=%d", size), func(b *testing.B) {
+			fsA, fsB := benchPairFileSets(b, size)
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				count, err := ExcludeCountContext(b.Context(), fsA, fsB)
+				if err != nil {
+					b.Fatal(err)
+				}
+				if count == 0 {
+					b.Fatal("empty exclude count")
+				}
+			}
+		})
+	}
+}
+
 func BenchmarkRangeSourcesEqualContextFileSet(b *testing.B) {
 	for _, size := range []int{1_000, 10_000, 100_000} {
 		b.Run(fmt.Sprintf("n=%d", size), func(b *testing.B) {

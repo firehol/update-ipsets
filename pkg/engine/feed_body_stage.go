@@ -439,7 +439,7 @@ func (e *Engine) composeHistoryDerivativeBody(ctx context.Context, src *config.S
 		rangeSources = append(rangeSources, fs)
 	}
 
-	union, err := iprange.CollectIterContext(ctx, src.Name, iprange.UnionIter(rangeSources...))
+	union, err := iprange.UnionSourcesContext(ctx, src.Name, rangeSources...)
 	if err != nil {
 		return nil, nil, fmt.Errorf("history derivative collect union: %w", err)
 	}
@@ -484,7 +484,7 @@ func (e *Engine) composeMergeBody(ctx context.Context, src *config.Source, enabl
 		if err != nil {
 			return nil, nil, "", err
 		}
-		set, err = iprange.CollectIterContext(ctx, src.Name, iprange.ExcludeIter(set, excludeSet))
+		set, err = iprange.ExcludeSourcesContext(ctx, src.Name, set, excludeSet)
 		if err != nil {
 			return nil, nil, "", fmt.Errorf("merge exclude collect: %w", err)
 		}
