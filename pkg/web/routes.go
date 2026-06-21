@@ -36,10 +36,7 @@ func (s *surfaceRoutes) registerPublicAPI(mux *http.ServeMux) {
 		apiNoCache(w)
 		writeJSON(w, http.StatusOK, buildPublicStatus(s.eng))
 	})
-	mux.HandleFunc("GET /api/v1/categories", func(w http.ResponseWriter, r *http.Request) {
-		apiNoCache(w)
-		writeJSON(w, http.StatusOK, s.eng.PublicCategories())
-	})
+	mux.HandleFunc("GET /api/v1/categories", s.handlePublicCategories())
 	mux.HandleFunc("GET /api/v1/home/globe", handleHomeGlobe(s.eng, s.outputDir))
 	mux.HandleFunc("GET /api/v1/home/summary", handleHomeSummary(s.eng, s.outputDir))
 
@@ -57,6 +54,17 @@ func (s *surfaceRoutes) registerPublicAPI(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/v1/query", s.handleGlobalSearch())
 	mux.HandleFunc("GET /api/v1/search", s.handleGlobalSearch())
 	mux.HandleFunc("GET /api/v1/compose", s.handlePublicCompose())
+}
+
+func (s *surfaceRoutes) registerAdminPublicMetadataAPI(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/v1/categories", s.handlePublicCategories())
+}
+
+func (s *surfaceRoutes) handlePublicCategories() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		apiNoCache(w)
+		writeJSON(w, http.StatusOK, s.eng.PublicCategories())
+	}
 }
 
 func (s *surfaceRoutes) handlePublicFeedList() http.HandlerFunc {

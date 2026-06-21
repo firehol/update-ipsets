@@ -67,6 +67,49 @@ func TestStatusSnapshotCountsExpandedMergeSources(t *testing.T) {
 	}
 }
 
+func TestStatusSnapshotLightOmitsMetricsButKeepsLiveProgress(t *testing.T) {
+	started := time.Date(2026, 6, 21, 15, 48, 41, 0, time.UTC)
+	eng := newEngineFixture(t)
+	eng.mu.Lock()
+	eng.running = true
+	eng.currentPhase = RunPhaseMetadata
+	eng.currentMetrics = newRunMetrics(started, RunPhaseMetadata)
+	eng.lastMetrics = &RunMetricsSnapshot{StartedAt: started.Add(-time.Hour)}
+	eng.mu.Unlock()
+	eng.ObserveOperation("metadata.comparison_pair_overlap", time.Second)
+	op := eng.beginActiveOperation("metadata.compare_pairs", "", "compare", "candidate_pairs", 10)
+	defer op.Finish()
+	op.Update(3, 10, nil)
+
+	light := eng.StatusSnapshotLight()
+	if !light.Running {
+		t.Fatal("light status lost running state")
+	}
+	if light.CurrentPhase != RunPhaseMetadata {
+		t.Fatalf("light status current phase = %q, want metadata", light.CurrentPhase)
+	}
+	if len(light.ActiveOperations) != 1 {
+		t.Fatalf("light status active operations = %d, want 1", len(light.ActiveOperations))
+	}
+	if light.ActiveOperations[0].Current != 3 || light.ActiveOperations[0].Total != 10 {
+		t.Fatalf("light status active operation progress = %d/%d, want 3/10", light.ActiveOperations[0].Current, light.ActiveOperations[0].Total)
+	}
+	if light.CurrentMetrics != nil || light.LastMetrics != nil || light.LifetimeMetrics != nil {
+		t.Fatalf("light status included metrics: current=%v last=%v lifetime=%v", light.CurrentMetrics != nil, light.LastMetrics != nil, light.LifetimeMetrics != nil)
+	}
+
+	full := eng.StatusSnapshot()
+	if full.CurrentMetrics == nil {
+		t.Fatal("full status lost current metrics")
+	}
+	if full.LastMetrics == nil {
+		t.Fatal("full status lost last metrics")
+	}
+	if full.LifetimeMetrics == nil {
+		t.Fatal("full status lost lifetime metrics")
+	}
+}
+
 func TestDerivativeRunReasonIsDependencyUpdate(t *testing.T) {
 	modified := time.Date(2026, 4, 11, 11, 0, 0, 0, time.UTC)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

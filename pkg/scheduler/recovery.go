@@ -61,7 +61,7 @@ func (r *Runner) enqueueProviderDefaultsReprocess(now time.Time) {
 	if r == nil || r.eng == nil {
 		return
 	}
-	if r.eng.StatusSnapshot().Running {
+	if r.eng.StatusSnapshotLight().Running {
 		return
 	}
 	if !r.eng.ProviderDefaultsChanged() {

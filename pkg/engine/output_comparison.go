@@ -189,6 +189,11 @@ func (f comparisonUpdateFilter) includes(name string) bool {
 	return ok
 }
 
+func (f comparisonUpdateFilter) contains(name string) bool {
+	_, ok := f[name]
+	return ok
+}
+
 func (e *Engine) runComparisonPairs(ctx context.Context, infos []comparisonSetInfo, updated comparisonUpdateFilter, setCache *latestSetCache, ledger *comparisonPairLedgerSnapshot) ([]comparisonPairResult, *comparisonPairStats) {
 	totalPairs := int64(len(infos) * (len(infos) - 1) / 2)
 	scanOp := e.beginActiveOperation("metadata.scan_comparison_pairs", "", "scan", "pairs", totalPairs)
@@ -234,8 +239,7 @@ func (e *Engine) runComparisonPairs(ctx context.Context, infos []comparisonSetIn
 
 	compareOp.Update(0, stats.candidates, nil)
 	if len(exactPairs) > 0 {
-		exactResults := e.compareSetPairBatch(ctx, exactPairs, infos, setCache, stats)
-		compareOp.Update(int64(len(exactResults)), stats.candidates, nil)
+		exactResults := e.compareSetPairBatches(ctx, exactPairs, infos, updated, setCache, stats, compareOp)
 		pairResults = append(pairResults, exactResults...)
 	}
 	if len(ledgerResults) > 0 {
@@ -268,7 +272,75 @@ func (e *Engine) compareSetPairFast(pair comparisonPair, infos []comparisonSetIn
 	return comparisonPairResult{}, false
 }
 
-func (e *Engine) compareSetPairBatch(ctx context.Context, pairs []comparisonPair, infos []comparisonSetInfo, setCache *latestSetCache, stats *comparisonPairStats) []comparisonPairResult {
+type comparisonOrientedPair struct {
+	original comparisonPair
+	left     int
+	right    int
+}
+
+type comparisonOrientedPairBatch struct {
+	left  int
+	pairs []comparisonOrientedPair
+}
+
+const comparisonPairBatchMaxPairs = 256
+
+func comparisonPairBatches(pairs []comparisonPair, infos []comparisonSetInfo, updated comparisonUpdateFilter) []comparisonOrientedPairBatch {
+	if len(pairs) == 0 {
+		return nil
+	}
+	groups := make([]comparisonOrientedPairBatch, 0, len(pairs))
+	groupIndex := make(map[int]int, len(pairs))
+	for _, pair := range pairs {
+		oriented := orientComparisonPair(pair, infos, updated)
+		idx, ok := groupIndex[oriented.left]
+		if !ok || len(groups[idx].pairs) >= comparisonPairBatchMaxPairs {
+			idx = len(groups)
+			groupIndex[oriented.left] = idx
+			groups = append(groups, comparisonOrientedPairBatch{left: oriented.left})
+		}
+		groups[idx].pairs = append(groups[idx].pairs, oriented)
+	}
+	return groups
+}
+
+func orientComparisonPair(pair comparisonPair, infos []comparisonSetInfo, updated comparisonUpdateFilter) comparisonOrientedPair {
+	left, right := pair.i, pair.j
+	if len(updated) > 0 && right < len(infos) && left < len(infos) {
+		leftUpdated := updated.contains(infos[left].name)
+		rightUpdated := updated.contains(infos[right].name)
+		if rightUpdated && !leftUpdated {
+			left, right = right, left
+		}
+	}
+	return comparisonOrientedPair{
+		original: pair,
+		left:     left,
+		right:    right,
+	}
+}
+
+func (e *Engine) compareSetPairBatches(ctx context.Context, pairs []comparisonPair, infos []comparisonSetInfo, updated comparisonUpdateFilter, setCache *latestSetCache, stats *comparisonPairStats, progress *activeOperationHandle) []comparisonPairResult {
+	batches := comparisonPairBatches(pairs, infos, updated)
+	if len(batches) == 0 {
+		return nil
+	}
+	results := make([]comparisonPairResult, 0, len(pairs))
+	var completed int64
+	for _, batch := range batches {
+		if err := contextErr(ctx); err != nil {
+			return results
+		}
+		results = append(results, e.compareSetPairBatch(ctx, batch.pairs, infos, setCache, stats)...)
+		completed += int64(len(batch.pairs))
+		if progress != nil {
+			progress.Update(completed, int64(len(pairs)), nil)
+		}
+	}
+	return results
+}
+
+func (e *Engine) compareSetPairBatch(ctx context.Context, pairs []comparisonOrientedPair, infos []comparisonSetInfo, setCache *latestSetCache, stats *comparisonPairStats) []comparisonPairResult {
 	sources, iprangePairs, originalPairs := e.comparisonPairBatchSources(pairs, infos, setCache)
 	if len(iprangePairs) == 0 {
 		return nil
@@ -304,7 +376,7 @@ func (e *Engine) compareSetPairBatch(ctx context.Context, pairs []comparisonPair
 	return results
 }
 
-func (e *Engine) comparisonPairBatchSources(pairs []comparisonPair, infos []comparisonSetInfo, setCache *latestSetCache) ([]iprange.CompareSource, []iprange.ComparePair, []comparisonPair) {
+func (e *Engine) comparisonPairBatchSources(pairs []comparisonOrientedPair, infos []comparisonSetInfo, setCache *latestSetCache) ([]iprange.CompareSource, []iprange.ComparePair, []comparisonPair) {
 	if setCache == nil {
 		return nil, nil, nil
 	}
@@ -335,16 +407,16 @@ func (e *Engine) comparisonPairBatchSources(pairs []comparisonPair, infos []comp
 	iprangePairs := make([]iprange.ComparePair, 0, len(pairs))
 	originalPairs := make([]comparisonPair, 0, len(pairs))
 	for _, pair := range pairs {
-		left, ok := ensureSource(pair.i)
+		left, ok := ensureSource(pair.left)
 		if !ok {
 			continue
 		}
-		right, ok := ensureSource(pair.j)
+		right, ok := ensureSource(pair.right)
 		if !ok {
 			continue
 		}
 		iprangePairs = append(iprangePairs, iprange.ComparePair{Left: left, Right: right})
-		originalPairs = append(originalPairs, pair)
+		originalPairs = append(originalPairs, pair.original)
 	}
 	return sources, iprangePairs, originalPairs
 }

@@ -8,7 +8,7 @@ import (
 func (r *Runner) enqueueAutomaticDue(snapshot Snapshot, now time.Time) {
 	engineRunning := false
 	if r != nil && r.eng != nil {
-		engineRunning = r.eng.StatusSnapshot().Running
+		engineRunning = r.eng.StatusSnapshotLight().Running
 	}
 	for _, item := range snapshot.Items {
 		if !item.Enabled {

@@ -494,6 +494,10 @@ This means:
 - exact peer-comparison overlap work SHOULD be batched through `pkg/iprange`
   primitives so range-source algorithms stay optimized in the standalone
   package instead of being reimplemented in engine-local loops
+- incremental exact peer-comparison work SHOULD drive batches from the changed
+  feed when only one side of a pair changed, and SHOULD update active-operation
+  progress between bounded batches so the operator does not see a minutes-long
+  zero-progress metadata phase
 - retention removal reconciliation SHOULD compare historical cohorts through
   bounded `pkg/iprange` source-pair batches, not one engine-local comparison per
   cohort and not one unbounded open of every historical cohort file

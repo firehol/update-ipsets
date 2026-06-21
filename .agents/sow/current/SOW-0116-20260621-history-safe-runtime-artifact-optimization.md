@@ -892,6 +892,48 @@ Real-use evidence:
     `fmt.Sscanf`
   - added `BenchmarkParseIPsWithProgress` and
     `BenchmarkLoadChangesetTailLargeLedger`
+- Production incident follow-up on 2026-06-21:
+  - The apparent production deadlock was not a Go deadlock. The service later
+    recovered, and the logs show long metadata comparison work with CPU and I/O
+    activity.
+  - The operator-visible stall was real: `metadata.compare_pairs` stayed at
+    `0/3629` while a single batched comparison call ran, so admin progress did
+    not move during the heavy work.
+  - Admin API responsiveness was also a real problem:
+    `http.admin_status.build` reached `184308ms`, so reloading the admin UI
+    could wait behind expensive live status construction.
+  - The repeated `/api/v1/categories` `404` entries were caused by split
+    listener mode. The shared SPA requests public category metadata from the
+    current origin, but the admin-only listener registered admin routes and
+    embedded assets without the read-only public category API.
+  - Public website serving is intended to keep working during processing
+    because public and admin listeners are split when configured that way and
+    public routes serve cached/published artifacts. Host saturation can still
+    degrade response time, but public reads must not wait on live admin status
+    construction or metadata recomputation.
+- Implementation decision for this incident:
+  - Orient exact changed-feed comparison candidates so the changed feed becomes
+    the `pkg/iprange` compare driver where a pair has exactly one changed side,
+    preserving output pair identity while allowing the optimized repeated-left
+    path to apply.
+  - Split exact metadata comparisons into bounded left-driver batches and
+    update `metadata.compare_pairs` progress after each batch.
+  - Keep admin/public status endpoints on a lightweight engine status snapshot
+    that includes current run state, active operations, and background tasks,
+    but does not clone full current/last/lifetime run metrics on every poll.
+  - Expose the read-only public categories API on the admin listener so the
+    shared SPA can load on the admin origin without `404` noise.
+- Implemented the incident fix:
+  - metadata exact comparisons now orient one-sided changed-feed pairs around
+    the changed feed, split large driver groups into bounded batches, and update
+    `metadata.compare_pairs` progress after each batch
+  - admin/public status and integrity suppression checks now use a lightweight
+    engine status snapshot that omits full run metric trees
+  - scheduler running-state checks now use the same lightweight snapshot
+  - split admin listeners now serve `GET /api/v1/categories` as read-only
+    product metadata for the shared SPA shell
+  - status snapshot code was moved out of `pkg/engine/query.go` to keep the
+    architecture file-size posture passing
 - Validation after this monitoring pass:
   - `go test -run 'TestParseReader(MixedInput|ReportsProgress|ReportsOperationStats|RangeCapacityHintPreservesIPv4Result)' ./pkg/iprange`
   - `go test -run 'TestChangesetTailFromRuntime|TestPublicChangesets|TestChangesetSeries|TestReadInsightsChangesets' ./pkg/engine`
@@ -906,6 +948,13 @@ Real-use evidence:
 - Validation after production integrity hotfix:
   - `go test ./pkg/engine -run 'TestCheckEntityArtifactsIntegrity(RequiresFeedPresenceIndex|FlagsMismatchedVersionMarker|FlagsMissingVersionMarker)|TestRefreshEntityArtifactsRebuildsPreviousVersionPartialFeedSidecarStore|TestSurgicalRefreshRebuildsAffectedDetailsFromFeedSidecars|TestRebuildEntityArtifactsWritesFeedPresenceIndex|TestMissingCommittedFeedSidecarUsesPresenceIndexForFullRebuildProof' -count=1`
   - `go test ./pkg/engine -count=1`
+  - `make test`
+  - `make lint`
+- Validation after production metadata/admin stall fix:
+  - `go test ./pkg/engine -run 'Test(ComparisonPairBatches|StatusSnapshotLight)' -count=1`
+  - `go test ./pkg/web -run 'Test(SurfaceHandlerModesRegisterExpectedSurfaces|AdminStatusUsesLightEngineSnapshot)' -count=1`
+  - `go test ./pkg/engine ./pkg/web ./pkg/scheduler ./pkg/iprange -count=1`
+  - `go test ./tools/archposture -count=1`
   - `make test`
   - `make lint`
 
@@ -925,7 +974,7 @@ Artifact maintenance gate:
 
 - AGENTS.md: updated with historical feed data preservation guardrail.
 - Runtime project skills: `.agents/skills/project-testing/SKILL.md` updated with `make jsonbench`; `.agents/skills/project-coding/SKILL.md` updated to keep changed-feed entity refresh from using actor JSON sidecars as hot-path patch state and to keep retention removal reconciliation delegated to bounded `pkg/iprange` batches.
-- Specs: `.agents/sow/specs/files-layout.md`, `.agents/sow/specs/pipeline.md`, `.agents/sow/specs/integrity.md`, `.agents/sow/specs/operating-principles.md`, `.agents/sow/specs/processing-engine.md`, and `.agents/sow/specs/memory-management.md` updated for `cache/comparison-pairs-v2.bin`, v1 read-only upgrade input, full-rebuild semantics, the entity feed-presence index, current-version entity bootstrap integrity, batched `pkg/iprange` comparison, feed-sidecar-driven selected actor detail rebuilds, bounded retention cohort comparison batches, and bounded changeset tail/window access for rotation/change-ratio consumers.
+- Specs: `.agents/sow/specs/files-layout.md`, `.agents/sow/specs/pipeline.md`, `.agents/sow/specs/integrity.md`, `.agents/sow/specs/operating-principles.md`, `.agents/sow/specs/processing-engine.md`, `.agents/sow/specs/memory-management.md`, `.agents/sow/specs/admin-ui.md`, and `.agents/sow/specs/website.md` updated for `cache/comparison-pairs-v2.bin`, v1 read-only upgrade input, full-rebuild semantics, the entity feed-presence index, current-version entity bootstrap integrity, batched `pkg/iprange` comparison, feed-sidecar-driven selected actor detail rebuilds, bounded retention cohort comparison batches, bounded changeset tail/window access for rotation/change-ratio consumers, lightweight admin polling status, split-listener category metadata, and bounded comparison progress.
 - End-user/operator docs: no public/operator docs update needed; `tools/jsonbench/README.md` added for developer benchmark usage; `tools/historyaudit/README.md` added for local pre/post history and retention audit usage.
 - End-user/operator skills: no update needed; operator workflows did not change.
 - SOW lifecycle: moved from `.agents/sow/pending/` to `.agents/sow/current/`; `Status: open`.

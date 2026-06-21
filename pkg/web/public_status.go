@@ -25,7 +25,7 @@ type publicSystemStatus struct {
 }
 
 func buildPublicStatus(eng *engine.Engine) publicStatus {
-	snap := eng.StatusSnapshot()
+	snap := eng.StatusSnapshotLight()
 	sys := detailedStatus()
 	return publicStatus{
 		Engine: publicEngineStatus{

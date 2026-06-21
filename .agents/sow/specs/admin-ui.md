@@ -73,6 +73,10 @@ Rules:
   listener
 - in split mode, requests for `/admin`, `/admin/*`, and `/api/v1/admin/*` on
   the public listener MUST fail as not found rather than serving admin content
+- in split mode, the admin listener MAY expose read-only public metadata APIs
+  that the shared admin SPA shell needs to render, such as
+  `GET /api/v1/categories`; these routes MUST NOT expose raw feed bodies,
+  public website pages, or admin actions
 
 ### Authentication modes
 
@@ -117,6 +121,14 @@ Shows:
 - current pipeline state
 - active work
 - queue backlog
+
+The high-frequency admin status endpoint MUST remain lightweight enough to
+poll while the engine is doing heavy metadata, comparison, entity, retention,
+or publish work. It MUST expose live run state, active operations, and
+background tasks, but it MUST NOT clone or serialize the full current-run,
+last-run, or lifetime metric trees on every poll. Detailed metric trees belong
+in lower-frequency diagnostics, structured progress logs, or a separate
+operator endpoint that is not required to reload the admin shell.
 
 ### 2. Feed inventory
 
@@ -254,6 +266,11 @@ derived directly from backend-provided `current`, `total`, `unit`, `elapsed_ms`,
 and `rate_per_second` fields. The UI MUST NOT infer semantic units from feed
 names or operation-name substrings.
 
+Backend heavy operations SHOULD update active-operation progress between
+bounded batches. A single long CPU/I/O batch that leaves the current counter at
+zero for minutes is not acceptable operator visibility when the work can be
+chunked without changing publication semantics.
+
 ## Background-work visibility
 
 The daemon MUST NOT perform invisible background work.
@@ -300,10 +317,10 @@ country/ASN artifacts at the same time.
 
 ## Resource telemetry visibility
 
-The admin status surface MUST expose enough daemon-lifetime telemetry to
-identify resource waste without reading logs or guessing from wall-clock time.
+The admin operator surfaces MUST expose enough daemon-lifetime telemetry to
+identify resource waste without guessing from wall-clock time.
 
-At minimum, the admin API SHOULD expose:
+At minimum, admin diagnostics or structured progress logs SHOULD expose:
 
 - monotonic operation counters and timing totals for major CPU-affecting work
 - monotonic byte/count counters for network, file, JSON, mmap, sidecar, and
@@ -322,8 +339,8 @@ operations moved the most.
 Admin polling endpoints are themselves part of the operational profile. Any
 endpoint polled by the admin UI SHOULD expose request count, response bytes, and
 build/write timings. Those endpoints MUST reuse already-built snapshots inside a
-single request and MUST NOT perform per-row full-cache snapshots or other
-O(rows * total-state) work.
+single request and MUST NOT perform per-row full-cache snapshots, full metric
+tree snapshots, or other O(rows * total-state) work.
 
 Telemetry names SHOULD distinguish skipped work from real work. For example,
 pairwise comparison counters SHOULD separate candidate pairs, overlap checks,

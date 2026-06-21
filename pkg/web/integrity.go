@@ -62,7 +62,7 @@ type entityIntegrityActionResult struct {
 
 func buildIntegrityReport(eng *engine.Engine, includeArchived, enableAll bool, webDir string) integrityReport {
 	started := time.Now()
-	status := eng.StatusSnapshot()
+	status := eng.StatusSnapshotLight()
 	if status.Running {
 		out := sanitizeIntegrityReport(integrityReport{
 			IncludeArchived: includeArchived,
@@ -118,7 +118,7 @@ func buildEntityIntegrityReport(eng *engine.Engine) (entityIntegrityReport, erro
 		eng.ObserveCounter("admin.entity_integrity_check", 1, 0)
 		observeIntegrityCheck("entity", result, findingCount, time.Since(started))
 	}()
-	status := eng.StatusSnapshot()
+	status := eng.StatusSnapshotLight()
 	if entityIntegrityBusy(status) {
 		result = integrityStatusInProgress
 		return sanitizeEntityIntegrityReport(entityIntegrityReport{

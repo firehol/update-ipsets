@@ -118,6 +118,81 @@ func TestComparisonSetsIdentical(t *testing.T) {
 	}
 }
 
+func TestComparisonPairBatchesPreferChangedFeedAsDriver(t *testing.T) {
+	infos := []comparisonSetInfo{
+		{name: "alpha"},
+		{name: "beta"},
+		{name: "zeta_changed"},
+	}
+	batches := comparisonPairBatches([]comparisonPair{
+		{i: 0, j: 2},
+		{i: 1, j: 2},
+	}, infos, newComparisonUpdateFilter([]string{"zeta_changed"}))
+
+	if len(batches) != 1 {
+		t.Fatalf("comparison batches = %d, want 1 changed-feed driver batch", len(batches))
+	}
+	if batches[0].left != 2 {
+		t.Fatalf("driver index = %d, want changed feed index 2", batches[0].left)
+	}
+	if len(batches[0].pairs) != 2 {
+		t.Fatalf("driver batch pair count = %d, want 2", len(batches[0].pairs))
+	}
+	for i, pair := range batches[0].pairs {
+		if pair.left != 2 {
+			t.Fatalf("oriented pair %d left = %d, want changed feed index 2", i, pair.left)
+		}
+		if pair.original.j != 2 {
+			t.Fatalf("oriented pair %d lost original output identity: %+v", i, pair.original)
+		}
+	}
+}
+
+func TestComparisonPairBatchesKeepOriginalDriverWhenBothSidesChanged(t *testing.T) {
+	infos := []comparisonSetInfo{
+		{name: "alpha_changed"},
+		{name: "beta_changed"},
+	}
+	batches := comparisonPairBatches([]comparisonPair{{i: 0, j: 1}}, infos, newComparisonUpdateFilter([]string{"alpha_changed", "beta_changed"}))
+
+	if len(batches) != 1 {
+		t.Fatalf("comparison batches = %d, want 1", len(batches))
+	}
+	pair := batches[0].pairs[0]
+	if pair.left != 0 || pair.right != 1 {
+		t.Fatalf("both-changed pair oriented as %d/%d, want original 0/1", pair.left, pair.right)
+	}
+}
+
+func TestComparisonPairBatchesBoundLargeChangedFeedGroups(t *testing.T) {
+	infos := make([]comparisonSetInfo, comparisonPairBatchMaxPairs+3)
+	for i := range comparisonPairBatchMaxPairs + 2 {
+		infos[i] = comparisonSetInfo{name: "peer"}
+	}
+	changedIndex := len(infos) - 1
+	infos[changedIndex] = comparisonSetInfo{name: "zeta_changed"}
+	pairs := make([]comparisonPair, 0, comparisonPairBatchMaxPairs+2)
+	for i := range comparisonPairBatchMaxPairs + 2 {
+		pairs = append(pairs, comparisonPair{i: i, j: changedIndex})
+	}
+
+	batches := comparisonPairBatches(pairs, infos, newComparisonUpdateFilter([]string{"zeta_changed"}))
+	if len(batches) != 2 {
+		t.Fatalf("comparison batches = %d, want 2 bounded changed-feed batches", len(batches))
+	}
+	if len(batches[0].pairs) != comparisonPairBatchMaxPairs {
+		t.Fatalf("first batch size = %d, want %d", len(batches[0].pairs), comparisonPairBatchMaxPairs)
+	}
+	if len(batches[1].pairs) != 2 {
+		t.Fatalf("second batch size = %d, want 2", len(batches[1].pairs))
+	}
+	for i, batch := range batches {
+		if batch.left != changedIndex {
+			t.Fatalf("batch %d driver = %d, want changed feed index %d", i, batch.left, changedIndex)
+		}
+	}
+}
+
 func mustRangeSummary(t *testing.T, ranges ...iprange.Range) iprange.RangeSourceSummary {
 	t.Helper()
 	summary, err := iprange.BuildRangeSourceSummaryContext(t.Context(), mustBitmapSet(t, ranges...))

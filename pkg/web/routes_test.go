@@ -37,6 +37,7 @@ func TestSurfaceHandlerModesRegisterExpectedSurfaces(t *testing.T) {
 	assertRouteStatus(t, publicOnly, "/api/v1/admin/status", "admin", http.StatusNotFound)
 	assertRouteStatus(t, adminOnly, "/healthz", "", http.StatusNotFound)
 	assertRouteStatus(t, adminOnly, "/api/v1/status", "", http.StatusNotFound)
+	assertRouteStatus(t, adminOnly, "/api/v1/categories", "", http.StatusOK)
 	assertRouteStatus(t, adminOnly, "/metrics", "", http.StatusOK)
 	assertRouteStatus(t, adminOnly, "/admin", "admin", http.StatusOK)
 }

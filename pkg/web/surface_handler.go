@@ -40,6 +40,8 @@ func newSurfaceHandlerWithContext(ctx context.Context, eng *engine.Engine, opts 
 
 	if servePublic {
 		routes.registerPublicAPI(mux)
+	} else if mode == listenerModeAdminOnly {
+		routes.registerAdminPublicMetadataAPI(mux)
 	}
 
 	if serveAdmin {

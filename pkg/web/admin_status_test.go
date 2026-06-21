@@ -3,6 +3,7 @@ package web
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -154,6 +155,31 @@ func TestSanitizeSchedulerSnapshotClampsOutOfRangeTimes(t *testing.T) {
 	}
 	if _, err := json.Marshal(sanitized); err != nil {
 		t.Fatalf("expected sanitized snapshot to marshal, got %v", err)
+	}
+}
+
+func TestAdminStatusUsesLightEngineSnapshot(t *testing.T) {
+	eng, handler := testHandler(t, Options{
+		EnableAll:                 true,
+		AdminAuthMode:             AdminAuthModeDisabled,
+		AllowUnauthenticatedAdmin: true,
+	})
+	eng.ObserveOperation("metadata.comparison_pair_overlap", time.Second)
+	server := newWebHTTPTestServer(t, handler)
+
+	var payload map[string]any
+	status, _ := server.getJSON(t, "/api/v1/admin/status", &payload)
+	if status != http.StatusOK {
+		t.Fatalf("admin status HTTP status = %d, want 200", status)
+	}
+	enginePayload, ok := payload["engine"].(map[string]any)
+	if !ok {
+		t.Fatalf("admin status engine payload has type %T", payload["engine"])
+	}
+	for _, field := range []string{"current_metrics", "last_metrics", "lifetime_metrics"} {
+		if _, ok := enginePayload[field]; ok {
+			t.Fatalf("admin status included %s; live polling must use the lightweight engine snapshot", field)
+		}
 	}
 }
 

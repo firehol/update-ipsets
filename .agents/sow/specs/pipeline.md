@@ -705,6 +705,13 @@ updated-feed filtering, ledger reuse, content-hash checks, metadata/lineage row
 construction, and cheap skip filters, but reusable range-source comparison
 algorithms belong in `pkg/iprange`.
 
+For incremental runs, when an exact comparison candidate has exactly one
+updated side, the engine SHOULD orient the `pkg/iprange` source pair so the
+updated feed is the comparison driver while preserving the original output pair
+identity. Exact comparison candidates SHOULD be split into bounded driver
+batches so admin active-operation progress advances during long metadata
+comparison phases.
+
 The comparison-pair ledger is an internal, drop-safe optimization. A missing,
 malformed, oversized, incompatible, or unwritable ledger MUST NOT block public
 artifact publication and MUST NOT change public comparison semantics. Missing,

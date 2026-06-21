@@ -520,7 +520,7 @@ func buildAdminStatus(eng *engine.Engine, runner *scheduler.Runner) adminStatus 
 
 	sys := detailedStatus()
 	cfg := eng.Config()
-	engineStatus := eng.StatusSnapshot()
+	engineStatus := eng.StatusSnapshotLight()
 	activity := runner.ActivitySnapshot()
 	snapshot := runner.Snapshot()
 	entriesWithArtifacts := eng.EntriesSnapshotWithArtifacts()

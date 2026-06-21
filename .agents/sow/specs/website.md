@@ -518,6 +518,10 @@ When a separate admin listener is configured:
   API route families above
 - the public listener MUST NOT serve `/admin`, `/admin/*`, or
   `/api/v1/admin/*`
+- the admin listener MAY serve `GET /api/v1/categories` as read-only product
+  metadata for the shared admin SPA shell; this does not make the admin
+  listener a public website listener and MUST NOT imply raw feed-body access or
+  public page serving on the admin origin
 
 Unmapped public API paths under `/api/v1/` MUST fail as API requests. They
 MUST NOT fall through to the website SPA shell or return HTML route content.
