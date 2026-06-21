@@ -260,12 +260,14 @@ func (e *Engine) stageFeedEntitySidecarResult(result feedEntitySidecarBuildResul
 		e.observeRunCounter("entity.sidecar_stage.unchanged_feed", 1, 0)
 		if result.sidecar != nil {
 			path := filepath.Join(e.entityFeedsDir(), result.name+".json")
-			e.entityArtifactsMu.Lock()
-			err := e.touchObservedFileAt(path, "entity.sidecar_stage.unchanged_feed_touch", logicalTime)
-			e.entityArtifactsMu.Unlock()
-			if err != nil && !os.IsNotExist(err) {
+			if _, err := os.Stat(path); err != nil {
+				if os.IsNotExist(err) {
+					return false, nil
+				}
 				return false, err
 			}
+			entityBatch.markTouch(e.entityFeedSidecarRelPath(result.name), logicalTime)
+			e.observeRunCounter("entity.sidecar_stage.unchanged_feed_touch", 1, 0)
 		}
 		return false, nil
 	}

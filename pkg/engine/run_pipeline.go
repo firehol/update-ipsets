@@ -397,6 +397,7 @@ func (e *Engine) publishRunArtifacts(ctx context.Context, opts RunOptions, repor
 		if countErr == nil {
 			entityPublishOp.Update(0, entityPublishTotal, nil)
 			_, err = entityBatch.publishContext(ctx, entityPublishOp)
+			e.bumpEntityArtifactGenerationLocked()
 		} else {
 			err = countErr
 		}

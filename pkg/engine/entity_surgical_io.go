@@ -115,20 +115,6 @@ func (e *Engine) writeObservedJSONFileAt(path string, value any, mod time.Time, 
 	return os.Chtimes(path, mod.UTC(), mod.UTC())
 }
 
-func (e *Engine) touchObservedFileAt(path string, metric string, mod time.Time) error {
-	start := time.Now()
-	if mod.IsZero() {
-		mod = time.Now()
-	}
-	mod = mod.UTC()
-	if err := os.Chtimes(path, mod, mod); err != nil {
-		return err
-	}
-	e.observeRunCounter(metric, 1, 0)
-	e.observeRunOperation(metric, time.Since(start))
-	return nil
-}
-
 func entityDetailFilesExist(privatePath, publicPath string) bool {
 	if _, err := os.Stat(privatePath); err != nil {
 		return false

@@ -555,8 +555,12 @@ The pipeline MUST route feed families like this:
   per tick or completed processing batch when the same feed target is already
   pending
 - queued country/ASN entity refresh work that mutates private or public entity
-  artifacts MUST hold the entity-artifact mutation lock for the whole mutation
-  path, not only for the final file publication step
+  artifacts MUST stage expensive read/patch/write work outside the
+  entity-artifact publish lock, then acquire the lock, revalidate the committed
+  entity-artifact generation, and publish only when the staged batch still
+  matches the current generation. If another entity mutation published first,
+  the stale staged batch MUST be discarded and rebuilt instead of being
+  published over newer committed artifacts.
 - ordinary feed-update entity refresh MUST patch only actors whose per-feed
   contribution actually changed; unchanged actor contributions MUST NOT trigger
   cosmetic rewrites
@@ -578,7 +582,9 @@ The pipeline MUST route feed families like this:
   committed actor sidecar and skip private/public JSON rewrites when the actor
   is semantically unchanged; if freshness metadata is needed to prevent a later
   false-positive integrity repair, metadata-only touch updates are preferred
-  over rewriting identical JSON bodies
+  over rewriting identical JSON bodies. Those touch updates MUST be queued in
+  the publish batch and applied during the serialized publish step, not applied
+  directly to live files during staging.
 - entity integrity MUST NOT treat a country/ASN actor sidecar as stale solely
   because a related feed sidecar has a newer mtime; unchanged actor
   contributions are intentionally not rewritten, so mtime-only dependency
@@ -668,16 +674,24 @@ still regenerate peer rows from current feed metadata, category, and lineage so
 metadata-only catalog changes are reflected without recomputing exact overlap.
 Ledger misses that touch an updated feed MUST compute exact overlap or the
 normal cheap skip result. Ledger misses for pairs where neither feed was updated
-MAY be skipped during an incremental run; those pairs are not republished from
-missing state.
+MAY be skipped during an incremental run only after a valid ledger was loaded;
+those pairs are not republished from missing state.
 
 The comparison-pair ledger is an internal, drop-safe optimization. A missing,
 malformed, oversized, incompatible, or unwritable ledger MUST NOT block public
-artifact publication and MUST NOT change public comparison semantics. After each
-comparison publication attempt, the engine SHOULD atomically replace the ledger
-with entries for the current feed set represented by retained hits and fresh
-computations. Full/global comparison runs MUST ignore previous ledger contents
-for correctness and compute the current pair set directly.
+artifact publication and MUST NOT change public comparison semantics. Missing,
+malformed, oversized, or incompatible readable ledger state MUST force a full
+pair rebuild before publication, so an incremental run cannot publish or persist
+a partial replacement ledger. After each comparison publication attempt, the
+engine SHOULD atomically replace the ledger with entries for the current feed set
+represented by retained hits and fresh computations when a valid ledger exists,
+or by the full current pair set when the ledger is absent or untrusted.
+Full/global comparison runs MUST ignore previous ledger contents for correctness
+and compute the current pair set directly.
+When a legacy JSON comparison-pair ledger is used as an upgrade input, the
+successful v2 binary ledger write MUST remove the legacy JSON file. Leaving the
+old JSON file behind is not allowed because it can be reused later if the v2
+cache is missing or untrusted.
 
 ## Publication contract
 
@@ -711,6 +725,13 @@ MUST be observably equivalent to replacement: the live path, content,
 permissions, owner, and producer-assigned mtime must match the staged artifact
 after publication. If byte comparison cannot be completed safely, publication
 MUST fall back to the normal replacement path.
+
+Public and entity publish batches MAY also carry metadata-only touch intents
+for existing live artifacts when the producer has proven the content is already
+current but the logical mtime should advance. Such touch intents are publish
+operations. They MUST NOT mutate live files while the producer is still staging
+work, and they MUST obey the same context, permission, ownership, and
+serialization rules as normal staged artifact publication.
 
 Feed-scoped public artifact producers MAY avoid creating a staged replacement
 only when the existing target artifact is already equivalent to the artifact

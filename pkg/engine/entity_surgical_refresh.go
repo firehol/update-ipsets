@@ -35,35 +35,49 @@ type entitySurgicalRefreshState struct {
 }
 
 func (e *Engine) refreshEntityArtifactsForFeedUpdates(ctx context.Context, feedNames []string, task *BackgroundTaskHandle) error {
+	return e.runOptimisticEntityArtifactMutation(ctx, task, backgroundEntityTaskDetail("feeds", len(feedNames)), func() (*entityArtifactMutationPlan, error) {
+		plan, err := e.stageRefreshEntityArtifactsForFeedUpdates(ctx, feedNames, task)
+		if errors.Is(err, errEntitySurgicalNeedsFullRebuild) {
+			return e.stageRebuildEntityArtifactsFromLive(ctx, task)
+		}
+		return plan, err
+	})
+}
+
+func (e *Engine) stageRefreshEntityArtifactsForFeedUpdates(ctx context.Context, feedNames []string, task *BackgroundTaskHandle) (*entityArtifactMutationPlan, error) {
 	ctx = nonNilContext(ctx)
 	if len(feedNames) == 0 {
-		return nil
+		return nil, nil
 	}
 	state, err := e.newEntitySurgicalRefreshState(ctx, feedNames, task)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer state.cleanup()
 	if len(state.targetFeeds) == 0 {
-		return nil
+		state.cleanup()
+		return nil, nil
 	}
 	if err := state.loadFeedDeltas(); err != nil {
-		return err
+		state.cleanup()
+		return nil, err
 	}
 	if len(state.deltas) == 0 {
-		return state.publishNoDeltaVersion()
+		return state.stageNoDeltaVersion()
 	}
 	state.startDetailPatch()
 	if err := state.patchCountryDetails(); err != nil {
-		return err
+		state.cleanup()
+		return nil, err
 	}
 	if err := state.patchASNDetails(); err != nil {
-		return err
+		state.cleanup()
+		return nil, err
 	}
 	if err := state.patchEntityIndexes(); err != nil {
-		return err
+		state.cleanup()
+		return nil, err
 	}
-	return state.publishPatchedArtifacts()
+	return state.patchedArtifactsPlan()
 }
 
 func (e *Engine) newEntitySurgicalRefreshState(ctx context.Context, feedNames []string, task *BackgroundTaskHandle) (*entitySurgicalRefreshState, error) {
@@ -108,7 +122,7 @@ func (s *entitySurgicalRefreshState) loadFeedDeltas() error {
 		if err != nil {
 			if errors.Is(err, errEntitySurgicalNeedsFullRebuild) {
 				s.e.observeRunCounter("entity.refresh.full_rebuild_fallback", 1, 0)
-				return s.e.rebuildEntityArtifactsFromLive(s.ctx, s.task)
+				return errEntitySurgicalNeedsFullRebuild
 			}
 			return err
 		}
@@ -141,15 +155,23 @@ func (s *entitySurgicalRefreshState) stageFeedDelta(name string, delta feedEntit
 	return nil
 }
 
-func (s *entitySurgicalRefreshState) publishNoDeltaVersion() error {
+func (s *entitySurgicalRefreshState) stageNoDeltaVersion() (*entityArtifactMutationPlan, error) {
 	if err := contextErr(s.ctx); err != nil {
-		return err
+		s.cleanup()
+		return nil, err
 	}
 	if err := writeFileAtomic(filepath.Join(s.ent.stageDir, "version"), []byte(entityArtifactsVersion+"\n"), generatedFileMode); err != nil {
-		return err
+		s.cleanup()
+		return nil, err
 	}
-	_, err := s.ent.publishContext(s.ctx)
-	return err
+	return &entityArtifactMutationPlan{
+		web:            s.web,
+		entity:         s.ent,
+		publishStage:   "publishing",
+		publishDetail:  "publishing refreshed entity artifacts",
+		publishCurrent: 1,
+		publishTotal:   1,
+	}, nil
 }
 
 func (s *entitySurgicalRefreshState) startDetailPatch() {
@@ -194,7 +216,7 @@ func (s *entitySurgicalRefreshState) patchCountryDetail(code string) error {
 	sidecar, changed, err := s.e.patchCountrySidecarForFeedDeltas(code, s.deltas)
 	if err != nil {
 		if errors.Is(err, errEntitySurgicalNeedsFullRebuild) {
-			return s.e.rebuildEntityArtifactsFromLive(s.ctx, s.task)
+			return errEntitySurgicalNeedsFullRebuild
 		}
 		return err
 	}
@@ -243,10 +265,11 @@ func (s *entitySurgicalRefreshState) touchUnchangedCountryDetail(code string, si
 	if !entityDetailFilesExist(privatePath, publicPath) {
 		return nil
 	}
-	if err := s.e.touchObservedFileAt(privatePath, "entity.refresh.country_sidecar_touch", logicalTime); err != nil {
-		return err
-	}
-	return s.e.touchObservedFileAt(publicPath, "entity.refresh.country_public_touch", logicalTime)
+	s.ent.markTouch(s.e.entityCountrySidecarRelPath(code), logicalTime)
+	s.web.markTouch(s.e.publicCountryDetailRelPath(code), logicalTime)
+	s.e.observeRunCounter("entity.refresh.country_sidecar_touch", 1, 0)
+	s.e.observeRunCounter("entity.refresh.country_public_touch", 1, 0)
+	return nil
 }
 
 func (s *entitySurgicalRefreshState) patchASNDetails() error {
@@ -265,7 +288,7 @@ func (s *entitySurgicalRefreshState) patchASNDetail(asn uint32) error {
 	sidecar, changed, err := s.e.patchASNSidecarForFeedDeltas(asn, s.deltas)
 	if err != nil {
 		if errors.Is(err, errEntitySurgicalNeedsFullRebuild) {
-			return s.e.rebuildEntityArtifactsFromLive(s.ctx, s.task)
+			return errEntitySurgicalNeedsFullRebuild
 		}
 		return err
 	}
@@ -314,10 +337,11 @@ func (s *entitySurgicalRefreshState) touchUnchangedASNDetail(asn uint32, sidecar
 	if !entityDetailFilesExist(privatePath, publicPath) {
 		return nil
 	}
-	if err := s.e.touchObservedFileAt(privatePath, "entity.refresh.asn_sidecar_touch", logicalTime); err != nil {
-		return err
-	}
-	return s.e.touchObservedFileAt(publicPath, "entity.refresh.asn_public_touch", logicalTime)
+	s.ent.markTouch(s.e.entityASNSidecarRelPath(asn), logicalTime)
+	s.web.markTouch(s.e.publicASNDetailRelPath(asn), logicalTime)
+	s.e.observeRunCounter("entity.refresh.asn_sidecar_touch", 1, 0)
+	s.e.observeRunCounter("entity.refresh.asn_public_touch", 1, 0)
+	return nil
 }
 
 func (s *entitySurgicalRefreshState) advanceDetailProgress() {
@@ -365,25 +389,22 @@ func (s *entitySurgicalRefreshState) patchEntityIndexes() error {
 	return nil
 }
 
-func (s *entitySurgicalRefreshState) publishPatchedArtifacts() error {
+func (s *entitySurgicalRefreshState) patchedArtifactsPlan() (*entityArtifactMutationPlan, error) {
 	if err := writeFileAtomic(filepath.Join(s.ent.stageDir, "version"), []byte(entityArtifactsVersion+"\n"), generatedFileMode); err != nil {
-		return err
+		s.cleanup()
+		return nil, err
 	}
 	if err := contextErr(s.ctx); err != nil {
-		return err
+		s.cleanup()
+		return nil, err
 	}
-	if s.task != nil {
-		s.task.Update("publishing", "publishing patched entity artifacts", s.total, s.total)
-	}
-	if _, err := s.ent.publishContext(s.ctx); err != nil {
-		return err
-	}
-	if err := s.web.applyGeneratedFileTimestampsContext(s.ctx, s.generated); err != nil {
-		return err
-	}
-	published, err := s.web.publishContext(s.ctx)
-	if err != nil {
-		return err
-	}
-	return s.e.syncGeneratedFiles(s.generated, published)
+	return &entityArtifactMutationPlan{
+		web:            s.web,
+		entity:         s.ent,
+		generated:      s.generated,
+		publishStage:   "publishing",
+		publishDetail:  "publishing patched entity artifacts",
+		publishCurrent: s.total,
+		publishTotal:   s.total,
+	}, nil
 }

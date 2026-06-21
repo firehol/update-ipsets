@@ -167,17 +167,26 @@ priority over this non-root fallback rule.
 - scheduler/runtime ledger
 - owned by the scheduler, not by the feed-state cache
 
-### `cache/comparison-pairs-v1.json`
+### `cache/comparison-pairs-v2.bin`
 
 - internal comparison-pair optimization ledger
 - owned by the engine heavy-phase comparison writer
 - records feed-pair names, normalized content hashes, comparison algorithm
   version, and exact common-IP count
+- compact binary cache; it is not a public, portable, or operator-authored file
 - not a public artifact and not an integrity source of truth
 - missing, malformed, oversized, incompatible, or unwritable state MUST be
   ignored or replaced without blocking public artifact publication
+- missing, malformed, oversized, or incompatible readable state MUST force a
+  full comparison-ledger rebuild so incremental runs cannot publish or persist a
+  partial replacement ledger
 - regenerated atomically from retained current-key hits and fresh current-run
-  comparison results
+  comparison results when a valid ledger exists, or from a full current pair set
+  when the ledger is absent or untrusted
+- if `comparison-pairs-v2.bin` is absent, legacy
+  `cache/comparison-pairs-v1.json` MAY be read once as an upgrade input; v1 JSON
+  is not canonical, MUST NOT be written by current code, and MUST be removed
+  after a successful v2 write so stale JSON cannot be reused on later runs
 
 ## Source enable markers
 
@@ -728,6 +737,9 @@ Stable rules:
   place instead of replacing it when the staged artifact has identical bytes;
   the live artifact still inherits the staged artifact's logical mtime and
   committed permission contract
+- public and entity artifact publish batches may carry metadata-only touch
+  intents for proven-current live artifacts; those intents are applied only by
+  the publish step, never directly by the staging producer
 - raw mirror/download publication may touch an existing live mirror file in
   place instead of replacing it when the committed canonical feed file has
   identical bytes; the live mirror file still inherits the canonical feed file's

@@ -74,6 +74,35 @@ Write only sanitized evidence:
 
 If sensitive data is required to continue, stop and ask the user for a secure handling path. If sensitive data is found in a durable artifact, sanitize it before any commit. If sensitive data was already committed, tell the user and do not rewrite history without explicit approval.
 
+### Historical Feed Data Preservation
+
+CRITICAL: Feed history and retention data are irreplaceable production data.
+Real deployments can contain 10+ years of feed history. Treat runtime
+history/retention ledgers, retention cohorts, changesets, and imported history
+snapshots as source-of-truth data, not disposable caches.
+
+- Never delete, truncate, compact, rewrite, regenerate, or migrate feed history
+  or retention data in place unless the user explicitly approves a fully
+  validated migration plan.
+- Before changing code that reads, writes, imports, repairs, prunes, compacts,
+  migrates, indexes, or optimizes `history.csv`, `retention.csv`,
+  `retention.json`, `retention_cohorts.csv`, `changesets.csv`,
+  `lib/<feed>/new/`, history snapshots, or related ledgers, the active SOW
+  must record history preservation requirements, backup/copy-on-write strategy,
+  rollback plan, and validation plan.
+- Optimizations must prefer derived indexes, summaries, and caches that can be
+  rebuilt from the original history/retention data without changing it.
+- Any approved format migration must be copy-on-write: write new artifacts
+  beside the originals, validate row counts, checksums, timestamps, and repair
+  behavior, then switch readers only after validation succeeds.
+- Keep original history/retention artifacts until the user explicitly approves
+  removal after post-migration validation.
+- Tests for history/retention changes must include long-history fixtures,
+  pre/post row counts, checksum manifests, monotonic timestamp checks, and
+  missing/stale derived-index repair scenarios.
+- Public or admin requests must never trigger destructive history repair,
+  compaction, or migration.
+
 ### Open-Source Reference Evidence
 
 When SOW evidence comes from local mirrored or cloned open-source repositories, cite the upstream repository and checked commit instead of the workstation absolute path.

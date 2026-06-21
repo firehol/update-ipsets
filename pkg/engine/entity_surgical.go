@@ -31,9 +31,7 @@ func (e *Engine) RefreshEntityArtifactsForFeedUpdates(ctx context.Context, feedN
 		0,
 		len(feedNames),
 		func(task *BackgroundTaskHandle) error {
-			return e.withEntityArtifactMutation(task, backgroundEntityTaskDetail("feeds", len(feedNames)), func() error {
-				return e.refreshEntityArtifactsForFeedUpdates(ctx, feedNames, task)
-			})
+			return e.refreshEntityArtifactsForFeedUpdates(ctx, feedNames, task)
 		},
 	)
 }

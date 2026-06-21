@@ -25,6 +25,9 @@ description: "Test commands, fixtures, and validation patterns for update-ipsets
 - Main Go module: `make test`, `make race`, `make lint`,
   `make coverage`, `make vulncheck`, `make staticcheck`, `make golangci-lint`,
   `make fuzz-replay`, and `make bench` (evidence: `Makefile`).
+- JSON codec benchmark comparisons: `make jsonbench` runs the isolated
+  `tools/jsonbench` module so third-party JSON candidates can be measured
+  without adding them to the main application dependency graph.
 - Nested tool modules: `make test-tools` (currently covers
   `tools/dronebl2ipsets`). `make race` also runs the nested module's race
   tests, and `make coverage-tools` writes

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"sort"
@@ -94,9 +95,13 @@ func (e *Engine) writeComparisonFiles(ctx context.Context, updatedNames []string
 		var loadErr error
 		ledger, entries, bytes, loadErr = e.loadComparisonPairLedger()
 		if loadErr != nil {
-			e.logger.Warn("comparison pair ledger ignored", "error", loadErr)
-			e.observeRunCounter("metadata.comparison_pair_ledger_ignored", 1, bytes)
-			ledger = newComparisonPairLedgerSnapshot()
+			if !errors.Is(loadErr, errComparisonPairLedgerMissing) {
+				e.logger.Warn("comparison pair ledger ignored", "error", loadErr)
+				e.observeRunCounter("metadata.comparison_pair_ledger_ignored", 1, bytes)
+			}
+			e.observeRunCounter("metadata.comparison_pair_ledger_full_rebuild", 1, bytes)
+			ledger = nil
+			updated = nil
 		} else if entries > 0 {
 			e.observeRunCounter("metadata.comparison_pair_ledger_read", 1, bytes)
 			e.observeRunCounter("metadata.comparison_pair_ledger_entries_read", int64(entries), 0)

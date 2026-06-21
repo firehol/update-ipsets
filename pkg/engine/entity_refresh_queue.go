@@ -261,16 +261,12 @@ func (e *Engine) runEntityArtifactRefreshQueue(ctx context.Context, task *Backgr
 			if task != nil {
 				task.Update("bootstrap", "entity artifacts are missing or stale; rebuilding full entity surface", 0, 0)
 			}
-			if err := e.withEntityArtifactMutation(task, backgroundEntityTaskDetail("full", 0), func() error {
-				return e.rebuildEntityArtifactsFromLive(ctx, task)
-			}); err != nil {
+			if err := e.rebuildEntityArtifactsFromLive(ctx, task); err != nil {
 				return err
 			}
 			continue
 		}
-		if err := e.withEntityArtifactMutation(task, backgroundEntityTaskDetail("feeds", len(names)), func() error {
-			return e.refreshEntityArtifactsForFeedUpdates(ctx, names, task)
-		}); err != nil {
+		if err := e.refreshEntityArtifactsForFeedUpdates(ctx, names, task); err != nil {
 			return err
 		}
 	}
@@ -298,16 +294,12 @@ func (e *Engine) runEntityHealthRefreshQueue(ctx context.Context, task *Backgrou
 			if task != nil {
 				task.Update("bootstrap", "entity artifacts are missing or stale; rebuilding full entity surface", 0, 0)
 			}
-			if err := e.withEntityArtifactMutation(task, backgroundEntityTaskDetail("full", 0), func() error {
-				return e.rebuildEntityArtifactsFromLive(ctx, task)
-			}); err != nil {
+			if err := e.rebuildEntityArtifactsFromLive(ctx, task); err != nil {
 				return err
 			}
 			continue
 		}
-		if err := e.withEntityArtifactMutation(task, backgroundEntityTaskDetail("health", len(names)), func() error {
-			return e.refreshEntityArtifactsForHealthTransitions(ctx, names, task)
-		}); err != nil {
+		if err := e.refreshEntityArtifactsForHealthTransitions(ctx, names, task); err != nil {
 			return err
 		}
 	}

@@ -195,10 +195,8 @@ func (s *entityArtifactWriteState) stageFeedSidecar(name string) error {
 	logicalTime := entityFeedSidecarReferenceMTime(sidecar, sidecarRefTime, e.feedProcessingTimestamp(name))
 	if !s.full && reflect.DeepEqual(s.liveSidecars[name], sidecar) {
 		if sidecar != nil {
-			path := filepath.Join(e.entityFeedsDir(), name+".json")
-			if err := e.touchObservedFileAt(path, "entity.repair.feed_sidecar_touch", logicalTime); err != nil {
-				return err
-			}
+			s.entityBatch.markTouch(e.entityFeedSidecarRelPath(name), logicalTime)
+			e.observeRunCounter("entity.repair.feed_sidecar_touch", 1, 0)
 			s.feedTimes[name] = logicalTime
 		}
 		s.entityBatch.markDelete(e.entityFeedPendingRelPath(name))

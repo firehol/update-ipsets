@@ -295,6 +295,52 @@ func TestStagedPublishBatchTouchesIdenticalLiveFileInPlace(t *testing.T) {
 	}
 }
 
+func TestStagedPublishBatchMarkedTouchDoesNotMutateLiveFileBeforePublish(t *testing.T) {
+	liveDir := t.TempDir()
+	rel := "sample.json"
+	livePath := filepath.Join(liveDir, rel)
+	body := []byte(`{"name":"sample"}` + "\n")
+	if err := os.WriteFile(livePath, body, 0o600); err != nil {
+		t.Fatalf("WriteFile(live) error = %v", err)
+	}
+	oldTime := time.Date(2026, 4, 28, 11, 0, 0, 0, time.UTC)
+	if err := os.Chtimes(livePath, oldTime, oldTime); err != nil {
+		t.Fatalf("Chtimes(live) error = %v", err)
+	}
+	before, err := os.Stat(livePath)
+	if err != nil {
+		t.Fatalf("Stat(live before) error = %v", err)
+	}
+
+	batch, err := newStagedPublishBatch(liveDir, "", ".test-web-*")
+	if err != nil {
+		t.Fatalf("newStagedPublishBatch() error = %v", err)
+	}
+	defer batch.cleanup()
+	logical := oldTime.Add(time.Hour)
+	batch.markTouch(rel, logical)
+
+	assertFileMTimeForTest(t, livePath, oldTime)
+
+	published, err := batch.publish()
+	if err != nil {
+		t.Fatalf("publish() error = %v", err)
+	}
+	if len(published) != 1 || published[0] != livePath {
+		t.Fatalf("published = %v, want [%s]", published, livePath)
+	}
+	after, err := os.Stat(livePath)
+	if err != nil {
+		t.Fatalf("Stat(live after) error = %v", err)
+	}
+	if !os.SameFile(before, after) {
+		t.Fatal("marked touch replaced live file")
+	}
+	if got := after.ModTime().UTC(); !got.Equal(logical) {
+		t.Fatalf("live mtime = %s, want %s", got, logical)
+	}
+}
+
 func TestEntityPublishBatchTouchesIdenticalLiveFileInPlace(t *testing.T) {
 	eng := newEngineFixture(t)
 	batch, err := eng.newEntityPublishBatch()

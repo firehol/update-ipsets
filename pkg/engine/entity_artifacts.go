@@ -136,9 +136,7 @@ func (e *Engine) RebuildEntityArtifactsWithTrigger(ctx context.Context, trigger 
 		0,
 		0,
 		func(task *BackgroundTaskHandle) error {
-			return e.withEntityArtifactMutation(task, backgroundEntityTaskDetail("full", 0), func() error {
-				return e.rebuildEntityArtifactsFromLive(ctx, task)
-			})
+			return e.rebuildEntityArtifactsFromLive(ctx, task)
 		},
 	)
 }
@@ -163,102 +161,114 @@ func (e *Engine) RefreshEntityArtifactsForHealthTransitions(ctx context.Context,
 		0,
 		len(feedNames),
 		func(task *BackgroundTaskHandle) error {
-			return e.withEntityArtifactMutation(task, backgroundEntityTaskDetail("health", len(feedNames)), func() error {
-				return e.refreshEntityArtifactsForHealthTransitions(ctx, feedNames, task)
-			})
+			return e.refreshEntityArtifactsForHealthTransitions(ctx, feedNames, task)
 		},
 	)
 }
 
 func (e *Engine) refreshEntityArtifactsForHealthTransitions(ctx context.Context, feedNames []string, task *BackgroundTaskHandle) error {
+	return e.runOptimisticEntityArtifactMutation(ctx, task, backgroundEntityTaskDetail("health", len(feedNames)), func() (*entityArtifactMutationPlan, error) {
+		return e.stageEntityArtifactsForHealthTransitions(ctx, feedNames, task)
+	})
+}
+
+func (e *Engine) stageEntityArtifactsForHealthTransitions(ctx context.Context, feedNames []string, task *BackgroundTaskHandle) (*entityArtifactMutationPlan, error) {
 	ctx = nonNilContext(ctx)
 	affectedCountries := map[string]struct{}{}
 	affectedASNs := map[uint32]struct{}{}
 	if err := e.collectHealthTransitionAffectedEntities(ctx, feedNames, task, affectedCountries, affectedASNs); err != nil {
-		return err
+		return nil, err
 	}
 	if len(affectedCountries) == 0 && len(affectedASNs) == 0 {
-		return e.publishHealthTransitionHomeAggregate(ctx)
+		return e.stageHealthTransitionHomeAggregate(ctx)
 	}
-	return e.publishHealthTransitionEntityPayloads(ctx, affectedCountries, affectedASNs, task)
+	return e.stageHealthTransitionEntityPayloads(ctx, affectedCountries, affectedASNs, task)
 }
 
 func (e *Engine) rebuildEntityArtifactsFromLive(ctx context.Context, task *BackgroundTaskHandle) error {
+	return e.runOptimisticEntityArtifactMutation(ctx, task, backgroundEntityTaskDetail("full", 0), func() (*entityArtifactMutationPlan, error) {
+		return e.stageRebuildEntityArtifactsFromLive(ctx, task)
+	})
+}
+
+func (e *Engine) stageRebuildEntityArtifactsFromLive(ctx context.Context, task *BackgroundTaskHandle) (*entityArtifactMutationPlan, error) {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
-		return err
+		return nil, err
 	}
 	webBatch, err := e.newWebPublishBatch()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer webBatch.cleanup()
 	entityBatch, err := e.newEntityPublishBatch()
 	if err != nil {
-		return err
+		webBatch.cleanup()
+		return nil, err
 	}
-	defer entityBatch.cleanup()
 	generated, err := e.writeEntityArtifacts(ctx, nil, true, webBatch.stagedPublishBatch, entityBatch.stagedPublishBatch, task)
 	if err != nil {
-		return err
+		webBatch.cleanup()
+		entityBatch.cleanup()
+		return nil, err
 	}
 	if err := contextErr(ctx); err != nil {
-		return err
+		webBatch.cleanup()
+		entityBatch.cleanup()
+		return nil, err
 	}
-	if task != nil {
-		task.Update("publishing", "publishing rebuilt entity artifacts", 1, 1)
-	}
-	if _, err := entityBatch.publishContext(ctx); err != nil {
-		return err
-	}
-	if err := webBatch.applyGeneratedFileTimestampsContext(ctx, generated); err != nil {
-		return err
-	}
-	published, err := webBatch.publishContext(ctx)
-	if err != nil {
-		return err
-	}
-	return e.syncGeneratedFiles(generated, published)
+	return &entityArtifactMutationPlan{
+		web:            webBatch,
+		entity:         entityBatch,
+		generated:      generated,
+		publishStage:   "publishing",
+		publishDetail:  "publishing rebuilt entity artifacts",
+		publishCurrent: 1,
+		publishTotal:   1,
+	}, nil
 }
 
 func (e *Engine) rebuildEntityArtifactsForFeeds(ctx context.Context, feedNames []string, task *BackgroundTaskHandle) error {
+	return e.runOptimisticEntityArtifactMutation(ctx, task, backgroundEntityTaskDetail("integrity", len(feedNames)), func() (*entityArtifactMutationPlan, error) {
+		return e.stageRebuildEntityArtifactsForFeeds(ctx, feedNames, task)
+	})
+}
+
+func (e *Engine) stageRebuildEntityArtifactsForFeeds(ctx context.Context, feedNames []string, task *BackgroundTaskHandle) (*entityArtifactMutationPlan, error) {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
-		return err
+		return nil, err
 	}
 	if len(feedNames) == 0 {
-		return nil
+		return nil, nil
 	}
 	webBatch, err := e.newWebPublishBatch()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer webBatch.cleanup()
 	entityBatch, err := e.newEntityPublishBatch()
 	if err != nil {
-		return err
+		webBatch.cleanup()
+		return nil, err
 	}
-	defer entityBatch.cleanup()
 
 	generated, err := e.writeEntityArtifacts(ctx, feedNames, false, webBatch.stagedPublishBatch, entityBatch.stagedPublishBatch, task)
 	if err != nil {
-		return err
+		webBatch.cleanup()
+		entityBatch.cleanup()
+		return nil, err
 	}
 	if err := contextErr(ctx); err != nil {
-		return err
+		webBatch.cleanup()
+		entityBatch.cleanup()
+		return nil, err
 	}
-	if task != nil {
-		task.Update("publishing", "publishing repaired entity artifacts", 1, 1)
-	}
-	if _, err := entityBatch.publishContext(ctx); err != nil {
-		return err
-	}
-	if err := webBatch.applyGeneratedFileTimestampsContext(ctx, generated); err != nil {
-		return err
-	}
-	published, err := webBatch.publishContext(ctx)
-	if err != nil {
-		return err
-	}
-	return e.syncGeneratedFiles(generated, published)
+	return &entityArtifactMutationPlan{
+		web:            webBatch,
+		entity:         entityBatch,
+		generated:      generated,
+		publishStage:   "publishing",
+		publishDetail:  "publishing repaired entity artifacts",
+		publishCurrent: 1,
+		publishTotal:   1,
+	}, nil
 }

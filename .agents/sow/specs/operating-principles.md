@@ -501,6 +501,11 @@ This means:
 - country/ASN entity refreshes after ordinary feed updates SHOULD be surgical
   per-feed deltas over existing entity artifacts, not rebuilds over the whole
   feed catalog
+- entity refresh and repair work SHOULD keep expensive staging outside the
+  serialized publish lock and use generation revalidation before publish, so
+  slow JSON/entity materialization does not block unrelated entity staging while
+  still preventing stale staged batches from overwriting newer committed
+  artifacts
 - surgical country/ASN refreshes SHOULD suppress unchanged actor rewrites after
   computing the actor-local patch; unchanged per-feed actor contributions MUST
   NOT trigger cosmetic patch work in the ordinary incremental path

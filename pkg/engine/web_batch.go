@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/firehol/update-ipsets/pkg/output"
 )
@@ -18,6 +19,7 @@ type stagedPublishBatch struct {
 	stageDir string
 	owner    string
 	deletes  map[string]struct{}
+	touches  map[string]time.Time
 }
 
 type webPublishBatch struct {
@@ -44,6 +46,7 @@ func newStagedPublishBatch(liveDir, owner, pattern string) (*stagedPublishBatch,
 		stageDir: stageDir,
 		owner:    owner,
 		deletes:  map[string]struct{}{},
+		touches:  map[string]time.Time{},
 	}, nil
 }
 
@@ -68,6 +71,15 @@ func (b *stagedPublishBatch) markDelete(rel string) {
 	}
 	if clean, ok := cleanPublishRel(rel); ok {
 		b.deletes[clean] = struct{}{}
+	}
+}
+
+func (b *stagedPublishBatch) markTouch(rel string, mod time.Time) {
+	if b == nil || mod.IsZero() {
+		return
+	}
+	if clean, ok := cleanPublishRel(rel); ok {
+		b.touches[clean] = mod.UTC()
 	}
 }
 
@@ -137,6 +149,7 @@ func (b *stagedPublishBatch) publishWorkTotal(ctx context.Context) (int64, error
 		return 0, err
 	}
 	var total int64
+	stagedFiles := map[string]struct{}{}
 	if err := filepath.WalkDir(b.stageDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -151,14 +164,25 @@ func (b *stagedPublishBatch) publishWorkTotal(ctx context.Context) (int64, error
 		if err != nil {
 			return err
 		}
-		if _, ok := cleanPublishRel(rel); ok {
+		if clean, ok := cleanPublishRel(rel); ok {
 			total++
+			stagedFiles[clean] = struct{}{}
 		}
 		return nil
 	}); err != nil {
 		return 0, err
 	}
-	return total + int64(len(b.deletes)), nil
+	touchTotal := int64(0)
+	for rel := range b.touches {
+		if _, ok := b.deletes[rel]; ok {
+			continue
+		}
+		if _, ok := stagedFiles[rel]; ok {
+			continue
+		}
+		touchTotal++
+	}
+	return total + int64(len(b.deletes)) + touchTotal, nil
 }
 
 func (b *stagedPublishBatch) publishContext(ctx context.Context, progress ...*activeOperationHandle) ([]string, error) {
@@ -174,6 +198,7 @@ func (b *stagedPublishBatch) publishContext(ctx context.Context, progress ...*ac
 		op = progress[0]
 	}
 	published := make([]string, 0, 32)
+	stagedFiles := map[string]struct{}{}
 	if err := filepath.WalkDir(b.stageDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -202,6 +227,7 @@ func (b *stagedPublishBatch) publishContext(ctx context.Context, progress ...*ac
 			}
 			return nil
 		}
+		stagedFiles[rel] = struct{}{}
 		defer op.Add(1, -1, nil)
 		if err := os.MkdirAll(filepath.Dir(dst), generatedDirMode); err != nil {
 			return err
@@ -258,6 +284,44 @@ func (b *stagedPublishBatch) publishContext(ctx context.Context, progress ...*ac
 			op.Add(1, -1, nil)
 			published = append(published, dst)
 			pruneEmptyPublishParents(filepath.Dir(dst), b.liveDir)
+		}
+	}
+	if len(b.touches) > 0 {
+		rels := make([]string, 0, len(b.touches))
+		for rel := range b.touches {
+			rels = append(rels, rel)
+		}
+		slices.Sort(rels)
+		for _, rel := range rels {
+			if err := contextErr(ctx); err != nil {
+				return nil, err
+			}
+			if _, ok := b.deletes[rel]; ok {
+				continue
+			}
+			if _, ok := stagedFiles[rel]; ok {
+				continue
+			}
+			dst := filepath.Join(b.liveDir, rel)
+			info, err := os.Stat(dst)
+			if err != nil {
+				return nil, err
+			}
+			if info.IsDir() {
+				continue
+			}
+			if err := os.Chmod(dst, generatedFileMode); err != nil {
+				return nil, err
+			}
+			mod := b.touches[rel].UTC()
+			if err := os.Chtimes(dst, mod, mod); err != nil {
+				return nil, err
+			}
+			if err := chownPath(b.owner, dst); err != nil {
+				return nil, err
+			}
+			op.Add(1, -1, nil)
+			published = append(published, dst)
 		}
 	}
 	return published, os.RemoveAll(b.stageDir)

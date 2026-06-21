@@ -13,54 +13,65 @@ import (
 )
 
 func (e *Engine) rewriteSelectedEntityArtifacts(ctx context.Context, countries map[string]struct{}, asns map[uint32]struct{}, rebuildCountryIndex, rebuildASNIndex bool, task *BackgroundTaskHandle) error {
+	return e.runOptimisticEntityArtifactMutation(ctx, task, backgroundEntityTaskDetail("integrity", len(countries)+len(asns)), func() (*entityArtifactMutationPlan, error) {
+		return e.stageRewriteSelectedEntityArtifacts(ctx, countries, asns, rebuildCountryIndex, rebuildASNIndex, task)
+	})
+}
+
+func (e *Engine) stageRewriteSelectedEntityArtifacts(ctx context.Context, countries map[string]struct{}, asns map[uint32]struct{}, rebuildCountryIndex, rebuildASNIndex bool, task *BackgroundTaskHandle) (*entityArtifactMutationPlan, error) {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
-		return err
+		return nil, err
 	}
 	if len(countries) == 0 && len(asns) == 0 && !rebuildCountryIndex && !rebuildASNIndex {
-		return nil
+		return nil, nil
 	}
 	webBatch, err := e.newWebPublishBatch()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer webBatch.cleanup()
 	entityBatch, err := e.newEntityPublishBatch()
 	if err != nil {
-		return err
+		webBatch.cleanup()
+		return nil, err
 	}
-	defer entityBatch.cleanup()
 
 	allSidecars, err := e.loadAllFeedEntitySidecars()
 	if err != nil {
-		return err
+		webBatch.cleanup()
+		entityBatch.cleanup()
+		return nil, err
 	}
 	generated := make([]output.GeneratedFile, 0, len(countries)+len(asns)+2)
 	generated, err = e.rewriteSelectedEntityDetails(ctx, webBatch, entityBatch, allSidecars, countries, asns, generated, task)
 	if err != nil {
-		return err
+		webBatch.cleanup()
+		entityBatch.cleanup()
+		return nil, err
 	}
 	generated, err = e.rewriteSelectedEntityIndexes(ctx, webBatch, allSidecars, rebuildCountryIndex, rebuildASNIndex, generated, task)
 	if err != nil {
-		return err
+		webBatch.cleanup()
+		entityBatch.cleanup()
+		return nil, err
 	}
 	homeAggregate, err := e.stageHomeAggregates(ctx, webBatch.stageDir, "")
 	if err != nil {
-		return err
+		webBatch.cleanup()
+		entityBatch.cleanup()
+		return nil, err
 	}
 	generated = append(generated, homeAggregate)
 
-	if _, err := entityBatch.publishContext(ctx); err != nil {
-		return err
-	}
-	if err := webBatch.applyGeneratedFileTimestampsContext(ctx, generated); err != nil {
-		return err
-	}
-	published, err := webBatch.publishContext(ctx)
-	if err != nil {
-		return err
-	}
-	return e.syncGeneratedFiles(generated, published)
+	return &entityArtifactMutationPlan{
+		web:            webBatch,
+		entity:         entityBatch,
+		generated:      generated,
+		publishStage:   "publishing",
+		publishDetail:  "publishing repaired entity artifacts",
+		publishCurrent: 1,
+		publishTotal:   1,
+	}, nil
 }
 
 func (e *Engine) rewriteSelectedEntityDetails(ctx context.Context, webBatch *webPublishBatch, entityBatch *entityPublishBatch, allSidecars map[string]*feedEntitySidecar, countries map[string]struct{}, asns map[uint32]struct{}, generated []output.GeneratedFile, task *BackgroundTaskHandle) ([]output.GeneratedFile, error) {
@@ -111,10 +122,11 @@ func (e *Engine) stageSelectedCountryDetail(webBatch *webPublishBatch, entityBat
 	logicalTime := countryDetailLogicalMTime(sidecar, feedTimes, e.now().UTC())
 	if current, err := loadCountryDetailSidecar(privatePath); err == nil && reflect.DeepEqual(current, sidecar) && entityDetailFilesExist(privatePath, publicPath) {
 		e.observeRunCounter("entity.repair.country_unchanged", 1, 0)
-		if err := e.touchObservedFileAt(privatePath, "entity.repair.country_sidecar_touch", logicalTime); err != nil {
-			return err
-		}
-		return e.touchObservedFileAt(publicPath, "entity.repair.country_public_touch", logicalTime)
+		entityBatch.markTouch(e.entityCountrySidecarRelPath(code), logicalTime)
+		webBatch.markTouch(e.publicCountryDetailRelPath(code), logicalTime)
+		e.observeRunCounter("entity.repair.country_sidecar_touch", 1, 0)
+		e.observeRunCounter("entity.repair.country_public_touch", 1, 0)
+		return nil
 	}
 	if err := e.writeObservedJSONFileAt(filepath.Join(entityBatch.stageDir, e.entityCountrySidecarRelPath(code)), sidecar, logicalTime, "entity.repair.country_sidecar_write"); err != nil {
 		return err
@@ -158,10 +170,11 @@ func (e *Engine) stageSelectedASNDetail(webBatch *webPublishBatch, entityBatch *
 	logicalTime := asnDetailLogicalMTime(sidecar, feedTimes, e.now().UTC())
 	if current, err := loadASNDetailSidecar(privatePath); err == nil && reflect.DeepEqual(current, sidecar) && entityDetailFilesExist(privatePath, publicPath) {
 		e.observeRunCounter("entity.repair.asn_unchanged", 1, 0)
-		if err := e.touchObservedFileAt(privatePath, "entity.repair.asn_sidecar_touch", logicalTime); err != nil {
-			return err
-		}
-		return e.touchObservedFileAt(publicPath, "entity.repair.asn_public_touch", logicalTime)
+		entityBatch.markTouch(e.entityASNSidecarRelPath(asn), logicalTime)
+		webBatch.markTouch(e.publicASNDetailRelPath(asn), logicalTime)
+		e.observeRunCounter("entity.repair.asn_sidecar_touch", 1, 0)
+		e.observeRunCounter("entity.repair.asn_public_touch", 1, 0)
+		return nil
 	}
 	if err := e.writeObservedJSONFileAt(filepath.Join(entityBatch.stageDir, e.entityASNSidecarRelPath(asn)), sidecar, logicalTime, "entity.repair.asn_sidecar_write"); err != nil {
 		return err
@@ -223,34 +236,37 @@ func (e *Engine) rewriteSelectedEntityIndexes(ctx context.Context, webBatch *web
 }
 
 func (e *Engine) rewriteHomeAggregate(ctx context.Context, task *BackgroundTaskHandle) error {
+	return e.runOptimisticEntityArtifactMutation(ctx, task, backgroundEntityTaskDetail("integrity", 1), func() (*entityArtifactMutationPlan, error) {
+		return e.stageRewriteHomeAggregate(ctx, task)
+	})
+}
+
+func (e *Engine) stageRewriteHomeAggregate(ctx context.Context, task *BackgroundTaskHandle) (*entityArtifactMutationPlan, error) {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
-		return err
+		return nil, err
 	}
 	webBatch, err := e.newWebPublishBatch()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer webBatch.cleanup()
 	if task != nil {
 		task.Update("repairing home aggregate", "rewriting homepage aggregate artifact", 0, 1)
 	}
 	homeAggregate, err := e.stageHomeAggregates(ctx, webBatch.stageDir, "")
 	if err != nil {
-		return err
+		webBatch.cleanup()
+		return nil, err
 	}
 	generated := []output.GeneratedFile{homeAggregate}
-	if err := webBatch.applyGeneratedFileTimestampsContext(ctx, generated); err != nil {
-		return err
-	}
-	if task != nil {
-		task.Update("publishing", "publishing homepage aggregate artifact", 1, 1)
-	}
-	published, err := webBatch.publishContext(ctx)
-	if err != nil {
-		return err
-	}
-	return e.syncGeneratedFiles(generated, published)
+	return &entityArtifactMutationPlan{
+		web:            webBatch,
+		generated:      generated,
+		publishStage:   "publishing",
+		publishDetail:  "publishing homepage aggregate artifact",
+		publishCurrent: 1,
+		publishTotal:   1,
+	}, nil
 }
 
 func selectedEntityRepairDetail(countries map[string]struct{}, asns map[uint32]struct{}) string {

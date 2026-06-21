@@ -33,7 +33,7 @@ UI_STATIC_INPUTS := \
 	ui/tailwind.config.ts \
 	$(shell find ui/src ui/public -type f 2>/dev/null)
 
-.PHONY: build test test-tools test-strict fuzz-replay ui-static ui-test ui-e2e ui-budget eslint-root-config race coverage coverage-tools bench lint vulncheck staticcheck golangci-lint actionlint shellcheck gitleaks hygiene clean install cross
+.PHONY: build test test-tools test-strict fuzz-replay ui-static ui-test ui-e2e ui-budget eslint-root-config race coverage coverage-tools bench jsonbench lint vulncheck staticcheck golangci-lint actionlint shellcheck gitleaks hygiene clean install cross
 
 build: ui-static
 	CGO_ENABLED=0 $(GO) build -ldflags '$(LDFLAGS)' -o $(BINARY) ./cmd/update-ipsets
@@ -86,6 +86,9 @@ coverage-tools:
 
 bench:
 	$(GO) test -bench=. -benchmem ./...
+
+jsonbench:
+	cd tools/jsonbench && $(GO) test -run '^$$' -bench=. -benchmem ./...
 
 lint:
 	$(GO) vet ./...

@@ -285,24 +285,6 @@ func (e *Engine) observeBackgroundWorkerGauges(component string) {
 	observability.Gauge(ctx, "background.workers.limit", int64(limit), attr)
 }
 
-func (e *Engine) withEntityArtifactMutation(task *BackgroundTaskHandle, detail string, fn func() error) error {
-	if e == nil {
-		return fn()
-	}
-	if task != nil {
-		task.Update("waiting for entity artifact writer", detail, 0, 0)
-	}
-	waitStarted := time.Now()
-	e.entityArtifactsMu.Lock()
-	e.observeRunOperation("entity.writer_lock_wait", time.Since(waitStarted))
-	holdStarted := time.Now()
-	defer e.entityArtifactsMu.Unlock()
-	defer func() {
-		e.observeRunOperation("entity.writer_lock_hold", time.Since(holdStarted))
-	}()
-	return fn()
-}
-
 func (e *Engine) snapshotBackgroundTasksLocked() []BackgroundTaskSnapshot {
 	if e == nil || len(e.backgroundTasks) == 0 {
 		return nil

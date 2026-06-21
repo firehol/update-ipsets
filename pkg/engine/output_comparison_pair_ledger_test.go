@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -61,7 +62,65 @@ func TestComparisonPairLedgerIncrementalReplacementPreservesUnchangedEntries(t *
 	}
 }
 
-func TestComparisonPairLedgerCorruptFallbackRebuildsSparseLedger(t *testing.T) {
+func TestComparisonPairLedgerMissingFallbackRebuildsFullLedger(t *testing.T) {
+	eng, webDir := newComparisonLedgerFixture(t, map[string]string{
+		"alpha": "198.51.100.0/24\n",
+		"beta":  "10.0.0.0/25\n",
+		"gamma": "10.0.0.64/26\n",
+	})
+
+	if err := eng.writeComparisonFiles(t.Context(), []string{"alpha"}, webDir, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	entries := readComparisonPairLedgerEntries(t, eng)
+	if got, want := len(entries), 3; got != want {
+		t.Fatalf("rebuilt ledger entries = %d, want %d; entries=%+v", got, want, entries)
+	}
+	if !comparisonPairLedgerEntryExists(entries, "beta", "gamma") {
+		t.Fatalf("unchanged beta/gamma pair was not recomputed after missing ledger: %+v", entries)
+	}
+	row := findComparisonRow(t, readComparisonRows(t, webDir, "beta"), "gamma")
+	if row.Common != 64 {
+		t.Fatalf("rebuilt beta->gamma common = %d, want 64", row.Common)
+	}
+}
+
+func TestComparisonPairLedgerMigratesLegacyJSONLedger(t *testing.T) {
+	eng, webDir := newComparisonLedgerFixture(t, map[string]string{
+		"alpha": "10.0.0.0/24\n",
+		"beta":  "10.0.0.128/25\n",
+		"gamma": "10.0.0.64/26\n",
+	})
+	if err := eng.writeComparisonFiles(t.Context(), nil, webDir, nil); err != nil {
+		t.Fatal(err)
+	}
+	disk := readComparisonPairLedgerFile(t, eng)
+	if err := os.Remove(eng.comparisonPairLedgerPath()); err != nil {
+		t.Fatal(err)
+	}
+	writeComparisonPairLegacyLedgerFile(t, eng, disk)
+	overlapBefore := lifetimeCounterCount(t, eng, "metadata.comparison_pair_overlap")
+
+	if err := eng.writeComparisonFiles(t.Context(), []string{"alpha"}, webDir, nil); err != nil {
+		t.Fatal(err)
+	}
+
+	if got, want := lifetimeCounterCount(t, eng, "metadata.comparison_pair_ledger_hit"), int64(3); got != want {
+		t.Fatalf("legacy ledger hits = %d, want %d", got, want)
+	}
+	if got := lifetimeCounterCount(t, eng, "metadata.comparison_pair_overlap"); got != overlapBefore {
+		t.Fatalf("overlap counter changed from %d to %d after legacy ledger reuse", overlapBefore, got)
+	}
+	if entries := readComparisonPairLedgerEntries(t, eng); len(entries) != 3 {
+		t.Fatalf("migrated v2 ledger entries = %d, want 3: %+v", len(entries), entries)
+	}
+	if _, err := os.Stat(eng.comparisonPairLegacyLedgerPath()); !os.IsNotExist(err) {
+		t.Fatalf("legacy v1 ledger should be removed after successful v2 write, stat err=%v", err)
+	}
+}
+
+func TestComparisonPairLedgerCorruptFallbackRebuildsFullLedger(t *testing.T) {
 	eng, webDir := newComparisonLedgerFixture(t, map[string]string{
 		"alpha": "10.0.0.0/24\n",
 		"beta":  "10.0.0.128/25\n",
@@ -82,15 +141,15 @@ func TestComparisonPairLedgerCorruptFallbackRebuildsSparseLedger(t *testing.T) {
 		t.Fatalf("ignored corrupt ledger counter = %d, want %d", got, want)
 	}
 	entries := readComparisonPairLedgerEntries(t, eng)
-	if got, want := len(entries), 2; got != want {
-		t.Fatalf("sparse rebuilt ledger entries = %d, want %d; entries=%+v", got, want, entries)
+	if got, want := len(entries), 3; got != want {
+		t.Fatalf("rebuilt ledger entries = %d, want %d; entries=%+v", got, want, entries)
 	}
-	if comparisonPairLedgerEntryExists(entries, "beta", "gamma") {
-		t.Fatalf("miss+unchanged beta/gamma pair should not be recomputed after corrupt ledger: %+v", entries)
+	if !comparisonPairLedgerEntryExists(entries, "beta", "gamma") {
+		t.Fatalf("unchanged beta/gamma pair was not recomputed after corrupt ledger: %+v", entries)
 	}
 }
 
-func TestComparisonPairLedgerVersionMismatchFallbackRebuildsSparseLedger(t *testing.T) {
+func TestComparisonPairLedgerVersionMismatchFallbackRebuildsFullLedger(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		mutate func(*comparisonPairLedgerFile)
@@ -133,11 +192,11 @@ func TestComparisonPairLedgerVersionMismatchFallbackRebuildsSparseLedger(t *test
 				t.Fatalf("overlap counter did not increase after mismatched ledger fallback: before=%d after=%d", overlapBefore, got)
 			}
 			entries := readComparisonPairLedgerEntries(t, eng)
-			if got, want := len(entries), 2; got != want {
-				t.Fatalf("sparse rebuilt ledger entries = %d, want %d; entries=%+v", got, want, entries)
+			if got, want := len(entries), 3; got != want {
+				t.Fatalf("rebuilt ledger entries = %d, want %d; entries=%+v", got, want, entries)
 			}
-			if comparisonPairLedgerEntryExists(entries, "beta", "gamma") {
-				t.Fatalf("miss+unchanged beta/gamma pair should not be recomputed after mismatched ledger: %+v", entries)
+			if !comparisonPairLedgerEntryExists(entries, "beta", "gamma") {
+				t.Fatalf("unchanged beta/gamma pair was not recomputed after mismatched ledger: %+v", entries)
 			}
 		})
 	}
@@ -332,6 +391,38 @@ func BenchmarkRunComparisonPairsPairLedgerHits(b *testing.B) {
 	}
 }
 
+func BenchmarkComparisonPairLedgerBinaryCodec(b *testing.B) {
+	disk := comparisonPairLedgerBenchmarkFile(400)
+	data, err := marshalComparisonPairLedgerFile(disk)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.Run("marshal", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			got, err := marshalComparisonPairLedgerFile(disk)
+			if err != nil {
+				b.Fatal(err)
+			}
+			comparisonPairLedgerBenchBytes = got
+		}
+	})
+	b.Run("parse", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			got, err := parseComparisonPairLedgerFile(data)
+			if err != nil {
+				b.Fatal(err)
+			}
+			if len(got.Entries) != len(disk.Entries) {
+				b.Fatalf("entry count = %d, want %d", len(got.Entries), len(disk.Entries))
+			}
+			comparisonPairLedgerBenchFile = got
+		}
+	})
+}
+
 func newComparisonLedgerFixture(t *testing.T, bodies map[string]string) (*Engine, string) {
 	t.Helper()
 	root := t.TempDir()
@@ -391,8 +482,8 @@ func readComparisonPairLedgerFile(t *testing.T, eng *Engine) comparisonPairLedge
 	if err != nil {
 		t.Fatal(err)
 	}
-	var disk comparisonPairLedgerFile
-	if err := json.Unmarshal(data, &disk); err != nil {
+	disk, err := parseComparisonPairLedgerFile(data)
+	if err != nil {
 		t.Fatal(err)
 	}
 	return disk
@@ -400,12 +491,44 @@ func readComparisonPairLedgerFile(t *testing.T, eng *Engine) comparisonPairLedge
 
 func writeComparisonPairLedgerFile(t *testing.T, eng *Engine, disk comparisonPairLedgerFile) {
 	t.Helper()
-	data, err := json.MarshalIndent(disk, "", "\t")
+	data, err := marshalComparisonPairLedgerFile(disk)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(eng.comparisonPairLedgerPath(), data, generatedFileMode); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeComparisonPairLegacyLedgerFile(t *testing.T, eng *Engine, disk comparisonPairLedgerFile) {
+	t.Helper()
+	legacy := comparisonPairLegacyLedgerFile{
+		Version:          1,
+		AlgorithmVersion: disk.AlgorithmVersion,
+		Entries:          make([]comparisonPairLegacyLedgerEntry, 0, len(disk.Entries)),
+	}
+	for _, entry := range disk.Entries {
+		legacyEntry := comparisonPairLegacyLedgerEntry{
+			Left:           entry.Left,
+			Right:          entry.Right,
+			LeftHashValid:  entry.LeftHashValid,
+			RightHashValid: entry.RightHashValid,
+			Common:         entry.Common,
+		}
+		if entry.LeftHashValid {
+			legacyEntry.LeftHash = hex.EncodeToString(entry.LeftHash[:])
+		}
+		if entry.RightHashValid {
+			legacyEntry.RightHash = hex.EncodeToString(entry.RightHash[:])
+		}
+		legacy.Entries = append(legacy.Entries, legacyEntry)
+	}
+	data, err := json.MarshalIndent(legacy, "", "\t")
 	if err != nil {
 		t.Fatal(err)
 	}
 	data = append(data, '\n')
-	if err := os.WriteFile(eng.comparisonPairLedgerPath(), data, generatedFileMode); err != nil {
+	if err := os.WriteFile(eng.comparisonPairLegacyLedgerPath(), data, generatedFileMode); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -516,3 +639,27 @@ func comparisonPairLedgerBenchmarkInfo(i int) comparisonSetInfo {
 	hash.Sum[3] = byte(i)
 	return comparisonSetInfo{name: name, ips: 1, category: "test", contentHash: hash}
 }
+
+func comparisonPairLedgerBenchmarkFile(feeds int) comparisonPairLedgerFile {
+	infos := make([]comparisonSetInfo, feeds)
+	for i := range infos {
+		infos[i] = comparisonPairLedgerBenchmarkInfo(i)
+	}
+	entries := make([]comparisonPairLedgerEntry, 0, feeds*(feeds-1)/2)
+	for i := 0; i < len(infos); i++ {
+		for j := i + 1; j < len(infos); j++ {
+			key := comparisonPairLedgerKeyForInfos(infos[i], infos[j])
+			entries = append(entries, comparisonPairLedgerEntryFromKey(key, 1))
+		}
+	}
+	return comparisonPairLedgerFile{
+		Version:          comparisonPairLedgerFormatVersion,
+		AlgorithmVersion: comparisonPairLedgerAlgorithmVersion,
+		Entries:          entries,
+	}
+}
+
+var (
+	comparisonPairLedgerBenchBytes []byte
+	comparisonPairLedgerBenchFile  comparisonPairLedgerFile
+)

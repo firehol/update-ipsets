@@ -36,22 +36,29 @@ func (e *Engine) collectHealthTransitionAffectedEntities(ctx context.Context, fe
 	return nil
 }
 
-func (e *Engine) publishHealthTransitionHomeAggregate(ctx context.Context) error {
+func (e *Engine) stageHealthTransitionHomeAggregate(ctx context.Context) (*entityArtifactMutationPlan, error) {
 	webBatch, err := e.newWebPublishBatch()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer webBatch.cleanup()
 
 	homeAggregate, err := e.stageHomeAggregates(ctx, webBatch.stageDir, "")
 	if err != nil {
-		return err
+		webBatch.cleanup()
+		return nil, err
 	}
 	generated := []output.GeneratedFile{homeAggregate}
-	return e.publishHealthTransitionGenerated(ctx, webBatch, generated)
+	return &entityArtifactMutationPlan{
+		web:            webBatch,
+		generated:      generated,
+		publishStage:   "publishing",
+		publishDetail:  "publishing refreshed entity artifacts",
+		publishCurrent: 1,
+		publishTotal:   1,
+	}, nil
 }
 
-func (e *Engine) publishHealthTransitionEntityPayloads(ctx context.Context, affectedCountries map[string]struct{}, affectedASNs map[uint32]struct{}, task *BackgroundTaskHandle) error {
+func (e *Engine) stageHealthTransitionEntityPayloads(ctx context.Context, affectedCountries map[string]struct{}, affectedASNs map[uint32]struct{}, task *BackgroundTaskHandle) (*entityArtifactMutationPlan, error) {
 	detail := healthTransitionRebuildDetail(affectedCountries, affectedASNs)
 	total := len(affectedCountries) + len(affectedASNs)
 	if task != nil {
@@ -60,46 +67,54 @@ func (e *Engine) publishHealthTransitionEntityPayloads(ctx context.Context, affe
 
 	webBatch, err := e.newWebPublishBatch()
 	if err != nil {
-		return err
+		return nil, err
 	}
-	defer webBatch.cleanup()
 
 	generated := make([]output.GeneratedFile, 0, total)
 	health := e.newFeedHealthClassifier()
 	progress := 0
 	for _, code := range sortedStringSet(affectedCountries) {
 		if err := contextErr(ctx); err != nil {
-			return err
+			webBatch.cleanup()
+			return nil, err
 		}
 		var err error
 		generated, err = e.stageHealthTransitionCountryPayload(webBatch, generated, health, code)
 		if err != nil {
-			return err
+			webBatch.cleanup()
+			return nil, err
 		}
 		progress++
 		updateHealthTransitionRebuildProgress(task, detail, progress, total)
 	}
 	for _, asn := range sortedUint32Set(affectedASNs) {
 		if err := contextErr(ctx); err != nil {
-			return err
+			webBatch.cleanup()
+			return nil, err
 		}
 		var err error
 		generated, err = e.stageHealthTransitionASNPayload(webBatch, generated, health, asn)
 		if err != nil {
-			return err
+			webBatch.cleanup()
+			return nil, err
 		}
 		progress++
 		updateHealthTransitionRebuildProgress(task, detail, progress, total)
 	}
-	if task != nil {
-		task.Update("publishing", "publishing refreshed entity artifacts", total, total)
-	}
 	homeAggregate, err := e.stageHomeAggregates(ctx, webBatch.stageDir, "")
 	if err != nil {
-		return err
+		webBatch.cleanup()
+		return nil, err
 	}
 	generated = append(generated, homeAggregate)
-	return e.publishHealthTransitionGenerated(ctx, webBatch, generated)
+	return &entityArtifactMutationPlan{
+		web:            webBatch,
+		generated:      generated,
+		publishStage:   "publishing",
+		publishDetail:  "publishing refreshed entity artifacts",
+		publishCurrent: total,
+		publishTotal:   total,
+	}, nil
 }
 
 func (e *Engine) stageHealthTransitionCountryPayload(webBatch *webPublishBatch, generated []output.GeneratedFile, health *feedHealthClassifier, code string) ([]output.GeneratedFile, error) {
@@ -148,17 +163,6 @@ func (e *Engine) stageHealthTransitionASNPayload(webBatch *webPublishBatch, gene
 		generated = append(generated, mdFile)
 	}
 	return generated, nil
-}
-
-func (e *Engine) publishHealthTransitionGenerated(ctx context.Context, webBatch *webPublishBatch, generated []output.GeneratedFile) error {
-	if err := webBatch.applyGeneratedFileTimestampsContext(ctx, generated); err != nil {
-		return err
-	}
-	published, err := webBatch.publishContext(ctx)
-	if err != nil {
-		return err
-	}
-	return e.syncGeneratedFiles(generated, published)
 }
 
 func healthTransitionRebuildDetail(affectedCountries map[string]struct{}, affectedASNs map[uint32]struct{}) string {

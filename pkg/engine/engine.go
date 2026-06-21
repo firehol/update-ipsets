@@ -43,6 +43,7 @@ type Engine struct {
 	backgroundTasks           map[string]backgroundTaskState
 	backgroundLimiter         *backgroundLimiter
 	entityArtifactsMu         sync.Mutex
+	entityArtifactsGeneration uint64
 	entityRebuildQueued       bool
 	entityRefreshPending      map[string]struct{}
 	entityRefreshRunning      bool
