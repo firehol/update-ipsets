@@ -80,6 +80,88 @@ func BenchmarkCompareNextSourcesFileSet(b *testing.B) {
 	}
 }
 
+func BenchmarkCompareSourcePairsRepeatedLeftFileSet(b *testing.B) {
+	for _, size := range []int{1_000, 10_000} {
+		b.Run(fmt.Sprintf("n=%d", size), func(b *testing.B) {
+			for _, targetCount := range []int{8, 64} {
+				b.Run(fmt.Sprintf("targets=%d", targetCount), func(b *testing.B) {
+					left, err := OpenFileSet(benchFileSetFromOffsetRanges(b, size, 0))
+					if err != nil {
+						b.Fatal(err)
+					}
+					defer func() { _ = left.Close() }()
+
+					sources := make([]CompareSource, 0, targetCount+1)
+					pairs := make([]ComparePair, 0, targetCount)
+					sources = append(sources, CompareSource{Name: "left", Source: left})
+					for i := 0; i < targetCount; i++ {
+						right, err := OpenFileSet(benchFileSetFromOffsetRanges(b, size, uint32(i%4)))
+						if err != nil {
+							b.Fatal(err)
+						}
+						defer func() { _ = right.Close() }()
+						sources = append(sources, CompareSource{Name: fmt.Sprintf("right-%d", i), Source: right})
+						pairs = append(pairs, ComparePair{Left: 0, Right: len(sources) - 1})
+					}
+
+					b.ReportAllocs()
+					b.ResetTimer()
+					for b.Loop() {
+						rows, err := CompareSourcePairs(b.Context(), sources, pairs)
+						if err != nil {
+							b.Fatal(err)
+						}
+						if len(rows) != targetCount {
+							b.Fatalf("CompareSourcePairs() returned %d rows, want %d", len(rows), targetCount)
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
+func BenchmarkCompareSourcePairsPartitionedOneToManyFileSet(b *testing.B) {
+	for _, size := range []int{1_000, 10_000} {
+		b.Run(fmt.Sprintf("n=%d", size), func(b *testing.B) {
+			for _, targetCount := range []int{8, 64} {
+				b.Run(fmt.Sprintf("targets=%d", targetCount), func(b *testing.B) {
+					left, err := OpenFileSet(benchFileSetFromOffsetRanges(b, size, 0))
+					if err != nil {
+						b.Fatal(err)
+					}
+					defer func() { _ = left.Close() }()
+
+					sources := make([]CompareSource, 0, targetCount+1)
+					pairs := make([]ComparePair, 0, targetCount)
+					sources = append(sources, CompareSource{Name: "left", Source: left})
+					for i := 0; i < targetCount; i++ {
+						right, err := OpenFileSet(benchPartitionFileSet(b, size, targetCount, i))
+						if err != nil {
+							b.Fatal(err)
+						}
+						defer func() { _ = right.Close() }()
+						sources = append(sources, CompareSource{Name: fmt.Sprintf("right-%d", i), Source: right})
+						pairs = append(pairs, ComparePair{Left: 0, Right: len(sources) - 1})
+					}
+
+					b.ReportAllocs()
+					b.ResetTimer()
+					for b.Loop() {
+						rows, err := CompareSourcePairs(b.Context(), sources, pairs)
+						if err != nil {
+							b.Fatal(err)
+						}
+						if len(rows) != targetCount {
+							b.Fatalf("CompareSourcePairs() returned %d rows, want %d", len(rows), targetCount)
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
 func BenchmarkBinaryRoundTrip(b *testing.B) {
 	set := New("binary")
 	for i := 0; i < 4096; i++ {
@@ -109,9 +191,40 @@ func mustAddBench(tb testing.TB, set *IPSet, lo, hi uint32) {
 
 // benchFileSetFromRanges creates a binary .set file with numRanges ranges.
 func benchFileSetFromRanges(b *testing.B, numRanges int) string {
+	return benchFileSetFromOffsetRanges(b, numRanges, 0)
+}
+
+// benchFileSetFromOffsetRanges creates a binary .set file with numRanges ranges.
+func benchFileSetFromOffsetRanges(b *testing.B, numRanges int, offset uint32) string {
 	b.Helper()
 	set := New("bench")
 	for i := 0; i < numRanges; i++ {
+		lo := offset + uint32(i*4)
+		hi := lo + 1
+		if err := set.Add(lo, hi); err != nil {
+			b.Fatal(err)
+		}
+	}
+	set.Optimize()
+
+	dir := b.TempDir()
+	path := filepath.Join(dir, "bench.set")
+	f, err := os.Create(path)
+	if err != nil {
+		b.Fatal(err)
+	}
+	if err := WriteBinary(f, set); err != nil {
+		_ = f.Close()
+		b.Fatal(err)
+	}
+	_ = f.Close()
+	return path
+}
+
+func benchPartitionFileSet(b *testing.B, numRanges, partitions, partition int) string {
+	b.Helper()
+	set := New("bench")
+	for i := partition; i < numRanges; i += partitions {
 		lo := uint32(i * 4)
 		hi := lo + 1
 		if err := set.Add(lo, hi); err != nil {

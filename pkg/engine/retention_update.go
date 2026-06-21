@@ -51,6 +51,19 @@ type retentionCohortUpdate struct {
 	deleted    bool
 }
 
+const retentionReconcileCompareBatchSize = 256
+
+type retentionCohortCandidate struct {
+	baseName string
+	path     string
+	addedAt  int64
+}
+
+type retentionOpenCohort struct {
+	candidate retentionCohortCandidate
+	source    *closableSource
+}
+
 func (s *retentionReconcileStats) record(update retentionCohortUpdate) {
 	if s == nil {
 		return
@@ -267,6 +280,21 @@ func (e *Engine) reconcileRetentionCohorts(ctx context.Context, name string, pat
 		return retentionReconcileResult{}, err
 	}
 	stats.totalEntries = len(files)
+	batch := make([]retentionCohortCandidate, 0, retentionReconcileCompareBatchSize)
+	flushBatch := func() error {
+		if len(batch) == 0 {
+			return nil
+		}
+		updates, err := e.reconcileRetentionCohortBatch(ctx, name, paths, started, updatedAt, current, currentSource, past, batch, &result)
+		if err != nil {
+			return err
+		}
+		for _, update := range updates {
+			stats.record(update)
+		}
+		batch = batch[:0]
+		return nil
+	}
 	progress := e.beginActiveOperation("retention.reconcile_cohorts", name, "scan", "files", int64(len(files)))
 	defer func() {
 		elapsedMS := telemetryDurationMillis(time.Since(opStarted))
@@ -330,16 +358,81 @@ func (e *Engine) reconcileRetentionCohorts(ctx context.Context, name string, pat
 			}
 			continue
 		}
-		update, err := e.reconcileRetentionCohortFromCompare(ctx, name, paths, started, updatedAt, current, currentSource, past, entry.Name(), addedAt, &result)
-		if err != nil {
-			return retentionReconcileResult{}, err
+		batch = append(batch, retentionCohortCandidate{
+			baseName: entry.Name(),
+			path:     filepath.Join(paths.newDir, entry.Name()),
+			addedAt:  addedAt,
+		})
+		if len(batch) >= retentionReconcileCompareBatchSize {
+			if err := flushBatch(); err != nil {
+				return retentionReconcileResult{}, err
+			}
 		}
-		stats.record(update)
 		if progress != nil && shouldReportRetentionProgress(idx, len(files), stats) {
 			progress.Update(int64(idx+1), int64(len(files)), stats.progressCounters())
 		}
 	}
+	if err := flushBatch(); err != nil {
+		return retentionReconcileResult{}, err
+	}
 	return result, nil
+}
+
+func (e *Engine) reconcileRetentionCohortBatch(ctx context.Context, name string, paths retentionUpdatePaths, started, updatedAt int64, current *iprange.IPSet, currentSource iprange.CompareSource, past map[int]uint64, batch []retentionCohortCandidate, result *retentionReconcileResult) ([]retentionCohortUpdate, error) {
+	if len(batch) == 0 {
+		return nil, nil
+	}
+	opened := make([]retentionOpenCohort, 0, len(batch))
+	sources := make([]iprange.CompareSource, 0, len(batch)+1)
+	pairs := make([]iprange.ComparePair, 0, len(batch))
+	sources = append(sources, currentSource)
+	for _, candidate := range batch {
+		oldSource, err := openRetentionCohortSet(ctx, candidate.baseName, e.runtime.LibDir, filepath.Join(name, "new", candidate.baseName), candidate.path)
+		if err != nil {
+			_ = closeRetentionOpenCohorts(opened)
+			return nil, err
+		}
+		opened = append(opened, retentionOpenCohort{
+			candidate: candidate,
+			source:    oldSource,
+		})
+		sources = append(sources, iprange.CompareSource{Name: candidate.baseName, Source: oldSource.RangeSource})
+		pairs = append(pairs, iprange.ComparePair{Left: 0, Right: len(sources) - 1})
+	}
+
+	rows, err := iprange.CompareSourcePairs(ctx, sources, pairs)
+	if err != nil {
+		_ = closeRetentionOpenCohorts(opened)
+		return nil, err
+	}
+	if len(rows) != len(opened) {
+		_ = closeRetentionOpenCohorts(opened)
+		return nil, fmt.Errorf("retention: compare pairs returned %d rows for %d cohorts", len(rows), len(opened))
+	}
+
+	updates := make([]retentionCohortUpdate, 0, len(opened))
+	for i, cohort := range opened {
+		update, err := e.applyRetentionCohortCompare(ctx, name, paths, started, updatedAt, current, cohort.source, cohort.candidate.baseName, cohort.candidate.path, cohort.candidate.addedAt, rows[i], past, result)
+		if err != nil {
+			_ = closeRetentionOpenCohorts(opened[i+1:])
+			return nil, err
+		}
+		updates = append(updates, update)
+	}
+	return updates, nil
+}
+
+func closeRetentionOpenCohorts(opened []retentionOpenCohort) error {
+	var errs []error
+	for _, cohort := range opened {
+		if cohort.source == nil {
+			continue
+		}
+		if err := cohort.source.Close(); err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errors.Join(errs...)
 }
 
 func shouldSkipRetentionCohortEntry(entry os.DirEntry) bool {
@@ -354,28 +447,6 @@ func (e *Engine) retentionCohortTimestamp(name, baseName string) (int64, bool) {
 		return 0, false
 	}
 	return addedAt, true
-}
-
-func (e *Engine) reconcileRetentionCohortFromCompare(ctx context.Context, name string, paths retentionUpdatePaths, started, updatedAt int64, current *iprange.IPSet, currentSource iprange.CompareSource, past map[int]uint64, baseName string, addedAt int64, result *retentionReconcileResult) (retentionCohortUpdate, error) {
-	path := filepath.Join(paths.newDir, baseName)
-	oldSource, err := openRetentionCohortSet(ctx, baseName, e.runtime.LibDir, filepath.Join(name, "new", baseName), path)
-	if err != nil {
-		return retentionCohortUpdate{}, err
-	}
-
-	rows, err := iprange.CompareNextSources(ctx,
-		[]iprange.CompareSource{currentSource},
-		[]iprange.CompareSource{{Name: baseName, Source: oldSource.RangeSource}},
-	)
-	if err != nil {
-		_ = oldSource.Close()
-		return retentionCohortUpdate{}, err
-	}
-	if len(rows) != 1 {
-		_ = oldSource.Close()
-		return retentionCohortUpdate{}, fmt.Errorf("retention: compare-next returned %d rows for %s", len(rows), baseName)
-	}
-	return e.applyRetentionCohortCompare(ctx, name, paths, started, updatedAt, current, oldSource, baseName, path, addedAt, rows[0], past, result)
 }
 
 func (e *Engine) applyRetentionCohortCompare(ctx context.Context, name string, paths retentionUpdatePaths, started, updatedAt int64, current *iprange.IPSet, oldSource *closableSource, baseName, path string, addedAt int64, row iprange.CompareRow, past map[int]uint64, result *retentionReconcileResult) (retentionCohortUpdate, error) {

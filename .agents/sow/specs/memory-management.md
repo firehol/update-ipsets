@@ -130,7 +130,10 @@ persisted may be materialized as an in-memory set.
 Retention cohort reconciliation SHOULD also open existing binary cohort files as
 file-backed range sources. When removals require a cohort rewrite, the engine
 SHOULD materialize only the still-listed cohort that must be persisted and avoid
-materializing a separate removed set.
+materializing a separate removed set. Cohort overlap checks SHOULD run through
+bounded `pkg/iprange` source-pair batches so the engine does not grow its own
+range-comparison loop and does not hold descriptors for the full historical
+cohort set at once.
 
 Binary set writers for latest snapshots and retention cohorts MUST stream to
 their destination or atomic staging file with fixed-size buffers. They MUST NOT

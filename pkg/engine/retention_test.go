@@ -140,21 +140,12 @@ func TestReconcileRetentionCohortUsesFileBackedCompare(t *testing.T) {
 		}
 	}
 	current.Optimize()
-	result := retentionReconcileResult{
-		cohorts:        map[int64]uint64{},
-		currentBuckets: map[int]uint64{},
-	}
 	started := addedAt - 3600
 	updatedAt := addedAt + 7200
-	currentSource := iprange.CompareSource{Name: "sample", Source: current}
-	update, err := eng.reconcileRetentionCohortFromCompare(t.Context(), "sample", paths, started, updatedAt, current, currentSource, map[int]uint64{}, baseName, addedAt, &result)
+	result, err := eng.reconcileRetentionCohorts(t.Context(), "sample", paths, started, updatedAt, current, map[int]uint64{})
 	if err != nil {
-		t.Fatalf("reconcileRetentionCohortFromCompare() error = %v", err)
+		t.Fatalf("reconcileRetentionCohorts() error = %v", err)
 	}
-	if !update.rewritten || update.deleted || update.oldIPs != 20 || update.keptIPs != 15 || update.removedIPs != 5 {
-		t.Fatalf("cohort update = %+v, want rewritten 20->15 with 5 removed", update)
-	}
-
 	if got, want := result.cohorts[addedAt], uint64(15); got != want {
 		t.Fatalf("cohort count = %d, want %d", got, want)
 	}
@@ -177,6 +168,109 @@ func TestReconcileRetentionCohortUsesFileBackedCompare(t *testing.T) {
 			t.Fatalf("RangeSourcesEqualContext() error = %v", err)
 		}
 		t.Fatalf("rewritten cohort does not match still-listed current set")
+	}
+}
+
+func TestReconcileRetentionCohortsAcrossCompareBatches(t *testing.T) {
+	root := t.TempDir()
+	libDir := filepath.Join(root, "lib")
+	eng := newEngineFixture(t, withRuntime(func(rt *Runtime) {
+		rt.LibDir = libDir
+	}))
+	paths, err := eng.prepareRetentionUpdatePaths("sample")
+	if err != nil {
+		t.Fatalf("prepareRetentionUpdatePaths() error = %v", err)
+	}
+
+	baseAt := int64(1_700_000_000)
+	total := retentionReconcileCompareBatchSize + 7
+	deleteIndex := retentionReconcileCompareBatchSize - 1
+	rewriteIndex := retentionReconcileCompareBatchSize + 3
+	for i := 0; i < total; i++ {
+		lo := uint32(1000 + i*10)
+		addedAt := baseAt + int64(i*3600)
+		writeRetentionTestCohort(t, paths.newDir, addedAt, []iprange.Range{{Lo: lo, Hi: lo + 4}})
+	}
+
+	unchangedAt := baseAt
+	unchangedPath := filepath.Join(paths.newDir, strconvFormatInt(unchangedAt))
+	unchangedBefore, err := os.ReadFile(unchangedPath)
+	if err != nil {
+		t.Fatalf("read unchanged cohort before reconcile: %v", err)
+	}
+	unchangedInfoBefore, err := os.Stat(unchangedPath)
+	if err != nil {
+		t.Fatalf("stat unchanged cohort before reconcile: %v", err)
+	}
+
+	current := iprange.New("sample")
+	for i := 0; i < total; i++ {
+		if i == deleteIndex {
+			continue
+		}
+		lo := uint32(1000 + i*10)
+		r := iprange.Range{Lo: lo, Hi: lo + 4}
+		if i == rewriteIndex {
+			r.Lo = lo + 2
+		}
+		if err := current.AddRange(r); err != nil {
+			t.Fatalf("current AddRange(%v) error = %v", r, err)
+		}
+	}
+	current.Optimize()
+
+	started := baseAt - 3600
+	updatedAt := baseAt + int64((total+1)*3600)
+	result, err := eng.reconcileRetentionCohorts(t.Context(), "sample", paths, started, updatedAt, current, map[int]uint64{})
+	if err != nil {
+		t.Fatalf("reconcileRetentionCohorts() error = %v", err)
+	}
+
+	if got, want := len(result.cohorts), total-1; got != want {
+		t.Fatalf("cohort count = %d, want %d", got, want)
+	}
+	deletedAt := baseAt + int64(deleteIndex*3600)
+	if _, ok := result.cohorts[deletedAt]; ok {
+		t.Fatalf("deleted cohort %d still present", deletedAt)
+	}
+	if _, err := os.Stat(filepath.Join(paths.newDir, strconvFormatInt(deletedAt))); !os.IsNotExist(err) {
+		t.Fatalf("deleted cohort stat error = %v, want not exist", err)
+	}
+
+	rewrittenAt := baseAt + int64(rewriteIndex*3600)
+	if got, want := result.cohorts[rewrittenAt], uint64(3); got != want {
+		t.Fatalf("rewritten cohort count = %d, want %d", got, want)
+	}
+	rewritten, err := loadSnapshotSet(t.Context(), "sample", libDir, filepath.Join("sample", "new", strconvFormatInt(rewrittenAt)))
+	if err != nil {
+		t.Fatalf("load rewritten cohort: %v", err)
+	}
+	wantRewritten := iprange.New("sample")
+	rewriteLo := uint32(1000 + rewriteIndex*10)
+	if err := wantRewritten.AddRange(iprange.Range{Lo: rewriteLo + 2, Hi: rewriteLo + 4}); err != nil {
+		t.Fatalf("want rewritten AddRange() error = %v", err)
+	}
+	wantRewritten.Optimize()
+	if equal, err := iprange.RangeSourcesEqualContext(t.Context(), rewritten, wantRewritten); err != nil || !equal {
+		if err != nil {
+			t.Fatalf("RangeSourcesEqualContext() error = %v", err)
+		}
+		t.Fatalf("rewritten cohort does not contain only retained IPs")
+	}
+
+	unchangedAfter, err := os.ReadFile(unchangedPath)
+	if err != nil {
+		t.Fatalf("read unchanged cohort after reconcile: %v", err)
+	}
+	unchangedInfoAfter, err := os.Stat(unchangedPath)
+	if err != nil {
+		t.Fatalf("stat unchanged cohort after reconcile: %v", err)
+	}
+	if !bytes.Equal(unchangedAfter, unchangedBefore) {
+		t.Fatalf("unchanged cohort body was rewritten")
+	}
+	if !unchangedInfoAfter.ModTime().Equal(unchangedInfoBefore.ModTime()) {
+		t.Fatalf("unchanged cohort mtime = %s, want %s", unchangedInfoAfter.ModTime(), unchangedInfoBefore.ModTime())
 	}
 }
 
@@ -299,14 +393,17 @@ func TestReconcileRetentionCohortsOnlyRewritesAffectedFiles(t *testing.T) {
 	}
 }
 
-func TestRetentionReconcileUsesIPrangeCompareNextBeforeMaterializing(t *testing.T) {
+func TestRetentionReconcileUsesIPrangeComparePairsBeforeMaterializing(t *testing.T) {
 	sourceBytes, err := os.ReadFile("retention_update.go")
 	if err != nil {
 		t.Fatalf("read retention_update.go: %v", err)
 	}
 	source := string(sourceBytes)
-	if !strings.Contains(source, "iprange.CompareNextSources") {
-		t.Fatalf("retention reconciliation must use pkg/iprange CompareNextSources")
+	if !strings.Contains(source, "iprange.CompareSourcePairs") {
+		t.Fatalf("retention reconciliation must use pkg/iprange CompareSourcePairs")
+	}
+	if strings.Contains(source, "iprange.CompareNextSources") {
+		t.Fatalf("retention reconciliation must not use one CompareNextSources call per cohort")
 	}
 	if strings.Contains(source, "func (e *Engine) reconcileRetentionCohort(") {
 		t.Fatalf("retention reconciliation must not restore the old engine-owned per-cohort comparison")

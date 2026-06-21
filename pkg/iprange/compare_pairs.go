@@ -94,18 +94,78 @@ func compareSourcePairsIter(ctx context.Context, sources []compareSourceMeta, pa
 }
 
 func compareSourcePairsIndexed(ctx context.Context, sources []compareSourceMeta, indexed []indexedRangeSource, pairs []ComparePair) ([]CompareRow, error) {
-	rows := make([]CompareRow, len(pairs))
-	for i, pair := range pairs {
-		if err := ctx.Err(); err != nil {
-			return nil, err
-		}
+	if len(pairs) == 1 {
+		pair := pairs[0]
 		common, err := overlapCountIndexedSources(ctx, indexed[pair.Left], indexed[pair.Right])
 		if err != nil {
 			return nil, err
 		}
-		rows[i] = compareRowFromMeta(sources[pair.Left], sources[pair.Right], common)
+		return []CompareRow{compareRowFromMeta(sources[pair.Left], sources[pair.Right], common)}, nil
+	}
+
+	commonByRow := make([]uint64, len(pairs))
+	for _, group := range comparePairsByLeft(pairs) {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		if len(group.targets) == 1 {
+			target := group.targets[0]
+			common, err := overlapCountIndexedSources(ctx, indexed[group.left], indexed[target.right])
+			if err != nil {
+				return nil, err
+			}
+			commonByRow[target.row] = common
+			continue
+		}
+		if shouldUseOneToManyIndexed(indexed[group.left], indexed, group.targets) {
+			if err := overlapOneToManyIndexed(ctx, indexed[group.left], indexed, group.targets, commonByRow); err != nil {
+				return nil, err
+			}
+			continue
+		}
+		if err := overlapPairTargetsIndexed(ctx, indexed[group.left], indexed, group.targets, commonByRow); err != nil {
+			return nil, err
+		}
+	}
+
+	rows := make([]CompareRow, len(pairs))
+	for row, pair := range pairs {
+		rows[row] = compareRowFromMeta(sources[pair.Left], sources[pair.Right], commonByRow[row])
 	}
 	return rows, nil
+}
+
+func shouldUseOneToManyIndexed(left indexedRangeSource, all []indexedRangeSource, targets []comparePairTarget) bool {
+	if len(targets) < 2 {
+		return false
+	}
+	leftLen := left.len()
+	if leftLen == 0 {
+		return true
+	}
+	var targetLen int
+	for _, target := range targets {
+		targetSize := all[target.right].len()
+		if targetSize > leftLen-targetLen {
+			return false
+		}
+		targetLen += targetSize
+	}
+	return targetLen <= leftLen
+}
+
+func overlapPairTargetsIndexed(ctx context.Context, left indexedRangeSource, all []indexedRangeSource, targets []comparePairTarget, commonByRow []uint64) error {
+	for _, target := range targets {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		common, err := overlapCountIndexedSources(ctx, left, all[target.right])
+		if err != nil {
+			return err
+		}
+		commonByRow[target.row] = common
+	}
+	return nil
 }
 
 func overlapCountIndexedSources(ctx context.Context, left, right indexedRangeSource) (uint64, error) {

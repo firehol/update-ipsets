@@ -115,6 +115,11 @@ description: "Go, React, config, and repo conventions for update-ipsets. MUST be
   `ExcludeCountContext`, or `ExcludeRangesContext`) rather than composing
   `CollectIterContext`/`CountIterContext` with `UnionIter`, `IntersectIter`, or
   `ExcludeIter` in production hot paths (from SOW-0109).
+- Retention removal reconciliation must keep historical cohort comparison
+  bounded and delegated to `pkg/iprange` source-pair comparison APIs. Do not
+  restore one engine-local comparison call per cohort, and do not open the full
+  retention history at once; use bounded file-backed batches and materialize
+  only cohorts that must be rewritten (from SOW-0116).
 - Before optimizing an apparent hot path, prove the production caller path
   exists. If an unexported helper has no production callers, remove the dead
   helper instead of adding tests or complexity around it (from SOW-0031).

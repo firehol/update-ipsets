@@ -167,7 +167,10 @@ same feed.
 When reconciling existing retention cohorts after removals, the engine SHOULD
 open binary cohort files through file-backed range sources. It SHOULD
 materialize only the still-listed cohort that must be rewritten and count
-removed IPs without building a separate removed set.
+removed IPs without building a separate removed set. The comparison phase
+SHOULD send bounded batches of cohort sources to `pkg/iprange` source-pair
+comparison APIs instead of invoking one engine-local comparison per cohort; the
+batch bound MUST avoid opening the full retention history at once.
 
 If the input is valid but empty, the engine MUST still produce the empty-result
 publication defined by the product contract.

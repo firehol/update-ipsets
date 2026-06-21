@@ -98,7 +98,7 @@ Initial production state:
   - One production run showed `metadata.write_comparison_files` `166594ms`, `metadata.comparison_pair_overlap` `159631ms`, `metadata.comparison_pair_ledger_lookup` `81003`, and ledger read/write of about `24.6MB` each.
   - The ledger is conceptually reproducible because entries are derived from current comparison set metadata, content hashes, and overlap counts.
   - The current missing/corrupt-ledger fallback is not sufficient for a binary rewrite: during incremental updates, an empty ledger can cause unchanged pair misses to be skipped and only the changed-pair subset to be written back. The optimized implementation must force a full rebuild when the ledger is missing, corrupt, incompatible, or unreadable.
-- `pkg/iprange.CompareNextSources` exists but currently loops over the input pair product and calls `OverlapCountIterContext` per pair. It is useful but not a true amortized many-to-many comparison engine.
+- Initial finding: `pkg/iprange.CompareNextSources` existed but looped over the input pair product and called `OverlapCountIterContext` per pair. It was useful but not a true amortized many-to-many comparison engine.
 - JSON-library candidates:
   - `bytedance/sonic` provides compatibility configurations including `ConfigStd`, but uses JIT/SIMD techniques, has platform support constraints, and defaults that may differ from `encoding/json`.
   - `goccy/go-json` positions itself as a drop-in replacement compatible with `encoding/json`.
@@ -593,9 +593,9 @@ User decision:
   and fall back to the existing actor-sidecar scan only when the index is
   missing or untrusted.
 - Implemented `pkg/iprange.CompareSourcePairs(ctx, sources, pairs)` with
-  selected-pair output ordering, validation, indexed one-to-many scanning for
-  `IPSet`/`FileSet` sources, and the existing iterator fallback for arbitrary
-  `RangeSource` inputs.
+  selected-pair output ordering, validation, cost-gated indexed one-to-many
+  scanning for `IPSet`/`FileSet` sources, and the existing iterator fallback for
+  arbitrary `RangeSource` inputs.
 - Converted `CompareAllSources` and `CompareNextSources` to use
   `CompareSourcePairs`, so existing callers receive the optimized source-pair
   path without switching APIs.
@@ -613,8 +613,8 @@ User decision:
   `2.56MB/op` to low constant allocation on this machine.
 - Added an indexed single-target fast path so one-pair and one-target groups use
   the specialized overlap scanner instead of the generic one-to-many heap path;
-  final `BenchmarkCompareNextSourcesFileSet/n=10000` is `9 allocs/op` and
-  `672B/op`.
+  current `BenchmarkCompareNextSourcesFileSet/n=10000` after the retention
+  dispatcher work is `195827 ns/op`, `672 B/op`, and `9 allocs/op`.
 - Updated `.agents/sow/specs/files-layout.md`,
   `.agents/sow/specs/pipeline.md`, and
   `.agents/sow/specs/operating-principles.md` for the entity feed-presence index
@@ -638,6 +638,29 @@ User decision:
   `.agents/skills/project-coding/SKILL.md` so future work keeps per-feed
   sidecars as the canonical private contribution state for changed-feed entity
   refreshes.
+- Added a bounded retention reconciliation path for removal updates:
+  - `reconcileRetentionCohorts` now accumulates valid cohort files into bounded
+    batches of 256 file-backed sources.
+  - Each batch delegates exact current-vs-cohort overlap checks to
+    `pkg/iprange.CompareSourcePairs` instead of making one `CompareNextSources`
+    call per cohort file.
+  - The destructive decisions remain unchanged and exact: unchanged cohorts are
+    closed without rewriting, partially retained cohorts are materialized through
+    `IntersectSourcesContext` and atomically rewritten with the original cohort
+    timestamp, and fully removed cohorts are deleted only after exact common-IP
+    count is zero.
+  - The batch bound prevents opening the full historical retention directory at
+    once, preserving the 10-year history data while reducing per-file compare
+    overhead.
+- Completed the `pkg/iprange` selected-pair dispatcher so repeated-left groups
+  actually use the one-to-many scanner when the combined target range count is
+  not larger than the left source. Dense repeated-left groups stay on the tight
+  pair scanner because benchmarks showed the generic heap cursor path is slower
+  for heavily overlapping peer sets.
+- Updated `.agents/sow/specs/processing-engine.md`,
+  `.agents/sow/specs/memory-management.md`,
+  `.agents/sow/specs/operating-principles.md`, and
+  `.agents/skills/project-coding/SKILL.md` with the retention batching contract.
 
 ## Validation
 
@@ -697,6 +720,24 @@ Tests or equivalent validation:
     `entity.refresh.asn_sidecar_read` counters during changed-feed entity
     refresh, proving ordinary affected actor rebuild no longer performs one
     actor JSON decode per affected country/ASN.
+- Retention removal reconciliation validation:
+  - `go test -run 'TestCompareSourcePairs' ./pkg/iprange`
+  - `go test -run 'TestReconcileRetentionCohort|TestReconcileRetentionCohorts|TestRetentionReconcileUsesIPrangeComparePairs|TestLoadRetentionCohortsFromIndex' ./pkg/engine`
+  - The new `TestReconcileRetentionCohortsAcrossCompareBatches` fixture creates
+    more cohorts than one retention compare batch, then proves unchanged cohort
+    bytes/mtime are untouched, a partially retained cohort is rewritten with
+    only still-listed IPs, and a fully removed cohort file is deleted.
+  - Focused benchmark command:
+    `go test -run '^$' -bench 'BenchmarkCompareSourcePairs(RepeatedLeft|PartitionedOneToMany)FileSet|BenchmarkCompareNextSourcesFileSet' -benchmem ./pkg/iprange`
+  - Benchmark evidence on linux/amd64, i9-12900K:
+    `BenchmarkCompareSourcePairsRepeatedLeftFileSet/n=10000/targets=64`
+    `9033737 ns/op`, `22024 B/op`, `20 allocs/op`; repeated-left dense
+    batches avoid per-call setup but stay on the tight pair scanner.
+  - Retention-shaped benchmark evidence:
+    `BenchmarkCompareSourcePairsPartitionedOneToManyFileSet/n=10000/targets=64`
+    `1925305 ns/op`, `40968 B/op`, `22 allocs/op`; partitioned cohort-like
+    batches use the one-to-many path and are about 4.7x faster than the dense
+    repeated-left batch shape in this synthetic benchmark.
 - Entity feed-presence and `pkg/iprange` batched comparison validation:
   - Pre-change focused tests failed as expected for the missing index and old
     engine-local comparison delegation behavior.
@@ -720,9 +761,9 @@ Tests or equivalent validation:
   - Final benchmark command:
     `go test -run '^$' -bench 'BenchmarkCompareNextSourcesFileSet|BenchmarkRunComparisonPairsPairLedgerHits|BenchmarkComparisonPairLedgerBinaryCodec' -benchmem ./pkg/iprange ./pkg/engine`
   - Final `pkg/iprange` benchmark evidence on linux/amd64, i9-12900K:
-    `BenchmarkCompareNextSourcesFileSet/n=1000` `24423 ns/op`, `672 B/op`,
-    `9 allocs/op`; `n=10000` `235043 ns/op`, `672 B/op`, `9 allocs/op`;
-    `n=100000` `2547190 ns/op`, `672 B/op`, `9 allocs/op`.
+    `BenchmarkCompareNextSourcesFileSet/n=1000` `18585 ns/op`, `672 B/op`,
+    `9 allocs/op`; `n=10000` `195827 ns/op`, `672 B/op`, `9 allocs/op`;
+    `n=100000` `2152579 ns/op`, `672 B/op`, `9 allocs/op`.
   - Final engine ledger benchmarks:
     `BenchmarkRunComparisonPairsPairLedgerHits` `32746818 ns/op`,
     `13046638 B/op`, `35 allocs/op`;
@@ -772,8 +813,8 @@ Sensitive data gate:
 Artifact maintenance gate:
 
 - AGENTS.md: updated with historical feed data preservation guardrail.
-- Runtime project skills: `.agents/skills/project-testing/SKILL.md` updated with `make jsonbench`; `.agents/skills/project-coding/SKILL.md` updated to keep changed-feed entity refresh from using actor JSON sidecars as hot-path patch state.
-- Specs: `.agents/sow/specs/files-layout.md`, `.agents/sow/specs/pipeline.md`, and `.agents/sow/specs/operating-principles.md` updated for `cache/comparison-pairs-v2.bin`, v1 read-only upgrade input, full-rebuild semantics, the entity feed-presence index, batched `pkg/iprange` comparison, and feed-sidecar-driven selected actor detail rebuilds.
+- Runtime project skills: `.agents/skills/project-testing/SKILL.md` updated with `make jsonbench`; `.agents/skills/project-coding/SKILL.md` updated to keep changed-feed entity refresh from using actor JSON sidecars as hot-path patch state and to keep retention removal reconciliation delegated to bounded `pkg/iprange` batches.
+- Specs: `.agents/sow/specs/files-layout.md`, `.agents/sow/specs/pipeline.md`, `.agents/sow/specs/operating-principles.md`, `.agents/sow/specs/processing-engine.md`, and `.agents/sow/specs/memory-management.md` updated for `cache/comparison-pairs-v2.bin`, v1 read-only upgrade input, full-rebuild semantics, the entity feed-presence index, batched `pkg/iprange` comparison, feed-sidecar-driven selected actor detail rebuilds, and bounded retention cohort comparison batches.
 - End-user/operator docs: no public/operator docs update needed; `tools/jsonbench/README.md` added for developer benchmark usage.
 - End-user/operator skills: no update needed; operator workflows did not change.
 - SOW lifecycle: moved from `.agents/sow/pending/` to `.agents/sow/current/`; `Status: open`.
@@ -814,7 +855,9 @@ Follow-up mapping:
 
 - Remaining work in this SOW:
   - history-safe measurement and fixture harness for retention/history paths
-  - non-destructive history/retention indexes or summaries
+  - evaluate the new bounded retention removal path against production data and
+    decide whether a further non-destructive first-seen/history index is still
+    needed
   - targeted JSON-library replacement only if a remaining measured hot path
     shows a material win and passes artifact-specific compatibility tests; the
     broad JSON migration is rejected for this slice after Velox crashed on a

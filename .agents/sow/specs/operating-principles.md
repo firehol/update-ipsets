@@ -494,6 +494,9 @@ This means:
 - exact peer-comparison overlap work SHOULD be batched through `pkg/iprange`
   primitives so range-source algorithms stay optimized in the standalone
   package instead of being reimplemented in engine-local loops
+- retention removal reconciliation SHOULD compare historical cohorts through
+  bounded `pkg/iprange` source-pair batches, not one engine-local comparison per
+  cohort and not one unbounded open of every historical cohort file
 - only affected country/ASN entity-detail payloads SHOULD be refreshed when
   possible, and any expensive country<->ASN intersection work SHOULD be reused
   from per-feed sidecars instead of repeated once per entity page
