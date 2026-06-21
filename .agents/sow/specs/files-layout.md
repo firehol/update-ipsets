@@ -600,8 +600,13 @@ Meaning:
     and the engine must decide whether surgical refresh can continue or must
     fall back to full rebuild
   - internal, reproducible, and not a public or operator-authored file
-  - missing, malformed, oversized, or incompatible state MUST be ignored in
-    favor of the older bounded actor-sidecar scan fallback
+  - during surgical feed-presence lookup, missing, malformed, oversized, or
+    incompatible state MUST NOT hide a required full-rebuild fallback; the
+    engine MAY use the older bounded actor-sidecar scan fallback for proof
+  - for bootstrap and admin entity integrity checks on the current entity
+    artifact version, a missing, malformed, oversized, or incompatible
+    feed-presence index is a full-rebuild finding because the entity surface is
+    not completely bootstrapped
 - `lib/entities/feeds/{feed}.json`
   - private committed per-feed entity sidecar
   - contains the feed metadata needed by country/ASN actor rows plus the feed's

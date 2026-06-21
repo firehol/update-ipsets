@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"sort"
@@ -119,6 +120,24 @@ func (s *entityIntegrityScanner) checkGlobalPrerequisites() (bool, error) {
 			ReferenceMTime: configTime,
 			RepairAction:   "full_rebuild",
 			Reason:         "entity artifacts are older than the loaded catalog inputs",
+		})
+		return true, nil
+	}
+	if _, _, err := s.e.loadEntityFeedPresenceIndex(); err != nil {
+		s.plan.markFull()
+		kind := "feed_presence_index_malformed"
+		reason := "entity feed presence index is unreadable"
+		if errors.Is(err, errEntityFeedPresenceIndexMiss) {
+			kind = "feed_presence_index_missing"
+			reason = "entity feed presence index is missing"
+		}
+		s.findings = append(s.findings, EntityIntegrityFinding{
+			Scope:        "global",
+			Kind:         kind,
+			Subject:      "entity_artifacts",
+			Path:         s.e.entityFeedPresenceIndexPath(),
+			RepairAction: "full_rebuild",
+			Reason:       reason,
 		})
 		return true, nil
 	}

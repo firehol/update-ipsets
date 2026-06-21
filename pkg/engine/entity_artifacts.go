@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const entityArtifactsVersion = "3"
+const entityArtifactsVersion = "4"
 
 const entityPublishStagePattern = ".update-ipsets-entities-*"
 const entityPublishStagePrefix = ".update-ipsets-entities-"
@@ -114,6 +114,9 @@ func (e *Engine) entityArtifactsNeedBootstrapFast() bool {
 		if _, err := os.Stat(path); err != nil {
 			return true
 		}
+	}
+	if _, _, err := e.loadEntityFeedPresenceIndex(); err != nil {
+		return true
 	}
 	return false
 }

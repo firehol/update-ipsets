@@ -590,6 +590,10 @@ The pipeline MUST route feed families like this:
   sidecar scans when a committed per-feed sidecar is missing. A missing,
   malformed, oversized, or incompatible index MUST NOT hide a required
   full-rebuild fallback; it only permits the older bounded scan fallback.
+- bootstrap and admin entity-integrity checks MUST require the durable
+  feed-presence index for the current entity artifact version. A matching
+  `lib/entities/version` marker without a readable feed-presence index is a
+  partial entity surface and MUST force a full rebuild.
 - if an existing committed per-feed entity sidecar uses an older
   membership-only format without contribution counts, the product MAY read it
   for migration detection, but ordinary surgical refresh MUST fall back to

@@ -290,6 +290,11 @@ For entity-reference publishing, malformed findings MUST distinguish at least:
 - malformed final public country JSON payloads
 - malformed final public ASN JSON payloads
 
+For current-version entity artifacts, global integrity MUST also prove that the
+private feed-presence index is readable and compatible. A matching
+`lib/entities/version` marker without a valid `lib/entities/feed-presence-v1.bin`
+is a partial entity surface and MUST be reported as a full-rebuild condition.
+
 ## Health-sensitive entity payloads
 
 Country and ASN public detail payloads embed feed-health classes.

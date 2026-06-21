@@ -815,6 +815,45 @@ Tests or equivalent validation:
 Real-use evidence:
 
 - Production monitoring evidence recorded in Analysis.
+- Production integrity blocker observed on 2026-06-21 after the optimized
+  entity/feed-sidecar baseline was deployed:
+  - `/api/v1/admin/integrity` returned `status=issues`, `count=1`; the single
+    feed-output finding was `cymru_unassigned` blocked by unavailable input
+    feed `bogons`.
+  - `/api/v1/admin/integrity/entities` returned `status=issues`, `count=341`;
+    all findings were `feed_sidecar_missing`.
+  - The production entity store had `lib/entities/version` set to `3`,
+    `lib/entities/feed-presence-v1.bin` present but only 604 bytes,
+    `lib/entities/feeds/` containing 36 feed sidecars, no
+    `lib/entities/feeds-pending/` directory, 227 country sidecars, and 22514
+    ASN sidecars.
+  - Representative missing feed sidecars had existing local inputs such as
+    `lib/{feed}/latest`, `web/{feed}_dbip_country.json`, and
+    `web/{feed}_asn_iptoasn.json`, so the integrity findings were not empty
+    input false positives.
+  - Root-cause model from code inspection: `entityArtifactsNeedBootstrapFast`
+    treats the entity surface as bootstrapped when the version marker, public
+    country index, public ASN index, and home aggregate exist. It does not
+    prove the new canonical feed-sidecar store or feed-presence index is
+    complete. Targeted refreshes can then keep publishing a partial
+    feed-sidecar universe while updating `version` and `feed-presence-v1.bin`.
+  - Missing test coverage: no behavioral test reproduced the upgrade shape
+    where `version` already matches the current entity artifact version but
+    the feed-sidecar store and feed-presence index are partial.
+  - Hotfix implemented from this evidence:
+    - bumped the private entity artifact version from `3` to `4`, so the
+      deployed service cannot accept the partial v3 feed-sidecar store as
+      current after restart
+    - `entityArtifactsNeedBootstrapFast` now requires a readable
+      `feed-presence-v1.bin`; missing or unreadable state forces full entity
+      bootstrap instead of targeted refresh
+    - admin/startup entity integrity now reports missing or unreadable
+      feed-presence indexes as global full-rebuild findings
+    - added behavioral tests for the production-shaped upgrade state:
+      previous-version partial feed-sidecar store plus current public entity
+      artifacts must trigger a full rebuild and end clean
+    - added behavioral tests proving a missing feed-presence index is not a
+      clean current-version entity surface
 - Post-deploy production monitoring on 2026-06-21 after restart of the latest
   pushed build:
   - service reached active state and completed the monitored startup/reprocess
@@ -864,6 +903,11 @@ Real-use evidence:
     progress fixture with the same `7 allocs/op`
   - `BenchmarkLoadChangesetTailLargeLedger` on a 100k-row ledger measured about
     `0.38-0.41ms/op`, `283938 B/op`, and `14 allocs/op`
+- Validation after production integrity hotfix:
+  - `go test ./pkg/engine -run 'TestCheckEntityArtifactsIntegrity(RequiresFeedPresenceIndex|FlagsMismatchedVersionMarker|FlagsMissingVersionMarker)|TestRefreshEntityArtifactsRebuildsPreviousVersionPartialFeedSidecarStore|TestSurgicalRefreshRebuildsAffectedDetailsFromFeedSidecars|TestRebuildEntityArtifactsWritesFeedPresenceIndex|TestMissingCommittedFeedSidecarUsesPresenceIndexForFullRebuildProof' -count=1`
+  - `go test ./pkg/engine -count=1`
+  - `make test`
+  - `make lint`
 
 Reviewer findings:
 
@@ -881,7 +925,7 @@ Artifact maintenance gate:
 
 - AGENTS.md: updated with historical feed data preservation guardrail.
 - Runtime project skills: `.agents/skills/project-testing/SKILL.md` updated with `make jsonbench`; `.agents/skills/project-coding/SKILL.md` updated to keep changed-feed entity refresh from using actor JSON sidecars as hot-path patch state and to keep retention removal reconciliation delegated to bounded `pkg/iprange` batches.
-- Specs: `.agents/sow/specs/files-layout.md`, `.agents/sow/specs/pipeline.md`, `.agents/sow/specs/operating-principles.md`, `.agents/sow/specs/processing-engine.md`, and `.agents/sow/specs/memory-management.md` updated for `cache/comparison-pairs-v2.bin`, v1 read-only upgrade input, full-rebuild semantics, the entity feed-presence index, batched `pkg/iprange` comparison, feed-sidecar-driven selected actor detail rebuilds, bounded retention cohort comparison batches, and bounded changeset tail/window access for rotation/change-ratio consumers.
+- Specs: `.agents/sow/specs/files-layout.md`, `.agents/sow/specs/pipeline.md`, `.agents/sow/specs/integrity.md`, `.agents/sow/specs/operating-principles.md`, `.agents/sow/specs/processing-engine.md`, and `.agents/sow/specs/memory-management.md` updated for `cache/comparison-pairs-v2.bin`, v1 read-only upgrade input, full-rebuild semantics, the entity feed-presence index, current-version entity bootstrap integrity, batched `pkg/iprange` comparison, feed-sidecar-driven selected actor detail rebuilds, bounded retention cohort comparison batches, and bounded changeset tail/window access for rotation/change-ratio consumers.
 - End-user/operator docs: no public/operator docs update needed; `tools/jsonbench/README.md` added for developer benchmark usage; `tools/historyaudit/README.md` added for local pre/post history and retention audit usage.
 - End-user/operator skills: no update needed; operator workflows did not change.
 - SOW lifecycle: moved from `.agents/sow/pending/` to `.agents/sow/current/`; `Status: open`.
