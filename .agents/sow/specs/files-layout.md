@@ -574,6 +574,7 @@ Rules:
 The engine also maintains a private entity sidecar tree under `lib/`:
 
 - `lib/entities/version`
+- `lib/entities/feed-presence-v1.bin`
 - `lib/entities/feeds/{feed}.json`
 - `lib/entities/feeds-pending/{feed}.json`
 - `lib/entities/countries/{CODE}.json`
@@ -583,6 +584,17 @@ Meaning:
 
 - `lib/entities/version`
   - entity-artifact schema/version marker for bootstrap decisions
+- `lib/entities/feed-presence-v1.bin`
+  - private binary index listing feed names referenced by the current committed
+    entity sidecar set
+  - generated with full entity rebuilds and surgical entity refresh publish
+    batches
+  - used as the first proof source when a committed per-feed sidecar is missing
+    and the engine must decide whether surgical refresh can continue or must
+    fall back to full rebuild
+  - internal, reproducible, and not a public or operator-authored file
+  - missing, malformed, oversized, or incompatible state MUST be ignored in
+    favor of the older bounded actor-sidecar scan fallback
 - `lib/entities/feeds/{feed}.json`
   - private committed per-feed entity sidecar
   - contains the feed metadata needed by country/ASN actor rows plus the feed's

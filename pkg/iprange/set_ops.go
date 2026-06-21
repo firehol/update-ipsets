@@ -340,39 +340,13 @@ func CompareAllSources(ctx context.Context, sources []CompareSource) ([]CompareR
 		return nil, fmt.Errorf("compare requires at least two ipsets")
 	}
 
-	prepared, err := prepareCompareSources(ctx, sources)
-	if err != nil {
-		return nil, err
-	}
-
-	rows := make([]CompareRow, 0, len(prepared)*(len(prepared)-1)/2)
-	for i := 0; i < len(prepared); i++ {
-		left := prepared[i]
-		for j := i + 1; j < len(prepared); j++ {
-			right := prepared[j]
-			common, err := OverlapCountIterContext(ctx, left.source, right.source)
-			if err != nil {
-				return nil, err
-			}
-			if err := RangeSourceErr(left.source); err != nil {
-				return nil, fmt.Errorf("compare %s: %w", left.name, err)
-			}
-			if err := RangeSourceErr(right.source); err != nil {
-				return nil, fmt.Errorf("compare %s: %w", right.name, err)
-			}
-			rows = append(rows, CompareRow{
-				Name1:       left.name,
-				Name2:       right.name,
-				Entries1:    left.entries,
-				Entries2:    right.entries,
-				Unique1:     left.uniqueIPs,
-				Unique2:     right.uniqueIPs,
-				CombinedIPs: left.uniqueIPs + right.uniqueIPs - common,
-				CommonIPs:   common,
-			})
+	pairs := make([]ComparePair, 0, len(sources)*(len(sources)-1)/2)
+	for i := 0; i < len(sources); i++ {
+		for j := i + 1; j < len(sources); j++ {
+			pairs = append(pairs, ComparePair{Left: i, Right: j})
 		}
 	}
-	return rows, nil
+	return CompareSourcePairs(ctx, sources, pairs)
 }
 
 // CompareNextSources compares every source in before with every source in after.
@@ -386,41 +360,16 @@ func CompareNextSources(ctx context.Context, before, after []CompareSource) ([]C
 		return nil, fmt.Errorf("compare-next requires inputs on both sides")
 	}
 
-	left, err := prepareCompareSources(ctx, before)
-	if err != nil {
-		return nil, err
-	}
-	right, err := prepareCompareSources(ctx, after)
-	if err != nil {
-		return nil, err
-	}
-
-	rows := make([]CompareRow, 0, len(left)*len(right))
-	for _, l := range left {
-		for _, r := range right {
-			common, err := OverlapCountIterContext(ctx, l.source, r.source)
-			if err != nil {
-				return nil, err
-			}
-			if err := RangeSourceErr(l.source); err != nil {
-				return nil, fmt.Errorf("compare %s: %w", l.name, err)
-			}
-			if err := RangeSourceErr(r.source); err != nil {
-				return nil, fmt.Errorf("compare %s: %w", r.name, err)
-			}
-			rows = append(rows, CompareRow{
-				Name1:       l.name,
-				Name2:       r.name,
-				Entries1:    l.entries,
-				Entries2:    r.entries,
-				Unique1:     l.uniqueIPs,
-				Unique2:     r.uniqueIPs,
-				CombinedIPs: l.uniqueIPs + r.uniqueIPs - common,
-				CommonIPs:   common,
-			})
+	sources := make([]CompareSource, 0, len(before)+len(after))
+	sources = append(sources, before...)
+	sources = append(sources, after...)
+	pairs := make([]ComparePair, 0, len(before)*len(after))
+	for i := range before {
+		for j := range after {
+			pairs = append(pairs, ComparePair{Left: i, Right: len(before) + j})
 		}
 	}
-	return rows, nil
+	return CompareSourcePairs(ctx, sources, pairs)
 }
 
 type compareSourceMeta struct {

@@ -4,7 +4,7 @@
 
 Status: open
 
-Sub-state: implementation in progress; comparison-pair ledger cache fixed and benchmarked; entity artifact staging/publish lock scope optimized with generation revalidation.
+Sub-state: implementation in progress; comparison-pair ledger cache fixed and benchmarked; entity artifact staging/publish lock scope optimized with generation revalidation; JSON replacement candidates re-analyzed; new-baseline startup entity rebuild overlap hotfix implemented and validated; entity feed-presence index and `pkg/iprange` batched comparison implemented and validated.
 
 ## Requirements
 
@@ -339,6 +339,286 @@ Decision recorded on 2026-06-21:
 - Updated `.agents/sow/specs/pipeline.md`, `.agents/sow/specs/files-layout.md`,
   and `.agents/sow/specs/operating-principles.md` for optimistic entity
   staging, generation revalidation, and publish-batch touch intents.
+- Re-ran the JSON replacement analysis after the compatibility-risk model was
+  corrected:
+  - Public artifacts promise valid JSON, not exact `encoding/json` bytes,
+    numeric text, HTML escaping, or identical error strings unless a specific
+    caller test proves a byte contract.
+  - The valid high-risk compatibility issue is old-file/input decode behavior:
+    a replacement must correctly read every project JSON artifact shape that can
+    exist on disk, including legacy sidecars, retention payloads, old comparison
+    ledger JSON, scheduler/cache state, and public artifacts.
+  - Current tree imports `encoding/json` in 54 Go files. Excluding tests and
+    `tools/jsonbench`, 26 production/tool files import it: 15 in `pkg/engine`,
+    3 in `pkg/markdown`, 2 in `pkg/processor`, 2 in `tools/archposture`, and
+    one each in `pkg/cache`, `pkg/insights`, `pkg/scheduler`, and `pkg/web`.
+  - `pkg/engine/output.go` centralizes many public artifact writes through
+    `jsonMarshalTabIndent`, while entity sidecar and entity public writes fan
+    out through `writeJSONFile`, `writeJSONFileAt`,
+    `writeObservedJSONFile`, and `writeObservedJSONFileAt`.
+  - A temp dry-run replacing all `encoding/json` imports with
+    `github.com/goccy/go-json` passed `go test ./...`.
+  - A temp dry-run replacing all imports with
+    `github.com/segmentio/encoding/json` passed the application packages but
+    failed `tools/archposture` because `tools/archposture/go_metrics.go` uses
+    `Decoder.More`, which that package does not provide.
+  - `make jsonbench` on the current machine, 400 feeds / 79,800 legacy ledger
+    entries, produced:
+    - `encoding/json` marshal `28.854ms/op`, unmarshal `178.608ms/op`,
+      unmarshal `45.849MB/op`, `319236 allocs/op`.
+    - `goccy/go-json` marshal `11.633ms/op`, unmarshal `32.958ms/op`,
+      unmarshal `38.108MB/op`, `79810 allocs/op`.
+    - `segmentio/encoding/json` marshal `15.675ms/op`, unmarshal
+      `27.976ms/op`, unmarshal `25.918MB/op`, `319221 allocs/op`.
+    - `velox-io/json` default marshal `4.881ms/op`, unmarshal
+      `21.276ms/op`, unmarshal `7.364MB/op`, `3 allocs/op`.
+    - `velox-io/json` safe-string mode marshal `4.989ms/op`, unmarshal
+      `23.092ms/op`, unmarshal `18.521MB/op`, `319202 allocs/op`.
+    - Sonic default marshal `23.770ms/op` but `102.658MB/op`, and Sonic std
+      marshal `33.414ms/op` with `133.318MB/op`.
+  - A retained-heap probe that creates the input bytes inside the measured
+    operation and releases them before GC, using the same 20.4MB
+    ledger-shaped payload, showed median live heap retained by the decoded
+    object:
+    - `encoding/json`: `18.692MB`
+    - `goccy/go-json`: `27.460MB`
+    - `segmentio/encoding/json`: `18.700MB`
+    - Sonic default: `31.089MB`
+    - Sonic std: `22.149MB`
+    - Velox default: `27.460MB`
+    - Velox `WithCopyString`: `18.520MB`
+  - Source inspection explains the retained-heap result:
+    - `goccy/go-json` copies the whole input into an internal buffer before
+      decoding, then decoded strings can reference that copied buffer.
+    - `segmentio/encoding/json` copies strings and `RawMessage` by default;
+      zero-copy behavior is opt-in through `DontCopyString`,
+      `DontCopyRawMessage`, or `ZeroCopy`.
+    - `velox-io/json` uses zero-copy strings by default and has explicit
+      `WithCopyString` / `DecoderCopyString` options for retained objects.
+    - Sonic `ConfigStd` enables `CopyString`, `EscapeHTML`, `SortMapKeys`, and
+      validation; Sonic default is faster on some decode paths but not stdlib
+      compatible and used materially more marshal memory on this payload.
+  - Current recommendation for the implementation slice:
+    - Do not use Sonic as the broad default.
+    - Do not use Velox default for long-lived decoded objects; use Velox only
+      behind a per-hot-path wrapper with copy-string mode and additional tests
+      if it still wins after project payload benchmarks.
+    - Use either `goccy/go-json` as the simplest global replacement candidate
+      if retained heap is acceptable for the project payloads, or
+      `segmentio/encoding/json` for application code while keeping/adapting
+      `tools/archposture` separately.
+    - Before changing production code, add behavioral compatibility tests that
+      decode old and current JSON artifact shapes and golden tests that prove
+      public/API artifacts stay valid and schema-compatible.
+- Added project-shaped JSON compatibility tests and benchmarks to
+  `tools/jsonbench`:
+  - Velox safe-string compatibility passed for legacy comparison ledger,
+    current feed entity sidecars, legacy feed entity sidecars, raw-message
+    sidecars, ASN detail payloads, scheduler snapshots, invalid input
+    rejection, retained decoded strings, and retained `json.RawMessage`.
+  - Velox v0.1.4 `Marshal(..., WithStdCompat())` crashes with a segmentation
+    fault on the cache-state-shaped payload. The test suite records this with a
+    child-process crash reproducer so the parent test process remains safe.
+  - The cache-state Velox compatibility case and cache-state Velox benchmark
+    rows are skipped until the crash is resolved.
+  - `make jsonbench` project-shaped payload results from 2026-06-21 showed:
+    - feed entity sidecar marshal, 250 rows: stdlib `92.623us/op`; goccy
+      `52.574us/op`; Segmentio `60.840us/op`; Velox safe-string
+      `34.915us/op` but `110.503KB/op` versus stdlib `57.363KB/op`.
+    - ASN detail marshal, 1000 feed rows: stdlib `516.785us/op`; goccy
+      `292.365us/op`; Segmentio `315.937us/op`; Velox safe-string
+      `122.039us/op` but `784.138KB/op` versus stdlib `394.511KB/op`.
+    - cache state marshal, 1000 entries: stdlib `2.884ms/op`; goccy
+      `1.918ms/op`; Segmentio `1.664ms/op`; Velox skipped because it crashes.
+    - scheduler snapshot marshal, 1000 items: stdlib `696.328us/op`;
+      Segmentio `205.902us/op`; Velox safe-string `82.549us/op`.
+    - feed entity sidecar unmarshal, 250 rows: stdlib `541.229us/op`; goccy
+      `113.610us/op`; Segmentio `219.757us/op`; Velox safe-string
+      `111.260us/op`.
+    - ASN detail unmarshal, 1000 feed rows: stdlib `3.049ms/op`; goccy
+      `533.144us/op`; Segmentio `608.938us/op`; Velox safe-string
+      `566.796us/op`.
+    - cache state unmarshal, 1000 entries: stdlib `11.273ms/op`; goccy
+      `3.288ms/op`; Segmentio `3.438ms/op`; Velox skipped because cache-state
+      marshal crash blocks that surface.
+    - scheduler snapshot unmarshal, 1000 items: stdlib `1.672ms/op`; goccy
+      `487.749us/op`; Segmentio `373.192us/op`; Velox safe-string
+      `363.182us/op`.
+  - Updated recommendation:
+    - Velox safe-string is no longer acceptable as a broad JSON replacement
+      candidate in this version because one project-shaped marshal crashes.
+    - Velox can only remain a selected hot-path candidate for payload classes
+      with explicit compatibility tests and no cache-state/shared-state use.
+    - goccy and Segmentio remain the safer broad-candidate families for the
+      next implementation decision, with Segmentio still blocked from a literal
+      all-files replacement by `tools/archposture` streaming API coverage.
+- User decision after project-shaped tests:
+  - Ignore Velox v0.1.4 for implementation because the cache-state marshal
+    crash is unacceptable.
+  - Do not pursue a broad JSON-library migration with goccy or Segmentio in
+    this slice. Their measured wins are real on some payloads, but after the
+    binary ledger fix and Velox disqualification, they do not justify the
+    compatibility, dependency, and migration work as a project-wide change.
+  - Keep JSON codec work available only as a targeted future optimization for
+    a measured hot path where a safe candidate gives a material win and passes
+    artifact-specific compatibility tests.
+- Production was restarted to activate the latest changes and monitored again.
+  Fresh evidence from the new baseline showed:
+  - Startup integrity recovery for one feed completed successfully in about
+    `271892ms`; the process was not killed during the observed run.
+  - A startup full entity artifact rebuild ran concurrently with the foreground
+    startup recovery run.
+  - The foreground run still entered the entity phase, built feed sidecars, and
+    then waited to publish entity artifacts while the full rebuild held the
+    entity artifact writer path.
+  - After the foreground run completed, the scheduler queued a changed-feed
+    entity refresh for `99` feeds, which is the correct repair path for changes
+    that happen while a full rebuild is in flight.
+  - The foreground entity phase therefore duplicated work that the queued
+    refresh would already repair after the full rebuild, increasing CPU, file
+    I/O, memory pressure, and poor admin progress visibility.
+- Rechecked the suspected `publishContext` progress bug:
+  - `defer op.Add(...)` is inside the `filepath.WalkDir` callback, so the
+    progress increment runs when each file callback returns, not only when the
+    whole publish function returns.
+  - The observed `0` progress is better explained by creating
+    `publish.promote_entity_artifacts` before waiting on `entityArtifactsMu`,
+    while the operation total is still unknown.
+  - No progress-code change will be made for this item without a failing test
+    that proves an operator-visible bug.
+- Implementation decision for the new baseline hotfix:
+  - While a full entity rebuild is queued or running, foreground processing
+    runs must not stage or publish feed entity sidecars.
+  - The foreground run must still compute and report the same
+    `EntityRefreshTargets` it would have staged, so the scheduler can queue the
+    existing changed-feed entity refresh after the run.
+  - This is a surgical production hotfix: it removes duplicate work and writer
+    lock contention without changing entity artifact schemas, public JSON
+    output, historical data, or the background repair contract.
+- Added failing behavioral tests for the new-baseline overlap:
+  - Active full rebuild background task: provider-only processing must report
+    affected entity refresh targets but must not stage pending feed sidecars.
+  - Queued full rebuild before visible background-task registration:
+    provider-only processing must make the same deferral.
+- Implemented the deferral:
+  - Full entity rebuilds now mark a queued/running flag at the rebuild API
+    boundary, covering the startup window before the visible background task is
+    registered.
+  - Foreground full-heavy processing checks the queued/running rebuild state
+    before creating an entity publish batch.
+  - When a rebuild is in flight, the foreground run records the same
+    role-scoped entity refresh targets and returns no entity publish batch, so
+    publish has no foreground entity writer work to lock or promote.
+- Updated `.agents/sow/specs/pipeline.md` and
+  `.agents/sow/specs/operating-principles.md` for the active/full-rebuild
+  deferral rule.
+- Follow-up production monitoring on the same restarted baseline showed:
+  - `sources` was no longer the main bottleneck in the latest observed
+    2-feed scheduled batch: `sources.finalize.observe_history` was `1ms`
+    total and `sources.update_retention` was `626ms` total. The earlier
+    tens-of-seconds history observation cost appears to have been a cold
+    cache/stat warm-up after the latest changes, not a recurring hot path in
+    the current baseline.
+  - `metadata` was the latest foreground bottleneck at `14786ms`, including
+    `metadata.write_comparison_files` `11392ms` and
+    `metadata.comparison_pair_overlap` `6739ms` for `493` real overlap
+    computations.
+  - Background entity refresh work overlapped the run and scanned entity actor
+    sidecars heavily: `entity.repair_feed_scan.asn_files` `61690`,
+    `entity.repair_feed_scan.asn_sidecar_read` `28405` / `108495114` bytes,
+    and `entity.repair_feed_scan.country_sidecar_read` `244` /
+    `16245347` bytes. This happens when a committed feed sidecar is missing
+    and the engine must prove whether country/ASN actor artifacts still
+    reference that feed before applying a surgical delta.
+
+Open decision for the next implementation slice:
+
+1. Entity feed-presence proof for surgical refresh.
+   - A. Add a durable internal entity feed-presence index generated and
+     published with entity artifacts, updated by rebuild/refresh paths, and
+     used before falling back to full actor-sidecar scans.
+     - Pros: removes the 61k-file / 100MB+ JSON scan class from ordinary small
+       entity refreshes; keeps the missing-sidecar safety check; supports
+       bounded repair.
+     - Cons: introduces a new internal artifact, integrity rules, migration
+       behavior, and tests.
+   - B. Keep the current full actor-sidecar scan fallback.
+     - Pros: no new format or integrity surface.
+     - Cons: known production cost remains; small refreshes can scan every ASN
+       sidecar when committed feed sidecars are missing.
+   - Recommendation: A, long-term-best. The current scan is correct but too
+     expensive for the production artifact shape.
+2. Metadata comparison overlap engine.
+   - A. Keep the current ledger plus per-pair `OverlapCountIterContext`.
+     - Pros: already tested and now much faster than the old JSON ledger path.
+     - Cons: changed-feed comparison still re-reads/re-iterates sources for
+       hundreds of real pair overlaps.
+   - B. Add a true `pkg/iprange` one-to-many or many-to-many comparison API,
+     benchmark it against the current Go pair loop and C `iprange`, then use it
+     from metadata comparison writing if it wins.
+     - Pros: moves the remaining foreground comparison cost into the standalone
+       optimized package where it belongs; can reuse source iteration more
+       efficiently than the engine pair loop.
+     - Cons: broader algorithm/API work in `pkg/iprange`; needs behavioral,
+       corner-case, and performance tests before engine adoption.
+   - C. Add another engine-local comparison workaround.
+     - Pros: narrower local edit.
+     - Cons: repeats the design mistake this SOW is removing by keeping heavy
+       range logic in the engine instead of `pkg/iprange`.
+   - Recommendation: B, long-term-best. The engine should not grow another
+     custom range-comparison workaround.
+
+User decision:
+
+- Approved `1A`: add a durable internal entity feed-presence index generated
+  and published with entity artifacts, updated by rebuild/refresh paths, and
+  used before falling back to full actor-sidecar scans.
+- Approved `2B`: add a true optimized one-to-many or many-to-many comparison
+  API in `pkg/iprange`, benchmark it against the current Go pair loop and C
+  `iprange`, then use it from metadata comparison writing if it wins.
+- Added failing behavioral tests before implementation for:
+  - full entity rebuild writing a durable feed-presence index
+  - missing committed feed sidecar proof using the feed-presence index without
+    scanning country/ASN actor sidecars
+  - metadata comparison delegating exact candidate batches to `pkg/iprange`
+    instead of using engine-local `OverlapCountIterContext` loops
+  - `pkg/iprange.CompareSourcePairs` selected-pair behavior, file-backed
+    repeated-left behavior, context cancellation, invalid pair rejection,
+    spanning target ranges, and arbitrary pair-order differential behavior
+- Implemented `lib/entities/feed-presence-v1.bin` as a small reproducible
+  internal binary index generated by full entity rebuild and surgical entity
+  refresh publish batches.
+- Updated missing committed per-feed sidecar proof to read the feed-presence
+  index first, record local engine counters for read/missing/ignored states,
+  and fall back to the existing actor-sidecar scan only when the index is
+  missing or untrusted.
+- Implemented `pkg/iprange.CompareSourcePairs(ctx, sources, pairs)` with
+  selected-pair output ordering, validation, indexed one-to-many scanning for
+  `IPSet`/`FileSet` sources, and the existing iterator fallback for arbitrary
+  `RangeSource` inputs.
+- Converted `CompareAllSources` and `CompareNextSources` to use
+  `CompareSourcePairs`, so existing callers receive the optimized source-pair
+  path without switching APIs.
+- Replaced engine-local exact comparison worker loops in
+  `pkg/engine/output_comparison.go` with engine-owned ledger/skip filtering plus
+  one batched exact comparison call to `pkg/iprange.CompareSourcePairs`.
+- During testing, the spanning-range case exposed a real cursor-heap bug where
+  a pending cursor advanced past the current left range and prematurely blocked
+  another pending cursor that still overlapped the current left range. Fixed the
+  heap scan so it continues while any pending cursor can still overlap.
+- Allocation profiling of the new file-backed comparison benchmark exposed an
+  allocation storm from `container/heap` boxing `oneToManyCursor` values through
+  `any`. Replaced it with a typed cursor heap, reducing
+  `BenchmarkCompareNextSourcesFileSet/n=10000` from about `20015 allocs/op` and
+  `2.56MB/op` to low constant allocation on this machine.
+- Added an indexed single-target fast path so one-pair and one-target groups use
+  the specialized overlap scanner instead of the generic one-to-many heap path;
+  final `BenchmarkCompareNextSourcesFileSet/n=10000` is `9 allocs/op` and
+  `672B/op`.
+- Updated `.agents/sow/specs/files-layout.md`,
+  `.agents/sow/specs/pipeline.md`, and
+  `.agents/sow/specs/operating-principles.md` for the entity feed-presence index
+  and batched `pkg/iprange` comparison contract.
 
 ## Validation
 
@@ -370,6 +650,66 @@ Tests or equivalent validation:
 - `make jsonbench`
 - `make lint`
 - `make test`
+- New-baseline startup entity rebuild overlap validation:
+  - Pre-change focused test failed as expected:
+    `go test -run 'TestProviderOnlyRunDefersEntitySidecarStagingWhileFullRebuildActive' ./pkg/engine`
+  - `go test -run 'TestProviderOnlyRunDefersEntitySidecarStagingWhileFullRebuild(Active|Queued)|TestProviderOnlyRunReportsEntityRefreshTargets|TestEntityArtifactRefreshQueueCoalescesFeedNames' ./pkg/engine`
+  - `go test ./pkg/engine`
+  - `go test -race -run 'TestProviderOnlyRunDefersEntitySidecarStagingWhileFullRebuild(Active|Queued)|TestProviderOnlyRunReportsEntityRefreshTargets|TestEntityArtifactRefreshQueueCoalescesFeedNames' ./pkg/engine`
+  - `go test ./tools/archposture`
+  - `make test`
+  - `make lint`
+- Entity feed-presence and `pkg/iprange` batched comparison validation:
+  - Pre-change focused tests failed as expected for the missing index and old
+    engine-local comparison delegation behavior.
+  - `go test -run 'TestCompareSourcePairs' ./pkg/iprange`
+  - `go test -run 'TestComparisonPairsDelegateExactBatchToIPrange|TestWriteComparisonFilesUsesPairLedgerForUnchangedUpdatedFeed|TestComparisonPairLedgerIncrementalReplacementPreservesUnchangedEntries|TestComparisonPairLedgerMissingFallbackRebuildsFullLedger|TestComparisonPairLedgerCachedZeroDeletesStaleRowsOnBothPeers|TestRebuildEntityArtifactsWritesFeedPresenceIndex|TestMissingCommittedFeedSidecarUsesPresenceIndexForFullRebuildProof' ./pkg/engine`
+  - `go test ./pkg/iprange`
+  - `go test ./pkg/engine`
+  - `go test ./tools/archposture`
+  - Allocation profile before typed heap:
+    `BenchmarkCompareNextSourcesFileSet/n=10000` `1588264 ns/op`,
+    `2561168 B/op`, `20015 allocs/op`; top allocation source was
+    `oneToManyCursorHeap.Pop` / `container/heap.Pop`.
+  - Production-shaped scratch comparison after dispatch correction:
+    one generated 10k-range binary set compared with 64 generated 10k-range
+    binary peers took the old raw `OverlapCountIterContext` pair loop about
+    `9.99ms/op`; `pkg/iprange.CompareSourcePairs` over the same already-open
+    FileSets took about `10.10ms/op`, with fewer allocation objects. This
+    validates that ownership moved to `pkg/iprange` without the earlier
+    one-to-many heap regression, but it does not prove a large CPU win for this
+    synthetic shape.
+  - Final benchmark command:
+    `go test -run '^$' -bench 'BenchmarkCompareNextSourcesFileSet|BenchmarkRunComparisonPairsPairLedgerHits|BenchmarkComparisonPairLedgerBinaryCodec' -benchmem ./pkg/iprange ./pkg/engine`
+  - Final `pkg/iprange` benchmark evidence on linux/amd64, i9-12900K:
+    `BenchmarkCompareNextSourcesFileSet/n=1000` `24423 ns/op`, `672 B/op`,
+    `9 allocs/op`; `n=10000` `235043 ns/op`, `672 B/op`, `9 allocs/op`;
+    `n=100000` `2547190 ns/op`, `672 B/op`, `9 allocs/op`.
+  - Final engine ledger benchmarks:
+    `BenchmarkRunComparisonPairsPairLedgerHits` `32746818 ns/op`,
+    `13046638 B/op`, `35 allocs/op`;
+    `BenchmarkComparisonPairLedgerBinaryCodec/marshal` `6022684 ns/op`,
+    `6530902 B/op`, `25 allocs/op`;
+    `BenchmarkComparisonPairLedgerBinaryCodec/parse` `3208054 ns/op`,
+    `8955397 B/op`, `402 allocs/op`.
+  - `make test`
+  - `make lint`
+- JSON replacement analysis validation:
+  - temp global import replacement with `github.com/goccy/go-json@v0.10.6`
+    followed by `go test ./...`: passed.
+  - temp global import replacement with
+    `github.com/segmentio/encoding/json@v0.5.4` followed by `go test ./...`:
+    application packages passed; `tools/archposture` failed because
+    `Decoder.More` is missing.
+  - scratch retained-heap probe for a 20.4MB legacy ledger-shaped payload:
+    confirmed copy/zero-copy lifetime differences that normal benchmark
+    allocation counters do not show.
+  - `go test -run 'TestVelox' -count=1 -v ./...` in `tools/jsonbench`:
+    passed, with cache-state marshal crash reproduced safely in a child
+    process.
+  - `go test ./...` in `tools/jsonbench`: passed.
+  - `make jsonbench`: passed; Velox cache-state rows were skipped because the
+    compatibility test proves that candidate currently crashes on that payload.
 - Benchmark evidence:
   - `go test -run '^$' -bench 'BenchmarkComparisonPairLedgerBinaryCodec' -benchmem -count=10 ./pkg/engine`
   - `go test -run '^$' -bench 'BenchmarkComparisonPairLedgerJSON(Marshal|Unmarshal)' -benchmem -count=10 ./...` in `tools/jsonbench`
@@ -395,14 +735,16 @@ Artifact maintenance gate:
 
 - AGENTS.md: updated with historical feed data preservation guardrail.
 - Runtime project skills: `.agents/skills/project-testing/SKILL.md` updated with `make jsonbench`.
-- Specs: `.agents/sow/specs/files-layout.md` and `.agents/sow/specs/pipeline.md` updated for `cache/comparison-pairs-v2.bin`, v1 read-only upgrade input, and full-rebuild semantics.
+- Specs: `.agents/sow/specs/files-layout.md`, `.agents/sow/specs/pipeline.md`, and `.agents/sow/specs/operating-principles.md` updated for `cache/comparison-pairs-v2.bin`, v1 read-only upgrade input, full-rebuild semantics, the entity feed-presence index, and batched `pkg/iprange` comparison.
 - End-user/operator docs: no public/operator docs update needed; `tools/jsonbench/README.md` added for developer benchmark usage.
 - End-user/operator skills: no update needed; operator workflows did not change.
 - SOW lifecycle: moved from `.agents/sow/pending/` to `.agents/sow/current/`; `Status: open`.
 
 Specs update:
 
-- Updated files-layout and pipeline specs for comparison ledger cache behavior.
+- Updated files-layout, pipeline, and operating-principles specs for comparison
+  ledger cache behavior, entity feed-presence proof, and batched `pkg/iprange`
+  exact comparison.
 
 Project skills update:
 
@@ -430,7 +772,8 @@ Follow-up mapping:
   - entity refresh JSON storm redesign
   - broad JSON replacement wrapper plus compatibility/golden tests for public and operator JSON surfaces
   - non-destructive history/retention indexes or summaries
-  - re-evaluation of `pkg/iprange` many-to-many compare opportunities after engine artifact shape fixes
+  - further production-baseline monitoring after the entity feed-presence and
+    batched comparison changes are deployed
 
 ## Outcome
 

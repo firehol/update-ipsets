@@ -2,9 +2,23 @@
 
 ## Status
 
-Status: in-progress
+Status: closed
 
-Sub-state: DroneBL, publish-stage, Git-object, retention, binary writer, comparison, history no-op, provider-overlap, ASN lookup-cache, admin snapshot, and memory-guardrail fixes implemented; local validation, external review, commit, push, and local install smoke complete; long-term live observation and SOW-0104 retention-compaction decision pending
+Sub-state: consolidated into
+`SOW-0106-20260620-engine-core-redesign.md`. This SOW is closed as
+superseded/consolidated, not completed; implemented fixes and evidence remain
+preserved here, while remaining CPU, memory, disk, duplicate-work, retention,
+and live-observation concerns move to SOW-0106.
+
+Consolidation note - 2026-06-20:
+
+- The user requested that pending performance-improvement SOWs be consolidated
+  into a single paper-first engine-core redesign SOW before implementation.
+- Remaining work from this SOW now belongs to SOW-0106's paper performance
+  analysis, phase resource model, and later phase-specific implementation
+  slices.
+- This closure does not claim that the original CPU/memory optimization
+  objective is complete.
 
 ## Requirements
 

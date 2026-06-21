@@ -280,6 +280,9 @@ func (s *entityArtifactWriteState) hasNoAffectedEntities() bool {
 
 func (s *entityArtifactWriteState) stageNoAffectedArtifacts() ([]output.GeneratedFile, error) {
 	e := s.engine
+	if err := stageEntityFeedPresenceIndex(s.entityBatch, entityFeedPresenceNamesFromSidecars(s.allSidecars)); err != nil {
+		return nil, err
+	}
 	if err := writeFileAtomic(filepath.Join(s.entityBatch.stageDir, "version"), []byte(entityArtifactsVersion+"\n"), generatedFileMode); err != nil {
 		return nil, err
 	}
@@ -500,6 +503,9 @@ func (s *entityArtifactWriteState) stageSitemapHomeAndVersion() error {
 		return err
 	}
 	s.generated = append(s.generated, homeAggregate)
+	if err := stageEntityFeedPresenceIndex(s.entityBatch, entityFeedPresenceNamesFromSidecars(s.allSidecars)); err != nil {
+		return err
+	}
 
 	return writeFileAtomic(filepath.Join(s.entityBatch.stageDir, "version"), []byte(entityArtifactsVersion+"\n"), generatedFileMode)
 }

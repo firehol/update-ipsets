@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -191,39 +190,17 @@ func (f comparisonUpdateFilter) includes(name string) bool {
 }
 
 func (e *Engine) runComparisonPairs(ctx context.Context, infos []comparisonSetInfo, updated comparisonUpdateFilter, setCache *latestSetCache, ledger *comparisonPairLedgerSnapshot) ([]comparisonPairResult, *comparisonPairStats) {
-	numWorkers := e.runtime.HeavyPhaseWorkers()
-	if numWorkers < 1 {
-		numWorkers = 1
-	}
 	totalPairs := int64(len(infos) * (len(infos) - 1) / 2)
 	scanOp := e.beginActiveOperation("metadata.scan_comparison_pairs", "", "scan", "pairs", totalPairs)
 	defer scanOp.Finish()
 	compareOp := e.beginActiveOperation("metadata.compare_pairs", "", "compare", "candidate_pairs", 0)
 	defer compareOp.Finish()
 
-	pairCh := make(chan comparisonPair)
-	var pairMu sync.Mutex
 	var pairResults []comparisonPairResult
 	var ledgerResults []comparisonPairResult
-	var wg sync.WaitGroup
+	var exactPairs []comparisonPair
 	stats := &comparisonPairStats{}
 
-	for range numWorkers {
-		wg.Go(func() {
-			for pair := range pairCh {
-				result, ok := e.compareSetPair(ctx, pair, infos, setCache, stats)
-				compareOp.Add(1, -1, nil)
-				if !ok {
-					continue
-				}
-				pairMu.Lock()
-				pairResults = append(pairResults, result)
-				pairMu.Unlock()
-			}
-		})
-	}
-
-sendPairs:
 	for i := 0; i < len(infos); i++ {
 		for j := i + 1; j < len(infos); j++ {
 			scanOp.Add(1, totalPairs, nil)
@@ -239,32 +216,35 @@ sendPairs:
 					stats.ledgerSkipped.Add(1)
 					continue
 				}
-			} else {
-				if !updated.includes(infos[i].name) && !updated.includes(infos[j].name) {
-					continue
-				}
+			} else if !updated.includes(infos[i].name) && !updated.includes(infos[j].name) {
+				continue
 			}
-			select {
-			case <-ctx.Done():
-				break sendPairs
-			case pairCh <- comparisonPair{i: i, j: j}:
-				stats.candidates++
-				compareOp.Update(-1, stats.candidates, nil)
+			if err := contextErr(ctx); err != nil {
+				return pairResults, stats
 			}
+			pair := comparisonPair{i: i, j: j}
+			if result, ok := e.compareSetPairFast(pair, infos, stats); ok {
+				pairResults = append(pairResults, result)
+				continue
+			}
+			exactPairs = append(exactPairs, pair)
+			stats.candidates++
 		}
 	}
-	close(pairCh)
-	wg.Wait()
+
+	compareOp.Update(0, stats.candidates, nil)
+	if len(exactPairs) > 0 {
+		exactResults := e.compareSetPairBatch(ctx, exactPairs, infos, setCache, stats)
+		compareOp.Update(int64(len(exactResults)), stats.candidates, nil)
+		pairResults = append(pairResults, exactResults...)
+	}
 	if len(ledgerResults) > 0 {
 		pairResults = append(pairResults, ledgerResults...)
 	}
 	return pairResults, stats
 }
 
-func (e *Engine) compareSetPair(ctx context.Context, pair comparisonPair, infos []comparisonSetInfo, setCache *latestSetCache, stats *comparisonPairStats) (comparisonPairResult, bool) {
-	if err := contextErr(ctx); err != nil {
-		return comparisonPairResult{}, false
-	}
+func (e *Engine) compareSetPairFast(pair comparisonPair, infos []comparisonSetInfo, stats *comparisonPairStats) (comparisonPairResult, bool) {
 	if infos[pair.i].ips == 0 || infos[pair.j].ips == 0 {
 		stats.recordSkippedEmpty()
 		return comparisonPairResult{i: pair.i, j: pair.j, common: 0}, true
@@ -285,30 +265,88 @@ func (e *Engine) compareSetPair(ctx context.Context, pair comparisonPair, infos 
 		stats.recordSkippedPrefix()
 		return comparisonPairResult{i: pair.i, j: pair.j, common: 0}, true
 	}
+	return comparisonPairResult{}, false
+}
 
-	srcA, err := setCache.Open(infos[pair.i].name)
-	if err != nil {
-		e.logger.Warn("pairwise comparison skipped: cannot open set", "set", infos[pair.i].name, "error", err)
-		return comparisonPairResult{}, false
-	}
-	srcB, err := setCache.Open(infos[pair.j].name)
-	if err != nil {
-		e.logger.Warn("pairwise comparison skipped: cannot open set", "set", infos[pair.j].name, "error", err)
-		return comparisonPairResult{}, false
+func (e *Engine) compareSetPairBatch(ctx context.Context, pairs []comparisonPair, infos []comparisonSetInfo, setCache *latestSetCache, stats *comparisonPairStats) []comparisonPairResult {
+	sources, iprangePairs, originalPairs := e.comparisonPairBatchSources(pairs, infos, setCache)
+	if len(iprangePairs) == 0 {
+		return nil
 	}
 
 	started := time.Now()
-	common, err := iprange.OverlapCountIterContext(ctx, srcA, srcB)
-	recordAtomicDuration(&stats.overlapCount, &stats.overlapTotal, &stats.overlapMax, time.Since(started))
+	rows, err := iprange.CompareSourcePairs(ctx, sources, iprangePairs)
+	elapsed := time.Since(started)
+	if stats != nil {
+		stats.overlapCount.Add(int64(len(rows)))
+		stats.overlapTotal.Add(elapsed.Nanoseconds())
+		for {
+			current := stats.overlapMax.Load()
+			if elapsed.Nanoseconds() <= current {
+				break
+			}
+			if stats.overlapMax.CompareAndSwap(current, elapsed.Nanoseconds()) {
+				break
+			}
+		}
+	}
 	if err != nil {
-		return comparisonPairResult{}, false
+		if !errors.Is(err, context.Canceled) && e.logger != nil {
+			e.logger.Warn("pairwise comparison batch skipped", "error", err)
+		}
+		return nil
 	}
-	ioErrA := checkFileSetErr(srcA.RangeSource, infos[pair.i].name, e.logger)
-	ioErrB := checkFileSetErr(srcB.RangeSource, infos[pair.j].name, e.logger)
-	if ioErrA != nil || ioErrB != nil {
-		return comparisonPairResult{}, false
+	results := make([]comparisonPairResult, 0, len(rows))
+	for i, row := range rows {
+		pair := originalPairs[i]
+		results = append(results, comparisonPairResult{i: pair.i, j: pair.j, common: row.CommonIPs})
 	}
-	return comparisonPairResult{i: pair.i, j: pair.j, common: common}, true
+	return results
+}
+
+func (e *Engine) comparisonPairBatchSources(pairs []comparisonPair, infos []comparisonSetInfo, setCache *latestSetCache) ([]iprange.CompareSource, []iprange.ComparePair, []comparisonPair) {
+	if setCache == nil {
+		return nil, nil, nil
+	}
+	sourceIndexes := make(map[int]int)
+	badSources := make(map[int]struct{})
+	sources := make([]iprange.CompareSource, 0, len(infos))
+	ensureSource := func(idx int) (int, bool) {
+		if compact, ok := sourceIndexes[idx]; ok {
+			return compact, true
+		}
+		if _, bad := badSources[idx]; bad {
+			return 0, false
+		}
+		src, err := setCache.Open(infos[idx].name)
+		if err != nil {
+			badSources[idx] = struct{}{}
+			if e.logger != nil {
+				e.logger.Warn("pairwise comparison skipped: cannot open set", "set", infos[idx].name, "error", err)
+			}
+			return 0, false
+		}
+		compact := len(sources)
+		sourceIndexes[idx] = compact
+		sources = append(sources, iprange.CompareSource{Name: infos[idx].name, Source: src.RangeSource})
+		return compact, true
+	}
+
+	iprangePairs := make([]iprange.ComparePair, 0, len(pairs))
+	originalPairs := make([]comparisonPair, 0, len(pairs))
+	for _, pair := range pairs {
+		left, ok := ensureSource(pair.i)
+		if !ok {
+			continue
+		}
+		right, ok := ensureSource(pair.j)
+		if !ok {
+			continue
+		}
+		iprangePairs = append(iprangePairs, iprange.ComparePair{Left: left, Right: right})
+		originalPairs = append(originalPairs, pair)
+	}
+	return sources, iprangePairs, originalPairs
 }
 
 func comparisonSetsIdentical(a, b comparisonSetInfo) bool {

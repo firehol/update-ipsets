@@ -2,28 +2,23 @@
 
 ## Status
 
-Status: in-progress
+Status: closed
 
-Sub-state: diagnosis complete enough to proceed; user accepted a goal-by-goal
-resource-control process. Goal 1 scheduler, comparison, and entity
-missing-sidecar slices are implemented locally, validated, and reviewed cleanly
-by the final external-review iteration. Goal 2 first-slice context/cancellation
-and runtime-validation contracts are implemented locally, validated, and
-externally reviewed cleanly. Goal 1 and Goal 2 first-slice returns are now
-negligible unless new production evidence contradicts the current findings; the
-SOW remains open for Goal 3 comparison-generation optimization. Goal 3
-third-gate review found all six external reviewers ready for implementation
-after the all-pair ledger lookup, full-ledger replacement, and production-impact
-boundary clarifications were added. Goal 3 first implementation slice is now
-implemented locally and validated. First external implementation review found
-one accepted test-coverage blocker; the missing tests were added and validated.
-Second external implementation review returned six `PRODUCTION GRADE` verdicts
-with no blockers. Goal 3 first-slice returns are now limited to already
-deferred later-slice work unless production evidence shows a remaining
-comparison-specific resource problem. New 2026-06-19 production evidence shows
-the engine can spend hours in source retention work before watchdog termination;
-the next slice is diagnostic/accounting instrumentation for source, phase, feed,
-and retention progress before any retention algorithm optimization.
+Sub-state: consolidated into
+`SOW-0106-20260620-engine-core-redesign.md`. This SOW is closed as
+superseded/consolidated, not completed; diagnosis, production evidence,
+reviewer findings, and implemented slices remain preserved here, while remaining
+production-unresponsiveness and backend resource-model work moves to SOW-0106.
+
+Consolidation note - 2026-06-20:
+
+- The user rejected continuing incremental optimization loops without first
+  redesigning the engine core on paper.
+- Remaining work from this SOW now belongs to SOW-0106's fixed five-phase
+  pipeline, crash recovery model, phase-level resource accounting, and paper
+  performance analysis.
+- This closure does not claim that the original production-unresponsiveness
+  objective is complete.
 
 ## Requirements
 

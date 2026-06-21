@@ -18,20 +18,12 @@ func (e *Engine) QueueEntityArtifactsRebuild(ctx context.Context, trigger string
 		trigger = "operator_rebuild"
 	}
 
-	e.mu.Lock()
-	if e.entityRebuildQueued || e.backgroundTaskNamedLocked("Entity artifacts rebuild") {
-		e.mu.Unlock()
+	if !e.tryMarkEntityArtifactFullRebuildQueued() {
 		return false
 	}
-	e.entityRebuildQueued = true
-	e.mu.Unlock()
 
 	go func() {
-		defer func() {
-			e.mu.Lock()
-			e.entityRebuildQueued = false
-			e.mu.Unlock()
-		}()
+		defer e.clearEntityArtifactFullRebuildQueued()
 		if err := e.RebuildEntityArtifactsWithTrigger(ctx, trigger); err != nil && e.logger != nil {
 			e.logger.Error("failed to queue entity artifacts rebuild", "trigger", trigger, "error", err)
 		}
@@ -236,6 +228,37 @@ func (e *Engine) finishEntityArtifactRefreshQueue() {
 func (e *Engine) finishEntityHealthRefreshQueue() {
 	e.mu.Lock()
 	e.entityHealthRunning = false
+	e.mu.Unlock()
+}
+
+func (e *Engine) entityArtifactFullRebuildQueuedOrRunning() bool {
+	if e == nil {
+		return false
+	}
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.entityRebuildQueued || e.backgroundTaskNamedLocked("Entity artifacts rebuild")
+}
+
+func (e *Engine) tryMarkEntityArtifactFullRebuildQueued() bool {
+	if e == nil {
+		return false
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	if e.entityRebuildQueued || e.backgroundTaskNamedLocked("Entity artifacts rebuild") {
+		return false
+	}
+	e.entityRebuildQueued = true
+	return true
+}
+
+func (e *Engine) clearEntityArtifactFullRebuildQueued() {
+	if e == nil {
+		return
+	}
+	e.mu.Lock()
+	e.entityRebuildQueued = false
 	e.mu.Unlock()
 }
 

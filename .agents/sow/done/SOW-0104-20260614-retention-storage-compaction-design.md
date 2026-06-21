@@ -2,9 +2,22 @@
 
 ## Status
 
-Status: open
+Status: closed
 
-Sub-state: pending product decision after SOW-0103 identified disk growth risk
+Sub-state: consolidated into
+`SOW-0106-20260620-engine-core-redesign.md`. This SOW is closed as
+superseded/consolidated, not completed; its retention evidence and risks remain
+preserved here, while retention storage design moves to SOW-0106's feed
+processor, history-preservation, and migration-test design.
+
+Consolidation note - 2026-06-20:
+
+- The user declared existing feed history as non-discardable project legacy and
+  requested one paper-first engine-core redesign SOW before implementation.
+- Retention compaction cannot be designed independently from the feed processor,
+  crash recovery, and lossless migration model.
+- This closure does not approve compaction, pruning, or any retention format
+  change.
 
 ## Requirements
 

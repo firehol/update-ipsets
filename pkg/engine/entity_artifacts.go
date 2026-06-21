@@ -127,6 +127,10 @@ func (e *Engine) RebuildEntityArtifactsWithTrigger(ctx context.Context, trigger 
 	if err := contextErr(ctx); err != nil {
 		return err
 	}
+	rebuildMarked := e.tryMarkEntityArtifactFullRebuildQueued()
+	if rebuildMarked {
+		defer e.clearEntityArtifactFullRebuildQueued()
+	}
 	return e.withBackgroundTask(
 		ctx,
 		"Entity artifacts rebuild",

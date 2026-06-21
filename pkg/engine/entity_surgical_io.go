@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"os"
 	"strings"
 	"time"
@@ -14,9 +15,10 @@ func (e *Engine) entityArtifactsContainFeedWithPresence(name string, presence *e
 }
 
 type entityArtifactFeedPresence struct {
-	e        *Engine
-	complete bool
-	names    map[string]struct{}
+	e          *Engine
+	complete   bool
+	triedIndex bool
+	names      map[string]struct{}
 }
 
 func newEntityArtifactFeedPresence(e *Engine) *entityArtifactFeedPresence {
@@ -34,6 +36,22 @@ func (p *entityArtifactFeedPresence) contains(name string) (bool, error) {
 	if p.complete {
 		_, ok := p.names[name]
 		return ok, nil
+	}
+	if !p.triedIndex {
+		p.triedIndex = true
+		names, bytes, err := p.e.loadEntityFeedPresenceIndex()
+		if err == nil {
+			p.names = names
+			p.complete = true
+			p.e.observeRunCounter("entity.feed_presence_index_read", 1, bytes)
+			_, ok := p.names[name]
+			return ok, nil
+		}
+		if errors.Is(err, errEntityFeedPresenceIndexMiss) {
+			p.e.observeRunCounter("entity.feed_presence_index_missing", 1, 0)
+		} else {
+			p.e.observeRunCounter("entity.feed_presence_index_ignored", 1, bytes)
+		}
 	}
 	return p.scan(name)
 }

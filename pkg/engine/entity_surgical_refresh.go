@@ -160,6 +160,10 @@ func (s *entitySurgicalRefreshState) stageNoDeltaVersion() (*entityArtifactMutat
 		s.cleanup()
 		return nil, err
 	}
+	if err := s.stageFeedPresenceIndex(); err != nil {
+		s.cleanup()
+		return nil, err
+	}
 	if err := writeFileAtomic(filepath.Join(s.ent.stageDir, "version"), []byte(entityArtifactsVersion+"\n"), generatedFileMode); err != nil {
 		s.cleanup()
 		return nil, err
@@ -390,6 +394,10 @@ func (s *entitySurgicalRefreshState) patchEntityIndexes() error {
 }
 
 func (s *entitySurgicalRefreshState) patchedArtifactsPlan() (*entityArtifactMutationPlan, error) {
+	if err := s.stageFeedPresenceIndex(); err != nil {
+		s.cleanup()
+		return nil, err
+	}
 	if err := writeFileAtomic(filepath.Join(s.ent.stageDir, "version"), []byte(entityArtifactsVersion+"\n"), generatedFileMode); err != nil {
 		s.cleanup()
 		return nil, err
@@ -407,4 +415,19 @@ func (s *entitySurgicalRefreshState) patchedArtifactsPlan() (*entityArtifactMuta
 		publishCurrent: s.total,
 		publishTotal:   s.total,
 	}, nil
+}
+
+func (s *entitySurgicalRefreshState) stageFeedPresenceIndex() error {
+	sidecars, err := s.e.loadAllFeedEntitySidecars()
+	if err != nil {
+		return err
+	}
+	for _, delta := range s.deltas {
+		if delta.new == nil {
+			delete(sidecars, delta.name)
+			continue
+		}
+		sidecars[delta.name] = delta.new
+	}
+	return stageEntityFeedPresenceIndex(s.ent.stagedPublishBatch, entityFeedPresenceNamesFromSidecars(sidecars))
 }

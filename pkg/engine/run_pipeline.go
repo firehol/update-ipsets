@@ -313,6 +313,11 @@ func (e *Engine) runFullHeavyPhases(ctx context.Context, opts RunOptions, report
 		return nil, err
 	}
 	e.setRunPhase(RunPhaseEntities)
+	if e.entityArtifactFullRebuildQueuedOrRunning() {
+		report.EntityRefreshTargets = targetFeedsForFanOut(e.cfg, plan.fanOutUpdated, e.publicOutputNames(), config.UseGeoIP, config.UseASN, config.UseBogons)
+		e.observeRunCounter("entity.sidecar_stage.deferred_full_rebuild", int64(len(report.EntityRefreshTargets)), 0)
+		return nil, nil
+	}
 	entityBatch, err := e.newEntityPublishBatch()
 	if err != nil {
 		return nil, err

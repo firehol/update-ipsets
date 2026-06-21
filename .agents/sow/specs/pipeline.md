@@ -546,6 +546,11 @@ The pipeline MUST route feed families like this:
   entity sidecars while provider data is already loaded; the later background
   entity refresh MUST consume those pending sidecars instead of repeating
   range attribution work
+- if a full country/ASN entity artifact rebuild is already queued or running,
+  foreground processing MUST NOT also precompute and publish pending per-feed
+  entity sidecars. It MUST instead report the same affected entity refresh
+  targets so the existing changed-feed refresh queue can repair them after the
+  full rebuild settles.
 - pending per-feed entity sidecar generation is heavy foreground
   work and MUST expose operation/byte counters sufficient to show feed count,
   source ranges, provider segments, ASN lookups, and emitted country/ASN rows
@@ -574,6 +579,12 @@ The pipeline MUST route feed families like this:
   fallback when any existing aggregate references a feed whose committed
   sidecar is missing, and it MUST NOT cache an incomplete scan that stopped
   early after finding a referenced feed.
+- entity artifact publish batches MUST maintain a durable internal feed-presence
+  index generated from the committed/staged feed sidecar set. Surgical entity
+  refresh MUST consult this index before falling back to country/ASN actor
+  sidecar scans when a committed per-feed sidecar is missing. A missing,
+  malformed, oversized, or incompatible index MUST NOT hide a required
+  full-rebuild fallback; it only permits the older bounded scan fallback.
 - if an existing committed per-feed entity sidecar uses an older
   membership-only format without contribution counts, the product MAY read it
   for migration detection, but ordinary surgical refresh MUST fall back to
@@ -676,6 +687,13 @@ Ledger misses that touch an updated feed MUST compute exact overlap or the
 normal cheap skip result. Ledger misses for pairs where neither feed was updated
 MAY be skipped during an incremental run only after a valid ledger was loaded;
 those pairs are not republished from missing state.
+
+Exact overlap work for retained comparison candidates SHOULD be delegated to
+the standalone `pkg/iprange` batched source-pair comparison API instead of
+engine-local pair loops. Engine code may still own domain policy such as
+updated-feed filtering, ledger reuse, content-hash checks, metadata/lineage row
+construction, and cheap skip filters, but reusable range-source comparison
+algorithms belong in `pkg/iprange`.
 
 The comparison-pair ledger is an internal, drop-safe optimization. A missing,
 malformed, oversized, incompatible, or unwritable ledger MUST NOT block public

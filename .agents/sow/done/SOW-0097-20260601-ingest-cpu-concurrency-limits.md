@@ -2,12 +2,22 @@
 
 ## Status
 
-Status: open
+Status: closed
 
-Sub-state: external reviewer rerun completed on 2026-06-13 with all requested
-models voting PRODUCTION GRADE; awaiting user install and live validation.
-Scheduled-processing semantic changes are not approved without stronger
-evidence.
+Sub-state: consolidated into
+`SOW-0106-20260620-engine-core-redesign.md`. This SOW is closed as
+superseded/consolidated, not completed; its evidence remains preserved here and
+its remaining production resource-boundary concerns move to SOW-0106.
+
+Consolidation note - 2026-06-20:
+
+- The user requested one paper-first engine-core redesign SOW covering phase
+  boundaries, crash recovery, history preservation, gap analysis, and
+  performance analysis before more implementation.
+- Remaining work from this SOW now belongs to SOW-0106's phase resource policy,
+  coordinator admission model, and per-phase worker-limit design.
+- This closure does not claim that the original production resource-boundary
+  objective is complete.
 
 ## Requirements
 

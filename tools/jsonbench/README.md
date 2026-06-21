@@ -17,5 +17,13 @@ cd tools/jsonbench
 go test -run '^$' -bench=. -benchmem -count=10 ./... > /tmp/update-ipsets-jsonbench.txt
 ```
 
-The current benchmark payload mirrors the legacy comparison-pair ledger JSON
-shape at production scale: 400 feeds produce 79,800 pair entries.
+The benchmark suite includes:
+
+- legacy comparison-pair ledger JSON at production scale: 400 feeds produce
+  79,800 pair entries;
+- project-shaped feed entity sidecar, ASN detail, cache state, and scheduler
+  snapshot payloads.
+
+The compatibility tests include a child-process crash reproducer for
+`velox-io/json` v0.1.4 cache-state-shaped marshal. Velox cache-state benchmark
+rows are skipped until that crash is resolved.

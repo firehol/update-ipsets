@@ -491,6 +491,9 @@ This means:
 - incremental peer comparison SHOULD reuse exact-overlap results for unchanged
   normalized feed pairs through a drop-safe internal ledger, while still
   rebuilding public rows from current metadata and lineage
+- exact peer-comparison overlap work SHOULD be batched through `pkg/iprange`
+  primitives so range-source algorithms stay optimized in the standalone
+  package instead of being reimplemented in engine-local loops
 - only affected country/ASN entity-detail payloads SHOULD be refreshed when
   possible, and any expensive country<->ASN intersection work SHOULD be reused
   from per-feed sidecars instead of repeated once per entity page
@@ -498,9 +501,16 @@ This means:
   recompute country<->ASN range intersections; changed-feed entity sidecars
   SHOULD be precomputed during the processing run and consumed as pending
   private sidecars by the background patcher
+- when a full entity rebuild is already queued or running, processing runs
+  SHOULD defer that pending-sidecar precompute/publish work and report the same
+  entity refresh targets for later background patching, avoiding duplicate
+  foreground work and entity-writer contention
 - country/ASN entity refreshes after ordinary feed updates SHOULD be surgical
   per-feed deltas over existing entity artifacts, not rebuilds over the whole
   feed catalog
+- broad country/ASN actor-sidecar scans during surgical entity refresh are
+  fallback proof work only; ordinary missing-feed-sidecar proof SHOULD use the
+  durable entity feed-presence index before scanning actor sidecars
 - entity refresh and repair work SHOULD keep expensive staging outside the
   serialized publish lock and use generation revalidation before publish, so
   slow JSON/entity materialization does not block unrelated entity staging while
