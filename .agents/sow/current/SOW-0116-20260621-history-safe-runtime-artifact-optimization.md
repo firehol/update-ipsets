@@ -991,6 +991,11 @@ Real-use evidence:
   - Validation required:
     - Add behavioral tests before code changes for the missing-empty-sidecar
       integrity case and for archived-but-materialized subtractive merge input.
+    - Add a production-shaped pipeline regression that combines the
+      missing-empty-sidecar case with a feed update that runs while a full
+      entity rebuild is active, proves sidecar staging is deferred, then proves
+      the queued entity refresh settles the feed and entity integrity surfaces
+      cleanly.
     - Run focused entity and pipeline integrity tests, then the changed
       package tests and full project gates required by this SOW.
   - Implemented:
@@ -1021,6 +1026,15 @@ Real-use evidence:
     - archived-inclusive local feed integrity still reports old archived
       missing-body/history rows; these are not default operator findings and
       are not the `cymru_unassigned`/`bogons` regression.
+    - additional production-shaped regression guard added:
+      `TestPipelineIntegrityScenarioDeferredQueuedEntityRefreshSettlesMissingEmptySidecar`
+      covers an expected-empty missing feed sidecar, deferred sidecar staging
+      while a full entity rebuild is active, queued entity refresh, and settled
+      clean feed/entity integrity.
+    - additional validation after adding that guard:
+      `go test ./pkg/engine -run TestPipelineIntegrityScenarioDeferredQueuedEntityRefreshSettlesMissingEmptySidecar -count=1`,
+      `go test ./pkg/engine -count=1`,
+      `go test ./tools/archposture -count=1`, and `make test`.
 - Validation after this monitoring pass:
   - `go test -run 'TestParseReader(MixedInput|ReportsProgress|ReportsOperationStats|RangeCapacityHintPreservesIPv4Result)' ./pkg/iprange`
   - `go test -run 'TestChangesetTailFromRuntime|TestPublicChangesets|TestChangesetSeries|TestReadInsightsChangesets' ./pkg/engine`
