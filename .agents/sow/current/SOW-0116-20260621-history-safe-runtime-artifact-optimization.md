@@ -934,6 +934,93 @@ Real-use evidence:
     product metadata for the shared SPA shell
   - status snapshot code was moved out of `pkg/engine/query.go` to keep the
     architecture file-size posture passing
+- Integrity regression follow-up on 2026-06-21:
+  - User report: local and production admin surfaces show hundreds of feed
+    integrity findings and one broken pipeline run after the latest metadata
+    and admin-stall fixes.
+  - Local raw admin evidence from the installed service:
+    - `/api/v1/admin/integrity` reported one pipeline finding:
+      `cymru_unassigned` blocked by unavailable input feed `bogons`.
+    - `/api/v1/admin/integrity?include_archived=true` reported 22 findings,
+      not hundreds: one blocked merge, eight missing committed feed bodies,
+      and thirteen missing/corrupt downloader-owned history snapshots.
+    - `/api/v1/admin/integrity/entities` reported one entity finding by
+      default, `feed_sidecar_missing` for `firehol_level4`.
+    - `/api/v1/admin/integrity/entities?include_archived=true` later reported
+      three entity findings: one missing feed sidecar and two stale feed
+      sidecars.
+  - Local filesystem evidence from the installed service:
+    - public entity feed artifacts under the web directory were present for
+      416 feeds for the configured country and ASN providers.
+    - private entity feed sidecars under `lib/entities/feeds/` were present
+      for 376 feeds.
+    - 40 public-output feeds had public entity artifacts without matching
+      private feed sidecars.
+  - Root cause model:
+    - Missing per-feed entity sidecars are still suppressed when current
+      country/ASN entity contribution JSON is empty.
+    - That suppression was acceptable when feed sidecars were only a sparse
+      optimization, but it is wrong after this SOW made committed and pending
+      per-feed entity sidecars the canonical private contribution state for
+      changed-feed entity refresh.
+    - The feed-presence index records only feeds with country/ASN presence,
+      so it cannot prove the complete canonical feed-sidecar store.
+    - `cymru_unassigned` is blocked because `bogons` is currently classified
+      as archived, even though the merge has an existing materialized
+      subtractive input set and the derived feed itself is healthy.
+    - A second local install exposed a queued-refresh race: when an engine run
+      updated feeds while a full entity rebuild was queued or running, sidecar
+      staging was deferred correctly, but the later queued refresh could treat
+      a missing expected-empty committed sidecar as a no-op if that feed was
+      absent from the feed-presence index.
+    - The admin UI can show transient entity-integrity findings between a
+      successful feed run and the follow-up background entity refresh. The
+      settled raw endpoints are the source of truth; production was not queried
+      in this local-only validation pass.
+  - Implementation decision:
+    - Make eligible public-output feeds keep an explicit feed sidecar even
+      when their current entity contributions are empty.
+    - Make entity integrity report missing sidecars for eligible feeds instead
+      of treating absent empty sidecars as clean.
+    - Keep the feed-presence index as a compact presence index, not as a full
+      sidecar manifest, unless a later measurement proves a full manifest is
+      needed.
+    - Treat merge subtractive inputs as integrity blockers only when their
+      materialized set is unusable or missing, not merely because the source
+      health class is archived.
+  - Validation required:
+    - Add behavioral tests before code changes for the missing-empty-sidecar
+      integrity case and for archived-but-materialized subtractive merge input.
+    - Run focused entity and pipeline integrity tests, then the changed
+      package tests and full project gates required by this SOW.
+  - Implemented:
+    - full entity rebuilds now write explicit per-feed entity sidecars for
+      entity-eligible public-output feeds even when the sidecar has no country
+      or ASN contributions.
+    - entity integrity now reports missing explicit sidecars for eligible feeds
+      instead of suppressing absent empty contribution state.
+    - changed-feed surgical refresh now falls back to a full rebuild when an
+      expected empty committed sidecar is missing and the feed is absent from
+      the compact presence index.
+    - merge composition and integrity now allow archived or unmaintained
+      subtractive inputs when the configured input is enabled and a usable
+      durable body exists, while still blocking missing or disabled subtractive
+      inputs.
+  - Validation after integrity follow-up:
+    - targeted regression tests failed before implementation for explicit empty
+      sidecars and archived subtractive merge parents, then passed after the
+      fix.
+    - `go test ./pkg/engine ./pkg/web ./pkg/scheduler ./pkg/iprange -count=1`
+    - `go test ./tools/archposture -count=1`
+    - `make test`
+    - `make lint`
+    - local `./install.sh`
+    - settled local raw endpoints after background refresh completed:
+      `/api/v1/admin/integrity` returned `clean` with zero findings and
+      `/api/v1/admin/integrity/entities` returned `clean` with zero findings.
+    - archived-inclusive local feed integrity still reports old archived
+      missing-body/history rows; these are not default operator findings and
+      are not the `cymru_unassigned`/`bogons` regression.
 - Validation after this monitoring pass:
   - `go test -run 'TestParseReader(MixedInput|ReportsProgress|ReportsOperationStats|RangeCapacityHintPreservesIPv4Result)' ./pkg/iprange`
   - `go test -run 'TestChangesetTailFromRuntime|TestPublicChangesets|TestChangesetSeries|TestReadInsightsChangesets' ./pkg/engine`
@@ -973,7 +1060,7 @@ Sensitive data gate:
 Artifact maintenance gate:
 
 - AGENTS.md: updated with historical feed data preservation guardrail.
-- Runtime project skills: `.agents/skills/project-testing/SKILL.md` updated with `make jsonbench`; `.agents/skills/project-coding/SKILL.md` updated to keep changed-feed entity refresh from using actor JSON sidecars as hot-path patch state and to keep retention removal reconciliation delegated to bounded `pkg/iprange` batches.
+- Runtime project skills: `.agents/skills/project-testing/SKILL.md` updated with `make jsonbench`; `.agents/skills/project-coding/SKILL.md` updated to keep changed-feed entity refresh from using actor JSON sidecars as hot-path patch state, to require explicit entity feed sidecars even for empty contribution state, to preserve durable subtractive merge inputs when archived/unmaintained but materialized, and to keep retention removal reconciliation delegated to bounded `pkg/iprange` batches.
 - Specs: `.agents/sow/specs/files-layout.md`, `.agents/sow/specs/pipeline.md`, `.agents/sow/specs/integrity.md`, `.agents/sow/specs/operating-principles.md`, `.agents/sow/specs/processing-engine.md`, `.agents/sow/specs/memory-management.md`, `.agents/sow/specs/admin-ui.md`, and `.agents/sow/specs/website.md` updated for `cache/comparison-pairs-v2.bin`, v1 read-only upgrade input, full-rebuild semantics, the entity feed-presence index, current-version entity bootstrap integrity, batched `pkg/iprange` comparison, feed-sidecar-driven selected actor detail rebuilds, bounded retention cohort comparison batches, bounded changeset tail/window access for rotation/change-ratio consumers, lightweight admin polling status, split-listener category metadata, and bounded comparison progress.
 - End-user/operator docs: no public/operator docs update needed; `tools/jsonbench/README.md` added for developer benchmark usage; `tools/historyaudit/README.md` added for local pre/post history and retention audit usage.
 - End-user/operator skills: no update needed; operator workflows did not change.
@@ -981,10 +1068,11 @@ Artifact maintenance gate:
 
 Specs update:
 
-- Updated files-layout, pipeline, and operating-principles specs for comparison
-  ledger cache behavior, entity feed-presence proof, batched `pkg/iprange`
-  exact comparison, and changed-feed entity refresh rebuilding selected actors
-  from merged feed sidecars instead of actor JSON patching.
+- Updated files-layout, pipeline, integrity, and operating-principles specs for
+  comparison ledger cache behavior, entity feed-presence proof, explicit empty
+  feed sidecars, durable subtractive merge input semantics, batched
+  `pkg/iprange` exact comparison, and changed-feed entity refresh rebuilding
+  selected actors from merged feed sidecars instead of actor JSON patching.
 - Updated files-layout and processing-engine specs to prevent bounded
   changeset-window consumers from rescanning full append-only ledgers.
 
@@ -992,7 +1080,8 @@ Project skills update:
 
 - Updated project-testing with the JSON benchmark target.
 - Updated project-coding with the feed-sidecar canonical-state rule for
-  changed-feed entity refresh.
+  changed-feed entity refresh, explicit empty-sidecar state, and durable
+  subtractive merge input semantics.
 - Updated project-coding with the parser progress hot-path rule: no per-line
   defers, time calls, logging, telemetry callbacks, or interface-heavy hooks in
   `pkg/iprange` parser loops.

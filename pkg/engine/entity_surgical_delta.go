@@ -45,6 +45,9 @@ func (e *Engine) buildFeedEntityDeltaWithPresence(name string, presence *entityA
 		if found {
 			return delta, errEntitySurgicalNeedsFullRebuild
 		}
+		if e.feedEntitySidecarExpected(name, e.preferredGeoProvider(), e.preferredASNProvider(), nil) {
+			return delta, errEntitySurgicalNeedsFullRebuild
+		}
 	} else {
 		if oldSidecar.legacy {
 			return delta, errEntitySurgicalNeedsFullRebuild

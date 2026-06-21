@@ -83,11 +83,7 @@ func (s *entityIntegrityScanner) handleMissingFeedSidecar(err error, name, sidec
 	if !os.IsNotExist(err) {
 		return err
 	}
-	expected, expectedErr := s.e.feedEntityInputsHaveContributions(name, s.geoProvider, s.asnProvider)
-	if expectedErr != nil {
-		return expectedErr
-	}
-	if !expected {
+	if !s.feedSidecarExpected(name) {
 		return nil
 	}
 	s.findings = append(s.findings, EntityIntegrityFinding{
@@ -103,6 +99,17 @@ func (s *entityIntegrityScanner) handleMissingFeedSidecar(err error, name, sidec
 	})
 	s.plan.addFeed(name)
 	return nil
+}
+
+func (s *entityIntegrityScanner) feedSidecarExpected(name string) bool {
+	if s == nil || s.e == nil {
+		return false
+	}
+	var resolver *effectiveEntryResolver
+	if s.health != nil {
+		resolver = s.health.resolver
+	}
+	return s.e.feedEntitySidecarExpected(name, s.geoProvider, s.asnProvider, resolver)
 }
 
 func (s *entityIntegrityScanner) recordEntityRefs(sidecarPath string, sidecarMTime time.Time, sidecar *feedEntitySidecar) {

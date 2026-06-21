@@ -62,9 +62,14 @@ description: "Go, React, config, and repo conventions for update-ipsets. MUST be
   Country/ASN actor JSON sidecars are derived outputs, not hot-path patch-state
   inputs; do not decode one actor JSON file per affected country/ASN to apply a
   feed delta (from SOW-0116).
+- Entity-eligible public-output feeds must have explicit committed per-feed
+  entity sidecars even when their current country/ASN contribution arrays are
+  empty. Do not encode empty contribution state as an absent sidecar; integrity
+  and surgical refresh depend on a complete canonical feed-sidecar store (from
+  SOW-0116 regression follow-up).
 - Merge composition has signed inputs: additive `sources` and subtractive `exclude`. Preserve both the full dependency list and the signed include/exclude lists; do not overload `DerivedFrom` or `merge_excluded` when adding merge behavior (from SOW-0025).
 - Merge-derived feeds may carry supported `use:` roles. When adding one, prove the role propagates from merge YAML to the expanded `Source`, the provider list, generated artifact expectations, and public serving path (from SOW-0025 regression).
-- Configured subtractive merge inputs are strict dependencies for any otherwise-computable merge; do not skip disabled/archived/unmaintained/missing subtractive parents and publish a broader set (from SOW-0025 regression).
+- Configured subtractive merge inputs are strict dependencies for any otherwise-computable merge. Missing or disabled subtractive parents block publication; archived, unmaintained, or currently failing subtractive parents must still be applied when their durable local canonical body exists, because skipping a materialized subtraction would broaden the merge output (from SOW-0025 regression and SOW-0116 integrity follow-up).
 - Keep `pkg/iprange` standalone; it must not import other project packages.
 - Keep `pkg/iprange` telemetry-framework agnostic. Do not import
   OpenTelemetry or project packages there. Return plain local operation stats

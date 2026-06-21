@@ -68,48 +68,6 @@ func (e *Engine) feedEntitySidecarCoversReference(name string, sidecar *feedEnti
 	return !sidecarSourceTime.Before(refTime.UTC().Truncate(time.Second))
 }
 
-func (e *Engine) feedEntityInputsHaveContributions(name, geoProvider, asnProvider string) (bool, error) {
-	view := newEntityOutputView(e, "")
-	if geoProvider != "" {
-		payload, err := view.countryComparison(name, geoProvider)
-		if err != nil {
-			if !os.IsNotExist(err) {
-				return false, err
-			}
-		} else {
-			for _, country := range payload.Countries {
-				if strings.TrimSpace(country.Code) != "" && country.Value > 0 {
-					return true, nil
-				}
-			}
-		}
-	}
-	if asnProvider != "" {
-		data, err := readFirstExisting(asnCandidatePaths(e.outputDir(), name, asnProvider))
-		if err != nil {
-			if !os.IsNotExist(err) {
-				return false, err
-			}
-			return false, nil
-		}
-		var payload struct {
-			ByASN []struct {
-				ASN   uint32 `json:"asn"`
-				Count uint64 `json:"count"`
-			} `json:"by_asn"`
-		}
-		if err := json.Unmarshal(data, &payload); err != nil {
-			return false, err
-		}
-		for _, row := range payload.ByASN {
-			if row.ASN != 0 && row.Count > 0 {
-				return true, nil
-			}
-		}
-	}
-	return false, nil
-}
-
 func (e *Engine) entityFeedCountryPayloadReferenceInOutputDir(outDir, name, provider string) (string, time.Time, error) {
 	if provider == "" {
 		return "", time.Time{}, nil

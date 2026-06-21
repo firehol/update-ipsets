@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strconv"
 	"testing"
+	"time"
 )
 
 func TestIndexFeedEntityJointSidecarProvidesConstantTimePatchRows(t *testing.T) {
@@ -161,6 +162,30 @@ func TestBuildFeedEntityDeltaFallsBackWhenCommittedSidecarMissingButDetailsRefer
 	_, err := eng.buildFeedEntityDelta("sample")
 	if !errors.Is(err, errEntitySurgicalNeedsFullRebuild) {
 		t.Fatalf("expected full rebuild fallback, got %v", err)
+	}
+}
+
+func TestBuildFeedEntityDeltaFallsBackWhenExpectedEmptyCommittedSidecarMissing(t *testing.T) {
+	eng, webDir, libDir := newDetailEngineForTest(t)
+	now := time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC)
+	eng.now = func() time.Time { return now }
+
+	configureDetailFeedState(t, eng, "alpha", "intrusion", "Maintainer", "https://example.test", now.Unix(), 0)
+	writeLatestSetForDetailTest(t, libDir, "alpha", now, "")
+	writeCountryPayloadForDetailTest(t, webDir, "alpha", "dbip_country", nil)
+	writeASNPayloadForDetailTest(t, webDir, "alpha", "iptoasn", nil)
+	writeDetailGeoProviderForTest(t, filepath.Join(libDir, "geolocation", "dbip_country.source"))
+	writeDetailASNProviderForTest(t, filepath.Join(libDir, "asn", "iptoasn", "database.tsv"))
+	if err := eng.RebuildEntityArtifacts(); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(filepath.Join(libDir, "entities", "feeds", "alpha.json")); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := eng.buildFeedEntityDeltaWithPresence("alpha", newEntityArtifactFeedPresence(eng))
+	if !errors.Is(err, errEntitySurgicalNeedsFullRebuild) {
+		t.Fatalf("expected missing explicit empty sidecar to force full rebuild, got %v", err)
 	}
 }
 

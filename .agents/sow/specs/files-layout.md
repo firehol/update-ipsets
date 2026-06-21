@@ -592,8 +592,8 @@ Meaning:
 - `lib/entities/version`
   - entity-artifact schema/version marker for bootstrap decisions
 - `lib/entities/feed-presence-v1.bin`
-  - private binary index listing feed names referenced by the current committed
-    entity sidecar set
+  - private binary index listing feed names whose current committed entity
+    sidecar has non-empty country or ASN presence
   - generated with full entity rebuilds and surgical entity refresh publish
     batches
   - used as the first proof source when a committed per-feed sidecar is missing
@@ -611,6 +611,8 @@ Meaning:
   - private committed per-feed entity sidecar
   - contains the feed metadata needed by country/ASN actor rows plus the feed's
     current country and ASN contributions
+  - MUST exist for every entity-eligible public-output feed, even when the
+    current country and ASN contribution arrays are empty
   - built once per affected feed while provider data is already open during the
     processing run
   - used to target incremental entity refreshes and to build precomputed
@@ -652,6 +654,10 @@ The private entity sidecars:
   selected actor rebuilds. `countries/{CODE}.json` and `asns/{ASN}.json` are
   derived private outputs for serving/repair, not canonical patch-state inputs
   for ordinary changed-feed refreshes.
+- a missing committed `feeds/{feed}.json` for an entity-eligible public-output
+  feed is integrity drift even when that feed currently contributes no country
+  or ASN rows. Empty contribution state must be represented explicitly rather
+  than by absence.
 - per-feed delta updates MUST keep every derived country/ASN aggregate
   equivalent to a clean rebuild of the same country/ASN actor
 - ordinary feed-update background work MUST skip actor rewrites when the

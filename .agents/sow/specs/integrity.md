@@ -164,6 +164,9 @@ At minimum:
 
 - `lib/entities/feeds/{feed}.json` MUST be newer than the per-feed published
   geo/ASN inputs and local provider facts it is derived from
+- `lib/entities/feeds/{feed}.json` MUST exist for every entity-eligible
+  public-output feed, even when the sidecar has no country or ASN contribution
+  rows. Absence is not a valid representation of empty contribution state.
 - per-feed ASN payloads depend on bogon providers because the ASN writer splits
   unmatched feed IPs into `bogon_ips` and `unknown_ips`; therefore any ordinary
   entity feed-sidecar writer or repair path that derives freshness from ASN
@@ -271,10 +274,12 @@ A merge-derived feed may be blocked because required local input is unavailable.
 
 Rules:
 
-- if a merge has at least one currently eligible additive parent, any missing,
-  disabled, archived, unmaintained, or otherwise unavailable subtractive parent
-  MUST be reported as a blocked input, because silently publishing without that
-  subtraction would broaden the merge output
+- if a merge has at least one currently eligible additive parent, any missing
+  or disabled subtractive parent MUST be reported as a blocked input, because
+  silently publishing without that subtraction would broaden the merge output
+- archived, unmaintained, or currently failing subtractive parents MUST still be
+  used when their durable local canonical body exists. Old health state does
+  not make a materialized subtraction unusable; absence of a usable body does.
 - missing durable bodies for required additive or subtractive parents SHOULD be
   reported as blocked inputs so recovery can recheck the parent before
   reprocessing the merge

@@ -231,7 +231,7 @@ func TestComposeMergeBodyFailsWhenConfiguredExcludeIsDisabled(t *testing.T) {
 	}
 }
 
-func TestComposeMergeBodyFailsWhenConfiguredExcludeIsArchived(t *testing.T) {
+func TestComposeMergeBodyUsesArchivedConfiguredExcludeWhenBodyExists(t *testing.T) {
 	now := time.Date(2026, 4, 27, 9, 0, 0, 0, time.UTC)
 	eng, merge := newMergeSubtractTestEngine(t, now)
 	writeMergeParentBody(t, eng, "included", "10.0.0.0/24\n")
@@ -239,16 +239,18 @@ func TestComposeMergeBodyFailsWhenConfiguredExcludeIsArchived(t *testing.T) {
 	markMergeParentHealthy(eng, "included", now)
 	markMergeParentArchived(eng, "subtracted", now)
 
-	_, _, _, err := eng.composeMergeBody(t.Context(), merge, true)
-	if err == nil {
-		t.Fatal("expected archived subtractive input to fail the merge")
+	_, set, disabled, err := eng.composeMergeBody(t.Context(), merge, true)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if !strings.Contains(err.Error(), "subtracted(archived)") {
-		t.Fatalf("expected error to name archived subtractive input, got %v", err)
+	if disabled != "" {
+		t.Fatalf("unexpected disabled message: %q", disabled)
 	}
+	assertSetContains(t, set, "10.0.0.129")
+	assertSetDoesNotContain(t, set, "10.0.0.1")
 }
 
-func TestComposeMergeBodyFailsWhenConfiguredExcludeIsUnmaintained(t *testing.T) {
+func TestComposeMergeBodyUsesUnmaintainedConfiguredExcludeWhenBodyExists(t *testing.T) {
 	now := time.Date(2026, 4, 27, 9, 0, 0, 0, time.UTC)
 	eng, merge := newMergeSubtractTestEngine(t, now)
 	writeMergeParentBody(t, eng, "included", "10.0.0.0/24\n")
@@ -256,13 +258,15 @@ func TestComposeMergeBodyFailsWhenConfiguredExcludeIsUnmaintained(t *testing.T) 
 	markMergeParentHealthy(eng, "included", now)
 	markMergeParentUnmaintained(eng, "subtracted", now)
 
-	_, _, _, err := eng.composeMergeBody(t.Context(), merge, true)
-	if err == nil {
-		t.Fatal("expected unmaintained subtractive input to fail the merge")
+	_, set, disabled, err := eng.composeMergeBody(t.Context(), merge, true)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if !strings.Contains(err.Error(), "subtracted(unmaintained)") {
-		t.Fatalf("expected error to name unmaintained subtractive input, got %v", err)
+	if disabled != "" {
+		t.Fatalf("unexpected disabled message: %q", disabled)
 	}
+	assertSetContains(t, set, "10.0.0.129")
+	assertSetDoesNotContain(t, set, "10.0.0.1")
 }
 
 func newMergeSubtractTestEngine(t *testing.T, now time.Time) (*Engine, *config.Source) {

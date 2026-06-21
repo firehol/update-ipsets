@@ -225,7 +225,7 @@ func TestCheckEntityArtifactsIntegrityAllowsUnchangedActorOlderThanFeedSidecar(t
 	}
 }
 
-func TestCheckEntityArtifactsIntegrityAllowsMissingFeedSidecarForEmptyEntityInputs(t *testing.T) {
+func TestCheckEntityArtifactsIntegrityRequiresFeedSidecarsForEmptyEntityInputs(t *testing.T) {
 	eng, webDir, libDir := newDetailEngineForTest(t)
 	now := time.Date(2026, 4, 24, 12, 0, 0, 0, time.UTC)
 	eng.now = func() time.Time { return now }
@@ -243,17 +243,41 @@ func TestCheckEntityArtifactsIntegrityAllowsMissingFeedSidecarForEmptyEntityInpu
 		t.Fatal(err)
 	}
 
+	for _, name := range []string{"alpha", "beta", "gamma"} {
+		sidecarPath := filepath.Join(libDir, "entities", "feeds", name+".json")
+		var sidecar feedEntitySidecar
+		loadJSONForTest(t, sidecarPath, &sidecar)
+		if sidecar.Feed != name {
+			t.Fatalf("%s sidecar feed = %q, want %q", name, sidecar.Feed, name)
+		}
+		if len(sidecar.Countries) != 0 || len(sidecar.ASNs) != 0 {
+			t.Fatalf("%s sidecar has countries=%v asns=%v, want explicit empty contribution state", name, sidecar.Countries, sidecar.ASNs)
+		}
+	}
+
+	missingPath := filepath.Join(libDir, "entities", "feeds", "alpha.json")
+	if err := os.Remove(missingPath); err != nil {
+		t.Fatal(err)
+	}
+
 	findings, plan, err := eng.CheckEntityArtifactsIntegrity()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(plan.feedNames) != 0 {
-		t.Fatalf("expected no feed-sidecar repair plan for empty entity inputs, got %+v", plan)
+	if _, ok := plan.feedNames["alpha"]; !ok {
+		t.Fatalf("expected alpha feed-sidecar repair plan for missing empty sidecar, got %+v", plan)
 	}
+	var found bool
 	for _, finding := range findings {
-		if finding.Kind == "feed_sidecar_missing" {
-			t.Fatalf("unexpected missing feed sidecar finding for empty entity inputs: %+v", finding)
+		if finding.Kind == "feed_sidecar_missing" && finding.Feed == "alpha" {
+			found = true
+			if finding.RepairAction != "refresh_feed" {
+				t.Fatalf("repair action = %q, want refresh_feed", finding.RepairAction)
+			}
 		}
+	}
+	if !found {
+		t.Fatalf("expected missing alpha feed sidecar finding, got %+v", findings)
 	}
 }
 

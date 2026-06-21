@@ -104,23 +104,23 @@ func (e *Engine) mergeCompositionRows(names []string, role string, additive bool
 			continue
 		}
 
+		row.HasFeedBody = fileExists(latestFeedBodyPath(e.feedBodyPath(parent)))
 		health := e.classifyEffectiveEntryHealth(parent, resolver.entryFromSnapshot(parent))
 		row.HealthClass = health.Class
-		switch health.Class {
-		case feedhealth.ClassArchived:
-			row.Reason = mergeInputReasonArchived
-			state.excludeMergeInput(row, additive)
-			continue
-		case feedhealth.ClassUnmaintained:
-			row.Reason = mergeInputReasonUnmaintained
-			state.excludeMergeInput(row, additive)
-			continue
-		}
-
 		if additive {
+			switch health.Class {
+			case feedhealth.ClassArchived:
+				row.Reason = mergeInputReasonArchived
+				state.excludeMergeInput(row, additive)
+				continue
+			case feedhealth.ClassUnmaintained:
+				row.Reason = mergeInputReasonUnmaintained
+				state.excludeMergeInput(row, additive)
+				continue
+			}
 			state.eligibleSourceCount++
 		}
-		row.HasFeedBody = fileExists(latestFeedBodyPath(e.feedBodyPath(parent)))
+
 		if !row.HasFeedBody {
 			row.Reason = mergeInputReasonMissingLocalFeedBody
 			state.excludeMergeInput(row, additive)

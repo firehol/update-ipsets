@@ -509,11 +509,16 @@ The pipeline MUST route feed families like this:
 
 - merge cadence or explicit `recheck` triggers downloader recomposition
 - downloader reconstructs the merge from the latest durable local canonical
-  feed bodies of the currently enabled additive and subtractive source feeds
+  feed bodies of currently eligible additive source feeds and enabled
+  subtractive source feeds with usable durable local bodies
 - downloader composes merges as `union(additive inputs) - union(subtractive
   inputs)`
 - a missing enabled additive or subtractive merge input is a downloader-stage
   failure, not processing-stage work
+- archived, unmaintained, or currently failing subtractive source feeds MUST
+  still be applied when their durable local canonical body exists. Skipping a
+  configured subtraction because its health is old would broaden the merge
+  output.
 
 ### Artifact parents and children
 
@@ -571,6 +576,10 @@ The pipeline MUST route feed families like this:
   committed country/ASN actor JSON sidecars are derived outputs, not canonical
   patch-state inputs, and ordinary refresh MUST NOT decode one actor JSON file
   per affected actor just to apply a feed delta.
+- ordinary and full entity refresh MUST keep explicit committed per-feed
+  sidecars for every entity-eligible public-output feed, including feeds whose
+  current country/ASN contribution arrays are empty. Empty contribution state is
+  canonical data, not an absent file.
 - ordinary feed-update entity refresh MUST rebuild only actors whose per-feed
   contribution actually changed; unchanged actor contributions MUST NOT trigger
   cosmetic rewrites

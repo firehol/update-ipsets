@@ -28,9 +28,6 @@ func (e *Engine) buildSingleFeedEntitySidecar(name string, view entityOutputView
 
 	sidecar.Countries = sortedFeedEntityCountries(countriesByCode)
 	sidecar.ASNs = sortedFeedEntityASNs(asnsByNumber)
-	if len(sidecar.Countries) == 0 && len(sidecar.ASNs) == 0 {
-		return nil, nil
-	}
 	return sidecar, nil
 }
 
@@ -53,6 +50,20 @@ func (e *Engine) newFeedEntitySidecar(name string, resolver *effectiveEntryResol
 		GeoProvider:  geoProvider,
 		ASNProvider:  asnProvider,
 	}, true
+}
+
+func (e *Engine) feedEntitySidecarExpected(name, geoProvider, asnProvider string, resolver *effectiveEntryResolver) bool {
+	if e == nil || e.cfg == nil {
+		return false
+	}
+	if resolver == nil && e.state != nil {
+		resolver = newEffectiveEntryResolver(e.cfg, e.state.SnapshotEntries())
+	}
+	if resolver == nil {
+		return false
+	}
+	_, ok := e.newFeedEntitySidecar(name, resolver, geoProvider, asnProvider)
+	return ok
 }
 
 func feedEntityCountryRows(view entityOutputView, name, geoProvider string) (map[string]*feedEntityCountryContribution, error) {
