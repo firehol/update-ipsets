@@ -1,8 +1,10 @@
 package engine
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/firehol/update-ipsets/pkg/cache"
@@ -410,6 +412,79 @@ func TestChangesetTailFromRuntimeDropsBootstrapAndKeepsWindow(t *testing.T) {
 	}
 	if got, want := tail[1].Timestamp, int64(1700014400); got != want {
 		t.Fatalf("tail[1].timestamp after observe = %d, want %d", got, want)
+	}
+}
+
+func TestChangesetTailFromRuntimeReadsLargeLedgerTail(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	eng := newEngineFixture(t, withRuntime(func(rt *Runtime) {
+		rt.LibDir = root
+		rt.WebChartsEntries = 3
+	}))
+	const (
+		name = "large"
+		base = int64(1700000000)
+	)
+	path := filepath.Join(root, name, "changesets.csv")
+	if err := os.MkdirAll(filepath.Dir(path), generatedDirMode); err != nil {
+		t.Fatalf("mkdir changeset dir: %v", err)
+	}
+	var b strings.Builder
+	b.WriteString(changesetLedgerHeader)
+	b.WriteString(fmt.Sprintf("%d,1,1\n", base))
+	for i := int64(1); i <= 8000; i++ {
+		b.WriteString(fmt.Sprintf("%d,%d,0\n", base+i*3600, i+1))
+	}
+	b.WriteString("not,a,valid,row\n")
+	b.WriteString(fmt.Sprintf("%d,0,0\n", base+9000*3600))
+	if err := writeFileAtomic(path, []byte(b.String()), generatedFileMode); err != nil {
+		t.Fatalf("write changesets ledger: %v", err)
+	}
+
+	tail := eng.changesetTailFromRuntime(name)
+	if got, want := len(tail), 3; got != want {
+		t.Fatalf("changeset tail len = %d, want %d", got, want)
+	}
+	for i, point := range tail {
+		wantTS := base + int64(7998+i)*3600
+		if point.Timestamp != wantTS {
+			t.Fatalf("tail[%d].timestamp = %d, want %d", i, point.Timestamp, wantTS)
+		}
+	}
+}
+
+func BenchmarkLoadChangesetTailLargeLedger(b *testing.B) {
+	root := b.TempDir()
+	const (
+		name = "large"
+		base = int64(1700000000)
+	)
+	path := filepath.Join(root, name, "changesets.csv")
+	if err := os.MkdirAll(filepath.Dir(path), generatedDirMode); err != nil {
+		b.Fatalf("mkdir changeset dir: %v", err)
+	}
+	var body strings.Builder
+	body.WriteString(changesetLedgerHeader)
+	body.WriteString(fmt.Sprintf("%d,1,1\n", base))
+	for i := int64(1); i <= 100_000; i++ {
+		body.WriteString(fmt.Sprintf("%d,%d,0\n", base+i*3600, i+1))
+	}
+	if err := writeFileAtomic(path, []byte(body.String()), generatedFileMode); err != nil {
+		b.Fatalf("write changesets ledger: %v", err)
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		tail, err := loadChangesetTail(path, 200)
+		if err != nil {
+			b.Fatal(err)
+		}
+		if len(tail) != 200 {
+			b.Fatalf("tail len = %d, want 200", len(tail))
+		}
 	}
 }
 

@@ -368,32 +368,42 @@ func parseChangesetCSVData(data []byte) []ChangesetPoint {
 		if line == "" {
 			continue
 		}
-		parts := strings.Split(line, ",")
-		if len(parts) != 3 {
-			continue
+		if point, ok := parseChangesetCSVLine(line); ok {
+			out = append(out, point)
 		}
-		ts, err := parseInt64(strings.TrimSpace(parts[0]))
-		if err != nil {
-			continue
-		}
-		added, err := parseUint64(strings.TrimSpace(parts[1]))
-		if err != nil {
-			continue
-		}
-		removed, err := parseUint64(strings.TrimSpace(parts[2]))
-		if err != nil {
-			continue
-		}
-		if added == 0 && removed == 0 {
-			continue
-		}
-		out = append(out, ChangesetPoint{
-			Timestamp: ts,
-			Added:     added,
-			Removed:   removed,
-		})
 	}
 	return out
+}
+
+func parseChangesetCSVLine(line string) (ChangesetPoint, bool) {
+	tsText, rest, ok := strings.Cut(line, ",")
+	if !ok {
+		return ChangesetPoint{}, false
+	}
+	addedText, removedText, ok := strings.Cut(rest, ",")
+	if !ok || strings.Contains(removedText, ",") {
+		return ChangesetPoint{}, false
+	}
+	ts, err := parseInt64(tsText)
+	if err != nil {
+		return ChangesetPoint{}, false
+	}
+	added, err := parseUint64(addedText)
+	if err != nil {
+		return ChangesetPoint{}, false
+	}
+	removed, err := parseUint64(removedText)
+	if err != nil {
+		return ChangesetPoint{}, false
+	}
+	if added == 0 && removed == 0 {
+		return ChangesetPoint{}, false
+	}
+	return ChangesetPoint{
+		Timestamp: ts,
+		Added:     added,
+		Removed:   removed,
+	}, true
 }
 
 func validHistoryTimestamp(ts int64) bool {

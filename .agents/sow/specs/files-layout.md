@@ -414,6 +414,13 @@ Append-only internal added/removed ledger:
 
 - `lib/{feed}/changesets.csv`
 
+Rules:
+
+- bounded public/API/chart consumers that need only the recent change window
+  MUST use runtime cache state, bounded published artifacts, or bounded tail
+  reads; full-ledger scans are reserved for explicit full-series or repair
+  work
+
 ### Retention cohorts
 
 Per-update cohort snapshots live under:

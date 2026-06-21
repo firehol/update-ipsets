@@ -815,6 +815,55 @@ Tests or equivalent validation:
 Real-use evidence:
 
 - Production monitoring evidence recorded in Analysis.
+- Post-deploy production monitoring on 2026-06-21 after restart of the latest
+  pushed build:
+  - service reached active state and completed the monitored startup/reprocess
+    work without watchdog kill
+  - first monitored source wave: `sources` phase `295500ms`;
+    `sources.refresh_rotation` `158451ms` total, max `129988ms`;
+    `sources.parse_feed_body` `103052ms` total, max `100947ms`;
+    `sources.update_retention` `8851ms` total, max `2340ms`;
+    `sources.finalize.observe_history` `22ms` total
+  - active retention reconciliation during the next wave scanned at about
+    `1651` cohort files/s, confirming the previous `8` files/s production
+    symptom was fixed by bounded `pkg/iprange` batch comparison
+  - second monitored source wave: rotation stayed at `1ms`/feed after runtime
+    changeset tails were loaded; older cache entries still triggered one-time
+    history stats recomputation with `sources.finalize.observe_history`
+    `26401ms` total, max `7459ms`
+  - final small cycle: run duration about `12s`; `sources` phase `300ms`;
+    `sources.refresh_rotation` `1ms`; metadata phase `6033ms`; comparison
+    ledger read/write each about `6.56MB`; entity output view read/decoded
+    about `57.5MB` of ASN JSON
+  - process snapshot near completion: about `989s` CPU, `11.0GB` process
+    read bytes, `3.5GB` write bytes, `345MB` RSS, and no active engine work
+  - conclusion: retention is no longer the dominant bottleneck on this
+    baseline; remaining measured opportunities are parser progress overhead on
+    very large feeds, bounded changeset/history window access on cold runtime
+    cache paths, metadata comparison ledger churn, latest-set open fan-out, and
+    entity output JSON reads
+- Implementation after this monitoring pass:
+  - `pkg/iprange.ParseReader` progress callbacks no longer use per-line
+    `defer` and avoid per-line time checks unless byte/line thresholds are met
+  - runtime changeset windows now use bounded tail reads of
+    `lib/{feed}/changesets.csv` instead of scanning the full append-only ledger
+    for the recent rotation/change-ratio window
+  - shared changeset CSV line parsing now uses `strings.Cut` and
+    `strconv.Parse*` instead of per-row `strings.Split` slices and
+    `fmt.Sscanf`
+  - added `BenchmarkParseIPsWithProgress` and
+    `BenchmarkLoadChangesetTailLargeLedger`
+- Validation after this monitoring pass:
+  - `go test -run 'TestParseReader(MixedInput|ReportsProgress|ReportsOperationStats|RangeCapacityHintPreservesIPv4Result)' ./pkg/iprange`
+  - `go test -run 'TestChangesetTailFromRuntime|TestPublicChangesets|TestChangesetSeries|TestReadInsightsChangesets' ./pkg/engine`
+  - `go test ./pkg/engine ./pkg/iprange ./tools/archposture`
+  - `make test`
+  - `make lint`
+  - `BenchmarkParseIPsWithProgress` improved from about
+    `1.28-1.39ms/op` to about `0.86-0.96ms/op` on the local 10k-line
+    progress fixture with the same `7 allocs/op`
+  - `BenchmarkLoadChangesetTailLargeLedger` on a 100k-row ledger measured about
+    `0.38-0.41ms/op`, `283938 B/op`, and `14 allocs/op`
 
 Reviewer findings:
 
@@ -832,7 +881,7 @@ Artifact maintenance gate:
 
 - AGENTS.md: updated with historical feed data preservation guardrail.
 - Runtime project skills: `.agents/skills/project-testing/SKILL.md` updated with `make jsonbench`; `.agents/skills/project-coding/SKILL.md` updated to keep changed-feed entity refresh from using actor JSON sidecars as hot-path patch state and to keep retention removal reconciliation delegated to bounded `pkg/iprange` batches.
-- Specs: `.agents/sow/specs/files-layout.md`, `.agents/sow/specs/pipeline.md`, `.agents/sow/specs/operating-principles.md`, `.agents/sow/specs/processing-engine.md`, and `.agents/sow/specs/memory-management.md` updated for `cache/comparison-pairs-v2.bin`, v1 read-only upgrade input, full-rebuild semantics, the entity feed-presence index, batched `pkg/iprange` comparison, feed-sidecar-driven selected actor detail rebuilds, and bounded retention cohort comparison batches.
+- Specs: `.agents/sow/specs/files-layout.md`, `.agents/sow/specs/pipeline.md`, `.agents/sow/specs/operating-principles.md`, `.agents/sow/specs/processing-engine.md`, and `.agents/sow/specs/memory-management.md` updated for `cache/comparison-pairs-v2.bin`, v1 read-only upgrade input, full-rebuild semantics, the entity feed-presence index, batched `pkg/iprange` comparison, feed-sidecar-driven selected actor detail rebuilds, bounded retention cohort comparison batches, and bounded changeset tail/window access for rotation/change-ratio consumers.
 - End-user/operator docs: no public/operator docs update needed; `tools/jsonbench/README.md` added for developer benchmark usage; `tools/historyaudit/README.md` added for local pre/post history and retention audit usage.
 - End-user/operator skills: no update needed; operator workflows did not change.
 - SOW lifecycle: moved from `.agents/sow/pending/` to `.agents/sow/current/`; `Status: open`.
@@ -843,12 +892,17 @@ Specs update:
   ledger cache behavior, entity feed-presence proof, batched `pkg/iprange`
   exact comparison, and changed-feed entity refresh rebuilding selected actors
   from merged feed sidecars instead of actor JSON patching.
+- Updated files-layout and processing-engine specs to prevent bounded
+  changeset-window consumers from rescanning full append-only ledgers.
 
 Project skills update:
 
 - Updated project-testing with the JSON benchmark target.
 - Updated project-coding with the feed-sidecar canonical-state rule for
   changed-feed entity refresh.
+- Updated project-coding with the parser progress hot-path rule: no per-line
+  defers, time calls, logging, telemetry callbacks, or interface-heavy hooks in
+  `pkg/iprange` parser loops.
 
 End-user/operator docs update:
 
@@ -884,6 +938,11 @@ Follow-up mapping:
     risk
   - further production-baseline monitoring after the entity feed-presence and
     batched comparison and selected actor-rebuild changes are deployed
+  - decide whether one-time history stats recomputation on old cache entries
+    needs a non-destructive derived stats sidecar if production restarts still
+    risk repeating that work before the state cache is saved
+  - decide whether metadata comparison latest-set open fan-out and entity
+    output JSON reads should become the next focused optimization slice
 
 ## Outcome
 

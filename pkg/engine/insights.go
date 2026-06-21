@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -510,22 +511,12 @@ func (e *Engine) readOverlapFacts(name string, outDir string) ([]insights.FeedOv
 
 // parseInt64 parses a base-10 signed integer.
 func parseInt64(s string) (int64, error) {
-	var v int64
-	_, err := fmt.Sscanf(strings.TrimSpace(s), "%d", &v)
-	if err != nil {
-		return 0, err
-	}
-	return v, nil
+	return strconv.ParseInt(strings.TrimSpace(s), 10, 64)
 }
 
 // parseUint64 parses a base-10 unsigned integer.
 func parseUint64(s string) (uint64, error) {
-	var v uint64
-	_, err := fmt.Sscanf(strings.TrimSpace(s), "%d", &v)
-	if err != nil {
-		return 0, err
-	}
-	return v, nil
+	return strconv.ParseUint(strings.TrimSpace(s), 10, 64)
 }
 
 // readFirstExisting walks candidate path groups in order and returns the first

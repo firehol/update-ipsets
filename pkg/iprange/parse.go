@@ -49,6 +49,8 @@ const (
 	maxParseRangeCapacityHint = 1 << 18
 	parseIPv4BytesPerRange    = 16
 	parseIPv6BytesPerRange    = 32
+	parseProgressByteInterval = 1024 * 1024
+	parseProgressLineInterval = 4096
 )
 
 type remainingLenReader interface {
@@ -152,18 +154,25 @@ func ParseReader(ctx context.Context, name string, r io.Reader, opts ParseOption
 	var progress ParseProgress
 	lastProgressAt := time.Now()
 	lastProgressBytes := int64(0)
+	lastProgressLines := int64(0)
 	notifyProgress := func(stage string, force bool) {
 		if opts.Progress == nil {
 			return
 		}
+		bytesSinceLast := progress.BytesRead - lastProgressBytes
+		linesSinceLast := progress.LinesRead - lastProgressLines
+		if !force && bytesSinceLast < parseProgressByteInterval && linesSinceLast < parseProgressLineInterval {
+			return
+		}
 		now := time.Now()
-		if !force && progress.BytesRead-lastProgressBytes < 1024*1024 && now.Sub(lastProgressAt) < time.Second {
+		if !force && bytesSinceLast < parseProgressByteInterval && now.Sub(lastProgressAt) < time.Second {
 			return
 		}
 		progress.Stage = stage
 		opts.Progress(progress)
 		lastProgressAt = now
 		lastProgressBytes = progress.BytesRead
+		lastProgressLines = progress.LinesRead
 	}
 
 	if err := forEachTextLineBytes(br, func(line []byte) error {
@@ -173,7 +182,6 @@ func ParseReader(ctx context.Context, name string, r io.Reader, opts ParseOption
 			opts.Stats.LinesRead++
 			opts.Stats.BytesRead += int64(len(line))
 		}
-		defer notifyProgress("read", false)
 		// Strip UTF-8 BOM from the first line.
 		if firstLine {
 			firstLine = false
@@ -181,6 +189,7 @@ func ParseReader(ctx context.Context, name string, r io.Reader, opts ParseOption
 		}
 		trimmed := stripInlineCommentBytes(line)
 		if len(trimmed) == 0 {
+			notifyProgress("read", false)
 			return nil
 		}
 

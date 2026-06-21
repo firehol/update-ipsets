@@ -25,6 +25,32 @@ func BenchmarkParseIPs(b *testing.B) {
 	}
 }
 
+func BenchmarkParseIPsWithProgress(b *testing.B) {
+	var input bytes.Buffer
+	for i := 0; i < 10000; i++ {
+		fmt.Fprintf(&input, "10.0.%d.%d\n", (i/256)%256, i%256)
+	}
+	data := input.Bytes()
+
+	opts := DefaultParseOptions()
+	var callbacks int
+	opts.Progress = func(ParseProgress) {
+		callbacks++
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		callbacks = 0
+		if _, err := ParseReader(b.Context(), "bench", bytes.NewReader(data), opts); err != nil {
+			b.Fatal(err)
+		}
+		if callbacks == 0 {
+			b.Fatal("expected progress callbacks")
+		}
+	}
+}
+
 func BenchmarkOptimize(b *testing.B) {
 	template := New("bench")
 	for i := 10000; i > 0; i-- {

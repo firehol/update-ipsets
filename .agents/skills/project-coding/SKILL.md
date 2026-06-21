@@ -75,6 +75,11 @@ description: "Go, React, config, and repo conventions for update-ipsets. MUST be
   per-IP lookups, file-backed lookups, parser inner loops, and source algebra
   must not use telemetry callbacks, avoidable interface boxing, or avoidable
   per-item heap allocation (from SOW-0110).
+- Parser progress in `pkg/iprange` must stay counter-based and thresholded.
+  Do not add per-line `defer`, per-line `time.Now`, logging, telemetry
+  callbacks, or interface-heavy hooks to parser inner loops; callers can export
+  coarse progress from the returned local counters/progress snapshots (from
+  SOW-0116).
 - Do not edit generated frontend bundle files: `pkg/web/static/assets/*` or generated `pkg/web/static/index.html`. Edit `ui/`.
 - Do not put expensive historical rescans on daemon startup critical path.
 - Public sitemap entity detail URLs must come from the published/staged entity

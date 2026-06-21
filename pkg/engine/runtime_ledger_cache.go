@@ -302,57 +302,6 @@ func loadHistoryLedgerState(path, name string, limit int) (historyLedgerStats, [
 	return stats, tail, nil
 }
 
-func loadChangesetTail(path string, limit int) ([]ChangesetPoint, error) {
-	if limit < 1 {
-		limit = 1
-	}
-	tail := make([]ChangesetPoint, 0, limit)
-	count := 0
-	lineNum := 0
-	err := readCSVLines(path, func(line string) error {
-		lineNum++
-		if lineNum == 1 && (strings.EqualFold(line, strings.TrimSpace(changesetLedgerHeader)) || strings.EqualFold(line, strings.TrimSpace(oldChangesetLedgerHeader))) {
-			return nil
-		}
-		parts := strings.Split(line, ",")
-		if len(parts) != 3 {
-			return nil
-		}
-		ts, err := parseInt64(parts[0])
-		if err != nil {
-			return nil
-		}
-		added, err := parseUint64(parts[1])
-		if err != nil {
-			return nil
-		}
-		removed, err := parseUint64(parts[2])
-		if err != nil {
-			return nil
-		}
-		if added == 0 && removed == 0 {
-			return nil
-		}
-		count++
-		tail = appendChangesTail(tail, ChangesetPoint{
-			Timestamp: ts,
-			Added:     added,
-			Removed:   removed,
-		}, limit)
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	if count <= limit {
-		if len(tail) <= 1 {
-			return nil, nil
-		}
-		return append([]ChangesetPoint(nil), tail[1:]...), nil
-	}
-	return append([]ChangesetPoint(nil), tail...), nil
-}
-
 func loadHistoryTailCSV(path, name string, limit int) ([]HistoryPoint, error) {
 	if limit < 1 {
 		limit = 1

@@ -141,6 +141,12 @@ If a same-timestamp observation changes counts, the engine MUST preserve the
 existing correction behavior and reload or recompute the effective ledger state
 so min/max, version, and public history-tail facts remain correct.
 
+Change and rotation measurements that only need the bounded
+`WebChartsEntries` window MUST use runtime cache state, bounded public
+artifacts, or tail reads of the append-only ledgers. They MUST NOT rescan full
+`changesets.csv` ledgers just to refresh the bounded rotation/change-ratio
+window.
+
 For retention/state ownership, the engine MUST keep distinct:
 
 - current-membership retention cohorts that preserve the start time of the
