@@ -1,5 +1,5 @@
 import { expect, test, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import { CurrentRunPanel } from "./current-run";
 import { sampleAdminFeed, sampleAdminStatus } from "@/test/fixtures";
 import { renderUI } from "@/test/render";
@@ -188,4 +188,46 @@ test("shows deferred processing as blocked waiting work", () => {
     ),
   ).toBeVisible();
   expect(screen.queryByText(/\+1 pending/i)).not.toBeInTheDocument();
+});
+
+test("keeps live queue feed lists in fixed scroll viewports", () => {
+  const feedNames = Array.from(
+    { length: 6 },
+    (_, index) => `queued_feed_${index + 1}`,
+  );
+  const feeds = feedNames.map((name) => sampleAdminFeed({ name }));
+  const waitingItems = feedNames.map((name, index) => ({
+    name,
+    reason: "scheduled_due",
+    queued_at: `2026-06-20T10:0${index}:00Z`,
+  }));
+  const activeItems = feedNames.map((name, index) => ({
+    name,
+    reason: "scheduled_due",
+    started_at: `2026-06-20T10:0${index}:00Z`,
+  }));
+  const status = sampleAdminStatus({
+    engine: { running: true, current_phase: "sources" },
+    queues: {
+      download_waiting: waitingItems,
+      download_active: activeItems,
+      processing_waiting: waitingItems,
+      processing_active: activeItems,
+    },
+  });
+
+  renderUI(
+    <CurrentRunPanel status={status} feeds={feeds} onFeedClick={vi.fn()} />,
+  );
+
+  for (const name of [
+    "Waiting To Be Downloaded queue",
+    "Being Downloaded Now queue",
+    "Waiting To Be Processed queue",
+    "Being Processed Now queue",
+  ]) {
+    const queueRegion = screen.getByRole("region", { name });
+    expect(queueRegion).toHaveClass("h-56", "overflow-y-auto");
+    expect(within(queueRegion).getAllByRole("listitem")).toHaveLength(6);
+  }
 });

@@ -50,7 +50,11 @@ export function QueueColumn({
           {items.length} {items.length === 1 ? itemLabel : `${itemLabel}s`}
         </div>
       </div>
-      <div className={LIVE_QUEUE_TILE_VIEWPORT_CLASS}>
+      <div
+        aria-label={`${title} queue`}
+        className={LIVE_QUEUE_TILE_VIEWPORT_CLASS}
+        role="region"
+      >
         {items.length === 0 ? (
           <div className={LIVE_QUEUE_EMPTY_CLASS}>{emptyText}</div>
         ) : (
@@ -95,7 +99,11 @@ export function ActiveDownloadColumn({
           {items.length} {items.length === 1 ? "item" : "items"}
         </div>
       </div>
-      <div className={LIVE_QUEUE_TILE_VIEWPORT_CLASS}>
+      <div
+        aria-label="Being Downloaded Now queue"
+        className={LIVE_QUEUE_TILE_VIEWPORT_CLASS}
+        role="region"
+      >
         {items.length === 0 ? (
           <div className={LIVE_QUEUE_EMPTY_CLASS}>
             No download worker is busy right now.
@@ -203,7 +211,11 @@ export function ProcessingNowColumn({
           </div>
         )}
       </div>
-      <div className={LIVE_QUEUE_TILE_VIEWPORT_CLASS}>
+      <div
+        aria-label="Being Processed Now queue"
+        className={LIVE_QUEUE_TILE_VIEWPORT_CLASS}
+        role="region"
+      >
         {!processingBatch || processingBatch.length === 0 ? (
           running ? null : (
             <div className={LIVE_QUEUE_EMPTY_CLASS}>
