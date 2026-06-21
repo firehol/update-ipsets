@@ -560,13 +560,18 @@ The pipeline MUST route feed families like this:
   per tick or completed processing batch when the same feed target is already
   pending
 - queued country/ASN entity refresh work that mutates private or public entity
-  artifacts MUST stage expensive read/patch/write work outside the
+  artifacts MUST stage expensive read/build/write work outside the
   entity-artifact publish lock, then acquire the lock, revalidate the committed
   entity-artifact generation, and publish only when the staged batch still
   matches the current generation. If another entity mutation published first,
   the stale staged batch MUST be discarded and rebuilt instead of being
   published over newer committed artifacts.
-- ordinary feed-update entity refresh MUST patch only actors whose per-feed
+- ordinary feed-update entity refresh MUST rebuild selected country/ASN actor
+  details from the merged committed-plus-pending per-feed sidecar set. The
+  committed country/ASN actor JSON sidecars are derived outputs, not canonical
+  patch-state inputs, and ordinary refresh MUST NOT decode one actor JSON file
+  per affected actor just to apply a feed delta.
+- ordinary feed-update entity refresh MUST rebuild only actors whose per-feed
   contribution actually changed; unchanged actor contributions MUST NOT trigger
   cosmetic rewrites
 - if a surgical entity refresh requires a pending per-feed entity sidecar that
@@ -589,13 +594,14 @@ The pipeline MUST route feed families like this:
   membership-only format without contribution counts, the product MAY read it
   for migration detection, but ordinary surgical refresh MUST fall back to
   bounded repair or full rebuild instead of applying incomplete deltas
-- surgical entity refresh SHOULD compare the patched actor sidecar with the
-  committed actor sidecar and skip private/public JSON rewrites when the actor
-  is semantically unchanged; if freshness metadata is needed to prevent a later
-  false-positive integrity repair, metadata-only touch updates are preferred
-  over rewriting identical JSON bodies. Those touch updates MUST be queued in
-  the publish batch and applied during the serialized publish step, not applied
-  directly to live files during staging.
+- repair paths that intentionally verify or refresh existing actor JSON MAY
+  compare rebuilt actor sidecars with committed actor sidecars and skip
+  private/public JSON rewrites when the actor is semantically unchanged. If
+  freshness metadata is needed to prevent a later false-positive integrity
+  repair, metadata-only touch updates are preferred over rewriting identical
+  JSON bodies. Those touch updates MUST be queued in the publish batch and
+  applied during the serialized publish step, not applied directly to live
+  files during staging.
 - entity integrity MUST NOT treat a country/ASN actor sidecar as stale solely
   because a related feed sidecar has a newer mtime; unchanged actor
   contributions are intentionally not rewritten, so mtime-only dependency

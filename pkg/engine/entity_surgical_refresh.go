@@ -5,8 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
-	"strconv"
-	"strings"
 	"time"
 
 	"github.com/firehol/update-ipsets/pkg/output"
@@ -23,6 +21,7 @@ type entitySurgicalRefreshState struct {
 	targetFeeds []string
 	deltas      []feedEntityDelta
 	presence    *entityArtifactFeedPresence
+	allSidecars map[string]*feedEntitySidecar
 
 	affectedCountries map[string]struct{}
 	affectedASNs      map[uint32]struct{}
@@ -65,11 +64,7 @@ func (e *Engine) stageRefreshEntityArtifactsForFeedUpdates(ctx context.Context, 
 		return state.stageNoDeltaVersion()
 	}
 	state.startDetailPatch()
-	if err := state.patchCountryDetails(); err != nil {
-		state.cleanup()
-		return nil, err
-	}
-	if err := state.patchASNDetails(); err != nil {
+	if err := state.rebuildAffectedDetailsFromFeedSidecars(); err != nil {
 		state.cleanup()
 		return nil, err
 	}
@@ -204,34 +199,54 @@ func (s *entitySurgicalRefreshState) detailPatchDetail() string {
 	return fmt.Sprintf("patching affected entity artifacts: %d countries and %d ASNs", len(s.affectedCountries), len(s.affectedASNs))
 }
 
-func (s *entitySurgicalRefreshState) patchCountryDetails() error {
+func (s *entitySurgicalRefreshState) loadMergedFeedSidecars() (map[string]*feedEntitySidecar, error) {
+	if s.allSidecars != nil {
+		return s.allSidecars, nil
+	}
+	sidecars, err := s.e.loadAllFeedEntitySidecars()
+	if err != nil {
+		return nil, err
+	}
+	for _, delta := range s.deltas {
+		if delta.new == nil {
+			delete(sidecars, delta.name)
+			continue
+		}
+		sidecars[delta.name] = delta.new
+	}
+	s.allSidecars = sidecars
+	return sidecars, nil
+}
+
+func (s *entitySurgicalRefreshState) rebuildAffectedDetailsFromFeedSidecars() error {
+	sidecars, err := s.loadMergedFeedSidecars()
+	if err != nil {
+		return err
+	}
+	countrySidecars, asnSidecars, err := s.e.buildSelectedEntityDetailSidecarsFromFeedSidecars(sidecars, s.affectedCountries, s.affectedASNs, false)
+	if err != nil {
+		return err
+	}
 	for _, code := range sortedStringSet(s.affectedCountries) {
 		if err := contextErr(s.ctx); err != nil {
 			return err
 		}
-		if err := s.patchCountryDetail(code); err != nil {
+		if err := s.stageRebuiltCountryDetail(code, countrySidecars[code]); err != nil {
+			return err
+		}
+	}
+	for _, asn := range sortedUint32Set(s.affectedASNs) {
+		if err := contextErr(s.ctx); err != nil {
+			return err
+		}
+		if err := s.stageRebuiltASNDetail(asn, asnSidecars[asn]); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (s *entitySurgicalRefreshState) patchCountryDetail(code string) error {
-	sidecar, changed, err := s.e.patchCountrySidecarForFeedDeltas(code, s.deltas)
-	if err != nil {
-		if errors.Is(err, errEntitySurgicalNeedsFullRebuild) {
-			return errEntitySurgicalNeedsFullRebuild
-		}
-		return err
-	}
-	if !changed {
-		if err := s.touchUnchangedCountryDetail(code, sidecar); err != nil {
-			return err
-		}
-		s.e.observeRunCounter("entity.refresh.country_unchanged", 1, 0)
-		s.advanceDetailProgress()
-		return nil
-	}
+func (s *entitySurgicalRefreshState) stageRebuiltCountryDetail(code string, sidecar *countryDetailSidecar) error {
 	s.countryUpdates[code] = sidecar
 	if sidecar == nil {
 		s.ent.markDelete(s.e.entityCountrySidecarRelPath(code))
@@ -259,51 +274,7 @@ func (s *entitySurgicalRefreshState) patchCountryDetail(code string) error {
 	return nil
 }
 
-func (s *entitySurgicalRefreshState) touchUnchangedCountryDetail(code string, sidecar *countryDetailSidecar) error {
-	if sidecar == nil {
-		return nil
-	}
-	logicalTime := countryDetailLogicalMTime(sidecar, s.feedTimes, s.e.now().UTC())
-	privatePath := filepath.Join(s.e.entityCountriesDir(), strings.ToUpper(strings.TrimSpace(code))+".json")
-	publicPath := s.e.PublicCountryDetailPath(code)
-	if !entityDetailFilesExist(privatePath, publicPath) {
-		return nil
-	}
-	s.ent.markTouch(s.e.entityCountrySidecarRelPath(code), logicalTime)
-	s.web.markTouch(s.e.publicCountryDetailRelPath(code), logicalTime)
-	s.e.observeRunCounter("entity.refresh.country_sidecar_touch", 1, 0)
-	s.e.observeRunCounter("entity.refresh.country_public_touch", 1, 0)
-	return nil
-}
-
-func (s *entitySurgicalRefreshState) patchASNDetails() error {
-	for _, asn := range sortedUint32Set(s.affectedASNs) {
-		if err := contextErr(s.ctx); err != nil {
-			return err
-		}
-		if err := s.patchASNDetail(asn); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *entitySurgicalRefreshState) patchASNDetail(asn uint32) error {
-	sidecar, changed, err := s.e.patchASNSidecarForFeedDeltas(asn, s.deltas)
-	if err != nil {
-		if errors.Is(err, errEntitySurgicalNeedsFullRebuild) {
-			return errEntitySurgicalNeedsFullRebuild
-		}
-		return err
-	}
-	if !changed {
-		if err := s.touchUnchangedASNDetail(asn, sidecar); err != nil {
-			return err
-		}
-		s.e.observeRunCounter("entity.refresh.asn_unchanged", 1, 0)
-		s.advanceDetailProgress()
-		return nil
-	}
+func (s *entitySurgicalRefreshState) stageRebuiltASNDetail(asn uint32, sidecar *asnDetailSidecar) error {
 	s.asnUpdates[asn] = sidecar
 	if sidecar == nil {
 		s.ent.markDelete(s.e.entityASNSidecarRelPath(asn))
@@ -328,23 +299,6 @@ func (s *entitySurgicalRefreshState) patchASNDetail(asn uint32) error {
 		s.generated = append(s.generated, mdFile)
 	}
 	s.advanceDetailProgress()
-	return nil
-}
-
-func (s *entitySurgicalRefreshState) touchUnchangedASNDetail(asn uint32, sidecar *asnDetailSidecar) error {
-	if sidecar == nil {
-		return nil
-	}
-	logicalTime := asnDetailLogicalMTime(sidecar, s.feedTimes, s.e.now().UTC())
-	privatePath := filepath.Join(s.e.entityASNsDir(), strconv.FormatUint(uint64(asn), 10)+".json")
-	publicPath := s.e.PublicASNDetailPath(asn)
-	if !entityDetailFilesExist(privatePath, publicPath) {
-		return nil
-	}
-	s.ent.markTouch(s.e.entityASNSidecarRelPath(asn), logicalTime)
-	s.web.markTouch(s.e.publicASNDetailRelPath(asn), logicalTime)
-	s.e.observeRunCounter("entity.refresh.asn_sidecar_touch", 1, 0)
-	s.e.observeRunCounter("entity.refresh.asn_public_touch", 1, 0)
 	return nil
 }
 
@@ -418,16 +372,9 @@ func (s *entitySurgicalRefreshState) patchedArtifactsPlan() (*entityArtifactMuta
 }
 
 func (s *entitySurgicalRefreshState) stageFeedPresenceIndex() error {
-	sidecars, err := s.e.loadAllFeedEntitySidecars()
+	sidecars, err := s.loadMergedFeedSidecars()
 	if err != nil {
 		return err
-	}
-	for _, delta := range s.deltas {
-		if delta.new == nil {
-			delete(sidecars, delta.name)
-			continue
-		}
-		sidecars[delta.name] = delta.new
 	}
 	return stageEntityFeedPresenceIndex(s.ent.stagedPublishBatch, entityFeedPresenceNamesFromSidecars(sidecars))
 }

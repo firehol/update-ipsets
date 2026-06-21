@@ -619,6 +619,25 @@ User decision:
   `.agents/sow/specs/pipeline.md`, and
   `.agents/sow/specs/operating-principles.md` for the entity feed-presence index
   and batched `pkg/iprange` comparison contract.
+- Added a failing behavioral test proving ordinary changed-feed entity refresh
+  must rebuild affected country/ASN details from committed-plus-pending
+  per-feed sidecars instead of decoding existing actor JSON sidecars. The
+  pre-change path failed on intentionally malformed private country/ASN actor
+  sidecars with `unexpected end of JSON input`.
+- Changed surgical entity refresh so it loads the committed feed sidecar set
+  once, merges the pending feed deltas, rebuilds only the affected country/ASN
+  actor details from that merged feed-sidecar map, and reuses the same merged
+  map to stage `feed-presence-v1.bin`.
+- Removed the old actor-JSON patch implementation in
+  `pkg/engine/entity_surgical_detail.go`; ordinary feed-update refresh now
+  treats country/ASN actor JSON sidecars as derived outputs, not canonical
+  hot-path patch inputs.
+- Updated `.agents/sow/specs/files-layout.md`,
+  `.agents/sow/specs/pipeline.md`,
+  `.agents/sow/specs/operating-principles.md`, and
+  `.agents/skills/project-coding/SKILL.md` so future work keeps per-feed
+  sidecars as the canonical private contribution state for changed-feed entity
+  refreshes.
 
 ## Validation
 
@@ -659,6 +678,25 @@ Tests or equivalent validation:
   - `go test ./tools/archposture`
   - `make test`
   - `make lint`
+- Entity refresh JSON storm validation:
+  - Pre-change focused test failed as expected because surgical refresh tried
+    to decode malformed private country/ASN actor JSON sidecars:
+    `go test -run 'TestSurgicalRefreshRebuildsAffectedDetailsFromFeedSidecars' ./pkg/engine`
+  - Post-change focused validation:
+    `go test -run 'TestSurgicalRefreshRebuildsAffectedDetailsFromFeedSidecars|TestSurgicalRefresh|TestBuildFeedEntityDelta|TestRebuildEntityArtifactsWritesFeedPresenceIndex|TestMissingCommittedFeedSidecarUsesPresenceIndexForFullRebuildProof' ./pkg/engine`
+  - Feed-sidecar indexing validation:
+    `go test -run 'Test(FeedEntitySidecarTargetDetection|IndexFeedEntityJointSidecarProvidesConstantTimePatchRows|LoadFeedEntitySidecarAcceptsLegacyMembershipArrays)' ./pkg/engine`
+  - `go test ./pkg/engine`
+  - `go test ./tools/archposture`
+  - `go test -count=1 ./pkg/engine ./tools/archposture`
+  - `go test -race -run 'TestSurgicalRefreshRebuildsAffectedDetailsFromFeedSidecars|TestBuildFeedEntityDelta|TestMissingCommittedFeedSidecarUsesPresenceIndexForFullRebuildProof' ./pkg/engine`
+  - `make test`
+  - `make lint`
+  - The new behavioral test asserts zero
+    `entity.refresh.country_sidecar_read` and zero
+    `entity.refresh.asn_sidecar_read` counters during changed-feed entity
+    refresh, proving ordinary affected actor rebuild no longer performs one
+    actor JSON decode per affected country/ASN.
 - Entity feed-presence and `pkg/iprange` batched comparison validation:
   - Pre-change focused tests failed as expected for the missing index and old
     engine-local comparison delegation behavior.
@@ -734,8 +772,8 @@ Sensitive data gate:
 Artifact maintenance gate:
 
 - AGENTS.md: updated with historical feed data preservation guardrail.
-- Runtime project skills: `.agents/skills/project-testing/SKILL.md` updated with `make jsonbench`.
-- Specs: `.agents/sow/specs/files-layout.md`, `.agents/sow/specs/pipeline.md`, and `.agents/sow/specs/operating-principles.md` updated for `cache/comparison-pairs-v2.bin`, v1 read-only upgrade input, full-rebuild semantics, the entity feed-presence index, and batched `pkg/iprange` comparison.
+- Runtime project skills: `.agents/skills/project-testing/SKILL.md` updated with `make jsonbench`; `.agents/skills/project-coding/SKILL.md` updated to keep changed-feed entity refresh from using actor JSON sidecars as hot-path patch state.
+- Specs: `.agents/sow/specs/files-layout.md`, `.agents/sow/specs/pipeline.md`, and `.agents/sow/specs/operating-principles.md` updated for `cache/comparison-pairs-v2.bin`, v1 read-only upgrade input, full-rebuild semantics, the entity feed-presence index, batched `pkg/iprange` comparison, and feed-sidecar-driven selected actor detail rebuilds.
 - End-user/operator docs: no public/operator docs update needed; `tools/jsonbench/README.md` added for developer benchmark usage.
 - End-user/operator skills: no update needed; operator workflows did not change.
 - SOW lifecycle: moved from `.agents/sow/pending/` to `.agents/sow/current/`; `Status: open`.
@@ -743,12 +781,15 @@ Artifact maintenance gate:
 Specs update:
 
 - Updated files-layout, pipeline, and operating-principles specs for comparison
-  ledger cache behavior, entity feed-presence proof, and batched `pkg/iprange`
-  exact comparison.
+  ledger cache behavior, entity feed-presence proof, batched `pkg/iprange`
+  exact comparison, and changed-feed entity refresh rebuilding selected actors
+  from merged feed sidecars instead of actor JSON patching.
 
 Project skills update:
 
 - Updated project-testing with the JSON benchmark target.
+- Updated project-coding with the feed-sidecar canonical-state rule for
+  changed-feed entity refresh.
 
 End-user/operator docs update:
 
@@ -764,16 +805,23 @@ Lessons:
 - Faster JSON libraries may help selected hot paths, but full-file JSON artifact designs can remain slow even with a faster codec.
 - For reproducible internal caches, binary format with a domain-specific table can beat JSON libraries on both speed and allocation profile while avoiding public JSON compatibility risk.
 - Candidate JSON libraries still need per-surface compatibility gates; the fastest default modes often trade away stdlib-compatible behavior or safe input-buffer lifetime.
+- Ordinary changed-feed entity refresh should not use country/ASN actor JSON as
+  patch state. Per-feed sidecars already contain the canonical contribution
+  facts and are loaded for the feed-presence index, so selected actor rebuilds
+  avoid actor JSON read storms while preserving clean-rebuild equivalence.
 
 Follow-up mapping:
 
 - Remaining work in this SOW:
   - history-safe measurement and fixture harness for retention/history paths
-  - entity refresh JSON storm redesign
-  - broad JSON replacement wrapper plus compatibility/golden tests for public and operator JSON surfaces
   - non-destructive history/retention indexes or summaries
+  - targeted JSON-library replacement only if a remaining measured hot path
+    shows a material win and passes artifact-specific compatibility tests; the
+    broad JSON migration is rejected for this slice after Velox crashed on a
+    project-shaped payload and safer candidates did not justify the migration
+    risk
   - further production-baseline monitoring after the entity feed-presence and
-    batched comparison changes are deployed
+    batched comparison and selected actor-rebuild changes are deployed
 
 ## Outcome
 

@@ -497,17 +497,18 @@ This means:
 - only affected country/ASN entity-detail payloads SHOULD be refreshed when
   possible, and any expensive country<->ASN intersection work SHOULD be reused
   from per-feed sidecars instead of repeated once per entity page
-- ordinary feed-update background entity patching MUST NOT reopen feed sets or
+- ordinary feed-update background entity refresh MUST NOT reopen feed sets or
   recompute country<->ASN range intersections; changed-feed entity sidecars
   SHOULD be precomputed during the processing run and consumed as pending
-  private sidecars by the background patcher
+  private sidecars by the background refresh worker
 - when a full entity rebuild is already queued or running, processing runs
   SHOULD defer that pending-sidecar precompute/publish work and report the same
   entity refresh targets for later background patching, avoiding duplicate
   foreground work and entity-writer contention
-- country/ASN entity refreshes after ordinary feed updates SHOULD be surgical
-  per-feed deltas over existing entity artifacts, not rebuilds over the whole
-  feed catalog
+- country/ASN entity refreshes after ordinary feed updates SHOULD rebuild only
+  selected country/ASN actors from the merged committed-plus-pending per-feed
+  sidecar set, not from country/ASN actor JSON and not from a whole feed-set
+  attribution recomputation
 - broad country/ASN actor-sidecar scans during surgical entity refresh are
   fallback proof work only; ordinary missing-feed-sidecar proof SHOULD use the
   durable entity feed-presence index before scanning actor sidecars
@@ -516,9 +517,10 @@ This means:
   slow JSON/entity materialization does not block unrelated entity staging while
   still preventing stale staged batches from overwriting newer committed
   artifacts
-- surgical country/ASN refreshes SHOULD suppress unchanged actor rewrites after
-  computing the actor-local patch; unchanged per-feed actor contributions MUST
-  NOT trigger cosmetic patch work in the ordinary incremental path
+- surgical country/ASN refreshes SHOULD suppress unchanged actor rewrites by
+  comparing per-feed contribution deltas before selecting actors; unchanged
+  per-feed actor contributions MUST NOT trigger cosmetic work in the ordinary
+  incremental path
 - repeated ordinary feed-update and health-transition entity refresh requests
   SHOULD be coalesced by feed name before the next background refresh wave
   starts

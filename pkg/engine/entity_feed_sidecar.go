@@ -143,6 +143,11 @@ type feedEntitySidecarIndex struct {
 	byASN     map[uint32][]asnCountryDeltaRow
 }
 
+type asnCountryDeltaRow struct {
+	code  string
+	count uint64
+}
+
 type countryActorContribution struct {
 	feed countryDetailFeedBase
 	asns []feedEntityJointASN

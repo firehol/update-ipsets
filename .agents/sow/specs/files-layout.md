@@ -612,9 +612,9 @@ Meaning:
   - private pending replacement for `lib/entities/feeds/{feed}.json`
   - written by the normal processing run for a changed feed after the new
     per-feed entity contribution sidecar has been computed
-  - consumed by the background entity patcher as the new side of the per-feed
-    delta; the committed `feeds/{feed}.json` remains available as the old side
-    until the patch succeeds
+  - consumed by the background entity refresh worker as the new side of the
+    per-feed delta; the committed `feeds/{feed}.json` remains available as the
+    old side until the refresh succeeds
   - MUST be deleted after the background patch promotes it to
     `feeds/{feed}.json`
 - `lib/entities/countries/{CODE}.json`
@@ -631,11 +631,15 @@ The private entity sidecars:
   detail payloads without recomputing the heavier composition layers
 - exist so feed/provider updates can compute the expensive per-feed
   country/ASN contribution facts once per affected feed during processing and
-  then surgically patch only the affected public entity-detail pages
-- ordinary feed-update background work MUST support per-feed delta updates
-  where the old feed contribution is removed from affected country/ASN
-  artifacts and the new feed contribution is added without scanning unrelated
-  feeds
+  then rebuild only the affected public entity-detail pages
+- ordinary feed-update background work MUST support per-feed delta targeting
+  where changed feed contributions select affected country/ASN actors without
+  scanning unrelated feeds
+- ordinary feed-update background work MUST treat `feeds/{feed}.json` and
+  `feeds-pending/{feed}.json` as the canonical private contribution state for
+  selected actor rebuilds. `countries/{CODE}.json` and `asns/{ASN}.json` are
+  derived private outputs for serving/repair, not canonical patch-state inputs
+  for ordinary changed-feed refreshes.
 - per-feed delta updates MUST keep every derived country/ASN aggregate
   equivalent to a clean rebuild of the same country/ASN actor
 - ordinary feed-update background work MUST skip actor rewrites when the

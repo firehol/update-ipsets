@@ -7,117 +7,80 @@ import (
 	"time"
 )
 
-func TestSurgicalRefreshStagesUnchangedCountryDetailTouchWithoutMutatingLiveFile(t *testing.T) {
+func TestSurgicalRefreshRebuildsAffectedDetailsFromFeedSidecars(t *testing.T) {
 	eng, webDir, libDir := newDetailEngineForTest(t)
 	now := time.Date(2026, 6, 21, 10, 0, 0, 0, time.UTC)
 	eng.now = func() time.Time { return now }
-	logical := now.Add(time.Hour)
-	oldMTime := now.Add(-time.Hour)
+	seedDetailFixturesForEntityTests(t, eng, webDir, libDir, now)
 
-	webBatch, err := eng.newWebPublishBatch()
+	if err := eng.RebuildEntityArtifactsWithTrigger(t.Context(), "test"); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(filepath.Join(libDir, "entities", "countries", "US.json"), []byte(`{"code":`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(libDir, "entities", "asns", "13335.json"), []byte(`{"asn":`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	alpha, err := eng.loadCommittedFeedEntitySidecar("alpha")
 	if err != nil {
-		t.Fatalf("newWebPublishBatch() error = %v", err)
+		t.Fatal(err)
 	}
-	defer webBatch.cleanup()
-	entityBatch, err := eng.newEntityPublishBatch()
-	if err != nil {
-		t.Fatalf("newEntityPublishBatch() error = %v", err)
+	alpha.UniqueIPs = 640
+	alpha.LastChangeTS = now.Unix()
+	for i := range alpha.Countries {
+		if alpha.Countries[i].Code == "US" {
+			alpha.Countries[i].AttributedIPs = 384
+			for j := range alpha.Countries[i].ASNs {
+				if alpha.Countries[i].ASNs[j].ASN == 13335 {
+					alpha.Countries[i].ASNs[j].Count = 384
+				}
+			}
+		}
 	}
-	defer entityBatch.cleanup()
+	for i := range alpha.ASNs {
+		if alpha.ASNs[i].ASN == 13335 {
+			alpha.ASNs[i].AttributedIPs = 384
+		}
+	}
+	writePendingFeedEntitySidecarForDetailTest(t, libDir, *alpha)
 
-	sidecar := &countryDetailSidecar{
-		Code: "US",
-		Feeds: []countryDetailFeedBase{{
-			Name:         "alpha",
-			LastChangeTS: logical.Unix(),
-		}},
+	if err := eng.refreshEntityArtifactsForFeedUpdates(t.Context(), []string{"alpha"}, nil); err != nil {
+		t.Fatalf("refreshEntityArtifactsForFeedUpdates() error = %v", err)
 	}
-	privatePath := filepath.Join(libDir, "entities", "countries", "US.json")
-	publicPath := filepath.Join(webDir, "countries", "US.json")
-	writeJSONFileAtForTest(t, privatePath, sidecar, oldMTime)
-	writeJSONFileAtForTest(t, publicPath, eng.materializeCountryDetail(sidecar), oldMTime)
+	if got := lifetimeCounterCount(t, eng, "entity.refresh.country_sidecar_read"); got != 0 {
+		t.Fatalf("country actor sidecar reads = %d, want 0", got)
+	}
+	if got := lifetimeCounterCount(t, eng, "entity.refresh.asn_sidecar_read"); got != 0 {
+		t.Fatalf("ASN actor sidecar reads = %d, want 0", got)
+	}
 
-	state := &entitySurgicalRefreshState{
-		e:         eng,
-		ctx:       t.Context(),
-		web:       webBatch,
-		ent:       entityBatch,
-		feedTimes: map[string]time.Time{"alpha": logical},
+	country := loadCountryDetailPayloadForTest(t, filepath.Join(webDir, "countries", "US.json"))
+	if got, want := attributedIPsForCountryFeed(country, "alpha"), uint64(384); got != want {
+		t.Fatalf("US alpha attributed IPs = %d, want %d", got, want)
 	}
-	if err := state.touchUnchangedCountryDetail("US", sidecar); err != nil {
-		t.Fatalf("touchUnchangedCountryDetail() error = %v", err)
+	if got, want := attributedIPsForCountryFeed(country, "gamma"), uint64(256); got != want {
+		t.Fatalf("US gamma attributed IPs = %d, want %d", got, want)
 	}
-	assertFileMTimeForTest(t, privatePath, oldMTime)
-	assertFileMTimeForTest(t, publicPath, oldMTime)
 
-	if _, err := entityBatch.publishContext(t.Context()); err != nil {
-		t.Fatalf("entity publish error = %v", err)
+	asn := loadASNDetailPayloadForTest(t, filepath.Join(webDir, "asns", "13335.json"))
+	if got, want := attributedIPsForASNFeed(asn, "alpha"), uint64(384); got != want {
+		t.Fatalf("ASN 13335 alpha attributed IPs = %d, want %d", got, want)
 	}
-	if _, err := webBatch.publishContext(t.Context()); err != nil {
-		t.Fatalf("web publish error = %v", err)
+	if got, want := attributedIPsForASNFeed(asn, "gamma"), uint64(256); got != want {
+		t.Fatalf("ASN 13335 gamma attributed IPs = %d, want %d", got, want)
 	}
-	assertFileMTimeForTest(t, privatePath, logical)
-	assertFileMTimeForTest(t, publicPath, logical)
 }
 
-func TestSurgicalRefreshStagesUnchangedASNDetailTouchWithoutMutatingLiveFile(t *testing.T) {
-	eng, webDir, libDir := newDetailEngineForTest(t)
-	now := time.Date(2026, 6, 21, 10, 0, 0, 0, time.UTC)
-	eng.now = func() time.Time { return now }
-	logical := now.Add(time.Hour)
-	oldMTime := now.Add(-time.Hour)
-
-	webBatch, err := eng.newWebPublishBatch()
-	if err != nil {
-		t.Fatalf("newWebPublishBatch() error = %v", err)
+func attributedIPsForCountryFeed(payload CountryDetailPayload, name string) uint64 {
+	for _, row := range payload.Feeds {
+		if row.Name == name {
+			return row.AttributedIPs
+		}
 	}
-	defer webBatch.cleanup()
-	entityBatch, err := eng.newEntityPublishBatch()
-	if err != nil {
-		t.Fatalf("newEntityPublishBatch() error = %v", err)
-	}
-	defer entityBatch.cleanup()
-
-	sidecar := &asnDetailSidecar{
-		ASN: 13335,
-		Feeds: []asnDetailFeedBase{{
-			Name:         "alpha",
-			LastChangeTS: logical.Unix(),
-		}},
-	}
-	privatePath := filepath.Join(libDir, "entities", "asns", "13335.json")
-	publicPath := filepath.Join(webDir, "asns", "13335.json")
-	writeJSONFileAtForTest(t, privatePath, sidecar, oldMTime)
-	writeJSONFileAtForTest(t, publicPath, eng.materializeASNDetail(sidecar), oldMTime)
-
-	state := &entitySurgicalRefreshState{
-		e:         eng,
-		ctx:       t.Context(),
-		web:       webBatch,
-		ent:       entityBatch,
-		feedTimes: map[string]time.Time{"alpha": logical},
-	}
-	if err := state.touchUnchangedASNDetail(13335, sidecar); err != nil {
-		t.Fatalf("touchUnchangedASNDetail() error = %v", err)
-	}
-	assertFileMTimeForTest(t, privatePath, oldMTime)
-	assertFileMTimeForTest(t, publicPath, oldMTime)
-
-	if _, err := entityBatch.publishContext(t.Context()); err != nil {
-		t.Fatalf("entity publish error = %v", err)
-	}
-	if _, err := webBatch.publishContext(t.Context()); err != nil {
-		t.Fatalf("web publish error = %v", err)
-	}
-	assertFileMTimeForTest(t, privatePath, logical)
-	assertFileMTimeForTest(t, publicPath, logical)
-}
-
-func writeJSONFileAtForTest(t *testing.T, path string, value any, mod time.Time) {
-	t.Helper()
-	if err := writeJSONFileAt(path, value, mod); err != nil {
-		t.Fatalf("writeJSONFileAt(%q) error = %v", path, err)
-	}
+	return 0
 }
 
 func assertFileMTimeForTest(t *testing.T, path string, want time.Time) {
@@ -129,4 +92,13 @@ func assertFileMTimeForTest(t *testing.T, path string, want time.Time) {
 	if got := info.ModTime().UTC(); !got.Equal(want.UTC()) {
 		t.Fatalf("%s mtime = %s, want %s", path, got, want.UTC())
 	}
+}
+
+func attributedIPsForASNFeed(payload ASNDetailPayload, name string) uint64 {
+	for _, row := range payload.Feeds {
+		if row.Name == name {
+			return row.AttributedIPs
+		}
+	}
+	return 0
 }

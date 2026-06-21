@@ -57,6 +57,11 @@ description: "Go, React, config, and repo conventions for update-ipsets. MUST be
   sidecar fan-out or repair path that depends on ASN payloads must include the
   bogon `use:` role as an input dependency, even if the sidecar JSON itself
   does not serialize bogon counts (from SOW-0017 regression).
+- Ordinary changed-feed entity refresh must treat committed and pending
+  per-feed entity sidecars as the canonical private contribution state.
+  Country/ASN actor JSON sidecars are derived outputs, not hot-path patch-state
+  inputs; do not decode one actor JSON file per affected country/ASN to apply a
+  feed delta (from SOW-0116).
 - Merge composition has signed inputs: additive `sources` and subtractive `exclude`. Preserve both the full dependency list and the signed include/exclude lists; do not overload `DerivedFrom` or `merge_excluded` when adding merge behavior (from SOW-0025).
 - Merge-derived feeds may carry supported `use:` roles. When adding one, prove the role propagates from merge YAML to the expanded `Source`, the provider list, generated artifact expectations, and public serving path (from SOW-0025 regression).
 - Configured subtractive merge inputs are strict dependencies for any otherwise-computable merge; do not skip disabled/archived/unmaintained/missing subtractive parents and publish a broader set (from SOW-0025 regression).
