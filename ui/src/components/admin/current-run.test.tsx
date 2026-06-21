@@ -190,7 +190,7 @@ test("shows deferred processing as blocked waiting work", () => {
   expect(screen.queryByText(/\+1 pending/i)).not.toBeInTheDocument();
 });
 
-test("keeps live queue feed lists in fixed scroll viewports", () => {
+test("keeps live queue feed lists in fixed tiles with full-height scroll bodies", () => {
   const feedNames = Array.from(
     { length: 6 },
     (_, index) => `queued_feed_${index + 1}`,
@@ -220,14 +220,21 @@ test("keeps live queue feed lists in fixed scroll viewports", () => {
     <CurrentRunPanel status={status} feeds={feeds} onFeedClick={vi.fn()} />,
   );
 
-  for (const name of [
-    "Waiting To Be Downloaded queue",
-    "Being Downloaded Now queue",
-    "Waiting To Be Processed queue",
-    "Being Processed Now queue",
-  ]) {
-    const queueRegion = screen.getByRole("region", { name });
-    expect(queueRegion).toHaveClass("h-56", "overflow-y-auto");
+  for (const [tileName, regionName] of [
+    ["Waiting To Be Downloaded tile", "Waiting To Be Downloaded queue"],
+    ["Being Downloaded Now tile", "Being Downloaded Now queue"],
+    ["Waiting To Be Processed tile", "Waiting To Be Processed queue"],
+    ["Being Processed Now tile", "Being Processed Now queue"],
+  ] as const) {
+    const tile = screen.getByRole("group", { name: tileName });
+    const queueRegion = within(tile).getByRole("region", {
+      name: regionName,
+    });
+    expect(tile).toHaveClass(
+      "h-[13.5rem]",
+      "grid-rows-[auto_minmax(0,1fr)]",
+    );
+    expect(queueRegion).toHaveClass("min-h-0", "overflow-y-auto");
     expect(within(queueRegion).getAllByRole("listitem")).toHaveLength(6);
   }
 });

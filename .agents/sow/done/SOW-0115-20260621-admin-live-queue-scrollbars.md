@@ -4,7 +4,7 @@
 
 Status: completed
 
-Sub-state: implemented and validated; lifecycle move is included with the implementation.
+Sub-state: regression fix implemented and validated; lifecycle move is included with the implementation.
 
 ## Requirements
 
@@ -237,4 +237,58 @@ None yet.
 
 ## Regression Log
 
-None yet.
+## Regression - 2026-06-21
+
+User validation after commit `63fc898` found the live queue tiles were still
+not fit for purpose:
+
+- the tiles remained too tall and should be about two-thirds of their current
+  height;
+- the feed list used only part of the tile height instead of filling the tile
+  body and scrolling after the available body was used.
+
+Root cause:
+
+- The first fix changed the queue list viewport to fixed `h-56`, but left the
+  tile container as `min-h-80` in `ui/src/components/admin/current-run-shared.ts`.
+- That produced a 320px-or-taller tile with a 224px list body. When the
+  `Being Processed Now` tile had extra phase/status content, the grid row could
+  become taller while the three simpler list bodies stayed fixed, making the
+  lists visibly use only part of the tile.
+
+Corrected implementation:
+
+- Make the tile itself the fixed-height object at `h-[13.5rem]`, which is
+  approximately two-thirds of the previous `min-h-80` tile floor.
+- Use CSS grid rows `auto minmax(0, 1fr)` so the header is fixed by content and
+  the scroll body consumes all remaining tile height.
+- Keep the list body as `min-h-0 overflow-y-auto`; this is the element that
+  scrolls after it has consumed the available tile body.
+- Move the active-processing phase/status block inside the scrollable body so
+  it cannot stretch the whole grid row and make sibling tiles look empty.
+
+Validation to rerun:
+
+- Focused current-run component test.
+- UI lint and build.
+- Browser measurement with the static production server, because jsdom cannot
+  measure actual element heights or scrollbar geometry.
+
+Regression fix validation:
+
+- `pnpm --dir ui test -- current-run.test.tsx` passed. Vitest reported 15
+  files and 46 tests passing.
+- `pnpm --dir ui lint` passed.
+- `pnpm --dir ui build` passed. Vite still reported existing unresolved
+  `/static/fonts/InterDisplay-*.woff2` runtime references and the existing
+  large chunk warning for `feed-detail`; these warnings are unrelated.
+- `git diff --check` for the touched UI and SOW files passed.
+- Browser measurement against the built production bundle at 1440x900 with 10
+  mocked rows per live queue showed:
+  - every live queue tile height: 216px;
+  - every live queue header height: 42px;
+  - every live queue scroll body height: 174px;
+  - expected body height from tile minus header: 174px;
+  - `overflow-y: auto`;
+  - scroll body `scrollHeight` greater than `clientHeight`, proving the body
+    scrolls after using the full available tile body.

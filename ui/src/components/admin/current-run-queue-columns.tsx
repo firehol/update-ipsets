@@ -23,9 +23,9 @@ import {
 } from "@/components/admin/current-run-shared";
 
 const LIVE_QUEUE_ITEM_BUTTON_CLASS =
-  "flex min-h-14 w-full items-start gap-3 px-6 py-2 text-left transition-colors hover:bg-muted/40";
+  "flex min-h-10 w-full items-start gap-3 px-6 py-1.5 text-left transition-colors hover:bg-muted/40";
 const LIVE_QUEUE_ITEM_STATIC_CLASS =
-  "flex min-h-14 items-start gap-3 px-6 py-2";
+  "flex min-h-10 items-start gap-3 px-6 py-1.5";
 
 export function QueueColumn({
   title,
@@ -43,7 +43,11 @@ export function QueueColumn({
   itemLabel: "feed" | "item";
 }) {
   return (
-    <div className={LIVE_QUEUE_TILE_CLASS}>
+    <div
+      aria-label={`${title} tile`}
+      className={LIVE_QUEUE_TILE_CLASS}
+      role="group"
+    >
       <div className="flex items-baseline justify-between border-b border-border/60 px-6 py-3">
         <div className="eyebrow">{title}</div>
         <div className="text-[11px] tabular-nums text-muted-foreground">
@@ -92,7 +96,11 @@ export function ActiveDownloadColumn({
   onFeedClick: (feed: AdminFeed) => void;
 }) {
   return (
-    <div className={LIVE_QUEUE_TILE_CLASS}>
+    <div
+      aria-label="Being Downloaded Now tile"
+      className={LIVE_QUEUE_TILE_CLASS}
+      role="group"
+    >
       <div className="flex items-baseline justify-between border-b border-border/60 px-6 py-3">
         <div className="eyebrow">Being Downloaded Now</div>
         <div className="text-[11px] tabular-nums text-muted-foreground">
@@ -174,7 +182,11 @@ export function ProcessingNowColumn({
     );
 
   return (
-    <div className={LIVE_QUEUE_TILE_CLASS}>
+    <div
+      aria-label="Being Processed Now tile"
+      className={LIVE_QUEUE_TILE_CLASS}
+      role="group"
+    >
       <div className="flex items-baseline justify-between border-b border-border/60 px-6 py-3">
         <div className="eyebrow">Being Processed Now</div>
         <div className="text-[11px] tabular-nums text-muted-foreground">
@@ -184,38 +196,38 @@ export function ProcessingNowColumn({
             : "feeds"}
         </div>
       </div>
-      <div className="border-b border-border/40 px-6 py-3">
-        {currentBatch && <RunBatchSummary batch={currentBatch} />}
-        <HoverTip text={describeRunPhase(currentPhase)}>
-          <div className="mt-3 flex items-center justify-between gap-3 text-xs">
-            <span className="text-muted-foreground">Phase</span>
-            <span className="font-medium text-foreground tabular-nums">
-              {running
-                ? phasePlanLabel(phasePlan, currentPhase)
-                : "Idle"}
-            </span>
-          </div>
-        </HoverTip>
-        {phasePlan?.phases && phasePlan.phases.length > 0 && (
-          <PhasePlanStrip phasePlan={phasePlan} currentPhase={currentPhase} />
-        )}
-        {phaseOperations.length > 0 && (
-          <div className="mt-3 space-y-3">
-            {phaseOperations.slice(0, 3).map((operation) => (
-              <ActiveOperationProgress
-                key={`${operation.operation}:${operation.stage ?? ""}`}
-                operation={operation}
-                nowMs={nowMs}
-              />
-            ))}
-          </div>
-        )}
-      </div>
       <div
         aria-label="Being Processed Now queue"
         className={LIVE_QUEUE_TILE_VIEWPORT_CLASS}
         role="region"
       >
+        <div className="border-b border-border/40 px-6 py-3">
+          {currentBatch && <RunBatchSummary batch={currentBatch} />}
+          <HoverTip text={describeRunPhase(currentPhase)}>
+            <div className="mt-3 flex items-center justify-between gap-3 text-xs">
+              <span className="text-muted-foreground">Phase</span>
+              <span className="font-medium text-foreground tabular-nums">
+                {running
+                  ? phasePlanLabel(phasePlan, currentPhase)
+                  : "Idle"}
+              </span>
+            </div>
+          </HoverTip>
+          {phasePlan?.phases && phasePlan.phases.length > 0 && (
+            <PhasePlanStrip phasePlan={phasePlan} currentPhase={currentPhase} />
+          )}
+          {phaseOperations.length > 0 && (
+            <div className="mt-3 space-y-3">
+              {phaseOperations.slice(0, 3).map((operation) => (
+                <ActiveOperationProgress
+                  key={`${operation.operation}:${operation.stage ?? ""}`}
+                  operation={operation}
+                  nowMs={nowMs}
+                />
+              ))}
+            </div>
+          )}
+        </div>
         {!processingBatch || processingBatch.length === 0 ? (
           running ? null : (
             <div className={LIVE_QUEUE_EMPTY_CLASS}>
