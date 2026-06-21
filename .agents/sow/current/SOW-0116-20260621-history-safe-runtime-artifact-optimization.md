@@ -4,7 +4,7 @@
 
 Status: open
 
-Sub-state: implementation in progress; comparison-pair ledger cache fixed and benchmarked; entity artifact staging/publish lock scope optimized with generation revalidation; JSON replacement candidates re-analyzed; new-baseline startup entity rebuild overlap hotfix implemented and validated; entity feed-presence index and `pkg/iprange` batched comparison implemented and validated.
+Sub-state: implementation in progress; comparison-pair ledger cache fixed and benchmarked; entity artifact staging/publish lock scope optimized with generation revalidation; JSON replacement candidates re-analyzed; new-baseline startup entity rebuild overlap hotfix implemented and validated; entity feed-presence index and `pkg/iprange` batched comparison implemented and validated; bounded retention removal reconciliation and history audit harness implemented and validated.
 
 ## Requirements
 
@@ -661,6 +661,17 @@ User decision:
   `.agents/sow/specs/memory-management.md`,
   `.agents/sow/specs/operating-principles.md`, and
   `.agents/skills/project-coding/SKILL.md` with the retention batching contract.
+- Added `tools/historyaudit`, a read-only local audit tool for pre/post history
+  and retention validation:
+  - walks a `lib/` directory and emits a sanitized JSON manifest
+  - records relative paths, file sizes, mtimes, SHA-256 checksums, CSV row
+    counts, first/last timestamps, monotonic timestamp flags, and retention
+    cohort counts
+  - skips hidden atomic temp files in retention cohort directories
+  - fails on stat/checksum/read errors instead of treating inaccessible files as
+    missing
+  - does not print raw feed contents and does not modify runtime artifacts
+  - includes `tools/historyaudit/README.md` with read-only usage guidance
 
 ## Validation
 
@@ -738,6 +749,13 @@ Tests or equivalent validation:
     `1925305 ns/op`, `40968 B/op`, `22 allocs/op`; partitioned cohort-like
     batches use the one-to-many path and are about 4.7x faster than the dense
     repeated-left batch shape in this synthetic benchmark.
+- History-safe audit harness validation:
+  - `go test ./tools/historyaudit`
+  - Tests prove the manifest records history/retention checksums, row counts,
+    retention cohort counts, first/last timestamps, monotonic timestamp state,
+    deterministic feed/artifact ordering, and hidden atomic temp-file skipping.
+  - Tests also prove a non-monotonic history ledger is flagged without modifying
+    the ledger.
 - Entity feed-presence and `pkg/iprange` batched comparison validation:
   - Pre-change focused tests failed as expected for the missing index and old
     engine-local comparison delegation behavior.
@@ -815,7 +833,7 @@ Artifact maintenance gate:
 - AGENTS.md: updated with historical feed data preservation guardrail.
 - Runtime project skills: `.agents/skills/project-testing/SKILL.md` updated with `make jsonbench`; `.agents/skills/project-coding/SKILL.md` updated to keep changed-feed entity refresh from using actor JSON sidecars as hot-path patch state and to keep retention removal reconciliation delegated to bounded `pkg/iprange` batches.
 - Specs: `.agents/sow/specs/files-layout.md`, `.agents/sow/specs/pipeline.md`, `.agents/sow/specs/operating-principles.md`, `.agents/sow/specs/processing-engine.md`, and `.agents/sow/specs/memory-management.md` updated for `cache/comparison-pairs-v2.bin`, v1 read-only upgrade input, full-rebuild semantics, the entity feed-presence index, batched `pkg/iprange` comparison, feed-sidecar-driven selected actor detail rebuilds, and bounded retention cohort comparison batches.
-- End-user/operator docs: no public/operator docs update needed; `tools/jsonbench/README.md` added for developer benchmark usage.
+- End-user/operator docs: no public/operator docs update needed; `tools/jsonbench/README.md` added for developer benchmark usage; `tools/historyaudit/README.md` added for local pre/post history and retention audit usage.
 - End-user/operator skills: no update needed; operator workflows did not change.
 - SOW lifecycle: moved from `.agents/sow/pending/` to `.agents/sow/current/`; `Status: open`.
 
@@ -835,6 +853,8 @@ Project skills update:
 End-user/operator docs update:
 
 - No operator-visible migration, backup, or rollback behavior introduced in this slice.
+- Added `tools/historyaudit/README.md` for local read-only manifest generation
+  before and after history/retention migration experiments.
 
 End-user/operator skills update:
 
@@ -854,7 +874,6 @@ Lessons:
 Follow-up mapping:
 
 - Remaining work in this SOW:
-  - history-safe measurement and fixture harness for retention/history paths
   - evaluate the new bounded retention removal path against production data and
     decide whether a further non-destructive first-seen/history index is still
     needed
