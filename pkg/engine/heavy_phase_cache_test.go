@@ -3,6 +3,7 @@ package engine
 import (
 	"bytes"
 	"compress/gzip"
+	"errors"
 	"maps"
 	"os"
 	"path/filepath"
@@ -240,6 +241,61 @@ func TestPreparedGeoProviderCountSourceMatchesLegacySemantics(t *testing.T) {
 	}
 	if !maps.Equal(got, want) {
 		t.Fatalf("unexpected country counts: got %+v want %+v", got, want)
+	}
+}
+
+func TestPreparedGeoProviderCountSourcePropagatesSourceErrors(t *testing.T) {
+	dataset := &geoloc.Dataset{
+		Provider: "synthetic",
+		Sets: map[string]*iprange.IPSet{
+			"US": mustSet(t, "us", iprange.Range{Lo: 10, Hi: 13}),
+		},
+	}
+	prepared, err := prepareGeoProvider("synthetic", dataset)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sentinel := errors.New("range source failed")
+	src := iprange.RangeSourceFromIterErr(func(yield func(iprange.Range) bool) error {
+		if !yield(iprange.Range{Lo: 11, Hi: 12}) {
+			return nil
+		}
+		return sentinel
+	}, -1)
+
+	_, _, err = prepared.CountSourceContext(t.Context(), src)
+	if !errors.Is(err, sentinel) {
+		t.Fatalf("CountSourceContext() error = %v, want %v", err, sentinel)
+	}
+}
+
+func TestCountryFilteredRangeSourcePropagatesSourceErrors(t *testing.T) {
+	dataset := &geoloc.Dataset{
+		Provider: "synthetic",
+		Sets: map[string]*iprange.IPSet{
+			"US": mustSet(t, "us", iprange.Range{Lo: 10, Hi: 13}),
+		},
+	}
+	prepared, err := prepareGeoProvider("synthetic", dataset)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	sentinel := errors.New("range source failed")
+	src := iprange.RangeSourceFromIterErr(func(yield func(iprange.Range) bool) error {
+		if !yield(iprange.Range{Lo: 11, Hi: 12}) {
+			return nil
+		}
+		return sentinel
+	}, -1)
+
+	filtered := countryFilteredRangeSource(src, prepared, "US")
+	err = iprange.WalkRangesContext(t.Context(), filtered, func(iprange.Range) bool {
+		return true
+	})
+	if !errors.Is(err, sentinel) {
+		t.Fatalf("WalkRangesContext(countryFilteredRangeSource) error = %v, want %v", err, sentinel)
 	}
 }
 

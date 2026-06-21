@@ -151,6 +151,20 @@ func IntersectIter6(a, b RangeSource6) func(yield func(Range6) bool) {
 		}
 	}
 	return func(yield func(Range6) bool) {
+		if indexed, unlock, ok, err := indexedRangeSources6([]RangeSource6{a, b}); ok {
+			if err != nil {
+				if unlock != nil {
+					unlock()
+				}
+				return
+			}
+			if unlock != nil {
+				defer unlock()
+			}
+			intersect6IndexedIter(indexed[0], indexed[1], yield)
+			return
+		}
+
 		nextA, stopA := iter.Pull(a.Iter())
 		defer stopA()
 		nextB, stopB := iter.Pull(b.Iter())
@@ -243,6 +257,20 @@ func ExcludeIter6(a, b RangeSource6) func(yield func(Range6) bool) {
 		}
 	}
 	return func(yield func(Range6) bool) {
+		if indexed, unlock, ok, err := indexedRangeSources6([]RangeSource6{a, b}); ok {
+			if err != nil {
+				if unlock != nil {
+					unlock()
+				}
+				return
+			}
+			if unlock != nil {
+				defer unlock()
+			}
+			exclude6IndexedIter(indexed[0], indexed[1], yield)
+			return
+		}
+
 		nextA, stopA := iter.Pull(a.Iter())
 		defer stopA()
 		nextB, stopB := iter.Pull(b.Iter())
@@ -324,6 +352,20 @@ func excludeIter6Ranges(a, b []Range6) func(yield func(Range6) bool) {
 
 func DiffIter6(a, b RangeSource6) func(yield func(Range6) bool) {
 	return func(yield func(Range6) bool) {
+		if indexed, unlock, ok, err := indexedRangeSources6([]RangeSource6{a, b}); ok {
+			if err != nil {
+				if unlock != nil {
+					unlock()
+				}
+				return
+			}
+			if unlock != nil {
+				defer unlock()
+			}
+			diff6IndexedIter(indexed[0], indexed[1], yield)
+			return
+		}
+
 		nextA, stopA := iter.Pull(a.Iter())
 		defer stopA()
 		nextB, stopB := iter.Pull(b.Iter())
@@ -446,6 +488,20 @@ func unionTwo6(a, b RangeSource6) func(yield func(Range6) bool) {
 		}
 	}
 	return func(yield func(Range6) bool) {
+		if indexed, unlock, ok, err := indexedRangeSources6([]RangeSource6{a, b}); ok {
+			if err != nil {
+				if unlock != nil {
+					unlock()
+				}
+				return
+			}
+			if unlock != nil {
+				defer unlock()
+			}
+			unionTwo6IndexedIter(indexed[0], indexed[1], yield)
+			return
+		}
+
 		nextA, stopA := iter.Pull(a.Iter())
 		defer stopA()
 		nextB, stopB := iter.Pull(b.Iter())
@@ -575,6 +631,20 @@ func (h *mergeHeap6) Pop() any {
 
 func unionKWay6(sources []RangeSource6) func(yield func(Range6) bool) {
 	return func(yield func(Range6) bool) {
+		if indexed, unlock, ok, err := indexedRangeSources6(sources); ok {
+			if err != nil {
+				if unlock != nil {
+					unlock()
+				}
+				return
+			}
+			if unlock != nil {
+				defer unlock()
+			}
+			unionKWay6IndexedIter(indexed, yield)
+			return
+		}
+
 		h := make(mergeHeap6, 0, len(sources))
 		var stops []func()
 

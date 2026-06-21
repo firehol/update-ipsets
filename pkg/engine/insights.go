@@ -34,8 +34,7 @@ var getInsightsEngine = sync.OnceValue(func() *insights.Engine {
 
 // writeInsights assembles the SignalSnapshot for the named feed, runs
 // the deterministic insights engine, and writes the resulting JSON to
-// the output dir. Errors are returned to the caller but the caller
-// should log and continue — insights are derived data, never critical.
+// the output dir. Insights errors are returned, but derived data is never critical.
 func (e *Engine) writeInsights(name string, outDir string) error {
 	snap, err := e.buildSignalSnapshot(name, outDir)
 	if err != nil {
@@ -67,8 +66,7 @@ func (e *Engine) writeInsights(name string, outDir string) error {
 // insights file. Insights read existing per-feed JSON artifacts; they must not
 // become another whole-catalog sweep after an ordinary single-feed update.
 //
-// Errors are logged but not returned: a bad snapshot for one feed
-// should not abort the heavy block.
+// Errors are logged but not returned: one bad snapshot should not abort the heavy block.
 func (e *Engine) writeInsightsForFeeds(ctx context.Context, updatedNames []string, outDir string) error {
 	ctx = nonNilContext(ctx)
 	targetNames := insightTargetNames(e.cfg, updatedNames, e.publicOutputNames(), outDir, e.outputDir())

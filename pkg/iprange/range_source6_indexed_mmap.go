@@ -22,7 +22,10 @@ func mmapIndexedRangeSource6(src RangeSource6) (indexedRangeSource6, bool) {
 
 func lockMmapRangeSources6(sources []RangeSource6) (func(), error) {
 	if len(sources) == 0 {
-		return func() {}, nil
+		return nil, nil
+	}
+	if len(sources) <= 2 {
+		return lockMmapRangeSources6Small(sources)
 	}
 	var mapped []*mmapFileSet6
 	var seen map[*mmapFileSet6]struct{}
@@ -42,7 +45,7 @@ func lockMmapRangeSources6(sources []RangeSource6) (func(), error) {
 		mapped = append(mapped, m)
 	}
 	if len(mapped) == 0 {
-		return func() {}, nil
+		return nil, nil
 	}
 	slices.SortFunc(mapped, func(a, b *mmapFileSet6) int {
 		ap := uintptr(unsafe.Pointer(a))
@@ -59,19 +62,11 @@ func lockMmapRangeSources6(sources []RangeSource6) (func(), error) {
 
 	locked := make([]*mmapFileSet6, 0, len(mapped))
 	for _, m := range mapped {
-		if m.closed.Load() {
+		if err := m.lockFastReader(); err != nil {
 			for i := len(locked) - 1; i >= 0; i-- {
 				locked[i].mu.RUnlock()
 			}
-			return nil, ErrFileSet6Closed
-		}
-		m.mu.RLock()
-		if m.closed.Load() {
-			m.mu.RUnlock()
-			for i := len(locked) - 1; i >= 0; i-- {
-				locked[i].mu.RUnlock()
-			}
-			return nil, ErrFileSet6Closed
+			return nil, err
 		}
 		locked = append(locked, m)
 	}
@@ -79,5 +74,46 @@ func lockMmapRangeSources6(sources []RangeSource6) (func(), error) {
 		for i := len(locked) - 1; i >= 0; i-- {
 			locked[i].mu.RUnlock()
 		}
+	}, nil
+}
+
+func lockMmapRangeSources6Small(sources []RangeSource6) (func(), error) {
+	var first, second *mmapFileSet6
+	for _, src := range sources {
+		m, ok := src.(*mmapFileSet6)
+		if !ok {
+			continue
+		}
+		if first == nil {
+			first = m
+			continue
+		}
+		if m != first {
+			second = m
+		}
+	}
+	if first == nil {
+		return nil, nil
+	}
+	if second == nil {
+		if err := first.lockFastReader(); err != nil {
+			return nil, err
+		}
+		return func() { first.mu.RUnlock() }, nil
+	}
+
+	if uintptr(unsafe.Pointer(second)) < uintptr(unsafe.Pointer(first)) {
+		first, second = second, first
+	}
+	if err := first.lockFastReader(); err != nil {
+		return nil, err
+	}
+	if err := second.lockFastReader(); err != nil {
+		first.mu.RUnlock()
+		return nil, err
+	}
+	return func() {
+		second.mu.RUnlock()
+		first.mu.RUnlock()
 	}, nil
 }

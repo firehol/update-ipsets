@@ -16,14 +16,13 @@ func indexedRangeSources6(sources []RangeSource6) ([]indexedRangeSource6, func()
 	if err != nil {
 		return nil, nil, true, err
 	}
-	if unlock == nil {
-		unlock = func() {}
-	}
 
 	indexed := make([]indexedRangeSource6, 0, len(sources))
 	for _, src := range sources {
 		if src == nil {
-			unlock()
+			if unlock != nil {
+				unlock()
+			}
 			return nil, nil, true, fmt.Errorf("nil range source6")
 		}
 		if set, ok := src.(*IPSet6); ok {
@@ -49,7 +48,9 @@ func indexedRangeSources6(sources []RangeSource6) ([]indexedRangeSource6, func()
 			})
 			continue
 		}
-		unlock()
+		if unlock != nil {
+			unlock()
+		}
 		return nil, nil, false, nil
 	}
 	return indexed, unlock, true, nil

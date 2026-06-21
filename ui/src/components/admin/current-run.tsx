@@ -25,9 +25,8 @@ import {
 } from "@/components/admin/current-run-shared";
 
 /**
- * Queue / processing panel — answers "what is the daemon doing
- * right now?" with only the four operator queues Costa asked
- * for:
+ * Queue / processing panel answers "what is the daemon doing
+ * right now?" with only the four requested operator queues:
  *
  *   1. waiting to be downloaded
  *   2. being downloaded now
@@ -228,7 +227,7 @@ export function CurrentRunPanel({
         </div>
       )}
 
-      <div className="grid gap-px overflow-hidden rounded-sm border border-border bg-border md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid items-stretch gap-px overflow-hidden rounded-sm border border-border bg-border md:grid-cols-2 xl:grid-cols-4">
         <QueueColumn
           title="Waiting To Be Downloaded"
           items={downloadWaiting}

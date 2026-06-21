@@ -17,7 +17,8 @@ import { describeRunReason, formatRunReason } from "@/lib/admin-run-reason";
 import { HoverTip } from "@/components/editorial/hover-tip";
 import {
   LIVE_QUEUE_EMPTY_CLASS,
-  LIVE_QUEUE_VIEWPORT_CLASS,
+  LIVE_QUEUE_TILE_CLASS,
+  LIVE_QUEUE_TILE_VIEWPORT_CLASS,
   parseGoTime,
 } from "@/components/admin/current-run-shared";
 
@@ -42,14 +43,14 @@ export function QueueColumn({
   itemLabel: "feed" | "item";
 }) {
   return (
-    <div className="bg-card">
+    <div className={LIVE_QUEUE_TILE_CLASS}>
       <div className="flex items-baseline justify-between border-b border-border/60 px-6 py-3">
         <div className="eyebrow">{title}</div>
         <div className="text-[11px] tabular-nums text-muted-foreground">
           {items.length} {items.length === 1 ? itemLabel : `${itemLabel}s`}
         </div>
       </div>
-      <div className={LIVE_QUEUE_VIEWPORT_CLASS}>
+      <div className={LIVE_QUEUE_TILE_VIEWPORT_CLASS}>
         {items.length === 0 ? (
           <div className={LIVE_QUEUE_EMPTY_CLASS}>{emptyText}</div>
         ) : (
@@ -87,14 +88,14 @@ export function ActiveDownloadColumn({
   onFeedClick: (feed: AdminFeed) => void;
 }) {
   return (
-    <div className="bg-card">
+    <div className={LIVE_QUEUE_TILE_CLASS}>
       <div className="flex items-baseline justify-between border-b border-border/60 px-6 py-3">
         <div className="eyebrow">Being Downloaded Now</div>
         <div className="text-[11px] tabular-nums text-muted-foreground">
           {items.length} {items.length === 1 ? "item" : "items"}
         </div>
       </div>
-      <div className={LIVE_QUEUE_VIEWPORT_CLASS}>
+      <div className={LIVE_QUEUE_TILE_VIEWPORT_CLASS}>
         {items.length === 0 ? (
           <div className={LIVE_QUEUE_EMPTY_CLASS}>
             No download worker is busy right now.
@@ -165,7 +166,7 @@ export function ProcessingNowColumn({
     );
 
   return (
-    <div className="bg-card">
+    <div className={LIVE_QUEUE_TILE_CLASS}>
       <div className="flex items-baseline justify-between border-b border-border/60 px-6 py-3">
         <div className="eyebrow">Being Processed Now</div>
         <div className="text-[11px] tabular-nums text-muted-foreground">
@@ -202,13 +203,13 @@ export function ProcessingNowColumn({
           </div>
         )}
       </div>
-      <div className={LIVE_QUEUE_VIEWPORT_CLASS}>
+      <div className={LIVE_QUEUE_TILE_VIEWPORT_CLASS}>
         {!processingBatch || processingBatch.length === 0 ? (
-          <div className={LIVE_QUEUE_EMPTY_CLASS}>
-            {running
-              ? emptyProcessingText(currentPhase)
-              : "No batch is active right now."}
-          </div>
+          running ? null : (
+            <div className={LIVE_QUEUE_EMPTY_CLASS}>
+              No batch is active right now.
+            </div>
+          )
         ) : (
           <ul className="divide-y divide-border/40">
             {processingBatch.map((batchFeed) => {
@@ -715,15 +716,4 @@ function formatQueueAge(queuedAt: string | undefined): string {
   const ts = parseGoTime(queuedAt);
   if (!ts) return "—";
   return relativeTime(ts);
-}
-
-function emptyProcessingText(currentPhase: string | undefined): string {
-  switch (currentPhase) {
-    case "geoip":
-      return "GeoIP database work is running in this phase.";
-    case "asn":
-      return "ASN database work is running in this phase.";
-    default:
-      return "This phase is running background work without per-feed queue entries.";
-  }
 }

@@ -90,6 +90,9 @@ test("shows phase-level progress when no feed-specific operation is active", () 
       name: /writing feed metadata progress/i,
     }),
   ).toHaveAttribute("aria-valuenow", "50");
+  expect(
+    screen.queryByText(/without per-feed queue entries/i),
+  ).not.toBeInTheDocument();
 });
 
 test("shows whole processing batch and phase plan", () => {

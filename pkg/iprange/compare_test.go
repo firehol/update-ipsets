@@ -74,6 +74,61 @@ func TestCompareNextSourcesMatchesCompareNext(t *testing.T) {
 	expectCompareRows(t, got, want)
 }
 
+func TestCompareAllSourcesMatchesCompareAll(t *testing.T) {
+	a := newOptimizedSet("a", Range{Lo: 1, Hi: 10})
+	b := newOptimizedSet("b", Range{Lo: 5, Hi: 15})
+	c := newOptimizedSet("c", Range{Lo: 20, Hi: 30})
+
+	want, err := CompareAll([]*IPSet{a, b, c})
+	if err != nil {
+		t.Fatalf("CompareAll() error = %v", err)
+	}
+	got, err := CompareAllSources(t.Context(),
+		[]CompareSource{{Source: a}, {Source: b}, {Source: c}},
+	)
+	if err != nil {
+		t.Fatalf("CompareAllSources() error = %v", err)
+	}
+	expectCompareRows(t, got, want)
+}
+
+func TestCompareAllSourcesWithFileSets(t *testing.T) {
+	a := newOptimizedSet("a", Range{Lo: 1, Hi: 10})
+	b := newOptimizedSet("b", Range{Lo: 5, Hi: 15})
+	c := newOptimizedSet("c", Range{Lo: 20, Hi: 30})
+
+	aFS, err := OpenFileSet(writeTempSet(t, a))
+	if err != nil {
+		t.Fatalf("OpenFileSet(a) error = %v", err)
+	}
+	t.Cleanup(func() { _ = aFS.Close() })
+	bFS, err := OpenFileSet(writeTempSet(t, b))
+	if err != nil {
+		t.Fatalf("OpenFileSet(b) error = %v", err)
+	}
+	t.Cleanup(func() { _ = bFS.Close() })
+	cFS, err := OpenFileSet(writeTempSet(t, c))
+	if err != nil {
+		t.Fatalf("OpenFileSet(c) error = %v", err)
+	}
+	t.Cleanup(func() { _ = cFS.Close() })
+
+	got, err := CompareAllSources(t.Context(), []CompareSource{
+		{Name: "a", Source: aFS},
+		{Name: "b", Source: bFS},
+		{Name: "c", Source: cFS},
+	})
+	if err != nil {
+		t.Fatalf("CompareAllSources() error = %v", err)
+	}
+	want := []CompareRow{
+		{Name1: "a", Name2: "b", Entries1: 1, Entries2: 1, Unique1: 10, Unique2: 11, CombinedIPs: 15, CommonIPs: 6},
+		{Name1: "a", Name2: "c", Entries1: 1, Entries2: 1, Unique1: 10, Unique2: 11, CombinedIPs: 21, CommonIPs: 0},
+		{Name1: "b", Name2: "c", Entries1: 1, Entries2: 1, Unique1: 11, Unique2: 11, CombinedIPs: 22, CommonIPs: 0},
+	}
+	expectCompareRows(t, got, want)
+}
+
 func TestCompareNextSourcesWithFileSets(t *testing.T) {
 	latest := newOptimizedSet("latest", Range{Lo: 1, Hi: 10})
 	cohortA := newOptimizedSet("cohort-a", Range{Lo: 5, Hi: 15})
@@ -124,6 +179,38 @@ func TestCompareNextSourcesHonorsContextCancellation(t *testing.T) {
 	)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("CompareNextSources() error = %v, want context.Canceled", err)
+	}
+}
+
+func TestCompareAllSourcesHonorsContextCancellation(t *testing.T) {
+	a := newOptimizedSet("a", Range{Lo: 1, Hi: 10})
+	b := newOptimizedSet("b", Range{Lo: 5, Hi: 15})
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	_, err := CompareAllSources(ctx,
+		[]CompareSource{{Source: a}, {Source: b}},
+	)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("CompareAllSources() error = %v, want context.Canceled", err)
+	}
+}
+
+func TestCompareAllSourcesPropagatesSourceErrors(t *testing.T) {
+	sentinel := errors.New("range source failed")
+	src := RangeSourceFromIterErr(func(yield func(Range) bool) error {
+		if !yield(Range{Lo: 1, Hi: 10}) {
+			return nil
+		}
+		return sentinel
+	}, 1)
+	other := newOptimizedSet("other", Range{Lo: 5, Hi: 15})
+
+	_, err := CompareAllSources(t.Context(),
+		[]CompareSource{{Name: "bad", Source: src}, {Source: other}},
+	)
+	if !errors.Is(err, sentinel) {
+		t.Fatalf("CompareAllSources() error = %v, want %v", err, sentinel)
 	}
 }
 

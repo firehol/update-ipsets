@@ -222,6 +222,56 @@ func TestRangeOverlapFilterBroadSourceAllocationShape(t *testing.T) {
 	}
 }
 
+func TestRangeOverlapFilterUsesCompactPrefixEvidence(t *testing.T) {
+	broad := New("broad")
+	for coarse := uint32(0); coarse < 513; coarse++ {
+		for sparse := uint32(0); sparse < 16; sparse++ {
+			ip := (coarse << rangeSummaryPrefixShift) + (sparse << rangeSummarySparsePrefixShift)
+			if err := broad.AddRange(Range{Lo: ip, Hi: ip}); err != nil {
+				t.Fatalf("AddRange() error = %v", err)
+			}
+		}
+	}
+	broad.Optimize()
+
+	broadFilter, err := BuildRangeOverlapFilterContext(t.Context(), broad)
+	if err != nil {
+		t.Fatalf("BuildRangeOverlapFilterContext(broad) error = %v", err)
+	}
+	sameCoarse := mustRangeSourceTestFilter(t, setFromRanges("same-coarse", Range{Lo: 100 << rangeSummaryPrefixShift, Hi: 100 << rangeSummaryPrefixShift}))
+	disjointCoarse := mustRangeSourceTestFilter(t, setFromRanges("disjoint-coarse", Range{Lo: 700 << rangeSummaryPrefixShift, Hi: 700 << rangeSummaryPrefixShift}))
+
+	if broadFilter.SparsePrefixesDisjoint(disjointCoarse) {
+		t.Fatal("overflowed sparse prefixes must not provide exact sparse proof")
+	}
+	if !broadFilter.PrefixesDisjoint(disjointCoarse) {
+		t.Fatal("compact coarse prefix evidence should prove disjoint sources")
+	}
+	if broadFilter.PrefixesDisjoint(sameCoarse) {
+		t.Fatal("shared coarse prefix must stay conservative")
+	}
+}
+
+func TestRangeSourceFromIterErrPropagatesError(t *testing.T) {
+	sentinel := errors.New("source read failed")
+	src := RangeSourceFromIterErr(func(yield func(Range) bool) error {
+		if !yield(Range{Lo: 1, Hi: 2}) {
+			return nil
+		}
+		return sentinel
+	}, -1)
+
+	var got []Range
+	err := WalkRangesContext(t.Context(), src, func(r Range) bool {
+		got = append(got, r)
+		return true
+	})
+	if !errors.Is(err, sentinel) {
+		t.Fatalf("WalkRangesContext() error = %v, want %v", err, sentinel)
+	}
+	expectRangeSlice(t, "WalkRangesContext", got, []Range{{Lo: 1, Hi: 2}})
+}
+
 func TestWalkRangeOverlapsContext(t *testing.T) {
 	src := setFromRanges("src",
 		Range{Lo: 10, Hi: 20},

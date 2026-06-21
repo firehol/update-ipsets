@@ -103,6 +103,37 @@ func TestReadFileSetMetadata(t *testing.T) {
 	}
 }
 
+func TestFileSetHeaderOpenAllocationShape(t *testing.T) {
+	set := newOptimizedSet("metadata-allocs",
+		Range{Lo: 100, Hi: 200},
+		Range{Lo: 300, Hi: 400},
+		Range{Lo: 1000, Hi: 2000},
+	)
+	path := writeTempSet(t, set)
+
+	metadataAllocs := testing.AllocsPerRun(20, func() {
+		if _, err := ReadFileSetMetadata(path); err != nil {
+			panic(err)
+		}
+	})
+	if metadataAllocs > 9 {
+		t.Fatalf("ReadFileSetMetadata() allocations = %.0f, want <= 9", metadataAllocs)
+	}
+
+	trustedOpenAllocs := testing.AllocsPerRun(20, func() {
+		fs, err := OpenFileSetWithOptions(path, FileSetOpenOptions{TrustOptimizedPayload: true})
+		if err != nil {
+			panic(err)
+		}
+		if err := fs.Close(); err != nil {
+			panic(err)
+		}
+	})
+	if trustedOpenAllocs > 10 {
+		t.Fatalf("OpenFileSetWithOptions(trusted) allocations = %.0f, want <= 10", trustedOpenAllocs)
+	}
+}
+
 func TestFileSetTrustedOpenSkipsSortedValidationOnlyWhenRequested(t *testing.T) {
 	set := newOptimizedSet("trusted",
 		Range{Lo: 10, Hi: 20},

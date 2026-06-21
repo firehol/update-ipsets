@@ -7,5 +7,5 @@ func mmapIndexedRangeSource6(RangeSource6) (indexedRangeSource6, bool) {
 }
 
 func lockMmapRangeSources6([]RangeSource6) (func(), error) {
-	return func() {}, nil
+	return nil, nil
 }

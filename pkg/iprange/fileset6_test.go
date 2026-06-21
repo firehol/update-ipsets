@@ -72,3 +72,25 @@ func TestFileSet6UniqueIPsAndEmpty(t *testing.T) {
 		t.Fatalf("Len = %d, want 0", empty.Len())
 	}
 }
+
+func TestFileSet6OpenAllocationShape(t *testing.T) {
+	s := makeTestSet6(
+		Range6{Lo: u128FromUint64(1), Hi: u128FromUint64(10)},
+		Range6{Lo: u128FromHiLo(0x20010db800000000, 0), Hi: u128FromHiLo(0x20010db800000000, 0xffff)},
+	)
+	s.Optimize()
+	path := writeTestBinary6File(t, s)
+
+	allocs := testing.AllocsPerRun(20, func() {
+		fs, err := OpenFileSet6(path)
+		if err != nil {
+			panic(err)
+		}
+		if err := fs.Close(); err != nil {
+			panic(err)
+		}
+	})
+	if allocs > 9 {
+		t.Fatalf("OpenFileSet6() allocations = %.0f, want <= 9", allocs)
+	}
+}

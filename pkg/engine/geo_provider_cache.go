@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -259,14 +260,19 @@ func buildGeoPreparedSegments(events []geoSegmentEvent, codeCount int) []geoPrep
 }
 
 func (p *geoPreparedProvider) CountSource(src iprange.RangeSource) ([]CountryValue, uint64) {
+	values, totalMapped, _ := p.CountSourceContext(nil, src)
+	return values, totalMapped
+}
+
+func (p *geoPreparedProvider) CountSourceContext(ctx context.Context, src iprange.RangeSource) ([]CountryValue, uint64, error) {
 	if p == nil || src == nil || len(p.segments) == 0 || len(p.countryCodes) == 0 {
-		return nil, 0
+		return nil, 0, nil
 	}
 
 	counts := make([]uint64, len(p.countryCodes))
 	var totalMapped uint64
 
-	_ = iprange.WalkRangeOverlapsContext(nil, src, geoPreparedSegmentIndex(p.segments), func(overlap iprange.RangeOverlap) bool {
+	if err := iprange.WalkRangeOverlapsContext(ctx, src, geoPreparedSegmentIndex(p.segments), func(overlap iprange.RangeOverlap) bool {
 		segment := p.segments[overlap.RightIndex]
 		span := overlap.Overlap.Size()
 		totalMapped += span
@@ -274,7 +280,9 @@ func (p *geoPreparedProvider) CountSource(src iprange.RangeSource) ([]CountryVal
 			counts[int(codeIndex)] += span
 		}
 		return true
-	})
+	}); err != nil {
+		return nil, 0, err
+	}
 
 	values := make([]CountryValue, 0, len(counts))
 	for idx, count := range counts {
@@ -286,5 +294,5 @@ func (p *geoPreparedProvider) CountSource(src iprange.RangeSource) ([]CountryVal
 			Value: count,
 		})
 	}
-	return values, totalMapped
+	return values, totalMapped, nil
 }

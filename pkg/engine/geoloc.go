@@ -167,8 +167,12 @@ func (e *Engine) writeCountryComparisonFiles(ctx context.Context, datasets geoPr
 				e.logger.Warn("geolocation comparison skipped: cannot open set", "set", name, "provider", provider, "error", err)
 				return nil
 			}
-			values, totalMapped := dataset.CountSource(src.RangeSource)
-			if ioErr := checkFileSetErr(src.RangeSource, name, e.logger); ioErr != nil {
+			values, totalMapped, err := dataset.CountSourceContext(ctx, src.RangeSource)
+			if err != nil {
+				if ctxErr := contextErr(ctx); ctxErr != nil {
+					return ctxErr
+				}
+				e.logger.Warn("geolocation comparison skipped: range source read failed", "set", name, "provider", provider, "error", err)
 				return nil
 			}
 			if err := contextErr(ctx); err != nil {

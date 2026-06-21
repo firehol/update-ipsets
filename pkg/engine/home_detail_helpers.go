@@ -41,9 +41,9 @@ func countryFilteredRangeSource(src iprange.RangeSource, prepared *geoPreparedPr
 		return iprange.RangeSourceFromIter(nil, 0)
 	}
 	targetCode := uint16(targetIndex)
-	return iprange.RangeSourceFromIter(
-		func(yield func(iprange.Range) bool) {
-			_ = iprange.WalkRangeOverlapsContext(nil, src, geoPreparedSegmentIndex(prepared.segments), func(overlap iprange.RangeOverlap) bool {
+	return iprange.RangeSourceFromIterErr(
+		func(yield func(iprange.Range) bool) error {
+			return iprange.WalkRangeOverlapsContext(nil, src, geoPreparedSegmentIndex(prepared.segments), func(overlap iprange.RangeOverlap) bool {
 				segment := prepared.segments[overlap.RightIndex]
 				if !geoPreparedSegmentHasCode(segment, targetCode) {
 					return true

@@ -2,6 +2,7 @@ package iprange
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -176,6 +177,209 @@ func parseBinaryHeader(r io.Reader) (binaryHeader, error) {
 	}, nil
 }
 
+func parseBinaryHeaderFile(f *os.File) (binaryHeader, error) {
+	var buf [1024]byte
+	n, err := f.ReadAt(buf[:], 0)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return binaryHeader{}, fmt.Errorf("reading header: %w", err)
+	}
+	return parseBinaryHeaderBytes(buf[:n])
+}
+
+func parseBinaryHeaderBytes(data []byte) (binaryHeader, error) {
+	p := headerByteParser{data: data}
+
+	line, err := p.nextLine("header")
+	if err != nil {
+		return binaryHeader{}, err
+	}
+	if !headerLineEqual(line, strings.TrimSuffix(BinaryHeaderV10, "\n")) {
+		return binaryHeader{}, fmt.Errorf("expecting binary header but found %q", string(line))
+	}
+
+	line, err = p.nextLine("optimization marker")
+	if err != nil {
+		return binaryHeader{}, err
+	}
+	if !headerLineEqual(line, "optimized") && !headerLineEqual(line, "non-optimized") {
+		return binaryHeader{}, fmt.Errorf("invalid optimization marker %q", string(line))
+	}
+	optimized := headerLineEqual(line, "optimized")
+
+	recordSize, err := readHeaderIntBytes(&p, "record size ")
+	if err != nil {
+		return binaryHeader{}, err
+	}
+	if recordSize != 8 {
+		return binaryHeader{}, fmt.Errorf("invalid record size %d", recordSize)
+	}
+
+	records, err := readHeaderIntBytes(&p, "records ")
+	if err != nil {
+		return binaryHeader{}, err
+	}
+	payloadBytes, err := readHeaderIntBytes(&p, "bytes ")
+	if err != nil {
+		return binaryHeader{}, err
+	}
+	lines, err := readHeaderIntBytes(&p, "lines ")
+	if err != nil {
+		return binaryHeader{}, err
+	}
+	uniqueIPs, err := readHeaderUint64Bytes(&p, "unique ips ")
+	if err != nil {
+		return binaryHeader{}, err
+	}
+
+	if payloadBytes != records*8+4 {
+		return binaryHeader{}, fmt.Errorf("invalid payload size %d (expected %d)", payloadBytes, records*8+4)
+	}
+	if uniqueIPs < uint64(records) || lines < records {
+		return binaryHeader{}, fmt.Errorf("inconsistent binary counters")
+	}
+
+	return binaryHeader{
+		optimized:  optimized,
+		recordSize: recordSize,
+		records:    records,
+		bytes:      payloadBytes,
+		lines:      lines,
+		uniqueIPs:  uniqueIPs,
+		dataOffset: int64(p.offset),
+	}, nil
+}
+
+type headerByteParser struct {
+	data   []byte
+	offset int
+}
+
+func (p *headerByteParser) nextLine(label string) ([]byte, error) {
+	if p == nil || p.offset >= len(p.data) {
+		return nil, fmt.Errorf("reading %s: %w", label, io.ErrUnexpectedEOF)
+	}
+	end := bytes.IndexByte(p.data[p.offset:], '\n')
+	if end < 0 {
+		return nil, fmt.Errorf("reading %s: %w", label, io.ErrUnexpectedEOF)
+	}
+	line := trimHeaderBytes(p.data[p.offset : p.offset+end])
+	p.offset += end + 1
+	return line, nil
+}
+
+func readHeaderIntBytes(p *headerByteParser, prefix string) (int, error) {
+	line, err := p.nextLine(prefix + "line")
+	if err != nil {
+		return 0, err
+	}
+	if !headerLineHasPrefix(line, prefix) {
+		return 0, fmt.Errorf("expected %q line, got %q", prefix, string(line))
+	}
+	val, err := parseIntBytes(trimHeaderBytes(line[len(prefix):]))
+	if err != nil {
+		return 0, fmt.Errorf("parsing %q value: %w", prefix, err)
+	}
+	return val, nil
+}
+
+func readHeaderUint64Bytes(p *headerByteParser, prefix string) (uint64, error) {
+	line, err := p.nextLine(prefix + "line")
+	if err != nil {
+		return 0, err
+	}
+	if !headerLineHasPrefix(line, prefix) {
+		return 0, fmt.Errorf("expected %q line, got %q", prefix, string(line))
+	}
+	val, err := parseUint64Bytes(trimHeaderBytes(line[len(prefix):]))
+	if err != nil {
+		return 0, fmt.Errorf("parsing %q value: %w", prefix, err)
+	}
+	return val, nil
+}
+
+func trimHeaderBytes(b []byte) []byte {
+	for len(b) > 0 {
+		switch b[0] {
+		case ' ', '\t', '\r', '\n':
+			b = b[1:]
+		default:
+			goto trimRight
+		}
+	}
+	return b
+
+trimRight:
+	for len(b) > 0 {
+		switch b[len(b)-1] {
+		case ' ', '\t', '\r', '\n':
+			b = b[:len(b)-1]
+		default:
+			return b
+		}
+	}
+	return b
+}
+
+func headerLineEqual(line []byte, want string) bool {
+	if len(line) != len(want) {
+		return false
+	}
+	for i := range line {
+		if line[i] != want[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func headerLineHasPrefix(line []byte, prefix string) bool {
+	if len(line) < len(prefix) {
+		return false
+	}
+	for i := range prefix {
+		if line[i] != prefix[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func parseIntBytes(s []byte) (int, error) {
+	if len(s) == 0 {
+		return 0, fmt.Errorf("empty integer string")
+	}
+	n := 0
+	for _, ch := range s {
+		if ch < '0' || ch > '9' {
+			return 0, fmt.Errorf("non-digit %q in integer", ch)
+		}
+		digit := int(ch - '0')
+		if n > (math.MaxInt-digit)/10 {
+			return 0, fmt.Errorf("integer overflow")
+		}
+		n = n*10 + digit
+	}
+	return n, nil
+}
+
+func parseUint64Bytes(s []byte) (uint64, error) {
+	if len(s) == 0 {
+		return 0, fmt.Errorf("empty uint64 string")
+	}
+	var n uint64
+	for _, ch := range s {
+		if ch < '0' || ch > '9' {
+			return 0, fmt.Errorf("non-digit %q in uint64", ch)
+		}
+		digit := uint64(ch - '0')
+		if n > (math.MaxUint64-digit)/10 {
+			return 0, fmt.Errorf("uint64 overflow")
+		}
+		n = n*10 + digit
+	}
+	return n, nil
+}
+
 // readHeaderInt reads a line of the form "<prefix><int>\n" and returns the
 // integer value and the number of bytes consumed (including the newline).
 func readHeaderInt(br *bufio.Reader, prefix string) (int, int, error) {
@@ -285,7 +489,7 @@ func OpenFileSetWithOptions(path string, opts FileSetOpenOptions) (FileSet, erro
 		return &emptyFileSet{}, nil
 	}
 
-	hdr, err := parseBinaryHeader(f)
+	hdr, err := parseBinaryHeaderFile(f)
 	if err != nil {
 		_ = f.Close()
 		return nil, fmt.Errorf("%s: %w", path, err)
@@ -330,7 +534,7 @@ func ReadFileSetMetadata(path string) (FileSetMetadata, error) {
 		return FileSetMetadata{}, nil
 	}
 
-	hdr, err := parseBinaryHeader(f)
+	hdr, err := parseBinaryHeaderFile(f)
 	if err != nil {
 		return FileSetMetadata{}, fmt.Errorf("%s: %w", path, err)
 	}

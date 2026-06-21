@@ -120,6 +120,109 @@ func parseBinaryHeader6(r io.Reader) (binaryHeader6, error) {
 	}, nil
 }
 
+func parseBinaryHeader6File(f *os.File) (binaryHeader6, error) {
+	var buf [1024]byte
+	n, err := f.ReadAt(buf[:], 0)
+	if err != nil && !errors.Is(err, io.EOF) {
+		return binaryHeader6{}, fmt.Errorf("reading header: %w", err)
+	}
+	return parseBinaryHeader6Bytes(buf[:n])
+}
+
+func parseBinaryHeader6Bytes(data []byte) (binaryHeader6, error) {
+	p := headerByteParser{data: data}
+
+	line, err := p.nextLine("header")
+	if err != nil {
+		return binaryHeader6{}, err
+	}
+	if !headerLineEqual(line, strings.TrimSuffix(BinaryHeaderV20IPv6, "\n")) {
+		return binaryHeader6{}, fmt.Errorf("expecting binary v2 header but found %q", string(line))
+	}
+
+	family, err := p.nextLine("family")
+	if err != nil {
+		return binaryHeader6{}, err
+	}
+	if !headerLineEqual(family, "ipv6") {
+		return binaryHeader6{}, fmt.Errorf("expected family 'ipv6' but found %q", string(family))
+	}
+
+	mode, err := p.nextLine("optimization marker")
+	if err != nil {
+		return binaryHeader6{}, err
+	}
+	if !headerLineEqual(mode, "optimized") && !headerLineEqual(mode, "non-optimized") {
+		return binaryHeader6{}, fmt.Errorf("invalid optimization marker %q", string(mode))
+	}
+	optimized := headerLineEqual(mode, "optimized")
+
+	recordSize, err := readHeaderIntBytes(&p, "record size ")
+	if err != nil {
+		return binaryHeader6{}, err
+	}
+	if recordSize != 32 {
+		return binaryHeader6{}, fmt.Errorf("invalid record size %d (expected 32)", recordSize)
+	}
+
+	records, err := readHeaderIntBytes(&p, "records ")
+	if err != nil {
+		return binaryHeader6{}, err
+	}
+	payloadBytes, err := readHeaderIntBytes(&p, "bytes ")
+	if err != nil {
+		return binaryHeader6{}, err
+	}
+	lines, err := readHeaderIntBytes(&p, "lines ")
+	if err != nil {
+		return binaryHeader6{}, err
+	}
+
+	uniqueLine, err := p.nextLine("unique ips")
+	if err != nil {
+		return binaryHeader6{}, err
+	}
+	if !headerLineHasPrefix(uniqueLine, "unique ips ") {
+		return binaryHeader6{}, fmt.Errorf("expected 'unique ips' line, got %q", string(uniqueLine))
+	}
+	uniqueIPs, err := parseUint128Bytes(trimHeaderBytes(uniqueLine[len("unique ips "):]))
+	if err != nil {
+		return binaryHeader6{}, fmt.Errorf("parsing unique ips: %w", err)
+	}
+
+	if payloadBytes != records*32+4 {
+		return binaryHeader6{}, fmt.Errorf("invalid payload size %d (expected %d)", payloadBytes, records*32+4)
+	}
+
+	return binaryHeader6{
+		optimized:  optimized,
+		recordSize: recordSize,
+		records:    records,
+		bytes:      payloadBytes,
+		lines:      lines,
+		uniqueIPs:  uniqueIPs,
+		dataOffset: int64(p.offset),
+	}, nil
+}
+
+func parseUint128Bytes(s []byte) (uint128, error) {
+	if len(s) == 0 {
+		return uint128Zero, fmt.Errorf("empty uint128 string")
+	}
+	var result uint128
+	for _, ch := range s {
+		if ch < '0' || ch > '9' {
+			return uint128Zero, fmt.Errorf("non-digit %q in uint128", ch)
+		}
+		prev := result
+		result = mulAdd10(result, uint64(ch-'0'))
+		if result.LessThan(prev) {
+			return uint128Zero, fmt.Errorf("uint128 overflow")
+		}
+	}
+	return result, nil
+}
+
 func OpenFileSet6(path string) (FileSet6, error) {
 	f, err := os.Open(path) // nosemgrep: exported local fileset API; callers intentionally provide the binary set path.
 	if err != nil {
@@ -137,7 +240,7 @@ func OpenFileSet6(path string) (FileSet6, error) {
 		return &emptyFileSet6{}, nil
 	}
 
-	hdr, err := parseBinaryHeader6(f)
+	hdr, err := parseBinaryHeader6File(f)
 	if err != nil {
 		_ = f.Close()
 		return nil, fmt.Errorf("%s: %w", path, err)

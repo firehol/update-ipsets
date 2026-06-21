@@ -294,28 +294,11 @@ func CompareAll(sets []*IPSet) ([]CompareRow, error) {
 	if len(sets) < 2 {
 		return nil, fmt.Errorf("compare requires at least two ipsets")
 	}
-	rows := make([]CompareRow, 0, len(sets)*(len(sets)-1)/2)
-	for i := 0; i < len(sets); i++ {
-		sets[i].Optimize()
-		for j := i + 1; j < len(sets); j++ {
-			sets[j].Optimize()
-			common, err := OverlapCountIterContext(context.Background(), sets[i], sets[j])
-			if err != nil {
-				return nil, err
-			}
-			rows = append(rows, CompareRow{
-				Name1:       sets[i].Name,
-				Name2:       sets[j].Name,
-				Entries1:    len(sets[i].Ranges),
-				Entries2:    len(sets[j].Ranges),
-				Unique1:     sets[i].UniqueIPs,
-				Unique2:     sets[j].UniqueIPs,
-				CombinedIPs: sets[i].UniqueIPs + sets[j].UniqueIPs - common,
-				CommonIPs:   common,
-			})
-		}
+	sources := make([]CompareSource, len(sets))
+	for i, set := range sets {
+		sources[i] = CompareSource{Source: set}
 	}
-	return rows, nil
+	return CompareAllSources(context.Background(), sources)
 }
 
 func CompareNext(before, after []*IPSet) ([]CompareRow, error) {
@@ -339,6 +322,52 @@ func CompareNext(before, after []*IPSet) ([]CompareRow, error) {
 				Unique1:     left.UniqueIPs,
 				Unique2:     right.UniqueIPs,
 				CombinedIPs: left.UniqueIPs + right.UniqueIPs - common,
+				CommonIPs:   common,
+			})
+		}
+	}
+	return rows, nil
+}
+
+// CompareAllSources compares every unique source pair. It produces the same row
+// semantics as CompareAll while accepting streaming RangeSource inputs, so
+// file-backed sets do not need to be materialized.
+func CompareAllSources(ctx context.Context, sources []CompareSource) ([]CompareRow, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if len(sources) < 2 {
+		return nil, fmt.Errorf("compare requires at least two ipsets")
+	}
+
+	prepared, err := prepareCompareSources(ctx, sources)
+	if err != nil {
+		return nil, err
+	}
+
+	rows := make([]CompareRow, 0, len(prepared)*(len(prepared)-1)/2)
+	for i := 0; i < len(prepared); i++ {
+		left := prepared[i]
+		for j := i + 1; j < len(prepared); j++ {
+			right := prepared[j]
+			common, err := OverlapCountIterContext(ctx, left.source, right.source)
+			if err != nil {
+				return nil, err
+			}
+			if err := RangeSourceErr(left.source); err != nil {
+				return nil, fmt.Errorf("compare %s: %w", left.name, err)
+			}
+			if err := RangeSourceErr(right.source); err != nil {
+				return nil, fmt.Errorf("compare %s: %w", right.name, err)
+			}
+			rows = append(rows, CompareRow{
+				Name1:       left.name,
+				Name2:       right.name,
+				Entries1:    left.entries,
+				Entries2:    right.entries,
+				Unique1:     left.uniqueIPs,
+				Unique2:     right.uniqueIPs,
+				CombinedIPs: left.uniqueIPs + right.uniqueIPs - common,
 				CommonIPs:   common,
 			})
 		}
