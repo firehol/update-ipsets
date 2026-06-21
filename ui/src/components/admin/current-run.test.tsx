@@ -231,7 +231,7 @@ test("keeps live queue feed lists in fixed tiles with full-height scroll bodies"
       name: regionName,
     });
     expect(tile).toHaveClass(
-      "h-[13.5rem]",
+      "h-[17.55rem]",
       "grid-rows-[auto_minmax(0,1fr)]",
     );
     expect(queueRegion).toHaveClass("min-h-0", "overflow-y-auto");
