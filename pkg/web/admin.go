@@ -3,7 +3,6 @@ package web
 import (
 	_ "embed"
 	"net/http"
-	"runtime"
 	"strings"
 	"time"
 
@@ -255,11 +254,16 @@ func handleAdminPage(w http.ResponseWriter, _ *http.Request) {
 }
 
 func handleAdminStatus(eng *engine.Engine, runner *scheduler.Runner) http.HandlerFunc {
-	return func(w http.ResponseWriter, _ *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
 		started := time.Now()
 		apiNoCache(w)
 		buildStarted := time.Now()
-		status := buildAdminStatus(eng, runner)
+		var status any
+		if r.URL.Query().Get("mode") == "light" {
+			status = buildAdminStatusLight(eng, runner)
+		} else {
+			status = buildAdminStatus(eng, runner)
+		}
 		eng.ObserveOperation("http.admin_status.build", time.Since(buildStarted))
 		writeStarted := time.Now()
 		bytes := writeJSON(w, http.StatusOK, status)
@@ -515,12 +519,9 @@ func handleAdminSchedule(eng *engine.Engine, runner *scheduler.Runner) http.Hand
 // drift. If you change the classification logic, add a matching
 // adjustment in the UI filter chip predicates or lose the invariant.
 func buildAdminStatus(eng *engine.Engine, runner *scheduler.Runner) adminStatus {
-	var mem runtime.MemStats
-	runtime.ReadMemStats(&mem)
-
 	sys := detailedStatus()
 	cfg := eng.Config()
-	engineStatus := eng.StatusSnapshotLight()
+	engineStatus := eng.StatusSnapshot()
 	activity := runner.ActivitySnapshot()
 	snapshot := runner.Snapshot()
 	entriesWithArtifacts := eng.EntriesSnapshotWithArtifacts()
@@ -531,41 +532,13 @@ func buildAdminStatus(eng *engine.Engine, runner *scheduler.Runner) adminStatus 
 
 	return adminStatus{
 		PublicBaseURL: strings.TrimSpace(eng.Runtime().PublicBaseURL),
-		System: adminSystemInfo{
-			Uptime:       sys.Uptime,
-			GoVersion:    runtime.Version(),
-			GOOS:         runtime.GOOS,
-			GOARCH:       runtime.GOARCH,
-			Goroutines:   sys.Goroutines,
-			HeapAlloc:    mem.HeapAlloc,
-			HeapSys:      mem.HeapSys,
-			HeapInuse:    mem.HeapInuse,
-			StackInuse:   mem.StackInuse,
-			Sys:          mem.Sys,
-			NumGC:        mem.NumGC,
-			LastGC:       int64(mem.LastGC),
-			GCPauseTotal: mem.PauseTotalNs,
-			DiskFree:     sys.DiskFree,
-			RSSKB:        sys.RSSKB,
-			VMSKB:        sys.VMSKB,
-			DataKB:       sys.DataKB,
-
-			CPUUserSeconds:     sys.CPUUserSeconds,
-			CPUSystemSeconds:   sys.CPUSystemSeconds,
-			CPUTotalSeconds:    sys.CPUTotalSeconds,
-			ProcReadBytes:      sys.ProcReadBytes,
-			ProcWriteBytes:     sys.ProcWriteBytes,
-			ProcCancelledWrite: sys.ProcCancelledWrite,
-			ProcReadSyscalls:   sys.ProcReadSyscalls,
-			ProcWriteSyscalls:  sys.ProcWriteSyscalls,
-			OpenFDs:            sys.OpenFDs,
-		},
-		Engine:    engineStatus,
-		Scheduler: sanitizeSchedulerSnapshot(snapshot),
-		Queues:    activity,
-		Metrics:   runner.MetricsSnapshot(),
-		Feeds:     summary,
-		Artifacts: artifacts,
+		System:        adminSystemFromDetailed(sys),
+		Engine:        engineStatus,
+		Scheduler:     sanitizeSchedulerSnapshot(snapshot),
+		Queues:        activity,
+		Metrics:       runner.MetricsSnapshot(),
+		Feeds:         summary,
+		Artifacts:     artifacts,
 	}
 }
 

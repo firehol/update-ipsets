@@ -158,7 +158,9 @@ func telemetryRouteName(path string) string {
 		path == "/api/v1/admin/artifacts",
 		path == "/api/v1/admin/schedule",
 		path == "/api/v1/admin/integrity",
+		path == "/api/v1/admin/integrity/refresh",
 		path == "/api/v1/admin/integrity/entities",
+		path == "/api/v1/admin/integrity/entities/refresh",
 		path == "/api/v1/admin/integrity/entities/rebuild",
 		path == "/api/v1/admin/integrity/reprocess",
 		path == "/api/v1/admin/run":

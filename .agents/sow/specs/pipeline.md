@@ -312,6 +312,7 @@ The runtime MUST distinguish between:
 - downloader workers
 - feed-processing workers
 - heavy-phase workers
+- engine-lane workers
 
 Downloader workers execute upstream acquisition and local canonical feed-body
 composition.
@@ -335,6 +336,20 @@ If the product chooses an automatic heavy-phase default, that default MUST be:
 - bounded
 - deterministic
 - no lower than the feed-processing worker count
+
+Engine-lane workers execute broad engine-owned operations that are not public
+HTTP serving and do not belong to the downloader loop. This includes normal
+processing-engine runs, integrity refresh scans, integrity-triggered local
+reprocess admission, generated-artifact cleanup, entity artifact repair, entity
+refresh, and full entity rebuilds. The engine lane MUST be FIFO for new work at
+limit `1`, MUST be bounded by its configured limit at higher values, and MUST
+not be acquired by the public/admin web server or watchdog sampling paths.
+One `RunOnce` invocation is one engine-lane item; the engine lane admits the
+whole processing run, not individual heavy phases inside that run.
+
+The engine lane is an admission and serialization boundary. Once a broad
+operation is admitted, it MAY use its own bounded feed-processing, heavy-phase,
+or background fan-out as defined by the relevant subsystem contract.
 
 ## Queue and state model
 
@@ -363,6 +378,9 @@ Allowed admissions into `waiting to be downloaded`:
 - admin `recheck`
 - operator action such as `run due work now` that asks the downloader loop to
   recompute due work immediately
+- restart recovery of a durable staged artifact-parent input such as a DroneBL
+  `source.new` file, so child materialization still runs under downloader FIFO
+  ownership
 
 Allowed admissions into `waiting to be processed`:
 
@@ -409,6 +427,14 @@ The downloader loop MUST handle:
 - merges
 - artifact parents and their child materialization
 - provider databases
+
+Restart recovery MUST preserve that ownership. If startup finds a durable
+staged artifact-parent input, recovery MUST enqueue the artifact parent as
+downloader-stage work. It MUST NOT materialize artifact children directly from
+startup code or enqueue the children directly into processing. For the current
+DroneBL artifact family, recovered `source.new` state therefore enters
+`waiting to be downloaded` as recovered artifact work and only the downloader
+worker may materialize child-local inputs.
 
 ## Startup contract
 

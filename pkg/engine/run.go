@@ -3,6 +3,7 @@ package engine
 import (
 	"cmp"
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"time"
@@ -16,6 +17,33 @@ import (
 )
 
 func (e *Engine) RunOnce(ctx context.Context, opts RunOptions) (*Report, error) {
+	if e == nil || e.engineLane == nil {
+		return nil, errors.New("engine work lane is not initialized")
+	}
+	var report *Report
+	runReason := normalizeRunReason(opts)
+	err := e.engineLane.Run(ctx, LaneWork{
+		Kind:      LaneWorkEngineRun,
+		Component: LaneComponentEngineRun,
+		Name:      "engine.run",
+		Trigger:   runReason.String(),
+	}, func(laneCtx context.Context) error {
+		var runErr error
+		report, runErr = e.runOnceAdmitted(laneCtx, opts)
+		return runErr
+	})
+	if report == nil {
+		report = &Report{
+			StartedAt: e.now().UTC(),
+			EndedAt:   e.now().UTC(),
+			Messages:  map[string]string{},
+			Statuses:  map[string]string{},
+		}
+	}
+	return report, err
+}
+
+func (e *Engine) runOnceAdmitted(ctx context.Context, opts RunOptions) (*Report, error) {
 	var runErr error
 	runReason := normalizeRunReason(opts)
 	runStarted := time.Now()
@@ -79,6 +107,7 @@ func (e *Engine) RunOnce(ctx context.Context, opts RunOptions) (*Report, error) 
 			runErr = err
 			return report, err
 		}
+		e.MarkIntegrityCachesStale()
 	}
 	e.setRunPhase(RunPhasePreflight)
 
@@ -131,6 +160,7 @@ func (e *Engine) RunOnce(ctx context.Context, opts RunOptions) (*Report, error) 
 		runErr = err
 		return report, err
 	}
+	e.MarkIntegrityCachesStale()
 	return report, nil
 }
 

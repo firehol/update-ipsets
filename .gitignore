@@ -6,6 +6,7 @@
 # Test and benchmark artifacts
 /coverage.out
 /bench.out
+*.test
 /ui/coverage/
 /ui/playwright-report/
 /ui/test-results/

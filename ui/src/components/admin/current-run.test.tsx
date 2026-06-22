@@ -190,6 +190,57 @@ test("shows deferred processing as blocked waiting work", () => {
   expect(screen.queryByText(/\+1 pending/i)).not.toBeInTheDocument();
 });
 
+test("shows active and waiting engine-lane work in the background area", () => {
+  const status = sampleAdminStatus({
+    engine: {
+      background_limit: 1,
+      background_running: 1,
+      engine_lane: {
+        limit: 1,
+        active_count: 1,
+        waiting_count: 1,
+        active: [
+          {
+            id: "lane-active",
+            kind: "integrity_refresh",
+            component: "integrity",
+            name: "Pipeline integrity refresh",
+            trigger: "admin_get",
+            stage: "scan",
+            detail: "Checking generated artifacts",
+            state: "active",
+            queued_at: "2026-06-20T10:00:00Z",
+            started_at: "2026-06-20T10:00:10Z",
+          },
+        ],
+        waiting: [
+          {
+            id: "lane-waiting",
+            kind: "entity_rebuild",
+            component: "entity",
+            name: "Entity artifacts rebuild",
+            trigger: "operator",
+            stage: "queued",
+            state: "queued",
+            queued_at: "2026-06-20T10:01:00Z",
+          },
+        ],
+      },
+    },
+  });
+
+  renderUI(
+    <CurrentRunPanel status={status} feeds={[]} onFeedClick={vi.fn()} />,
+  );
+
+  expect(screen.getByText("Pipeline integrity refresh")).toBeVisible();
+  expect(screen.getByText("Checking generated artifacts")).toBeVisible();
+  expect(screen.getByText("Entity artifacts rebuild")).toBeVisible();
+  expect(screen.getByText("integrity refresh")).toBeVisible();
+  expect(screen.getByText("entity rebuild")).toBeVisible();
+  expect(screen.getByText("waiting:")).toBeVisible();
+});
+
 test("keeps live queue feed lists in fixed tiles with full-height scroll bodies", () => {
   const feedNames = Array.from(
     { length: 6 },

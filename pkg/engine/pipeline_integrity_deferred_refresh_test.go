@@ -32,7 +32,9 @@ func TestPipelineIntegrityScenarioDeferredQueuedEntityRefreshSettlesMissingEmpty
 	scenario.removeCommittedFeedSidecar("sample")
 	scenario.assertMissingFeedSidecarFinding("sample")
 
-	task := scenario.eng.beginBackgroundTask(
+	task := scenario.eng.beginBackgroundTaskWithLaneWork(
+		LaneWorkEntityRebuild,
+		LaneComponentEntityArtifacts,
 		"Entity artifacts rebuild",
 		"startup",
 		"planning",
@@ -60,7 +62,9 @@ func TestPipelineIntegrityScenarioDeferredQueuedEntityRefreshSettlesMissingEmpty
 	scenario.assertMissingFeedSidecarFinding("sample")
 
 	task.Finish()
-	scenario.eng.QueueEntityArtifactsRefreshForFeedUpdates(t.Context(), report.EntityRefreshTargets, "pipeline_integrity_scenario")
+	if _, err := scenario.eng.QueueEntityArtifactsRefreshForFeedUpdates(t.Context(), report.EntityRefreshTargets, "pipeline_integrity_scenario"); err != nil {
+		t.Fatalf("queue entity artifact refresh: %v", err)
+	}
 	scenario.waitForQueuedEntityRefreshClean(5 * time.Second)
 	scenario.assertExplicitEmptyFeedSidecar("sample")
 	scenario.assertCleanIntegrity()

@@ -178,6 +178,15 @@ description: "Test commands, fixtures, and validation patterns for update-ipsets
   background tasks for entity-specific repairs/refreshes. Without both, the
   admin API can show transient stale rows as settled issues (from SOW-0017
   regression).
+- Admin pipeline/entity integrity tests must prove GET handlers are
+  cache-first: cold or stale cache returns in-progress/queued refresh state,
+  fresh cache returns settled findings, and reprocess uses fresh cached
+  findings instead of running a live scan from the HTTP handler. Engine-lane
+  tickets and coalescing state are observable API contract (from SOW-0117).
+- Scheduler recovery tests for artifact parents must include DroneBL-style
+  staged parent artifacts and prove recovery queues the parent in the
+  downloader FIFO without materializing children directly from startup recovery
+  (from SOW-0117).
 - Merge subtraction tests must cover more than the happy path: multiple
   subtractive parents, disabled/no-additive state, strict subtractive
   dependency failures, integrity blockers, and `enableAll` behavior (from
@@ -321,4 +330,9 @@ description: "Test commands, fixtures, and validation patterns for update-ipsets
 - Public methodology/docs/UI-copy changes need a surface-fit validation pass using `project-content-surfaces`; tests alone are insufficient. For methodology pages, scan for misplaced implementation markers such as `configs/`, `pkg/`, `use:`, artifact filenames, YAML fences, and raw API route lists when those details are not part of the page's public interpretation job (from SOW-0017 regression).
 - Performance/telemetry changes: compare admin status/telemetry snapshots over elapsed time and CPU/memory/I/O deltas.
 - For hot-path helper changes, add or update a regression guard that checks cost shape, not only correctness. In engine code, `TestEffectiveEntryHelpersExposeSnapshotCost` prevents cheap-looking effective-entry/feed-health helpers and fresh full-cache snapshot calls inside loops (from SOW-0024).
+- Allocation-shape tests that use `testing.AllocsPerRun` must not fail under
+  `-race`; race detector instrumentation changes allocation counts. Keep the
+  allocation ceiling active in normal `make test`, and gate only the
+  allocation-count assertion under the `race` build tag when needed (from
+  SOW-0117).
 - Release/security changes: include explicit secret/path scans and document what was checked.

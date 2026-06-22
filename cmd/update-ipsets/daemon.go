@@ -89,13 +89,11 @@ func runDaemon(args []string) int {
 					logger.Error("config reload failed", "error", err)
 				} else {
 					logger.Info("config reloaded", "config_path", eng.Runtime().ConfigPath)
-					go func() {
-						if err := eng.EnsureEntityArtifactsCurrentWithTrigger(ctx, "reload"); err != nil {
-							logger.Error("entity artifact ensure after reload failed", "error", err)
-						} else {
-							logger.Info("country and ASN entity artifacts checked after reload")
-						}
-					}()
+					if _, err := eng.QueueEntityArtifactsEnsure(ctx, "reload"); err != nil {
+						logger.Error("entity artifact ensure after reload failed to queue", "error", err)
+					} else {
+						logger.Info("country and ASN entity artifacts check queued after reload")
+					}
 				}
 			}
 		}

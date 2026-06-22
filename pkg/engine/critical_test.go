@@ -1097,11 +1097,7 @@ sources:
 		t.Fatal(err)
 	}
 
-	for _, path := range []string{aggregate, provider, marker} {
-		if _, err := os.Stat(path); !os.IsNotExist(err) {
-			t.Fatalf("expected stale critical artifact or marker %q to be removed on reload, stat err = %v", path, err)
-		}
-	}
+	waitForCriticalCleanupRemoved(t, eng, aggregate, provider, marker)
 }
 
 func TestSignalSnapshotUsesCriticalInfrastructureAggregateArtifact(t *testing.T) {

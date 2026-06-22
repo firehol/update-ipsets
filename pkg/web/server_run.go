@@ -30,6 +30,8 @@ func Run(ctx context.Context, eng *engine.Engine, opts Options) error {
 
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
+	eng.AttachWorkLaneContext(runCtx, 30*time.Second)
+	newRuntimeStatsSampler().Start(runCtx)
 
 	runner := scheduler.New(eng, opts.EnableAll, opts.Logger)
 	queueStartupIntegrityRecovery(runCtx, eng, opts, runner)
@@ -75,7 +77,10 @@ func prepareEngineForRun(eng *engine.Engine, opts Options) error {
 // first scheduler tick without making transient filesystem findings fatal.
 func queueStartupIntegrityRecovery(ctx context.Context, eng *engine.Engine, opts Options, runner *scheduler.Runner) {
 	integrityWebDir := outputDirFromOptions(eng.Runtime().BaseDir, choose(opts.WebDir, eng.Runtime().WebDir))
-	findings, err := eng.CheckIntegrityWithOptionsContext(ctx, engine.IntegrityOptions{EnableAll: opts.EnableAll, WebDir: integrityWebDir})
+	integrityOpts := engine.IntegrityOptions{EnableAll: opts.EnableAll, WebDir: integrityWebDir}
+	eng.MarkPipelineIntegrityStartupScanRunning(integrityOpts)
+	findings, err := eng.CheckIntegrityWithOptionsContext(ctx, integrityOpts)
+	eng.StorePipelineIntegrityFindings(integrityOpts, findings, err)
 	if err != nil {
 		opts.Logger.Warn("startup integrity check cancelled", "error", err)
 		return
@@ -153,7 +158,7 @@ func startDelayedPublishStageCleanup(ctx context.Context, eng *engine.Engine, op
 			return
 		case <-timer.C:
 		}
-		stageCleanup, err := eng.CleanupPublishStagesBefore(cutoff)
+		stageCleanup, err := eng.CleanupPublishStagesBeforeWithTrigger(ctx, cutoff, "delayed_startup_cleanup")
 		if err != nil {
 			opts.Logger.Warn("failed to cleanup pre-start publish stages", "error", err)
 		}

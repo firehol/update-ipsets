@@ -54,6 +54,7 @@ type Runtime struct {
 	MaxProcessingWorkers          int
 	MaxHeavyPhaseWorkers          int
 	MaxBackgroundWorkers          int
+	MaxEngineLaneWorkers          int
 	MinRunIntervalSeconds         int
 	ProcessingIntervalMinutes     int
 	SkipComparisonIfNoUpdates     bool
@@ -177,6 +178,7 @@ func runtimeFromConfig(rt config.RuntimeConfig, pathCtx runtimePathContext, now 
 		MaxProcessingWorkers:          rt.MaxProcessingWorkers,
 		MaxHeavyPhaseWorkers:          rt.MaxHeavyPhaseWorkers,
 		MaxBackgroundWorkers:          rt.MaxBackgroundWorkers,
+		MaxEngineLaneWorkers:          rt.MaxEngineLaneWorkers,
 		MinRunIntervalSeconds:         rt.MinRunIntervalSeconds,
 		ProcessingIntervalMinutes:     rt.ProcessingIntervalMinutes,
 		SkipComparisonIfNoUpdates:     rt.SkipComparisonIfNoUpdates,
@@ -242,6 +244,9 @@ func applyRuntimeWorkerDefaults(r *Runtime) {
 	if r.MaxBackgroundWorkers <= 0 {
 		r.MaxBackgroundWorkers = 1
 	}
+	if r.MaxEngineLaneWorkers <= 0 {
+		r.MaxEngineLaneWorkers = 1
+	}
 	if r.MinRunIntervalSeconds <= 0 {
 		r.MinRunIntervalSeconds = 30
 	}
@@ -259,6 +264,7 @@ func applyRuntimeIngestWorkerCeiling(r *Runtime) {
 	r.MaxProcessingWorkers = clampRuntimeWorkers(r.MaxProcessingWorkers, r.MaxIngestWorkers)
 	r.MaxHeavyPhaseWorkers = clampRuntimeWorkers(r.MaxHeavyPhaseWorkers, r.MaxIngestWorkers)
 	r.MaxBackgroundWorkers = clampRuntimeWorkers(r.MaxBackgroundWorkers, r.MaxIngestWorkers)
+	r.MaxEngineLaneWorkers = clampRuntimeWorkers(r.MaxEngineLaneWorkers, r.MaxIngestWorkers)
 }
 
 func clampRuntimeWorkers(value, ceiling int) int {
@@ -325,6 +331,13 @@ func (r Runtime) HeavyPhaseWorkers() int {
 func (r Runtime) BackgroundWorkers() int {
 	if r.MaxBackgroundWorkers > 0 {
 		return r.MaxBackgroundWorkers
+	}
+	return 1
+}
+
+func (r Runtime) EngineLaneWorkers() int {
+	if r.MaxEngineLaneWorkers > 0 {
+		return r.MaxEngineLaneWorkers
 	}
 	return 1
 }

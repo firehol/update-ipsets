@@ -57,8 +57,10 @@ The entity integrity panel is backed by authenticated admin API endpoints:
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /api/v1/admin/integrity/entities` | Check country and ASN entity artifacts and return current findings. |
+| `GET /api/v1/admin/integrity/entities` | Return cached country/ASN entity findings, or queue a refresh and report `in_progress` when the cache is cold or stale. |
+| `POST /api/v1/admin/integrity/entities/refresh` | Queue a fresh entity-integrity refresh in the engine lane. |
 | `POST /api/v1/admin/integrity/entities/rebuild` | Queue a full country and ASN entity artifact rebuild. |
 
-The rebuild endpoint requires `POST`. If a rebuild or entity refresh is already
-running, the response reports `in_progress` instead of queuing duplicate work.
+Refresh and rebuild endpoints require `POST`. If an equivalent refresh, rebuild,
+or entity refresh is already queued or running, the response reports
+`in_progress` instead of queuing duplicate work.

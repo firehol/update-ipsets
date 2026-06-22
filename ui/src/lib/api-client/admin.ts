@@ -11,7 +11,10 @@ import type {
 import { fetchJSON, signalInit } from "./http";
 
 export async function adminStatus(signal?: AbortSignal): Promise<AdminStatus> {
-  return fetchJSON<AdminStatus>("/api/v1/admin/status", signalInit(signal));
+  return fetchJSON<AdminStatus>(
+    "/api/v1/admin/status?mode=light",
+    signalInit(signal),
+  );
 }
 
 export async function adminFeeds(signal?: AbortSignal): Promise<AdminFeed[]> {

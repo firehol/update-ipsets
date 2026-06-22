@@ -676,6 +676,7 @@ export type {
   AdminActiveQueueItem,
   AdminArtifact,
   AdminCounterStat,
+  AdminEngineLaneWork,
   AdminFeed,
   AdminProblemClass,
   AdminQueueItem,

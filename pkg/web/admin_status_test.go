@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -158,7 +159,7 @@ func TestSanitizeSchedulerSnapshotClampsOutOfRangeTimes(t *testing.T) {
 	}
 }
 
-func TestAdminStatusUsesLightEngineSnapshot(t *testing.T) {
+func TestAdminStatusKeepsFullDefaultAndLightPollingSnapshot(t *testing.T) {
 	eng, handler := testHandler(t, Options{
 		EnableAll:                 true,
 		AdminAuthMode:             AdminAuthModeDisabled,
@@ -176,9 +177,87 @@ func TestAdminStatusUsesLightEngineSnapshot(t *testing.T) {
 	if !ok {
 		t.Fatalf("admin status engine payload has type %T", payload["engine"])
 	}
-	for _, field := range []string{"current_metrics", "last_metrics", "lifetime_metrics"} {
-		if _, ok := enginePayload[field]; ok {
-			t.Fatalf("admin status included %s; live polling must use the lightweight engine snapshot", field)
+	for _, field := range []string{"config_path", "base_dir", "lifetime_metrics"} {
+		if _, ok := enginePayload[field]; !ok {
+			t.Fatalf("default admin status omitted full field %s", field)
+		}
+	}
+
+	var lightPayload map[string]any
+	lightStatus, _ := server.getJSON(t, "/api/v1/admin/status?mode=light", &lightPayload)
+	if lightStatus != http.StatusOK {
+		t.Fatalf("admin light status HTTP status = %d, want 200", lightStatus)
+	}
+	lightEnginePayload, ok := lightPayload["engine"].(map[string]any)
+	if !ok {
+		t.Fatalf("admin light status engine payload has type %T", lightPayload["engine"])
+	}
+	for _, field := range []string{"current_metrics", "last_metrics", "lifetime_metrics", "config_path", "base_dir"} {
+		if _, ok := lightEnginePayload[field]; ok {
+			t.Fatalf("admin light status included %s; live polling must use the lightweight engine snapshot", field)
+		}
+	}
+}
+
+func TestAdminStatusLightRespondsWhileEngineLaneBusy(t *testing.T) {
+	eng, handler := testHandler(t, Options{
+		EnableAll:                 true,
+		AdminAuthMode:             AdminAuthModeDisabled,
+		AllowUnauthenticatedAdmin: true,
+	})
+	eng.StorePipelineIntegrityFindings(engine.IntegrityOptions{}, []engine.IntegrityFinding{{Feed: "sample"}}, nil)
+
+	releaseLane := make(chan struct{})
+	laneStarted := make(chan struct{})
+	_, err := eng.QueuePipelineIntegrityReprocess(t.Context(), engine.IntegrityOptions{}, "test_block", func(ctx context.Context, _ []engine.IntegrityFinding) error {
+		close(laneStarted)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-releaseLane:
+			return nil
+		}
+	})
+	if err != nil {
+		t.Fatalf("queue blocking integrity reprocess: %v", err)
+	}
+	<-laneStarted
+	t.Cleanup(func() {
+		close(releaseLane)
+		waitForEngineLaneClear(t, eng, 2*time.Second)
+	})
+
+	server := newWebHTTPTestServer(t, handler)
+	var lightPayload map[string]any
+	status, _ := server.getJSON(t, "/api/v1/admin/status?mode=light", &lightPayload)
+	if status != http.StatusOK {
+		t.Fatalf("admin light status while engine lane busy = %d, want 200", status)
+	}
+	enginePayload, ok := lightPayload["engine"].(map[string]any)
+	if !ok {
+		t.Fatalf("admin light status engine payload has type %T", lightPayload["engine"])
+	}
+	if _, ok := enginePayload["engine_lane"]; !ok {
+		t.Fatalf("admin light status omitted engine_lane while lane was busy: %#v", enginePayload)
+	}
+}
+
+func waitForEngineLaneClear(t *testing.T, eng *engine.Engine, timeout time.Duration) {
+	t.Helper()
+
+	deadline := time.NewTimer(timeout)
+	defer deadline.Stop()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		snap := eng.StatusSnapshotLight().EngineLane
+		if snap.ActiveCount == 0 && snap.WaitingCount == 0 {
+			return
+		}
+		select {
+		case <-deadline.C:
+			t.Fatalf("engine lane did not clear: %+v", snap)
+		case <-ticker.C:
 		}
 	}
 }

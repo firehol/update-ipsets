@@ -74,6 +74,10 @@ func TestFileSet6UniqueIPsAndEmpty(t *testing.T) {
 }
 
 func TestFileSet6OpenAllocationShape(t *testing.T) {
+	if raceDetectorEnabled {
+		t.Skip("race detector instrumentation changes allocation counts")
+	}
+
 	s := makeTestSet6(
 		Range6{Lo: u128FromUint64(1), Hi: u128FromUint64(10)},
 		Range6{Lo: u128FromHiLo(0x20010db800000000, 0), Hi: u128FromHiLo(0x20010db800000000, 0xffff)},

@@ -69,6 +69,74 @@ func TestEnqueueDownloadWhileActiveDefersRefetchUntilActiveFinishes(t *testing.T
 	}
 }
 
+func TestDownloadQueueUsesEnqueueSequenceWhenQueuedAtTies(t *testing.T) {
+	queuedAt := time.Unix(1_700_000_001, 0).UTC()
+	runner := &Runner{
+		now: func() time.Time { return queuedAt.Add(time.Minute) },
+		download: downloadLoopState{
+			waiting:        map[string]queuedWork{},
+			active:         map[string]ActiveQueueFeed{},
+			refetchPending: map[string]queuedWork{},
+		},
+	}
+
+	for _, item := range []queuedWork{
+		{Name: "third", QueuedAt: queuedAt, EnqueueSeq: 3},
+		{Name: "first", QueuedAt: queuedAt, EnqueueSeq: 1},
+		{Name: "second", QueuedAt: queuedAt, EnqueueSeq: 2},
+	} {
+		runner.enqueueDownload(item)
+	}
+
+	for _, want := range []string{"first", "second", "third"} {
+		got, ok := runner.startNextDownload()
+		if !ok {
+			t.Fatalf("startNextDownload returned no item, want %s", want)
+		}
+		if got.Name != want {
+			t.Fatalf("download start = %q, want %q", got.Name, want)
+		}
+		runner.finishDownload(got.Name)
+	}
+}
+
+func TestDownloadQueueMergeKeepsRecoveredArtifactOwnershipAndEarliestSequence(t *testing.T) {
+	queuedAt := time.Unix(1_700_000_002, 0).UTC()
+	runner := &Runner{
+		download: downloadLoopState{
+			waiting:        map[string]queuedWork{},
+			active:         map[string]ActiveQueueFeed{},
+			refetchPending: map[string]queuedWork{},
+		},
+	}
+
+	runner.enqueueDownload(queuedWork{
+		Name:       "dronebl",
+		Kind:       queuedWorkKindNormal,
+		QueuedAt:   queuedAt,
+		EnqueueSeq: 7,
+	})
+	runner.enqueueDownload(queuedWork{
+		Name:       "dronebl",
+		Kind:       queuedWorkKindRecoveredArtifact,
+		QueuedAt:   queuedAt,
+		EnqueueSeq: 3,
+		ForceRun:   true,
+		Immediate:  true,
+	})
+
+	got := runner.download.waiting["dronebl"]
+	if got.Kind != queuedWorkKindRecoveredArtifact {
+		t.Fatalf("merged DroneBL kind = %q, want recovered_artifact", got.Kind)
+	}
+	if got.EnqueueSeq != 3 {
+		t.Fatalf("merged DroneBL enqueue seq = %d, want earliest 3", got.EnqueueSeq)
+	}
+	if !got.ForceRun || !got.Immediate {
+		t.Fatalf("merged DroneBL flags = force:%v immediate:%v, want true/true", got.ForceRun, got.Immediate)
+	}
+}
+
 func TestProviderDefaultsReprocessQueuesFullFeedTargets(t *testing.T) {
 	eng, root := newSchedulerPolicyEngine(t, `
 defaults:

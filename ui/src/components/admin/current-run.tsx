@@ -3,6 +3,7 @@ import { Clock, Play, RefreshCw } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type {
+  AdminEngineLaneWork,
   AdminFeed,
   AdminQueueItem,
   AdminStatus,
@@ -11,7 +12,11 @@ import type {
 import { adminRunAll } from "@/lib/api-client/admin";
 import { queryKeys } from "@/lib/query-keys";
 import { HoverTip } from "@/components/editorial/hover-tip";
-import { absoluteTime, relativeTime } from "@/lib/admin-format";
+import {
+  absoluteTime,
+  formatDuration,
+  relativeTime,
+} from "@/lib/admin-format";
 import { useNow } from "@/lib/use-now";
 import {
   ActiveDownloadColumn,
@@ -134,9 +139,30 @@ export function CurrentRunPanel({
       parseGoTime(left.started_at) - parseGoTime(right.started_at) ||
       left.name.localeCompare(right.name),
   );
+  const isEntityRebuildTask = (task: (typeof backgroundTasks)[number]) =>
+    task.kind === "entity_rebuild" || task.name === "Entity artifacts rebuild";
   const backgroundRunning =
     status.engine.background_running ?? backgroundTasks.length;
   const backgroundLimit = status.engine.background_limit ?? 1;
+  const engineLane = status.engine.engine_lane;
+  const engineLaneActive = [...(engineLane?.active ?? [])].sort(
+    (left, right) =>
+      parseGoTime(left.started_at) - parseGoTime(right.started_at) ||
+      left.name.localeCompare(right.name),
+  );
+  const engineLaneWaiting = [...(engineLane?.waiting ?? [])].sort(
+    (left, right) =>
+      parseGoTime(left.queued_at) - parseGoTime(right.queued_at) ||
+      left.name.localeCompare(right.name),
+  );
+  const engineLaneWorkCount = engineLaneActive.length + engineLaneWaiting.length;
+  const hasBackgroundWork =
+    backgroundTasks.length > 0 ||
+    engineLaneWorkCount > 0 ||
+    (status.engine.entity_refresh_pending ?? 0) > 0 ||
+    (status.engine.entity_health_pending ?? 0) > 0 ||
+    Boolean(status.engine.entity_rebuild_pending) ||
+    recentHealthTransitions.length > 0;
 
   return (
     <section id="admin-current-run-panel" className="mb-10">
@@ -266,40 +292,47 @@ export function CurrentRunPanel({
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-6 py-3">
           <div>
             <div className="eyebrow">Background Work</div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Daemon work running outside the four live feed queues.
-            </p>
           </div>
           <div className="text-right text-xs text-muted-foreground tabular-nums">
             <div>
-              workers:{" "}
+              lane:{" "}
               <span className="text-foreground">
                 {backgroundRunning}/{backgroundLimit}
               </span>
             </div>
             <div>
-              visible tasks:{" "}
-              <span className="text-foreground">{backgroundTasks.length}</span>
+              waiting:{" "}
+              <span className="text-foreground">
+                {engineLane?.waiting_count ?? engineLaneWaiting.length}
+              </span>
             </div>
           </div>
         </div>
         <div className={LIVE_QUEUE_VIEWPORT_CLASS}>
-          {backgroundTasks.length === 0 &&
-          status.engine.entity_refresh_pending == null &&
-          !(
-            status.engine.entity_rebuild_pending &&
-            backgroundTasks.every((t) => t.name !== "Entity artifacts rebuild")
-          ) &&
-          recentHealthTransitions.length === 0 ? (
+          {!hasBackgroundWork ? (
             <div className={LIVE_QUEUE_EMPTY_CLASS}>
               No background maintenance task is currently running.
             </div>
           ) : (
             <>
+              {engineLaneActive.map((work) => (
+                <EngineLaneWorkItem
+                  key={work.id}
+                  work={work}
+                  label="active"
+                  nowMs={nowMs}
+                />
+              ))}
+              {engineLaneWaiting.map((work) => (
+                <EngineLaneWorkItem
+                  key={work.id}
+                  work={work}
+                  label="waiting"
+                  nowMs={nowMs}
+                />
+              ))}
               {status.engine.entity_rebuild_pending &&
-                backgroundTasks.every(
-                  (t) => t.name !== "Entity artifacts rebuild",
-                ) && (
+                backgroundTasks.every((task) => !isEntityRebuildTask(task)) && (
                   <div className="border-b border-border/60 px-6 py-3 text-sm text-muted-foreground">
                     Entity artifacts rebuild: waiting for worker slot
                   </div>
@@ -385,6 +418,55 @@ export function CurrentRunPanel({
       </div>
     </section>
   );
+}
+
+function EngineLaneWorkItem({
+  work,
+  label,
+  nowMs,
+}: {
+  work: AdminEngineLaneWork;
+  label: "active" | "waiting";
+  nowMs: number;
+}) {
+  const startedAt = parseGoTime(work.started_at);
+  const queuedAt = parseGoTime(work.queued_at);
+  const elapsedMs =
+    label === "active" && startedAt > 0 && nowMs > 0
+      ? Math.max(0, nowMs - startedAt * 1000)
+      : Math.max(0, work.elapsed_ms ?? work.wait_ms ?? 0);
+  return (
+    <div className="border-b border-border/60 px-6 py-3 last:border-b-0">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0 text-sm font-semibold text-foreground">
+          <span className="font-mono">{work.name || work.kind}</span>
+        </div>
+        <div className="text-xs text-muted-foreground tabular-nums">
+          {label === "active"
+            ? elapsedMs > 0
+              ? formatDuration(elapsedMs)
+              : "running"
+            : queuedAt > 0
+              ? relativeTime(queuedAt)
+              : "waiting"}
+        </div>
+      </div>
+      <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
+        <span>{label}</span>
+        <span>{formatEngineWorkKind(work.kind)}</span>
+        {work.component && <span>{formatEngineWorkKind(work.component)}</span>}
+        {work.trigger && <span>{formatBackgroundTrigger(work.trigger)}</span>}
+        {work.stage && <span>{work.stage}</span>}
+      </div>
+      {work.detail && (
+        <div className="mt-2 text-sm text-foreground/90">{work.detail}</div>
+      )}
+    </div>
+  );
+}
+
+function formatEngineWorkKind(value: string): string {
+  return value.replace(/_/g, " ");
 }
 
 function blockedQueueItems(

@@ -2,7 +2,7 @@ package engine
 
 import "context"
 
-func (e *Engine) repairEntityArtifactsWithPlan(ctx context.Context, trigger string, plan entityIntegrityPlan) error {
+func (e *Engine) repairEntityArtifactsWithPlanAdmitted(ctx context.Context, trigger string, plan entityIntegrityPlan) error {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
 		return err
@@ -12,10 +12,14 @@ func (e *Engine) repairEntityArtifactsWithPlan(ctx context.Context, trigger stri
 	}
 	taskName := "Entity artifacts repair"
 	if plan.full {
-		taskName = "Entity artifacts rebuild"
+		taskName = backgroundTaskEntityArtifactsRebuild
+	} else {
+		taskName = backgroundTaskEntityArtifactsRepair
 	}
-	return e.withBackgroundTask(
+	return e.withEngineLaneBackgroundTask(
 		ctx,
+		LaneWorkEntityRepair,
+		LaneComponentEntityIntegrity,
 		taskName,
 		trigger,
 		"planning",

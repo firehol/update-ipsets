@@ -24,14 +24,18 @@ The four live queues are shown in the current-run panel below the heartbeat. See
 
 ## Admin status API
 
-The admin UI polls `GET /api/v1/admin/status`. The response includes more fields than the heartbeat renders.
+The admin UI polls `GET /api/v1/admin/status?mode=light` for high-frequency
+heartbeat updates. That response is intentionally compact so the page keeps
+responding while heavy engine work is running. Full `GET /api/v1/admin/status`
+responses include more fields than the heartbeat renders and are intended for
+lower-frequency diagnostics.
 
 Important top-level blocks:
 
 | Block | Meaning |
 |---|---|
 | `system` | Go runtime, process, disk, CPU, I/O, and file-descriptor snapshots. |
-| `engine` | Engine running state, last run, current phase, background tasks, config reload state, and lifetime counters/timings. |
+| `engine` | Engine running state, current phase, engine-lane active/waiting work, integrity-cache summaries, background tasks, config reload state, and lifetime counters/timings. |
 | `scheduler` | Scheduler item snapshot: enabled state, next due time, last check, frequency, failures, and scheduler detail per item. |
 | `queues` | Waiting, active, deferred, and pending queue items. |
 | `metrics` | Scheduler counters and latest batch timings. |
@@ -71,6 +75,18 @@ To identify what consumed resources between two points in time:
 This tells you which operations moved the most. For example, if `iprange.compare.ops` jumped by 50,000 in five minutes, pairwise comparisons dominated that period.
 
 The counters use stable names that work across daemon restarts and OpenTelemetry export.
+
+## Engine lane and integrity cache
+
+The `engine.engine_lane` block shows broad engine-owned work that does not
+belong to the four feed queue lists. It includes the lane limit, active count,
+waiting count, and the active/waiting work labels shown in **Background Work**.
+
+The `engine.pipeline_integrity_cache` and `engine.entity_integrity_cache`
+blocks summarize the last settled integrity state. They expose cache state,
+queued/running flags, timestamps, and finding counts. The status endpoint does
+not embed full integrity findings; use the integrity panels or integrity API
+endpoints for the finding rows.
 
 ## See also
 

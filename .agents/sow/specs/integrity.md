@@ -436,6 +436,31 @@ If a run is already active:
 - it MUST NOT return a permanently stale waiting message after the activity has
   settled
 
+Admin integrity request handling MUST be cache-first and lane-admitted:
+
+- ordinary `GET` handlers MUST return the last in-memory settled snapshot, or
+  queue a refresh and return an in-progress/cache-state response when the
+  snapshot is cold or stale
+- `GET` handlers MUST NOT synchronously scan the full artifact tree, entity
+  sidecar tree, or pipeline recovery plan in the HTTP request goroutine
+- explicit refresh actions MUST submit bounded engine-lane integrity refresh
+  work and return typed queued/running/coalesced state
+- explicit reprocess actions MUST use a fresh cached recovery plan; when the
+  cache is cold or stale, they MUST queue a refresh first instead of deriving a
+  fresh recovery plan synchronously
+- cache state MUST distinguish at least `cold`, `fresh`, `stale`,
+  `refresh_queued`, and `refresh_running` so the admin UI can explain whether
+  findings are settled or being refreshed
+
+Pipeline integrity cache entries are scoped by the effective integrity options,
+including the published web directory. A runtime reload that changes the
+effective web directory MUST mark existing pipeline-integrity cache scopes stale
+instead of reusing a fresh result from the previous published tree.
+
+Integrity refresh work is engine-owned background work. It MUST use the
+service/root operation context, respect shutdown cancellation at bounded
+checkpoints, and publish its result to the cache after the scan settles.
+
 ## Integrity versus health
 
 Integrity and health are separate concerns.

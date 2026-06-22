@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"log/slog"
 	"os"
@@ -41,14 +42,20 @@ type Engine struct {
 	activeOperations          map[string]ActiveOperation
 	backgroundTaskSeq         uint64
 	backgroundTasks           map[string]backgroundTaskState
-	backgroundLimiter         *backgroundLimiter
+	engineLane                *WorkLane
+	pipelineIntegrityCacheMu  sync.RWMutex
+	pipelineIntegrityCaches   map[pipelineIntegrityCacheKey]*pipelineIntegrityCacheState
+	entityIntegrityCacheMu    sync.RWMutex
+	entityIntegrityCache      entityIntegrityCacheState
 	entityArtifactsMu         sync.Mutex
 	entityArtifactsGeneration uint64
 	entityRebuildQueued       bool
 	entityRefreshPending      map[string]struct{}
 	entityRefreshRunning      bool
+	entityRefreshContinuation int
 	entityHealthPending       map[string]struct{}
 	entityHealthRunning       bool
+	entityHealthContinuation  int
 	currentMetrics            *runMetrics
 	lastMetrics               *RunMetricsSnapshot
 	lifetimeOperations        telemetry.TimingBook
@@ -134,17 +141,17 @@ func New(configPath string, logger *slog.Logger) (*Engine, error) {
 	logger.Info("cache loaded", "entries", len(st.SnapshotEntries()), "path", cachePath)
 
 	e := &Engine{
-		cfg:               cfg,
-		runtime:           rt,
-		cachePath:         cachePath,
-		state:             st,
-		downloads:         downloader.New(rt.MaxConnectTime, rt.MaxDownloadTime),
-		logger:            logger,
-		now:               time.Now,
-		backgroundLimiter: newBackgroundLimiter(rt.BackgroundWorkers()),
-		geoProviders:      newGeoProviderCache(),
-		asnLookupCache:    newASNDatabaseCache(),
-		ledgerCache:       newRuntimeLedgerCache(),
+		cfg:            cfg,
+		runtime:        rt,
+		cachePath:      cachePath,
+		state:          st,
+		downloads:      downloader.New(rt.MaxConnectTime, rt.MaxDownloadTime),
+		logger:         logger,
+		now:            time.Now,
+		engineLane:     NewWorkLane(rt.EngineLaneWorkers()),
+		geoProviders:   newGeoProviderCache(),
+		asnLookupCache: newASNDatabaseCache(),
+		ledgerCache:    newRuntimeLedgerCache(),
 	}
 	e.querySetCache = newSharedLatestSetCache(e)
 	if err := e.ensureDirectories(); err != nil {
@@ -242,19 +249,18 @@ func (e *Engine) Reload() error {
 	}
 	rt.ConfigPath = e.runtime.ConfigPath
 	var staleASNLookups map[string]*asnloc.Database
+	webDirChanged := false
 	e.mu.Lock()
-	defer func() {
-		e.mu.Unlock()
-		closeASNLookupDatabases(staleASNLookups, e.logger)
-	}()
+	previousWebDir := e.runtime.WebDir
 	e.cfg = cfg
 	e.runtime = rt
 	e.applyRuntimeOverridesLocked()
+	webDirChanged = previousWebDir != e.runtime.WebDir
 	e.downloads = downloader.New(rt.MaxConnectTime, rt.MaxDownloadTime)
-	if e.backgroundLimiter == nil {
-		e.backgroundLimiter = newBackgroundLimiter(rt.BackgroundWorkers())
+	if e.engineLane == nil {
+		e.engineLane = NewWorkLane(rt.EngineLaneWorkers())
 	} else {
-		e.backgroundLimiter.SetLimit(rt.BackgroundWorkers())
+		e.engineLane.SetLimit(rt.EngineLaneWorkers())
 	}
 	e.geoProviders = newGeoProviderCache()
 	if e.asnLookupCache == nil {
@@ -263,35 +269,41 @@ func (e *Engine) Reload() error {
 		staleASNLookups = e.asnLookupCache.retireAll()
 	}
 	e.ledgerCache = newRuntimeLedgerCache()
-	if err := e.ensureDirectories(); err != nil {
+	finishLockedError := func(err error) error {
 		e.configReloadCount++
 		e.lastConfigReloadError = err.Error()
+		e.mu.Unlock()
+		closeASNLookupDatabases(staleASNLookups, e.logger)
 		return err
+	}
+	if err := e.ensureDirectories(); err != nil {
+		return finishLockedError(err)
 	}
 	e.registerSyntheticInternalSources()
 	e.reconcileEntriesFromSourceConfig()
 	e.buildRetentionMaxWindow()
 	if err := e.bootstrapMissingEntriesFromDisk(); err != nil {
-		e.configReloadCount++
-		e.lastConfigReloadError = err.Error()
-		return err
+		return finishLockedError(err)
 	}
 	if err := e.repairInvalidEntryTimestamps(); err != nil {
-		e.configReloadCount++
-		e.lastConfigReloadError = err.Error()
-		return err
+		return finishLockedError(err)
 	}
 	if err := e.bootstrapLegacyFailureStarts(); err != nil {
-		e.configReloadCount++
-		e.lastConfigReloadError = err.Error()
-		return err
+		return finishLockedError(err)
 	}
 	e.refreshCriticalInfrastructureProviderSetID()
 	e.configReloadCount++
 	e.lastConfigReload = e.now()
 	e.lastConfigReloadError = ""
-	if err := e.CleanupStaleCriticalInfrastructureArtifacts(); err != nil {
+	e.mu.Unlock()
+	closeASNLookupDatabases(staleASNLookups, e.logger)
+	if webDirChanged {
+		e.MarkIntegrityCachesStale()
+	}
+	if _, err := e.QueueCriticalInfrastructureCleanup(context.Background(), "reload"); err != nil {
+		e.mu.Lock()
 		e.lastConfigReloadError = err.Error()
+		e.mu.Unlock()
 		return err
 	}
 	return nil

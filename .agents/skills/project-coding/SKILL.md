@@ -87,6 +87,16 @@ description: "Go, React, config, and repo conventions for update-ipsets. MUST be
   SOW-0116).
 - Do not edit generated frontend bundle files: `pkg/web/static/assets/*` or generated `pkg/web/static/index.html`. Edit `ui/`.
 - Do not put expensive historical rescans on daemon startup critical path.
+- Broad engine-owned operations must enter the bounded engine lane, not direct
+  request goroutines or ad hoc goroutines. This includes processing runs,
+  integrity refresh/reprocess admission, entity artifact repair, entity
+  refresh, full entity rebuild, and generated-artifact cleanup. Downloader
+  acquisition, DroneBL artifact recovery, and artifact child materialization
+  stay in the scheduler downloader FIFO (from SOW-0117).
+- Admin integrity GET handlers must be cache-first. They may return cached
+  settled findings or queue a refresh and report in-progress state, but they
+  must not synchronously scan pipeline artifacts, entity sidecars, or recovery
+  plans from the HTTP request path (from SOW-0117).
 - Public sitemap entity detail URLs must come from the published/staged entity
   index artifacts used by the public API. Do not derive sitemap entity coverage
   from an independent live aggregation path unless the public index artifacts

@@ -13,6 +13,7 @@ runtime:
   min_run_interval_seconds: 30
   max_ingest_workers: 1
   max_processing_workers: 2
+  max_engine_lane_workers: 1
   max_background_workers: 1
   web_artifact_cache_max_entries: 2048
   web_artifact_cache_max_bytes: 67108864
@@ -33,20 +34,22 @@ runtime:
 
 `max_ingest_workers` is the safety ceiling for daemon ingest work. When it is
 greater than `0`, the daemon clamps download, DNS parsing, source processing,
-heavy-phase, and background worker pools to that value. Public/admin request
-serving is not part of this limiter.
+heavy-phase, engine-lane, and background worker pools to that value.
+Public/admin request serving and watchdog notifications are not part of this
+limiter.
 
 Set `max_ingest_workers: 0` to disable the ingest ceiling and use only the
 per-domain values below.
 
-The daemon also separates work into four domain-specific pools.
+The daemon also separates work into domain-specific pools and lanes.
 
 | Domain | Setting | Default | Controls |
 |--------|---------|---------|----------|
 | Download workers | `parallel_downloads` | 5 | Upstream HTTP/HTTPS acquisition and merge composition |
 | Feed-processing workers | `max_processing_workers` | 2 | Turning staged downloads into committed feed outputs |
 | Heavy-phase workers | `max_heavy_phase_workers` | auto (min(CPU, 8)) | Pairwise comparisons, GeoIP/ASN/bogon fan-out |
-| Background workers | `max_background_workers` | 1 | Startup repair, health-transition refreshes, deferred maintenance |
+| Engine lane | `max_engine_lane_workers` | 1 | Top-level admission for processing runs, integrity refresh/reprocess, entity repair, entity refresh, entity rebuild, and generated-artifact cleanup |
+| Background workers | `max_background_workers` | 1 | Bounded fan-out inside admitted entity/background work |
 
 The shipped catalog sets `max_ingest_workers: 1`, so the effective worker count
 for each domain is `1` unless an operator raises or disables the ceiling. The
@@ -54,6 +57,17 @@ admin status response reports both the configured ceiling and the effective
 worker values.
 
 Background work is intentionally low-priority. It prefers finishing later over competing with the main pipeline for CPU and memory.
+
+`max_engine_lane_workers` is an admission setting, not a replacement for
+`max_processing_workers` or `max_heavy_phase_workers`. At the default `1`,
+broad engine-owned jobs run FIFO one at a time. Raising it allows more than one
+top-level job to be admitted, while the per-domain worker settings still limit
+the work inside each admitted job.
+
+Do not confuse `max_background_workers` with the admin status field
+`engine.background_limit`. `max_background_workers` controls fan-out inside
+admitted background/entity work. `engine.background_limit` is a compatibility
+alias for the engine-lane admission limit reported in status responses.
 
 ## Processing cadence
 

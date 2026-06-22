@@ -88,6 +88,14 @@ For request-scoped dynamic lookups over local feed state:
 - if timing metadata such as `first_seen` is exposed, the request path SHOULD
   stop as soon as the contract allows instead of scanning farther than needed
 
+Operator/admin dynamic endpoints must preserve service availability while broad
+work is running. Status, watchdog, and lightweight diagnostic endpoints MUST
+read already-held in-memory state or short-lived cached runtime samples. They
+MUST NOT acquire downloader workers, processing workers, engine-lane slots, or
+heavy/background fan-out workers. Endpoints that request expensive operator work
+MUST enqueue that work into the proper bounded lane and return queued/running
+state instead of doing the broad work in the request goroutine.
+
 ## No repeated-view upstream dependency rule
 
 Repeated visits to the public website MUST NOT create repeated dependence on
@@ -177,6 +185,13 @@ feed-update refreshes, and health-transition refreshes MUST stop admitting new
 background work after shutdown cancellation and SHOULD return
 `context.Canceled` from the active worker path rather than continuing after the
 service has begun stopping.
+
+Engine-owned broad work MUST pass through a bounded FIFO engine lane. At the
+default limit of one, this lane serializes processing runs, integrity refreshes,
+integrity-triggered reprocess admission, entity artifact repair, entity refresh,
+full entity rebuild, and generated-artifact cleanup. Downloader acquisition and
+artifact-parent recovery remain in the downloader FIFO. Public/admin HTTP
+serving and watchdog sampling MUST remain outside both lanes.
 
 ## Reload rule
 
@@ -460,6 +475,9 @@ Queue and phase metrics MUST also use stable family names:
   `download.fetch.duration_ms`, and `download.errors`
 - engine runs and phases use `engine.runs`, `engine.run.duration_ms`,
   `engine.running`, `engine.phase.duration_ms`, and `engine.phase.current`
+- engine-lane admission state and compatibility background counters use
+  `background.worker.wait`, `background.workers.limit`, and
+  `background.workers.active`
 
 Frequently polled HTTP handlers and background batch processors MUST be treated
 as hot paths. They MUST avoid duplicating full-cache snapshots inside per-row
@@ -586,10 +604,13 @@ At minimum, the product MUST preserve separate control over:
 - downloader concurrency
 - feed-processing concurrency
 - heavy-phase/global-analysis concurrency
-- background-maintenance concurrency
+- engine-lane admission concurrency
+- background-maintenance fan-out concurrency
 
-Background-maintenance work includes startup/reload artifact repair,
-health-transition artifact refreshes, and similar deferred daemon tasks.
+Engine-lane admission controls broad engine-owned operations such as processing
+runs, integrity refresh/reprocess, entity repair/rebuild/refresh, and cleanup.
+Background-maintenance fan-out controls worker parallelism inside already
+admitted background/entity work.
 
 If a default is needed for background-maintenance concurrency, it SHOULD be
 single-threaded unless an operator explicitly raises it.

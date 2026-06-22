@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"strings"
-	"sync"
 	"time"
 
 	"github.com/firehol/update-ipsets/internal/observability"
@@ -15,16 +13,24 @@ import (
 )
 
 type BackgroundTaskSnapshot struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Trigger   string    `json:"trigger,omitempty"`
-	Stage     string    `json:"stage,omitempty"`
-	Detail    string    `json:"detail,omitempty"`
-	StartedAt time.Time `json:"started_at,omitempty"`
-	UpdatedAt time.Time `json:"updated_at,omitempty"`
-	Current   int       `json:"current,omitempty"`
-	Total     int       `json:"total,omitempty"`
+	ID        string            `json:"id"`
+	Name      string            `json:"name"`
+	Kind      LaneWorkKind      `json:"kind,omitempty"`
+	Component LaneWorkComponent `json:"component,omitempty"`
+	Trigger   string            `json:"trigger,omitempty"`
+	Stage     string            `json:"stage,omitempty"`
+	Detail    string            `json:"detail,omitempty"`
+	StartedAt time.Time         `json:"started_at,omitempty"`
+	UpdatedAt time.Time         `json:"updated_at,omitempty"`
+	Current   int               `json:"current,omitempty"`
+	Total     int               `json:"total,omitempty"`
 }
+
+const (
+	backgroundTaskEntityArtifactsRebuild = "Entity artifacts rebuild"
+	backgroundTaskEntityArtifactsRefresh = "Entity artifacts refresh"
+	backgroundTaskEntityArtifactsRepair  = "Entity artifacts repair"
+)
 
 type backgroundTaskState struct {
 	BackgroundTaskSnapshot
@@ -35,91 +41,11 @@ type BackgroundTaskHandle struct {
 	id     string
 }
 
-type backgroundLimiter struct {
-	mu      sync.Mutex
-	cond    *sync.Cond
-	limit   int
-	running int
-}
-
-func newBackgroundLimiter(limit int) *backgroundLimiter {
-	if limit < 1 {
-		limit = 1
-	}
-	l := &backgroundLimiter{limit: limit}
-	l.cond = sync.NewCond(&l.mu)
-	return l
-}
-
-func (l *backgroundLimiter) Acquire() {
-	_ = l.AcquireContext(context.Background())
-}
-
-func (l *backgroundLimiter) AcquireContext(ctx context.Context) error {
-	if l == nil {
-		return nil
-	}
-	ctx = nonNilContext(ctx)
-	if err := contextErr(ctx); err != nil {
-		return err
-	}
-	stopWake := context.AfterFunc(ctx, func() {
-		l.mu.Lock()
-		l.cond.Broadcast()
-		l.mu.Unlock()
-	})
-	defer stopWake()
-
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	for l.running >= l.limit {
-		if err := contextErr(ctx); err != nil {
-			return err
-		}
-		l.cond.Wait()
-	}
-	if err := contextErr(ctx); err != nil {
-		return err
-	}
-	l.running++
-	return nil
-}
-
-func (l *backgroundLimiter) Release() {
-	if l == nil {
-		return
-	}
-	l.mu.Lock()
-	if l.running > 0 {
-		l.running--
-	}
-	l.mu.Unlock()
-	l.cond.Signal()
-}
-
-func (l *backgroundLimiter) SetLimit(limit int) {
-	if l == nil {
-		return
-	}
-	if limit < 1 {
-		limit = 1
-	}
-	l.mu.Lock()
-	l.limit = limit
-	l.mu.Unlock()
-	l.cond.Broadcast()
-}
-
-func (l *backgroundLimiter) Snapshot() (int, int) {
-	if l == nil {
-		return 0, 0
-	}
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.limit, l.running
-}
-
 func (e *Engine) beginBackgroundTask(name, trigger, stage, detail string, current, total int) *BackgroundTaskHandle {
+	return e.beginBackgroundTaskWithLaneWork("", "", name, trigger, stage, detail, current, total)
+}
+
+func (e *Engine) beginBackgroundTaskWithLaneWork(kind LaneWorkKind, component LaneWorkComponent, name, trigger, stage, detail string, current, total int) *BackgroundTaskHandle {
 	if e == nil {
 		return nil
 	}
@@ -139,6 +65,8 @@ func (e *Engine) beginBackgroundTask(name, trigger, stage, detail string, curren
 		BackgroundTaskSnapshot: BackgroundTaskSnapshot{
 			ID:        id,
 			Name:      name,
+			Kind:      kind,
+			Component: component,
 			Trigger:   trigger,
 			Stage:     stage,
 			Detail:    detail,
@@ -182,65 +110,64 @@ func (h *BackgroundTaskHandle) Finish() {
 	delete(h.engine.backgroundTasks, h.id)
 }
 
-func (e *Engine) withBackgroundTask(ctx context.Context, name, trigger, stage, detail string, current, total int, fn func(task *BackgroundTaskHandle) error) error {
+func (e *Engine) withEngineLaneBackgroundTask(ctx context.Context, kind LaneWorkKind, component LaneWorkComponent, name, trigger, stage, detail string, current, total int, fn func(task *BackgroundTaskHandle) error) error {
 	ctx = nonNilContext(ctx)
-	component := backgroundMetricComponent(name)
+	metricComponent := backgroundMetricComponent(kind, component)
 	e.observeRunCounter("background.tasks.started", 1, 0)
-	observeBackgroundTask(component, "started")
-	task := e.beginBackgroundTask(name, trigger, "queued", "waiting for background worker", 0, 0)
+	observeBackgroundTask(metricComponent, "started")
+	task := e.beginBackgroundTaskWithLaneWork(kind, component, name, trigger, stage, detail, current, total)
 	if task == nil {
 		err := fn(nil)
 		if err != nil {
 			e.observeRunCounter("background.tasks.failed", 1, 0)
-			observeBackgroundTask(component, "failed")
+			observeBackgroundTask(metricComponent, "failed")
 		} else {
 			e.observeRunCounter("background.tasks.completed", 1, 0)
-			observeBackgroundTask(component, "completed")
+			observeBackgroundTask(metricComponent, "completed")
 		}
 		return err
 	}
 	defer task.Finish()
 
-	if e.backgroundLimiter != nil {
-		waitStarted := time.Now()
-		err := e.backgroundLimiter.AcquireContext(ctx)
-		wait := time.Since(waitStarted)
-		e.observeRunOperation("background.worker_wait", wait)
-		observeBackgroundWorkerWait(component, wait)
-		if err != nil {
-			e.observeRunCounter("background.tasks.failed", 1, 0)
-			observeBackgroundTask(component, "failed")
-			return err
-		}
-		e.observeBackgroundWorkerGauges(component)
-		defer func() {
-			e.backgroundLimiter.Release()
-			e.observeBackgroundWorkerGauges(component)
-		}()
-	}
-
 	if err := contextErr(ctx); err != nil {
 		e.observeRunCounter("background.tasks.failed", 1, 0)
-		observeBackgroundTask(component, "failed")
+		observeBackgroundTask(metricComponent, "failed")
 		return err
 	}
-	task.Update(stage, detail, current, total)
 	err := fn(task)
 	if err != nil {
 		e.observeRunCounter("background.tasks.failed", 1, 0)
-		observeBackgroundTask(component, "failed")
+		observeBackgroundTask(metricComponent, "failed")
 	} else {
 		e.observeRunCounter("background.tasks.completed", 1, 0)
-		observeBackgroundTask(component, "completed")
+		observeBackgroundTask(metricComponent, "completed")
 	}
 	return err
 }
 
-func backgroundMetricComponent(name string) string {
-	if strings.HasPrefix(name, "Entity artifacts ") {
-		return "entity_artifacts"
+func backgroundMetricComponent(kind LaneWorkKind, component LaneWorkComponent) string {
+	switch component {
+	case LaneComponentEngineRun:
+		return string(LaneComponentEngineRun)
+	case LaneComponentEntityArtifacts:
+		return string(LaneComponentEntityArtifacts)
+	case LaneComponentEntityArtifactsHealth:
+		return string(LaneComponentEntityArtifactsHealth)
+	case LaneComponentEntityIntegrity, LaneComponentPipelineIntegrity:
+		return "integrity"
+	case LaneComponentCriticalInfrastructure, LaneComponentPublishStages:
+		return "cleanup"
 	}
-	return "other"
+	switch kind {
+	case LaneWorkEntityRebuild, LaneWorkEntityRefresh, LaneWorkEntityRepair:
+		return string(LaneComponentEntityArtifacts)
+	case LaneWorkIntegrityRefresh, LaneWorkIntegrityReprocess:
+		return "integrity"
+	case LaneWorkCleanup:
+		return "cleanup"
+	default:
+		return "other"
+	}
 }
 
 func observeBackgroundTask(component, result string) {
@@ -257,32 +184,6 @@ func observeBackgroundTask(component, result string) {
 		attribute.String("background.component", component),
 		attribute.String("background.result", result),
 	)
-}
-
-func observeBackgroundWorkerWait(component string, wait time.Duration) {
-	if component == "" {
-		component = "other"
-	}
-	observability.Duration(
-		observability.BackgroundContext(),
-		"background.worker.wait",
-		wait,
-		attribute.String("background.component", component),
-	)
-}
-
-func (e *Engine) observeBackgroundWorkerGauges(component string) {
-	if e == nil || e.backgroundLimiter == nil {
-		return
-	}
-	if component == "" {
-		component = "other"
-	}
-	limit, running := e.backgroundLimiter.Snapshot()
-	attr := attribute.String("background.component", component)
-	ctx := observability.BackgroundContext()
-	observability.Gauge(ctx, "background.workers.active", int64(running), attr)
-	observability.Gauge(ctx, "background.workers.limit", int64(limit), attr)
 }
 
 func (e *Engine) snapshotBackgroundTasksLocked() []BackgroundTaskSnapshot {

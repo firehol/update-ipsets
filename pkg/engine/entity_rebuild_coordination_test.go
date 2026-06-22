@@ -14,7 +14,16 @@ func TestProviderOnlyRunDefersEntitySidecarStagingWhileFullRebuildActive(t *test
 	eng.now = func() time.Time { return now }
 
 	seedDetailFixturesForEntityTests(t, eng, webDir, libDir, now)
-	task := eng.beginBackgroundTask("Entity artifacts rebuild", "startup", "planning", "building full country and ASN entity artifacts", 0, 0)
+	task := eng.beginBackgroundTaskWithLaneWork(
+		LaneWorkEntityRebuild,
+		LaneComponentEntityArtifacts,
+		"Entity artifacts rebuild",
+		"startup",
+		"planning",
+		"building full country and ASN entity artifacts",
+		0,
+		0,
+	)
 	defer task.Finish()
 
 	report, err := eng.RunOnce(t.Context(), RunOptions{

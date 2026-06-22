@@ -44,10 +44,11 @@ type Runner struct {
 
 	actionCh chan PendingAction
 
-	stateMu    sync.RWMutex
-	download   downloadLoopState
-	processing processingLoopState
-	metrics    metricsState
+	stateMu            sync.RWMutex
+	download           downloadLoopState
+	downloadEnqueueSeq uint64
+	processing         processingLoopState
+	metrics            metricsState
 
 	recentHealthTransitions []HealthTransition
 }
@@ -275,14 +276,12 @@ func (r *Runner) Run(ctx context.Context) {
 	defer cancel()
 
 	var wg sync.WaitGroup
+	r.recoverStagedWork(runCtx)
 	wg.Go(func() {
 		r.runFetchLoop(runCtx, &wg)
 	})
 	wg.Go(func() {
 		r.runProcessingLoop(runCtx)
-	})
-	wg.Go(func() {
-		r.recoverStagedWork(runCtx)
 	})
 	if len(r.ActivitySnapshot().ProcessingWaiting) > 0 {
 		r.wakeProcessLoop()

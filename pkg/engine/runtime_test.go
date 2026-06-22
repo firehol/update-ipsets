@@ -125,14 +125,21 @@ func TestResolveRuntimeDefaultsBackgroundWorkersToOne(t *testing.T) {
 	if got, want := rt.BackgroundWorkers(), 1; got != want {
 		t.Fatalf("expected background workers %d, got %d", want, got)
 	}
+	if got, want := rt.EngineLaneWorkers(), 1; got != want {
+		t.Fatalf("expected engine lane workers %d, got %d", want, got)
+	}
 
 	cfg.Runtime.MaxBackgroundWorkers = 3
+	cfg.Runtime.MaxEngineLaneWorkers = 4
 	rt, err = resolveRuntime(cfg, time.Date(2026, 4, 24, 0, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("resolveRuntime returned error with explicit background workers: %v", err)
 	}
 	if got, want := rt.BackgroundWorkers(), 3; got != want {
 		t.Fatalf("expected explicit background workers %d, got %d", want, got)
+	}
+	if got, want := rt.EngineLaneWorkers(), 4; got != want {
+		t.Fatalf("expected explicit engine lane workers %d, got %d", want, got)
 	}
 }
 
@@ -144,6 +151,7 @@ func TestResolveRuntimeAppliesIngestWorkerCeiling(t *testing.T) {
 	cfg.Runtime.MaxProcessingWorkers = 4
 	cfg.Runtime.MaxHeavyPhaseWorkers = 6
 	cfg.Runtime.MaxBackgroundWorkers = 3
+	cfg.Runtime.MaxEngineLaneWorkers = 5
 
 	rt, err := resolveRuntime(cfg, time.Date(2026, 6, 13, 0, 0, 0, 0, time.UTC))
 	if err != nil {
@@ -164,6 +172,9 @@ func TestResolveRuntimeAppliesIngestWorkerCeiling(t *testing.T) {
 	if got, want := rt.BackgroundWorkers(), 2; got != want {
 		t.Fatalf("background workers = %d, want %d", got, want)
 	}
+	if got, want := rt.EngineLaneWorkers(), 2; got != want {
+		t.Fatalf("engine lane workers = %d, want %d", got, want)
+	}
 }
 
 func TestResolveRuntimeAllowsUnlimitedIngestWorkerCeiling(t *testing.T) {
@@ -174,6 +185,7 @@ func TestResolveRuntimeAllowsUnlimitedIngestWorkerCeiling(t *testing.T) {
 	cfg.Runtime.MaxProcessingWorkers = 4
 	cfg.Runtime.MaxHeavyPhaseWorkers = 6
 	cfg.Runtime.MaxBackgroundWorkers = 3
+	cfg.Runtime.MaxEngineLaneWorkers = 5
 
 	rt, err := resolveRuntime(cfg, time.Date(2026, 6, 13, 0, 0, 0, 0, time.UTC))
 	if err != nil {
@@ -193,6 +205,9 @@ func TestResolveRuntimeAllowsUnlimitedIngestWorkerCeiling(t *testing.T) {
 	}
 	if got, want := rt.BackgroundWorkers(), 3; got != want {
 		t.Fatalf("background workers = %d, want %d", got, want)
+	}
+	if got, want := rt.EngineLaneWorkers(), 5; got != want {
+		t.Fatalf("engine lane workers = %d, want %d", got, want)
 	}
 }
 
@@ -235,9 +250,16 @@ func TestReloadAppliesChangedIngestWorkerCeiling(t *testing.T) {
 	if got, want := snap.MaxBackgroundWorkers, 1; got != want {
 		t.Fatalf("reloaded background workers = %d, want %d", got, want)
 	}
+	if got, want := snap.MaxEngineLaneWorkers, 1; got != want {
+		t.Fatalf("reloaded engine lane workers = %d, want %d", got, want)
+	}
 	if got, want := snap.BackgroundLimit, 1; got != want {
 		t.Fatalf("reloaded background limiter = %d, want %d", got, want)
 	}
+	if got, want := snap.EngineLane.Limit, 1; got != want {
+		t.Fatalf("reloaded engine lane limit = %d, want %d", got, want)
+	}
+	waitForEngineLaneIdle(t, eng)
 }
 
 func TestReloadRetiresASNLookupCacheWithoutReplacingCache(t *testing.T) {
@@ -279,6 +301,7 @@ func TestReloadRetiresASNLookupCacheWithoutReplacingCache(t *testing.T) {
 	if !entry.closed {
 		t.Fatalf("retired ASN lookup entry was not closed after lease release")
 	}
+	waitForEngineLaneIdle(t, eng)
 }
 
 func TestStatusSnapshotReportsEffectiveRuntimeWorkers(t *testing.T) {
@@ -289,6 +312,7 @@ func TestStatusSnapshotReportsEffectiveRuntimeWorkers(t *testing.T) {
 		rt.MaxProcessingWorkers = 2
 		rt.MaxHeavyPhaseWorkers = 2
 		rt.MaxBackgroundWorkers = 2
+		rt.MaxEngineLaneWorkers = 2
 	}))
 
 	snap := eng.StatusSnapshot()
@@ -310,9 +334,94 @@ func TestStatusSnapshotReportsEffectiveRuntimeWorkers(t *testing.T) {
 	if got, want := snap.MaxBackgroundWorkers, 2; got != want {
 		t.Fatalf("status background workers = %d, want %d", got, want)
 	}
+	if got, want := snap.MaxEngineLaneWorkers, 2; got != want {
+		t.Fatalf("status engine lane workers = %d, want %d", got, want)
+	}
+	if got, want := snap.EngineLane.Limit, 2; got != want {
+		t.Fatalf("status engine lane limit = %d, want %d", got, want)
+	}
+}
+
+func TestStatusSnapshotReportsIntegrityCacheSummaries(t *testing.T) {
+	eng := newEngineFixture(t)
+	eng.StorePipelineIntegrityFindings(IntegrityOptions{}, []IntegrityFinding{{Feed: "sample"}}, nil)
+	eng.StoreEntityIntegrityFindings([]EntityIntegrityFinding{{Scope: "global", Kind: "version_missing", Subject: "entity_artifacts"}}, nil)
+
+	snap := eng.StatusSnapshotLight()
+	if got, want := snap.PipelineIntegrityCache.CacheState, IntegrityCacheFresh; got != want {
+		t.Fatalf("pipeline integrity cache state = %q, want %q", got, want)
+	}
+	if got, want := snap.PipelineIntegrityCache.Count, 1; got != want {
+		t.Fatalf("pipeline integrity cache count = %d, want %d", got, want)
+	}
+	if got, want := snap.EntityIntegrityCache.CacheState, IntegrityCacheFresh; got != want {
+		t.Fatalf("entity integrity cache state = %q, want %q", got, want)
+	}
+	if got, want := snap.EntityIntegrityCache.Count, 1; got != want {
+		t.Fatalf("entity integrity cache count = %d, want %d", got, want)
+	}
+}
+
+func TestPipelineIntegrityCacheKeepsIndependentScopes(t *testing.T) {
+	eng := newEngineFixture(t)
+	optsA := IntegrityOptions{WebDir: filepath.Join(t.TempDir(), "web-a")}
+	optsB := IntegrityOptions{WebDir: filepath.Join(t.TempDir(), "web-b"), IncludeArchived: true}
+
+	eng.StorePipelineIntegrityFindings(optsA, []IntegrityFinding{{Feed: "alpha"}}, nil)
+	eng.StorePipelineIntegrityFindings(optsB, []IntegrityFinding{{Feed: "beta"}, {Feed: "gamma"}}, nil)
+
+	snapA := eng.PipelineIntegrityCacheSnapshot(optsA)
+	if snapA.CacheState != IntegrityCacheFresh || len(snapA.Findings) != 1 || snapA.Findings[0].Feed != "alpha" {
+		t.Fatalf("scope A snapshot = %+v, want fresh alpha only", snapA)
+	}
+	snapB := eng.PipelineIntegrityCacheSnapshot(optsB)
+	if snapB.CacheState != IntegrityCacheFresh || len(snapB.Findings) != 2 || snapB.Findings[0].Feed != "beta" {
+		t.Fatalf("scope B snapshot = %+v, want fresh beta/gamma", snapB)
+	}
+	cold := eng.PipelineIntegrityCacheSnapshot(IntegrityOptions{WebDir: filepath.Join(t.TempDir(), "web-c")})
+	if cold.CacheState != IntegrityCacheCold || len(cold.Findings) != 0 {
+		t.Fatalf("unknown scope snapshot = %+v, want cold empty", cold)
+	}
+}
+
+func TestReloadStalesOldWebDirIntegrityScope(t *testing.T) {
+	root := t.TempDir()
+	cfgPath := filepath.Join(root, "config.yaml")
+	writeRuntimeReloadConfig(t, cfgPath, root, 2)
+
+	eng, err := New(cfgPath, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldWebDir := eng.Runtime().WebDir
+	eng.StorePipelineIntegrityFindings(IntegrityOptions{}, []IntegrityFinding{{Feed: "sample"}}, nil)
+
+	newWebDir := filepath.Join(root, "web-reloaded")
+	writeRuntimeReloadConfigWithWebDir(t, cfgPath, root, newWebDir, 2)
+	if err := eng.Reload(); err != nil {
+		t.Fatal(err)
+	}
+
+	oldSnap := eng.PipelineIntegrityCacheSnapshot(IntegrityOptions{WebDir: oldWebDir})
+	if oldSnap.CacheState != IntegrityCacheStale {
+		t.Fatalf("old web dir cache state = %q, want stale", oldSnap.CacheState)
+	}
+	current := eng.StatusSnapshotLight().PipelineIntegrityCache
+	if current.WebDir != newWebDir {
+		t.Fatalf("current integrity web dir = %q, want %q", current.WebDir, newWebDir)
+	}
+	if current.CacheState != IntegrityCacheCold {
+		t.Fatalf("current web dir cache state = %q, want cold", current.CacheState)
+	}
+	waitForEngineLaneIdle(t, eng)
 }
 
 func writeRuntimeReloadConfig(t *testing.T, path, root string, ceiling int) {
+	t.Helper()
+	writeRuntimeReloadConfigWithWebDir(t, path, root, filepath.Join(root, "web"), ceiling)
+}
+
+func writeRuntimeReloadConfigWithWebDir(t *testing.T, path, root, webDir string, ceiling int) {
 	t.Helper()
 	cfg := fmt.Sprintf(`
 runtime:
@@ -330,6 +439,7 @@ runtime:
   max_processing_workers: 4
   max_heavy_phase_workers: 6
   max_background_workers: 3
+  max_engine_lane_workers: 3
 sources:
   sample:
     static:
@@ -339,7 +449,7 @@ sources:
     output: netset
     processor:
       - passthrough
-`, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"), filepath.Join(root, "tmp"), ceiling)
+`, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), webDir, filepath.Join(root, "cache"), filepath.Join(root, "tmp"), ceiling)
 	if err := os.WriteFile(path, []byte(cfg), 0o600); err != nil {
 		t.Fatal(err)
 	}

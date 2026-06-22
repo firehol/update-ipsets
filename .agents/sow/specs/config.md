@@ -55,6 +55,8 @@ Controls operational behavior such as:
   heavy-phase, and background ingest pools
 - source-processing concurrency
 - heavy-phase concurrency
+- engine-lane concurrency for serialized engine, integrity, and artifact
+  maintenance work
 - background-work concurrency
 - public JSON/static artifact cache entry, byte, and per-file limits
 - processing cadence
@@ -72,16 +74,26 @@ Controls operational behavior such as:
 
 The runtime model MUST support `max_ingest_workers` as an optional ceiling for
 ingest-side worker pools. When this value is greater than zero, the effective
-download, DNS parsing, source-processing, heavy-phase, and background worker
-counts MUST NOT exceed it. Public/admin request serving MUST NOT acquire this
-ingest ceiling. A value of zero disables the ceiling and leaves the per-domain
-runtime controls as the effective limits.
+download, DNS parsing, source-processing, heavy-phase, engine-lane, and
+background worker counts MUST NOT exceed it. Public/admin request serving and
+watchdog work MUST NOT acquire this ingest ceiling. A value of zero disables
+the ceiling and leaves the per-domain runtime controls as the effective limits.
+
+The runtime model MUST support `max_engine_lane_workers`. This controls the
+bounded FIFO lane used by processing-engine runs, startup/operator integrity
+refreshes, integrity-triggered reprocess admission, entity artifact repair,
+entity refresh, entity rebuild, and generated-artifact cleanup. It defaults to
+`1`, MUST reject negative authored values, and MUST be clamped by
+`max_ingest_workers` when the ingest ceiling is enabled. It is intentionally
+separate from `max_background_workers`: the engine lane limits admission and
+serialization of broad engine-owned operations, while background worker counts
+limit bounded fan-out inside an admitted operation.
 
 Runtime resource-control integers that default when set to zero MUST reject
 negative authored values during validation. This includes download/DNS worker
-counts, processing/heavy/background worker counts, ingest ceiling, scheduling
-interval controls, download-error suppression count, and public artifact cache
-limits. Zero keeps its existing default or disabled meaning.
+counts, processing/heavy/engine-lane/background worker counts, ingest ceiling,
+scheduling interval controls, download-error suppression count, and public
+artifact cache limits. Zero keeps its existing default or disabled meaning.
 
 ### Categories
 
@@ -557,11 +569,12 @@ Rules:
 
 ## Runtime concurrency contract
 
-Runtime configuration MUST separate at least four concurrency domains:
+Runtime configuration MUST separate at least five concurrency domains:
 
 - downloader workers
 - feed-processing workers
 - heavy-phase workers
+- engine-lane workers
 - background workers
 
 Downloader workers control upstream acquisition and local feed-body composition.
@@ -577,8 +590,13 @@ including:
 - ASN fan-out
 - bogon fan-out
 
-Background workers control deferred daemon work that is not part of the normal
-downloader or processing queues, including:
+Engine-lane workers control top-level admission for broad engine-owned work that
+must not run directly from HTTP handlers, watchdog paths, or unrelated
+goroutines. This includes processing runs, integrity refresh/reprocess work,
+entity artifact repair/rebuild/refresh work, and generated-artifact cleanup.
+
+Background workers control bounded fan-out inside admitted background/entity
+work, including:
 
 - startup or reload entity-artifact integrity repair
 - health-transition entity-artifact refreshes

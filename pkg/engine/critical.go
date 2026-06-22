@@ -749,6 +749,72 @@ func (e *Engine) CleanupStaleCriticalInfrastructureArtifacts() error {
 	return nil
 }
 
+func (e *Engine) QueueCriticalInfrastructureCleanup(ctx context.Context, trigger string) (LaneTicket, error) {
+	if e == nil || e.engineLane == nil {
+		return LaneTicket{}, nil
+	}
+	ctx = nonNilContext(ctx)
+	if trigger == "" {
+		trigger = "background"
+	}
+	return e.engineLane.Submit(ctx, LaneWork{
+		Kind:          LaneWorkCleanup,
+		Component:     LaneComponentCriticalInfrastructure,
+		Name:          "cleanup.critical_infrastructure",
+		Trigger:       trigger,
+		Stage:         "cleanup",
+		Detail:        "removing stale critical infrastructure artifacts",
+		CoalescingKey: criticalInfrastructureCleanupCoalescingKey(trigger),
+	}, func(laneCtx context.Context) error {
+		return e.cleanupStaleCriticalInfrastructureArtifactsAdmitted(trigger)
+	})
+}
+
+func criticalInfrastructureCleanupCoalescingKey(trigger string) string {
+	switch trigger {
+	case "reload":
+		return "cleanup:critical_infrastructure:reload"
+	case "startup":
+		return "cleanup:critical_infrastructure:startup"
+	default:
+		return "cleanup:critical_infrastructure:background"
+	}
+}
+
+func (e *Engine) CleanupStaleCriticalInfrastructureArtifactsWithTrigger(ctx context.Context, trigger string) error {
+	if e == nil {
+		return nil
+	}
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
+	if trigger == "" {
+		trigger = "background"
+	}
+	if e.engineLane == nil {
+		return e.cleanupStaleCriticalInfrastructureArtifactsAdmitted(trigger)
+	}
+	return e.engineLane.Run(ctx, LaneWork{
+		Kind:      LaneWorkCleanup,
+		Component: LaneComponentCriticalInfrastructure,
+		Name:      "cleanup.critical_infrastructure",
+		Trigger:   trigger,
+		Stage:     "cleanup",
+		Detail:    "removing stale critical infrastructure artifacts",
+	}, func(laneCtx context.Context) error {
+		return e.cleanupStaleCriticalInfrastructureArtifactsAdmitted(trigger)
+	})
+}
+
+func (e *Engine) cleanupStaleCriticalInfrastructureArtifactsAdmitted(trigger string) error {
+	err := e.CleanupStaleCriticalInfrastructureArtifacts()
+	if err != nil && e.logger != nil {
+		e.logger.Warn("failed to cleanup stale critical infrastructure artifacts", "trigger", trigger, "error", err)
+	}
+	return err
+}
+
 func (e *Engine) CleanupCriticalInfrastructureArtifactsIfUnconfigured() error {
 	if e == nil || e.cfg == nil || len(e.CriticalInfrastructureProviders()) > 0 {
 		return nil

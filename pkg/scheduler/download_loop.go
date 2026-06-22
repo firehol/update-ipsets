@@ -2,9 +2,12 @@ package scheduler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/firehol/update-ipsets/pkg/engine"
 )
 
 func (r *Runner) runFetchLoop(ctx context.Context, wg *sync.WaitGroup) {
@@ -24,7 +27,9 @@ func (r *Runner) runFetchLoop(ctx context.Context, wg *sync.WaitGroup) {
 			for _, t := range transitions {
 				names = append(names, t.Feed)
 			}
-			r.eng.QueueEntityArtifactsRefreshForHealthTransitions(ctx, names)
+			if _, err := r.eng.QueueEntityArtifactsRefreshForHealthTransitions(ctx, names); err != nil {
+				r.logger.Error("failed to queue entity health-transition refresh", "feeds", len(names), "error", err)
+			}
 			r.stateMu.Lock()
 			const maxTransitions = 20
 			r.recentHealthTransitions = append(r.recentHealthTransitions, transitions...)
@@ -57,7 +62,7 @@ func (r *Runner) runFetchLoop(ctx context.Context, wg *sync.WaitGroup) {
 func (r *Runner) runDownload(ctx context.Context, item queuedWork) {
 	defer r.wakeDownloadLoop()
 	started := time.Now()
-	decision, err := r.eng.FetchAndStage(ctx, item.Name, item.ForceRun, r.enableAll)
+	decision, err := r.fetchQueuedDownload(ctx, item)
 	r.metrics.observeOperation("scheduler.fetch_and_stage", time.Since(started))
 	statusName := decision.Status.String()
 	if statusName == "" {
@@ -73,6 +78,15 @@ func (r *Runner) runDownload(ctx context.Context, item queuedWork) {
 	r.finishDownload(item.Name)
 	if err != nil {
 		r.logger.Error("download loop failed", "name", item.Name, "error", err)
+		if item.Kind == queuedWorkKindRecoveredArtifact && errors.Is(err, engine.ErrRecoveredArtifactCorrupt) {
+			r.enqueueDownload(queuedWork{
+				Name:      item.Name,
+				Reason:    item.Reason,
+				QueuedAt:  r.now().UTC(),
+				ForceRun:  true,
+				Immediate: true,
+			})
+		}
 		r.releaseDeferredDownload(item.Name)
 		return
 	}
@@ -95,4 +109,11 @@ func (r *Runner) runDownload(ctx context.Context, item queuedWork) {
 		r.wakeProcessLoop()
 	}
 	r.releaseDeferredDownload(item.Name)
+}
+
+func (r *Runner) fetchQueuedDownload(ctx context.Context, item queuedWork) (engine.DownloadDecision, error) {
+	if item.Kind == queuedWorkKindRecoveredArtifact {
+		return r.eng.RecoverStagedArtifact(ctx, item.Name, r.enableAll)
+	}
+	return r.eng.FetchAndStage(ctx, item.Name, item.ForceRun, r.enableAll)
 }

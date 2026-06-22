@@ -29,9 +29,11 @@ func TestSurfaceHandlerModesRegisterExpectedSurfaces(t *testing.T) {
 
 	assertRouteStatus(t, shared, "/healthz", "", http.StatusOK)
 	assertRouteStatus(t, shared, "/metrics", "", http.StatusOK)
+	assertRouteStatus(t, shared, "/api/v1/categories", "", http.StatusOK)
 	assertRouteStatus(t, shared, "/api/v1/admin/status", "", http.StatusUnauthorized)
 	assertRouteStatus(t, shared, "/api/v1/admin/status", "admin", http.StatusOK)
 	assertRouteStatus(t, publicOnly, "/healthz", "", http.StatusOK)
+	assertRouteStatus(t, publicOnly, "/api/v1/categories", "", http.StatusOK)
 	assertRouteStatus(t, publicOnly, "/metrics", "", http.StatusNotFound)
 	assertRouteStatus(t, publicOnly, "/admin", "admin", http.StatusNotFound)
 	assertRouteStatus(t, publicOnly, "/api/v1/admin/status", "admin", http.StatusNotFound)
@@ -247,6 +249,8 @@ func TestAdminActionRoutesRejectHEAD(t *testing.T) {
 		"/api/v1/admin/run",
 		"/api/v1/admin/feeds/sample/recheck",
 		"/api/v1/admin/feeds/sample/reprocess",
+		"/api/v1/admin/integrity/refresh",
+		"/api/v1/admin/integrity/entities/refresh",
 		"/api/v1/admin/integrity/entities/rebuild",
 		"/api/v1/admin/integrity/reprocess",
 	} {
@@ -274,6 +278,8 @@ func TestTelemetryRouteNameNormalizesDynamicPaths(t *testing.T) {
 		{path: "/api/v1/admin/feeds/firehol_level1/recheck", want: "/api/v1/admin/feeds/{name}/recheck"},
 		{path: "/api/v1/admin/feeds/firehol_level1/not-real", want: "/api/v1/admin/feeds/{name}/{action}"},
 		{path: "/api/v1/admin/artifacts/dronebl/recheck", want: "/api/v1/admin/artifacts/{name}/recheck"},
+		{path: "/api/v1/admin/integrity/refresh", want: "/api/v1/admin/integrity/refresh"},
+		{path: "/api/v1/admin/integrity/entities/refresh", want: "/api/v1/admin/integrity/entities/refresh"},
 		{path: "/api/v1/countries/GR", want: "/api/v1/countries/{code}"},
 		{path: "/api/v1/asns/12345", want: "/api/v1/asns/{asn}"},
 		{path: "/api/v1/unknown/random", want: "/api/v1/*"},

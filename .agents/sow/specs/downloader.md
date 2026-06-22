@@ -104,6 +104,9 @@ The downloader MUST support these downloader-stage item families:
 - materialize one or more child feed bodies from that artifact
 - built-in examples include custom downloader families such as DroneBL /
   DNSBL-style artifact downloaders
+- recover durable staged parent artifacts left by an interrupted process and
+  materialize their children through the same downloader FIFO path used by
+  fresh acquisition
 
 ### 5. Artifact-backed child feeds
 
@@ -332,6 +335,10 @@ At minimum, the status model MUST include these meanings:
 
 The downloader MUST run autonomously.
 
+Downloader admission MUST be stable and deterministic. Items with the same
+effective due time or queue timestamp MUST start in FIFO enqueue order, and
+queue merges MUST preserve the earliest enqueue position for that work item.
+
 It owns these operator-visible live states:
 
 1. waiting to be downloaded
@@ -459,6 +466,13 @@ For the current DroneBL rsync artifact family, the consumed parent input is the
 MUST avoid persistent partial/progress artifacts in the committed fetch area,
 MUST promote the fetched file atomically only after success, and MUST leave the
 last committed parent input usable when acquisition fails.
+
+If process startup finds a durable staged DroneBL parent artifact from a prior
+interrupted run, the downloader MUST recover it as downloader-stage work. The
+recovery path MUST enqueue the artifact parent in the downloader FIFO and let a
+downloader worker materialize child feed inputs. Startup or scheduler recovery
+code MUST NOT bypass the downloader queue by materializing DroneBL children
+directly or by enqueuing those children straight into processing.
 
 ## Admin visibility and controls
 

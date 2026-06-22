@@ -99,7 +99,9 @@ func (r *Runner) runQueuedProcessing(ctx context.Context) {
 		entityTargets = report.Updated
 	}
 	if len(entityTargets) > 0 {
-		r.eng.QueueEntityArtifactsRefreshForFeedUpdates(ctx, entityTargets, reason.String())
+		if _, err := r.eng.QueueEntityArtifactsRefreshForFeedUpdates(ctx, entityTargets, reason.String()); err != nil {
+			r.logger.Error("failed to queue entity artifact refresh", "feeds", len(entityTargets), "trigger", reason.String(), "error", err)
+		}
 	}
 }
 

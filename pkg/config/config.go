@@ -147,6 +147,7 @@ type RuntimeConfig struct {
 	MaxProcessingWorkers      int  `yaml:"max_processing_workers,omitempty"`
 	MaxHeavyPhaseWorkers      int  `yaml:"max_heavy_phase_workers,omitempty"`
 	MaxBackgroundWorkers      int  `yaml:"max_background_workers,omitempty"`
+	MaxEngineLaneWorkers      int  `yaml:"max_engine_lane_workers,omitempty"`
 	MinRunIntervalSeconds     int  `yaml:"min_run_interval_seconds,omitempty"`
 	ProcessingIntervalMinutes int  `yaml:"processing_interval_minutes,omitempty"`
 	SkipComparisonIfNoUpdates bool `yaml:"skip_comparison_if_no_updates,omitempty"`
@@ -617,6 +618,7 @@ func DefaultRuntime() RuntimeConfig {
 		MaxProcessingWorkers:                 2,
 		MaxHeavyPhaseWorkers:                 0,
 		MaxBackgroundWorkers:                 1,
+		MaxEngineLaneWorkers:                 1,
 		MinRunIntervalSeconds:                30,
 		ProcessingIntervalMinutes:            5,
 		SkipComparisonIfNoUpdates:            true,

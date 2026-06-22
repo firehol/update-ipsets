@@ -5,6 +5,7 @@ import (
 	"go/parser"
 	"go/token"
 	"log/slog"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -33,19 +34,20 @@ func newEngineFixture(t testing.TB, opts ...engineFixtureOption) *Engine {
 		MaxProcessingWorkers: 1,
 		MaxHeavyPhaseWorkers: 1,
 		MaxBackgroundWorkers: 1,
+		MaxEngineLaneWorkers: 1,
 	}
 	eng := &Engine{
-		cfg:               config.New(),
-		runtime:           rt,
-		cachePath:         filepath.Join(rt.BaseDir, ".cache.json"),
-		state:             cache.New(),
-		downloads:         downloader.New(rt.MaxConnectTime, rt.MaxDownloadTime),
-		logger:            slog.New(slog.DiscardHandler),
-		now:               time.Now,
-		backgroundLimiter: newBackgroundLimiter(rt.BackgroundWorkers()),
-		geoProviders:      newGeoProviderCache(),
-		asnLookupCache:    newASNDatabaseCache(),
-		ledgerCache:       newRuntimeLedgerCache(),
+		cfg:            config.New(),
+		runtime:        rt,
+		cachePath:      filepath.Join(rt.BaseDir, ".cache.json"),
+		state:          cache.New(),
+		downloads:      downloader.New(rt.MaxConnectTime, rt.MaxDownloadTime),
+		logger:         slog.New(slog.DiscardHandler),
+		now:            time.Now,
+		engineLane:     NewWorkLane(rt.EngineLaneWorkers()),
+		geoProviders:   newGeoProviderCache(),
+		asnLookupCache: newASNDatabaseCache(),
+		ledgerCache:    newRuntimeLedgerCache(),
 	}
 	for _, opt := range opts {
 		opt(eng)
@@ -62,8 +64,10 @@ func newEngineFixture(t testing.TB, opts ...engineFixtureOption) *Engine {
 	if eng.now == nil {
 		eng.now = time.Now
 	}
-	if eng.backgroundLimiter == nil {
-		eng.backgroundLimiter = newBackgroundLimiter(eng.runtime.BackgroundWorkers())
+	if eng.engineLane == nil {
+		eng.engineLane = NewWorkLane(eng.runtime.EngineLaneWorkers())
+	} else {
+		eng.engineLane.SetLimit(eng.runtime.EngineLaneWorkers())
 	}
 	if eng.geoProviders == nil {
 		eng.geoProviders = newGeoProviderCache()
@@ -107,6 +111,56 @@ func withRuntime(update func(*Runtime)) engineFixtureOption {
 func withNow(now func() time.Time) engineFixtureOption {
 	return func(eng *Engine) {
 		eng.now = now
+	}
+}
+
+func waitForEngineLaneIdle(t testing.TB, eng *Engine) {
+	t.Helper()
+	deadline := time.NewTimer(2 * time.Second)
+	defer deadline.Stop()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		lane := eng.StatusSnapshotLight().EngineLane
+		if lane.ActiveCount == 0 && lane.WaitingCount == 0 {
+			return
+		}
+		select {
+		case <-deadline.C:
+			t.Fatalf("engine lane did not settle: %#v", lane)
+		case <-ticker.C:
+		}
+	}
+}
+
+func waitForCriticalCleanupRemoved(t testing.TB, eng *Engine, paths ...string) {
+	t.Helper()
+	deadline := time.NewTimer(2 * time.Second)
+	defer deadline.Stop()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		allGone := true
+		for _, path := range paths {
+			if _, err := os.Stat(path); !os.IsNotExist(err) {
+				allGone = false
+				break
+			}
+		}
+		lane := eng.StatusSnapshotLight().EngineLane
+		if allGone && lane.ActiveCount == 0 && lane.WaitingCount == 0 {
+			return
+		}
+		select {
+		case <-deadline.C:
+			for _, path := range paths {
+				if _, err := os.Stat(path); !os.IsNotExist(err) {
+					t.Fatalf("expected stale critical artifact or marker %q to be removed on reload, stat err = %v", path, err)
+				}
+			}
+			t.Fatalf("critical cleanup lane did not settle: %#v", lane)
+		case <-ticker.C:
+		}
 	}
 }
 

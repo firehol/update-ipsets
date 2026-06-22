@@ -355,6 +355,7 @@ func validateRuntimeResourceControls(runtime RuntimeConfig) error {
 		"runtime.max_processing_workers":           runtime.MaxProcessingWorkers,
 		"runtime.max_heavy_phase_workers":          runtime.MaxHeavyPhaseWorkers,
 		"runtime.max_background_workers":           runtime.MaxBackgroundWorkers,
+		"runtime.max_engine_lane_workers":          runtime.MaxEngineLaneWorkers,
 		"runtime.min_run_interval_seconds":         runtime.MinRunIntervalSeconds,
 		"runtime.processing_interval_minutes":      runtime.ProcessingIntervalMinutes,
 	} {

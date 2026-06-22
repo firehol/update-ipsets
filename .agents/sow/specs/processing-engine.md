@@ -93,6 +93,31 @@ selector of new acquisition work.
 
 Automatic source freshness decisions belong to the downloader.
 
+## Engine-lane admission
+
+Broad processing-engine entrypoints MUST be admitted through the engine lane
+before they execute. This includes normal processing runs, integrity-triggered
+local reprocess, operator-triggered reprocess, entity artifact repair/rebuild
+work, and engine-owned cleanup work.
+
+A `RunOnce` call MUST be admitted as one engine-lane work item. The lane
+controls top-level run admission; it MUST NOT split a run into separate lane
+items for each processing phase.
+
+The engine lane is a top-level admission boundary. It MUST preserve FIFO order
+for admitted engine-owned work and MUST NOT replace the worker limits used
+inside an admitted run for processing, provider enrichment, comparison, entity
+fan-out, or other bounded internal phases.
+
+HTTP request handlers, public cached artifact serving, health checks, and
+watchdog notification MUST NOT acquire an engine-lane slot. They may report
+engine-lane state and cached integrity state, but they MUST NOT perform broad
+processing or integrity scans synchronously from the request path.
+
+Artifact-parent acquisition and artifact-child materialization, including
+DroneBL buildzone recovery, are downloader-stage work and MUST enter the
+downloader FIFO instead of the engine lane.
+
 ## Admissions into processing
 
 The engine may receive work directly only from:

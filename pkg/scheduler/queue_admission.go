@@ -21,8 +21,14 @@ func mergeQueuedWork(current, incoming queuedWork) queuedWork {
 	if current.Name == "" {
 		current.Name = incoming.Name
 	}
+	if current.Kind == "" || current.Kind == queuedWorkKindNormal {
+		current.Kind = incoming.Kind
+	}
 	if current.QueuedAt.IsZero() || (!incoming.QueuedAt.IsZero() && incoming.QueuedAt.Before(current.QueuedAt)) {
 		current.QueuedAt = incoming.QueuedAt
+	}
+	if current.EnqueueSeq == 0 || (incoming.EnqueueSeq > 0 && incoming.EnqueueSeq < current.EnqueueSeq) {
+		current.EnqueueSeq = incoming.EnqueueSeq
 	}
 	if incoming.ForceRun {
 		current.ForceRun = true
@@ -66,6 +72,13 @@ func (r *Runner) enqueueDownload(item queuedWork) {
 func (r *Runner) enqueueDownloadLocked(item queuedWork) {
 	if item.Name == "" {
 		return
+	}
+	if item.Kind == "" {
+		item.Kind = queuedWorkKindNormal
+	}
+	if item.EnqueueSeq == 0 {
+		r.downloadEnqueueSeq++
+		item.EnqueueSeq = r.downloadEnqueueSeq
 	}
 	if current, ok := r.download.waiting[item.Name]; ok {
 		r.download.waiting[item.Name] = mergeQueuedWork(current, item)
@@ -137,14 +150,14 @@ func (r *Runner) startNextDownload() (queuedWork, bool) {
 	first := true
 	blockedFirst := true
 	for _, item := range r.download.waiting {
-		if blockedFirst || item.QueuedAt.Before(blocked.QueuedAt) || (item.QueuedAt.Equal(blocked.QueuedAt) && item.Name < blocked.Name) {
+		if blockedFirst || queuedWorkBefore(item, blocked) {
 			blocked = item
 			blockedFirst = false
 		}
 		if !r.downloadInputsSettledLocked(item.Name) {
 			continue
 		}
-		if first || item.QueuedAt.Before(next.QueuedAt) || (item.QueuedAt.Equal(next.QueuedAt) && item.Name < next.Name) {
+		if first || queuedWorkBefore(item, next) {
 			next = item
 			first = false
 		}
@@ -158,6 +171,7 @@ func (r *Runner) startNextDownload() (queuedWork, bool) {
 	delete(r.download.waiting, next.Name)
 	r.download.active[next.Name] = ActiveQueueFeed{
 		Name:      next.Name,
+		Kind:      string(next.Kind),
 		Reason:    next.Reason,
 		StartedAt: r.now().UTC(),
 	}
@@ -211,4 +225,26 @@ func (r *Runner) releaseDeferredDownload(name string) {
 	}
 	delete(r.download.refetchPending, name)
 	r.download.waiting[name] = pending
+}
+
+func queuedWorkBefore(a, b queuedWork) bool {
+	if !a.QueuedAt.Equal(b.QueuedAt) {
+		if a.QueuedAt.IsZero() {
+			return false
+		}
+		if b.QueuedAt.IsZero() {
+			return true
+		}
+		return a.QueuedAt.Before(b.QueuedAt)
+	}
+	if a.EnqueueSeq != b.EnqueueSeq {
+		if a.EnqueueSeq == 0 {
+			return false
+		}
+		if b.EnqueueSeq == 0 {
+			return true
+		}
+		return a.EnqueueSeq < b.EnqueueSeq
+	}
+	return a.Name < b.Name
 }

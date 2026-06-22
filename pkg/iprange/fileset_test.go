@@ -104,6 +104,10 @@ func TestReadFileSetMetadata(t *testing.T) {
 }
 
 func TestFileSetHeaderOpenAllocationShape(t *testing.T) {
+	if raceDetectorEnabled {
+		t.Skip("race detector instrumentation changes allocation counts")
+	}
+
 	set := newOptimizedSet("metadata-allocs",
 		Range{Lo: 100, Hi: 200},
 		Range{Lo: 300, Hi: 400},

@@ -126,6 +126,29 @@ func (e *Engine) RebuildEntityArtifacts() error {
 }
 
 func (e *Engine) RebuildEntityArtifactsWithTrigger(ctx context.Context, trigger string) error {
+	if e == nil || e.engineLane == nil {
+		return nil
+	}
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
+	if trigger == "" {
+		trigger = "background"
+	}
+	return e.engineLane.Run(ctx, LaneWork{
+		Kind:      LaneWorkEntityRebuild,
+		Component: LaneComponentEntityArtifacts,
+		Name:      "entity.rebuild",
+		Trigger:   trigger,
+		Stage:     "planning",
+		Detail:    backgroundEntityTaskDetail("full", 0),
+	}, func(laneCtx context.Context) error {
+		return e.rebuildEntityArtifactsWithTriggerAdmitted(laneCtx, trigger)
+	})
+}
+
+func (e *Engine) rebuildEntityArtifactsWithTriggerAdmitted(ctx context.Context, trigger string) error {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
 		return err
@@ -134,9 +157,11 @@ func (e *Engine) RebuildEntityArtifactsWithTrigger(ctx context.Context, trigger 
 	if rebuildMarked {
 		defer e.clearEntityArtifactFullRebuildQueued()
 	}
-	return e.withBackgroundTask(
+	return e.withEngineLaneBackgroundTask(
 		ctx,
-		"Entity artifacts rebuild",
+		LaneWorkEntityRebuild,
+		LaneComponentEntityArtifacts,
+		backgroundTaskEntityArtifactsRebuild,
 		trigger,
 		"planning",
 		backgroundEntityTaskDetail("full", 0),
@@ -149,6 +174,29 @@ func (e *Engine) RebuildEntityArtifactsWithTrigger(ctx context.Context, trigger 
 }
 
 func (e *Engine) RefreshEntityArtifactsForHealthTransitions(ctx context.Context, feedNames []string) error {
+	if e == nil || e.engineLane == nil {
+		return nil
+	}
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
+	if len(feedNames) == 0 {
+		return nil
+	}
+	return e.engineLane.Run(ctx, LaneWork{
+		Kind:      LaneWorkEntityRefresh,
+		Component: LaneComponentEntityArtifactsHealth,
+		Name:      "entity.health_refresh",
+		Trigger:   "health_transition",
+		Stage:     "planning",
+		Detail:    backgroundEntityTaskDetail("health", len(feedNames)),
+	}, func(laneCtx context.Context) error {
+		return e.refreshEntityArtifactsForHealthTransitionsAdmitted(laneCtx, feedNames)
+	})
+}
+
+func (e *Engine) refreshEntityArtifactsForHealthTransitionsAdmitted(ctx context.Context, feedNames []string) error {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
 		return err
@@ -157,11 +205,13 @@ func (e *Engine) RefreshEntityArtifactsForHealthTransitions(ctx context.Context,
 		return nil
 	}
 	if e.entityArtifactsNeedBootstrapFast() {
-		return e.RebuildEntityArtifactsWithTrigger(ctx, "health_transition")
+		return e.rebuildEntityArtifactsWithTriggerAdmitted(ctx, "health_transition")
 	}
-	return e.withBackgroundTask(
+	return e.withEngineLaneBackgroundTask(
 		ctx,
-		"Entity artifacts refresh",
+		LaneWorkEntityRefresh,
+		LaneComponentEntityArtifactsHealth,
+		backgroundTaskEntityArtifactsRefresh,
 		"health_transition",
 		"scanning memberships",
 		backgroundEntityTaskDetail("health", len(feedNames)),

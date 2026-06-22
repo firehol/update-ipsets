@@ -122,13 +122,23 @@ Shows:
 - active work
 - queue backlog
 
-The high-frequency admin status endpoint MUST remain lightweight enough to
-poll while the engine is doing heavy metadata, comparison, entity, retention,
-or publish work. It MUST expose live run state, active operations, and
-background tasks, but it MUST NOT clone or serialize the full current-run,
-last-run, or lifetime metric trees on every poll. Detailed metric trees belong
-in lower-frequency diagnostics, structured progress logs, or a separate
-operator endpoint that is not required to reload the admin shell.
+The high-frequency admin status endpoint is
+`GET /api/v1/admin/status?mode=light`. It MUST remain lightweight enough to poll
+while the engine is doing heavy metadata, comparison, entity, retention, or
+publish work. It MUST expose live run state, active operations, and background
+tasks, but it MUST NOT clone or serialize the full current-run, last-run, or
+lifetime metric trees on every poll. Full `GET /api/v1/admin/status` responses
+are for lower-frequency diagnostics, not heartbeat polling required to reload
+the admin shell.
+
+The high-frequency status endpoint MUST include the typed engine-lane snapshot
+under `engine.engine_lane`. That snapshot is the authoritative admission state
+for broad engine-owned work and MUST expose at least the lane limit, active
+count, waiting count, active work, and waiting work. The status endpoint MUST
+also keep backward-compatible `engine.background_limit` and
+`engine.background_running` fields as aliases for the engine-lane limit and
+active count, while `engine.max_background_workers` continues to mean bounded
+fan-out inside admitted work.
 
 ### 2. Feed inventory
 
@@ -157,6 +167,17 @@ Integrity finding tables MUST be bounded viewports with their own scrollbars
 when findings are numerous. A large integrity or entity-integrity result set
 MUST NOT monopolize the whole admin page or push unrelated operator panels out
 of practical reach.
+
+Admin integrity GET endpoints MUST be cache-only from the HTTP handler's point
+of view. If no fresh settled integrity snapshot is available, the handler MUST
+queue a bounded engine-lane refresh and return an `in_progress` or equivalent
+cache-state response. A normal admin page reload MUST NOT synchronously scan the
+artifact tree, rebuild entity plans, or block behind broad engine-owned work.
+
+The admin API MUST expose explicit operator refresh actions for pipeline and
+entity integrity. Those actions queue engine-lane integrity refresh work and
+return queued/running/coalesced state rather than doing the scan in the request
+goroutine.
 
 ## Operator workspace behavior
 
@@ -298,6 +319,12 @@ For such tasks, the admin status surface SHOULD expose, at minimum:
 These background-work entries are not a fifth queue. They are a separate
 operator-facing status block for daemon activity that does not belong to the
 real downloader or processing queues.
+
+The background-work block MUST render active and waiting engine-lane work from
+the typed `engine.engine_lane` snapshot. Human-readable background task entries
+may add progress details for admitted work, but correctness MUST NOT depend on
+parsing task display names. The four downloader/processing live-list tiles MUST
+remain the only top queue tiles.
 
 The admin UI SHOULD render the background-work block even when there is no
 active background work, so the operator can distinguish "idle" from "feature

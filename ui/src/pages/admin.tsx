@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import type { AdminFeed } from "@/lib/api-types";
 import {
+  adminArtifactsOptions,
   adminFeedsOptions,
   adminIntegrityOptions,
   adminStatusOptions,
@@ -61,6 +62,12 @@ export function AdminPage() {
 
   const feedsQuery = useQuery({
     ...adminFeedsOptions(),
+    refetchInterval: 10000,
+    retry: false,
+  });
+
+  const artifactsQuery = useQuery({
+    ...adminArtifactsOptions(),
     refetchInterval: 10000,
     retry: false,
   });
@@ -181,7 +188,7 @@ export function AdminPage() {
       />
 
       <ArtifactsPanel
-        status={statusQuery.data}
+        artifacts={artifactsQuery.data}
         feeds={feeds}
         onFeedClick={openFeed}
       />

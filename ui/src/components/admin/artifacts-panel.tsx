@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
-import type { AdminFeed, AdminStatus } from "@/lib/api-types";
+import type { AdminArtifact, AdminFeed } from "@/lib/api-types";
 import {
   adminDisableArtifact,
   adminEnableArtifact,
@@ -19,17 +19,17 @@ import {
 type ArtifactAction = "recheck" | "enable" | "disable";
 
 export function ArtifactsPanel({
-  status,
+  artifacts,
   feeds,
   onFeedClick,
 }: {
-  status: AdminStatus | undefined;
+  artifacts: AdminArtifact[] | undefined;
   feeds: AdminFeed[];
   onFeedClick: (feed: AdminFeed) => void;
 }) {
   const queryClient = useQueryClient();
   const feedIndex = new Map(feeds.map((feed) => [feed.name, feed]));
-  const artifacts = status?.artifacts ?? [];
+  const rows = artifacts ?? [];
 
   const action = useMutation({
     mutationFn: async ({
@@ -58,7 +58,7 @@ export function ArtifactsPanel({
     },
   });
 
-  if (artifacts.length === 0) {
+  if (rows.length === 0) {
     return null;
   }
 
@@ -72,7 +72,7 @@ export function ArtifactsPanel({
           </div>
         </div>
         <div className="text-xs tabular-nums text-muted-foreground">
-          {artifacts.length} {artifacts.length === 1 ? "artifact" : "artifacts"}
+          {rows.length} {rows.length === 1 ? "artifact" : "artifacts"}
         </div>
       </div>
 
@@ -89,7 +89,7 @@ export function ArtifactsPanel({
             </tr>
           </thead>
           <tbody>
-            {artifacts.map((artifact) => {
+            {rows.map((artifact) => {
               const busy =
                 action.isPending && action.variables?.name === artifact.name;
               return (

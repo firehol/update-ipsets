@@ -127,5 +127,8 @@ func (e *Engine) publishEntityArtifactMutationPlan(ctx context.Context, task *Ba
 	if err := e.syncGeneratedFiles(plan.generated, published); err != nil {
 		return err
 	}
+	if mutatesLive {
+		e.MarkIntegrityCachesStale()
+	}
 	return nil
 }

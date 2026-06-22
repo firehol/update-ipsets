@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -94,8 +95,18 @@ func TestStatusSnapshotLightOmitsMetricsButKeepsLiveProgress(t *testing.T) {
 	if light.ActiveOperations[0].Current != 3 || light.ActiveOperations[0].Total != 10 {
 		t.Fatalf("light status active operation progress = %d/%d, want 3/10", light.ActiveOperations[0].Current, light.ActiveOperations[0].Total)
 	}
-	if light.CurrentMetrics != nil || light.LastMetrics != nil || light.LifetimeMetrics != nil {
-		t.Fatalf("light status included metrics: current=%v last=%v lifetime=%v", light.CurrentMetrics != nil, light.LastMetrics != nil, light.LifetimeMetrics != nil)
+	encoded, err := json.Marshal(light)
+	if err != nil {
+		t.Fatalf("marshal light status: %v", err)
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(encoded, &fields); err != nil {
+		t.Fatalf("decode light status fields: %v", err)
+	}
+	for _, field := range []string{"current_metrics", "last_metrics", "lifetime_metrics"} {
+		if _, ok := fields[field]; ok {
+			t.Fatalf("light status JSON included %s", field)
+		}
 	}
 
 	full := eng.StatusSnapshot()

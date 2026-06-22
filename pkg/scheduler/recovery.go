@@ -27,27 +27,21 @@ func (r *Runner) recoverStagedWork(ctx context.Context) {
 	if ctx.Err() != nil {
 		return
 	}
-	if recovered, err := r.eng.RecoverStagedArtifacts(ctx, r.enableAll); err != nil {
+	if recovered, err := r.eng.RecoverStagedArtifacts(ctx); err != nil {
 		r.logger.Error("failed to recover staged artifacts", "error", err)
 	} else {
-		for artifactName, children := range recovered {
+		for _, artifactName := range recovered {
 			if ctx.Err() != nil {
 				return
 			}
-			promote := append([]string{artifactName}, children...)
-			for _, name := range children {
-				if ctx.Err() != nil {
-					return
-				}
-				r.enqueueProcessing(queuedWork{
-					Name:      name,
-					Reason:    runreason.ReasonScheduledDue,
-					QueuedAt:  r.now().UTC(),
-					ForceRun:  true,
-					Immediate: true,
-					Promote:   append([]string(nil), promote...),
-				})
-			}
+			r.enqueueDownload(queuedWork{
+				Name:      artifactName,
+				Kind:      queuedWorkKindRecoveredArtifact,
+				Reason:    runreason.ReasonScheduledDue,
+				QueuedAt:  r.now().UTC(),
+				ForceRun:  true,
+				Immediate: true,
+			})
 		}
 	}
 	if len(r.ActivitySnapshot().ProcessingWaiting) > 0 {

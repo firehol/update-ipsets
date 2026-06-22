@@ -4,17 +4,29 @@ You will learn what background work the daemon does outside the four live feed q
 
 ## What is background work
 
-Some daemon work does not belong to the downloader or processing queues. It runs in a separate background-maintenance pool. The admin UI shows this work in the **Background Work** section of the runtime and queues panel.
+Some daemon work does not belong to the downloader or processing queues. It is
+admitted through the engine lane and may then use bounded background workers
+inside the admitted job. The admin UI shows this work in the **Background
+Work** section of the runtime and queues panel.
 
 Examples:
 
 - **Entity refreshes after feed updates** — updating country and ASN detail pages after public feed outputs change.
 - **Entity refreshes after health transitions** — updating entity pages when feed health affects published country or ASN facts.
+- **Integrity refreshes and recovery admission** — checking cached integrity
+  state or queueing recovery from the last settled findings.
 - **Startup entity checks and repairs** — rebuilding or repairing country and ASN artifacts when startup detects missing or stale entity artifacts.
 - **Config-reload entity checks** — checking country and ASN artifacts again after a successful configuration reload.
 - **Operator-requested entity work** — full or selected country and ASN artifact rebuilds from the admin integrity surfaces.
 
-Feed-output integrity recovery is different: it schedules recheck or reprocess work in the normal feed queues. Entity artifact recovery runs as background work.
+Feed-output integrity recovery is different from entity artifact publishing:
+the engine lane admits the recovery request, then the scheduler queues the
+resulting recheck or reprocess work in the normal feed queues. Entity artifact
+recovery itself remains engine-lane/background work.
+
+DroneBL staged-artifact recovery is not engine-lane background work. It appears
+as recovered artifact work in the downloader queue, and a downloader worker
+materializes DroneBL child inputs before normal processing.
 
 ## What you see
 
@@ -27,7 +39,8 @@ For each active background task:
 | **Current stage** | Where in the task lifecycle it is right now. |
 | **Started at** | When the task began. |
 | **Progress** | How far along it is, when meaningful. |
-| **Worker count** | How many background workers are active compared with the configured background-worker limit. |
+| **Lane count** | How many top-level engine-lane jobs are active compared with the configured engine-lane limit. |
+| **Worker count** | For admitted background work, how many internal background workers are active compared with the configured background-worker limit. |
 
 The same section can also show pending coalesced entity work, such as feed updates or health transitions waiting behind an already-running background task.
 
@@ -41,11 +54,18 @@ The background-work panel is visible even when no background tasks are running. 
 
 ## Coalescing
 
-Repeated entity refresh requests for the same target are coalesced. If the same feed needs an entity refresh while one is already queued or running, the daemon does not create a second serial task for the same feed. Full entity rebuild requests are also coalesced while a rebuild is already pending or running.
+Repeated requests for the same maintenance target are coalesced. If the same
+feed needs an entity refresh while one is already queued or running, the daemon
+does not create a second serial task for the same feed. Full entity rebuild
+requests and integrity refresh/reprocess requests are also coalesced while
+equivalent work is already pending or running.
 
 ## Serialization
 
-Entity artifact writes serialize even when the background worker limit is greater than one. Multiple background tasks may be admitted, but country/ASN artifact publication happens one at a time. This prevents two writers from publishing overlapping entity artifacts.
+Entity artifact writes serialize even when the engine-lane or background worker
+limit is greater than one. Multiple jobs may be admitted, but country/ASN
+artifact publication happens one at a time. This prevents two writers from
+publishing overlapping entity artifacts.
 
 ## See also
 

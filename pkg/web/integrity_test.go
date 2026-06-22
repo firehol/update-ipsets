@@ -3,6 +3,7 @@ package web
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -51,8 +52,12 @@ func TestBuildIntegrityReportAnnotatesRecoveryMetadata(t *testing.T) {
 	); err != nil {
 		t.Fatal(err)
 	}
+	storePipelineIntegrityCache(t, eng, engine.IntegrityOptions{})
 
-	report := buildIntegrityReport(eng, false, false, "")
+	report, err := buildIntegrityReport(context.Background(), eng, false, false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if report.Status != integrityStatusIssues {
 		t.Fatalf("report status = %q, want %q", report.Status, integrityStatusIssues)
 	}
@@ -108,12 +113,20 @@ func TestBuildIntegrityReportExcludesArchivedFeedsUnlessRequested(t *testing.T) 
 		t.Fatal(err)
 	}
 
-	report := buildIntegrityReport(eng, false, false, "")
+	storePipelineIntegrityCache(t, eng, engine.IntegrityOptions{})
+	report, err := buildIntegrityReport(context.Background(), eng, false, false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if report.Count != 0 {
 		t.Fatalf("archived feeds should be excluded by default, got %d findings", report.Count)
 	}
 
-	report = buildIntegrityReport(eng, true, false, "")
+	storePipelineIntegrityCache(t, eng, engine.IntegrityOptions{IncludeArchived: true})
+	report, err = buildIntegrityReport(context.Background(), eng, true, false, "")
+	if err != nil {
+		t.Fatal(err)
+	}
 	if report.Count == 0 {
 		t.Fatalf("include archived should surface findings, got none")
 	}
@@ -124,10 +137,11 @@ func TestHandleAdminEntityIntegrityReturnsEntityFindings(t *testing.T) {
 	if err := os.Remove(eng.PublicCountryIndexPath()); err != nil {
 		t.Fatal(err)
 	}
+	storeEntityIntegrityCache(t, eng)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/integrity/entities", nil)
 	rec := httptest.NewRecorder()
-	handleAdminEntityIntegrity(eng).ServeHTTP(rec, req)
+	handleAdminEntityIntegrity(context.Background(), eng).ServeHTTP(rec, req)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status code = %d, want %d", rec.Code, http.StatusOK)
 	}
@@ -147,15 +161,28 @@ func TestHandleAdminEntityIntegrityReturnsEntityFindings(t *testing.T) {
 	}
 }
 
-func TestEntityIntegrityBusyDuringEngineRunOrEntityBackgroundTask(t *testing.T) {
-	if !entityIntegrityBusy(engine.StatusSnapshot{Running: true}) {
-		t.Fatal("entity integrity must be busy while the engine run is active")
+func TestHandleAdminEntityIntegrityGetIsCacheFirstWhenCacheIsCold(t *testing.T) {
+	eng := newEntityIntegrityTestEngine(t)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/integrity/entities", nil)
+	rec := httptest.NewRecorder()
+	handleAdminEntityIntegrity(context.Background(), eng).ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status code = %d, want %d", rec.Code, http.StatusOK)
 	}
-	if !entityIntegrityBusy(engine.StatusSnapshot{BackgroundTasks: []engine.BackgroundTaskSnapshot{{Name: "Entity artifacts refresh"}}}) {
-		t.Fatal("entity integrity must be busy while entity background work is active")
+
+	var report entityIntegrityReport
+	if err := json.Unmarshal(rec.Body.Bytes(), &report); err != nil {
+		t.Fatalf("decode response: %v", err)
 	}
-	if entityIntegrityBusy(engine.StatusSnapshot{BackgroundTasks: []engine.BackgroundTaskSnapshot{{Name: "Other maintenance"}}}) {
-		t.Fatal("unrelated background work must not suppress entity integrity checks")
+	if report.Status != integrityStatusClean {
+		t.Fatalf("status = %q, want %q", report.Status, integrityStatusClean)
+	}
+	if report.CacheState != engine.IntegrityCacheCold {
+		t.Fatalf("cache_state = %q, want cold", report.CacheState)
+	}
+	if report.Queued || report.Running {
+		t.Fatalf("GET must not queue or run refresh work, got %+v", report)
 	}
 }
 
@@ -184,6 +211,66 @@ func TestHandleAdminEntityIntegrityRebuildSchedulesBackgroundRebuild(t *testing.
 	waitForEntityRebuildOutput(t, eng, countryIndexPath, 2*time.Second)
 }
 
+func TestAdminIntegrityRefreshRoutesQueueEngineLaneWork(t *testing.T) {
+	eng, handler := testHandler(t, Options{
+		EnableAll:                 true,
+		AdminAuthMode:             AdminAuthModeDisabled,
+		AllowUnauthenticatedAdmin: true,
+	})
+	eng.StorePipelineIntegrityFindings(engine.IntegrityOptions{}, []engine.IntegrityFinding{{Feed: "sample"}}, nil)
+
+	releaseLane := make(chan struct{})
+	laneStarted := make(chan struct{})
+	_, err := eng.QueuePipelineIntegrityReprocess(t.Context(), engine.IntegrityOptions{}, "test_block", func(ctx context.Context, _ []engine.IntegrityFinding) error {
+		close(laneStarted)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-releaseLane:
+			return nil
+		}
+	})
+	if err != nil {
+		t.Fatalf("queue blocking integrity reprocess: %v", err)
+	}
+	<-laneStarted
+	t.Cleanup(func() {
+		close(releaseLane)
+		waitForEngineLaneClear(t, eng, 2*time.Second)
+	})
+
+	server := newWebHTTPTestServer(t, handler)
+	status, _, body := server.do(t, http.MethodPost, "/api/v1/admin/integrity/refresh", nil)
+	if status != http.StatusAccepted {
+		t.Fatalf("POST pipeline integrity refresh status = %d body=%s, want 202", status, body)
+	}
+	var pipelineResult integrityReprocessResult
+	if err := json.Unmarshal(body, &pipelineResult); err != nil {
+		t.Fatalf("decode pipeline refresh response: %v", err)
+	}
+	if pipelineResult.Status != integrityStatusScheduled || pipelineResult.Ticket == nil {
+		t.Fatalf("pipeline refresh result = %+v, want scheduled lane ticket", pipelineResult)
+	}
+	if pipelineResult.Ticket.Kind != engine.LaneWorkIntegrityRefresh || pipelineResult.Ticket.Component != engine.LaneComponentPipelineIntegrity {
+		t.Fatalf("pipeline refresh ticket = %+v, want pipeline integrity refresh", pipelineResult.Ticket)
+	}
+
+	status, _, body = server.do(t, http.MethodPost, "/api/v1/admin/integrity/entities/refresh", nil)
+	if status != http.StatusAccepted {
+		t.Fatalf("POST entity integrity refresh status = %d body=%s, want 202", status, body)
+	}
+	var entityResult entityIntegrityActionResult
+	if err := json.Unmarshal(body, &entityResult); err != nil {
+		t.Fatalf("decode entity refresh response: %v", err)
+	}
+	if entityResult.Status != integrityStatusScheduled || entityResult.Ticket == nil {
+		t.Fatalf("entity refresh result = %+v, want scheduled lane ticket", entityResult)
+	}
+	if entityResult.Ticket.Kind != engine.LaneWorkIntegrityRefresh || entityResult.Ticket.Component != engine.LaneComponentEntityIntegrity {
+		t.Fatalf("entity refresh ticket = %+v, want entity integrity refresh", entityResult.Ticket)
+	}
+}
+
 func waitForEntityRebuildOutput(t *testing.T, eng *engine.Engine, path string, timeout time.Duration) {
 	t.Helper()
 
@@ -208,6 +295,24 @@ func waitForEntityRebuildOutput(t *testing.T, eng *engine.Engine, path string, t
 	}
 }
 
+func storePipelineIntegrityCache(t *testing.T, eng *engine.Engine, opts engine.IntegrityOptions) {
+	t.Helper()
+	findings, err := eng.CheckIntegrityWithOptionsContext(t.Context(), opts)
+	if err != nil {
+		t.Fatalf("pipeline integrity scan: %v", err)
+	}
+	eng.StorePipelineIntegrityFindings(opts, findings, nil)
+}
+
+func storeEntityIntegrityCache(t *testing.T, eng *engine.Engine) {
+	t.Helper()
+	findings, _, err := eng.CheckEntityArtifactsIntegrity()
+	if err != nil {
+		t.Fatalf("entity integrity scan: %v", err)
+	}
+	eng.StoreEntityIntegrityFindings(findings, nil)
+}
+
 func TestHandleAdminIntegrityReprocessReturnsSplitTargets(t *testing.T) {
 	eng := newSettledIntegrityTestEngine(t)
 	if err := os.Remove(filepath.Join(eng.Runtime().BaseDir, "sample.ipset")); err != nil {
@@ -216,10 +321,11 @@ func TestHandleAdminIntegrityReprocessReturnsSplitTargets(t *testing.T) {
 	if err := os.Remove(filepath.Join(eng.Runtime().WebDir, "sample.json")); err != nil {
 		t.Fatal(err)
 	}
+	storePipelineIntegrityCache(t, eng, engine.IntegrityOptions{EnableAll: true})
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/integrity/reprocess", nil)
 	rec := httptest.NewRecorder()
-	handler := handleAdminIntegrityReprocess(eng, scheduler.New(eng, true, nil), "")
+	handler := handleAdminIntegrityReprocess(context.Background(), eng, scheduler.New(eng, true, nil), "")
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status code = %d, want %d", rec.Code, http.StatusAccepted)
@@ -231,6 +337,12 @@ func TestHandleAdminIntegrityReprocessReturnsSplitTargets(t *testing.T) {
 	}
 	if result.Status != integrityStatusScheduled {
 		t.Fatalf("result status = %q, want %q", result.Status, integrityStatusScheduled)
+	}
+	if result.Ticket == nil {
+		t.Fatal("expected integrity reprocess lane ticket")
+	}
+	if result.Ticket.Kind != engine.LaneWorkIntegrityReprocess {
+		t.Fatalf("ticket kind = %q, want %q", result.Ticket.Kind, engine.LaneWorkIntegrityReprocess)
 	}
 	if result.Count != 1 {
 		t.Fatalf("result count = %d, want 1", result.Count)

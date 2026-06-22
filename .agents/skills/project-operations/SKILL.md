@@ -58,8 +58,12 @@ description: "Install, daemon, admin, and runtime operation guidance for update-
 ## Operational rules
 
 - Public serving must stay cache-first and cheap; do not trigger upstream downloads or broad recomputation from public requests (evidence: `.agents/sow/specs/operating-principles.md`).
-- Background work must be visible through admin status/UI (from SOW-0004).
-- Background concurrency must protect CPU and memory; default background workers should remain conservative.
+- Engine-lane work must be visible through admin status/UI. `max_engine_lane_workers`
+  controls top-level processing/integrity/entity admission; `max_background_workers`
+  controls bounded fan-out inside admitted background/entity work (from
+  SOW-0117).
+- Background concurrency must protect CPU and memory; default engine-lane and
+  background workers should remain conservative.
 - Do not use broad process-kill commands. Track and stop only specific PIDs started for the task.
 - Do not push or touch production systems unless the user explicitly approves.
 

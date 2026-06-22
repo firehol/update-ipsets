@@ -69,6 +69,7 @@ export type AdminProblemClass = "downloader" | "processing";
 
 export interface AdminQueueItem {
   name: string;
+  kind?: "normal" | "recovered_artifact" | string;
   reason?: string;
   queued_at?: string;
   status?: string;
@@ -81,6 +82,7 @@ export interface AdminQueueItem {
 
 export interface AdminActiveQueueItem {
   name: string;
+  kind?: "normal" | "recovered_artifact" | string;
   reason?: string;
   started_at?: string;
   status?: string;
@@ -159,6 +161,21 @@ export interface HealthTransition {
 }
 
 export type IntegrityRecoveryAction = "recheck" | "reprocess";
+export type IntegrityCacheState =
+  | "cold"
+  | "fresh"
+  | "stale"
+  | "refresh_queued"
+  | "refresh_running";
+
+export interface AdminLaneTicket {
+  id: string;
+  kind?: string;
+  component?: string;
+  queued: boolean;
+  coalesced: boolean;
+  state: "queued" | "active" | "completed" | "failed" | "canceled" | "skipped";
+}
 
 /** A single row from /api/v1/admin/integrity. One finding per feed whose
  *  last successful local publication no longer matches the current on-disk
@@ -185,9 +202,17 @@ export interface IntegrityFinding {
 export interface IntegrityReport {
   include_archived?: boolean;
   status: "clean" | "issues" | "in_progress";
+  generation?: number;
+  cache_state?: IntegrityCacheState;
   running: boolean;
+  startup_scan_running?: boolean;
+  queued?: boolean;
+  coalesced?: boolean;
+  ticket?: AdminLaneTicket;
   last_started?: string;
   last_ended?: string;
+  checked_at?: string;
+  last_error?: string;
   count: number;
   findings: IntegrityFinding[];
 }
@@ -198,9 +223,17 @@ export interface IntegrityReport {
 export interface IntegrityReprocessResult {
   include_archived?: boolean;
   status: "clean" | "scheduled" | "in_progress";
+  generation?: number;
+  cache_state?: IntegrityCacheState;
   running?: boolean;
+  startup_scan_running?: boolean;
+  queued?: boolean;
+  coalesced?: boolean;
+  ticket?: AdminLaneTicket;
   last_started?: string;
   last_ended?: string;
+  checked_at?: string;
+  last_error?: string;
   count: number;
   names?: string[];
   recheck_names?: string[];
@@ -227,18 +260,90 @@ export interface EntityIntegrityFinding {
 
 export interface EntityIntegrityReport {
   status: "clean" | "issues" | "in_progress";
+  generation?: number;
+  cache_state?: IntegrityCacheState;
   running: boolean;
+  startup_scan_running?: boolean;
+  queued?: boolean;
+  coalesced?: boolean;
+  ticket?: AdminLaneTicket;
   last_started?: string;
   last_ended?: string;
+  checked_at?: string;
+  last_error?: string;
   count: number;
   findings: EntityIntegrityFinding[];
 }
 
 export interface EntityIntegrityActionResult {
   status: "scheduled" | "in_progress";
+  generation?: number;
+  cache_state?: IntegrityCacheState;
   running?: boolean;
+  startup_scan_running?: boolean;
+  queued?: boolean;
+  coalesced?: boolean;
+  ticket?: AdminLaneTicket;
   last_started?: string;
   last_ended?: string;
+  checked_at?: string;
+  last_error?: string;
+}
+
+export interface AdminEngineLaneWork {
+  id: string;
+  kind: string;
+  component: string;
+  name: string;
+  trigger?: string;
+  stage?: string;
+  detail?: string;
+  state: "queued" | "active" | "completed" | "failed" | "canceled" | "skipped";
+  queued_at?: string;
+  started_at?: string;
+  elapsed_ms?: number;
+  wait_ms?: number;
+}
+
+export interface AdminEngineLane {
+  limit: number;
+  active_count: number;
+  waiting_count: number;
+  active?: AdminEngineLaneWork[];
+  waiting?: AdminEngineLaneWork[];
+}
+
+export interface AdminPipelineIntegrityCache {
+  generation: number;
+  cache_state: IntegrityCacheState;
+  running?: boolean;
+  startup_scan_running?: boolean;
+  queued?: boolean;
+  coalesced?: boolean;
+  ticket?: AdminLaneTicket;
+  include_archived?: boolean;
+  enable_all?: boolean;
+  web_dir?: string;
+  checked_at?: string;
+  last_started?: string;
+  last_ended?: string;
+  last_error?: string;
+  count: number;
+}
+
+export interface AdminEntityIntegrityCache {
+  generation: number;
+  cache_state: IntegrityCacheState;
+  running?: boolean;
+  startup_scan_running?: boolean;
+  queued?: boolean;
+  coalesced?: boolean;
+  ticket?: AdminLaneTicket;
+  checked_at?: string;
+  last_started?: string;
+  last_ended?: string;
+  last_error?: string;
+  count: number;
 }
 
 /** /api/v1/admin/status returns a wrapped object with system,
@@ -294,6 +399,8 @@ export interface AdminStatus {
     background_tasks?: Array<{
       id: string;
       name: string;
+      kind?: string;
+      component?: string;
       trigger?: string;
       stage?: string;
       detail?: string;
@@ -304,16 +411,16 @@ export interface AdminStatus {
     }>;
     background_limit?: number;
     background_running?: number;
+    engine_lane?: AdminEngineLane;
+    pipeline_integrity_cache?: AdminPipelineIntegrityCache;
+    entity_integrity_cache?: AdminEntityIntegrityCache;
     max_ingest_workers?: number;
     parallel_downloads?: number;
     parallel_dns_queries?: number;
     max_processing_workers?: number;
     max_heavy_phase_workers?: number;
     max_background_workers?: number;
-    lifetime_metrics?: {
-      operations?: AdminTimingStat[];
-      counters?: AdminCounterStat[];
-    };
+    max_engine_lane_workers?: number;
     last_report?: {
       started_at: string;
       ended_at: string;

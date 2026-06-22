@@ -150,14 +150,78 @@ func (e *Engine) EnsureEntityArtifactsCurrent(ctx context.Context) error {
 }
 
 func (e *Engine) EnsureEntityArtifactsCurrentWithTrigger(ctx context.Context, trigger string) error {
+	if e == nil || e.engineLane == nil {
+		return nil
+	}
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
 		return err
 	}
-	findings, plan, err := e.CheckEntityArtifactsIntegrity()
-	if err != nil {
+	if trigger == "" {
+		trigger = "bootstrap"
+	}
+	return e.engineLane.Run(ctx, LaneWork{
+		Kind:      LaneWorkEntityRepair,
+		Component: LaneComponentEntityIntegrity,
+		Name:      "entity.integrity.repair",
+		Trigger:   trigger,
+		Stage:     "scanning",
+		Detail:    "checking entity artifact integrity",
+	}, func(laneCtx context.Context) error {
+		return e.ensureEntityArtifactsCurrentWithTriggerAdmitted(laneCtx, trigger)
+	})
+}
+
+func (e *Engine) QueueEntityArtifactsEnsure(ctx context.Context, trigger string) (EntityArtifactQueueResult, error) {
+	if e == nil || e.engineLane == nil {
+		return EntityArtifactQueueResult{}, nil
+	}
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
+		return EntityArtifactQueueResult{}, err
+	}
+	if trigger == "" {
+		trigger = "bootstrap"
+	}
+	ticket, err := e.engineLane.Submit(ctx, LaneWork{
+		Kind:          LaneWorkEntityRepair,
+		Component:     LaneComponentEntityIntegrity,
+		Name:          "entity.integrity.repair",
+		Trigger:       trigger,
+		Stage:         "scanning",
+		Detail:        "checking entity artifact integrity",
+		CoalescingKey: entityArtifactsEnsureCoalescingKey(trigger),
+	}, func(laneCtx context.Context) error {
+		return e.ensureEntityArtifactsCurrentWithTriggerAdmitted(laneCtx, trigger)
+	})
+	return entityArtifactQueueResult(ticket), err
+}
+
+func entityArtifactsEnsureCoalescingKey(trigger string) string {
+	switch trigger {
+	case "reload":
+		return "entity:integrity:reload"
+	case "startup", "bootstrap":
+		return "entity:repair:startup"
+	case "operator", "operator_rebuild", "admin_refresh":
+		return "entity:repair:operator"
+	default:
+		return "entity:repair:background"
+	}
+}
+
+func (e *Engine) ensureEntityArtifactsCurrentWithTriggerAdmitted(ctx context.Context, trigger string) error {
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
 		return err
 	}
+	e.setEntityIntegrityRunning("entity_integrity:"+trigger, trigger)
+	findings, plan, err := e.CheckEntityArtifactsIntegrity()
+	if err != nil {
+		e.StoreEntityIntegrityFindings(findings, err)
+		return err
+	}
+	e.StoreEntityIntegrityFindings(findings, nil)
 	if len(findings) == 0 || !plan.hasWork() {
 		return nil
 	}
@@ -175,7 +239,11 @@ func (e *Engine) EnsureEntityArtifactsCurrentWithTrigger(ctx context.Context, tr
 		}
 		return nil
 	}
-	return e.repairEntityArtifactsWithPlan(ctx, trigger, plan)
+	if err := e.repairEntityArtifactsWithPlanAdmitted(ctx, trigger, plan); err != nil {
+		return err
+	}
+	e.MarkIntegrityCachesStale()
+	return nil
 }
 
 func (e *Engine) CheckEntityArtifactsIntegrity() ([]EntityIntegrityFinding, entityIntegrityPlan, error) {

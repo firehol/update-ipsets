@@ -1,8 +1,11 @@
 package engine
 
 import (
+	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -162,4 +165,109 @@ func TestCleanupDroneBLExtractDirRemovesOnlyOutputScratchDirs(t *testing.T) {
 	if _, err := os.Stat(keptFile); err != nil {
 		t.Fatalf("kept file was removed: %v", err)
 	}
+}
+
+func TestRecoverStagedDroneBLCorruptBuildzoneRenamesAside(t *testing.T) {
+	eng := newDroneBLRecoveryFixture(t)
+	stagePath := stagedPath(eng.artifactSourcePath("dronebl"))
+	if err := os.MkdirAll(filepath.Dir(stagePath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(stagePath, []byte(strings.Repeat("1", 2*1024*1024+1)+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := eng.RecoverStagedArtifact(t.Context(), "dronebl", true)
+	if !errors.Is(err, ErrRecoveredArtifactCorrupt) {
+		t.Fatalf("RecoverStagedArtifact error = %v, want ErrRecoveredArtifactCorrupt", err)
+	}
+	if _, err := os.Stat(stagePath); !os.IsNotExist(err) {
+		t.Fatalf("corrupt recovered stage should be moved aside, stat err=%v", err)
+	}
+	if _, err := os.Stat(stagePath + ".corrupt"); err != nil {
+		t.Fatalf("corrupt recovered stage was not preserved as .corrupt: %v", err)
+	}
+	sidecarPath := stagePath + ".corrupt.json"
+	data, err := os.ReadFile(sidecarPath)
+	if err != nil {
+		t.Fatalf("corrupt recovered stage sidecar was not written: %v", err)
+	}
+	var sidecar recoveredArtifactCorruptionSidecar
+	if err := json.Unmarshal(data, &sidecar); err != nil {
+		t.Fatalf("decode corrupt recovered stage sidecar: %v", err)
+	}
+	if sidecar.Name != "dronebl" {
+		t.Fatalf("sidecar name = %q, want dronebl", sidecar.Name)
+	}
+	if sidecar.Artifact != filepath.Base(stagePath+".corrupt") {
+		t.Fatalf("sidecar artifact = %q, want %q", sidecar.Artifact, filepath.Base(stagePath+".corrupt"))
+	}
+	if sidecar.CorruptionClass != "token_too_long" {
+		t.Fatalf("sidecar corruption_class = %q, want token_too_long", sidecar.CorruptionClass)
+	}
+	if sidecar.Timestamp.IsZero() {
+		t.Fatal("sidecar timestamp is zero")
+	}
+}
+
+func TestRecoverStagedDroneBLTransientMaterializationErrorKeepsStage(t *testing.T) {
+	eng := newDroneBLRecoveryFixture(t)
+	stagePath := stagedPath(eng.artifactSourcePath("dronebl"))
+	if err := os.MkdirAll(filepath.Dir(stagePath), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(stagePath, []byte("1.2.3.4\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(eng.artifactExtractDir("dronebl"), []byte("not a directory\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := eng.RecoverStagedArtifact(t.Context(), "dronebl", true)
+	if err == nil {
+		t.Fatal("RecoverStagedArtifact returned nil error, want transient materialization error")
+	}
+	if errors.Is(err, ErrRecoveredArtifactCorrupt) {
+		t.Fatalf("transient materialization error was classified as corrupt: %v", err)
+	}
+	if _, statErr := os.Stat(stagePath); statErr != nil {
+		t.Fatalf("transient recovery failure should keep staged artifact, stat err=%v", statErr)
+	}
+	if _, statErr := os.Stat(stagePath + ".corrupt"); !os.IsNotExist(statErr) {
+		t.Fatalf("transient recovery failure should not create .corrupt, stat err=%v", statErr)
+	}
+}
+
+func newDroneBLRecoveryFixture(t *testing.T) *Engine {
+	t.Helper()
+
+	cfg := config.New()
+	cfg.Artifacts["dronebl"] = &config.Artifact{
+		Name:      "dronebl",
+		Type:      config.ArtifactTypeDroneBLBuildzone,
+		Frequency: 60,
+	}
+	cfg.Sources["child"] = &config.Source{
+		Name:           "child",
+		URL:            "artifact://dronebl?parts=auto_botnets",
+		ArtifactParent: "dronebl",
+		Frequency:      0,
+		IPV:            "ipv4",
+		Output:         "ipset",
+	}
+	eng := newEngineFixture(t, withConfig(cfg))
+	for _, dir := range []string{
+		eng.runtime.BaseDir,
+		eng.runtime.HistoryDir,
+		eng.runtime.LibDir,
+		eng.runtime.ErrorsDir,
+		eng.runtime.CacheDir,
+		eng.runtime.TmpDir,
+		eng.runtime.WebDir,
+	} {
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			t.Fatalf("create runtime dir %s: %v", dir, err)
+		}
+	}
+	return eng
 }

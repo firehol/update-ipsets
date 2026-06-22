@@ -130,36 +130,8 @@ func (e *Engine) RecoverStagedSources() ([]string, error) {
 	return names, nil
 }
 
-func (e *Engine) RecoverStagedArtifacts(ctx context.Context, enableAll bool) (map[string][]string, error) {
-	if err := contextErr(ctx); err != nil {
-		return nil, err
-	}
-	out := make(map[string][]string)
-	for _, name := range config.SortedArtifactNames(e.cfg) {
-		if err := contextErr(ctx); err != nil {
-			return nil, err
-		}
-		if !e.isArtifact(name) {
-			continue
-		}
-		finalPath := e.artifactSourcePath(name)
-		_ = os.Remove(pendingTempPath(finalPath))
-		stagePath := stagedPath(finalPath)
-		if !fileExists(stagePath) {
-			continue
-		}
-		decision, err := e.materializeArtifactChildren(ctx, name, stagePath, enableAll, true)
-		if err != nil {
-			return nil, err
-		}
-		if len(decision.ProcessingNames) > 0 {
-			out[name] = append([]string(nil), decision.ProcessingNames...)
-		}
-	}
-	return out, nil
-}
-
 func (e *Engine) PromoteCommittedDownloads(names []string) error {
+	promoted := false
 	for _, name := range names {
 		if !e.IsDownloadable(name) {
 			continue
@@ -181,6 +153,10 @@ func (e *Engine) PromoteCommittedDownloads(names []string) error {
 		if err := promoteStagedFile(finalPath); err != nil {
 			return err
 		}
+		promoted = true
+	}
+	if promoted {
+		e.MarkIntegrityCachesStale()
 	}
 	return nil
 }

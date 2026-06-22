@@ -5,6 +5,36 @@ import (
 )
 
 func (e *Engine) RefreshEntityArtifactsForFeedUpdates(ctx context.Context, feedNames []string, trigger string) error {
+	if e == nil || e.engineLane == nil {
+		return nil
+	}
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
+	feedNames = uniqueNonEmptyStrings(feedNames)
+	if len(feedNames) == 0 {
+		return nil
+	}
+	if e.preferredGeoProvider() == "" && e.preferredASNProvider() == "" {
+		return nil
+	}
+	if trigger == "" {
+		trigger = "feed_update"
+	}
+	return e.engineLane.Run(ctx, LaneWork{
+		Kind:      LaneWorkEntityRefresh,
+		Component: LaneComponentEntityArtifacts,
+		Name:      "entity.refresh",
+		Trigger:   trigger,
+		Stage:     "planning",
+		Detail:    backgroundEntityTaskDetail("feeds", len(feedNames)),
+	}, func(laneCtx context.Context) error {
+		return e.refreshEntityArtifactsForFeedUpdatesAdmitted(laneCtx, feedNames, trigger)
+	})
+}
+
+func (e *Engine) refreshEntityArtifactsForFeedUpdatesAdmitted(ctx context.Context, feedNames []string, trigger string) error {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
 		return err
@@ -20,11 +50,13 @@ func (e *Engine) RefreshEntityArtifactsForFeedUpdates(ctx context.Context, feedN
 		trigger = "feed_update"
 	}
 	if e.entityArtifactsNeedBootstrapFast() {
-		return e.RebuildEntityArtifactsWithTrigger(ctx, trigger)
+		return e.rebuildEntityArtifactsWithTriggerAdmitted(ctx, trigger)
 	}
-	return e.withBackgroundTask(
+	return e.withEngineLaneBackgroundTask(
 		ctx,
-		"Entity artifacts refresh",
+		LaneWorkEntityRefresh,
+		LaneComponentEntityArtifacts,
+		backgroundTaskEntityArtifactsRefresh,
 		trigger,
 		"planning",
 		backgroundEntityTaskDetail("feeds", len(feedNames)),

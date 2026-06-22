@@ -1,17 +1,36 @@
 package web
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"runtime"
 	"runtime/debug"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
 
 var startedAt = time.Now()
+
+const detailedStatusSampleMaxAge = time.Second
+const runtimeStatsSampleInterval = 5 * time.Second
+
+var detailedStatusCache struct {
+	mu        sync.RWMutex
+	sampledAt time.Time
+	info      detailedSystemInfo
+}
+
+type runtimeStatsSampler struct {
+	once sync.Once
+}
+
+func newRuntimeStatsSampler() *runtimeStatsSampler {
+	return &runtimeStatsSampler{}
+}
 
 func humanBytes(value uint64) string {
 	const unit = 1024
@@ -41,6 +60,8 @@ type detailedSystemInfo struct {
 	HeapIdle     uint64 `json:"heap_idle"`
 	HeapReleased uint64 `json:"heap_released"`
 	HeapObjects  uint64 `json:"heap_objects"`
+	StackInuse   uint64 `json:"stack_inuse"`
+	Sys          uint64 `json:"sys"`
 
 	// GC stats
 	NumGC        uint32 `json:"num_gc"`
@@ -66,10 +87,81 @@ type detailedSystemInfo struct {
 }
 
 func detailedStatus() detailedSystemInfo {
+	now := time.Now()
+	detailedStatusCache.mu.RLock()
+	if !detailedStatusCache.sampledAt.IsZero() && now.Sub(detailedStatusCache.sampledAt) < detailedStatusSampleMaxAge {
+		info := detailedStatusCache.info
+		detailedStatusCache.mu.RUnlock()
+		return withCurrentUptime(info, now)
+	}
+	detailedStatusCache.mu.RUnlock()
+
+	detailedStatusCache.mu.Lock()
+	defer detailedStatusCache.mu.Unlock()
+	now = time.Now()
+	if !detailedStatusCache.sampledAt.IsZero() && now.Sub(detailedStatusCache.sampledAt) < detailedStatusSampleMaxAge {
+		return withCurrentUptime(detailedStatusCache.info, now)
+	}
+	info := captureDetailedStatus(now)
+	detailedStatusCache.sampledAt = now
+	detailedStatusCache.info = info
+	return withCurrentUptime(info, now)
+}
+
+func detailedStatusCached() detailedSystemInfo {
+	now := time.Now()
+	detailedStatusCache.mu.RLock()
+	if !detailedStatusCache.sampledAt.IsZero() {
+		info := detailedStatusCache.info
+		detailedStatusCache.mu.RUnlock()
+		return withCurrentUptime(info, now)
+	}
+	detailedStatusCache.mu.RUnlock()
+	return detailedSystemInfo{
+		UptimeSeconds: now.Sub(startedAt).Seconds(),
+		Uptime:        now.Sub(startedAt).Truncate(time.Second).String(),
+		Goroutines:    runtime.NumGoroutine(),
+		DiskFree:      "unknown",
+		GoMemLimit:    goMemLimit(),
+	}
+}
+
+func refreshDetailedStatus() detailedSystemInfo {
+	now := time.Now()
+	info := captureDetailedStatus(now)
+	detailedStatusCache.mu.Lock()
+	detailedStatusCache.sampledAt = now
+	detailedStatusCache.info = info
+	detailedStatusCache.mu.Unlock()
+	return withCurrentUptime(info, now)
+}
+
+func (s *runtimeStatsSampler) Start(ctx context.Context) {
+	if s == nil || ctx == nil {
+		return
+	}
+	s.once.Do(func() {
+		go func() {
+			refreshDetailedStatus()
+			ticker := time.NewTicker(runtimeStatsSampleInterval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					refreshDetailedStatus()
+				}
+			}
+		}()
+	})
+}
+
+func captureDetailedStatus(now time.Time) detailedSystemInfo {
 	var mem runtime.MemStats
 	runtime.ReadMemStats(&mem)
 
-	up := time.Since(startedAt)
+	up := now.Sub(startedAt)
 
 	diskFree := "unknown"
 	var stat syscall.Statfs_t
@@ -89,6 +181,8 @@ func detailedStatus() detailedSystemInfo {
 		HeapIdle:     mem.HeapIdle,
 		HeapReleased: mem.HeapReleased,
 		HeapObjects:  mem.HeapObjects,
+		StackInuse:   mem.StackInuse,
+		Sys:          mem.Sys,
 
 		NumGC:        mem.NumGC,
 		PauseTotalNs: mem.PauseTotalNs,
@@ -101,6 +195,13 @@ func detailedStatus() detailedSystemInfo {
 	readProcessUsage(&info)
 	readProcessIO(&info)
 	readOpenFDs(&info)
+	return info
+}
+
+func withCurrentUptime(info detailedSystemInfo, now time.Time) detailedSystemInfo {
+	up := now.Sub(startedAt)
+	info.UptimeSeconds = up.Seconds()
+	info.Uptime = up.Truncate(time.Second).String()
 	return info
 }
 

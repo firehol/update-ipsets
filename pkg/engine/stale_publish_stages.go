@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -42,6 +43,29 @@ func (e *Engine) CleanupPublishStagesBefore(cutoff time.Time) (StalePublishStage
 		WebRemoved:    webRemoved,
 		EntityRemoved: entityRemoved,
 	}, errors.Join(webErr, entityErr)
+}
+
+func (e *Engine) CleanupPublishStagesBeforeWithTrigger(ctx context.Context, cutoff time.Time, trigger string) (StalePublishStageCleanupResult, error) {
+	if e == nil || e.engineLane == nil {
+		return StalePublishStageCleanupResult{}, nil
+	}
+	if trigger == "" {
+		trigger = "background"
+	}
+	var result StalePublishStageCleanupResult
+	err := e.engineLane.Run(ctx, LaneWork{
+		Kind:      LaneWorkCleanup,
+		Component: LaneComponentPublishStages,
+		Name:      "cleanup.publish_stages",
+		Trigger:   trigger,
+		Stage:     "cleanup",
+		Detail:    "removing stale publish stages",
+	}, func(laneCtx context.Context) error {
+		cleanup, cleanupErr := e.CleanupPublishStagesBefore(cutoff)
+		result = cleanup
+		return cleanupErr
+	})
+	return result, err
 }
 
 func cleanupStalePublishStageDirs(root, prefix string, cutoff time.Time) (int, error) {

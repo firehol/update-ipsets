@@ -3,90 +3,155 @@ package engine
 import (
 	"context"
 	"fmt"
-	"strings"
+	"time"
 )
 
-func (e *Engine) QueueEntityArtifactsRebuild(ctx context.Context, trigger string) bool {
+const (
+	entityRefreshMaxLaneWaves = 2
+	entityRefreshMaxLaneHold  = time.Minute
+)
+
+type EntityArtifactQueueResult struct {
+	Ticket    LaneTicket    `json:"ticket"`
+	Queued    bool          `json:"queued"`
+	Coalesced bool          `json:"coalesced"`
+	State     LaneWorkState `json:"state"`
+}
+
+func (e *Engine) QueueEntityArtifactsRebuild(ctx context.Context, trigger string) (EntityArtifactQueueResult, error) {
 	if e == nil {
-		return false
+		return EntityArtifactQueueResult{}, nil
 	}
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
-		return false
+		return EntityArtifactQueueResult{}, err
 	}
 	if trigger == "" {
 		trigger = "operator_rebuild"
 	}
-
-	if !e.tryMarkEntityArtifactFullRebuildQueued() {
-		return false
-	}
-
-	go func() {
-		defer e.clearEntityArtifactFullRebuildQueued()
-		if err := e.RebuildEntityArtifactsWithTrigger(ctx, trigger); err != nil && e.logger != nil {
-			e.logger.Error("failed to queue entity artifacts rebuild", "trigger", trigger, "error", err)
-		}
-	}()
-	return true
+	ticket, err := e.engineLane.Submit(ctx, LaneWork{
+		Kind:          LaneWorkEntityRebuild,
+		Component:     LaneComponentEntityArtifacts,
+		Name:          "entity.rebuild",
+		Trigger:       trigger,
+		Stage:         "queued",
+		Detail:        "full entity artifact rebuild",
+		CoalescingKey: "entity:rebuild:full",
+	}, func(laneCtx context.Context) error {
+		return e.rebuildEntityArtifactsWithTriggerAdmitted(laneCtx, trigger)
+	})
+	return entityArtifactQueueResult(ticket), err
 }
 
 // QueueEntityArtifactsRefreshForFeedUpdates coalesces feed-update entity
 // refresh requests before they become background tasks. The scheduler may
 // complete several processing batches while a previous entity refresh is still
 // running; repeated feed names must collapse into one later refresh wave.
-func (e *Engine) QueueEntityArtifactsRefreshForFeedUpdates(ctx context.Context, feedNames []string, trigger string) {
+func (e *Engine) QueueEntityArtifactsRefreshForFeedUpdates(ctx context.Context, feedNames []string, trigger string) (EntityArtifactQueueResult, error) {
 	if e == nil {
-		return
+		return EntityArtifactQueueResult{}, nil
 	}
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
-		return
+		return EntityArtifactQueueResult{}, err
 	}
 	feedNames = uniqueNonEmptyStrings(feedNames)
 	if len(feedNames) == 0 {
-		return
+		return EntityArtifactQueueResult{}, nil
 	}
 	if e.preferredGeoProvider() == "" && e.preferredASNProvider() == "" {
-		return
+		return EntityArtifactQueueResult{}, nil
 	}
 	if trigger == "" {
 		trigger = "feed_update"
 	}
-	shouldStart, pending := e.enqueueEntityArtifactRefresh(feedNames)
+	started, pending, coalescingKey := e.enqueueEntityArtifactRefresh(feedNames)
 	if e.logger != nil {
 		e.logger.Info("queued entity artifact refresh", "feeds", len(feedNames), "pending", pending, "trigger", trigger)
 	}
-	if shouldStart {
-		go e.runQueuedEntityArtifactRefresh(ctx, trigger)
+	if !started {
+		return coalescedEntityArtifactQueueResult(LaneWorkEntityRefresh, LaneComponentEntityArtifacts), nil
 	}
+	ticket, err := e.engineLane.Submit(ctx, LaneWork{
+		Kind:          LaneWorkEntityRefresh,
+		Component:     LaneComponentEntityArtifacts,
+		Name:          "entity.refresh",
+		Trigger:       trigger,
+		Stage:         "queued",
+		Detail:        backgroundEntityTaskDetail("feeds", pending),
+		CoalescingKey: coalescingKey,
+	}, func(laneCtx context.Context) error {
+		e.runQueuedEntityArtifactRefresh(laneCtx, trigger)
+		return nil
+	})
+	if err != nil {
+		e.finishEntityArtifactRefreshQueue()
+		return EntityArtifactQueueResult{}, err
+	}
+	return entityArtifactQueueResult(ticket), nil
 }
 
-func (e *Engine) QueueEntityArtifactsRefreshForHealthTransitions(ctx context.Context, feedNames []string) {
+func (e *Engine) QueueEntityArtifactsRefreshForHealthTransitions(ctx context.Context, feedNames []string) (EntityArtifactQueueResult, error) {
 	if e == nil {
-		return
+		return EntityArtifactQueueResult{}, nil
 	}
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
-		return
+		return EntityArtifactQueueResult{}, err
 	}
 	feedNames = uniqueNonEmptyStrings(feedNames)
 	if len(feedNames) == 0 {
-		return
+		return EntityArtifactQueueResult{}, nil
 	}
 	if e.preferredGeoProvider() == "" && e.preferredASNProvider() == "" {
-		return
+		return EntityArtifactQueueResult{}, nil
 	}
-	shouldStart, pending := e.enqueueEntityHealthRefresh(feedNames)
+	started, pending, coalescingKey := e.enqueueEntityHealthRefresh(feedNames)
 	if e.logger != nil {
 		e.logger.Info("queued entity health-transition refresh", "feeds", len(feedNames), "pending", pending, "trigger", "health_transition")
 	}
-	if shouldStart {
-		go e.runQueuedEntityHealthRefresh(ctx)
+	if !started {
+		return coalescedEntityArtifactQueueResult(LaneWorkEntityRefresh, LaneComponentEntityArtifactsHealth), nil
+	}
+	ticket, err := e.engineLane.Submit(ctx, LaneWork{
+		Kind:          LaneWorkEntityRefresh,
+		Component:     LaneComponentEntityArtifactsHealth,
+		Name:          "entity.health_refresh",
+		Trigger:       "health_transition",
+		Stage:         "queued",
+		Detail:        backgroundEntityTaskDetail("health", pending),
+		CoalescingKey: coalescingKey,
+	}, func(laneCtx context.Context) error {
+		e.runQueuedEntityHealthRefresh(laneCtx)
+		return nil
+	})
+	if err != nil {
+		e.finishEntityHealthRefreshQueue()
+		return EntityArtifactQueueResult{}, err
+	}
+	return entityArtifactQueueResult(ticket), nil
+}
+
+func entityArtifactQueueResult(ticket LaneTicket) EntityArtifactQueueResult {
+	return EntityArtifactQueueResult{
+		Ticket:    ticket,
+		Queued:    ticket.Queued,
+		Coalesced: ticket.Coalesced,
+		State:     ticket.State,
 	}
 }
 
-func (e *Engine) enqueueEntityArtifactRefresh(feedNames []string) (bool, int) {
+func coalescedEntityArtifactQueueResult(kind LaneWorkKind, component LaneWorkComponent) EntityArtifactQueueResult {
+	ticket := LaneTicket{
+		Kind:      kind,
+		Component: component,
+		Coalesced: true,
+		State:     LaneWorkActive,
+	}
+	return entityArtifactQueueResult(ticket)
+}
+
+func (e *Engine) enqueueEntityArtifactRefresh(feedNames []string) (bool, int, string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if e.entityRefreshPending == nil {
@@ -96,13 +161,15 @@ func (e *Engine) enqueueEntityArtifactRefresh(feedNames []string) (bool, int) {
 		e.entityRefreshPending[name] = struct{}{}
 	}
 	if e.entityRefreshRunning {
-		return false, len(e.entityRefreshPending)
+		return false, len(e.entityRefreshPending), ""
 	}
 	e.entityRefreshRunning = true
-	return true, len(e.entityRefreshPending)
+	e.entityRefreshContinuation ^= 1
+	coalescingKey := entityRefreshContinuationCoalescingKey(e.entityRefreshContinuation)
+	return true, len(e.entityRefreshPending), coalescingKey
 }
 
-func (e *Engine) enqueueEntityHealthRefresh(feedNames []string) (bool, int) {
+func (e *Engine) enqueueEntityHealthRefresh(feedNames []string) (bool, int, string) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if e.entityHealthPending == nil {
@@ -112,10 +179,12 @@ func (e *Engine) enqueueEntityHealthRefresh(feedNames []string) (bool, int) {
 		e.entityHealthPending[name] = struct{}{}
 	}
 	if e.entityHealthRunning {
-		return false, len(e.entityHealthPending)
+		return false, len(e.entityHealthPending), ""
 	}
 	e.entityHealthRunning = true
-	return true, len(e.entityHealthPending)
+	e.entityHealthContinuation ^= 1
+	coalescingKey := entityHealthContinuationCoalescingKey(e.entityHealthContinuation)
+	return true, len(e.entityHealthPending), coalescingKey
 }
 
 func (e *Engine) drainEntityArtifactRefreshPending() []string {
@@ -151,14 +220,18 @@ func (e *Engine) runQueuedEntityArtifactRefresh(ctx context.Context, trigger str
 	if trigger == "" {
 		trigger = "feed_update"
 	}
+	started := time.Now()
+	waves := 0
 	for {
 		if err := contextErr(ctx); err != nil {
 			e.finishEntityArtifactRefreshQueue()
 			return
 		}
-		err := e.withBackgroundTask(
+		err := e.withEngineLaneBackgroundTask(
 			ctx,
-			"Entity artifacts refresh",
+			LaneWorkEntityRefresh,
+			LaneComponentEntityArtifacts,
+			backgroundTaskEntityArtifactsRefresh,
 			trigger,
 			"coalescing",
 			"coalescing changed feed entity refresh requests",
@@ -171,9 +244,11 @@ func (e *Engine) runQueuedEntityArtifactRefresh(ctx context.Context, trigger str
 		if err != nil && e.logger != nil {
 			e.logger.Error("failed to refresh queued entity artifacts", "trigger", trigger, "error", err)
 		}
+		waves++
 
 		e.mu.Lock()
-		hasPending := len(e.entityRefreshPending) > 0
+		pending := len(e.entityRefreshPending)
+		hasPending := pending > 0
 		if !hasPending {
 			e.entityRefreshRunning = false
 		}
@@ -181,19 +256,30 @@ func (e *Engine) runQueuedEntityArtifactRefresh(ctx context.Context, trigger str
 		if !hasPending {
 			return
 		}
+		if waves >= entityRefreshMaxLaneWaves || time.Since(started) >= entityRefreshMaxLaneHold {
+			coalescingKey, pending, ok := e.prepareEntityArtifactRefreshContinuation()
+			if ok {
+				e.submitEntityArtifactRefreshContinuation(trigger, pending, coalescingKey)
+			}
+			return
+		}
 	}
 }
 
 func (e *Engine) runQueuedEntityHealthRefresh(ctx context.Context) {
 	ctx = nonNilContext(ctx)
+	started := time.Now()
+	waves := 0
 	for {
 		if err := contextErr(ctx); err != nil {
 			e.finishEntityHealthRefreshQueue()
 			return
 		}
-		err := e.withBackgroundTask(
+		err := e.withEngineLaneBackgroundTask(
 			ctx,
-			"Entity artifacts refresh",
+			LaneWorkEntityRefresh,
+			LaneComponentEntityArtifactsHealth,
+			backgroundTaskEntityArtifactsRefresh,
 			"health_transition",
 			"coalescing",
 			"coalescing health-transition entity refresh requests",
@@ -206,9 +292,11 @@ func (e *Engine) runQueuedEntityHealthRefresh(ctx context.Context) {
 		if err != nil && e.logger != nil {
 			e.logger.Error("failed to refresh queued entity health transitions", "error", err)
 		}
+		waves++
 
 		e.mu.Lock()
-		hasPending := len(e.entityHealthPending) > 0
+		pending := len(e.entityHealthPending)
+		hasPending := pending > 0
 		if !hasPending {
 			e.entityHealthRunning = false
 		}
@@ -216,7 +304,118 @@ func (e *Engine) runQueuedEntityHealthRefresh(ctx context.Context) {
 		if !hasPending {
 			return
 		}
+		if waves >= entityRefreshMaxLaneWaves || time.Since(started) >= entityRefreshMaxLaneHold {
+			coalescingKey, pending, ok := e.prepareEntityHealthRefreshContinuation()
+			if ok {
+				e.submitEntityHealthRefreshContinuation(pending, coalescingKey)
+			}
+			return
+		}
 	}
+}
+
+func (e *Engine) prepareEntityArtifactRefreshContinuation() (string, int, bool) {
+	if e == nil {
+		return "", 0, false
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	pending := len(e.entityRefreshPending)
+	if pending == 0 {
+		e.entityRefreshRunning = false
+		return "", 0, false
+	}
+	e.entityRefreshRunning = true
+	e.entityRefreshContinuation ^= 1
+	return entityRefreshContinuationCoalescingKey(e.entityRefreshContinuation), pending, true
+}
+
+func (e *Engine) submitEntityArtifactRefreshContinuation(trigger string, pending int, coalescingKey string) {
+	if e == nil || e.engineLane == nil || pending == 0 || coalescingKey == "" {
+		e.finishEntityArtifactRefreshQueue()
+		return
+	}
+	ticket, err := e.engineLane.Submit(context.Background(), LaneWork{
+		Kind:          LaneWorkEntityRefresh,
+		Component:     LaneComponentEntityArtifacts,
+		Name:          "entity.refresh",
+		Trigger:       trigger,
+		Stage:         "queued",
+		Detail:        backgroundEntityTaskDetail("feeds", pending),
+		CoalescingKey: coalescingKey,
+	}, func(laneCtx context.Context) error {
+		e.runQueuedEntityArtifactRefresh(laneCtx, trigger)
+		return nil
+	})
+	if err != nil {
+		e.finishEntityArtifactRefreshQueue()
+		if e.logger != nil {
+			e.logger.Error("failed to resubmit queued entity artifact refresh", "trigger", trigger, "error", err)
+		}
+		return
+	}
+	if e.logger != nil {
+		e.logger.Info("resubmitted entity artifact refresh to release engine lane", "pending", pending, "ticket", ticket.ID)
+	}
+}
+
+func (e *Engine) prepareEntityHealthRefreshContinuation() (string, int, bool) {
+	if e == nil {
+		return "", 0, false
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	pending := len(e.entityHealthPending)
+	if pending == 0 {
+		e.entityHealthRunning = false
+		return "", 0, false
+	}
+	e.entityHealthRunning = true
+	e.entityHealthContinuation ^= 1
+	return entityHealthContinuationCoalescingKey(e.entityHealthContinuation), pending, true
+}
+
+func (e *Engine) submitEntityHealthRefreshContinuation(pending int, coalescingKey string) {
+	if e == nil || e.engineLane == nil || pending == 0 || coalescingKey == "" {
+		e.finishEntityHealthRefreshQueue()
+		return
+	}
+	ticket, err := e.engineLane.Submit(context.Background(), LaneWork{
+		Kind:          LaneWorkEntityRefresh,
+		Component:     LaneComponentEntityArtifactsHealth,
+		Name:          "entity.health_refresh",
+		Trigger:       "health_transition",
+		Stage:         "queued",
+		Detail:        backgroundEntityTaskDetail("health", pending),
+		CoalescingKey: coalescingKey,
+	}, func(laneCtx context.Context) error {
+		e.runQueuedEntityHealthRefresh(laneCtx)
+		return nil
+	})
+	if err != nil {
+		e.finishEntityHealthRefreshQueue()
+		if e.logger != nil {
+			e.logger.Error("failed to resubmit queued entity health refresh", "error", err)
+		}
+		return
+	}
+	if e.logger != nil {
+		e.logger.Info("resubmitted entity health refresh to release engine lane", "pending", pending, "ticket", ticket.ID)
+	}
+}
+
+func entityRefreshContinuationCoalescingKey(parity int) string {
+	if parity&1 == 0 {
+		return "entity:refresh:feed_updates:continuation:0"
+	}
+	return "entity:refresh:feed_updates:continuation:1"
+}
+
+func entityHealthContinuationCoalescingKey(parity int) string {
+	if parity&1 == 0 {
+		return "entity:refresh:health:continuation:0"
+	}
+	return "entity:refresh:health:continuation:1"
 }
 
 func (e *Engine) finishEntityArtifactRefreshQueue() {
@@ -236,8 +435,32 @@ func (e *Engine) entityArtifactFullRebuildQueuedOrRunning() bool {
 		return false
 	}
 	e.mu.RLock()
-	defer e.mu.RUnlock()
-	return e.entityRebuildQueued || e.backgroundTaskNamedLocked("Entity artifacts rebuild")
+	queued := e.entityRebuildQueued
+	for _, task := range e.backgroundTasks {
+		if task.Kind == LaneWorkEntityRebuild {
+			queued = true
+			break
+		}
+	}
+	e.mu.RUnlock()
+	if queued {
+		return true
+	}
+	if e.engineLane == nil {
+		return false
+	}
+	snap := e.engineLane.Snapshot()
+	for _, item := range snap.Active {
+		if item.Kind == LaneWorkEntityRebuild {
+			return true
+		}
+	}
+	for _, item := range snap.Waiting {
+		if item.Kind == LaneWorkEntityRebuild {
+			return true
+		}
+	}
+	return false
 }
 
 func (e *Engine) tryMarkEntityArtifactFullRebuildQueued() bool {
@@ -246,7 +469,7 @@ func (e *Engine) tryMarkEntityArtifactFullRebuildQueued() bool {
 	}
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	if e.entityRebuildQueued || e.backgroundTaskNamedLocked("Entity artifacts rebuild") {
+	if e.entityRebuildQueued {
 		return false
 	}
 	e.entityRebuildQueued = true
@@ -264,78 +487,52 @@ func (e *Engine) clearEntityArtifactFullRebuildQueued() {
 
 func (e *Engine) runEntityArtifactRefreshQueue(ctx context.Context, task *BackgroundTaskHandle) error {
 	ctx = nonNilContext(ctx)
-	for {
-		if err := contextErr(ctx); err != nil {
-			return err
-		}
-		names := e.drainEntityArtifactRefreshPending()
-		if len(names) == 0 {
-			return nil
-		}
-		if task != nil {
-			task.Update(
-				"coalescing",
-				fmt.Sprintf("processing %d coalesced changed feeds", len(names)),
-				0,
-				len(names),
-			)
-		}
-		if e.entityArtifactsNeedBootstrapFast() {
-			if task != nil {
-				task.Update("bootstrap", "entity artifacts are missing or stale; rebuilding full entity surface", 0, 0)
-			}
-			if err := e.rebuildEntityArtifactsFromLive(ctx, task); err != nil {
-				return err
-			}
-			continue
-		}
-		if err := e.refreshEntityArtifactsForFeedUpdates(ctx, names, task); err != nil {
-			return err
-		}
+	if err := contextErr(ctx); err != nil {
+		return err
 	}
+	names := e.drainEntityArtifactRefreshPending()
+	if len(names) == 0 {
+		return nil
+	}
+	if task != nil {
+		task.Update(
+			"coalescing",
+			fmt.Sprintf("processing %d coalesced changed feeds", len(names)),
+			0,
+			len(names),
+		)
+	}
+	if e.entityArtifactsNeedBootstrapFast() {
+		if task != nil {
+			task.Update("bootstrap", "entity artifacts are missing or stale; rebuilding full entity surface", 0, 0)
+		}
+		return e.rebuildEntityArtifactsFromLive(ctx, task)
+	}
+	return e.refreshEntityArtifactsForFeedUpdates(ctx, names, task)
 }
 
 func (e *Engine) runEntityHealthRefreshQueue(ctx context.Context, task *BackgroundTaskHandle) error {
 	ctx = nonNilContext(ctx)
-	for {
-		if err := contextErr(ctx); err != nil {
-			return err
-		}
-		names := e.drainEntityHealthRefreshPending()
-		if len(names) == 0 {
-			return nil
-		}
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
+	names := e.drainEntityHealthRefreshPending()
+	if len(names) == 0 {
+		return nil
+	}
+	if task != nil {
+		task.Update(
+			"coalescing",
+			fmt.Sprintf("processing %d coalesced health-transition feeds", len(names)),
+			0,
+			len(names),
+		)
+	}
+	if e.entityArtifactsNeedBootstrapFast() {
 		if task != nil {
-			task.Update(
-				"coalescing",
-				fmt.Sprintf("processing %d coalesced health-transition feeds", len(names)),
-				0,
-				len(names),
-			)
+			task.Update("bootstrap", "entity artifacts are missing or stale; rebuilding full entity surface", 0, 0)
 		}
-		if e.entityArtifactsNeedBootstrapFast() {
-			if task != nil {
-				task.Update("bootstrap", "entity artifacts are missing or stale; rebuilding full entity surface", 0, 0)
-			}
-			if err := e.rebuildEntityArtifactsFromLive(ctx, task); err != nil {
-				return err
-			}
-			continue
-		}
-		if err := e.refreshEntityArtifactsForHealthTransitions(ctx, names, task); err != nil {
-			return err
-		}
+		return e.rebuildEntityArtifactsFromLive(ctx, task)
 	}
-}
-
-func (e *Engine) backgroundTaskNamedLocked(name string) bool {
-	if e == nil || strings.TrimSpace(name) == "" {
-		return false
-	}
-	for _, task := range e.backgroundTasks {
-		if task.Name == name {
-			return true
-		}
-	}
-	return false
+	return e.refreshEntityArtifactsForHealthTransitions(ctx, names, task)
 }

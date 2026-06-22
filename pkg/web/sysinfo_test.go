@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/firehol/update-ipsets/pkg/engine"
 	"github.com/firehol/update-ipsets/pkg/scheduler"
@@ -50,6 +52,69 @@ func TestDetailedStatusRSSOnLinux(t *testing.T) {
 	}
 	if info.VMSKB == 0 {
 		t.Fatal("expected non-zero VMS on Linux")
+	}
+}
+
+func TestRuntimeStatsSamplerPopulatesCachedDetailedStatus(t *testing.T) {
+	detailedStatusCache.mu.Lock()
+	detailedStatusCache.sampledAt = time.Time{}
+	detailedStatusCache.info = detailedSystemInfo{}
+	detailedStatusCache.mu.Unlock()
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	newRuntimeStatsSampler().Start(ctx)
+
+	deadline := time.NewTimer(2 * time.Second)
+	defer deadline.Stop()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		detailedStatusCache.mu.RLock()
+		sampledAt := detailedStatusCache.sampledAt
+		cached := detailedStatusCache.info
+		detailedStatusCache.mu.RUnlock()
+		if !sampledAt.IsZero() && cached.HeapSys > 0 {
+			return
+		}
+		select {
+		case <-deadline.C:
+			t.Fatalf("runtime stats sampler did not populate cached status: %#v", cached)
+		case <-ticker.C:
+		}
+	}
+}
+
+func TestRuntimeStatsSamplerStartIsIdempotent(t *testing.T) {
+	before := runtime.NumGoroutine()
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+
+	sampler := newRuntimeStatsSampler()
+	sampler.Start(ctx)
+	sampler.Start(ctx)
+
+	waitForRuntimeSamplerGoroutine(t, before+1)
+	cancel()
+	waitForRuntimeSamplerGoroutine(t, before)
+}
+
+func waitForRuntimeSamplerGoroutine(t *testing.T, wantMax int) {
+	t.Helper()
+
+	deadline := time.NewTimer(2 * time.Second)
+	defer deadline.Stop()
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if got := runtime.NumGoroutine(); got <= wantMax {
+			return
+		}
+		select {
+		case <-deadline.C:
+			t.Fatalf("runtime sampler goroutines did not settle at <= %d", wantMax)
+		case <-ticker.C:
+		}
 	}
 }
 

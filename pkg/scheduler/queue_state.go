@@ -10,8 +10,10 @@ import (
 
 type QueueFeed struct {
 	Name           string                      `json:"name"`
+	Kind           string                      `json:"kind,omitempty"`
 	Reason         runreason.Reason            `json:"reason,omitempty"`
 	QueuedAt       time.Time                   `json:"queued_at,omitempty"`
+	EnqueueSeq     uint64                      `json:"enqueue_seq,omitempty"`
 	Status         string                      `json:"status,omitempty"`
 	StatusLabel    string                      `json:"status_label,omitempty"`
 	ProblemClass   engine.OperatorProblemClass `json:"problem_class,omitempty"`
@@ -22,6 +24,7 @@ type QueueFeed struct {
 
 type ActiveQueueFeed struct {
 	Name         string                      `json:"name"`
+	Kind         string                      `json:"kind,omitempty"`
 	Reason       runreason.Reason            `json:"reason,omitempty"`
 	StartedAt    time.Time                   `json:"started_at,omitempty"`
 	Status       string                      `json:"status,omitempty"`
@@ -31,12 +34,12 @@ type ActiveQueueFeed struct {
 }
 
 type ActivitySnapshot struct {
-	DownloadWaiting       []QueueFeed          `json:"download_waiting,omitempty"`
-	DownloadActive        []ActiveQueueFeed    `json:"download_active,omitempty"`
-	DownloadRefetchPending []QueueFeed         `json:"download_refetch_pending,omitempty"`
-	ProcessingWaiting     []QueueFeed          `json:"processing_waiting,omitempty"`
-	ProcessingActive      []ActiveQueueFeed    `json:"processing_active,omitempty"`
-	ProcessingDeferred    []QueueFeed          `json:"processing_deferred,omitempty"`
+	DownloadWaiting         []QueueFeed        `json:"download_waiting,omitempty"`
+	DownloadActive          []ActiveQueueFeed  `json:"download_active,omitempty"`
+	DownloadRefetchPending  []QueueFeed        `json:"download_refetch_pending,omitempty"`
+	ProcessingWaiting       []QueueFeed        `json:"processing_waiting,omitempty"`
+	ProcessingActive        []ActiveQueueFeed  `json:"processing_active,omitempty"`
+	ProcessingDeferred      []QueueFeed        `json:"processing_deferred,omitempty"`
 	RecentHealthTransitions []HealthTransition `json:"recent_health_transitions,omitempty"`
 }
 
@@ -47,13 +50,22 @@ type HealthTransition struct {
 	At        time.Time `json:"at"`
 }
 
+type queuedWorkKind string
+
+const (
+	queuedWorkKindNormal            queuedWorkKind = "normal"
+	queuedWorkKindRecoveredArtifact queuedWorkKind = "recovered_artifact"
+)
+
 type queuedWork struct {
-	Name      string
-	Reason    runreason.Reason
-	QueuedAt  time.Time
-	ForceRun  bool
-	Immediate bool
-	Promote   []string
+	Name       string
+	Kind       queuedWorkKind
+	Reason     runreason.Reason
+	QueuedAt   time.Time
+	EnqueueSeq uint64
+	ForceRun   bool
+	Immediate  bool
+	Promote    []string
 }
 
 type queueStatusView struct {
@@ -82,8 +94,10 @@ func queueSnapshotFromMapFiltered(items map[string]queuedWork, include func(name
 		}
 		out = append(out, QueueFeed{
 			Name:         item.Name,
+			Kind:         string(item.Kind),
 			Reason:       item.Reason,
 			QueuedAt:     item.QueuedAt,
+			EnqueueSeq:   item.EnqueueSeq,
 			Status:       status.Status,
 			StatusLabel:  status.StatusLabel,
 			ProblemClass: status.ProblemClass,
@@ -92,6 +106,15 @@ func queueSnapshotFromMapFiltered(items map[string]queuedWork, include func(name
 	}
 	sort.Slice(out, func(i, j int) bool {
 		if out[i].QueuedAt.Equal(out[j].QueuedAt) {
+			if out[i].EnqueueSeq != out[j].EnqueueSeq {
+				if out[i].EnqueueSeq == 0 {
+					return false
+				}
+				if out[j].EnqueueSeq == 0 {
+					return true
+				}
+				return out[i].EnqueueSeq < out[j].EnqueueSeq
+			}
 			return out[i].Name < out[j].Name
 		}
 		if out[i].QueuedAt.IsZero() {
