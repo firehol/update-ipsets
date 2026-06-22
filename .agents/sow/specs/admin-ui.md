@@ -140,6 +140,12 @@ also keep backward-compatible `engine.background_limit` and
 active count, while `engine.max_background_workers` continues to mean bounded
 fan-out inside admitted work.
 
+The high-frequency status endpoint MUST include the complete `feeds` health and
+visibility summary used by the heartbeat. It MUST NOT return only
+`total_configured` while leaving health buckets, enabled/disabled counts,
+hidden count, entry totals, or unique-IP totals at zero. The summary may be
+computed from lightweight feed state, but it is part of the heartbeat contract.
+
 ### 2. Feed inventory
 
 A full table of feeds remains the main operator inventory.

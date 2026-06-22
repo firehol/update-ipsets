@@ -2373,9 +2373,39 @@ release/deployment verification step before promoting this build.
 
 ## Regression Log
 
-None yet.
+See entries below.
 
 Append regression entries here only after this SOW was completed or closed and
 later testing or use found broken behavior. Use a dated `## Regression -
 YYYY-MM-DD` heading at the end of the file. Never prepend regression content
 above the original SOW narrative.
+
+## Regression - 2026-06-22
+
+Issue:
+
+- The admin heartbeat feed-health counters showed zeros after the admin UI
+  switched high-frequency polling to `GET /api/v1/admin/status?mode=light`.
+
+Root cause:
+
+- `buildAdminStatusLight` populated only `feeds.total_configured`. The rest of
+  the `adminFeedsSummary` fields stayed at Go zero values, so the heartbeat
+  rendered zero enabled, healthy, delayed, risky, unavailable, archived, empty,
+  and unmaintained feeds even though `/api/v1/admin/feeds` had live rows.
+
+Fix:
+
+- The light status builder now computes the same feed summary as full status
+  from the admin feed rows, while still omitting artifacts and full metric
+  trees from the high-frequency response.
+- Added a regression test that compares the light status `feeds` summary with
+  the summary derived from `/api/v1/admin/feeds` rows.
+- Updated the admin UI spec and runtime-status operator doc to state that the
+  light status `feeds` block is a complete heartbeat summary, not only
+  `total_configured`.
+
+Validation:
+
+- `go test ./pkg/web -run 'TestAdminStatus(LightIncludesFeedHealthSummary|KeepsFullDefaultAndLightPollingSnapshot|LightRespondsWhileEngineLaneBusy)' -count=1`
+- `go test ./pkg/web -count=1`

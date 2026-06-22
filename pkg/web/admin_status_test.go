@@ -199,6 +199,37 @@ func TestAdminStatusKeepsFullDefaultAndLightPollingSnapshot(t *testing.T) {
 	}
 }
 
+func TestAdminStatusLightIncludesFeedHealthSummary(t *testing.T) {
+	_, handler := testHandlerWithCatalog(t, Options{
+		EnableAll:                 true,
+		AdminAuthMode:             AdminAuthModeDisabled,
+		AllowUnauthenticatedAdmin: true,
+	})
+	server := newWebHTTPTestServer(t, handler)
+
+	var feeds []adminFeed
+	feedsStatus, _ := server.getJSON(t, "/api/v1/admin/feeds", &feeds)
+	if feedsStatus != http.StatusOK {
+		t.Fatalf("admin feeds HTTP status = %d, want 200", feedsStatus)
+	}
+	if len(feeds) == 0 {
+		t.Fatal("admin feeds fixture returned no rows")
+	}
+	want := summarizeAdminFeeds(len(feeds), feeds)
+	if want.TotalEnabled == 0 {
+		t.Fatalf("admin feeds fixture produced empty enabled summary: %+v", want)
+	}
+
+	var lightPayload adminStatusLight
+	lightStatus, _ := server.getJSON(t, "/api/v1/admin/status?mode=light", &lightPayload)
+	if lightStatus != http.StatusOK {
+		t.Fatalf("admin light status HTTP status = %d, want 200", lightStatus)
+	}
+	if lightPayload.Feeds != want {
+		t.Fatalf("admin light status feeds summary = %+v, want %+v", lightPayload.Feeds, want)
+	}
+}
+
 func TestAdminStatusLightRespondsWhileEngineLaneBusy(t *testing.T) {
 	eng, handler := testHandler(t, Options{
 		EnableAll:                 true,

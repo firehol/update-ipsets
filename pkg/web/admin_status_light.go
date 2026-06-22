@@ -22,17 +22,17 @@ type adminStatusLight struct {
 func buildAdminStatusLight(eng *engine.Engine, runner *scheduler.Runner) adminStatusLight {
 	sys := detailedStatusCached()
 	cfg := eng.Config()
+	activity := runner.ActivitySnapshot()
 	snapshot := runner.Snapshot()
+	feeds := buildAdminFeedsWithStatusEntries(eng, runner, activity, snapshot, eng.EntriesSnapshot())
 	return adminStatusLight{
 		PublicBaseURL: strings.TrimSpace(eng.Runtime().PublicBaseURL),
 		System:        adminSystemFromDetailed(sys),
 		Engine:        eng.StatusSnapshotLight(),
 		Scheduler:     sanitizeSchedulerSnapshot(snapshot),
-		Queues:        runner.ActivitySnapshot(),
+		Queues:        activity,
 		Metrics:       runner.MetricsSnapshot(),
-		Feeds: adminFeedsSummary{
-			TotalConfigured: len(cfg.Sources),
-		},
+		Feeds:         summarizeAdminFeeds(len(cfg.Sources), feeds),
 	}
 }
 

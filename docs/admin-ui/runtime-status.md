@@ -39,7 +39,7 @@ Important top-level blocks:
 | `scheduler` | Scheduler item snapshot: enabled state, next due time, last check, frequency, failures, and scheduler detail per item. |
 | `queues` | Waiting, active, deferred, and pending queue items. |
 | `metrics` | Scheduler counters and latest batch timings. |
-| `feeds` | Feed health and visibility summary used by the heartbeat. |
+| `feeds` | Complete feed health and visibility summary used by the heartbeat, including enabled/disabled counts, health buckets, hidden feeds, entry totals, and unique-IP totals. |
 | `artifacts` | Artifact parent state shown by the artifact inventory. |
 
 ## Telemetry counters and timings
