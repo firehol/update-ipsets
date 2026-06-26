@@ -360,11 +360,19 @@ func mergeCountForConfig(cfg *config.Config) int {
 
 func (e *Engine) EntriesSnapshot() []cache.Entry {
 	cfg := e.Config()
-	return e.entriesSnapshot(cfg, configuredNamesForConfig(cfg))
+	return e.EntriesSnapshotForConfig(cfg)
 }
 
 func (e *Engine) EntriesSnapshotWithArtifacts() []cache.Entry {
 	cfg := e.Config()
+	return e.EntriesSnapshotWithArtifactsForConfig(cfg)
+}
+
+func (e *Engine) EntriesSnapshotForConfig(cfg *config.Config) []cache.Entry {
+	return e.entriesSnapshot(cfg, configuredNamesForConfig(cfg))
+}
+
+func (e *Engine) EntriesSnapshotWithArtifactsForConfig(cfg *config.Config) []cache.Entry {
 	return e.entriesSnapshot(cfg, configuredNamesWithArtifactsForConfig(cfg))
 }
 

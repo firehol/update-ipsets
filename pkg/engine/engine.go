@@ -279,16 +279,19 @@ func (e *Engine) ReloadContext(ctx context.Context) error {
 		return err
 	}
 	rt.ConfigPath = currentRuntime.ConfigPath
+	overrideWebDir, overrideFilesDir := e.runtimeOverrides()
+	effectiveRuntime := runtimeWithOverrides(rt, overrideWebDir, overrideFilesDir)
+	if err := ensureDirectoriesForRuntime(effectiveRuntime); err != nil {
+		e.recordConfigReloadError(err)
+		return err
+	}
 	var staleASNLookups map[string]*asnloc.Database
 	webDirChanged := false
-	var effectiveRuntime Runtime
 	var lane *WorkLane
 	e.mu.Lock()
 	previousWebDir := e.runtime.WebDir
 	e.cfg = cfg
-	e.runtime = rt
-	e.applyRuntimeOverridesLocked()
-	effectiveRuntime = e.runtime
+	e.runtime = effectiveRuntime
 	webDirChanged = previousWebDir != effectiveRuntime.WebDir
 	e.downloads = downloader.New(effectiveRuntime.MaxConnectTime, effectiveRuntime.MaxDownloadTime)
 	if e.engineLane == nil {
@@ -310,11 +313,6 @@ func (e *Engine) ReloadContext(ctx context.Context) error {
 		lane.SetLimit(effectiveRuntime.EngineLaneWorkers())
 	}
 	e.reconcileEntriesFromSourceConfigForSnapshot(cfg, effectiveRuntime)
-	if err := ensureDirectoriesForRuntime(effectiveRuntime); err != nil {
-		closeASNLookupDatabases(staleASNLookups, e.logger)
-		e.recordConfigReloadError(err)
-		return err
-	}
 	if err := e.bootstrapMissingEntriesFromDisk(); err != nil {
 		closeASNLookupDatabases(staleASNLookups, e.logger)
 		e.recordConfigReloadError(err)
@@ -395,6 +393,10 @@ func (e *Engine) configRuntimeSnapshot() (*config.Config, Runtime) {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return e.cfg, e.runtime
+}
+
+func (e *Engine) ConfigRuntimeSnapshot() (*config.Config, Runtime) {
+	return e.configRuntimeSnapshot()
 }
 
 func (e *Engine) Enable(names []string, all bool) error {

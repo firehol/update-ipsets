@@ -103,6 +103,10 @@ func (e *Engine) writeProviderDefaultsMarker() error {
 		return nil
 	}
 	cfg, rt := e.configRuntimeSnapshot()
+	return writeProviderDefaultsMarkerForConfigRuntime(cfg, rt)
+}
+
+func writeProviderDefaultsMarkerForConfigRuntime(cfg *config.Config, rt Runtime) error {
 	path := ProviderDefaultsSetMarkerPath(rt)
 	if path == "" {
 		return nil

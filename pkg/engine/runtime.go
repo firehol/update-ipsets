@@ -296,22 +296,30 @@ func (e *Engine) ApplyRuntimeOverrides(webDir, filesDir string) error {
 	return ensureDirectoriesForRuntime(rt)
 }
 
+func (e *Engine) runtimeOverrides() (webDir, filesDir string) {
+	if e == nil {
+		return "", ""
+	}
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.runtimeOverrideWebDir, e.runtimeOverrideFilesDir
+}
+
 func (e *Engine) applyRuntimeOverridesLocked() {
 	if e == nil {
 		return
 	}
-	if e.runtimeOverrideWebDir != "" {
-		e.runtime.WebDir = e.runtimeOverrideWebDir
-		if e.cfg != nil {
-			e.cfg.Runtime.WebDir = e.runtimeOverrideWebDir
-		}
+	e.runtime = runtimeWithOverrides(e.runtime, e.runtimeOverrideWebDir, e.runtimeOverrideFilesDir)
+}
+
+func runtimeWithOverrides(rt Runtime, webDir, filesDir string) Runtime {
+	if webDir != "" {
+		rt.WebDir = webDir
 	}
-	if e.runtimeOverrideFilesDir != "" {
-		e.runtime.WebDirForIPSets = e.runtimeOverrideFilesDir
-		if e.cfg != nil {
-			e.cfg.Runtime.WebDirForIPSets = e.runtimeOverrideFilesDir
-		}
+	if filesDir != "" {
+		rt.WebDirForIPSets = filesDir
 	}
+	return rt
 }
 
 func autoHeavyPhaseWorkers(processingWorkers int) int {

@@ -20,10 +20,14 @@ func (e *Engine) entityDetailProviders() entityDetailProviderSet {
 }
 
 func (e *Engine) entityDetailProvidersContext(ctx context.Context) entityDetailProviderSet {
+	return e.entityDetailProvidersContextWithSnapshot(ctx, e.operationSnapshot())
+}
+
+func (e *Engine) entityDetailProvidersContextWithSnapshot(ctx context.Context, snap operationSnapshot) entityDetailProviderSet {
 	ctx = nonNilContext(ctx)
-	geoProvider := e.preferredGeoProvider()
-	asnProvider := e.preferredASNProvider()
-	asnLease := e.loadASNProviderForLookupContext(ctx, asnProvider)
+	geoProvider := preferredGeoProviderForConfig(snap.cfg)
+	asnProvider := preferredASNProviderForConfig(snap.cfg)
+	asnLease := loadASNProviderForLookupSnapshotContext(ctx, snap.cfg, snap.runtime, snap.asnLookupCache, asnProvider)
 	var asnDB *asnloc.Database
 	if asnLease != nil {
 		asnDB = asnLease.Database()
@@ -31,13 +35,13 @@ func (e *Engine) entityDetailProvidersContext(ctx context.Context) entityDetailP
 	return entityDetailProviderSet{
 		geo: HomeSummaryProvider{
 			Name:  geoProvider,
-			Label: providerDisplayLabel(e.lookupSource(geoProvider)),
+			Label: providerDisplayLabel(lookupSourceForConfig(snap.cfg, geoProvider)),
 		},
 		asn: HomeSummaryProvider{
 			Name:  asnProvider,
-			Label: providerDisplayLabel(e.lookupSource(asnProvider)),
+			Label: providerDisplayLabel(lookupSourceForConfig(snap.cfg, asnProvider)),
 		},
-		geoPrepared: e.loadGeoProviderForLookup(geoProvider),
+		geoPrepared: loadGeoProviderForLookupSnapshot(snap.cfg, snap.runtime, snap.geoProviders, geoProvider),
 		asnDB:       asnDB,
 		asnLease:    asnLease,
 	}
@@ -88,16 +92,20 @@ func (b *asnDetailBuilder) buildAllowEmpty(asnProvider, geoProvider HomeSummaryP
 }
 
 func (e *Engine) addCountryDetailFeedMatches(builder *countryDetailBuilder, provider string, view entityOutputView) []string {
+	return e.addCountryDetailFeedMatchesWithSnapshot(e.operationSnapshot(), builder, provider, view)
+}
+
+func (e *Engine) addCountryDetailFeedMatchesWithSnapshot(snap operationSnapshot, builder *countryDetailBuilder, provider string, view entityOutputView) []string {
 	matches := make([]string, 0, 64)
 	if builder == nil {
 		return matches
 	}
-	for _, entry := range e.EntriesSnapshot() {
-		if !e.isPublicFeedName(entry.Name) {
+	for _, entry := range e.entriesSnapshot(snap.cfg, configuredNamesForConfig(snap.cfg)) {
+		if !isPublicFeedNameForConfig(snap.cfg, entry.Name) {
 			continue
 		}
-		src := e.lookupSource(entry.Name)
-		if !detailSurfaceEligible(e.cfg, src) {
+		src := lookupSourceForConfig(snap.cfg, entry.Name)
+		if !detailSurfaceEligible(snap.cfg, src) {
 			continue
 		}
 		attributed := countryComparisonValue(view, entry.Name, provider, builder.code)
@@ -135,11 +143,15 @@ func countryComparisonValue(view entityOutputView, feedName, provider, code stri
 }
 
 func (e *Engine) addCountryDetailASNMatches(ctx context.Context, builder *countryDetailBuilder, matches []string, providers entityDetailProviderSet) {
+	e.addCountryDetailASNMatchesWithSnapshot(ctx, e.operationSnapshot(), builder, matches, providers)
+}
+
+func (e *Engine) addCountryDetailASNMatchesWithSnapshot(ctx context.Context, snap operationSnapshot, builder *countryDetailBuilder, matches []string, providers entityDetailProviderSet) {
 	ctx = nonNilContext(ctx)
 	if builder == nil || providers.geoPrepared == nil || providers.asnDB == nil || len(matches) == 0 {
 		return
 	}
-	setCache := newLatestSetCache(e)
+	setCache := newLatestSetCacheForSnapshot(e, snap)
 	defer setCache.CloseAll(e.logger)
 	for _, name := range matches {
 		latest, err := setCache.OpenContext(ctx, name)
@@ -157,16 +169,20 @@ func (e *Engine) addCountryDetailASNMatches(ctx context.Context, builder *countr
 }
 
 func (e *Engine) addASNDetailFeedMatches(builder *asnDetailBuilder, provider string, view entityOutputView) []string {
+	return e.addASNDetailFeedMatchesWithSnapshot(e.operationSnapshot(), builder, provider, view)
+}
+
+func (e *Engine) addASNDetailFeedMatchesWithSnapshot(snap operationSnapshot, builder *asnDetailBuilder, provider string, view entityOutputView) []string {
 	matches := make([]string, 0, 64)
 	if builder == nil || provider == "" {
 		return matches
 	}
-	for _, entry := range e.EntriesSnapshot() {
-		if !e.isPublicFeedName(entry.Name) {
+	for _, entry := range e.entriesSnapshot(snap.cfg, configuredNamesForConfig(snap.cfg)) {
+		if !isPublicFeedNameForConfig(snap.cfg, entry.Name) {
 			continue
 		}
-		src := e.lookupSource(entry.Name)
-		if !detailSurfaceEligible(e.cfg, src) {
+		src := lookupSourceForConfig(snap.cfg, entry.Name)
+		if !detailSurfaceEligible(snap.cfg, src) {
 			continue
 		}
 		attributed, observedName := asnComparisonValue(view, entry.Name, provider, builder.asn)
@@ -197,11 +213,15 @@ func asnComparisonValue(view entityOutputView, feedName, provider string, asn ui
 }
 
 func (e *Engine) addASNDetailCountryMatches(ctx context.Context, builder *asnDetailBuilder, matches []string, providers entityDetailProviderSet) {
+	e.addASNDetailCountryMatchesWithSnapshot(ctx, e.operationSnapshot(), builder, matches, providers)
+}
+
+func (e *Engine) addASNDetailCountryMatchesWithSnapshot(ctx context.Context, snap operationSnapshot, builder *asnDetailBuilder, matches []string, providers entityDetailProviderSet) {
 	ctx = nonNilContext(ctx)
 	if builder == nil || providers.asnDB == nil || providers.geoPrepared == nil || len(matches) == 0 {
 		return
 	}
-	setCache := newLatestSetCache(e)
+	setCache := newLatestSetCacheForSnapshot(e, snap)
 	defer setCache.CloseAll(e.logger)
 	for _, name := range matches {
 		latest, err := setCache.OpenContext(ctx, name)

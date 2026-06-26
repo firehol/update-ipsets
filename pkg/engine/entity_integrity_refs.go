@@ -12,10 +12,18 @@ import (
 )
 
 func (e *Engine) entityFeedSidecarReference(name, geoProvider, asnProvider string, geoPath string, geoTime time.Time, asnPath string, asnTime time.Time) (string, time.Time, error) {
-	return e.entityFeedSidecarReferenceInOutputDir(name, e.outputDir(), geoProvider, asnProvider, geoPath, geoTime, asnPath, asnTime)
+	return e.entityFeedSidecarReferenceWithSnapshot(e.operationSnapshot(), name, geoProvider, asnProvider, geoPath, geoTime, asnPath, asnTime)
+}
+
+func (e *Engine) entityFeedSidecarReferenceWithSnapshot(snap operationSnapshot, name, geoProvider, asnProvider string, geoPath string, geoTime time.Time, asnPath string, asnTime time.Time) (string, time.Time, error) {
+	return e.entityFeedSidecarReferenceInOutputDirWithSnapshot(snap, name, outputDirForRuntime(snap.runtime), geoProvider, asnProvider, geoPath, geoTime, asnPath, asnTime)
 }
 
 func (e *Engine) entityFeedSidecarReferenceInOutputDir(name, outDir, geoProvider, asnProvider string, geoPath string, geoTime time.Time, asnPath string, asnTime time.Time) (string, time.Time, error) {
+	return e.entityFeedSidecarReferenceInOutputDirWithSnapshot(e.operationSnapshot(), name, outDir, geoProvider, asnProvider, geoPath, geoTime, asnPath, asnTime)
+}
+
+func (e *Engine) entityFeedSidecarReferenceInOutputDirWithSnapshot(snap operationSnapshot, name, outDir, geoProvider, asnProvider string, geoPath string, geoTime time.Time, asnPath string, asnTime time.Time) (string, time.Time, error) {
 	var ref entityDependencyRef
 	if geoProvider != "" {
 		path, when, err := e.entityFeedCountryPayloadReferenceInOutputDir(outDir, name, geoProvider)
@@ -31,7 +39,7 @@ func (e *Engine) entityFeedSidecarReferenceInOutputDir(name, outDir, geoProvider
 		}
 		mergeEntityDependencyRef(&ref, path, when)
 	}
-	latestPath, latestTime, err := e.entityLatestSetReference(name)
+	latestPath, latestTime, err := e.entityLatestSetReferenceWithSnapshot(snap, name)
 	if err != nil {
 		return "", time.Time{}, err
 	}
@@ -42,6 +50,10 @@ func (e *Engine) entityFeedSidecarReferenceInOutputDir(name, outDir, geoProvider
 }
 
 func (e *Engine) feedEntitySidecarCoversReference(name string, sidecar *feedEntitySidecar, refPath string, refTime time.Time) bool {
+	return e.feedEntitySidecarCoversReferenceWithSnapshot(e.operationSnapshot(), name, sidecar, refPath, refTime)
+}
+
+func (e *Engine) feedEntitySidecarCoversReferenceWithSnapshot(snap operationSnapshot, name string, sidecar *feedEntitySidecar, refPath string, refTime time.Time) bool {
 	if sidecar == nil || sidecar.LastChangeTS <= 0 || refTime.IsZero() {
 		return false
 	}
@@ -50,9 +62,9 @@ func (e *Engine) feedEntitySidecarCoversReference(name string, sidecar *feedEnti
 		return false
 	}
 	candidates := []string{
-		filepath.Join(e.runtime.LibDir, name, "latest"),
-		filepath.Join(e.runtime.LibDir, name, "latest.set"),
-		latestFeedBodyPath(e.feedBodyPath(name)),
+		filepath.Join(snap.runtime.LibDir, name, "latest"),
+		filepath.Join(snap.runtime.LibDir, name, "latest.set"),
+		latestFeedBodyPath(snap.feedBodyPath(name)),
 	}
 	var isLatestSetRef bool
 	for _, candidate := range candidates {
@@ -105,10 +117,14 @@ func (e *Engine) entityFeedASNPayloadReferenceInOutputDir(outDir, name, provider
 }
 
 func (e *Engine) entityGeoProviderReference(provider string) (string, time.Time, error) {
+	return e.entityGeoProviderReferenceWithSnapshot(e.operationSnapshot(), provider)
+}
+
+func (e *Engine) entityGeoProviderReferenceWithSnapshot(snap operationSnapshot, provider string) (string, time.Time, error) {
 	if provider == "" {
 		return "", time.Time{}, nil
 	}
-	path := filepath.Join(e.runtime.LibDir, "geolocation", provider+".source")
+	path := filepath.Join(snap.runtime.LibDir, "geolocation", provider+".source")
 	info, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -120,10 +136,14 @@ func (e *Engine) entityGeoProviderReference(provider string) (string, time.Time,
 }
 
 func (e *Engine) entityASNProviderReference(provider string) (string, time.Time, error) {
+	return e.entityASNProviderReferenceWithSnapshot(e.operationSnapshot(), provider)
+}
+
+func (e *Engine) entityASNProviderReferenceWithSnapshot(snap operationSnapshot, provider string) (string, time.Time, error) {
 	if provider == "" {
 		return "", time.Time{}, nil
 	}
-	src := e.lookupSource(provider)
+	src := lookupSourceForConfig(snap.cfg, provider)
 	if src == nil {
 		return "", time.Time{}, nil
 	}
@@ -131,7 +151,7 @@ func (e *Engine) entityASNProviderReference(provider string) (string, time.Time,
 	if !ok {
 		return "", time.Time{}, nil
 	}
-	path := filepath.Join(e.runtime.LibDir, "asn", provider, spec.dataFile)
+	path := filepath.Join(snap.runtime.LibDir, "asn", provider, spec.dataFile)
 	info, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -143,8 +163,12 @@ func (e *Engine) entityASNProviderReference(provider string) (string, time.Time,
 }
 
 func (e *Engine) entityLatestSetReference(name string) (string, time.Time, error) {
+	return e.entityLatestSetReferenceWithSnapshot(e.operationSnapshot(), name)
+}
+
+func (e *Engine) entityLatestSetReferenceWithSnapshot(snap operationSnapshot, name string) (string, time.Time, error) {
 	for _, filename := range []string{"latest", "latest.set"} {
-		path := filepath.Join(e.runtime.LibDir, name, filename)
+		path := filepath.Join(snap.runtime.LibDir, name, filename)
 		info, err := os.Stat(path)
 		if err == nil {
 			return path, info.ModTime().UTC(), nil
@@ -153,7 +177,7 @@ func (e *Engine) entityLatestSetReference(name string) (string, time.Time, error
 			return "", time.Time{}, err
 		}
 	}
-	path := latestFeedBodyPath(e.feedBodyPath(name))
+	path := latestFeedBodyPath(snap.feedBodyPath(name))
 	info, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -165,18 +189,22 @@ func (e *Engine) entityLatestSetReference(name string) (string, time.Time, error
 }
 
 func (e *Engine) latestEntityConfigInputTime() (string, time.Time, error) {
+	return e.latestEntityConfigInputTimeWithSnapshot(e.operationSnapshot())
+}
+
+func (e *Engine) latestEntityConfigInputTimeWithSnapshot(snap operationSnapshot) (string, time.Time, error) {
 	var ref entityDependencyRef
-	if e.runtime.ConfigPath != "" {
-		info, err := os.Stat(e.runtime.ConfigPath)
+	if snap.runtime.ConfigPath != "" {
+		info, err := os.Stat(snap.runtime.ConfigPath)
 		if err != nil {
 			if !os.IsNotExist(err) {
 				return "", time.Time{}, err
 			}
 		} else {
-			mergeEntityDependencyRef(&ref, e.runtime.ConfigPath, info.ModTime().UTC())
+			mergeEntityDependencyRef(&ref, snap.runtime.ConfigPath, info.ModTime().UTC())
 		}
 	}
-	for _, dir := range []string{e.runtime.DistributionSuppliedIPSets, e.runtime.AdminSuppliedIPSets, e.runtime.UserSuppliedIPSets} {
+	for _, dir := range []string{snap.runtime.DistributionSuppliedIPSets, snap.runtime.AdminSuppliedIPSets, snap.runtime.UserSuppliedIPSets} {
 		path, when, err := newestConfigFragmentTime(dir)
 		if err != nil {
 			return "", time.Time{}, err
@@ -225,25 +253,29 @@ func newestConfigFragmentTime(dir string) (string, time.Time, error) {
 }
 
 func (e *Engine) entityFeedHealthTransitionTime(name string, health *feedHealthClassifier) time.Time {
-	if e == nil || e.cfg == nil {
+	return e.entityFeedHealthTransitionTimeWithSnapshot(e.operationSnapshot(), name, health)
+}
+
+func (e *Engine) entityFeedHealthTransitionTimeWithSnapshot(snap operationSnapshot, name string, health *feedHealthClassifier) time.Time {
+	if e == nil || snap.cfg == nil {
 		return time.Time{}
 	}
-	snap, ok := health.snapshot(name)
+	healthSnap, ok := health.snapshot(name)
 	if !ok {
 		return time.Time{}
 	}
 	now := e.now().UTC()
-	switch snap.Class {
+	switch healthSnap.Class {
 	case feedhealth.ClassDelayed:
-		return transitionAfterLastChange(snap.LastChangeAt, snap.EffectiveHealthyGapMins, now)
+		return transitionAfterLastChange(healthSnap.LastChangeAt, healthSnap.EffectiveHealthyGapMins, now)
 	case feedhealth.ClassRisky:
-		return transitionAfterLastChange(snap.LastChangeAt, snap.RiskyCadenceMins, now)
+		return transitionAfterLastChange(healthSnap.LastChangeAt, healthSnap.RiskyCadenceMins, now)
 	case feedhealth.ClassUnmaintained:
-		return transitionAfterLastChange(snap.LastChangeAt, snap.UnmaintainedThresholdMins, now)
+		return transitionAfterLastChange(healthSnap.LastChangeAt, healthSnap.UnmaintainedThresholdMins, now)
 	case feedhealth.ClassUnavailable:
-		return entityUnavailableTransitionTime(snap, now)
+		return entityUnavailableTransitionTime(healthSnap, now)
 	case feedhealth.ClassArchived:
-		return entityArchivedTransitionTime(snap, now)
+		return entityArchivedTransitionTime(healthSnap, now)
 	default:
 		return time.Time{}
 	}

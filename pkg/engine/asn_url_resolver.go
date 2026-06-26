@@ -45,9 +45,13 @@ func caidaCreationLogTransport() *http.Transport {
 // This keeps the YAML config stable across days while always pointing
 // at a real file.
 func (e *Engine) resolveASNDownloadURL(ctx context.Context, providerType, configuredURL string) (string, error) {
+	return e.resolveASNDownloadURLWithRuntime(ctx, e.operationSnapshot().runtime, providerType, configuredURL)
+}
+
+func (e *Engine) resolveASNDownloadURLWithRuntime(ctx context.Context, rt Runtime, providerType, configuredURL string) (string, error) {
 	switch providerType {
 	case "caida_prefix2as":
-		return e.resolveCAIDAPrefix2ASURL(ctx, configuredURL)
+		return e.resolveCAIDAPrefix2ASURLWithRuntime(ctx, rt, configuredURL)
 	default:
 		return configuredURL, nil
 	}
@@ -65,6 +69,10 @@ func (e *Engine) resolveASNDownloadURL(ctx context.Context, providerType, config
 // seqnum, unix timestamp, relative path. The last line is the most
 // recent file. Empty lines and lines starting with '#' are ignored.
 func (e *Engine) resolveCAIDAPrefix2ASURL(ctx context.Context, configuredURL string) (string, error) {
+	return e.resolveCAIDAPrefix2ASURLWithRuntime(ctx, e.operationSnapshot().runtime, configuredURL)
+}
+
+func (e *Engine) resolveCAIDAPrefix2ASURLWithRuntime(ctx context.Context, rt Runtime, configuredURL string) (string, error) {
 	const baseDir = "https://publicdata.caida.org/datasets/routing/routeviews-prefix2as/"
 	logURL := baseDir + "pfx2as-creation.log"
 
@@ -81,7 +89,7 @@ func (e *Engine) resolveCAIDAPrefix2ASURL(ctx context.Context, configuredURL str
 	if err != nil {
 		return "", fmt.Errorf("build request for %s: %w", logURL, err)
 	}
-	req.Header.Set("User-Agent", e.runtime.UserAgent)
+	req.Header.Set("User-Agent", rt.UserAgent)
 	resp, err := caidaCreationLogHTTPClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("fetch %s: %w", logURL, err)

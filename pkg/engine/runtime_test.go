@@ -748,6 +748,8 @@ func TestApplyRuntimeOverridesAlignsEngineRuntime(t *testing.T) {
 	}))
 	overrideWeb := filepath.Join(root, "served-web")
 	overrideFiles := filepath.Join(root, "served-files")
+	configWebDir := cfg.Runtime.WebDir
+	configFilesDir := cfg.Runtime.WebDirForIPSets
 
 	if err := eng.ApplyRuntimeOverrides(overrideWeb, overrideFiles); err != nil {
 		t.Fatal(err)
@@ -758,8 +760,11 @@ func TestApplyRuntimeOverridesAlignsEngineRuntime(t *testing.T) {
 	if got := eng.Runtime().WebDirForIPSets; got != overrideFiles {
 		t.Fatalf("runtime files dir = %q, want %q", got, overrideFiles)
 	}
-	if cfg.Runtime.WebDir != overrideWeb {
-		t.Fatalf("config runtime web dir = %q, want %q", cfg.Runtime.WebDir, overrideWeb)
+	if cfg.Runtime.WebDir != configWebDir {
+		t.Fatalf("config runtime web dir changed to %q, want %q", cfg.Runtime.WebDir, configWebDir)
+	}
+	if cfg.Runtime.WebDirForIPSets != configFilesDir {
+		t.Fatalf("config runtime files dir changed to %q, want %q", cfg.Runtime.WebDirForIPSets, configFilesDir)
 	}
 	if _, err := os.Stat(overrideWeb); err != nil {
 		t.Fatalf("override web dir was not created: %v", err)

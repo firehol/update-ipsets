@@ -10,10 +10,14 @@ import (
 )
 
 func (e *Engine) writeMetadataFiles(ctx context.Context, skipComparisons bool, comparisonNames []string, perFeedNames []string, outDir string, setCache *latestSetCache, enableAll bool) ([]output.GeneratedFile, error) {
+	return e.writeMetadataFilesWithSnapshot(ctx, e.operationSnapshot(), skipComparisons, comparisonNames, perFeedNames, outDir, setCache, enableAll)
+}
+
+func (e *Engine) writeMetadataFilesWithSnapshot(ctx context.Context, snap operationSnapshot, skipComparisons bool, comparisonNames []string, perFeedNames []string, outDir string, setCache *latestSetCache, enableAll bool) ([]output.GeneratedFile, error) {
 	if err := contextErr(ctx); err != nil {
 		return nil, err
 	}
-	run := e.newMetadataWriteRun(ctx, outDir, perFeedNames, enableAll)
+	run := e.newMetadataWriteRunWithSnapshot(ctx, snap, outDir, perFeedNames, enableAll)
 	if err := run.writeComparisonOutputs(skipComparisons, comparisonNames, setCache); err != nil {
 		return nil, err
 	}
@@ -36,6 +40,7 @@ func (e *Engine) writeMetadataFiles(ctx context.Context, skipComparisons bool, c
 
 type metadataWriteRun struct {
 	e              *Engine
+	snapshot       operationSnapshot
 	ctx            context.Context
 	outDir         string
 	liveOutDir     string
@@ -52,22 +57,27 @@ type metadataWriteRun struct {
 }
 
 func (e *Engine) newMetadataWriteRun(ctx context.Context, outDir string, perFeedNames []string, enableAll bool) *metadataWriteRun {
-	outputNames := e.publicOutputNames()
+	return e.newMetadataWriteRunWithSnapshot(ctx, e.operationSnapshot(), outDir, perFeedNames, enableAll)
+}
+
+func (e *Engine) newMetadataWriteRunWithSnapshot(ctx context.Context, snap operationSnapshot, outDir string, perFeedNames []string, enableAll bool) *metadataWriteRun {
+	outputNames := e.publicOutputNamesForSnapshot(snap)
 	return &metadataWriteRun{
 		e:              e,
+		snapshot:       snap,
 		ctx:            ctx,
 		outDir:         outDir,
-		liveOutDir:     e.outputDir(),
+		liveOutDir:     outputDirForRuntime(snap.runtime),
 		enableAll:      enableAll,
 		outputNames:    outputNames,
 		generated:      make([]output.GeneratedFile, 0, len(outputNames)*8+3),
-		viewResolver:   newEffectiveEntryResolver(e.cfg, e.state.SnapshotEntries()),
+		viewResolver:   newEffectiveEntryResolver(snap.cfg, e.state.SnapshotEntries()),
 		index:          make([]setMetadata, 0, len(outputNames)),
 		allIPSets:      make([]allIPSetsItem, 0, len(outputNames)),
 		setInfo:        make(map[string]string, len(outputNames)),
 		timestampFiles: make([]output.GeneratedFile, 0, len(outputNames)),
 		perFeedSet:     metadataNameSet(perFeedNames),
-		baseGit:        output.HasGitDir(e.runtime.BaseDir),
+		baseGit:        output.HasGitDir(snap.runtime.BaseDir),
 	}
 }
 
@@ -84,14 +94,14 @@ func (r *metadataWriteRun) writeComparisonOutputs(skipComparisons bool, comparis
 		return nil
 	}
 	started := time.Now()
-	if err := r.e.writeComparisonFiles(r.ctx, comparisonNames, r.outDir, setCache); err != nil {
+	if err := r.e.writeComparisonFilesWithSnapshot(r.ctx, r.snapshot, comparisonNames, r.outDir, setCache); err != nil {
 		r.e.observeRunOperation("metadata.write_comparison_files", time.Since(started))
 		return err
 	}
 	r.e.observeRunOperation("metadata.write_comparison_files", time.Since(started))
 
 	started = time.Now()
-	r.e.updateUniqueSharesContext(r.ctx, comparisonNames, r.outDir)
+	r.e.updateUniqueSharesContextWithSnapshot(r.ctx, r.snapshot, comparisonNames, r.outDir)
 	r.e.observeRunOperation("metadata.update_unique_shares", time.Since(started))
 	return nil
 }
@@ -100,7 +110,7 @@ func (r *metadataWriteRun) writePublicMetadataList() error {
 	started := time.Now()
 	progress := r.e.beginActiveOperation("metadata.write_public_metadata", "", "write", "operations", 1)
 	defer progress.Finish()
-	metadataFiles, err := r.e.writePublicMetadataFiles(r.outDir, r.outputNames)
+	metadataFiles, err := r.e.writePublicMetadataFilesWithSnapshot(r.snapshot, r.outDir, r.outputNames)
 	if err != nil {
 		r.e.observeRunOperation("metadata.write_public_metadata_files", time.Since(started))
 		return err
@@ -127,8 +137,8 @@ func (r *metadataWriteRun) writePerFeedOutputs() error {
 			progress.Add(1, int64(len(r.outputNames)), nil)
 			continue
 		}
-		meta := r.e.buildSetMetadataFromEffectiveEntryInDirWithResolver(name, viewEntry, r.outDir, r.enableAll, r.viewResolver)
-		redistributable := r.e.isRedistributable(name)
+		meta := r.e.buildSetMetadataWithSnapshot(r.snapshot, name, viewEntry, r.outDir, r.enableAll, r.viewResolver)
+		redistributable := isRedistributableForConfig(r.snapshot.cfg, name)
 		r.addFeedIndexRows(name, viewEntry, meta, redistributable)
 		if _, ok := r.perFeedSet[name]; ok {
 			if err := r.writePerFeedArtifacts(name, viewEntry, meta, redistributable); err != nil {
@@ -155,10 +165,10 @@ func (r *metadataWriteRun) addFeedIndexRows(name string, viewEntry *cache.Entry,
 		IPs:        viewEntry.UniqueIPs,
 		Errors:     viewEntry.DownloadFailures,
 	})
-	r.setInfo[name] = r.e.renderSetInfo(name, viewEntry)
+	r.setInfo[name] = renderSetInfoForConfigRuntime(r.snapshot.cfg, r.snapshot.runtime, name, viewEntry)
 	if viewEntry.File != "" {
 		r.timestampFiles = append(r.timestampFiles, output.GeneratedFile{
-			Path:            filepath.Join(r.e.runtime.BaseDir, viewEntry.File),
+			Path:            filepath.Join(r.snapshot.runtime.BaseDir, viewEntry.File),
 			Timestamp:       time.Unix(viewEntry.SourceDate, 0).UTC(),
 			Redistributable: redistributable,
 		})
@@ -178,15 +188,15 @@ func (r *metadataWriteRun) writePerFeedArtifacts(name string, viewEntry *cache.E
 	r.addGenerated(filepath.Join(r.liveOutDir, name+".json"), time.Unix(viewEntry.ProcessedDate, 0).UTC(), redistributable)
 
 	if r.baseGit {
-		setInfoLine := r.e.renderSetInfo(name, viewEntry)
-		setInfoPath := filepath.Join(r.e.runtime.BaseDir, name+".setinfo")
+		setInfoLine := renderSetInfoForConfigRuntime(r.snapshot.cfg, r.snapshot.runtime, name, viewEntry)
+		setInfoPath := filepath.Join(r.snapshot.runtime.BaseDir, name+".setinfo")
 		if err := writeFileAtomic(setInfoPath, []byte(setInfoLine), generatedFileMode); err != nil {
 			return err
 		}
 		r.addGenerated(setInfoPath, time.Unix(viewEntry.SourceDate, 0).UTC(), redistributable)
 	}
 	if viewEntry.File != "" {
-		r.addGenerated(filepath.Join(r.e.runtime.BaseDir, viewEntry.File), time.Unix(viewEntry.SourceDate, 0).UTC(), redistributable)
+		r.addGenerated(filepath.Join(r.snapshot.runtime.BaseDir, viewEntry.File), time.Unix(viewEntry.SourceDate, 0).UTC(), redistributable)
 	}
 	if err := r.writePerFeedDerivativeArtifacts(r.ctx, name, processedAt, redistributable); err != nil {
 		return err
@@ -199,17 +209,17 @@ func (r *metadataWriteRun) writePerFeedDerivativeArtifacts(ctx context.Context, 
 	if err := contextErr(ctx); err != nil {
 		return err
 	}
-	if err := r.e.writePublicHistoryCSVContext(ctx, name, r.outDir); err != nil {
+	if err := r.e.writePublicHistoryCSVContextWithSnapshot(ctx, r.snapshot, name, r.outDir); err != nil {
 		return err
 	}
 	r.addGenerated(filepath.Join(r.liveOutDir, name+"_history.csv"), processedAt, redistributable)
 
-	if err := r.e.writePublicChangesetsCSVContext(ctx, name, r.outDir); err != nil {
+	if err := r.e.writePublicChangesetsCSVContextWithSnapshot(ctx, r.snapshot, name, r.outDir); err != nil {
 		return err
 	}
 	r.addGenerated(filepath.Join(r.liveOutDir, name+"_changesets.csv"), processedAt, redistributable)
 
-	if err := r.e.writePublicRetentionJSONContext(ctx, name, r.outDir); err != nil {
+	if err := r.e.writePublicRetentionJSONContextWithSnapshot(ctx, r.snapshot, name, r.outDir); err != nil {
 		return err
 	}
 	r.addGenerated(filepath.Join(r.liveOutDir, name+"_retention.json"), processedAt, redistributable)
@@ -249,15 +259,15 @@ func (r *metadataWriteRun) writeGitArtifacts() error {
 	started := time.Now()
 	progress := r.e.beginActiveOperation("metadata.write_git_artifacts", "", "write", "files", 3)
 	defer progress.Finish()
-	if err := output.WriteREADME(r.e.runtime.BaseDir, r.setInfo); err != nil {
+	if err := output.WriteREADME(r.snapshot.runtime.BaseDir, r.setInfo); err != nil {
 		return err
 	}
 	progress.Add(1, 3, nil)
-	if err := output.WriteGitIgnore(r.e.runtime.BaseDir, r.generated); err != nil {
+	if err := output.WriteGitIgnore(r.snapshot.runtime.BaseDir, r.generated); err != nil {
 		return err
 	}
 	progress.Add(1, 3, nil)
-	if err := output.WriteTimestampScript(r.e.runtime.BaseDir, r.timestampFiles); err != nil {
+	if err := output.WriteTimestampScript(r.snapshot.runtime.BaseDir, r.timestampFiles); err != nil {
 		return err
 	}
 	progress.Add(1, 3, nil)

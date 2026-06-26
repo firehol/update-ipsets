@@ -37,7 +37,11 @@ var getInsightsEngine = sync.OnceValue(func() *insights.Engine {
 // the deterministic insights engine, and writes the resulting JSON to
 // the output dir. Insights errors are returned, but derived data is never critical.
 func (e *Engine) writeInsights(name string, outDir string) error {
-	snap, err := e.buildSignalSnapshot(name, outDir)
+	return e.writeInsightsWithSnapshot(e.operationSnapshot(), name, outDir)
+}
+
+func (e *Engine) writeInsightsWithSnapshot(op operationSnapshot, name string, outDir string) error {
+	snap, err := e.buildSignalSnapshotWithSnapshot(op, name, outDir)
 	if err != nil {
 		return err
 	}
@@ -69,15 +73,19 @@ func (e *Engine) writeInsights(name string, outDir string) error {
 //
 // Errors are logged but not returned: one bad snapshot should not abort the heavy block.
 func (e *Engine) writeInsightsForFeeds(ctx context.Context, updatedNames []string, outDir string) error {
+	return e.writeInsightsForFeedsWithSnapshot(ctx, e.operationSnapshot(), updatedNames, outDir)
+}
+
+func (e *Engine) writeInsightsForFeedsWithSnapshot(ctx context.Context, snap operationSnapshot, updatedNames []string, outDir string) error {
 	ctx = nonNilContext(ctx)
-	targetNames := insightTargetNames(e.cfg, updatedNames, e.publicOutputNames(), outDir, e.outputDir())
+	targetNames := insightTargetNames(snap.cfg, updatedNames, e.publicOutputNamesForSnapshot(snap), outDir, outputDirForRuntime(snap.runtime))
 	progress := e.beginActiveOperation("insights.write_feeds", "", "write", "feeds", int64(len(targetNames)))
 	defer progress.Finish()
 	for _, name := range targetNames {
 		if err := contextErr(ctx); err != nil {
 			return err
 		}
-		if err := e.writeInsights(name, outDir); err != nil {
+		if err := e.writeInsightsWithSnapshot(snap, name, outDir); err != nil {
 			e.logger.Warn("insights write failed", "set", name, "error", err)
 		}
 		progress.Add(1, int64(len(targetNames)), nil)
@@ -132,6 +140,10 @@ func insightFileExists(dir string, rel string) bool {
 // expects. It never touches the filesystem for anything other than
 // files the engine itself writes during the same run.
 func (e *Engine) buildSignalSnapshot(name string, outDir string) (insights.SignalSnapshot, error) {
+	return e.buildSignalSnapshotWithSnapshot(e.operationSnapshot(), name, outDir)
+}
+
+func (e *Engine) buildSignalSnapshotWithSnapshot(op operationSnapshot, name string, outDir string) (insights.SignalSnapshot, error) {
 	entry := e.EntrySnapshot(name)
 	if entry == nil {
 		return insights.SignalSnapshot{}, fmt.Errorf("no cache entry for %q", name)
@@ -153,38 +165,38 @@ func (e *Engine) buildSignalSnapshot(name string, outDir string) (insights.Signa
 	// to WebChartsEntries, the canonical public chart window. The insights
 	// hot path prefers the already-bounded staged/live public artifacts so
 	// it does not rescan full history snapshots for every feed.
-	snap.SizeSeries = e.readInsightsSizeSeries(name, outDir)
-	snap.ChurnSeries = e.readInsightsChurnSeries(name, outDir, snap.SizeSeries)
+	snap.SizeSeries = e.readInsightsSizeSeriesWithSnapshot(op, name, outDir)
+	snap.ChurnSeries = e.readInsightsChurnSeriesWithSnapshot(op, name, outDir, snap.SizeSeries)
 
 	// Retention histograms from the pre-built retention.json.
-	past, current := e.readRetentionHistograms(name)
+	past, current := e.readRetentionHistogramsWithSnapshot(op, name)
 	snap.AgeOfRemoved = past
 	snap.AgeOfListed = current
 
 	// Geographic composition from the default country provider.
-	snap.TopCountries = e.readTopCountries(name, outDir)
+	snap.TopCountries = e.readTopCountriesWithSnapshot(op, name, outDir)
 
 	// Bogon share across every configured bogon provider — we use the
 	// MAX share so a feed that overlaps any one bogon baseline is
 	// reported, not averaged down by providers that miss the range.
-	snap.BogonShare = e.readBogonShare(name, outDir)
+	snap.BogonShare = e.readBogonShareWithSnapshot(op, name, outDir)
 
 	// ASN composition from the default ASN provider. Top ASNs are not
 	// used by the current rules but are assembled anyway so future rules
 	// can read them without another engine change.
-	asnFacts := e.readASNFacts(name, outDir)
+	asnFacts := e.readASNFactsWithSnapshot(op, name, outDir)
 	snap.TopASNs = asnFacts.Top
 
 	// Critical-infrastructure facts come from the reference-feed overlap
 	// artifact, not ASN-wide classification. This keeps the insight aligned
 	// with the public feed page and avoids reintroducing broad ASN warnings.
-	infraFacts := e.readCriticalInfrastructureFacts(name, outDir)
+	infraFacts := e.readCriticalInfrastructureFactsWithSnapshot(op, name, outDir)
 	snap.InfraIPs = infraFacts.IPs
 	snap.InfraShare = infraFacts.Share
 	snap.InfraTiers = infraFacts.Tiers
 
 	// Pairwise overlaps from _comparison.json plus category aggregates.
-	overlaps, byCat := e.readOverlapFacts(name, outDir)
+	overlaps, byCat := e.readOverlapFactsWithSnapshot(op, name, outDir)
 	snap.Overlaps = overlaps
 	snap.OverlapsByCat = byCat
 
@@ -196,7 +208,11 @@ func (e *Engine) buildSignalSnapshot(name string, outDir string) (insights.Signa
 // insights package consumes. The source is <lib_dir>/<name>/retention.json
 // which is always rebuilt by updateRetention on every successful run.
 func (e *Engine) readRetentionHistograms(name string) (past insights.AgeHistogram, current insights.AgeHistogram) {
-	data, err := readFileInRoot(e.runtime.LibDir, filepath.Join(name, "retention.json"))
+	return e.readRetentionHistogramsWithSnapshot(e.operationSnapshot(), name)
+}
+
+func (e *Engine) readRetentionHistogramsWithSnapshot(snap operationSnapshot, name string) (past insights.AgeHistogram, current insights.AgeHistogram) {
+	data, err := readFileInRoot(snap.runtime.LibDir, filepath.Join(name, "retention.json"))
 	if err != nil {
 		return
 	}
@@ -242,11 +258,15 @@ func seriesToHistogram(s RetentionSeries) insights.AgeHistogram {
 // live, and picking one authoritative provider is less confusing than
 // publishing an average.
 func (e *Engine) readTopCountries(name string, outDir string) []insights.CountryShare {
-	provider := e.preferredGeoProvider()
+	return e.readTopCountriesWithSnapshot(e.operationSnapshot(), name, outDir)
+}
+
+func (e *Engine) readTopCountriesWithSnapshot(snap operationSnapshot, name string, outDir string) []insights.CountryShare {
+	provider := preferredGeoProviderForConfig(snap.cfg)
 	if provider == "" {
 		return nil
 	}
-	data, err := readFirstExisting(geoCountryCandidatePaths(outDir, name, provider), geoCountryCandidatePaths(e.outputDir(), name, provider))
+	data, err := readFirstExisting(geoCountryCandidatePaths(outDir, name, provider), geoCountryCandidatePaths(outputDirForRuntime(snap.runtime), name, provider))
 	if err != nil {
 		return nil
 	}
@@ -283,11 +303,15 @@ type asnFacts struct {
 // readASNFacts loads the top ASN list for the feed. Share values are computed
 // against feed_ips (the JSON invariant from writeASNComparisonFiles).
 func (e *Engine) readASNFacts(name string, outDir string) asnFacts {
-	provider := e.preferredASNProvider()
+	return e.readASNFactsWithSnapshot(e.operationSnapshot(), name, outDir)
+}
+
+func (e *Engine) readASNFactsWithSnapshot(snap operationSnapshot, name string, outDir string) asnFacts {
+	provider := preferredASNProviderForConfig(snap.cfg)
 	if provider == "" {
 		return asnFacts{}
 	}
-	data, err := readFirstExisting(asnCandidatePaths(outDir, name, provider), asnCandidatePaths(e.outputDir(), name, provider))
+	data, err := readFirstExisting(asnCandidatePaths(outDir, name, provider), asnCandidatePaths(outputDirForRuntime(snap.runtime), name, provider))
 	if err != nil {
 		return asnFacts{}
 	}
@@ -326,10 +350,14 @@ type criticalInfrastructureFacts struct {
 }
 
 func (e *Engine) readCriticalInfrastructureFacts(name string, outDir string) criticalInfrastructureFacts {
-	if !e.IsCriticalInfrastructureTarget(name) {
+	return e.readCriticalInfrastructureFactsWithSnapshot(e.operationSnapshot(), name, outDir)
+}
+
+func (e *Engine) readCriticalInfrastructureFactsWithSnapshot(snap operationSnapshot, name string, outDir string) criticalInfrastructureFacts {
+	if isCriticalInfrastructureOutputName(snap.cfg, name) || !isCriticalInfrastructureComparableName(snap.cfg, name) {
 		return criticalInfrastructureFacts{}
 	}
-	data, err := readFirstExisting(criticalInfrastructureCandidatePaths(outDir, name), criticalInfrastructureCandidatePaths(e.outputDir(), name))
+	data, err := readFirstExisting(criticalInfrastructureCandidatePaths(outDir, name), criticalInfrastructureCandidatePaths(outputDirForRuntime(snap.runtime), name))
 	if err != nil {
 		return criticalInfrastructureFacts{}
 	}
@@ -348,7 +376,7 @@ func (e *Engine) readCriticalInfrastructureFacts(name string, outDir string) cri
 	if err := json.Unmarshal(data, &payload); err != nil {
 		return criticalInfrastructureFacts{}
 	}
-	currentProviderSetID := e.CriticalInfrastructureProviderSetID()
+	currentProviderSetID := CriticalInfrastructureProviderSetIDForSnapshot(snap.cfg)
 	if currentProviderSetID == "" || payload.ProviderSetID != currentProviderSetID {
 		return criticalInfrastructureFacts{}
 	}
@@ -381,12 +409,16 @@ func (e *Engine) readCriticalInfrastructureFacts(name string, outDir string) cri
 // overlap, without double-counting IPs that appear in multiple bogon
 // datasets.
 func (e *Engine) readBogonShare(name string, outDir string) float64 {
-	if e == nil || e.cfg == nil {
+	return e.readBogonShareWithSnapshot(e.operationSnapshot(), name, outDir)
+}
+
+func (e *Engine) readBogonShareWithSnapshot(snap operationSnapshot, name string, outDir string) float64 {
+	if e == nil || snap.cfg == nil {
 		return 0
 	}
 	var best float64
-	for _, src := range e.cfg.SourcesWithUse(config.UseBogons) {
-		data, err := readFirstExisting(bogonCandidatePaths(outDir, name, src.Name), bogonCandidatePaths(e.outputDir(), name, src.Name))
+	for _, src := range snap.cfg.SourcesWithUse(config.UseBogons) {
+		data, err := readFirstExisting(bogonCandidatePaths(outDir, name, src.Name), bogonCandidatePaths(outputDirForRuntime(snap.runtime), name, src.Name))
 		if err != nil {
 			if errors.Is(err, fs.ErrNotExist) {
 				continue
@@ -417,7 +449,11 @@ func (e *Engine) readBogonShare(name string, outDir string) float64 {
 // counterpart feed has no cache entry are skipped — the insights
 // package cannot evaluate them without knowing their size.
 func (e *Engine) readOverlapFacts(name string, outDir string) ([]insights.FeedOverlap, map[string]insights.CategoryStat) {
-	data, err := readFirstExisting(singleCandidatePath(outDir, name+"_comparison.json"), singleCandidatePath(e.outputDir(), name+"_comparison.json"))
+	return e.readOverlapFactsWithSnapshot(e.operationSnapshot(), name, outDir)
+}
+
+func (e *Engine) readOverlapFactsWithSnapshot(snap operationSnapshot, name string, outDir string) ([]insights.FeedOverlap, map[string]insights.CategoryStat) {
+	data, err := readFirstExisting(singleCandidatePath(outDir, name+"_comparison.json"), singleCandidatePath(outputDirForRuntime(snap.runtime), name+"_comparison.json"))
 	if err != nil {
 		return nil, nil
 	}

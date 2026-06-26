@@ -368,6 +368,13 @@ MUST NOT create duplicate shutdown goroutines.
 The engine lane is an admission and serialization boundary. Once a broad
 operation is admitted, it MAY use its own bounded feed-processing, heavy-phase,
 or background fan-out as defined by the relevant subsystem contract.
+Each admitted broad operation MUST capture one operation snapshot after lane
+admission and before phase execution. That snapshot owns the operation's config,
+runtime paths, downloader client, provider caches, runtime ledger cache,
+retention policy, and ASN lookup cache until the operation finishes. Successful
+configuration reloads replace the generation used by later admissions; they
+MUST NOT cause an already-admitted operation to mix old and new config/runtime
+paths while staging or publishing artifacts.
 
 ## Queue and state model
 

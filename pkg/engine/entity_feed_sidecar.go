@@ -175,11 +175,19 @@ func (e *Engine) loadFeedEntitySidecar(path string) (*feedEntitySidecar, error) 
 }
 
 func (e *Engine) loadCommittedFeedEntitySidecar(name string) (*feedEntitySidecar, error) {
-	return e.loadFeedEntitySidecar(filepath.Join(e.entityFeedsDir(), name+".json"))
+	return e.loadCommittedFeedEntitySidecarWithRuntime(e.Runtime(), name)
+}
+
+func (e *Engine) loadCommittedFeedEntitySidecarWithRuntime(rt Runtime, name string) (*feedEntitySidecar, error) {
+	return e.loadFeedEntitySidecar(filepath.Join(entityFeedsDirForRuntime(rt), name+".json"))
 }
 
 func (e *Engine) loadAllFeedEntitySidecars() (map[string]*feedEntitySidecar, error) {
-	files, err := sortedJSONFiles(e.entityFeedsDir())
+	return e.loadAllFeedEntitySidecarsWithRuntime(e.Runtime())
+}
+
+func (e *Engine) loadAllFeedEntitySidecarsWithRuntime(rt Runtime) (map[string]*feedEntitySidecar, error) {
+	files, err := sortedJSONFiles(entityFeedsDirForRuntime(rt))
 	if err != nil {
 		return nil, err
 	}
@@ -381,7 +389,11 @@ func (e *Engine) buildSelectedEntityDetailSidecarsFromFeedSidecars(sidecars map[
 }
 
 func (e *Engine) buildCountryIndexFromFeedSidecars(sidecars map[string]*feedEntitySidecar) *CountryIndexPayload {
-	payload := e.emptyCountryIndexPayload()
+	return e.buildCountryIndexFromFeedSidecarsWithSnapshot(e.operationSnapshot(), sidecars)
+}
+
+func (e *Engine) buildCountryIndexFromFeedSidecarsWithSnapshot(snap operationSnapshot, sidecars map[string]*feedEntitySidecar) *CountryIndexPayload {
+	payload := e.emptyCountryIndexPayloadWithSnapshot(snap)
 	rows := map[string]*CountryIndexEntry{}
 	for _, sidecar := range sidecars {
 		if sidecar == nil {
@@ -418,7 +430,11 @@ func (e *Engine) buildCountryIndexFromFeedSidecars(sidecars map[string]*feedEnti
 }
 
 func (e *Engine) buildASNIndexFromFeedSidecars(sidecars map[string]*feedEntitySidecar) *ASNIndexPayload {
-	payload := e.emptyASNIndexPayload()
+	return e.buildASNIndexFromFeedSidecarsWithSnapshot(e.operationSnapshot(), sidecars)
+}
+
+func (e *Engine) buildASNIndexFromFeedSidecarsWithSnapshot(snap operationSnapshot, sidecars map[string]*feedEntitySidecar) *ASNIndexPayload {
+	payload := e.emptyASNIndexPayloadWithSnapshot(snap)
 	rows := map[uint32]*ASNIndexEntry{}
 	for _, sidecar := range sidecars {
 		if sidecar == nil {

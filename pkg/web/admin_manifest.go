@@ -109,7 +109,11 @@ func handleAdminFeedManifest(eng *engine.Engine) http.HandlerFunc {
 			return
 		}
 
-		cfg := eng.Config()
+		cfg, rt := eng.ConfigRuntimeSnapshot()
+		if cfg == nil {
+			writeJSON(w, http.StatusNotFound, map[string]string{"error": "unknown feed: " + name})
+			return
+		}
 		src, ok := cfg.Sources[name]
 		if !ok {
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "unknown feed: " + name})
@@ -119,7 +123,6 @@ func handleAdminFeedManifest(eng *engine.Engine) http.HandlerFunc {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "feed configuration is missing a canonical name"})
 			return
 		}
-		rt := eng.Runtime()
 		resp := buildFeedManifest(src.Name, src, cfg, rt, eng)
 		writeJSON(w, http.StatusOK, resp)
 	}

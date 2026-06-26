@@ -156,6 +156,15 @@ For each admitted feed, the engine MUST conceptually execute these stages:
 The precise end-to-end queue choreography is owned by [pipeline.md](pipeline.md).
 This document owns the engine-local contract.
 
+For one admitted processing run, config, runtime paths, downloader client,
+provider caches, runtime ledger cache, retention policy, and ASN lookup cache
+MUST come from the same operation snapshot. Engine-local helpers that need
+cache entries, generated artifact paths, provider choices, entity sidecars,
+metadata comparisons, or retention state MUST receive that generation
+explicitly or prove they are startup-only/reload-only. They MUST NOT fetch fresh
+config/runtime accessors inside inner loops when doing so can mix reload
+generations inside one run.
+
 ## Feed-local processing contract
 
 Feed-local processing MUST produce or maintain at least:

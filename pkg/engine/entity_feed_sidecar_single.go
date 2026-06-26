@@ -12,9 +12,9 @@ import (
 	"github.com/firehol/update-ipsets/pkg/asnloc"
 )
 
-func (e *Engine) buildSingleFeedEntitySidecar(ctx context.Context, name string, view entityOutputView, resolver *effectiveEntryResolver, geoProvider, asnProvider string, geoPrepared *geoPreparedProvider, asnDB *asnloc.Database, setCache *latestSetCache) (*feedEntitySidecar, error) {
+func (e *Engine) buildSingleFeedEntitySidecar(ctx context.Context, snap operationSnapshot, name string, view entityOutputView, resolver *effectiveEntryResolver, geoProvider, asnProvider string, geoPrepared *geoPreparedProvider, asnDB *asnloc.Database, setCache *latestSetCache) (*feedEntitySidecar, error) {
 	ctx = nonNilContext(ctx)
-	sidecar, ok := e.newFeedEntitySidecar(name, resolver, geoProvider, asnProvider)
+	sidecar, ok := e.newFeedEntitySidecarWithSnapshot(snap, name, resolver, geoProvider, asnProvider)
 	if !ok {
 		return nil, nil
 	}
@@ -35,12 +35,16 @@ func (e *Engine) buildSingleFeedEntitySidecar(ctx context.Context, name string, 
 }
 
 func (e *Engine) newFeedEntitySidecar(name string, resolver *effectiveEntryResolver, geoProvider, asnProvider string) (*feedEntitySidecar, bool) {
+	return e.newFeedEntitySidecarWithSnapshot(e.operationSnapshot(), name, resolver, geoProvider, asnProvider)
+}
+
+func (e *Engine) newFeedEntitySidecarWithSnapshot(snap operationSnapshot, name string, resolver *effectiveEntryResolver, geoProvider, asnProvider string) (*feedEntitySidecar, bool) {
 	entry := resolver.entryFromSnapshot(name)
-	if entry == nil || !e.isPublicFeedName(name) {
+	if entry == nil || !isPublicFeedNameForConfig(snap.cfg, name) {
 		return nil, false
 	}
-	src := e.lookupSource(name)
-	if !detailSurfaceEligible(e.cfg, src) {
+	src := lookupSourceForConfig(snap.cfg, name)
+	if !detailSurfaceEligible(snap.cfg, src) {
 		return nil, false
 	}
 	return &feedEntitySidecar{
@@ -56,16 +60,20 @@ func (e *Engine) newFeedEntitySidecar(name string, resolver *effectiveEntryResol
 }
 
 func (e *Engine) feedEntitySidecarExpected(name, geoProvider, asnProvider string, resolver *effectiveEntryResolver) bool {
-	if e == nil || e.cfg == nil {
+	return e.feedEntitySidecarExpectedWithSnapshot(e.operationSnapshot(), name, geoProvider, asnProvider, resolver)
+}
+
+func (e *Engine) feedEntitySidecarExpectedWithSnapshot(snap operationSnapshot, name, geoProvider, asnProvider string, resolver *effectiveEntryResolver) bool {
+	if e == nil || snap.cfg == nil {
 		return false
 	}
 	if resolver == nil && e.state != nil {
-		resolver = newEffectiveEntryResolver(e.cfg, e.state.SnapshotEntries())
+		resolver = newEffectiveEntryResolver(snap.cfg, e.state.SnapshotEntries())
 	}
 	if resolver == nil {
 		return false
 	}
-	_, ok := e.newFeedEntitySidecar(name, resolver, geoProvider, asnProvider)
+	_, ok := e.newFeedEntitySidecarWithSnapshot(snap, name, resolver, geoProvider, asnProvider)
 	return ok
 }
 

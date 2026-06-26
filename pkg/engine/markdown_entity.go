@@ -8,6 +8,10 @@ import (
 )
 
 func (e *Engine) stageCountryMarkdown(code string, payload *CountryDetailPayload, stageDir string) (output.GeneratedFile, error) {
+	return e.stageCountryMarkdownWithRuntime(e.Runtime(), code, payload, stageDir)
+}
+
+func (e *Engine) stageCountryMarkdownWithRuntime(rt Runtime, code string, payload *CountryDetailPayload, stageDir string) (output.GeneratedFile, error) {
 	if e.markdownTemplates == nil || payload == nil {
 		return output.GeneratedFile{}, nil
 	}
@@ -20,12 +24,16 @@ func (e *Engine) stageCountryMarkdown(code string, payload *CountryDetailPayload
 	}
 
 	return output.GeneratedFile{
-		Path:            filepath.Join(e.outputDir(), rel),
+		Path:            filepath.Join(outputDirForRuntime(rt), rel),
 		Redistributable: true,
 	}, nil
 }
 
 func (e *Engine) stageASNMarkdown(asn uint32, payload *ASNDetailPayload, stageDir string) (output.GeneratedFile, error) {
+	return e.stageASNMarkdownWithRuntime(e.Runtime(), asn, payload, stageDir)
+}
+
+func (e *Engine) stageASNMarkdownWithRuntime(rt Runtime, asn uint32, payload *ASNDetailPayload, stageDir string) (output.GeneratedFile, error) {
 	if e.markdownTemplates == nil || payload == nil {
 		return output.GeneratedFile{}, nil
 	}
@@ -38,12 +46,16 @@ func (e *Engine) stageASNMarkdown(asn uint32, payload *ASNDetailPayload, stageDi
 	}
 
 	return output.GeneratedFile{
-		Path:            filepath.Join(e.outputDir(), rel),
+		Path:            filepath.Join(outputDirForRuntime(rt), rel),
 		Redistributable: true,
 	}, nil
 }
 
 func (e *Engine) stageMaintainerMarkdown(slug string, payload *MaintainerDetailPayload, stageDir string) (output.GeneratedFile, error) {
+	return e.stageMaintainerMarkdownWithRuntime(e.Runtime(), slug, payload, stageDir)
+}
+
+func (e *Engine) stageMaintainerMarkdownWithRuntime(rt Runtime, slug string, payload *MaintainerDetailPayload, stageDir string) (output.GeneratedFile, error) {
 	if e.markdownTemplates == nil || payload == nil {
 		return output.GeneratedFile{}, nil
 	}
@@ -56,7 +68,7 @@ func (e *Engine) stageMaintainerMarkdown(slug string, payload *MaintainerDetailP
 	}
 
 	return output.GeneratedFile{
-		Path:            filepath.Join(e.outputDir(), rel),
+		Path:            filepath.Join(outputDirForRuntime(rt), rel),
 		Redistributable: true,
 	}, nil
 }
@@ -205,4 +217,3 @@ func buildMaintainerMarkdownContext(p *MaintainerDetailPayload) *markdown.Mainta
 
 	return ctx
 }
-

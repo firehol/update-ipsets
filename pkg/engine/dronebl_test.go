@@ -76,8 +76,8 @@ func TestArtifactDownloadMaxSizeUsesArtifactOverride(t *testing.T) {
 		rt.MaxDownloadSize = 100
 	}))
 
-	if got := eng.artifactDownloadMaxSize(cfg.Artifacts["dronebl"]); got != 200 {
-		t.Fatalf("artifactDownloadMaxSize() = %d, want 200", got)
+	if got := artifactDownloadMaxSizeForRuntime(eng.Runtime(), cfg.Artifacts["dronebl"]); got != 200 {
+		t.Fatalf("artifactDownloadMaxSizeForRuntime() = %d, want 200", got)
 	}
 }
 
@@ -93,8 +93,8 @@ func TestArtifactDownloadMaxSizeFallsBackToRuntimeDefault(t *testing.T) {
 		rt.MaxDownloadSize = 100
 	}))
 
-	if got := eng.artifactDownloadMaxSize(cfg.Artifacts["dronebl"]); got != 100 {
-		t.Fatalf("artifactDownloadMaxSize() = %d, want 100", got)
+	if got := artifactDownloadMaxSizeForRuntime(eng.Runtime(), cfg.Artifacts["dronebl"]); got != 100 {
+		t.Fatalf("artifactDownloadMaxSizeForRuntime() = %d, want 100", got)
 	}
 }
 

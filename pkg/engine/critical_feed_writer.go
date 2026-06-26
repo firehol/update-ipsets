@@ -12,6 +12,7 @@ import (
 
 type criticalFeedWriter struct {
 	e          *Engine
+	snapshot   operationSnapshot
 	name       string
 	datasets   *criticalDatasets
 	outDir     string
@@ -26,7 +27,11 @@ type criticalFeedWriter struct {
 }
 
 func (e *Engine) writeCriticalInfrastructureForFeed(ctx context.Context, name string, datasets *criticalDatasets, outDir string, setCache *latestSetCache) ([]string, error) {
-	writer, err := e.newCriticalFeedWriter(ctx, name, datasets, outDir, setCache)
+	return e.writeCriticalInfrastructureForFeedWithSnapshot(ctx, e.operationSnapshot(), name, datasets, outDir, setCache)
+}
+
+func (e *Engine) writeCriticalInfrastructureForFeedWithSnapshot(ctx context.Context, snap operationSnapshot, name string, datasets *criticalDatasets, outDir string, setCache *latestSetCache) ([]string, error) {
+	writer, err := e.newCriticalFeedWriterWithSnapshot(ctx, snap, name, datasets, outDir, setCache)
 	if err != nil || writer == nil {
 		return nil, err
 	}
@@ -34,6 +39,10 @@ func (e *Engine) writeCriticalInfrastructureForFeed(ctx context.Context, name st
 }
 
 func (e *Engine) newCriticalFeedWriter(ctx context.Context, name string, datasets *criticalDatasets, outDir string, setCache *latestSetCache) (*criticalFeedWriter, error) {
+	return e.newCriticalFeedWriterWithSnapshot(ctx, e.operationSnapshot(), name, datasets, outDir, setCache)
+}
+
+func (e *Engine) newCriticalFeedWriterWithSnapshot(ctx context.Context, snap operationSnapshot, name string, datasets *criticalDatasets, outDir string, setCache *latestSetCache) (*criticalFeedWriter, error) {
 	src, err := setCache.OpenContext(ctx, name)
 	if err != nil {
 		e.logger.Warn("critical infrastructure comparison skipped: cannot open set",
@@ -50,6 +59,7 @@ func (e *Engine) newCriticalFeedWriter(ctx context.Context, name string, dataset
 	}
 	return &criticalFeedWriter{
 		e:                  e,
+		snapshot:           snap,
 		name:               name,
 		datasets:           datasets,
 		outDir:             outDir,
@@ -167,7 +177,7 @@ func (w *criticalFeedWriter) aggregatePayload() (criticalAggregateJSON, error) {
 	w.totalSet.Optimize()
 	payload := criticalAggregateJSON{
 		Feed:                w.name,
-		Family:              criticalFeedFamily(w.e.cfg, w.name),
+		Family:              criticalFeedFamily(w.snapshot.cfg, w.name),
 		FeedIPs:             w.feedIPs,
 		CriticalIPs:         w.totalSet.UniqueCount(),
 		Complete:            len(w.datasets.Missing) == 0,
@@ -180,7 +190,7 @@ func (w *criticalFeedWriter) aggregatePayload() (criticalAggregateJSON, error) {
 		payload.Percent = 100 * float64(payload.CriticalIPs) / float64(w.feedIPs)
 	}
 	payload.Tiers = w.tierSummaries()
-	asnContext, err := w.e.criticalASNContextForFeed(w.name, w.feedIPs, w.outDir)
+	asnContext, err := w.e.criticalASNContextForFeedWithSnapshot(w.snapshot, w.name, w.feedIPs, w.outDir)
 	if err != nil {
 		return criticalAggregateJSON{}, err
 	}

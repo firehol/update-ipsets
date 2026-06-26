@@ -10,11 +10,13 @@ import (
 	"time"
 
 	"github.com/firehol/update-ipsets/pkg/cache"
+	"github.com/firehol/update-ipsets/pkg/config"
 	"github.com/firehol/update-ipsets/pkg/feedhealth"
 )
 
 type entityOutputView struct {
 	e            *Engine
+	runtime      Runtime
 	stageDir     string
 	mu           *sync.Mutex
 	countryCache map[string]countryComparisonCacheEntry
@@ -32,8 +34,16 @@ type asnRowsCacheEntry struct {
 }
 
 func newEntityOutputView(e *Engine, stageDir string) entityOutputView {
+	if e == nil {
+		return newEntityOutputViewWithRuntime(e, Runtime{}, stageDir)
+	}
+	return newEntityOutputViewWithRuntime(e, e.Runtime(), stageDir)
+}
+
+func newEntityOutputViewWithRuntime(e *Engine, rt Runtime, stageDir string) entityOutputView {
 	return entityOutputView{
 		e:            e,
+		runtime:      rt,
 		stageDir:     strings.TrimSpace(stageDir),
 		mu:           &sync.Mutex{},
 		countryCache: map[string]countryComparisonCacheEntry{},
@@ -59,7 +69,7 @@ func (v entityOutputView) countryComparison(name, provider string) (*CountryComp
 	if v.stageDir != "" {
 		pathGroups = append(pathGroups, geoCountryCandidatePaths(v.stageDir, name, provider))
 	}
-	pathGroups = append(pathGroups, geoCountryCandidatePaths(v.e.outputDir(), name, provider))
+	pathGroups = append(pathGroups, geoCountryCandidatePaths(outputDirForRuntime(v.runtime), name, provider))
 	data, err := readFirstExisting(pathGroups...)
 	if err != nil {
 		if v.mu != nil {
@@ -114,7 +124,7 @@ func (v entityOutputView) topASNsWithError(name, provider string) ([]topASNRow, 
 	if v.stageDir != "" {
 		pathGroups = append(pathGroups, asnCandidatePaths(v.stageDir, name, provider))
 	}
-	pathGroups = append(pathGroups, asnCandidatePaths(v.e.outputDir(), name, provider))
+	pathGroups = append(pathGroups, asnCandidatePaths(outputDirForRuntime(v.runtime), name, provider))
 	data, err := readFirstExisting(pathGroups...)
 	if err != nil {
 		if v.mu != nil {
@@ -200,6 +210,7 @@ type asnDetailSidecar struct {
 
 type feedHealthClassifier struct {
 	e        *Engine
+	cfg      *config.Config
 	entries  map[string]cache.Entry
 	resolver *effectiveEntryResolver
 	policy   feedhealth.Policy
@@ -207,7 +218,8 @@ type feedHealthClassifier struct {
 }
 
 func (e *Engine) newFeedHealthClassifier() *feedHealthClassifier {
-	if e == nil || e.cfg == nil || e.state == nil {
+	snap := e.operationSnapshot()
+	if e == nil || snap.cfg == nil || e.state == nil {
 		return nil
 	}
 	entries := e.state.SnapshotEntries()
@@ -215,11 +227,26 @@ func (e *Engine) newFeedHealthClassifier() *feedHealthClassifier {
 	if e.now != nil {
 		now = e.now().UTC()
 	}
+	return e.newFeedHealthClassifierForConfigPolicy(snap.cfg, snap.feedHealthPolicy, entries, now)
+}
+
+func (e *Engine) newFeedHealthClassifierForConfig(cfg *config.Config, entries map[string]cache.Entry, now time.Time) *feedHealthClassifier {
+	return e.newFeedHealthClassifierForConfigPolicy(cfg, feedhealth.PolicyFromConfig(cfg), entries, now)
+}
+
+func (e *Engine) newFeedHealthClassifierForConfigPolicy(cfg *config.Config, policy feedhealth.Policy, entries map[string]cache.Entry, now time.Time) *feedHealthClassifier {
+	if e == nil || cfg == nil {
+		return nil
+	}
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
 	return &feedHealthClassifier{
 		e:        e,
+		cfg:      cfg,
 		entries:  entries,
-		resolver: newEffectiveEntryResolver(e.cfg, entries),
-		policy:   feedhealth.PolicyFromRuntime(e.cfg.Runtime),
+		resolver: newEffectiveEntryResolver(cfg, entries),
+		policy:   policy,
 		now:      now,
 	}
 }
@@ -233,10 +260,10 @@ func (c *feedHealthClassifier) class(name string) string {
 }
 
 func (c *feedHealthClassifier) snapshot(name string) (feedhealth.Snapshot, bool) {
-	if c == nil || c.e == nil || c.e.cfg == nil || c.resolver == nil {
+	if c == nil || c.e == nil || c.cfg == nil || c.resolver == nil {
 		return feedhealth.Snapshot{}, false
 	}
-	src := c.e.lookupSource(name)
+	src := lookupSourceForConfig(c.cfg, name)
 	if src == nil {
 		return feedhealth.Snapshot{}, false
 	}
@@ -252,11 +279,13 @@ func (c *feedHealthClassifier) snapshot(name string) (feedhealth.Snapshot, bool)
 }
 
 func (e *Engine) CountryIndex() (*CountryIndexPayload, error) {
-	return e.buildCountryIndex(newEntityOutputView(e, ""))
+	snap := e.operationSnapshot()
+	return e.buildCountryIndexWithSnapshot(snap, newEntityOutputViewWithRuntime(e, snap.runtime, ""))
 }
 
 func (e *Engine) ASNIndex() (*ASNIndexPayload, error) {
-	return e.buildASNIndex(newEntityOutputView(e, ""))
+	snap := e.operationSnapshot()
+	return e.buildASNIndexWithSnapshot(snap, newEntityOutputViewWithRuntime(e, snap.runtime, ""))
 }
 
 func (e *Engine) CountryDetail(code string) (*CountryDetailPayload, error) {
@@ -264,7 +293,8 @@ func (e *Engine) CountryDetail(code string) (*CountryDetailPayload, error) {
 }
 
 func (e *Engine) CountryDetailContext(ctx context.Context, code string) (*CountryDetailPayload, error) {
-	sidecar, err := e.buildCountryDetailSidecar(ctx, code, newEntityOutputView(e, ""))
+	snap := e.operationSnapshot()
+	sidecar, err := e.buildCountryDetailSidecar(ctx, code, newEntityOutputViewWithRuntime(e, snap.runtime, ""))
 	if err != nil {
 		return nil, err
 	}
@@ -276,7 +306,8 @@ func (e *Engine) ASNDetail(asn uint32) (*ASNDetailPayload, error) {
 }
 
 func (e *Engine) ASNDetailContext(ctx context.Context, asn uint32) (*ASNDetailPayload, error) {
-	sidecar, err := e.buildASNDetailSidecar(ctx, asn, newEntityOutputView(e, ""))
+	snap := e.operationSnapshot()
+	sidecar, err := e.buildASNDetailSidecar(ctx, asn, newEntityOutputViewWithRuntime(e, snap.runtime, ""))
 	if err != nil {
 		return nil, err
 	}
@@ -284,11 +315,15 @@ func (e *Engine) ASNDetailContext(ctx context.Context, asn uint32) (*ASNDetailPa
 }
 
 func (e *Engine) buildCountryIndex(view entityOutputView) (*CountryIndexPayload, error) {
-	if e == nil || e.cfg == nil {
+	return e.buildCountryIndexWithSnapshot(e.operationSnapshot(), view)
+}
+
+func (e *Engine) buildCountryIndexWithSnapshot(snap operationSnapshot, view entityOutputView) (*CountryIndexPayload, error) {
+	if e == nil || snap.cfg == nil {
 		return nil, fmt.Errorf("engine is not configured")
 	}
-	geoProvider := e.preferredGeoProvider()
-	geoSrc := e.lookupSource(geoProvider)
+	geoProvider := preferredGeoProviderForConfig(snap.cfg)
+	geoSrc := lookupSourceForConfig(snap.cfg, geoProvider)
 	payload := &CountryIndexPayload{
 		Provider: HomeSummaryProvider{
 			Name:  geoProvider,
@@ -304,14 +339,14 @@ func (e *Engine) buildCountryIndex(view entityOutputView) (*CountryIndexPayload,
 		attributedIPs uint64
 	}
 	rows := map[string]*aggregate{}
-	entries := e.EntriesSnapshot()
+	entries := e.entriesSnapshot(snap.cfg, configuredNamesForConfig(snap.cfg))
 	for i := range entries {
 		entry := &entries[i]
-		if entry == nil || !e.isPublicFeedName(entry.Name) {
+		if entry == nil || !isPublicFeedNameForConfig(snap.cfg, entry.Name) {
 			continue
 		}
-		src := e.lookupSource(entry.Name)
-		if !detailSurfaceEligible(e.cfg, src) {
+		src := lookupSourceForConfig(snap.cfg, entry.Name)
+		if !detailSurfaceEligible(snap.cfg, src) {
 			continue
 		}
 		countryPayload, err := view.countryComparison(entry.Name, geoProvider)
@@ -359,11 +394,15 @@ func (e *Engine) buildCountryIndex(view entityOutputView) (*CountryIndexPayload,
 }
 
 func (e *Engine) buildASNIndex(view entityOutputView) (*ASNIndexPayload, error) {
-	if e == nil || e.cfg == nil {
+	return e.buildASNIndexWithSnapshot(e.operationSnapshot(), view)
+}
+
+func (e *Engine) buildASNIndexWithSnapshot(snap operationSnapshot, view entityOutputView) (*ASNIndexPayload, error) {
+	if e == nil || snap.cfg == nil {
 		return nil, fmt.Errorf("engine is not configured")
 	}
-	asnProvider := e.preferredASNProvider()
-	asnSrc := e.lookupSource(asnProvider)
+	asnProvider := preferredASNProviderForConfig(snap.cfg)
+	asnSrc := lookupSourceForConfig(snap.cfg, asnProvider)
 	payload := &ASNIndexPayload{
 		Provider: HomeSummaryProvider{
 			Name:  asnProvider,
@@ -380,14 +419,14 @@ func (e *Engine) buildASNIndex(view entityOutputView) (*ASNIndexPayload, error) 
 		attributedIPs uint64
 	}
 	rows := map[uint32]*aggregate{}
-	entries := e.EntriesSnapshot()
+	entries := e.entriesSnapshot(snap.cfg, configuredNamesForConfig(snap.cfg))
 	for i := range entries {
 		entry := &entries[i]
-		if entry == nil || !e.isPublicFeedName(entry.Name) {
+		if entry == nil || !isPublicFeedNameForConfig(snap.cfg, entry.Name) {
 			continue
 		}
-		src := e.lookupSource(entry.Name)
-		if !detailSurfaceEligible(e.cfg, src) {
+		src := lookupSourceForConfig(snap.cfg, entry.Name)
+		if !detailSurfaceEligible(snap.cfg, src) {
 			continue
 		}
 		seen := map[uint32]struct{}{}
@@ -434,37 +473,45 @@ func (e *Engine) buildASNIndex(view entityOutputView) (*ASNIndexPayload, error) 
 }
 
 func (e *Engine) buildCountryDetailSidecar(ctx context.Context, code string, view entityOutputView) (*countryDetailSidecar, error) {
+	return e.buildCountryDetailSidecarWithSnapshot(ctx, e.operationSnapshot(), code, view)
+}
+
+func (e *Engine) buildCountryDetailSidecarWithSnapshot(ctx context.Context, snap operationSnapshot, code string, view entityOutputView) (*countryDetailSidecar, error) {
 	ctx = nonNilContext(ctx)
-	if e == nil || e.cfg == nil {
+	if e == nil || snap.cfg == nil {
 		return nil, fmt.Errorf("engine is not configured")
 	}
 	normalized := strings.ToUpper(strings.TrimSpace(code))
 	if normalized == "" {
 		return nil, fmt.Errorf("country code is required")
 	}
-	providers := e.entityDetailProvidersContext(ctx)
+	providers := e.entityDetailProvidersContextWithSnapshot(ctx, snap)
 	defer providers.Close()
 	builder := newCountryDetailBuilder(normalized)
-	matches := e.addCountryDetailFeedMatches(builder, providers.geo.Name, view)
-	e.addCountryDetailASNMatches(ctx, builder, matches, providers)
+	matches := e.addCountryDetailFeedMatchesWithSnapshot(snap, builder, providers.geo.Name, view)
+	e.addCountryDetailASNMatchesWithSnapshot(ctx, snap, builder, matches, providers)
 	return builder.buildAllowEmpty(providers.geo, providers.asn), nil
 }
 
 func (e *Engine) buildASNDetailSidecar(ctx context.Context, asn uint32, view entityOutputView) (*asnDetailSidecar, error) {
+	return e.buildASNDetailSidecarWithSnapshot(ctx, e.operationSnapshot(), asn, view)
+}
+
+func (e *Engine) buildASNDetailSidecarWithSnapshot(ctx context.Context, snap operationSnapshot, asn uint32, view entityOutputView) (*asnDetailSidecar, error) {
 	ctx = nonNilContext(ctx)
-	if e == nil || e.cfg == nil {
+	if e == nil || snap.cfg == nil {
 		return nil, fmt.Errorf("engine is not configured")
 	}
 	if asn == 0 {
 		return nil, fmt.Errorf("asn must be a positive integer")
 	}
-	providers := e.entityDetailProvidersContext(ctx)
+	providers := e.entityDetailProvidersContextWithSnapshot(ctx, snap)
 	defer providers.Close()
 	builder := newASNDetailBuilder(asn)
 	if providers.asn.Name == "" {
 		return builder.buildAllowEmpty(providers.asn, providers.geo), nil
 	}
-	matches := e.addASNDetailFeedMatches(builder, providers.asn.Name, view)
-	e.addASNDetailCountryMatches(ctx, builder, matches, providers)
+	matches := e.addASNDetailFeedMatchesWithSnapshot(snap, builder, providers.asn.Name, view)
+	e.addASNDetailCountryMatchesWithSnapshot(ctx, snap, builder, matches, providers)
 	return builder.buildAllowEmpty(providers.asn, providers.geo), nil
 }

@@ -193,6 +193,23 @@ func TestPolicyFromRuntimeAndCategoryFallback(t *testing.T) {
 	}
 }
 
+func TestPolicyFromConfigClonesCategoryThresholds(t *testing.T) {
+	cfg := &config.Config{
+		Runtime: config.RuntimeConfig{
+			FeedHealthCategoryThresholds: map[string]config.FeedHealthCategoryThresholds{
+				"fast": {HealthyCadenceMins: 10, RiskyCadenceMins: 20},
+			},
+		},
+	}
+
+	policy := feedhealth.PolicyFromConfig(cfg)
+	cfg.Runtime.FeedHealthCategoryThresholds["fast"] = config.FeedHealthCategoryThresholds{HealthyCadenceMins: 100, RiskyCadenceMins: 200}
+
+	if got, want := policy.ThresholdsForCategory("fast"), (config.FeedHealthCategoryThresholds{HealthyCadenceMins: 10, RiskyCadenceMins: 20}); got != want {
+		t.Fatalf("fast thresholds = %+v, want %+v", got, want)
+	}
+}
+
 func TestClassifyAgeClasses(t *testing.T) {
 	now := time.Unix(1_800_000_000, 0).UTC()
 	policy := feedhealth.Policy{

@@ -27,19 +27,23 @@ func (s SchedulerConfigSnapshot) IsArtifact(name string) bool {
 }
 
 func (e *Engine) SchedulerConfigSnapshot() SchedulerConfigSnapshot {
-	snapshot := SchedulerConfigSnapshot{}
 	if e == nil {
-		return snapshot
+		return SchedulerConfigSnapshot{}
 	}
 	e.mu.RLock()
 	defer e.mu.RUnlock()
-	if e.cfg == nil {
+	return SchedulerConfigSnapshotForConfig(e.cfg)
+}
+
+func SchedulerConfigSnapshotForConfig(cfg *config.Config) SchedulerConfigSnapshot {
+	snapshot := SchedulerConfigSnapshot{}
+	if cfg == nil {
 		return snapshot
 	}
-	if len(e.cfg.Sources) > 0 {
+	if len(cfg.Sources) > 0 {
 		snapshot.ProviderDatabases = make(map[string]struct{})
 		snapshot.SourceParents = make(map[string][]string)
-		for name, src := range e.cfg.Sources {
+		for name, src := range cfg.Sources {
 			if src == nil {
 				continue
 			}
@@ -51,9 +55,9 @@ func (e *Engine) SchedulerConfigSnapshot() SchedulerConfigSnapshot {
 			}
 		}
 	}
-	if len(e.cfg.Artifacts) > 0 {
-		snapshot.Artifacts = make(map[string]struct{}, len(e.cfg.Artifacts))
-		for name, artifact := range e.cfg.Artifacts {
+	if len(cfg.Artifacts) > 0 {
+		snapshot.Artifacts = make(map[string]struct{}, len(cfg.Artifacts))
+		for name, artifact := range cfg.Artifacts {
 			if artifact != nil {
 				snapshot.Artifacts[name] = struct{}{}
 			}

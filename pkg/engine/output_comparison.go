@@ -64,21 +64,25 @@ type comparisonMergeStats struct {
 // all others — the rest keep their existing _comparison.json files on disk.
 // When updatedNames is empty, all sources are compared (initial run).
 func (e *Engine) writeComparisonFiles(ctx context.Context, updatedNames []string, outDir string, setCache *latestSetCache) error {
+	return e.writeComparisonFilesWithSnapshot(ctx, e.operationSnapshot(), updatedNames, outDir, setCache)
+}
+
+func (e *Engine) writeComparisonFilesWithSnapshot(ctx context.Context, snap operationSnapshot, updatedNames []string, outDir string, setCache *latestSetCache) error {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
 		return err
 	}
 
-	names := e.publicOutputNames()
+	names := e.publicOutputNamesForSnapshot(snap)
 	if len(names) < 2 {
 		return nil
 	}
 	if setCache == nil {
-		setCache = newLatestSetCache(e)
+		setCache = newLatestSetCacheForSnapshot(e, snap)
 		defer setCache.CloseAll(e.logger)
 	}
 
-	infos, err := e.prepareComparisonSetInfos(ctx, names, setCache)
+	infos, err := e.prepareComparisonSetInfosWithSnapshot(ctx, snap, names, setCache)
 	if err != nil {
 		return err
 	}
@@ -92,7 +96,7 @@ func (e *Engine) writeComparisonFiles(ctx context.Context, updatedNames []string
 		var entries int
 		var bytes int64
 		var loadErr error
-		ledger, entries, bytes, loadErr = e.loadComparisonPairLedger()
+		ledger, entries, bytes, loadErr = e.loadComparisonPairLedgerWithSnapshot(snap)
 		if loadErr != nil {
 			if !errors.Is(loadErr, errComparisonPairLedgerMissing) {
 				e.logger.Warn("comparison pair ledger ignored", "error", loadErr)
@@ -113,11 +117,11 @@ func (e *Engine) writeComparisonFiles(ctx context.Context, updatedNames []string
 	}
 	e.observeComparisonPairStats(pairStats)
 
-	grouped := e.groupComparisonRows(infos, pairResults)
-	if err := e.writeMergedComparisonRows(outDir, grouped); err != nil {
+	grouped := groupComparisonRowsForConfig(snap.cfg, infos, pairResults)
+	if err := e.writeMergedComparisonRowsWithSnapshot(snap, outDir, grouped); err != nil {
 		return err
 	}
-	entries, bytes, err := e.writeComparisonPairLedger(infos, pairResults)
+	entries, bytes, err := e.writeComparisonPairLedgerWithSnapshot(snap, infos, pairResults)
 	if err != nil {
 		e.logger.Warn("comparison pair ledger write failed", "error", err)
 		e.observeRunCounter("metadata.comparison_pair_ledger_write_failed", 1, bytes)
@@ -131,6 +135,10 @@ func (e *Engine) writeComparisonFiles(ctx context.Context, updatedNames []string
 }
 
 func (e *Engine) prepareComparisonSetInfos(ctx context.Context, names []string, setCache *latestSetCache) ([]comparisonSetInfo, error) {
+	return e.prepareComparisonSetInfosWithSnapshot(ctx, e.operationSnapshot(), names, setCache)
+}
+
+func (e *Engine) prepareComparisonSetInfosWithSnapshot(ctx context.Context, op operationSnapshot, names []string, setCache *latestSetCache) ([]comparisonSetInfo, error) {
 	ctx = nonNilContext(ctx)
 	prepareStarted := time.Now()
 	progress := e.beginActiveOperation("metadata.prepare_comparison_sets", "", "prepare", "feeds", int64(len(names)))
@@ -140,8 +148,8 @@ func (e *Engine) prepareComparisonSetInfos(ctx context.Context, names []string, 
 		if err := contextErr(ctx); err != nil {
 			return nil, err
 		}
-		snap := e.state.EntrySnapshot(name)
-		if snap == nil || !e.hasUsableSet(name) {
+		entrySnap := e.state.EntrySnapshot(name)
+		if entrySnap == nil || !e.hasUsableSetForSnapshot(op, name) {
 			progress.Add(1, int64(len(names)), nil)
 			continue
 		}
@@ -163,7 +171,7 @@ func (e *Engine) prepareComparisonSetInfos(ctx context.Context, names []string, 
 		infos = append(infos, comparisonSetInfo{
 			name:        name,
 			ips:         src.UniqueIPs(),
-			category:    snap.Category,
+			category:    entrySnap.Category,
 			filter:      summary.OverlapFilter(),
 			contentHash: summary.ContentHash,
 		})
@@ -500,7 +508,11 @@ func (e *Engine) observeComparisonPairStats(stats *comparisonPairStats) {
 }
 
 func (e *Engine) groupComparisonRows(infos []comparisonSetInfo, pairResults []comparisonPairResult) map[string][]CompareRow {
-	relatedness := newComparisonRelatedness(e.cfg)
+	return groupComparisonRowsForConfig(e.Config(), infos, pairResults)
+}
+
+func groupComparisonRowsForConfig(cfg *config.Config, infos []comparisonSetInfo, pairResults []comparisonPairResult) map[string][]CompareRow {
+	relatedness := newComparisonRelatedness(cfg)
 	grouped := make(map[string][]CompareRow)
 	for _, result := range pairResults {
 		left := infos[result.i]
@@ -560,12 +572,16 @@ func (r *comparisonRelatedness) familyFor(name string) map[string]bool {
 }
 
 func (e *Engine) writeMergedComparisonRows(outDir string, grouped map[string][]CompareRow) error {
+	return e.writeMergedComparisonRowsWithSnapshot(e.operationSnapshot(), outDir, grouped)
+}
+
+func (e *Engine) writeMergedComparisonRowsWithSnapshot(snap operationSnapshot, outDir string, grouped map[string][]CompareRow) error {
 	var stats comparisonMergeStats
 	progress := e.beginActiveOperation("metadata.write_comparison_rows", "", "write", "feeds", int64(len(grouped)))
 	defer progress.Finish()
 	for name, group := range grouped {
 		started := time.Now()
-		if err := e.writeMergedComparisonRowsForFeed(outDir, name, group); err != nil {
+		if err := e.writeMergedComparisonRowsForFeedWithSnapshot(snap, outDir, name, group); err != nil {
 			progress.Add(1, int64(len(grouped)), nil)
 			return err
 		}
@@ -587,7 +603,12 @@ func (s *comparisonMergeStats) record(dur time.Duration) {
 }
 
 func (e *Engine) writeMergedComparisonRowsForFeed(outDir, name string, group []CompareRow) error {
-	merged := mergeCompareRows(e.readExistingComparisonRows(name), group)
+	return e.writeMergedComparisonRowsForFeedWithSnapshot(e.operationSnapshot(), outDir, name, group)
+}
+
+func (e *Engine) writeMergedComparisonRowsForFeedWithSnapshot(snap operationSnapshot, outDir, name string, group []CompareRow) error {
+	liveOutDir := outputDirForRuntime(snap.runtime)
+	merged := mergeCompareRows(e.readExistingComparisonRowsInDir(liveOutDir, name), group)
 	sort.Slice(merged, func(i, j int) bool {
 		return merged[i].Name < merged[j].Name
 	})
@@ -598,12 +619,12 @@ func (e *Engine) writeMergedComparisonRowsForFeed(outDir, name string, group []C
 	data = append(data, '\n')
 	logicalTime := e.feedProcessingTimestamp(name)
 	path := filepath.Join(outDir, name+"_comparison.json")
-	if e.comparisonArtifactAlreadyCurrent(path, data, logicalTime) {
+	if comparisonArtifactAlreadyCurrent(path, data, logicalTime, snap.runtime.WebOwner) {
 		return nil
 	}
-	if filepath.Clean(outDir) != filepath.Clean(e.outputDir()) && !fileExists(path) {
-		livePath := filepath.Join(e.outputDir(), name+"_comparison.json")
-		if e.comparisonArtifactAlreadyCurrent(livePath, data, logicalTime) {
+	if filepath.Clean(outDir) != filepath.Clean(liveOutDir) && !fileExists(path) {
+		livePath := filepath.Join(liveOutDir, name+"_comparison.json")
+		if comparisonArtifactAlreadyCurrent(livePath, data, logicalTime, snap.runtime.WebOwner) {
 			return nil
 		}
 	}
@@ -611,7 +632,15 @@ func (e *Engine) writeMergedComparisonRowsForFeed(outDir, name string, group []C
 }
 
 func (e *Engine) comparisonArtifactAlreadyCurrent(path string, data []byte, logicalTime time.Time) bool {
-	if e != nil && e.runtime.WebOwner != "" {
+	webOwner := ""
+	if e != nil {
+		webOwner = e.operationSnapshot().runtime.WebOwner
+	}
+	return comparisonArtifactAlreadyCurrent(path, data, logicalTime, webOwner)
+}
+
+func comparisonArtifactAlreadyCurrent(path string, data []byte, logicalTime time.Time, webOwner string) bool {
+	if webOwner != "" {
 		return false
 	}
 	info, err := os.Lstat(path)
@@ -635,8 +664,12 @@ func (e *Engine) comparisonArtifactAlreadyCurrent(path string, data []byte, logi
 }
 
 func (e *Engine) readExistingComparisonRows(name string) []CompareRow {
+	return e.readExistingComparisonRowsInDir(e.outputDir(), name)
+}
+
+func (e *Engine) readExistingComparisonRowsInDir(outputDir string, name string) []CompareRow {
 	var existing []CompareRow
-	data, err := readFileInRoot(e.outputDir(), name+"_comparison.json")
+	data, err := readFileInRoot(outputDir, name+"_comparison.json")
 	if err == nil {
 		if err := json.Unmarshal(data, &existing); err != nil {
 			e.logger.Warn("comparison merge: ignoring unreadable existing file", "set", name, "error", err)

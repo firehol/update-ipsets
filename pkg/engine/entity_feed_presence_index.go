@@ -25,11 +25,19 @@ var (
 )
 
 func (e *Engine) entityFeedPresenceIndexPath() string {
-	return filepath.Join(e.entitiesDir(), entityFeedPresenceIndexFileName)
+	return entityFeedPresenceIndexPathForRuntime(e.Runtime())
+}
+
+func entityFeedPresenceIndexPathForRuntime(rt Runtime) string {
+	return filepath.Join(entitiesDirForRuntime(rt), entityFeedPresenceIndexFileName)
 }
 
 func (e *Engine) loadEntityFeedPresenceIndex() (map[string]struct{}, int64, error) {
-	path := e.entityFeedPresenceIndexPath()
+	return loadEntityFeedPresenceIndexForRuntime(e.Runtime())
+}
+
+func loadEntityFeedPresenceIndexForRuntime(rt Runtime) (map[string]struct{}, int64, error) {
+	path := entityFeedPresenceIndexPathForRuntime(rt)
 	info, err := os.Stat(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -43,7 +51,7 @@ func (e *Engine) loadEntityFeedPresenceIndex() (map[string]struct{}, int64, erro
 	if info.Size() > entityFeedPresenceIndexMaxBytes {
 		return nil, 0, fmt.Errorf("entity feed presence index is too large: %d bytes", info.Size())
 	}
-	data, err := readFileInRoot(e.entitiesDir(), entityFeedPresenceIndexFileName)
+	data, err := readFileInRoot(entitiesDirForRuntime(rt), entityFeedPresenceIndexFileName)
 	if err != nil {
 		return nil, 0, fmt.Errorf("read entity feed presence index: %w", err)
 	}

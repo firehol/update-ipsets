@@ -502,7 +502,7 @@ func TestBuildSourceFeedUsesInputTriggeredScheduleLabelForDerivedFeeds(t *testin
 		Provenance: config.ProvenanceSecondaryRetention,
 	}
 
-	feed := buildSourceFeed(nil, "sample_1d", src, nil, schedIdx, nil, feedhealth.Policy{}, now, false, nil)
+	feed := buildSourceFeed("sample_1d", src, nil, nil, schedIdx, nil, feedhealth.Policy{}, now, nil)
 
 	if feed.Kind != "retention" {
 		t.Fatalf("expected retention kind, got %q", feed.Kind)
@@ -559,7 +559,9 @@ merges:
 		t.Fatal(err)
 	}
 
-	feed := buildSourceFeed(eng, "merged", eng.Config().Sources["merged"], nil, nil, nil, feedhealth.Policy{}, time.Now().UTC(), true, nil)
+	cfgSnap, rt, policy := eng.ConfigRuntimePolicySnapshot()
+	mergeCompositions := eng.MergeCompositionsForConfigRuntimePolicy(cfgSnap, rt, policy, true)
+	feed := buildSourceFeed("merged", cfgSnap.Sources["merged"], cfgSnap, nil, nil, nil, policy, time.Now().UTC(), mergeCompositions)
 
 	if len(feed.MergeIncluded) != 1 || feed.MergeIncluded[0].Name != "included" {
 		t.Fatalf("merge included = %+v, want included", feed.MergeIncluded)
@@ -590,7 +592,7 @@ func TestBuildSourceFeedKeepsOriginalScheduleDetailForPlainSources(t *testing.T)
 		Frequency: 30,
 	}
 
-	feed := buildSourceFeed(nil, "sample", src, nil, schedIdx, nil, feedhealth.Policy{}, now, false, nil)
+	feed := buildSourceFeed("sample", src, nil, nil, schedIdx, nil, feedhealth.Policy{}, now, nil)
 
 	if feed.Kind != "source" {
 		t.Fatalf("expected source kind, got %q", feed.Kind)
@@ -609,7 +611,7 @@ func TestBuildSourceFeedKeepsInfrastructureCategoriesAsSourceKind(t *testing.T) 
 		Category:  "malware_infrastructure",
 	}
 
-	feed := buildSourceFeed(nil, "c2_tracker", src, nil, nil, nil, feedhealth.Policy{}, now, false, nil)
+	feed := buildSourceFeed("c2_tracker", src, nil, nil, nil, nil, feedhealth.Policy{}, now, nil)
 
 	if feed.Kind != "source" {
 		t.Fatalf("expected source kind, got %q", feed.Kind)
@@ -625,7 +627,7 @@ func TestBuildSourceFeedKeepsCriticalInfrastructureRoleAsSourceKind(t *testing.T
 		Use:       []string{config.UseCriticalInfrastructure},
 	}
 
-	feed := buildSourceFeed(nil, "critical_infra", src, nil, nil, nil, feedhealth.Policy{}, now, false, nil)
+	feed := buildSourceFeed("critical_infra", src, nil, nil, nil, nil, feedhealth.Policy{}, now, nil)
 
 	if feed.Kind != "source" {
 		t.Fatalf("expected source kind, got %q", feed.Kind)

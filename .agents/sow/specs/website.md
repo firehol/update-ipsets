@@ -79,6 +79,9 @@ Public route ownership rule:
 - admin HTML routes and `/api/v1/admin/*` do not belong to the public website
 - when the product is configured with a separate admin listener, the public
   listener MUST NOT serve admin routes
+- public route construction MUST derive published artifact roots and runtime
+  limits from one coherent config/runtime generation instead of mixing
+  separately fetched runtime values
 
 ## Frontend runtime contract
 

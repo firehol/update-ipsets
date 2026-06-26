@@ -6,14 +6,22 @@ import (
 )
 
 func (e *Engine) publicSiteBaseURL() string {
-	if base := normalizeAbsolutePublicURL(e.runtime.PublicBaseURL); base != "" {
+	return publicSiteBaseURLForRuntime(e.Runtime())
+}
+
+func publicSiteBaseURLForRuntime(rt Runtime) string {
+	if base := normalizeAbsolutePublicURL(rt.PublicBaseURL); base != "" {
 		return base
 	}
-	return derivePublicSiteBaseFromWebURL(e.runtime.WebURL)
+	return derivePublicSiteBaseFromWebURL(rt.WebURL)
 }
 
 func (e *Engine) publicFeedURLPrefix(siteBase string) string {
-	if prefix := normalizeAbsolutePublicURL(e.runtime.WebURL); prefix != "" {
+	return publicFeedURLPrefixForRuntime(e.Runtime(), siteBase)
+}
+
+func publicFeedURLPrefixForRuntime(rt Runtime, siteBase string) string {
+	if prefix := normalizeAbsolutePublicURL(rt.WebURL); prefix != "" {
 		return prefix
 	}
 	if siteBase == "" {

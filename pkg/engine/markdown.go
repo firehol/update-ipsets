@@ -15,7 +15,7 @@ import (
 const markdownTemplatesSubdir = "templates/markdown"
 
 func (e *Engine) initMarkdownTemplates() {
-	dir := filepath.Join(e.runtime.ConfigPath, markdownTemplatesSubdir)
+	dir := filepath.Join(e.Runtime().ConfigPath, markdownTemplatesSubdir)
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		e.logger.Debug("markdown template directory not found", "dir", dir)
 		return
@@ -29,6 +29,10 @@ func (e *Engine) initMarkdownTemplates() {
 }
 
 func (e *Engine) writeMarkdownFilesForFeeds(ctx context.Context, feedNames []string, outDir string) ([]output.GeneratedFile, error) {
+	return e.writeMarkdownFilesForFeedsWithSnapshot(ctx, e.operationSnapshot(), feedNames, outDir)
+}
+
+func (e *Engine) writeMarkdownFilesForFeedsWithSnapshot(ctx context.Context, snap operationSnapshot, feedNames []string, outDir string) ([]output.GeneratedFile, error) {
 	ctx = nonNilContext(ctx)
 	if e.markdownTemplates == nil {
 		return nil, nil
@@ -39,8 +43,8 @@ func (e *Engine) writeMarkdownFilesForFeeds(ctx context.Context, feedNames []str
 
 	reader := markdown.NewFeedArtifactReader(
 		outDir,
-		markdown.WithPreferredASNProvider(e.preferredASNProvider()),
-		markdown.WithPreferredGEOProvider(e.preferredGeoProvider()),
+		markdown.WithPreferredASNProvider(preferredASNProviderForConfig(snap.cfg)),
+		markdown.WithPreferredGEOProvider(preferredGeoProviderForConfig(snap.cfg)),
 	)
 	var generated []output.GeneratedFile
 	progress := e.beginActiveOperation("metadata.write_markdown", "", "markdown", "feeds", int64(len(feedNames)))
@@ -65,7 +69,7 @@ func (e *Engine) writeMarkdownFilesForFeeds(ctx context.Context, feedNames []str
 		}
 
 		generated = append(generated, output.GeneratedFile{
-			Path:            filepath.Join(e.outputDir(), rel),
+			Path:            filepath.Join(outputDirForRuntime(snap.runtime), rel),
 			Redistributable: true,
 		})
 		e.logger.Debug("markdown generated", "feed", name, "path", rel)
@@ -106,14 +110,18 @@ func (e *Engine) ReloadMarkdownTemplates() {
 }
 
 func (e *Engine) writeMaintainerMarkdownFiles(stageDir string) ([]output.GeneratedFile, error) {
+	return e.writeMaintainerMarkdownFilesWithSnapshot(e.operationSnapshot(), stageDir)
+}
+
+func (e *Engine) writeMaintainerMarkdownFilesWithSnapshot(snap operationSnapshot, stageDir string) ([]output.GeneratedFile, error) {
 	if e.markdownTemplates == nil {
 		return nil, nil
 	}
 
 	seen := map[string]struct{}{}
-	for _, entry := range e.EntriesSnapshot() {
-		src := e.lookupSource(entry.Name)
-		if !homeSummaryEligible(e.cfg, src, nil) {
+	for _, entry := range e.entriesSnapshot(snap.cfg, configuredNamesForConfig(snap.cfg)) {
+		src := lookupSourceForConfig(snap.cfg, entry.Name)
+		if !homeSummaryEligible(snap.cfg, src, nil) {
 			continue
 		}
 		maintainerName := strings.TrimSpace(entry.Maintainer)
@@ -129,12 +137,12 @@ func (e *Engine) writeMaintainerMarkdownFiles(stageDir string) ([]output.Generat
 
 	var generated []output.GeneratedFile
 	for slug := range seen {
-		payload, err := e.MaintainerDetail(slug)
+		payload, err := e.MaintainerDetailWithSnapshot(snap, slug)
 		if err != nil {
 			e.logger.Debug("maintainer markdown skipped", "slug", slug, "error", err)
 			continue
 		}
-		mdFile, _ := e.stageMaintainerMarkdown(slug, payload, stageDir)
+		mdFile, _ := e.stageMaintainerMarkdownWithRuntime(snap.runtime, slug, payload, stageDir)
 		if mdFile.Path != "" {
 			generated = append(generated, mdFile)
 		}

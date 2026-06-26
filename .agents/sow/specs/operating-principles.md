@@ -248,6 +248,19 @@ Rules:
   successful reload races with such an operation, the marker write applies to
   the captured runtime snapshot; later status and scheduler evaluations observe
   the committed marker files from the active runtime paths.
+- admitted engine work MUST use one operation snapshot for config, runtime,
+  downloader client, provider caches, runtime ledger cache, retention policy,
+  and ASN lookup cache. A successful reload affects later admissions; it MUST
+  NOT rewrite the generation already held by an active operation.
+- request or scheduler builders that need both config and runtime MUST acquire
+  one coherent config/runtime snapshot at the request or iteration boundary and
+  pass that generation through inner builders. They MUST NOT mix separately
+  fetched config, runtime, and cache-entry views inside one response or
+  scheduler iteration.
+- runtime directory overrides MUST update the effective runtime snapshot
+  without mutating the active config object. Runtime policy derived from config
+  remains valid only when the caller owns the config snapshot used for that
+  derivation.
 
 ## Logging and diagnostics rule
 

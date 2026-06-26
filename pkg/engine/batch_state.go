@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/firehol/update-ipsets/internal/observability"
+	"github.com/firehol/update-ipsets/pkg/config"
 
 	"go.opentelemetry.io/otel/attribute"
 )
@@ -95,6 +96,7 @@ func (e *Engine) startRunBatch(names []string) {
 	if e == nil {
 		return
 	}
+	snap := e.operationSnapshot()
 	items := make(map[string]runBatchItemState, len(names))
 	order := make([]string, 0, len(names))
 	for _, name := range names {
@@ -105,10 +107,11 @@ func (e *Engine) startRunBatch(names []string) {
 			continue
 		}
 		kind := runBatchItemSource
+		src := lookupSourceForConfig(snap.cfg, name)
 		switch {
-		case e.IsHistoryDerivative(name):
+		case src != nil && src.Provenance == config.ProvenanceSecondaryRetention:
 			kind = runBatchItemHistory
-		case e.IsMerge(name):
+		case src != nil && src.Provenance == config.ProvenanceSecondaryMerge:
 			kind = runBatchItemMerge
 		}
 		items[name] = runBatchItemState{kind: kind}

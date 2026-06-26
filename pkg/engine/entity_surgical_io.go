@@ -16,13 +16,18 @@ func (e *Engine) entityArtifactsContainFeedWithPresence(name string, presence *e
 
 type entityArtifactFeedPresence struct {
 	e          *Engine
+	runtime    Runtime
 	complete   bool
 	triedIndex bool
 	names      map[string]struct{}
 }
 
 func newEntityArtifactFeedPresence(e *Engine) *entityArtifactFeedPresence {
-	return &entityArtifactFeedPresence{e: e}
+	return newEntityArtifactFeedPresenceWithRuntime(e, e.Runtime())
+}
+
+func newEntityArtifactFeedPresenceWithRuntime(e *Engine, rt Runtime) *entityArtifactFeedPresence {
+	return &entityArtifactFeedPresence{e: e, runtime: rt}
 }
 
 func (p *entityArtifactFeedPresence) contains(name string) (bool, error) {
@@ -39,7 +44,7 @@ func (p *entityArtifactFeedPresence) contains(name string) (bool, error) {
 	}
 	if !p.triedIndex {
 		p.triedIndex = true
-		names, bytes, err := p.e.loadEntityFeedPresenceIndex()
+		names, bytes, err := loadEntityFeedPresenceIndexForRuntime(p.runtime)
 		if err == nil {
 			p.names = names
 			p.complete = true
@@ -59,7 +64,7 @@ func (p *entityArtifactFeedPresence) contains(name string) (bool, error) {
 func (p *entityArtifactFeedPresence) scan(target string) (bool, error) {
 	e := p.e
 	seen := map[string]struct{}{}
-	countryFiles, err := sortedJSONFiles(e.entityCountriesDir())
+	countryFiles, err := sortedJSONFiles(entityCountriesDirForRuntime(p.runtime))
 	if err != nil {
 		return false, err
 	}
@@ -81,7 +86,7 @@ func (p *entityArtifactFeedPresence) scan(target string) (bool, error) {
 			}
 		}
 	}
-	asnFiles, err := sortedJSONFiles(e.entityASNsDir())
+	asnFiles, err := sortedJSONFiles(entityASNsDirForRuntime(p.runtime))
 	if err != nil {
 		return false, err
 	}

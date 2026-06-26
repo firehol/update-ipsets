@@ -14,22 +14,23 @@ func invalidJSONUnixSeconds(ts int64) bool {
 }
 
 func (e *Engine) repairInvalidEntryTimestamps() error {
-	if e == nil || e.cfg == nil || e.state == nil {
+	snap := e.operationSnapshot()
+	if e == nil || snap.cfg == nil || e.state == nil {
 		return nil
 	}
 
 	repaired := 0
-	for _, name := range config.SortedSourceNames(e.cfg) {
-		src := e.cfg.Sources[name]
+	for _, name := range config.SortedSourceNames(snap.cfg) {
+		src := snap.cfg.Sources[name]
 		if src == nil {
 			continue
 		}
-		snap := e.state.EntrySnapshot(name)
-		if snap == nil {
+		entrySnap := e.state.EntrySnapshot(name)
+		if entrySnap == nil {
 			continue
 		}
-		entry := *snap
-		if !e.repairEntryTimestampsFromDisk(name, src, &entry) {
+		entry := *entrySnap
+		if !e.repairEntryTimestampsFromDiskWithRuntime(snap.runtime, name, src, &entry) {
 			continue
 		}
 		e.state.ReplaceEntry(name, entry)
@@ -47,6 +48,10 @@ func (e *Engine) repairInvalidEntryTimestamps() error {
 }
 
 func (e *Engine) repairEntryTimestampsFromDisk(name string, src *config.Source, entry *cache.Entry) bool {
+	return e.repairEntryTimestampsFromDiskWithRuntime(e.Runtime(), name, src, entry)
+}
+
+func (e *Engine) repairEntryTimestampsFromDiskWithRuntime(rt Runtime, name string, src *config.Source, entry *cache.Entry) bool {
 	if entry == nil {
 		return false
 	}
@@ -54,8 +59,8 @@ func (e *Engine) repairEntryTimestampsFromDisk(name string, src *config.Source, 
 		return false
 	}
 
-	latestObserved, haveLatest := e.latestObservedTimestamp(name, src)
-	firstObserved, haveFirst := e.firstObservedTimestamp(name)
+	latestObserved, haveLatest := e.latestObservedTimestampWithRuntime(rt, name, src)
+	firstObserved, haveFirst := e.firstObservedTimestampWithRuntime(rt, name)
 	return entry.RepairInvalidTimestamps(cache.TimestampRepairEvidence{
 		LatestUnix: latestObserved,
 		HaveLatest: haveLatest,
@@ -76,8 +81,12 @@ func entryNeedsTimestampRepair(entry *cache.Entry) bool {
 }
 
 func (e *Engine) latestObservedTimestamp(name string, src *config.Source) (int64, bool) {
+	return e.latestObservedTimestampWithRuntime(e.Runtime(), name, src)
+}
+
+func (e *Engine) latestObservedTimestampWithRuntime(rt Runtime, name string, src *config.Source) (int64, bool) {
 	var latest int64
-	if points := e.bootstrapHistoryPoints(name); len(points) > 0 {
+	if points := e.bootstrapHistoryPointsWithRuntime(rt, name); len(points) > 0 {
 		for i := len(points) - 1; i >= 0; i-- {
 			if validJSONUnixSeconds(points[i].Timestamp) {
 				latest = points[i].Timestamp
@@ -85,14 +94,18 @@ func (e *Engine) latestObservedTimestamp(name string, src *config.Source) (int64
 			}
 		}
 	}
-	if stats, ok := e.currentSetStats(name, src); ok && validJSONUnixSeconds(stats.mtime) && stats.mtime > latest {
+	if stats, ok := e.currentSetStatsForRuntime(rt, name, src); ok && validJSONUnixSeconds(stats.mtime) && stats.mtime > latest {
 		latest = stats.mtime
 	}
 	return latest, latest > 0
 }
 
 func (e *Engine) firstObservedTimestamp(name string) (int64, bool) {
-	points := e.bootstrapHistoryPoints(name)
+	return e.firstObservedTimestampWithRuntime(e.Runtime(), name)
+}
+
+func (e *Engine) firstObservedTimestampWithRuntime(rt Runtime, name string) (int64, bool) {
+	points := e.bootstrapHistoryPointsWithRuntime(rt, name)
 	for _, point := range points {
 		if validJSONUnixSeconds(point.Timestamp) {
 			return point.Timestamp, true

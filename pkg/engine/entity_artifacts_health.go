@@ -11,7 +11,7 @@ import (
 	"github.com/firehol/update-ipsets/pkg/output"
 )
 
-func (e *Engine) collectHealthTransitionAffectedEntities(ctx context.Context, feedNames []string, task *BackgroundTaskHandle, affectedCountries map[string]struct{}, affectedASNs map[uint32]struct{}) error {
+func (e *Engine) collectHealthTransitionAffectedEntities(ctx context.Context, snap operationSnapshot, feedNames []string, task *BackgroundTaskHandle, affectedCountries map[string]struct{}, affectedASNs map[uint32]struct{}) error {
 	for i, name := range feedNames {
 		if err := contextErr(ctx); err != nil {
 			return err
@@ -19,7 +19,7 @@ func (e *Engine) collectHealthTransitionAffectedEntities(ctx context.Context, fe
 		if task != nil {
 			task.Update("scanning memberships", backgroundEntityTaskDetail("health", len(feedNames)), i+1, len(feedNames))
 		}
-		sidecar, err := e.loadCommittedFeedEntitySidecar(name)
+		sidecar, err := e.loadCommittedFeedEntitySidecarWithRuntime(snap.runtime, name)
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				continue
@@ -36,13 +36,13 @@ func (e *Engine) collectHealthTransitionAffectedEntities(ctx context.Context, fe
 	return nil
 }
 
-func (e *Engine) stageHealthTransitionHomeAggregate(ctx context.Context) (*entityArtifactMutationPlan, error) {
-	webBatch, err := e.newWebPublishBatch()
+func (e *Engine) stageHealthTransitionHomeAggregate(ctx context.Context, snap operationSnapshot) (*entityArtifactMutationPlan, error) {
+	webBatch, err := newWebPublishBatchForRuntime(snap.runtime)
 	if err != nil {
 		return nil, err
 	}
 
-	homeAggregate, err := e.stageHomeAggregates(ctx, webBatch.stageDir, "")
+	homeAggregate, err := e.stageHomeAggregatesWithSnapshot(ctx, snap, webBatch.stageDir, "")
 	if err != nil {
 		webBatch.cleanup()
 		return nil, err
@@ -58,20 +58,20 @@ func (e *Engine) stageHealthTransitionHomeAggregate(ctx context.Context) (*entit
 	}, nil
 }
 
-func (e *Engine) stageHealthTransitionEntityPayloads(ctx context.Context, affectedCountries map[string]struct{}, affectedASNs map[uint32]struct{}, task *BackgroundTaskHandle) (*entityArtifactMutationPlan, error) {
+func (e *Engine) stageHealthTransitionEntityPayloads(ctx context.Context, snap operationSnapshot, affectedCountries map[string]struct{}, affectedASNs map[uint32]struct{}, task *BackgroundTaskHandle) (*entityArtifactMutationPlan, error) {
 	detail := healthTransitionRebuildDetail(affectedCountries, affectedASNs)
 	total := len(affectedCountries) + len(affectedASNs)
 	if task != nil {
 		task.Update("rebuilding final payloads", detail, 0, total)
 	}
 
-	webBatch, err := e.newWebPublishBatch()
+	webBatch, err := newWebPublishBatchForRuntime(snap.runtime)
 	if err != nil {
 		return nil, err
 	}
 
 	generated := make([]output.GeneratedFile, 0, total)
-	health := e.newFeedHealthClassifier()
+	health := e.newFeedHealthClassifierForConfigPolicy(snap.cfg, snap.feedHealthPolicy, e.state.SnapshotEntries(), e.now().UTC())
 	progress := 0
 	for _, code := range sortedStringSet(affectedCountries) {
 		if err := contextErr(ctx); err != nil {
@@ -79,7 +79,7 @@ func (e *Engine) stageHealthTransitionEntityPayloads(ctx context.Context, affect
 			return nil, err
 		}
 		var err error
-		generated, err = e.stageHealthTransitionCountryPayload(webBatch, generated, health, code)
+		generated, err = e.stageHealthTransitionCountryPayload(snap, webBatch, generated, health, code)
 		if err != nil {
 			webBatch.cleanup()
 			return nil, err
@@ -93,7 +93,7 @@ func (e *Engine) stageHealthTransitionEntityPayloads(ctx context.Context, affect
 			return nil, err
 		}
 		var err error
-		generated, err = e.stageHealthTransitionASNPayload(webBatch, generated, health, asn)
+		generated, err = e.stageHealthTransitionASNPayload(snap, webBatch, generated, health, asn)
 		if err != nil {
 			webBatch.cleanup()
 			return nil, err
@@ -101,7 +101,7 @@ func (e *Engine) stageHealthTransitionEntityPayloads(ctx context.Context, affect
 		progress++
 		updateHealthTransitionRebuildProgress(task, detail, progress, total)
 	}
-	homeAggregate, err := e.stageHomeAggregates(ctx, webBatch.stageDir, "")
+	homeAggregate, err := e.stageHomeAggregatesWithSnapshot(ctx, snap, webBatch.stageDir, "")
 	if err != nil {
 		webBatch.cleanup()
 		return nil, err
@@ -117,8 +117,8 @@ func (e *Engine) stageHealthTransitionEntityPayloads(ctx context.Context, affect
 	}, nil
 }
 
-func (e *Engine) stageHealthTransitionCountryPayload(webBatch *webPublishBatch, generated []output.GeneratedFile, health *feedHealthClassifier, code string) ([]output.GeneratedFile, error) {
-	sidecarPath := filepath.Join(e.entityCountriesDir(), code+".json")
+func (e *Engine) stageHealthTransitionCountryPayload(snap operationSnapshot, webBatch *webPublishBatch, generated []output.GeneratedFile, health *feedHealthClassifier, code string) ([]output.GeneratedFile, error) {
+	sidecarPath := filepath.Join(entityCountriesDirForRuntime(snap.runtime), code+".json")
 	sidecar, err := loadCountryDetailSidecar(sidecarPath)
 	if err != nil {
 		return nil, err
@@ -133,16 +133,16 @@ func (e *Engine) stageHealthTransitionCountryPayload(webBatch *webPublishBatch, 
 		return nil, err
 	}
 	logicalTime := sidecarInfo.ModTime().UTC()
-	generated = append(generated, output.GeneratedFile{Path: filepath.Join(e.outputDir(), rel), Timestamp: logicalTime, Redistributable: true})
-	if mdFile, _ := e.stageCountryMarkdown(code, payload, webBatch.stageDir); mdFile.Path != "" {
+	generated = append(generated, output.GeneratedFile{Path: filepath.Join(outputDirForRuntime(snap.runtime), rel), Timestamp: logicalTime, Redistributable: true})
+	if mdFile, _ := e.stageCountryMarkdownWithRuntime(snap.runtime, code, payload, webBatch.stageDir); mdFile.Path != "" {
 		mdFile.Timestamp = logicalTime
 		generated = append(generated, mdFile)
 	}
 	return generated, nil
 }
 
-func (e *Engine) stageHealthTransitionASNPayload(webBatch *webPublishBatch, generated []output.GeneratedFile, health *feedHealthClassifier, asn uint32) ([]output.GeneratedFile, error) {
-	sidecarPath := filepath.Join(e.entityASNsDir(), strconv.FormatUint(uint64(asn), 10)+".json")
+func (e *Engine) stageHealthTransitionASNPayload(snap operationSnapshot, webBatch *webPublishBatch, generated []output.GeneratedFile, health *feedHealthClassifier, asn uint32) ([]output.GeneratedFile, error) {
+	sidecarPath := filepath.Join(entityASNsDirForRuntime(snap.runtime), strconv.FormatUint(uint64(asn), 10)+".json")
 	sidecar, err := loadASNDetailSidecar(sidecarPath)
 	if err != nil {
 		return nil, err
@@ -157,8 +157,8 @@ func (e *Engine) stageHealthTransitionASNPayload(webBatch *webPublishBatch, gene
 		return nil, err
 	}
 	logicalTime := sidecarInfo.ModTime().UTC()
-	generated = append(generated, output.GeneratedFile{Path: filepath.Join(e.outputDir(), rel), Timestamp: logicalTime, Redistributable: true})
-	if mdFile, _ := e.stageASNMarkdown(asn, payload, webBatch.stageDir); mdFile.Path != "" {
+	generated = append(generated, output.GeneratedFile{Path: filepath.Join(outputDirForRuntime(snap.runtime), rel), Timestamp: logicalTime, Redistributable: true})
+	if mdFile, _ := e.stageASNMarkdownWithRuntime(snap.runtime, asn, payload, webBatch.stageDir); mdFile.Path != "" {
 		mdFile.Timestamp = logicalTime
 		generated = append(generated, mdFile)
 	}

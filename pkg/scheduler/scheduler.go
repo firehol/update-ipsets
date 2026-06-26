@@ -199,10 +199,12 @@ func (r *Runner) Snapshot() Snapshot {
 	if !cached.GeneratedAt.IsZero() && now.Sub(cached.GeneratedAt) <= snapshotReadMaxAge {
 		return cached
 	}
-	snapshot := BuildSnapshot(
-		r.eng.Config(),
-		r.eng.Runtime(),
-		r.eng.EntriesSnapshot(),
+	cfg, rt, policy := r.eng.ConfigRuntimePolicySnapshot()
+	snapshot := BuildSnapshotWithPolicy(
+		cfg,
+		rt,
+		policy,
+		r.eng.EntriesSnapshotForConfig(cfg),
 		r.enableAll,
 		now,
 	)
@@ -327,8 +329,9 @@ func (r *Runner) queueStatusLookup() func(name string) queueStatusView {
 	if r == nil || r.eng == nil {
 		return nil
 	}
-	entries := r.eng.EntriesSnapshot()
-	configSnapshot := r.schedulerConfigSnapshot()
+	cfg, _ := r.eng.ConfigRuntimeSnapshot()
+	configSnapshot := engine.SchedulerConfigSnapshotForConfig(cfg)
+	entries := r.eng.EntriesSnapshotForConfig(cfg)
 	index := make(map[string]cache.Entry, len(entries))
 	for _, entry := range entries {
 		index[entry.Name] = entry

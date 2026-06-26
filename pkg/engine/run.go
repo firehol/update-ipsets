@@ -57,6 +57,7 @@ func (e *Engine) RunOnce(ctx context.Context, opts RunOptions) (*Report, error) 
 
 type runFinalization struct {
 	ctx                   context.Context
+	snapshot              operationSnapshot
 	report                *Report
 	runErr                error
 	diagnostics           engineRunDiagnostics
@@ -223,11 +224,13 @@ func (e *Engine) runOnceAdmitted(ctx context.Context, opts RunOptions) (report *
 		return report, nil, runErr
 	}
 	runHasStarted = true
+	runSnapshot := e.operationSnapshot()
 	observability.Gauge(ctx, "engine.running", 1)
 	runDiagnostics = e.newEngineRunDiagnostics(runReason, opts, runStarted)
 	stopProgressLogging := e.startRunProgressLogger(ctx, runDiagnostics)
 	defer stopProgressLogging()
 	finalization = &runFinalization{
+		snapshot:              runSnapshot,
 		diagnostics:           runDiagnostics,
 		asyncCachePersistence: opts.AsyncCachePersistence,
 		opts:                  opts,
@@ -236,12 +239,12 @@ func (e *Engine) runOnceAdmitted(ctx context.Context, opts RunOptions) (report *
 		hook()
 	}
 
-	if err := e.ensureDirectories(); err != nil {
+	if err := ensureDirectoriesForRuntime(runSnapshot.runtime); err != nil {
 		runErr = err
 		return report, finalization, err
 	}
 	if opts.CleanupOld {
-		if err := e.applyRenamesAndDeletes(); err != nil {
+		if err := e.applyRenamesAndDeletesWithSnapshot(runSnapshot); err != nil {
 			runErr = err
 			return report, finalization, err
 		}
@@ -252,35 +255,35 @@ func (e *Engine) runOnceAdmitted(ctx context.Context, opts RunOptions) (report *
 	// Processing consumes a fixed batch of already-prepared feed bodies.
 	// Downloader-stage work is complete before RunOnce starts, so the
 	// engine never synthesizes derivatives or merges here.
-	workers := e.runtime.MaxProcessingWorkers
+	workers := runSnapshot.runtime.MaxProcessingWorkers
 	if workers < 1 {
 		workers = 1
 	}
 	e.setRunPhase(RunPhaseSources)
-	e.processRunSources(ctx, opts, runReason, report, workers)
+	e.processRunSources(ctx, runSnapshot, opts, runReason, report, workers)
 
 	if ctx.Err() != nil {
 		runErr = ctx.Err()
 		return report, finalization, runErr
 	}
 
-	plan := e.buildPipelineRunPlan(report, opts)
+	plan := e.buildPipelineRunPlanWithSnapshot(runSnapshot, report, opts)
 	e.setRunPhasePlan(plannedRunPhases(plan), true)
 	if !plan.shouldPublish {
 		e.logger.Info("not publishing web files: no feeds updated in this run")
 		return report, finalization, nil
 	}
-	webBatch, err := e.newWebPublishBatch()
+	webBatch, err := newWebPublishBatchForRuntime(runSnapshot.runtime)
 	if err != nil {
 		runErr = err
 		return report, finalization, err
 	}
 	finalization.webBatch = webBatch
 	webOutDir := webBatch.stageDir
-	heavySetCache := newLatestSetCache(e)
+	heavySetCache := newLatestSetCacheForSnapshot(e, runSnapshot)
 	defer heavySetCache.CloseAll(e.logger)
 
-	entityBatch, err := e.runHeavyPhases(ctx, opts, report, plan, webOutDir, webBatch.stagedPublishBatch, heavySetCache)
+	entityBatch, err := e.runHeavyPhases(ctx, runSnapshot, opts, report, plan, webOutDir, webBatch.stagedPublishBatch, heavySetCache)
 	if err != nil {
 		runErr = err
 		return report, finalization, err
@@ -289,7 +292,7 @@ func (e *Engine) runOnceAdmitted(ctx context.Context, opts RunOptions) (report *
 		finalization.entityBatch = entityBatch
 	}
 
-	generated, err := e.writeRunMetadataAndInsights(ctx, opts, report, plan, webOutDir, heavySetCache)
+	generated, err := e.writeRunMetadataAndInsights(ctx, runSnapshot, opts, report, plan, webOutDir, heavySetCache)
 	if err != nil {
 		runErr = err
 		return report, finalization, err
@@ -300,12 +303,16 @@ func (e *Engine) runOnceAdmitted(ctx context.Context, opts RunOptions) (report *
 }
 
 func (e *Engine) processingBatchNames(selected []string) []string {
-	if e == nil || e.cfg == nil {
+	return e.processingBatchNamesForSnapshot(e.operationSnapshot(), selected)
+}
+
+func (e *Engine) processingBatchNamesForSnapshot(snap operationSnapshot, selected []string) []string {
+	if snap.cfg == nil {
 		return nil
 	}
 	names := make([]string, 0)
 	if len(selected) == 0 {
-		names = append(names, config.SortedSourceNames(e.cfg)...)
+		names = append(names, config.SortedSourceNames(snap.cfg)...)
 	} else {
 		seen := make(map[string]struct{}, len(selected))
 		for _, name := range selected {
@@ -319,11 +326,17 @@ func (e *Engine) processingBatchNames(selected []string) []string {
 			names = append(names, name)
 		}
 	}
-	slices.SortStableFunc(names, e.processingOrderCompare)
+	slices.SortStableFunc(names, func(a, b string) int {
+		return processingOrderCompareForConfig(snap.cfg, a, b)
+	})
 	return names
 }
 
 func (e *Engine) onlyCriticalProviderSetChangedRun(providerSetChanged bool, updated []string, databaseSelected bool, opts RunOptions) bool {
+	return onlyCriticalProviderSetChangedRunForConfig(e.Config(), providerSetChanged, updated, databaseSelected, opts)
+}
+
+func onlyCriticalProviderSetChangedRunForConfig(cfg *config.Config, providerSetChanged bool, updated []string, databaseSelected bool, opts RunOptions) bool {
 	if !providerSetChanged || databaseSelected || opts.Recheck {
 		return false
 	}
@@ -331,7 +344,10 @@ func (e *Engine) onlyCriticalProviderSetChangedRun(providerSetChanged bool, upda
 		return false
 	}
 	for _, name := range updated {
-		src := e.cfg.Sources[name]
+		if cfg == nil {
+			return false
+		}
+		src := cfg.Sources[name]
 		if src == nil || !src.HasUse(config.UseCriticalInfrastructure) {
 			return false
 		}
@@ -340,14 +356,26 @@ func (e *Engine) onlyCriticalProviderSetChangedRun(providerSetChanged bool, upda
 }
 
 func (e *Engine) processingOrderCompare(a, b string) int {
-	rankA := e.processingOrderRank(a)
-	rankB := e.processingOrderRank(b)
+	return processingOrderCompareForConfig(e.Config(), a, b)
+}
+
+func processingOrderCompareForConfig(cfg *config.Config, a, b string) int {
+	rankA := processingOrderRankForConfig(cfg, a)
+	rankB := processingOrderRankForConfig(cfg, b)
 	if rankA != rankB {
 		return cmp.Compare(rankA, rankB)
 	}
 	if rankA == 2 {
-		lenA := len(e.cfg.Sources[a].DerivedFrom)
-		lenB := len(e.cfg.Sources[b].DerivedFrom)
+		lenA := 0
+		lenB := 0
+		if cfg != nil {
+			if src := cfg.Sources[a]; src != nil {
+				lenA = len(src.DerivedFrom)
+			}
+			if src := cfg.Sources[b]; src != nil {
+				lenB = len(src.DerivedFrom)
+			}
+		}
 		if lenA != lenB {
 			return cmp.Compare(lenA, lenB)
 		}
@@ -356,10 +384,18 @@ func (e *Engine) processingOrderCompare(a, b string) int {
 }
 
 func (e *Engine) processingOrderRank(name string) int {
+	return processingOrderRankForConfig(e.Config(), name)
+}
+
+func processingOrderRankForConfig(cfg *config.Config, name string) int {
+	if cfg == nil {
+		return 0
+	}
+	src := cfg.Sources[name]
 	switch {
-	case e.IsMerge(name):
+	case src != nil && src.Provenance == config.ProvenanceSecondaryMerge:
 		return 2
-	case e.IsHistoryDerivative(name):
+	case src != nil && src.Provenance == config.ProvenanceSecondaryRetention:
 		return 1
 	default:
 		return 0
@@ -456,8 +492,9 @@ func (e *Engine) completeRunPublication(finalization *runFinalization) (err erro
 		return nil
 	}
 	ctx := nonNilContext(finalization.ctx)
-	if err := e.publishRunArtifacts(
+	if err := e.publishRunArtifactsWithSnapshot(
 		ctx,
+		finalization.snapshot,
 		finalization.opts,
 		finalization.report,
 		finalization.plan,

@@ -15,6 +15,7 @@ import (
 
 type entityArtifactWriteState struct {
 	engine      *Engine
+	snapshot    operationSnapshot
 	ctx         context.Context
 	full        bool
 	webBatch    *stagedPublishBatch
@@ -43,7 +44,11 @@ type entityArtifactWriteState struct {
 }
 
 func (e *Engine) writeEntityArtifacts(ctx context.Context, updatedNames []string, full bool, webBatch *stagedPublishBatch, entityBatch *stagedPublishBatch, task *BackgroundTaskHandle) ([]output.GeneratedFile, error) {
-	state, err := e.newEntityArtifactWriteState(ctx, updatedNames, full, webBatch, entityBatch, task)
+	return e.writeEntityArtifactsWithSnapshot(ctx, e.operationSnapshot(), updatedNames, full, webBatch, entityBatch, task)
+}
+
+func (e *Engine) writeEntityArtifactsWithSnapshot(ctx context.Context, snap operationSnapshot, updatedNames []string, full bool, webBatch *stagedPublishBatch, entityBatch *stagedPublishBatch, task *BackgroundTaskHandle) ([]output.GeneratedFile, error) {
+	state, err := e.newEntityArtifactWriteStateWithSnapshot(ctx, snap, updatedNames, full, webBatch, entityBatch, task)
 	if err != nil {
 		return nil, err
 	}
@@ -75,11 +80,15 @@ func (e *Engine) writeEntityArtifacts(ctx context.Context, updatedNames []string
 }
 
 func (e *Engine) newEntityArtifactWriteState(ctx context.Context, updatedNames []string, full bool, webBatch *stagedPublishBatch, entityBatch *stagedPublishBatch, task *BackgroundTaskHandle) (*entityArtifactWriteState, error) {
+	return e.newEntityArtifactWriteStateWithSnapshot(ctx, e.operationSnapshot(), updatedNames, full, webBatch, entityBatch, task)
+}
+
+func (e *Engine) newEntityArtifactWriteStateWithSnapshot(ctx context.Context, snap operationSnapshot, updatedNames []string, full bool, webBatch *stagedPublishBatch, entityBatch *stagedPublishBatch, task *BackgroundTaskHandle) (*entityArtifactWriteState, error) {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
 		return nil, err
 	}
-	if e == nil || e.cfg == nil {
+	if e == nil || snap.cfg == nil {
 		return nil, fmt.Errorf("engine is not configured")
 	}
 	if webBatch == nil {
@@ -89,19 +98,20 @@ func (e *Engine) newEntityArtifactWriteState(ctx context.Context, updatedNames [
 		return nil, fmt.Errorf("entity publish batch is required")
 	}
 
-	targetFeeds := targetFeedsForFanOut(e.cfg, updatedNames, e.publicOutputNames(), config.UseGeoIP, config.UseASN, config.UseBogons)
+	targetFeeds := targetFeedsForFanOut(snap.cfg, updatedNames, e.publicOutputNamesForSnapshot(snap), config.UseGeoIP, config.UseASN, config.UseBogons)
 	if full {
-		targetFeeds = e.publicOutputNames()
+		targetFeeds = e.publicOutputNamesForSnapshot(snap)
 	}
 	return &entityArtifactWriteState{
 		engine:            e,
+		snapshot:          snap,
 		ctx:               ctx,
 		full:              full,
 		webBatch:          webBatch,
 		entityBatch:       entityBatch,
 		task:              task,
 		targetFeeds:       targetFeeds,
-		view:              newEntityOutputView(e, ""),
+		view:              newEntityOutputViewWithRuntime(e, snap.runtime, ""),
 		changedFeeds:      map[string]struct{}{},
 		affectedCountries: map[string]struct{}{},
 		affectedASNs:      map[uint32]struct{}{},
@@ -110,27 +120,27 @@ func (e *Engine) newEntityArtifactWriteState(ctx context.Context, updatedNames [
 
 func (s *entityArtifactWriteState) loadProviderReferences() error {
 	e := s.engine
-	s.geoProvider = e.preferredGeoProvider()
-	s.asnProvider = e.preferredASNProvider()
+	s.geoProvider = preferredGeoProviderForConfig(s.snapshot.cfg)
+	s.asnProvider = preferredASNProviderForConfig(s.snapshot.cfg)
 
 	var err error
-	s.geoRefPath, s.geoRefTime, err = e.entityGeoProviderReference(s.geoProvider)
+	s.geoRefPath, s.geoRefTime, err = e.entityGeoProviderReferenceWithSnapshot(s.snapshot, s.geoProvider)
 	if err != nil {
 		return err
 	}
-	s.asnRefPath, s.asnRefTime, err = e.entityASNProviderReference(s.asnProvider)
+	s.asnRefPath, s.asnRefTime, err = e.entityASNProviderReferenceWithSnapshot(s.snapshot, s.asnProvider)
 	return err
 }
 
 func (s *entityArtifactWriteState) loadFeedSidecars() error {
 	e := s.engine
 	var err error
-	s.liveSidecars, err = e.loadAllFeedEntitySidecars()
+	s.liveSidecars, err = e.loadAllFeedEntitySidecarsWithRuntime(s.snapshot.runtime)
 	if err != nil {
 		return err
 	}
-	s.feedTimes = e.loadFeedEntitySidecarMTimes()
-	s.newSidecars, err = e.buildFeedEntitySidecars(s.ctx, s.targetFeeds, s.view, s.task)
+	s.feedTimes = e.loadFeedEntitySidecarMTimesWithRuntime(s.snapshot.runtime)
+	s.newSidecars, err = e.buildFeedEntitySidecarsWithSnapshot(s.ctx, s.snapshot, s.targetFeeds, s.view, s.task)
 	return err
 }
 
@@ -162,7 +172,7 @@ func (s *entityArtifactWriteState) markStaleFeedSidecarDeletesForFullRebuild() e
 			s.entityBatch.markDelete(e.entityFeedSidecarRelPath(name))
 		}
 	}
-	existingPendingSidecars, err := sortedJSONFiles(e.entityFeedPendingDir())
+	existingPendingSidecars, err := sortedJSONFiles(entityFeedPendingDirForRuntime(s.snapshot.runtime))
 	if err != nil {
 		return err
 	}
@@ -179,9 +189,10 @@ func (s *entityArtifactWriteState) markStaleFeedSidecarDeletesForFullRebuild() e
 func (s *entityArtifactWriteState) stageFeedSidecar(name string) error {
 	e := s.engine
 	sidecar := s.newSidecars[name]
-	_, sidecarRefTime, err := e.entityFeedSidecarReferenceInOutputDir(
+	_, sidecarRefTime, err := e.entityFeedSidecarReferenceInOutputDirWithSnapshot(
+		s.snapshot,
 		name,
-		e.outputDir(),
+		outputDirForRuntime(s.snapshot.runtime),
 		s.geoProvider,
 		s.asnProvider,
 		s.geoRefPath,
@@ -286,7 +297,7 @@ func (s *entityArtifactWriteState) stageNoAffectedArtifacts() ([]output.Generate
 	if err := writeFileAtomic(filepath.Join(s.entityBatch.stageDir, "version"), []byte(entityArtifactsVersion+"\n"), generatedFileMode); err != nil {
 		return nil, err
 	}
-	homeAggregate, err := e.stageHomeAggregates(s.ctx, s.webBatch.stageDir, "")
+	homeAggregate, err := e.stageHomeAggregatesWithSnapshot(s.ctx, s.snapshot, s.webBatch.stageDir, "")
 	if err != nil {
 		return nil, err
 	}
@@ -294,12 +305,11 @@ func (s *entityArtifactWriteState) stageNoAffectedArtifacts() ([]output.Generate
 }
 
 func (s *entityArtifactWriteState) markStaleDetailDeletesForFullRebuild() error {
-	e := s.engine
-	existingCountryFiles, err := sortedJSONFiles(e.entityCountriesDir())
+	existingCountryFiles, err := sortedJSONFiles(entityCountriesDirForRuntime(s.snapshot.runtime))
 	if err != nil {
 		return err
 	}
-	existingASNFiles, err := sortedJSONFiles(e.entityASNsDir())
+	existingASNFiles, err := sortedJSONFiles(entityASNsDirForRuntime(s.snapshot.runtime))
 	if err != nil {
 		return err
 	}
@@ -355,7 +365,7 @@ func (s *entityArtifactWriteState) writeSelectedEntityDetails() error {
 	}
 
 	s.generated = make([]output.GeneratedFile, 0, len(s.affectedCountries)+len(s.affectedASNs)+2)
-	health := e.newFeedHealthClassifier()
+	health := e.newFeedHealthClassifierForConfigPolicy(s.snapshot.cfg, s.snapshot.feedHealthPolicy, e.state.SnapshotEntries(), e.now().UTC())
 	progress := 0
 	total := s.entityDetailProgressTotal()
 	for _, code := range sortedStringSet(s.affectedCountries) {
@@ -393,8 +403,8 @@ func (s *entityArtifactWriteState) writeCountryDetail(code string, sidecar *coun
 	if err := writeJSONFile(filepath.Join(s.webBatch.stageDir, rel), countryPayload); err != nil {
 		return err
 	}
-	s.generated = append(s.generated, output.GeneratedFile{Path: filepath.Join(e.outputDir(), rel), Timestamp: logicalTime, Redistributable: true})
-	if mdFile, _ := e.stageCountryMarkdown(code, countryPayload, s.webBatch.stageDir); mdFile.Path != "" {
+	s.generated = append(s.generated, output.GeneratedFile{Path: filepath.Join(outputDirForRuntime(s.snapshot.runtime), rel), Timestamp: logicalTime, Redistributable: true})
+	if mdFile, _ := e.stageCountryMarkdownWithRuntime(s.snapshot.runtime, code, countryPayload, s.webBatch.stageDir); mdFile.Path != "" {
 		mdFile.Timestamp = logicalTime
 		s.generated = append(s.generated, mdFile)
 	}
@@ -419,8 +429,8 @@ func (s *entityArtifactWriteState) writeASNDetail(asn uint32, sidecar *asnDetail
 	if err := writeJSONFile(filepath.Join(s.webBatch.stageDir, rel), asnPayload); err != nil {
 		return err
 	}
-	s.generated = append(s.generated, output.GeneratedFile{Path: filepath.Join(e.outputDir(), rel), Timestamp: logicalTime, Redistributable: true})
-	if mdFile, _ := e.stageASNMarkdown(asn, asnPayload, s.webBatch.stageDir); mdFile.Path != "" {
+	s.generated = append(s.generated, output.GeneratedFile{Path: filepath.Join(outputDirForRuntime(s.snapshot.runtime), rel), Timestamp: logicalTime, Redistributable: true})
+	if mdFile, _ := e.stageASNMarkdownWithRuntime(s.snapshot.runtime, asn, asnPayload, s.webBatch.stageDir); mdFile.Path != "" {
 		mdFile.Timestamp = logicalTime
 		s.generated = append(s.generated, mdFile)
 	}
@@ -459,20 +469,20 @@ func (s *entityArtifactWriteState) stageEntityIndexes() error {
 	if s.task != nil {
 		s.task.Update("building indexes", "building country and ASN index payloads", 0, 2)
 	}
-	countryIndex := e.buildCountryIndexFromFeedSidecars(s.allSidecars)
+	countryIndex := e.buildCountryIndexFromFeedSidecarsWithSnapshot(s.snapshot, s.allSidecars)
 	if err := writeJSONFile(filepath.Join(s.webBatch.stageDir, e.publicCountryIndexRelPath()), countryIndex); err != nil {
 		return err
 	}
-	s.generated = append(s.generated, output.GeneratedFile{Path: filepath.Join(e.outputDir(), e.publicCountryIndexRelPath()), Redistributable: true})
+	s.generated = append(s.generated, output.GeneratedFile{Path: filepath.Join(outputDirForRuntime(s.snapshot.runtime), e.publicCountryIndexRelPath()), Redistributable: true})
 	if s.task != nil {
 		s.task.Update("building indexes", "building country and ASN index payloads", 1, 2)
 	}
 
-	asnIndex := e.buildASNIndexFromFeedSidecars(s.allSidecars)
+	asnIndex := e.buildASNIndexFromFeedSidecarsWithSnapshot(s.snapshot, s.allSidecars)
 	if err := writeJSONFile(filepath.Join(s.webBatch.stageDir, e.publicASNIndexRelPath()), asnIndex); err != nil {
 		return err
 	}
-	s.generated = append(s.generated, output.GeneratedFile{Path: filepath.Join(e.outputDir(), e.publicASNIndexRelPath()), Redistributable: true})
+	s.generated = append(s.generated, output.GeneratedFile{Path: filepath.Join(outputDirForRuntime(s.snapshot.runtime), e.publicASNIndexRelPath()), Redistributable: true})
 	if s.task != nil {
 		s.task.Update("building indexes", "building country and ASN index payloads", 2, 2)
 	}
@@ -483,7 +493,7 @@ func (s *entityArtifactWriteState) stageMaintainerMarkdownForFullRebuild() {
 	if !s.full {
 		return
 	}
-	mdFiles, mdErr := s.engine.writeMaintainerMarkdownFiles(s.webBatch.stageDir)
+	mdFiles, mdErr := s.engine.writeMaintainerMarkdownFilesWithSnapshot(s.snapshot, s.webBatch.stageDir)
 	if mdErr != nil {
 		s.engine.logger.Warn("maintainer markdown generation failed", "error", mdErr)
 		return
@@ -494,11 +504,11 @@ func (s *entityArtifactWriteState) stageMaintainerMarkdownForFullRebuild() {
 func (s *entityArtifactWriteState) stageSitemapHomeAndVersion() error {
 	e := s.engine
 	var err error
-	s.generated, err = e.stagePublicSitemapFiles(s.webBatch, s.generated)
+	s.generated, err = e.stagePublicSitemapFilesWithSnapshot(s.snapshot, s.webBatch, s.generated)
 	if err != nil {
 		return err
 	}
-	homeAggregate, err := e.stageHomeAggregates(s.ctx, s.webBatch.stageDir, "")
+	homeAggregate, err := e.stageHomeAggregatesWithSnapshot(s.ctx, s.snapshot, s.webBatch.stageDir, "")
 	if err != nil {
 		return err
 	}

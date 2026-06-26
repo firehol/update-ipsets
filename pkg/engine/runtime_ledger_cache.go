@@ -44,6 +44,14 @@ func (e *Engine) runtimeLedgerSnapshot() runtimeLedgerSnapshot {
 	}
 }
 
+func runtimeLedgerSnapshotForOperation(snap operationSnapshot) runtimeLedgerSnapshot {
+	return runtimeLedgerSnapshot{
+		libDir:           snap.runtime.LibDir,
+		webChartsEntries: webChartsEntriesFromRuntime(snap.runtime),
+		ledger:           snap.ledgerCache,
+	}
+}
+
 func (s *historyLedgerStats) observe(point HistoryPoint) {
 	if !validHistoryTimestamp(point.Timestamp) {
 		return
@@ -244,6 +252,15 @@ func (e *Engine) historyStatsFromRuntime(name string, entry *cache.Entry, freque
 func (e *Engine) historyStatsFromRuntimeContext(ctx context.Context, name string, entry *cache.Entry, frequency int) bool {
 	ctx = nonNilContext(ctx)
 	snap := e.runtimeLedgerSnapshot()
+	return e.historyStatsFromLedgerSnapshot(ctx, snap, name, entry, frequency)
+}
+
+func (e *Engine) historyStatsFromSnapshot(ctx context.Context, snap operationSnapshot, name string, entry *cache.Entry, frequency int) bool {
+	ctx = nonNilContext(ctx)
+	return e.historyStatsFromLedgerSnapshot(ctx, runtimeLedgerSnapshotForOperation(snap), name, entry, frequency)
+}
+
+func (e *Engine) historyStatsFromLedgerSnapshot(ctx context.Context, snap runtimeLedgerSnapshot, name string, entry *cache.Entry, frequency int) bool {
 	if entry == nil || snap.libDir == "" || snap.ledger == nil {
 		return false
 	}
@@ -266,6 +283,15 @@ func (e *Engine) observeHistoryPoint(name string, point HistoryPoint, entry, bas
 func (e *Engine) observeHistoryPointContext(ctx context.Context, name string, point HistoryPoint, entry, baseline *cache.Entry, frequency int) bool {
 	ctx = nonNilContext(ctx)
 	snap := e.runtimeLedgerSnapshot()
+	return e.observeHistoryPointWithLedgerSnapshot(ctx, snap, name, point, entry, baseline, frequency)
+}
+
+func (e *Engine) observeHistoryPointWithSnapshot(ctx context.Context, snap operationSnapshot, name string, point HistoryPoint, entry, baseline *cache.Entry, frequency int) bool {
+	ctx = nonNilContext(ctx)
+	return e.observeHistoryPointWithLedgerSnapshot(ctx, runtimeLedgerSnapshotForOperation(snap), name, point, entry, baseline, frequency)
+}
+
+func (e *Engine) observeHistoryPointWithLedgerSnapshot(ctx context.Context, snap runtimeLedgerSnapshot, name string, point HistoryPoint, entry, baseline *cache.Entry, frequency int) bool {
 	if entry == nil || snap.libDir == "" || snap.ledger == nil {
 		return false
 	}
@@ -325,6 +351,15 @@ func (e *Engine) historyTailFromRuntime(name string) []HistoryPoint {
 func (e *Engine) historyTailFromRuntimeContext(ctx context.Context, name string) []HistoryPoint {
 	ctx = nonNilContext(ctx)
 	snap := e.runtimeLedgerSnapshot()
+	return e.historyTailFromLedgerSnapshot(ctx, snap, name)
+}
+
+func (e *Engine) historyTailFromSnapshot(ctx context.Context, snap operationSnapshot, name string) []HistoryPoint {
+	ctx = nonNilContext(ctx)
+	return e.historyTailFromLedgerSnapshot(ctx, runtimeLedgerSnapshotForOperation(snap), name)
+}
+
+func (e *Engine) historyTailFromLedgerSnapshot(ctx context.Context, snap runtimeLedgerSnapshot, name string) []HistoryPoint {
 	if snap.libDir == "" || snap.ledger == nil {
 		return nil
 	}
@@ -370,6 +405,15 @@ func (e *Engine) changesetTailFromRuntime(name string) []ChangesetPoint {
 func (e *Engine) changesetTailFromRuntimeContext(ctx context.Context, name string) []ChangesetPoint {
 	ctx = nonNilContext(ctx)
 	snap := e.runtimeLedgerSnapshot()
+	return e.changesetTailFromLedgerSnapshot(ctx, snap, name)
+}
+
+func (e *Engine) changesetTailFromSnapshot(ctx context.Context, snap operationSnapshot, name string) []ChangesetPoint {
+	ctx = nonNilContext(ctx)
+	return e.changesetTailFromLedgerSnapshot(ctx, runtimeLedgerSnapshotForOperation(snap), name)
+}
+
+func (e *Engine) changesetTailFromLedgerSnapshot(ctx context.Context, snap runtimeLedgerSnapshot, name string) []ChangesetPoint {
 	if snap.libDir == "" || snap.ledger == nil {
 		return nil
 	}
@@ -387,6 +431,14 @@ func (e *Engine) changesetTailFromRuntimeContext(ctx context.Context, name strin
 
 func (e *Engine) observeChangesetPoint(name string, point ChangesetPoint) {
 	snap := e.runtimeLedgerSnapshot()
+	e.observeChangesetPointWithLedgerSnapshot(name, snap, point)
+}
+
+func (e *Engine) observeChangesetPointWithSnapshot(name string, op operationSnapshot, point ChangesetPoint) {
+	e.observeChangesetPointWithLedgerSnapshot(name, runtimeLedgerSnapshotForOperation(op), point)
+}
+
+func (e *Engine) observeChangesetPointWithLedgerSnapshot(name string, snap runtimeLedgerSnapshot, point ChangesetPoint) {
 	if snap.libDir == "" || snap.ledger == nil || (point.Added == 0 && point.Removed == 0) {
 		return
 	}
@@ -434,6 +486,15 @@ func (e *Engine) retentionPastFromRuntime(name string, started int64) map[int]ui
 func (e *Engine) retentionPastFromRuntimeContext(ctx context.Context, name string, started int64) map[int]uint64 {
 	ctx = nonNilContext(ctx)
 	snap := e.runtimeLedgerSnapshot()
+	return e.retentionPastFromLedgerSnapshot(ctx, snap, name, started)
+}
+
+func (e *Engine) retentionPastFromSnapshot(ctx context.Context, snap operationSnapshot, name string, started int64) map[int]uint64 {
+	ctx = nonNilContext(ctx)
+	return e.retentionPastFromLedgerSnapshot(ctx, runtimeLedgerSnapshotForOperation(snap), name, started)
+}
+
+func (e *Engine) retentionPastFromLedgerSnapshot(ctx context.Context, snap runtimeLedgerSnapshot, name string, started int64) map[int]uint64 {
 	if snap.libDir == "" || snap.ledger == nil {
 		return map[int]uint64{}
 	}
@@ -451,6 +512,14 @@ func (e *Engine) retentionPastFromRuntimeContext(ctx context.Context, name strin
 
 func (e *Engine) observeRetentionPast(name string, started int64, hours int, ips uint64) {
 	snap := e.runtimeLedgerSnapshot()
+	e.observeRetentionPastWithLedgerSnapshot(name, snap, started, hours, ips)
+}
+
+func (e *Engine) observeRetentionPastWithSnapshot(name string, op operationSnapshot, started int64, hours int, ips uint64) {
+	e.observeRetentionPastWithLedgerSnapshot(name, runtimeLedgerSnapshotForOperation(op), started, hours, ips)
+}
+
+func (e *Engine) observeRetentionPastWithLedgerSnapshot(name string, snap runtimeLedgerSnapshot, started int64, hours int, ips uint64) {
 	if snap.libDir == "" || snap.ledger == nil || ips == 0 {
 		return
 	}
@@ -473,6 +542,15 @@ func (e *Engine) observeRetentionPast(name string, started int64, hours int, ips
 func (e *Engine) retentionCohortsFromRuntime(ctx context.Context, name string) map[int64]uint64 {
 	ctx = nonNilContext(ctx)
 	snap := e.runtimeLedgerSnapshot()
+	return e.retentionCohortsFromLedgerSnapshot(ctx, snap, name)
+}
+
+func (e *Engine) retentionCohortsFromSnapshot(ctx context.Context, snap operationSnapshot, name string) map[int64]uint64 {
+	ctx = nonNilContext(ctx)
+	return e.retentionCohortsFromLedgerSnapshot(ctx, runtimeLedgerSnapshotForOperation(snap), name)
+}
+
+func (e *Engine) retentionCohortsFromLedgerSnapshot(ctx context.Context, snap runtimeLedgerSnapshot, name string) map[int64]uint64 {
 	if snap.libDir == "" || snap.ledger == nil {
 		return map[int64]uint64{}
 	}
@@ -508,6 +586,14 @@ func (e *Engine) retentionCohortsFromRuntime(ctx context.Context, name string) m
 
 func (e *Engine) observeRetentionCohort(name string, addedAt int64, ips uint64) {
 	snap := e.runtimeLedgerSnapshot()
+	e.observeRetentionCohortWithLedgerSnapshot(name, snap, addedAt, ips)
+}
+
+func (e *Engine) observeRetentionCohortWithSnapshot(name string, op operationSnapshot, addedAt int64, ips uint64) {
+	e.observeRetentionCohortWithLedgerSnapshot(name, runtimeLedgerSnapshotForOperation(op), addedAt, ips)
+}
+
+func (e *Engine) observeRetentionCohortWithLedgerSnapshot(name string, snap runtimeLedgerSnapshot, addedAt int64, ips uint64) {
 	if snap.libDir == "" || snap.ledger == nil || ips == 0 {
 		return
 	}
@@ -528,6 +614,14 @@ func (e *Engine) observeRetentionCohort(name string, addedAt int64, ips uint64) 
 
 func (e *Engine) replaceRetentionCohorts(name string, cohorts map[int64]uint64) {
 	snap := e.runtimeLedgerSnapshot()
+	e.replaceRetentionCohortsWithLedgerSnapshot(name, snap, cohorts)
+}
+
+func (e *Engine) replaceRetentionCohortsWithSnapshot(name string, op operationSnapshot, cohorts map[int64]uint64) {
+	e.replaceRetentionCohortsWithLedgerSnapshot(name, runtimeLedgerSnapshotForOperation(op), cohorts)
+}
+
+func (e *Engine) replaceRetentionCohortsWithLedgerSnapshot(name string, snap runtimeLedgerSnapshot, cohorts map[int64]uint64) {
 	if snap.libDir == "" || snap.ledger == nil {
 		return
 	}

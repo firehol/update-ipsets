@@ -85,6 +85,7 @@ func runDaemon(args []string) int {
 	signal.Notify(hup, syscall.SIGHUP)
 	defer signal.Stop(hup)
 	go runReloadSignalLoop(ctx, logger, hup, eng)
+	rt := eng.Runtime()
 	if err := web.Run(ctx, eng, web.Options{
 		Listen:                    *listen,
 		AdminListen:               *adminListen,
@@ -98,8 +99,8 @@ func runDaemon(args []string) int {
 		KeyFile:                   *tlsKey,
 		WebDir:                    *webDir,
 		FilesDir:                  *webFilesDir,
-		TrustProxyHeaders:         *trustProxyHeaders || eng.Runtime().TrustProxyHeaders,
-		TrustCloudflareHeaders:    *trustCloudflareHeaders || eng.Runtime().TrustCloudflareHeaders,
+		TrustProxyHeaders:         *trustProxyHeaders || rt.TrustProxyHeaders,
+		TrustCloudflareHeaders:    *trustCloudflareHeaders || rt.TrustCloudflareHeaders,
 	}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return 1

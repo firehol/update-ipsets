@@ -109,8 +109,12 @@ func int64Clamp(value uint64) int64 {
 }
 
 func (e *Engine) updateRetention(ctx context.Context, name string, previous, current *iprange.IPSet, updatedAt time.Time) error {
+	return e.updateRetentionWithSnapshot(ctx, e.operationSnapshot(), name, previous, current, updatedAt)
+}
+
+func (e *Engine) updateRetentionWithSnapshot(ctx context.Context, snap operationSnapshot, name string, previous, current *iprange.IPSet, updatedAt time.Time) error {
 	ctx = nonNilContext(ctx)
-	paths, err := e.prepareRetentionUpdatePaths(name)
+	paths, err := prepareRetentionUpdatePathsForRuntime(snap.runtime, name)
 	if err != nil {
 		return err
 	}
@@ -120,20 +124,28 @@ func (e *Engine) updateRetention(ctx context.Context, name string, previous, cur
 	if err != nil {
 		return err
 	}
-	return e.updateRetentionWithDiff(ctx, name, paths, diff, current, updatedAt, updatedAtUnix)
+	return e.updateRetentionWithDiffAndSnapshot(ctx, snap, name, paths, diff, current, updatedAt, updatedAtUnix)
 }
 
 func (e *Engine) updateRetentionFromDiff(ctx context.Context, name string, diff retentionUpdateDiff, current *iprange.IPSet, updatedAt time.Time) error {
+	return e.updateRetentionFromDiffWithSnapshot(ctx, e.operationSnapshot(), name, diff, current, updatedAt)
+}
+
+func (e *Engine) updateRetentionFromDiffWithSnapshot(ctx context.Context, snap operationSnapshot, name string, diff retentionUpdateDiff, current *iprange.IPSet, updatedAt time.Time) error {
 	ctx = nonNilContext(ctx)
-	paths, err := e.prepareRetentionUpdatePaths(name)
+	paths, err := prepareRetentionUpdatePathsForRuntime(snap.runtime, name)
 	if err != nil {
 		return err
 	}
-	return e.updateRetentionWithDiff(ctx, name, paths, diff, current, updatedAt, updatedAt.UTC().Unix())
+	return e.updateRetentionWithDiffAndSnapshot(ctx, snap, name, paths, diff, current, updatedAt, updatedAt.UTC().Unix())
 }
 
 func (e *Engine) updateRetentionWithDiff(ctx context.Context, name string, paths retentionUpdatePaths, diff retentionUpdateDiff, current *iprange.IPSet, updatedAt time.Time, updatedAtUnix int64) error {
-	if err := e.recordRetentionDelta(name, paths, diff, updatedAt, updatedAtUnix); err != nil {
+	return e.updateRetentionWithDiffAndSnapshot(ctx, e.operationSnapshot(), name, paths, diff, current, updatedAt, updatedAtUnix)
+}
+
+func (e *Engine) updateRetentionWithDiffAndSnapshot(ctx context.Context, snap operationSnapshot, name string, paths retentionUpdatePaths, diff retentionUpdateDiff, current *iprange.IPSet, updatedAt time.Time, updatedAtUnix int64) error {
+	if err := e.recordRetentionDeltaWithSnapshot(name, snap, paths, diff, updatedAt, updatedAtUnix); err != nil {
 		return err
 	}
 	if err := ensureCSVHeader(filepath.Join(paths.dir, "retention.csv"), "date_removed,date_added,hours,ips\n"); err != nil {
@@ -141,21 +153,28 @@ func (e *Engine) updateRetentionWithDiff(ctx context.Context, name string, paths
 	}
 
 	started := e.retentionStartedAt(name, updatedAtUnix)
-	past := e.retentionPastFromRuntimeContext(ctx, name, started)
+	past := e.retentionPastFromSnapshot(ctx, snap, name, started)
 	if diff.removed == 0 {
-		return e.refreshRetentionWithoutRemovals(ctx, name, paths, started, updatedAtUnix, past)
+		return e.refreshRetentionWithoutRemovalsWithSnapshot(ctx, snap, name, paths, started, updatedAtUnix, past, diff.added)
 	}
 
-	result, err := e.reconcileRetentionCohorts(ctx, name, paths, started, updatedAtUnix, current, past)
+	result, err := e.reconcileRetentionCohortsWithSnapshot(ctx, snap, name, paths, started, updatedAtUnix, current, past)
 	if err != nil {
 		return err
 	}
-	e.replaceRetentionCohorts(name, result.cohorts)
-	return writeRetentionOutputs(ctx, paths.dir, name, started, updatedAtUnix, result.incomplete, past, result.currentBuckets, result.cohorts)
+	if err := writeRetentionOutputs(ctx, paths.dir, name, started, updatedAtUnix, result.incomplete, past, result.currentBuckets, result.cohorts); err != nil {
+		return err
+	}
+	e.replaceRetentionCohortsWithSnapshot(name, snap, result.cohorts)
+	return nil
 }
 
 func (e *Engine) prepareRetentionUpdatePaths(name string) (retentionUpdatePaths, error) {
-	dir := filepath.Join(e.runtime.LibDir, name)
+	return prepareRetentionUpdatePathsForRuntime(e.Runtime(), name)
+}
+
+func prepareRetentionUpdatePathsForRuntime(rt Runtime, name string) (retentionUpdatePaths, error) {
+	dir := filepath.Join(rt.LibDir, name)
 	paths := retentionUpdatePaths{
 		dir:    dir,
 		newDir: filepath.Join(dir, "new"),
@@ -207,15 +226,19 @@ func (e *Engine) retentionDiffFromSources(ctx context.Context, name string, prev
 }
 
 func (e *Engine) recordRetentionDelta(name string, paths retentionUpdatePaths, diff retentionUpdateDiff, updatedAt time.Time, updatedAtUnix int64) error {
+	return e.recordRetentionDeltaWithSnapshot(name, e.operationSnapshot(), paths, diff, updatedAt, updatedAtUnix)
+}
+
+func (e *Engine) recordRetentionDeltaWithSnapshot(name string, snap operationSnapshot, paths retentionUpdatePaths, diff retentionUpdateDiff, updatedAt time.Time, updatedAtUnix int64) error {
 	if diff.added > 0 || diff.removed > 0 {
-		if err := normalizeChangesetLedgerHeader(e.runtime.LibDir, filepath.Join(name, "changesets.csv")); err != nil {
+		if err := normalizeChangesetLedgerHeader(snap.runtime.LibDir, filepath.Join(name, "changesets.csv")); err != nil {
 			return err
 		}
 		if err := appendCSV(filepath.Join(paths.dir, "changesets.csv"), changesetLedgerHeader,
 			fmt.Sprintf("%d,%d,%d\n", updatedAtUnix, diff.added, diff.removed)); err != nil {
 			return err
 		}
-		e.observeChangesetPoint(name, ChangesetPoint{
+		e.observeChangesetPointWithSnapshot(name, snap, ChangesetPoint{
 			Timestamp: updatedAtUnix,
 			Added:     diff.added,
 			Removed:   diff.removed,
@@ -227,7 +250,6 @@ func (e *Engine) recordRetentionDelta(name string, paths retentionUpdatePaths, d
 	if err := writeBinaryPath(filepath.Join(paths.newDir, fmt.Sprintf("%d", updatedAtUnix)), diff.newSet, updatedAt); err != nil {
 		return err
 	}
-	e.observeRetentionCohort(name, updatedAtUnix, diff.added)
 	return nil
 }
 
@@ -240,8 +262,15 @@ func (e *Engine) retentionStartedAt(name string, fallback int64) int64 {
 }
 
 func (e *Engine) refreshRetentionWithoutRemovals(ctx context.Context, name string, paths retentionUpdatePaths, started, updatedAt int64, past map[int]uint64) (err error) {
+	return e.refreshRetentionWithoutRemovalsWithSnapshot(ctx, e.operationSnapshot(), name, paths, started, updatedAt, past, 0)
+}
+
+func (e *Engine) refreshRetentionWithoutRemovalsWithSnapshot(ctx context.Context, snap operationSnapshot, name string, paths retentionUpdatePaths, started, updatedAt int64, past map[int]uint64, added uint64) (err error) {
 	opStarted := time.Now()
-	cohorts := e.retentionCohortsFromRuntime(ctx, name)
+	cohorts := e.retentionCohortsFromSnapshot(ctx, snap, name)
+	if added > 0 {
+		cohorts[updatedAt] += added
+	}
 	currentBuckets, incomplete := buildCurrentRetentionBuckets(cohorts, updatedAt, started)
 	defer func() {
 		elapsedMS := telemetryDurationMillis(time.Since(opStarted))
@@ -264,10 +293,18 @@ func (e *Engine) refreshRetentionWithoutRemovals(ctx context.Context, name strin
 			"elapsed_ms", elapsedMS,
 		)
 	}()
-	return writeRetentionOutputs(ctx, paths.dir, name, started, updatedAt, incomplete, past, currentBuckets, cohorts)
+	if err := writeRetentionOutputs(ctx, paths.dir, name, started, updatedAt, incomplete, past, currentBuckets, cohorts); err != nil {
+		return err
+	}
+	e.replaceRetentionCohortsWithSnapshot(name, snap, cohorts)
+	return nil
 }
 
 func (e *Engine) reconcileRetentionCohorts(ctx context.Context, name string, paths retentionUpdatePaths, started, updatedAt int64, current *iprange.IPSet, past map[int]uint64) (result retentionReconcileResult, err error) {
+	return e.reconcileRetentionCohortsWithSnapshot(ctx, e.operationSnapshot(), name, paths, started, updatedAt, current, past)
+}
+
+func (e *Engine) reconcileRetentionCohortsWithSnapshot(ctx context.Context, snap operationSnapshot, name string, paths retentionUpdatePaths, started, updatedAt int64, current *iprange.IPSet, past map[int]uint64) (result retentionReconcileResult, err error) {
 	opStarted := time.Now()
 	stats := retentionReconcileStats{}
 	result = retentionReconcileResult{
@@ -285,7 +322,7 @@ func (e *Engine) reconcileRetentionCohorts(ctx context.Context, name string, pat
 		if len(batch) == 0 {
 			return nil
 		}
-		updates, err := e.reconcileRetentionCohortBatch(ctx, name, paths, started, updatedAt, current, currentSource, past, batch, &result)
+		updates, err := e.reconcileRetentionCohortBatchWithSnapshot(ctx, snap, name, paths, started, updatedAt, current, currentSource, past, batch, &result)
 		if err != nil {
 			return err
 		}
@@ -379,6 +416,10 @@ func (e *Engine) reconcileRetentionCohorts(ctx context.Context, name string, pat
 }
 
 func (e *Engine) reconcileRetentionCohortBatch(ctx context.Context, name string, paths retentionUpdatePaths, started, updatedAt int64, current *iprange.IPSet, currentSource iprange.CompareSource, past map[int]uint64, batch []retentionCohortCandidate, result *retentionReconcileResult) ([]retentionCohortUpdate, error) {
+	return e.reconcileRetentionCohortBatchWithSnapshot(ctx, e.operationSnapshot(), name, paths, started, updatedAt, current, currentSource, past, batch, result)
+}
+
+func (e *Engine) reconcileRetentionCohortBatchWithSnapshot(ctx context.Context, snap operationSnapshot, name string, paths retentionUpdatePaths, started, updatedAt int64, current *iprange.IPSet, currentSource iprange.CompareSource, past map[int]uint64, batch []retentionCohortCandidate, result *retentionReconcileResult) ([]retentionCohortUpdate, error) {
 	if len(batch) == 0 {
 		return nil, nil
 	}
@@ -387,7 +428,7 @@ func (e *Engine) reconcileRetentionCohortBatch(ctx context.Context, name string,
 	pairs := make([]iprange.ComparePair, 0, len(batch))
 	sources = append(sources, currentSource)
 	for _, candidate := range batch {
-		oldSource, err := openRetentionCohortSet(ctx, candidate.baseName, e.runtime.LibDir, filepath.Join(name, "new", candidate.baseName), candidate.path)
+		oldSource, err := openRetentionCohortSet(ctx, candidate.baseName, snap.runtime.LibDir, filepath.Join(name, "new", candidate.baseName), candidate.path)
 		if err != nil {
 			_ = closeRetentionOpenCohorts(opened)
 			return nil, err
@@ -412,7 +453,7 @@ func (e *Engine) reconcileRetentionCohortBatch(ctx context.Context, name string,
 
 	updates := make([]retentionCohortUpdate, 0, len(opened))
 	for i, cohort := range opened {
-		update, err := e.applyRetentionCohortCompare(ctx, name, paths, started, updatedAt, current, cohort.source, cohort.candidate.baseName, cohort.candidate.path, cohort.candidate.addedAt, rows[i], past, result)
+		update, err := e.applyRetentionCohortCompare(ctx, snap, name, paths, started, updatedAt, current, cohort.source, cohort.candidate.baseName, cohort.candidate.path, cohort.candidate.addedAt, rows[i], past, result)
 		if err != nil {
 			_ = closeRetentionOpenCohorts(opened[i+1:])
 			return nil, err
@@ -449,7 +490,7 @@ func (e *Engine) retentionCohortTimestamp(name, baseName string) (int64, bool) {
 	return addedAt, true
 }
 
-func (e *Engine) applyRetentionCohortCompare(ctx context.Context, name string, paths retentionUpdatePaths, started, updatedAt int64, current *iprange.IPSet, oldSource *closableSource, baseName, path string, addedAt int64, row iprange.CompareRow, past map[int]uint64, result *retentionReconcileResult) (retentionCohortUpdate, error) {
+func (e *Engine) applyRetentionCohortCompare(ctx context.Context, snap operationSnapshot, name string, paths retentionUpdatePaths, started, updatedAt int64, current *iprange.IPSet, oldSource *closableSource, baseName, path string, addedAt int64, row iprange.CompareRow, past map[int]uint64, result *retentionReconcileResult) (retentionCohortUpdate, error) {
 	oldCount := row.Unique2
 	stillCount := row.CommonIPs
 	if stillCount > oldCount {
@@ -509,7 +550,7 @@ func (e *Engine) applyRetentionCohortCompare(ctx context.Context, name string, p
 		return retentionCohortUpdate{}, err
 	}
 	if removedCount > 0 {
-		if err := e.recordRetentionRemoval(name, paths.dir, started, updatedAt, addedAt, hours, removedCount, past); err != nil {
+		if err := e.recordRetentionRemoval(snap, name, paths.dir, started, updatedAt, addedAt, hours, removedCount, past); err != nil {
 			return retentionCohortUpdate{}, err
 		}
 	}
@@ -534,7 +575,7 @@ func retentionHours(updatedAt, addedAt int64) int {
 	return int((updatedAt + 1800 - addedAt) / 3600)
 }
 
-func (e *Engine) recordRetentionRemoval(name, dir string, started, updatedAt, addedAt int64, hours int, removed uint64, past map[int]uint64) error {
+func (e *Engine) recordRetentionRemoval(snap operationSnapshot, name, dir string, started, updatedAt, addedAt int64, hours int, removed uint64, past map[int]uint64) error {
 	if err := appendCSV(filepath.Join(dir, "retention.csv"), "date_removed,date_added,hours,ips\n",
 		fmt.Sprintf("%d,%d,%d,%d\n", updatedAt, addedAt, hours, removed)); err != nil {
 		return err
@@ -543,7 +584,7 @@ func (e *Engine) recordRetentionRemoval(name, dir string, started, updatedAt, ad
 		return nil
 	}
 	past[hours] += removed
-	e.observeRetentionPast(name, started, hours, removed)
+	e.observeRetentionPastWithSnapshot(name, snap, started, hours, removed)
 	return nil
 }
 

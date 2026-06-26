@@ -255,11 +255,11 @@ func (e *Engine) CheckEntityArtifactsIntegrityContext(ctx context.Context) ([]En
 	if err := contextErr(ctx); err != nil {
 		return nil, entityIntegrityPlan{}, err
 	}
-	if e == nil || e.cfg == nil {
+	scanner := newEntityIntegrityScanner(ctx, e)
+	if e == nil || scanner.snapshot.cfg == nil {
 		return nil, entityIntegrityPlan{}, nil
 	}
 
-	scanner := newEntityIntegrityScanner(ctx, e)
 	if err := scanner.run(); err != nil {
 		return nil, scanner.plan, err
 	}

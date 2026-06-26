@@ -25,256 +25,79 @@ type DownloadDecision struct {
 	PromoteNames    []string
 }
 
-func (e *Engine) IsDownloadable(name string) bool {
-	if e.isArtifact(name) {
-		return true
-	}
-	src := e.cfg.Sources[name]
-	if src == nil {
-		return false
-	}
-	if src.ArtifactParent != "" {
-		return true
-	}
-	return src.URL != "" || len(src.Static) > 0
-}
-
-func (e *Engine) IsProviderDatabase(name string) bool {
-	if e == nil {
-		return false
-	}
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-	if e.cfg == nil {
-		return false
-	}
-	src := e.cfg.Sources[name]
-	return src != nil && (src.HasUse(config.UseASN) || src.HasUse(config.UseGeoIP))
-}
-
-func (e *Engine) IsMerge(name string) bool {
-	if e == nil || e.cfg == nil {
-		return false
-	}
-	src := e.cfg.Sources[name]
-	return src != nil && src.Provenance == config.ProvenanceSecondaryMerge
-}
-
-func (e *Engine) IsHistoryDerivative(name string) bool {
-	if e == nil || e.cfg == nil {
-		return false
-	}
-	src := e.cfg.Sources[name]
-	return src != nil && src.Provenance == config.ProvenanceSecondaryRetention
-}
-
-func (e *Engine) EffectiveScheduleMinutes(name string) int {
-	src := e.cfg.Sources[name]
-	if src == nil {
-		return 0
-	}
-	return src.Frequency
-}
-
 func (e *Engine) FetchAndStage(ctx context.Context, name string, force, enableAll bool) (DownloadDecision, error) {
-	if e.isArtifact(name) {
-		return e.fetchAndStageArtifact(ctx, name, force, enableAll)
+	snap := e.operationSnapshot()
+	return e.fetchAndStageWithSnapshot(ctx, snap, name, force, enableAll)
+}
+
+func (e *Engine) fetchAndStageWithSnapshot(ctx context.Context, snap operationSnapshot, name string, force, enableAll bool) (DownloadDecision, error) {
+	if snap.cfg != nil && snap.cfg.ArtifactByName(name) != nil {
+		return e.fetchAndStageArtifactWithSnapshot(ctx, snap, name, force, enableAll)
 	}
-	src := e.cfg.Sources[name]
+	if snap.cfg == nil {
+		return DownloadDecision{Name: name, Status: DownloadStatusFailed, Message: "unknown source"}, fmt.Errorf("unknown source %q", name)
+	}
+	src := snap.cfg.Sources[name]
 	if src == nil {
 		return DownloadDecision{Name: name, Status: DownloadStatusFailed, Message: "unknown source"}, fmt.Errorf("unknown source %q", name)
 	}
-	if !e.IsDownloadable(name) {
+	if !snap.isDownloadable(name) {
 		return DownloadDecision{Name: name, Status: DownloadStatusSkipped, Message: "source is not fetched by the download loop"}, nil
 	}
 	switch {
 	case src.ArtifactParent != "":
-		return e.fetchAndStageArtifactChild(ctx, src, force, enableAll)
-	case e.IsHistoryDerivative(name):
-		return e.fetchAndStageHistoryDerivative(ctx, src, force, enableAll)
-	case e.IsMerge(name):
-		return e.fetchAndStageMerge(ctx, src, force, enableAll)
+		return e.fetchAndStageArtifactChildWithSnapshot(ctx, snap, src, force, enableAll)
+	case snap.isHistoryDerivative(name):
+		return e.fetchAndStageHistoryDerivativeWithSnapshot(ctx, snap, src, force, enableAll)
+	case snap.isMerge(name):
+		return e.fetchAndStageMergeWithSnapshot(ctx, snap, src, force, enableAll)
 	case src.HasUse(config.UseASN):
-		return e.fetchAndStageProvider(ctx, src, force, enableAll, true)
+		return e.fetchAndStageProviderWithSnapshot(ctx, snap, src, force, enableAll, true)
 	case src.HasUse(config.UseGeoIP):
-		return e.fetchAndStageProvider(ctx, src, force, enableAll, false)
+		return e.fetchAndStageProviderWithSnapshot(ctx, snap, src, force, enableAll, false)
 	default:
-		return e.fetchAndStagePlainSource(ctx, src, force, enableAll)
+		return e.fetchAndStagePlainSourceWithSnapshot(ctx, snap, src, force, enableAll)
 	}
-}
-
-func (e *Engine) RecoverStagedSources() ([]string, error) {
-	names := make([]string, 0)
-	for _, name := range config.SortedSourceNames(e.cfg) {
-		src := e.cfg.Sources[name]
-		if src == nil || !e.IsDownloadable(name) {
-			continue
-		}
-		if src.HasUse(config.UseASN) || src.HasUse(config.UseGeoIP) {
-			finalPath := e.providerArchivePath(name, src)
-			_ = os.Remove(pendingTempPath(finalPath))
-			if fileExists(stagedPath(finalPath)) {
-				names = append(names, name)
-			}
-			continue
-		}
-		bodyPath := e.feedBodyPath(name)
-		_ = os.Remove(pendingTempPath(bodyPath))
-		_ = os.Remove(pendingTempPath(e.sourcePath(name)))
-		if fileExists(stagedPath(bodyPath)) {
-			if _, err := claimProcessingFeedBody(bodyPath); err != nil {
-				return nil, err
-			}
-			names = append(names, name)
-			continue
-		}
-		if fileExists(processingPath(bodyPath)) {
-			names = append(names, name)
-		}
-	}
-	return names, nil
-}
-
-func (e *Engine) PromoteCommittedDownloads(names []string) error {
-	promoted := false
-	for _, name := range names {
-		if !e.IsDownloadable(name) {
-			continue
-		}
-		finalPath := ""
-		if e.isArtifact(name) {
-			finalPath = e.artifactSourcePath(name)
-		} else {
-			src := e.cfg.Sources[name]
-			if src == nil {
-				continue
-			}
-			if src.HasUse(config.UseASN) || src.HasUse(config.UseGeoIP) {
-				finalPath = e.providerArchivePath(name, src)
-			} else {
-				continue
-			}
-		}
-		if err := promoteStagedFile(finalPath); err != nil {
-			return err
-		}
-		promoted = true
-	}
-	if promoted {
-		e.MarkIntegrityCachesStale()
-	}
-	return nil
-}
-
-func (e *Engine) HasStagedDownload(name string) bool {
-	if !e.IsDownloadable(name) {
-		return false
-	}
-	finalPath := ""
-	if e.isArtifact(name) {
-		finalPath = e.artifactSourcePath(name)
-	} else {
-		src := e.cfg.Sources[name]
-		if src == nil {
-			return false
-		}
-		if src.HasUse(config.UseASN) || src.HasUse(config.UseGeoIP) {
-			finalPath = e.providerArchivePath(name, src)
-		} else {
-			finalPath = e.feedBodyPath(name)
-		}
-	}
-	return fileExists(stagedPath(finalPath))
-}
-
-func (e *Engine) HasLocalFeedBody(name string) bool {
-	if e == nil || e.cfg == nil || e.cfg.Sources[name] == nil {
-		return false
-	}
-	return fileExists(latestFeedBodyPath(e.feedBodyPath(name)))
-}
-
-func (e *Engine) HasLocalReprocessState(name string) bool {
-	if e == nil || e.cfg == nil {
-		return false
-	}
-	if e.isArtifact(name) {
-		return fileExists(preferStagedPath(e.artifactSourcePath(name)))
-	}
-	src := e.cfg.Sources[name]
-	if src == nil {
-		return false
-	}
-	if e.IsProviderDatabase(name) {
-		return fileExists(preferStagedPath(e.providerArchivePath(name, src)))
-	}
-	return e.HasLocalFeedBody(name)
-}
-
-func (e *Engine) ResolveRecheckTarget(ctx context.Context, name string) string {
-	ctx = nonNilContext(ctx)
-	if e == nil || e.cfg == nil {
-		return name
-	}
-	src := e.cfg.Sources[name]
-	if src == nil {
-		return name
-	}
-	if e.IsHistoryDerivative(name) {
-		if _, _, err := e.composeHistoryDerivativeBody(ctx, src); err == nil {
-			return name
-		}
-		if len(src.DerivedFrom) > 0 {
-			return e.ResolveRecheckTarget(ctx, src.DerivedFrom[0])
-		}
-		return name
-	}
-	if src.ArtifactParent == "" {
-		return name
-	}
-	if fileExists(preferStagedPath(e.sourcePath(name))) || e.HasLocalFeedBody(name) {
-		return name
-	}
-	if e.cfg.ArtifactByName(src.ArtifactParent) != nil {
-		return src.ArtifactParent
-	}
-	return name
 }
 
 func (e *Engine) fetchAndStagePlainSource(ctx context.Context, src *config.Source, force, enableAll bool) (DownloadDecision, error) {
+	return e.fetchAndStagePlainSourceWithSnapshot(ctx, e.operationSnapshot(), src, force, enableAll)
+}
+
+func (e *Engine) fetchAndStagePlainSourceWithSnapshot(ctx context.Context, snap operationSnapshot, src *config.Source, force, enableAll bool) (DownloadDecision, error) {
 	name := src.Name
 	entry := e.state.Entry(name)
 	e.seedEntryFromSourceConfig(entry, name, src)
 	checkedAt := e.now().UTC().Unix()
-	if !EffectiveSourceEnabledForRun(e.cfg, e.runtime, name, enableAll, force) {
+	if !EffectiveSourceEnabledForRun(snap.cfg, snap.runtime, name, enableAll, force) {
 		entry.MarkDownloadDisabled(checkedAt)
 		return DownloadDecision{Name: name, Status: DownloadStatusDisabled, Message: "feed is disabled"}, nil
 	}
 	entry.MarkDownloadStarted(checkedAt)
 
-	expandedURL := e.expandURL(src.URL)
+	expandedURL := e.expandURLWithRuntime(snap.runtime, src.URL)
 	if expandedURL == "" && src.URL != "" {
 		message := entry.MarkDownloadMissingEnv(src.URL)
 		return DownloadDecision{Name: name, Status: DownloadStatusMissingEnv, Message: message}, nil
 	}
-	rawPath := e.sourcePath(name)
-	bodyPath := e.feedBodyPath(name)
-	result, err := e.fetchStaticSource(src, rawPath)
+	rawPath := snap.sourcePath(name)
+	bodyPath := snap.feedBodyPath(name)
+	result, err := e.fetchStaticSourceWithSnapshot(src, snap, rawPath)
 	if result == nil && err == nil {
-		result, err = e.downloads.Fetch(ctx, downloader.Request{
+		result, err = snap.downloads.Fetch(ctx, downloader.Request{
 			Name:              name,
 			URL:               expandedURL,
 			ReferencePath:     rawPath,
-			UserAgent:         e.runtime.UserAgent,
-			MaxConnectTime:    e.runtime.MaxConnectTime,
-			MaxDownloadTime:   e.runtime.MaxDownloadTime,
+			UserAgent:         snap.runtime.UserAgent,
+			MaxConnectTime:    snap.runtime.MaxConnectTime,
+			MaxDownloadTime:   snap.runtime.MaxDownloadTime,
 			NoIfModifiedSince: src.Attributes["no_if_modified_since"] != "",
 			Downloader:        src.Attributes["downloader"],
 			DownloaderOptions: src.Attributes["downloader_options"],
 			Referer:           "https://iplists.firehol.org/",
 			AcceptEmpty:       true,
-			MaxDownloadSize:   e.runtime.MaxDownloadSize,
-			TmpDir:            e.runtime.TmpDir,
+			MaxDownloadSize:   snap.runtime.MaxDownloadSize,
+			TmpDir:            snap.runtime.TmpDir,
 		})
 	}
 	if err != nil {
@@ -282,10 +105,14 @@ func (e *Engine) fetchAndStagePlainSource(ctx context.Context, src *config.Sourc
 		entry.MarkDownloadFetchFailed(err.Error())
 		return DownloadDecision{Name: name, Status: DownloadStatusDownloadFailed, Message: err.Error()}, err
 	}
-	return e.applyRawFeedDownloadResult(ctx, entry, src, result, rawPath, bodyPath, force, enableAll)
+	return e.applyRawFeedDownloadResultWithSnapshot(ctx, snap, entry, src, result, rawPath, bodyPath, force, enableAll)
 }
 
 func (e *Engine) fetchStaticSource(src *config.Source, rawPath string) (*downloader.Result, error) {
+	return e.fetchStaticSourceWithSnapshot(src, e.operationSnapshot(), rawPath)
+}
+
+func (e *Engine) fetchStaticSourceWithSnapshot(src *config.Source, snap operationSnapshot, rawPath string) (*downloader.Result, error) {
 	if src == nil || len(src.Static) == 0 {
 		return nil, nil
 	}
@@ -307,7 +134,7 @@ func (e *Engine) fetchStaticSource(src *config.Source, rawPath string) (*downloa
 			CheckedAt:    now,
 		}, nil
 	}
-	tmpDir := e.runtime.TmpDir
+	tmpDir := snap.runtime.TmpDir
 	if tmpDir == "" {
 		tmpDir = os.TempDir()
 	} else if err := os.MkdirAll(tmpDir, generatedDirMode); err != nil {
@@ -346,6 +173,10 @@ func (e *Engine) fetchStaticSource(src *config.Source, rawPath string) (*downloa
 }
 
 func (e *Engine) applyRawFeedDownloadResult(ctx context.Context, entry *cache.Entry, src *config.Source, result *downloader.Result, rawPath, bodyPath string, force, enableAll bool) (DownloadDecision, error) {
+	return e.applyRawFeedDownloadResultWithSnapshot(ctx, e.operationSnapshot(), entry, src, result, rawPath, bodyPath, force, enableAll)
+}
+
+func (e *Engine) applyRawFeedDownloadResultWithSnapshot(ctx context.Context, snap operationSnapshot, entry *cache.Entry, src *config.Source, result *downloader.Result, rawPath, bodyPath string, force, enableAll bool) (DownloadDecision, error) {
 	name := entry.Snapshot().Name
 	switch result.Status {
 	case downloader.StatusFailed:
@@ -358,7 +189,7 @@ func (e *Engine) applyRawFeedDownloadResult(ctx context.Context, entry *cache.En
 		modifiedAt := retainedRawObservedTime(rawPath, result.ModifiedTime, e.now().UTC())
 		_, ok := existingLatestFeedBodyPath(bodyPath)
 		if force || !ok {
-			decision, rebuilt, err := e.rebuildCanonicalFeedBodyFromRetainedRaw(ctx, entry, src, rawPath, bodyPath, modifiedAt, force, enableAll)
+			decision, rebuilt, err := e.rebuildCanonicalFeedBodyFromRetainedRawWithSnapshot(ctx, snap, entry, src, rawPath, bodyPath, modifiedAt, force, enableAll)
 			if rebuilt || err != nil {
 				return decision, err
 			}
@@ -376,7 +207,7 @@ func (e *Engine) applyRawFeedDownloadResult(ctx context.Context, entry *cache.En
 		modifiedAt := feedBodyObservedTime(result.ModifiedTime, e.now().UTC())
 		comparePath, ok := existingLatestFeedBodyPath(bodyPath)
 		if force || !ok {
-			decision, rebuilt, err := e.rebuildCanonicalFeedBodyFromRetainedRaw(ctx, entry, src, rawPath, bodyPath, modifiedAt, force, enableAll)
+			decision, rebuilt, err := e.rebuildCanonicalFeedBodyFromRetainedRawWithSnapshot(ctx, snap, entry, src, rawPath, bodyPath, modifiedAt, force, enableAll)
 			if rebuilt || err != nil {
 				return decision, err
 			}
@@ -399,13 +230,13 @@ func (e *Engine) applyRawFeedDownloadResult(ctx context.Context, entry *cache.En
 			entry.MarkDownloadOperationFailed(err.Error())
 			return DownloadDecision{Name: name, Status: DownloadStatusFailed, Message: err.Error()}, err
 		}
-		body, set, err := e.prepareCanonicalFeedBody(ctx, name, src, rawPath)
+		body, set, err := e.prepareCanonicalFeedBodyWithSnapshot(ctx, snap, name, src, rawPath)
 		if err != nil {
 			e.incrementFailure(entry)
 			entry.MarkDownloadPrepareFailed(err.Error())
 			return DownloadDecision{Name: name, Status: DownloadStatusPrepareFailed, Message: err.Error()}, err
 		}
-		snapshotChanged, err := e.appendHistorySnapshot(ctx, name, set, modifiedAt)
+		snapshotChanged, err := e.appendHistorySnapshotWithSnapshot(ctx, snap, name, set, modifiedAt)
 		if err != nil {
 			e.incrementFailure(entry)
 			entry.MarkDownloadHistorySnapshotFailed(err.Error())
@@ -416,7 +247,7 @@ func (e *Engine) applyRawFeedDownloadResult(ctx context.Context, entry *cache.En
 			return decision, err
 		}
 		if snapshotChanged {
-			e.extendWithHistoryDerivativeDecisions(ctx, &decision, name, enableAll)
+			e.extendWithHistoryDerivativeDecisionsWithSnapshot(ctx, snap, &decision, name, enableAll)
 		}
 		return decision, nil
 	default:
@@ -427,17 +258,21 @@ func (e *Engine) applyRawFeedDownloadResult(ctx context.Context, entry *cache.En
 }
 
 func (e *Engine) rebuildCanonicalFeedBodyFromRetainedRaw(ctx context.Context, entry *cache.Entry, src *config.Source, rawPath, bodyPath string, modifiedAt time.Time, force, enableAll bool) (DownloadDecision, bool, error) {
+	return e.rebuildCanonicalFeedBodyFromRetainedRawWithSnapshot(ctx, e.operationSnapshot(), entry, src, rawPath, bodyPath, modifiedAt, force, enableAll)
+}
+
+func (e *Engine) rebuildCanonicalFeedBodyFromRetainedRawWithSnapshot(ctx context.Context, snap operationSnapshot, entry *cache.Entry, src *config.Source, rawPath, bodyPath string, modifiedAt time.Time, force, enableAll bool) (DownloadDecision, bool, error) {
 	name := entry.Snapshot().Name
 	if rawPath == "" || !fileExists(rawPath) {
 		return DownloadDecision{}, false, nil
 	}
-	body, set, err := e.prepareCanonicalFeedBody(ctx, name, src, rawPath)
+	body, set, err := e.prepareCanonicalFeedBodyWithSnapshot(ctx, snap, name, src, rawPath)
 	if err != nil {
 		e.incrementFailure(entry)
 		entry.MarkDownloadPrepareFailed(err.Error())
 		return DownloadDecision{Name: name, Status: DownloadStatusPrepareFailed, Message: err.Error()}, true, err
 	}
-	snapshotChanged, err := e.appendHistorySnapshot(ctx, name, set, modifiedAt)
+	snapshotChanged, err := e.appendHistorySnapshotWithSnapshot(ctx, snap, name, set, modifiedAt)
 	if err != nil {
 		e.incrementFailure(entry)
 		entry.MarkDownloadHistorySnapshotFailed(err.Error())
@@ -448,29 +283,33 @@ func (e *Engine) rebuildCanonicalFeedBodyFromRetainedRaw(ctx context.Context, en
 		return decision, true, err
 	}
 	if snapshotChanged {
-		e.extendWithHistoryDerivativeDecisions(ctx, &decision, name, enableAll)
+		e.extendWithHistoryDerivativeDecisionsWithSnapshot(ctx, snap, &decision, name, enableAll)
 	}
 	return decision, true, nil
 }
 
 func (e *Engine) fetchAndStageProvider(ctx context.Context, src *config.Source, force, enableAll, resolveASNURL bool) (DownloadDecision, error) {
+	return e.fetchAndStageProviderWithSnapshot(ctx, e.operationSnapshot(), src, force, enableAll, resolveASNURL)
+}
+
+func (e *Engine) fetchAndStageProviderWithSnapshot(ctx context.Context, snap operationSnapshot, src *config.Source, force, enableAll, resolveASNURL bool) (DownloadDecision, error) {
 	name := src.Name
 	entry := e.state.Entry(name)
 	e.seedEntryFromSourceConfig(entry, name, src)
 	checkedAt := e.now().UTC().Unix()
-	if !EffectiveSourceEnabledForRun(e.cfg, e.runtime, name, enableAll, force) {
+	if !EffectiveSourceEnabledForRun(snap.cfg, snap.runtime, name, enableAll, force) {
 		entry.MarkDownloadDisabled(checkedAt)
 		return DownloadDecision{Name: name, Status: DownloadStatusDisabled, Message: "feed is disabled"}, nil
 	}
 	entry.MarkDownloadStarted(checkedAt)
 
-	expandedURL := e.expandURL(src.URL)
+	expandedURL := e.expandURLWithRuntime(snap.runtime, src.URL)
 	if expandedURL == "" && src.URL != "" {
 		message := entry.MarkDownloadMissingEnv(src.URL)
 		return DownloadDecision{Name: name, Status: DownloadStatusMissingEnv, Message: message}, nil
 	}
 	if resolveASNURL {
-		resolved, err := e.resolveASNDownloadURL(ctx, src.Format, expandedURL)
+		resolved, err := e.resolveASNDownloadURLWithRuntime(ctx, snap.runtime, src.Format, expandedURL)
 		if err != nil {
 			e.incrementFailure(entry)
 			entry.MarkDownloadURLResolveFailed(err.Error())
@@ -480,40 +319,44 @@ func (e *Engine) fetchAndStageProvider(ctx context.Context, src *config.Source, 
 		entry.RecordResolvedDownloadURL(resolved)
 	}
 
-	archivePath := e.providerArchivePath(name, src)
-	result, err := e.downloads.Fetch(ctx, downloader.Request{
+	archivePath := providerArchivePathForRuntime(snap.runtime, name, src)
+	result, err := snap.downloads.Fetch(ctx, downloader.Request{
 		Name:              name,
 		URL:               expandedURL,
 		ReferencePath:     archivePath,
-		UserAgent:         e.runtime.UserAgent,
-		MaxConnectTime:    e.runtime.MaxConnectTime,
-		MaxDownloadTime:   e.runtime.MaxDownloadTime,
+		UserAgent:         snap.runtime.UserAgent,
+		MaxConnectTime:    snap.runtime.MaxConnectTime,
+		MaxDownloadTime:   snap.runtime.MaxDownloadTime,
 		Downloader:        src.Downloader,
 		DownloaderOptions: src.DownloaderOptions,
 		Referer:           "https://iplists.firehol.org/",
-		MaxDownloadSize:   e.runtime.MaxDownloadSize,
-		TmpDir:            e.runtime.TmpDir,
+		MaxDownloadSize:   snap.runtime.MaxDownloadSize,
+		TmpDir:            snap.runtime.TmpDir,
 	})
 	if err != nil {
 		e.incrementFailure(entry)
 		entry.MarkDownloadFetchFailed(err.Error())
 		return DownloadDecision{Name: name, Status: DownloadStatusDownloadFailed, Message: err.Error()}, err
 	}
-	return e.applyStagedDownloadResult(entry, archivePath, result, force, enableAll)
+	return e.applyStagedDownloadResultWithSnapshot(entry, snap, archivePath, result, force, enableAll)
 }
 
 func (e *Engine) fetchAndStageArtifactChild(ctx context.Context, src *config.Source, force, enableAll bool) (DownloadDecision, error) {
+	return e.fetchAndStageArtifactChildWithSnapshot(ctx, e.operationSnapshot(), src, force, enableAll)
+}
+
+func (e *Engine) fetchAndStageArtifactChildWithSnapshot(ctx context.Context, snap operationSnapshot, src *config.Source, force, enableAll bool) (DownloadDecision, error) {
 	name := src.Name
 	entry := e.state.Entry(name)
 	e.seedEntryFromSourceConfig(entry, name, src)
 	checkedAt := e.now().UTC().Unix()
-	if !EffectiveSourceEnabledForRun(e.cfg, e.runtime, name, enableAll, force) {
+	if !EffectiveSourceEnabledForRun(snap.cfg, snap.runtime, name, enableAll, force) {
 		entry.MarkDownloadDisabled(checkedAt)
 		return DownloadDecision{Name: name, Status: DownloadStatusDisabled, Message: "feed is disabled"}, nil
 	}
 	entry.MarkDownloadStarted(checkedAt)
 
-	sourcePath := e.sourcePath(name)
+	sourcePath := snap.sourcePath(name)
 	localInputPath := preferStagedPath(sourcePath)
 	info, err := os.Stat(localInputPath)
 	if err != nil {
@@ -523,7 +366,7 @@ func (e *Engine) fetchAndStageArtifactChild(ctx context.Context, src *config.Sou
 		return DownloadDecision{Name: name, Status: DownloadStatusDownloadFailed, Message: message}, err
 	}
 
-	body, set, err := e.prepareCanonicalFeedBody(ctx, name, src, localInputPath)
+	body, set, err := e.prepareCanonicalFeedBodyWithSnapshot(ctx, snap, name, src, localInputPath)
 	if err != nil {
 		e.incrementFailure(entry)
 		entry.MarkDownloadPrepareFailed(err.Error())
@@ -531,68 +374,76 @@ func (e *Engine) fetchAndStageArtifactChild(ctx context.Context, src *config.Sou
 	}
 
 	clearFailure(entry)
-	decision, err := e.applyPreparedFeedBodyResult(entry, e.feedBodyPath(name), body, info.ModTime().UTC(), force)
+	decision, err := e.applyPreparedFeedBodyResult(entry, snap.feedBodyPath(name), body, info.ModTime().UTC(), force)
 	if err != nil {
 		return decision, err
 	}
-	snapshotChanged, err := e.appendHistorySnapshot(ctx, name, set, info.ModTime().UTC())
+	snapshotChanged, err := e.appendHistorySnapshotWithSnapshot(ctx, snap, name, set, info.ModTime().UTC())
 	if err != nil {
 		e.incrementFailure(entry)
 		entry.MarkDownloadHistorySnapshotFailed(err.Error())
 		return DownloadDecision{Name: name, Status: DownloadStatusHistorySnapshotFailed, Message: err.Error()}, err
 	}
 	if snapshotChanged {
-		e.extendWithHistoryDerivativeDecisions(ctx, &decision, name, enableAll)
+		e.extendWithHistoryDerivativeDecisionsWithSnapshot(ctx, snap, &decision, name, enableAll)
 	}
 	return decision, nil
 }
 
 func (e *Engine) fetchAndStageHistoryDerivative(ctx context.Context, src *config.Source, force, enableAll bool) (DownloadDecision, error) {
+	return e.fetchAndStageHistoryDerivativeWithSnapshot(ctx, e.operationSnapshot(), src, force, enableAll)
+}
+
+func (e *Engine) fetchAndStageHistoryDerivativeWithSnapshot(ctx context.Context, snap operationSnapshot, src *config.Source, force, enableAll bool) (DownloadDecision, error) {
 	name := src.Name
 	entry := e.state.Entry(name)
 	e.seedEntryFromSourceConfig(entry, name, src)
 	checkedAt := e.now().UTC().Unix()
-	if !EffectiveSourceEnabledForRun(e.cfg, e.runtime, name, enableAll, force) {
+	if !EffectiveSourceEnabledForRun(snap.cfg, snap.runtime, name, enableAll, force) {
 		entry.MarkDownloadDisabled(checkedAt)
 		return DownloadDecision{Name: name, Status: DownloadStatusDisabled, Message: "feed is disabled"}, nil
 	}
 	entry.MarkDownloadStarted(checkedAt)
 
-	body, set, err := e.composeHistoryDerivativeBody(ctx, src)
+	body, set, err := e.composeHistoryDerivativeBodyWithSnapshot(ctx, snap, src)
 	if err != nil {
 		e.incrementFailure(entry)
 		entry.MarkDownloadFetchFailed(err.Error())
 		return DownloadDecision{Name: name, Status: DownloadStatusDownloadFailed, Message: err.Error()}, err
 	}
 	clearFailure(entry)
-	decision, err := e.applyPreparedFeedBodyResult(entry, e.feedBodyPath(name), body, e.now().UTC(), force)
+	decision, err := e.applyPreparedFeedBodyResult(entry, snap.feedBodyPath(name), body, e.now().UTC(), force)
 	if err != nil {
 		return decision, err
 	}
-	snapshotChanged, err := e.appendHistorySnapshot(ctx, name, set, e.now().UTC())
+	snapshotChanged, err := e.appendHistorySnapshotWithSnapshot(ctx, snap, name, set, e.now().UTC())
 	if err != nil {
 		e.incrementFailure(entry)
 		entry.MarkDownloadHistorySnapshotFailed(err.Error())
 		return DownloadDecision{Name: name, Status: DownloadStatusHistorySnapshotFailed, Message: err.Error()}, err
 	}
 	if snapshotChanged {
-		e.extendWithHistoryDerivativeDecisions(ctx, &decision, name, enableAll)
+		e.extendWithHistoryDerivativeDecisionsWithSnapshot(ctx, snap, &decision, name, enableAll)
 	}
 	return decision, nil
 }
 
 func (e *Engine) fetchAndStageMerge(ctx context.Context, src *config.Source, force, enableAll bool) (DownloadDecision, error) {
+	return e.fetchAndStageMergeWithSnapshot(ctx, e.operationSnapshot(), src, force, enableAll)
+}
+
+func (e *Engine) fetchAndStageMergeWithSnapshot(ctx context.Context, snap operationSnapshot, src *config.Source, force, enableAll bool) (DownloadDecision, error) {
 	name := src.Name
 	entry := e.state.Entry(name)
 	e.seedEntryFromSourceConfig(entry, name, src)
 	checkedAt := e.now().UTC().Unix()
-	if !EffectiveSourceEnabledForRun(e.cfg, e.runtime, name, enableAll, force) {
+	if !EffectiveSourceEnabledForRun(snap.cfg, snap.runtime, name, enableAll, force) {
 		entry.MarkDownloadDisabled(checkedAt)
 		return DownloadDecision{Name: name, Status: DownloadStatusDisabled, Message: "feed is disabled"}, nil
 	}
 	entry.MarkDownloadStarted(checkedAt)
 
-	body, set, disabledMsg, err := e.composeMergeBody(ctx, src, enableAll)
+	body, set, disabledMsg, err := e.composeMergeBodyWithSnapshot(ctx, snap, src, enableAll)
 	if disabledMsg != "" {
 		clearFailure(entry)
 		entry.MarkDownloadDisabled(checkedAt)
@@ -604,23 +455,27 @@ func (e *Engine) fetchAndStageMerge(ctx context.Context, src *config.Source, for
 		return DownloadDecision{Name: name, Status: DownloadStatusDownloadFailed, Message: err.Error()}, err
 	}
 	clearFailure(entry)
-	decision, err := e.applyPreparedFeedBodyResult(entry, e.feedBodyPath(name), body, e.now().UTC(), force)
+	decision, err := e.applyPreparedFeedBodyResult(entry, snap.feedBodyPath(name), body, e.now().UTC(), force)
 	if err != nil {
 		return decision, err
 	}
-	snapshotChanged, err := e.appendHistorySnapshot(ctx, name, set, e.now().UTC())
+	snapshotChanged, err := e.appendHistorySnapshotWithSnapshot(ctx, snap, name, set, e.now().UTC())
 	if err != nil {
 		e.incrementFailure(entry)
 		entry.MarkDownloadHistorySnapshotFailed(err.Error())
 		return DownloadDecision{Name: name, Status: DownloadStatusHistorySnapshotFailed, Message: err.Error()}, err
 	}
 	if snapshotChanged {
-		e.extendWithHistoryDerivativeDecisions(ctx, &decision, name, enableAll)
+		e.extendWithHistoryDerivativeDecisionsWithSnapshot(ctx, snap, &decision, name, enableAll)
 	}
 	return decision, nil
 }
 
 func (e *Engine) applyStagedDownloadResult(entry *cache.Entry, finalPath string, result *downloader.Result, force, enableAll bool) (DownloadDecision, error) {
+	return e.applyStagedDownloadResultWithSnapshot(entry, e.operationSnapshot(), finalPath, result, force, enableAll)
+}
+
+func (e *Engine) applyStagedDownloadResultWithSnapshot(entry *cache.Entry, snap operationSnapshot, finalPath string, result *downloader.Result, force, enableAll bool) (DownloadDecision, error) {
 	name := entry.Snapshot().Name
 	if result == nil {
 		return DownloadDecision{Name: name, Status: DownloadStatusFailed, Message: "empty downloader result"}, fmt.Errorf("empty downloader result for %s", name)
@@ -642,7 +497,7 @@ func (e *Engine) applyStagedDownloadResult(entry *cache.Entry, finalPath string,
 			Message:         result.Message,
 			HTTPCode:        result.HTTPCode,
 			BodySize:        result.BodySize,
-			ProcessingNames: e.downloadProcessingNames(name, enableAll, force, false),
+			ProcessingNames: e.downloadProcessingNamesWithSnapshot(name, snap, enableAll, force, false),
 		}, nil
 	case downloader.StatusSame:
 		result.CleanUp()
@@ -658,7 +513,7 @@ func (e *Engine) applyStagedDownloadResult(entry *cache.Entry, finalPath string,
 			Message:         "downloaded file is the same as the previous source",
 			HTTPCode:        result.HTTPCode,
 			BodySize:        result.BodySize,
-			ProcessingNames: e.downloadProcessingNames(name, enableAll, force, false),
+			ProcessingNames: e.downloadProcessingNamesWithSnapshot(name, snap, enableAll, force, false),
 		}, nil
 	case downloader.StatusOK:
 		clearFailure(entry)
@@ -678,7 +533,7 @@ func (e *Engine) applyStagedDownloadResult(entry *cache.Entry, finalPath string,
 			Message:         result.Message,
 			HTTPCode:        result.HTTPCode,
 			BodySize:        result.BodySize,
-			ProcessingNames: e.downloadProcessingNames(name, enableAll, force, true),
+			ProcessingNames: e.downloadProcessingNamesWithSnapshot(name, snap, enableAll, force, true),
 			PromoteNames:    []string{name},
 		}, nil
 	default:
@@ -757,14 +612,22 @@ func (e *Engine) applyExistingFeedBodySameResult(entry *cache.Entry, finalPath s
 }
 
 func (e *Engine) downloadProcessingNames(name string, enableAll, force, admitted bool) []string {
+	return e.downloadProcessingNamesWithSnapshot(name, e.operationSnapshot(), enableAll, force, admitted)
+}
+
+func (e *Engine) downloadProcessingNamesWithSnapshot(name string, snap operationSnapshot, enableAll, force, admitted bool) []string {
 	if e == nil {
 		return nil
 	}
-	if e.IsProviderDatabase(name) {
+	src := (*config.Source)(nil)
+	if snap.cfg != nil {
+		src = snap.cfg.Sources[name]
+	}
+	if src != nil && (src.HasUse(config.UseASN) || src.HasUse(config.UseGeoIP)) {
 		if !admitted && !force {
 			return nil
 		}
-		return e.FullFeedReprocessTargets(enableAll)
+		return e.fullFeedReprocessTargetsWithSnapshot(snap, enableAll)
 	}
 	if admitted {
 		return []string{name}
@@ -773,22 +636,26 @@ func (e *Engine) downloadProcessingNames(name string, enableAll, force, admitted
 }
 
 func (e *Engine) FullFeedReprocessTargets(enableAll bool) []string {
-	if e == nil || e.cfg == nil {
+	return e.fullFeedReprocessTargetsWithSnapshot(e.operationSnapshot(), enableAll)
+}
+
+func (e *Engine) fullFeedReprocessTargetsWithSnapshot(snap operationSnapshot, enableAll bool) []string {
+	if e == nil || snap.cfg == nil {
 		return nil
 	}
-	targets := make([]string, 0, len(e.cfg.Sources))
-	for _, name := range config.SortedSourceNames(e.cfg) {
-		src := e.cfg.Sources[name]
+	targets := make([]string, 0, len(snap.cfg.Sources))
+	for _, name := range config.SortedSourceNames(snap.cfg) {
+		src := snap.cfg.Sources[name]
 		if src == nil {
 			continue
 		}
 		if src.HasUse(config.UseASN) || src.HasUse(config.UseGeoIP) {
 			continue
 		}
-		if !EffectiveSourceEnabled(e.cfg, e.runtime, name, enableAll) {
+		if !EffectiveSourceEnabled(snap.cfg, snap.runtime, name, enableAll) {
 			continue
 		}
-		if !fileExists(latestFeedBodyPath(e.feedBodyPath(name))) {
+		if !fileExists(latestFeedBodyPath(snap.feedBodyPath(name))) {
 			continue
 		}
 		targets = append(targets, name)
@@ -797,23 +664,27 @@ func (e *Engine) FullFeedReprocessTargets(enableAll bool) []string {
 }
 
 func (e *Engine) extendWithHistoryDerivativeDecisions(ctx context.Context, decision *DownloadDecision, parent string, enableAll bool) {
-	if e == nil || e.cfg == nil || decision == nil {
+	e.extendWithHistoryDerivativeDecisionsWithSnapshot(ctx, e.operationSnapshot(), decision, parent, enableAll)
+}
+
+func (e *Engine) extendWithHistoryDerivativeDecisionsWithSnapshot(ctx context.Context, snap operationSnapshot, decision *DownloadDecision, parent string, enableAll bool) {
+	if e == nil || snap.cfg == nil || decision == nil {
 		return
 	}
-	dependents := e.cfg.Dependents()[parent]
+	dependents := snap.cfg.Dependents()[parent]
 	for _, dep := range dependents {
 		if err := contextErr(ctx); err != nil {
 			e.logger.Error("history derivative recomposition cancelled", "parent", parent, "derivative", dep, "error", err)
 			return
 		}
-		if !e.IsHistoryDerivative(dep) {
+		if !snap.isHistoryDerivative(dep) {
 			continue
 		}
-		src := e.cfg.Sources[dep]
+		src := snap.cfg.Sources[dep]
 		if src == nil {
 			continue
 		}
-		depDecision, err := e.fetchAndStageHistoryDerivative(ctx, src, false, enableAll)
+		depDecision, err := e.fetchAndStageHistoryDerivativeWithSnapshot(ctx, snap, src, false, enableAll)
 		if err != nil {
 			e.logger.Error("history derivative recomposition failed", "parent", parent, "derivative", dep, "error", err)
 			continue

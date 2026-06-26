@@ -43,14 +43,15 @@ func (e *Engine) refreshEntityArtifactsForFeedUpdatesAdmitted(ctx context.Contex
 	if len(feedNames) == 0 {
 		return nil
 	}
-	if e.preferredGeoProvider() == "" && e.preferredASNProvider() == "" {
+	snap := e.operationSnapshot()
+	if preferredGeoProviderForConfig(snap.cfg) == "" && preferredASNProviderForConfig(snap.cfg) == "" {
 		return nil
 	}
 	if trigger == "" {
 		trigger = "feed_update"
 	}
-	if e.entityArtifactsNeedBootstrapFast() {
-		return e.rebuildEntityArtifactsWithTriggerAdmitted(ctx, trigger)
+	if e.entityArtifactsNeedBootstrapFastWithSnapshot(snap) {
+		return e.rebuildEntityArtifactsWithTriggerAdmittedWithSnapshot(ctx, snap, trigger)
 	}
 	return e.withEngineLaneBackgroundTask(
 		ctx,
@@ -63,7 +64,7 @@ func (e *Engine) refreshEntityArtifactsForFeedUpdatesAdmitted(ctx context.Contex
 		0,
 		len(feedNames),
 		func(task *BackgroundTaskHandle) error {
-			return e.refreshEntityArtifactsForFeedUpdates(ctx, feedNames, task)
+			return e.refreshEntityArtifactsForFeedUpdatesWithSnapshot(ctx, snap, feedNames, task)
 		},
 	)
 }

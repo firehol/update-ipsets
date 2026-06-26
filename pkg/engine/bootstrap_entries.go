@@ -33,35 +33,36 @@ func currentSetStatsBeforeOpenHookForTest() func(name string) {
 }
 
 func (e *Engine) bootstrapMissingEntriesFromDisk() error {
-	if e == nil || e.cfg == nil || e.state == nil {
+	snap := e.operationSnapshot()
+	if e == nil || snap.cfg == nil || e.state == nil {
 		return nil
 	}
 
 	bootstrapped := 0
-	for _, name := range config.SortedArtifactNames(e.cfg) {
+	for _, name := range config.SortedArtifactNames(snap.cfg) {
 		if e.state.EntrySnapshot(name) != nil {
 			continue
 		}
-		artifact := e.cfg.ArtifactByName(name)
+		artifact := snap.cfg.ArtifactByName(name)
 		if artifact == nil {
 			continue
 		}
-		entry, ok := e.bootstrapArtifactEntryFromDisk(name, artifact)
+		entry, ok := e.bootstrapArtifactEntryFromDiskWithRuntime(snap.runtime, name, artifact)
 		if !ok {
 			continue
 		}
 		e.state.ReplaceEntry(name, *entry)
 		bootstrapped++
 	}
-	for _, name := range config.SortedSourceNames(e.cfg) {
+	for _, name := range config.SortedSourceNames(snap.cfg) {
 		if e.state.EntrySnapshot(name) != nil {
 			continue
 		}
-		src := e.cfg.Sources[name]
+		src := snap.cfg.Sources[name]
 		if src == nil {
 			continue
 		}
-		entry, ok := e.bootstrapEntryFromDisk(name, src)
+		entry, ok := e.bootstrapEntryFromDiskWithSnapshot(snap, name, src)
 		if !ok {
 			continue
 		}
@@ -120,14 +121,18 @@ func (e *Engine) reconcileEntriesFromSourceConfigForSnapshot(cfg *config.Config,
 }
 
 func (e *Engine) bootstrapArtifactEntryFromDisk(name string, artifact *config.Artifact) (*cache.Entry, bool) {
+	return e.bootstrapArtifactEntryFromDiskWithRuntime(e.Runtime(), name, artifact)
+}
+
+func (e *Engine) bootstrapArtifactEntryFromDiskWithRuntime(rt Runtime, name string, artifact *config.Artifact) (*cache.Entry, bool) {
 	if e == nil || artifact == nil {
 		return nil, false
 	}
 
 	entry := &cache.Entry{Name: name}
-	e.seedEntryFromArtifactConfig(entry, name, artifact)
+	seedEntryFromArtifactConfigForRuntime(rt, entry, name, artifact)
 
-	sourcePath := e.artifactSourcePath(name)
+	sourcePath := artifactSourcePathForRuntime(rt, name)
 	info, err := os.Stat(sourcePath)
 	if err != nil {
 		return nil, false
@@ -138,24 +143,32 @@ func (e *Engine) bootstrapArtifactEntryFromDisk(name string, artifact *config.Ar
 }
 
 func (e *Engine) bootstrapEntryFromDisk(name string, src *config.Source) (*cache.Entry, bool) {
+	return e.bootstrapEntryFromDiskWithSnapshot(e.operationSnapshot(), name, src)
+}
+
+func (e *Engine) bootstrapEntryFromDiskWithRuntime(rt Runtime, name string, src *config.Source) (*cache.Entry, bool) {
+	return e.bootstrapEntryFromDiskWithSnapshot(operationSnapshot{runtime: rt}, name, src)
+}
+
+func (e *Engine) bootstrapEntryFromDiskWithSnapshot(snap operationSnapshot, name string, src *config.Source) (*cache.Entry, bool) {
 	if e == nil || src == nil {
 		return nil, false
 	}
 
 	entry := &cache.Entry{Name: name}
-	e.seedEntryFromSourceConfig(entry, name, src)
+	seedEntryFromSourceConfigForRuntime(snap.runtime, entry, name, src)
 
-	points := e.bootstrapHistoryPoints(name)
+	points := e.bootstrapHistoryPointsWithRuntime(snap.runtime, name)
 	if len(points) > 0 {
 		applyHistoryPointsToEntry(entry, points, src.Frequency)
 		last := points[len(points)-1]
 		entry.ApplyHistoryBootstrapTimestamp(last.Timestamp)
 	}
 
-	if stats, ok := e.currentSetStats(name, src); ok {
+	if stats, ok := e.currentSetStatsForRuntime(snap.runtime, name, src); ok {
 		entry.ApplyDiskSetStats(cacheDiskSetStats(stats))
 	}
-	e.refreshRotationStatsFromLedger(name, entry)
+	e.refreshRotationStatsFromLedgerWithSnapshot(snap, name, entry)
 
 	if !entry.FinalizeDiskBootstrap(src.Frequency) {
 		return nil, false
@@ -224,7 +237,11 @@ func seedEntryFromSourceConfigForRuntime(rt Runtime, entry *cache.Entry, name st
 }
 
 func (e *Engine) bootstrapHistoryPoints(name string) []HistoryPoint {
-	return e.historyFromLedgerCSV(name)
+	return e.bootstrapHistoryPointsWithRuntime(e.Runtime(), name)
+}
+
+func (e *Engine) bootstrapHistoryPointsWithRuntime(rt Runtime, name string) []HistoryPoint {
+	return e.historyFromLedgerCSVContextWithRuntime(context.Background(), rt, name)
 }
 
 type setStats struct {

@@ -416,7 +416,8 @@ func handleAdminArtifactsRouter(eng *engine.Engine, runner *scheduler.Runner) ht
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid artifact name"})
 			return
 		}
-		if eng.Config().ArtifactByName(name) == nil {
+		cfg, _ := eng.ConfigRuntimeSnapshot()
+		if cfg == nil || cfg.ArtifactByName(name) == nil {
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "unknown artifact"})
 			return
 		}
@@ -488,9 +489,10 @@ func handleAdminSchedule(eng *engine.Engine, runner *scheduler.Runner) http.Hand
 	return func(w http.ResponseWriter, _ *http.Request) {
 		apiNoCache(w)
 		snap := runner.Snapshot()
+		cfg, _, _ := eng.ConfigRuntimePolicySnapshot()
 
 		// Index cache entries for detected update frequency and errors.
-		cacheEntries := eng.EntriesSnapshot()
+		cacheEntries := eng.EntriesSnapshotForConfig(cfg)
 		cacheIdx := make(map[string]*cache.Entry, len(cacheEntries))
 		for i := range cacheEntries {
 			cacheIdx[cacheEntries[i].Name] = &cacheEntries[i]
@@ -532,18 +534,22 @@ func handleAdminSchedule(eng *engine.Engine, runner *scheduler.Runner) http.Hand
 // adjustment in the UI filter chip predicates or lose the invariant.
 func buildAdminStatus(eng *engine.Engine, runner *scheduler.Runner) adminStatus {
 	sys := detailedStatus()
-	cfg := eng.Config()
+	cfg, rt, policy := eng.ConfigRuntimePolicySnapshot()
 	engineStatus := eng.StatusSnapshot()
 	activity := runner.ActivitySnapshot()
 	snapshot := runner.Snapshot()
-	entriesWithArtifacts := eng.EntriesSnapshotWithArtifacts()
-	feeds := buildAdminFeedsWithStatusEntries(eng, runner, activity, snapshot, entriesWithArtifacts)
-	artifacts := buildAdminArtifactsWithQueuesEntries(eng, runner, activity, entriesWithArtifacts)
+	entriesWithArtifacts := eng.EntriesSnapshotWithArtifactsForConfig(cfg)
+	feeds := buildAdminFeedsWithStatusEntries(eng, runner, activity, snapshot, cfg, rt, policy, entriesWithArtifacts)
+	artifacts := buildAdminArtifactsWithQueuesEntries(eng, runner, activity, cfg, rt, policy, entriesWithArtifacts)
 
-	summary := summarizeAdminFeeds(len(cfg.Sources), feeds)
+	totalConfigured := 0
+	if cfg != nil {
+		totalConfigured = len(cfg.Sources)
+	}
+	summary := summarizeAdminFeeds(totalConfigured, feeds)
 
 	return adminStatus{
-		PublicBaseURL: strings.TrimSpace(eng.Runtime().PublicBaseURL),
+		PublicBaseURL: strings.TrimSpace(rt.PublicBaseURL),
 		System:        adminSystemFromDetailed(sys),
 		Engine:        engineStatus,
 		Scheduler:     sanitizeSchedulerSnapshot(snapshot),
@@ -616,11 +622,11 @@ func buildAdminArtifacts(eng *engine.Engine, runner *scheduler.Runner) []adminAr
 }
 
 func buildAdminArtifactsWithQueues(eng *engine.Engine, runner *scheduler.Runner, queues scheduler.ActivitySnapshot) []adminArtifact {
-	return buildAdminArtifactsWithQueuesEntries(eng, runner, queues, eng.EntriesSnapshotWithArtifacts())
+	cfg, rt, policy := eng.ConfigRuntimePolicySnapshot()
+	return buildAdminArtifactsWithQueuesEntries(eng, runner, queues, cfg, rt, policy, eng.EntriesSnapshotWithArtifactsForConfig(cfg))
 }
 
-func buildAdminArtifactsWithQueuesEntries(eng *engine.Engine, runner *scheduler.Runner, queues scheduler.ActivitySnapshot, entries []cache.Entry) []adminArtifact {
-	cfg := eng.Config()
+func buildAdminArtifactsWithQueuesEntries(eng *engine.Engine, runner *scheduler.Runner, queues scheduler.ActivitySnapshot, cfg *config.Config, rt engine.Runtime, policy feedhealth.Policy, entries []cache.Entry) []adminArtifact {
 	if cfg == nil || len(cfg.Artifacts) == 0 {
 		return nil
 	}
@@ -629,7 +635,7 @@ func buildAdminArtifactsWithQueuesEntries(eng *engine.Engine, runner *scheduler.
 		entryIndex[entries[i].Name] = &entries[i]
 	}
 	itemIndex := make(map[string]scheduler.Item)
-	for _, item := range scheduler.BuildArtifactItems(cfg, eng.Runtime(), entries, runner.EnableAll(), time.Now().UTC()) {
+	for _, item := range scheduler.BuildArtifactItemsWithPolicy(cfg, rt, policy, entries, runner.EnableAll(), time.Now().UTC()) {
 		itemIndex[item.Name] = item
 	}
 	downloadWaiting := make(map[string]bool, len(queues.DownloadWaiting))
@@ -680,16 +686,18 @@ func buildAdminArtifactsWithQueuesEntries(eng *engine.Engine, runner *scheduler.
 }
 
 func buildAdminFeedsWithStatus(eng *engine.Engine, runner *scheduler.Runner, activity scheduler.ActivitySnapshot, snap scheduler.Snapshot) []adminFeed {
-	return buildAdminFeedsWithStatusEntries(eng, runner, activity, snap, eng.EntriesSnapshot())
+	cfg, rt, policy := eng.ConfigRuntimePolicySnapshot()
+	return buildAdminFeedsWithStatusEntries(eng, runner, activity, snap, cfg, rt, policy, eng.EntriesSnapshotForConfig(cfg))
 }
 
-func buildAdminFeedsWithStatusEntries(eng *engine.Engine, runner *scheduler.Runner, activity scheduler.ActivitySnapshot, snap scheduler.Snapshot, entries []cache.Entry) []adminFeed {
-	cfg := eng.Config()
-	policy := feedhealth.PolicyFromRuntime(cfg.Runtime)
+func buildAdminFeedsWithStatusEntries(eng *engine.Engine, runner *scheduler.Runner, activity scheduler.ActivitySnapshot, snap scheduler.Snapshot, cfg *config.Config, rt engine.Runtime, policy feedhealth.Policy, entries []cache.Entry) []adminFeed {
+	if cfg == nil {
+		return nil
+	}
 	now := time.Now().UTC()
 	liveStates := liveFeedStates(activity)
 	enableAll := runnerEnableAll(runner)
-	mergeCompositions := eng.MergeCompositions(enableAll)
+	mergeCompositions := eng.MergeCompositionsForConfigRuntimePolicy(cfg, rt, policy, enableAll)
 
 	// Index cache entries and schedule items by name for O(1) lookup.
 	entryIndex := make(map[string]*cache.Entry, len(entries))
@@ -710,7 +718,7 @@ func buildAdminFeedsWithStatusEntries(eng *engine.Engine, runner *scheduler.Runn
 	// without special casing.
 	for _, name := range config.SortedSourceNames(cfg) {
 		src := cfg.Sources[name]
-		feeds = append(feeds, buildSourceFeed(eng, name, src, entryIndex, schedIndex, liveStates, policy, now, enableAll, mergeCompositions))
+		feeds = append(feeds, buildSourceFeed(name, src, cfg, entryIndex, schedIndex, liveStates, policy, now, mergeCompositions))
 	}
 
 	return feeds
@@ -751,7 +759,7 @@ func adminKindForSource(src *config.Source) string {
 	return "source"
 }
 
-func buildSourceFeed(eng *engine.Engine, name string, src *config.Source, entryIdx map[string]*cache.Entry, schedIdx map[string]*scheduler.Item, liveStates map[string]adminLiveState, policy feedhealth.Policy, now time.Time, enableAll bool, mergeCompositions map[string]engine.MergeComposition) adminFeed {
+func buildSourceFeed(name string, src *config.Source, cfg *config.Config, entryIdx map[string]*cache.Entry, schedIdx map[string]*scheduler.Item, liveStates map[string]adminLiveState, policy feedhealth.Policy, now time.Time, mergeCompositions map[string]engine.MergeComposition) adminFeed {
 	f := adminFeed{
 		Name:             name,
 		Kind:             adminKindForSource(src),
@@ -770,13 +778,13 @@ func buildSourceFeed(eng *engine.Engine, name string, src *config.Source, entryI
 		Info:             src.Info,
 		License:          src.License,
 		Attribution:      src.Attribution,
-		Redistributable:  sourceRedistributable(eng, name, src),
+		Redistributable:  sourceRedistributableForConfig(cfg, name, src),
 		DerivedFrom:      append([]string(nil), src.DerivedFrom...),
 	}
-	if eng != nil && src.Provenance == config.ProvenanceSecondaryMerge {
+	if src.Provenance == config.ProvenanceSecondaryMerge {
 		composition, ok := mergeCompositions[name]
 		if !ok {
-			composition = eng.MergeComposition(src, enableAll)
+			composition = engine.MergeComposition{}
 		}
 		f.MergeIncluded = append([]engine.MergeInputState(nil), composition.Included...)
 		f.MergeSubtracted = append([]engine.MergeInputState(nil), composition.Subtracted...)
@@ -945,14 +953,17 @@ func deriveArtifactStatus(a *adminArtifact, queued, active bool) string {
 
 // buildAdminFeedDetail constructs the detailed view for a single feed.
 func buildAdminFeedDetail(eng *engine.Engine, runner *scheduler.Runner, name string) (*adminFeedDetail, error) {
-	cfg := eng.Config()
-	policy := feedhealth.PolicyFromRuntime(cfg.Runtime)
-	entries := eng.EntriesSnapshot()
+	cfg, rt, policy := eng.ConfigRuntimePolicySnapshot()
+	if cfg == nil {
+		return nil, &feedNotFoundError{name: name}
+	}
+	entries := eng.EntriesSnapshotForConfig(cfg)
 	snap := runner.Snapshot()
 	activity := runner.ActivitySnapshot()
 	now := time.Now().UTC()
 	liveStates := liveFeedStates(activity)
 	enableAll := runnerEnableAll(runner)
+	mergeCompositions := eng.MergeCompositionsForConfigRuntimePolicy(cfg, rt, policy, enableAll)
 
 	entryIndex := make(map[string]*cache.Entry, len(entries))
 	for i := range entries {
@@ -971,7 +982,7 @@ func buildAdminFeedDetail(eng *engine.Engine, runner *scheduler.Runner, name str
 	if !ok {
 		return nil, &feedNotFoundError{name: name}
 	}
-	base := buildSourceFeed(eng, name, src, entryIndex, schedIndex, liveStates, policy, now, enableAll, nil)
+	base := buildSourceFeed(name, src, cfg, entryIndex, schedIndex, liveStates, policy, now, mergeCompositions)
 	// MergeSources stays populated for backward compatibility with
 	// the admin UI detail view. It lists only additive merge sources;
 	// subtractive parents are exposed through merge_subtracted.
@@ -1019,9 +1030,9 @@ func runnerEnableAll(runner *scheduler.Runner) bool {
 	return runner.EnableAll()
 }
 
-func sourceRedistributable(eng *engine.Engine, name string, src *config.Source) bool {
-	if eng != nil {
-		return eng.IsRedistributable(name)
+func sourceRedistributableForConfig(cfg *config.Config, name string, src *config.Source) bool {
+	if cfg != nil {
+		return engine.IsRedistributableForConfig(cfg, name)
 	}
 	return src == nil || src.IsRedistributable()
 }

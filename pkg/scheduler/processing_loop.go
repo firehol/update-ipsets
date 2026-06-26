@@ -2,17 +2,14 @@ package scheduler
 
 import (
 	"context"
+	"time"
+
 	"github.com/firehol/update-ipsets/pkg/engine"
 	"github.com/firehol/update-ipsets/pkg/runreason"
-	"time"
 )
 
 func (r *Runner) runProcessingLoop(ctx context.Context) {
-	interval := time.Duration(r.eng.Runtime().ProcessingIntervalMinutes) * time.Minute
-	if interval <= 0 {
-		interval = 10 * time.Minute
-	}
-	timer := time.NewTimer(interval)
+	timer := time.NewTimer(r.processingInterval())
 	defer timer.Stop()
 	for {
 		select {
@@ -20,12 +17,33 @@ func (r *Runner) runProcessingLoop(ctx context.Context) {
 			return
 		case <-timer.C:
 			r.runQueuedProcessing(ctx)
-			timer.Reset(interval)
+			resetProcessingTimer(timer, r.processingInterval())
 		case <-r.processing.wake:
 			r.runQueuedProcessing(ctx)
+			resetProcessingTimer(timer, r.processingInterval())
 		}
 	}
 }
+
+func (r *Runner) processingInterval() time.Duration {
+	_, rt := r.eng.ConfigRuntimeSnapshot()
+	interval := time.Duration(rt.ProcessingIntervalMinutes) * time.Minute
+	if interval <= 0 {
+		return 10 * time.Minute
+	}
+	return interval
+}
+
+func resetProcessingTimer(timer *time.Timer, interval time.Duration) {
+	if !timer.Stop() {
+		select {
+		case <-timer.C:
+		default:
+		}
+	}
+	timer.Reset(interval)
+}
+
 func (r *Runner) runQueuedProcessing(ctx context.Context) {
 	var activeItems []queuedWork
 	defer func() {

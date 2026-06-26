@@ -8,7 +8,7 @@ import (
 )
 
 func (s *entityIntegrityScanner) scanFeedSidecars() error {
-	for _, name := range s.e.publicOutputNames() {
+	for _, name := range s.e.publicOutputNamesForSnapshot(s.snapshot) {
 		if err := s.checkContext(); err != nil {
 			return err
 		}
@@ -23,8 +23,9 @@ func (s *entityIntegrityScanner) scanFeedSidecars() error {
 }
 
 func (s *entityIntegrityScanner) checkFeedSidecar(name string) error {
-	sidecarPath := filepath.Join(s.e.entityFeedsDir(), name+".json")
-	sidecarRefPath, sidecarRefTime, err := s.e.entityFeedSidecarReference(
+	sidecarPath := filepath.Join(entityFeedsDirForRuntime(s.snapshot.runtime), name+".json")
+	sidecarRefPath, sidecarRefTime, err := s.e.entityFeedSidecarReferenceWithSnapshot(
+		s.snapshot,
 		name,
 		s.geoProvider,
 		s.asnProvider,
@@ -60,7 +61,7 @@ func (s *entityIntegrityScanner) checkFeedSidecar(name string) error {
 		s.plan.addFeed(name)
 		return nil
 	}
-	if sidecarMTime.Before(sidecarRefTime) && !s.e.feedEntitySidecarCoversReference(name, sidecar, sidecarRefPath, sidecarRefTime) {
+	if sidecarMTime.Before(sidecarRefTime) && !s.e.feedEntitySidecarCoversReferenceWithSnapshot(s.snapshot, name, sidecar, sidecarRefPath, sidecarRefTime) {
 		s.findings = append(s.findings, EntityIntegrityFinding{
 			Scope:          "feed",
 			Kind:           "feed_sidecar_stale",
@@ -112,7 +113,7 @@ func (s *entityIntegrityScanner) feedSidecarExpected(name string) bool {
 	if s.health != nil {
 		resolver = s.health.resolver
 	}
-	return s.e.feedEntitySidecarExpected(name, s.geoProvider, s.asnProvider, resolver)
+	return s.e.feedEntitySidecarExpectedWithSnapshot(s.snapshot, name, s.geoProvider, s.asnProvider, resolver)
 }
 
 func (s *entityIntegrityScanner) recordEntityRefs(sidecarPath string, sidecarMTime time.Time, sidecar *feedEntitySidecar) {
@@ -130,7 +131,7 @@ func (s *entityIntegrityScanner) recordEntityRefs(sidecarPath string, sidecarMTi
 }
 
 func (s *entityIntegrityScanner) recordHealthCheck(name string, sidecar *feedEntitySidecar) {
-	transitionAt := s.e.entityFeedHealthTransitionTime(name, s.health)
+	transitionAt := s.e.entityFeedHealthTransitionTimeWithSnapshot(s.snapshot, name, s.health)
 	if transitionAt.IsZero() {
 		return
 	}

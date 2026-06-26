@@ -20,7 +20,11 @@ import (
 )
 
 func (e *Engine) prepareCanonicalFeedBody(ctx context.Context, name string, src *config.Source, inputPath string) ([]byte, *iprange.IPSet, error) {
-	return downloader.PrepareCanonicalFeedBody(ctx, name, src.Output, inputPath, processorSteps(src), e.runtime.TmpDir, e.runtime.ParallelDNSQueries)
+	return e.prepareCanonicalFeedBodyWithSnapshot(ctx, e.operationSnapshot(), name, src, inputPath)
+}
+
+func (e *Engine) prepareCanonicalFeedBodyWithSnapshot(ctx context.Context, snap operationSnapshot, name string, src *config.Source, inputPath string) ([]byte, *iprange.IPSet, error) {
+	return downloader.PrepareCanonicalFeedBody(ctx, name, src.Output, inputPath, processorSteps(src), snap.runtime.TmpDir, snap.runtime.ParallelDNSQueries)
 }
 
 func renderCanonicalFeedBody(set *iprange.IPSet) ([]byte, error) {
@@ -282,16 +286,20 @@ func historySnapshotPath(dir string, observedAt time.Time) (string, time.Time, e
 }
 
 func (e *Engine) appendHistorySnapshot(ctx context.Context, parent string, set *iprange.IPSet, observedAt time.Time) (bool, error) {
+	return e.appendHistorySnapshotWithSnapshot(ctx, e.operationSnapshot(), parent, set, observedAt)
+}
+
+func (e *Engine) appendHistorySnapshotWithSnapshot(ctx context.Context, snap operationSnapshot, parent string, set *iprange.IPSet, observedAt time.Time) (bool, error) {
 	if parent == "" || set == nil {
 		return false, fmt.Errorf("history snapshot requires parent and set")
 	}
-	if e == nil || e.retentionMaxWindow == nil {
+	if e == nil || snap.retentionMaxWindow == nil {
 		return false, nil
 	}
-	if window, ok := e.retentionMaxWindow[parent]; !ok || window <= 0 {
+	if window, ok := snap.retentionMaxWindow[parent]; !ok || window <= 0 {
 		return false, nil
 	}
-	dir := filepath.Join(e.runtime.HistoryDir, parent)
+	dir := filepath.Join(snap.runtime.HistoryDir, parent)
 	if err := os.MkdirAll(dir, generatedDirMode); err != nil {
 		return false, err
 	}
@@ -310,7 +318,7 @@ func (e *Engine) appendHistorySnapshot(ctx context.Context, parent string, set *
 			return false, fmt.Errorf("compare history snapshot %s: %w", slot, err)
 		}
 		if equal {
-			pruned, err := e.pruneHistorySnapshots(parent, snapshotTime)
+			pruned, err := e.pruneHistorySnapshotsWithSnapshot(parent, snap, snapshotTime)
 			if err != nil {
 				return false, err
 			}
@@ -320,7 +328,7 @@ func (e *Engine) appendHistorySnapshot(ctx context.Context, parent string, set *
 	if err := writeBinaryPath(slot, set, snapshotTime); err != nil {
 		return false, err
 	}
-	_, err = e.pruneHistorySnapshots(parent, snapshotTime)
+	_, err = e.pruneHistorySnapshotsWithSnapshot(parent, snap, snapshotTime)
 	if err != nil {
 		return false, err
 	}
@@ -328,14 +336,18 @@ func (e *Engine) appendHistorySnapshot(ctx context.Context, parent string, set *
 }
 
 func (e *Engine) pruneHistorySnapshots(parent string, referenceTime time.Time) (bool, error) {
-	if e == nil || e.retentionMaxWindow == nil {
+	return e.pruneHistorySnapshotsWithSnapshot(parent, e.operationSnapshot(), referenceTime)
+}
+
+func (e *Engine) pruneHistorySnapshotsWithSnapshot(parent string, snap operationSnapshot, referenceTime time.Time) (bool, error) {
+	if e == nil || snap.retentionMaxWindow == nil {
 		return false, nil
 	}
-	window, ok := e.retentionMaxWindow[parent]
+	window, ok := snap.retentionMaxWindow[parent]
 	if !ok || window <= 0 {
 		return false, nil
 	}
-	dir := filepath.Join(e.runtime.HistoryDir, parent)
+	dir := filepath.Join(snap.runtime.HistoryDir, parent)
 	snapshots, err := readHistorySnapshots(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -386,7 +398,11 @@ func historySnapshotWithinWindow(snapshot historySnapshot, cutoff time.Time) boo
 }
 
 func (e *Engine) historyDerivativeSnapshots(parent string) ([]historySnapshot, error) {
-	dir := filepath.Join(e.runtime.HistoryDir, parent)
+	return historyDerivativeSnapshotsForRuntime(e.operationSnapshot().runtime, parent)
+}
+
+func historyDerivativeSnapshotsForRuntime(rt Runtime, parent string) ([]historySnapshot, error) {
+	dir := filepath.Join(rt.HistoryDir, parent)
 	snapshots, err := readHistorySnapshots(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -398,12 +414,16 @@ func (e *Engine) historyDerivativeSnapshots(parent string) ([]historySnapshot, e
 }
 
 func (e *Engine) composeHistoryDerivativeBody(ctx context.Context, src *config.Source) ([]byte, *iprange.IPSet, error) {
+	return e.composeHistoryDerivativeBodyWithSnapshot(ctx, e.operationSnapshot(), src)
+}
+
+func (e *Engine) composeHistoryDerivativeBodyWithSnapshot(ctx context.Context, snap operationSnapshot, src *config.Source) ([]byte, *iprange.IPSet, error) {
 	if src == nil || len(src.DerivedFrom) == 0 {
 		return nil, nil, fmt.Errorf("history derivative missing parent")
 	}
 	parent := src.DerivedFrom[0]
-	parentPath := latestFeedBodyPath(e.feedBodyPath(parent))
-	parentSet, err := parseFeedBodyFile(ctx, parent, parentPath, e.runtime.ParallelDNSQueries)
+	parentPath := latestFeedBodyPath(snap.feedBodyPath(parent))
+	parentSet, err := parseFeedBodyFile(ctx, parent, parentPath, snap.runtime.ParallelDNSQueries)
 	if err != nil {
 		return nil, nil, fmt.Errorf("history derivative parent body %s: %w", parentPath, err)
 	}
@@ -414,7 +434,7 @@ func (e *Engine) composeHistoryDerivativeBody(ctx context.Context, src *config.S
 	}
 	referenceTime := historyDerivativeReferenceTime(parentPath, e.now().UTC())
 	cutoff := referenceTime.Add(-window)
-	snapshots, err := e.historyDerivativeSnapshots(parent)
+	snapshots, err := historyDerivativeSnapshotsForRuntime(snap.runtime, parent)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -452,10 +472,14 @@ func (e *Engine) composeHistoryDerivativeBody(ctx context.Context, src *config.S
 }
 
 func (e *Engine) composeMergeBody(ctx context.Context, src *config.Source, enableAll bool) ([]byte, *iprange.IPSet, string, error) {
+	return e.composeMergeBodyWithSnapshot(ctx, e.operationSnapshot(), src, enableAll)
+}
+
+func (e *Engine) composeMergeBodyWithSnapshot(ctx context.Context, snap operationSnapshot, src *config.Source, enableAll bool) ([]byte, *iprange.IPSet, string, error) {
 	if src == nil {
 		return nil, nil, "", fmt.Errorf("nil merge source")
 	}
-	composition := e.MergeComposition(src, enableAll)
+	composition := e.mergeCompositionWithSnapshot(src, enableAll, snap)
 	if composition.eligibleSourceCount == 0 {
 		return nil, nil, "merge disabled: no currently eligible inputs", nil
 	}
@@ -465,22 +489,22 @@ func (e *Engine) composeMergeBody(ctx context.Context, src *config.Source, enabl
 	if len(composition.missingFeedBodies) > 0 {
 		return nil, nil, "", fmt.Errorf("merge: missing committed feed bodies for %v", composition.missingFeedBodies)
 	}
-	readers, closeReaders, err := e.mergeInputReaders(composition.Included)
+	readers, closeReaders, err := e.mergeInputReadersWithSnapshot(snap, composition.Included)
 	if err != nil {
 		return nil, nil, "", err
 	}
 	defer closeReaders()
-	set, err := parseFeedBodyReader(ctx, src.Name, io.MultiReader(readers...), e.runtime.ParallelDNSQueries)
+	set, err := parseFeedBodyReader(ctx, src.Name, io.MultiReader(readers...), snap.runtime.ParallelDNSQueries)
 	if err != nil {
 		return nil, nil, "", err
 	}
 	if len(composition.Subtracted) > 0 {
-		excludeReaders, closeExcludeReaders, err := e.mergeInputReaders(composition.Subtracted)
+		excludeReaders, closeExcludeReaders, err := e.mergeInputReadersWithSnapshot(snap, composition.Subtracted)
 		if err != nil {
 			return nil, nil, "", err
 		}
 		defer closeExcludeReaders()
-		excludeSet, err := parseFeedBodyReader(ctx, src.Name+"_exclude", io.MultiReader(excludeReaders...), e.runtime.ParallelDNSQueries)
+		excludeSet, err := parseFeedBodyReader(ctx, src.Name+"_exclude", io.MultiReader(excludeReaders...), snap.runtime.ParallelDNSQueries)
 		if err != nil {
 			return nil, nil, "", err
 		}
@@ -497,6 +521,10 @@ func (e *Engine) composeMergeBody(ctx context.Context, src *config.Source, enabl
 }
 
 func (e *Engine) mergeInputReaders(inputs []MergeInputState) ([]io.Reader, func(), error) {
+	return e.mergeInputReadersWithSnapshot(e.operationSnapshot(), inputs)
+}
+
+func (e *Engine) mergeInputReadersWithSnapshot(snap operationSnapshot, inputs []MergeInputState) ([]io.Reader, func(), error) {
 	readers := make([]io.Reader, 0, len(inputs)*2)
 	files := make([]*os.File, 0, len(inputs))
 	closeReaders := func() {
@@ -505,7 +533,7 @@ func (e *Engine) mergeInputReaders(inputs []MergeInputState) ([]io.Reader, func(
 		}
 	}
 	for _, input := range inputs {
-		path := latestFeedBodyPath(e.feedBodyPath(input.Name))
+		path := latestFeedBodyPath(snap.feedBodyPath(input.Name))
 		file, err := openFilePathUnderRoot(filepath.Dir(path), path)
 		if err != nil {
 			closeReaders()

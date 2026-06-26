@@ -129,13 +129,18 @@ func joinReasonParts(parts []string) string {
 }
 
 func (e *Engine) integrityBlockedFeeds(name string, src *config.Source, resolver *effectiveEntryResolver, enableAll bool) []string {
-	if e == nil || e.cfg == nil || src == nil {
+	return e.integrityBlockedFeedsWithSnapshot(e.operationSnapshot(), name, src, resolver, enableAll)
+}
+
+func (e *Engine) integrityBlockedFeedsWithSnapshot(snap operationSnapshot, name string, src *config.Source, resolver *effectiveEntryResolver, enableAll bool) []string {
+	if e == nil || snap.cfg == nil || src == nil {
 		return nil
 	}
 	if src.Provenance != config.ProvenanceSecondaryMerge {
 		return nil
 	}
-	composition := e.mergeCompositionWithResolver(src, enableAll, resolver)
+	health := e.newFeedHealthClassifierForConfigPolicy(snap.cfg, snap.feedHealthPolicy, e.state.SnapshotEntries(), e.now().UTC())
+	composition := e.mergeCompositionWithResolverForSnapshot(src, enableAll, resolver, health, snap)
 	if composition.eligibleSourceCount == 0 {
 		return nil
 	}
@@ -146,7 +151,11 @@ func (e *Engine) integrityBlockedFeeds(name string, src *config.Source, resolver
 }
 
 func (e *Engine) integrityBlockedBogonProviderArtifacts(finding IntegrityFinding, artifacts map[string]secondaryArtifactDescriptor) []string {
-	if e == nil || e.cfg == nil {
+	return e.integrityBlockedBogonProviderArtifactsWithSnapshot(e.operationSnapshot(), finding, artifacts)
+}
+
+func (e *Engine) integrityBlockedBogonProviderArtifactsWithSnapshot(snap operationSnapshot, finding IntegrityFinding, artifacts map[string]secondaryArtifactDescriptor) []string {
+	if e == nil || snap.cfg == nil {
 		return nil
 	}
 	relPaths := make([]string, 0, len(finding.MissingFiles)+len(finding.StaleFiles)+len(finding.MalformedFiles))
@@ -169,11 +178,11 @@ func (e *Engine) integrityBlockedBogonProviderArtifacts(finding IntegrityFinding
 		if artifact.Kind != secondaryArtifactBogons || artifact.Provider == "" {
 			continue
 		}
-		provider := e.cfg.Sources[artifact.Provider]
+		provider := snap.cfg.Sources[artifact.Provider]
 		if provider == nil || provider.Provenance != config.ProvenanceSecondaryMerge {
 			continue
 		}
-		if !e.hasUsableSet(provider.Name) {
+		if !e.hasUsableSetForSnapshot(snap, provider.Name) {
 			blocked[provider.Name] = struct{}{}
 		}
 	}
@@ -202,20 +211,25 @@ func appendUniqueStrings(dst []string, values []string) []string {
 }
 
 func (e *Engine) integrityHistoryDerivativeFinding(name string, src *config.Source, processedTime time.Time, sourcePath string, sourceMTime time.Time) (IntegrityFinding, bool) {
-	if e == nil || e.cfg == nil || src == nil || src.Provenance != config.ProvenanceSecondaryRetention || len(src.DerivedFrom) == 0 {
+	return e.integrityHistoryDerivativeFindingWithSnapshot(e.operationSnapshot(), name, src, processedTime, sourcePath, sourceMTime)
+}
+
+func (e *Engine) integrityHistoryDerivativeFindingWithSnapshot(snap operationSnapshot, name string, src *config.Source, processedTime time.Time, sourcePath string, sourceMTime time.Time) (IntegrityFinding, bool) {
+	if e == nil || snap.cfg == nil || src == nil || src.Provenance != config.ProvenanceSecondaryRetention || len(src.DerivedFrom) == 0 {
 		return IntegrityFinding{}, false
 	}
 	parent := src.DerivedFrom[0]
 	missing := make([]string, 0)
-	parentPath := latestFeedBodyPath(e.feedBodyPath(parent))
+	parentFeedBodyPath := snap.feedBodyPath(parent)
+	parentPath := latestFeedBodyPath(parentFeedBodyPath)
 	if !fileExists(parentPath) {
-		missing = append(missing, filepath.Join("base", filepath.Base(e.feedBodyPath(parent))))
+		missing = append(missing, filepath.Join("base", filepath.Base(parentFeedBodyPath)))
 	} else {
 		window := e.historyDerivativeWindowDuration(src)
 		referenceTime := historyDerivativeReferenceTime(parentPath, e.now().UTC())
 		cutoff := referenceTime.Add(-window)
 		expectedCurrent := filepath.Join("history", parent, fmt.Sprintf("%d.set", referenceTime.Unix()))
-		snapshots, err := readHistorySnapshots(filepath.Join(e.runtime.HistoryDir, parent))
+		snapshots, err := readHistorySnapshots(filepath.Join(snap.runtime.HistoryDir, parent))
 		if err != nil && !os.IsNotExist(err) {
 			missing = append(missing, filepath.Join("history", parent)+" (unreadable)")
 		} else {
@@ -257,13 +271,20 @@ func (e *Engine) integrityHistoryDerivativeFinding(name string, src *config.Sour
 }
 
 func (e *Engine) shouldSuppressMissingSourceIntegrity(name string, entry *cache.Entry, src *config.Source) bool {
-	if e == nil || e.cfg == nil || entry == nil || src == nil {
+	return e.shouldSuppressMissingSourceIntegrityWithSnapshot(e.operationSnapshot(), name, entry, src)
+}
+
+func (e *Engine) shouldSuppressMissingSourceIntegrityWithSnapshot(snap operationSnapshot, name string, entry *cache.Entry, src *config.Source) bool {
+	if e == nil || entry == nil || src == nil {
 		return false
 	}
-	if e.integrityHasCommittedOrStagedSource(name) {
+	if snap.cfg == nil {
 		return false
 	}
-	health := feedhealth.Classify(entry, src, feedhealth.PolicyFromRuntime(e.cfg.Runtime), e.now().UTC())
+	if e.integrityHasCommittedOrStagedSourceWithSnapshot(snap, name) {
+		return false
+	}
+	health := feedhealth.Classify(entry, src, snap.feedHealthPolicy, e.now().UTC())
 	return health.Class == feedhealth.ClassUnavailable
 }
 
@@ -282,6 +303,10 @@ func findSourceOutputFile(baseDir, name string) (string, time.Time, bool) {
 }
 
 func (e *Engine) expectedSecondaryArtifacts(name string) []secondaryArtifactDescriptor {
+	return e.expectedSecondaryArtifactsWithSnapshot(e.operationSnapshot(), name)
+}
+
+func (e *Engine) expectedSecondaryArtifactsWithSnapshot(snap operationSnapshot, name string) []secondaryArtifactDescriptor {
 	artifacts := []secondaryArtifactDescriptor{
 		{RelPath: name + ".json", Kind: secondaryArtifactMetadata, Feed: name},
 		{RelPath: name + "_history.csv", Kind: secondaryArtifactHistory, Feed: name},
@@ -290,10 +315,10 @@ func (e *Engine) expectedSecondaryArtifacts(name string) []secondaryArtifactDesc
 		{RelPath: name + "_comparison.json", Kind: secondaryArtifactComparison, Feed: name},
 		{RelPath: name + "_insights.json", Kind: secondaryArtifactInsights, Feed: name},
 	}
-	if e.cfg == nil {
+	if snap.cfg == nil {
 		return artifacts
 	}
-	for _, p := range e.cfg.SourcesWithUse(config.UseGeoIP) {
+	for _, p := range snap.cfg.SourcesWithUse(config.UseGeoIP) {
 		artifacts = append(artifacts, secondaryArtifactDescriptor{
 			RelPath:  name + "_" + p.Name + ".json",
 			Kind:     secondaryArtifactGeo,
@@ -301,7 +326,7 @@ func (e *Engine) expectedSecondaryArtifacts(name string) []secondaryArtifactDesc
 			Provider: p.Name,
 		})
 	}
-	for _, p := range e.cfg.SourcesWithUse(config.UseASN) {
+	for _, p := range snap.cfg.SourcesWithUse(config.UseASN) {
 		artifacts = append(artifacts, secondaryArtifactDescriptor{
 			RelPath:  name + "_asn_" + p.Name + ".json",
 			Kind:     secondaryArtifactASN,
@@ -309,7 +334,7 @@ func (e *Engine) expectedSecondaryArtifacts(name string) []secondaryArtifactDesc
 			Provider: p.Name,
 		})
 	}
-	for _, p := range e.cfg.SourcesWithUse(config.UseBogons) {
+	for _, p := range snap.cfg.SourcesWithUse(config.UseBogons) {
 		artifacts = append(artifacts, secondaryArtifactDescriptor{
 			RelPath:  name + "_bogons_" + p.Name + ".json",
 			Kind:     secondaryArtifactBogons,
@@ -317,15 +342,15 @@ func (e *Engine) expectedSecondaryArtifacts(name string) []secondaryArtifactDesc
 			Provider: p.Name,
 		})
 	}
-	criticalProviders := e.cfg.SourcesWithUse(config.UseCriticalInfrastructure)
-	if len(criticalProviders) > 0 && !isCriticalInfrastructureOutputName(e.cfg, name) && isCriticalInfrastructureComparableName(e.cfg, name) {
+	criticalProviders := snap.cfg.SourcesWithUse(config.UseCriticalInfrastructure)
+	if len(criticalProviders) > 0 && !isCriticalInfrastructureOutputName(snap.cfg, name) && isCriticalInfrastructureComparableName(snap.cfg, name) {
 		artifacts = append(artifacts, secondaryArtifactDescriptor{
 			RelPath: name + "_critical_infrastructure.json",
 			Kind:    secondaryArtifactCriticalAggregate,
 			Feed:    name,
 		})
 		for _, p := range criticalProviders {
-			if !e.hasMaterializedLatestSetFile(p.Name) {
+			if !e.hasMaterializedLatestSetFileWithSnapshot(snap, p.Name) {
 				continue
 			}
 			artifacts = append(artifacts, secondaryArtifactDescriptor{
@@ -361,16 +386,20 @@ func (e *Engine) expectedSecondaryFiles(name string) []string {
 }
 
 func (e *Engine) hasMaterializedLatestSetFile(name string) bool {
+	return e.hasMaterializedLatestSetFileWithSnapshot(e.operationSnapshot(), name)
+}
+
+func (e *Engine) hasMaterializedLatestSetFileWithSnapshot(snap operationSnapshot, name string) bool {
 	if e == nil {
 		return false
 	}
-	if e.hasBinaryLatestSet(name) {
+	if hasBinaryLatestSetForRuntime(snap.runtime, name) {
 		return true
 	}
 	entry := e.EntrySnapshot(name)
 	if entry == nil || entry.File == "" || !rawFeedFileMatches(name, entry.File) {
 		return false
 	}
-	path, ok := safeRuntimeFilePath(e.runtime.BaseDir, entry.File)
+	path, ok := safeRuntimeFilePath(snap.runtime.BaseDir, entry.File)
 	return ok && fileExists(path)
 }

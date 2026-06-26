@@ -32,8 +32,12 @@ func (e *Engine) updateUniqueShares(names []string, outDir string) {
 }
 
 func (e *Engine) updateUniqueSharesContext(ctx context.Context, names []string, outDir string) {
+	e.updateUniqueSharesContextWithSnapshot(ctx, e.operationSnapshot(), names, outDir)
+}
+
+func (e *Engine) updateUniqueSharesContextWithSnapshot(ctx context.Context, snap operationSnapshot, names []string, outDir string) {
 	ctx = nonNilContext(ctx)
-	if e == nil || e.cfg == nil {
+	if e == nil || snap.cfg == nil {
 		return
 	}
 	if names != nil && len(names) == 0 {
@@ -44,24 +48,24 @@ func (e *Engine) updateUniqueSharesContext(ctx context.Context, names []string, 
 	// output feed on a full-rebuild run (names == nil).
 	targets := names
 	if targets == nil {
-		targets = e.publicOutputNames()
+		targets = e.publicOutputNamesForSnapshot(snap)
 	}
 	progress := e.beginActiveOperation("metadata.update_unique_shares", "", "update", "feeds", int64(len(targets)))
 	defer progress.Finish()
 
-	liveOutDir := e.outputDir()
+	liveOutDir := outputDirForRuntime(snap.runtime)
 
 	// Build the set of peers that count as "independent" for a given
 	// feed. We reuse the same relatedness predicate writeComparisonFiles
 	// uses (leaf-ancestor overlap) so our definition of "independent"
 	// matches the Related flag already on each CompareRow. Provenance
 	// and maintainer filters are applied on top of that.
-	familyCache := make(map[string]map[string]bool, len(e.cfg.Sources))
+	familyCache := make(map[string]map[string]bool, len(snap.cfg.Sources))
 	familyFor := func(name string) map[string]bool {
 		if cached, ok := familyCache[name]; ok {
 			return cached
 		}
-		family := leafAncestors(e.cfg, name)
+		family := leafAncestors(snap.cfg, name)
 		familyCache[name] = family
 		return family
 	}
@@ -89,7 +93,7 @@ func (e *Engine) updateUniqueSharesContext(ctx context.Context, names []string, 
 			progress.Add(1, int64(len(targets)), nil)
 			continue
 		}
-		selfSrc := e.lookupSource(name)
+		selfSrc := lookupSourceForConfig(snap.cfg, name)
 		if selfSrc == nil {
 			progress.Add(1, int64(len(targets)), nil)
 			continue
@@ -119,7 +123,7 @@ func (e *Engine) updateUniqueSharesContext(ctx context.Context, names []string, 
 			if row.Related {
 				continue
 			}
-			peer := e.lookupSource(row.Name)
+			peer := lookupSourceForConfig(snap.cfg, row.Name)
 			if !isIndependentPeer(peer, selfSrc) {
 				continue
 			}

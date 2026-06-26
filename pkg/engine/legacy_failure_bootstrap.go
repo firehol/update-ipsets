@@ -61,10 +61,11 @@ func (e *Engine) bootstrapLegacyFailureStarts() error {
 }
 
 func (e *Engine) legacyImportedCachePath() string {
-	if e == nil || e.runtime.BaseDir == "" {
+	rt := e.Runtime()
+	if e == nil || rt.BaseDir == "" {
 		return ""
 	}
-	root := filepath.Dir(e.runtime.BaseDir)
+	root := filepath.Dir(rt.BaseDir)
 	for _, path := range []string{
 		filepath.Join(root, "import-bash-version", "merged-cache.json"),
 		filepath.Join(root, "import-d1", "merged-cache.json"),

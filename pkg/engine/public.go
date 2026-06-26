@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
 
@@ -59,14 +58,36 @@ func (e *Engine) IsRedistributable(name string) bool {
 }
 
 func (e *Engine) PublicRawFeedAllowed(name string) bool {
-	if !e.isPublicFeedName(name) {
-		return false
+	_, ok := e.PublicRawFeedFile(name)
+	return ok
+}
+
+func (e *Engine) PublicRawFeedFile(name string) (string, bool) {
+	return e.publicRawFeedFileWithSnapshot(e.operationSnapshot(), name)
+}
+
+func (e *Engine) publicRawFeedFileWithSnapshot(snap operationSnapshot, name string) (string, bool) {
+	if e == nil {
+		return "", false
+	}
+	if !isPublicFeedNameForConfig(snap.cfg, name) {
+		return "", false
+	}
+	if !isRedistributableForConfig(snap.cfg, name) {
+		return "", false
 	}
 	entry := e.EntrySnapshot(name)
 	if entry == nil {
-		return false
+		return "", false
 	}
-	return e.classifyEffectiveEntryHealth(name, entry).Class != feedhealth.ClassArchived
+	src := lookupSourceForConfig(snap.cfg, name)
+	if feedhealth.Classify(entry, src, snap.feedHealthPolicy, e.now().UTC()).Class == feedhealth.ClassArchived {
+		return "", false
+	}
+	if !rawFeedFileMatches(name, entry.File) {
+		return "", false
+	}
+	return entry.File, true
 }
 
 func (e *Engine) Entry(name string) (*cache.Entry, error) {
@@ -86,14 +107,19 @@ func (e *Engine) Entry(name string) (*cache.Entry, error) {
 }
 
 func (e *Engine) SetData(name string) ([]byte, *cache.Entry, error) {
-	entry, err := e.Entry(name)
-	if err != nil {
-		return nil, nil, err
+	snap := e.operationSnapshot()
+	if !isPublicFeedNameForConfig(snap.cfg, name) {
+		return nil, nil, fmt.Errorf("unknown set %q", name)
 	}
-	if !e.isRedistributable(name) {
+	entry := e.EntrySnapshot(name)
+	if entry == nil {
+		return nil, nil, fmt.Errorf("unknown set %q", name)
+	}
+	if !isRedistributableForConfig(snap.cfg, name) {
 		return nil, nil, fmt.Errorf("set %q is not redistributable", name)
 	}
-	if e.classifyEffectiveEntryHealth(name, entry).Class == feedhealth.ClassArchived {
+	src := lookupSourceForConfig(snap.cfg, name)
+	if feedhealth.Classify(entry, src, snap.feedHealthPolicy, e.now().UTC()).Class == feedhealth.ClassArchived {
 		return nil, nil, fmt.Errorf("set %q is archived and raw feed access is disabled", name)
 	}
 	if entry.File == "" {
@@ -102,11 +128,10 @@ func (e *Engine) SetData(name string) ([]byte, *cache.Entry, error) {
 	if !rawFeedFileMatches(name, entry.File) {
 		return nil, nil, fmt.Errorf("set %q has unexpected materialized file %q", name, entry.File)
 	}
-	rt := e.Runtime()
-	if _, ok := safeRuntimeFilePath(rt.BaseDir, entry.File); !ok {
+	if _, ok := safeRuntimeFilePath(snap.runtime.BaseDir, entry.File); !ok {
 		return nil, nil, fmt.Errorf("set %q has unsafe materialized file %q", name, entry.File)
 	}
-	data, err := readFileInRoot(rt.BaseDir, entry.File)
+	data, err := readFileInRoot(snap.runtime.BaseDir, entry.File)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -466,80 +491,4 @@ func (e *Engine) Compose(ctx context.Context, include, exclude []string, format 
 		return nil, err
 	}
 	return buf.Bytes(), nil
-}
-
-func (e *Engine) outputDir() string {
-	return outputDirForRuntime(e.Runtime())
-}
-
-func outputDirForRuntime(rt Runtime) string {
-	if rt.WebDir != "" {
-		return rt.WebDir
-	}
-	return rt.BaseDir
-}
-
-func (e *Engine) outputNames() []string {
-	snapMap := e.state.SnapshotEntries()
-	configured := e.configuredNames()
-	names := make([]string, 0, len(snapMap))
-	for name := range snapMap {
-		if !configured[name] || !e.hasUsableSet(name) {
-			continue
-		}
-		names = append(names, name)
-	}
-	slices.Sort(names)
-	return names
-}
-
-func (e *Engine) publicOutputNames() []string {
-	all := e.outputNames()
-	out := make([]string, 0, len(all))
-	for _, name := range all {
-		if e.isPublicFeedName(name) {
-			out = append(out, name)
-		}
-	}
-	return out
-}
-
-// configuredNames returns the set of all names that correspond to
-// configured feeds: sources plus their history window variants
-// (_1d/_7d/etc.). After source unification, ASN/GeoIP/Bogon
-// database "providers" are themselves regular sources and so are
-// already included via the sources walk. Unconfigured/stale cache
-// entries are excluded. The legacy bash "split" output mode (which
-// produced separate _ip and _net variants from one source) is
-// no longer supported — only ipset and netset.
-func (e *Engine) configuredNames() map[string]bool {
-	return configuredNamesForConfig(e.Config())
-}
-
-func configuredNamesForConfig(cfg *config.Config) map[string]bool {
-	if cfg == nil {
-		return map[string]bool{}
-	}
-	names := make(map[string]bool, len(cfg.Sources)+len(cfg.Merges))
-	for name, src := range cfg.Sources {
-		names[name] = true
-		for _, minutes := range src.History {
-			names[name+historyLabel(minutes)] = true
-		}
-	}
-	for name := range cfg.Merges {
-		names[name] = true
-	}
-	return names
-}
-
-func configuredNamesWithArtifactsForConfig(cfg *config.Config) map[string]bool {
-	names := configuredNamesForConfig(cfg)
-	if cfg == nil {
-		return names
-	}
-	for name := range cfg.Artifacts {
-		names[name] = true
-	}
-	return names
 }

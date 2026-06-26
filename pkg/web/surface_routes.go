@@ -27,9 +27,9 @@ func newSurfaceRoutesWithContext(ctx context.Context, eng *engine.Engine, opts O
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	outputDir := outputDirFromOptions(eng.Runtime().BaseDir, choose(opts.WebDir, eng.Runtime().WebDir))
-	ipsetsDir := filesDir(eng.Runtime().BaseDir, choose(opts.FilesDir, eng.Runtime().WebDirForIPSets))
-	runtime := eng.Runtime()
+	_, runtime := eng.ConfigRuntimeSnapshot()
+	outputDir := outputDirFromOptions(runtime.BaseDir, choose(opts.WebDir, runtime.WebDir))
+	ipsetsDir := filesDir(runtime.BaseDir, choose(opts.FilesDir, runtime.WebDirForIPSets))
 	// Raw ipset/netset files are written to BaseDir by the engine; the
 	// optional ipsetsDir (WEB_DIR_FOR_IPSETS) is a curated mirror used for
 	// bash-compatible or migrated mirror layouts. Locally the mirror is empty,
@@ -41,7 +41,7 @@ func newSurfaceRoutesWithContext(ctx context.Context, eng *engine.Engine, opts O
 		baseCtx:   ctx,
 		outputDir: outputDir,
 		ipsetsDir: ipsetsDir,
-		baseDir:   eng.Runtime().BaseDir,
+		baseDir:   runtime.BaseDir,
 		cache: newFileCacheWithLimits(fileCacheLimits{
 			MaxEntries:   runtime.WebArtifactCacheMaxEntries,
 			MaxBytes:     runtime.WebArtifactCacheMaxBytes,

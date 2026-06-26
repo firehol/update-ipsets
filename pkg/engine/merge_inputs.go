@@ -4,6 +4,7 @@ import (
 	"slices"
 	"sort"
 
+	"github.com/firehol/update-ipsets/pkg/cache"
 	"github.com/firehol/update-ipsets/pkg/config"
 	"github.com/firehol/update-ipsets/pkg/feedhealth"
 )
@@ -41,37 +42,70 @@ type MergeComposition struct {
 }
 
 func (e *Engine) MergeComposition(src *config.Source, enableAll bool) MergeComposition {
-	return e.mergeCompositionWithResolver(src, enableAll, e.effectiveEntryResolverFromFreshStateSnapshot())
+	snap := e.operationSnapshot()
+	return e.mergeCompositionWithSnapshot(src, enableAll, snap)
+}
+
+func (e *Engine) mergeCompositionWithSnapshot(src *config.Source, enableAll bool, snap operationSnapshot) MergeComposition {
+	entries := map[string]cache.Entry{}
+	if e != nil && e.state != nil {
+		entries = e.state.SnapshotEntries()
+	}
+	resolver := newEffectiveEntryResolver(snap.cfg, entries)
+	health := e.newFeedHealthClassifierForConfigPolicy(snap.cfg, snap.feedHealthPolicy, entries, e.now().UTC())
+	return e.mergeCompositionWithResolverForSnapshot(src, enableAll, resolver, health, snap)
 }
 
 func (e *Engine) MergeCompositions(enableAll bool) map[string]MergeComposition {
-	if e == nil || e.cfg == nil {
+	snap := e.operationSnapshot()
+	if e == nil || snap.cfg == nil {
 		return nil
 	}
-	return e.mergeCompositionsWithResolver(enableAll, e.effectiveEntryResolverFromFreshStateSnapshot())
+	return e.mergeCompositionsWithSnapshot(enableAll, snap)
 }
 
-func (e *Engine) mergeCompositionsWithResolver(enableAll bool, resolver *effectiveEntryResolver) map[string]MergeComposition {
-	if e == nil || e.cfg == nil {
+func (e *Engine) MergeCompositionsForConfigRuntimePolicy(cfg *config.Config, rt Runtime, policy feedhealth.Policy, enableAll bool) map[string]MergeComposition {
+	if e == nil || cfg == nil {
 		return nil
 	}
+	return e.mergeCompositionsWithSnapshot(enableAll, operationSnapshot{
+		cfg:              cfg,
+		runtime:          rt,
+		feedHealthPolicy: policy,
+	})
+}
+
+func (e *Engine) mergeCompositionsWithSnapshot(enableAll bool, snap operationSnapshot) map[string]MergeComposition {
+	if e == nil || snap.cfg == nil {
+		return nil
+	}
+	entries := map[string]cache.Entry{}
+	if e.state != nil {
+		entries = e.state.SnapshotEntries()
+	}
+	resolver := newEffectiveEntryResolver(snap.cfg, entries)
+	health := e.newFeedHealthClassifierForConfigPolicy(snap.cfg, snap.feedHealthPolicy, entries, e.now().UTC())
 	out := make(map[string]MergeComposition)
-	for _, name := range config.SortedSourceNames(e.cfg) {
-		src := e.cfg.Sources[name]
+	for _, name := range config.SortedSourceNames(snap.cfg) {
+		src := snap.cfg.Sources[name]
 		if src == nil || src.Provenance != config.ProvenanceSecondaryMerge {
 			continue
 		}
-		out[name] = e.mergeCompositionWithResolver(src, enableAll, resolver)
+		out[name] = e.mergeCompositionWithResolverForSnapshot(src, enableAll, resolver, health, snap)
 	}
 	return out
 }
 
 func (e *Engine) mergeCompositionWithResolver(src *config.Source, enableAll bool, resolver *effectiveEntryResolver) MergeComposition {
-	if e == nil || e.cfg == nil || src == nil {
+	return e.mergeCompositionWithResolverForSnapshot(src, enableAll, resolver, e.newFeedHealthClassifier(), e.operationSnapshot())
+}
+
+func (e *Engine) mergeCompositionWithResolverForSnapshot(src *config.Source, enableAll bool, resolver *effectiveEntryResolver, health *feedHealthClassifier, snap operationSnapshot) MergeComposition {
+	if e == nil || snap.cfg == nil || src == nil {
 		return MergeComposition{}
 	}
 	if resolver == nil {
-		resolver = e.effectiveEntryResolverFromFreshStateSnapshot()
+		resolver = newEffectiveEntryResolver(snap.cfg, map[string]cache.Entry{})
 	}
 
 	includeNames := mergeSourceNames(src)
@@ -81,8 +115,8 @@ func (e *Engine) mergeCompositionWithResolver(src *config.Source, enableAll bool
 		Subtracted: make([]MergeInputState, 0, len(excludeNames)),
 		Excluded:   make([]MergeInputState, 0, len(includeNames)+len(excludeNames)),
 	}
-	state.Included = e.mergeCompositionRows(includeNames, "", true, enableAll, resolver, &state)
-	state.Subtracted = e.mergeCompositionRows(excludeNames, mergeInputRoleExclude, false, enableAll, resolver, &state)
+	state.Included = e.mergeCompositionRowsWithSnapshot(includeNames, "", true, enableAll, resolver, health, snap, &state)
+	state.Subtracted = e.mergeCompositionRowsWithSnapshot(excludeNames, mergeInputRoleExclude, false, enableAll, resolver, health, snap, &state)
 
 	sort.Slice(state.Included, func(i, j int) bool { return state.Included[i].Name < state.Included[j].Name })
 	sort.Slice(state.Subtracted, func(i, j int) bool { return state.Subtracted[i].Name < state.Subtracted[j].Name })
@@ -94,21 +128,28 @@ func (e *Engine) mergeCompositionWithResolver(src *config.Source, enableAll bool
 }
 
 func (e *Engine) mergeCompositionRows(names []string, role string, additive bool, enableAll bool, resolver *effectiveEntryResolver, state *MergeComposition) []MergeInputState {
+	return e.mergeCompositionRowsWithSnapshot(names, role, additive, enableAll, resolver, e.newFeedHealthClassifier(), e.operationSnapshot(), state)
+}
+
+func (e *Engine) mergeCompositionRowsWithSnapshot(names []string, role string, additive bool, enableAll bool, resolver *effectiveEntryResolver, health *feedHealthClassifier, snap operationSnapshot, state *MergeComposition) []MergeInputState {
 	rows := make([]MergeInputState, 0, len(names))
 	for _, parent := range names {
 		row := MergeInputState{Name: parent, Role: role}
-		row.Enabled = EffectiveSourceEnabledForRun(e.cfg, e.runtime, parent, enableAll, false)
+		row.Enabled = EffectiveSourceEnabledForRun(snap.cfg, snap.runtime, parent, enableAll, false)
 		if !row.Enabled {
 			row.Reason = mergeInputReasonDisabled
 			state.excludeMergeInput(row, additive)
 			continue
 		}
 
-		row.HasFeedBody = fileExists(latestFeedBodyPath(e.feedBodyPath(parent)))
-		health := e.classifyEffectiveEntryHealth(parent, resolver.entryFromSnapshot(parent))
-		row.HealthClass = health.Class
+		row.HasFeedBody = fileExists(latestFeedBodyPath(snap.feedBodyPath(parent)))
+		healthSnap, ok := health.snapshot(parent)
+		if !ok {
+			healthSnap = e.classifyEffectiveEntryHealthWithSnapshot(snap, parent, resolver.entryFromSnapshot(parent))
+		}
+		row.HealthClass = healthSnap.Class
 		if additive {
-			switch health.Class {
+			switch healthSnap.Class {
 			case feedhealth.ClassArchived:
 				row.Reason = mergeInputReasonArchived
 				state.excludeMergeInput(row, additive)

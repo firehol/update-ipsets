@@ -89,7 +89,8 @@ func prepareEngineForRun(eng *engine.Engine, opts Options) error {
 // queueStartupIntegrityRecovery repairs split secondary artifacts from the
 // first scheduler tick without making transient filesystem findings fatal.
 func queueStartupIntegrityRecovery(ctx context.Context, eng *engine.Engine, opts Options, runner *scheduler.Runner) {
-	integrityWebDir := outputDirFromOptions(eng.Runtime().BaseDir, choose(opts.WebDir, eng.Runtime().WebDir))
+	_, rt := eng.ConfigRuntimeSnapshot()
+	integrityWebDir := outputDirFromOptions(rt.BaseDir, choose(opts.WebDir, rt.WebDir))
 	integrityOpts := engine.IntegrityOptions{EnableAll: opts.EnableAll, WebDir: integrityWebDir}
 	eng.MarkPipelineIntegrityStartupScanRunning(integrityOpts)
 	if hook := startupIntegrityRecoveryBeforeCheckHookForTest(); hook != nil {

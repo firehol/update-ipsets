@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+
+	"github.com/firehol/update-ipsets/pkg/config"
 )
 
 type selectedEntityDetailSidecarBuilder struct {
 	e               *Engine
+	snapshot        operationSnapshot
 	sidecars        map[string]*feedEntitySidecar
 	targetCountries map[string]struct{}
 	targetASNs      map[uint32]struct{}
@@ -21,17 +24,19 @@ type selectedEntityDetailSidecarBuilder struct {
 }
 
 func (e *Engine) newSelectedEntityDetailSidecarBuilder(sidecars map[string]*feedEntitySidecar, targetCountries map[string]struct{}, targetASNs map[uint32]struct{}, full bool) (*selectedEntityDetailSidecarBuilder, error) {
-	if e == nil || e.cfg == nil {
+	snap := e.operationSnapshot()
+	if e == nil || snap.cfg == nil {
 		return nil, fmt.Errorf("engine is not configured")
 	}
 	builder := &selectedEntityDetailSidecarBuilder{
 		e:               e,
+		snapshot:        snap,
 		sidecars:        sidecars,
 		targetCountries: targetCountries,
 		targetASNs:      targetASNs,
 		full:            full,
-		geoProvider:     e.homeSummaryProvider(e.preferredGeoProvider()),
-		asnProvider:     e.homeSummaryProvider(e.preferredASNProvider()),
+		geoProvider:     homeSummaryProviderForConfig(snap.cfg, preferredGeoProviderForConfig(snap.cfg)),
+		asnProvider:     homeSummaryProviderForConfig(snap.cfg, preferredASNProviderForConfig(snap.cfg)),
 		countryBuilders: map[string]*countryDetailBuilder{},
 		asnBuilders:     map[uint32]*asnDetailBuilder{},
 	}
@@ -40,9 +45,13 @@ func (e *Engine) newSelectedEntityDetailSidecarBuilder(sidecars map[string]*feed
 }
 
 func (e *Engine) homeSummaryProvider(name string) HomeSummaryProvider {
+	return homeSummaryProviderForConfig(e.Config(), name)
+}
+
+func homeSummaryProviderForConfig(cfg *config.Config, name string) HomeSummaryProvider {
 	return HomeSummaryProvider{
 		Name:  name,
-		Label: providerDisplayLabel(e.lookupSource(name)),
+		Label: providerDisplayLabel(lookupSourceForConfig(cfg, name)),
 	}
 }
 
@@ -84,7 +93,7 @@ func (b *selectedEntityDetailSidecarBuilder) addFeedSidecar(name string, sidecar
 		return
 	}
 	index := indexFeedEntitySidecar(sidecar)
-	maintainerURL := sourceMaintainerURL(b.e.lookupSource(name))
+	maintainerURL := sourceMaintainerURL(lookupSourceForConfig(b.snapshot.cfg, name))
 	if needCountryDetail {
 		b.addCountryDetails(sidecar, maintainerURL)
 	}

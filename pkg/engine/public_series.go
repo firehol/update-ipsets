@@ -37,14 +37,18 @@ func trimHistoryWindow(points []HistoryPoint, limit int) []HistoryPoint {
 }
 
 func (e *Engine) writePublicHistoryCSVContext(ctx context.Context, name, outDir string) error {
+	return e.writePublicHistoryCSVContextWithSnapshot(ctx, e.operationSnapshot(), name, outDir)
+}
+
+func (e *Engine) writePublicHistoryCSVContextWithSnapshot(ctx context.Context, snap operationSnapshot, name, outDir string) error {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
 		return err
 	}
-	points := e.historyTailFromRuntimeContext(ctx, name)
+	points := e.historyTailFromSnapshot(ctx, snap, name)
 	if len(points) == 0 {
-		points = e.publicHistorySeriesContext(ctx, name)
-		points = trimHistoryWindow(points, e.webChartsEntries())
+		points = e.publicHistorySeriesContextWithRuntime(ctx, snap.runtime, name)
+		points = trimHistoryWindow(points, webChartsEntriesFromRuntime(snap.runtime))
 	}
 	if err := contextErr(ctx); err != nil {
 		return err
@@ -67,17 +71,21 @@ func (e *Engine) writePublicChangesetsCSV(name, outDir string) error {
 }
 
 func (e *Engine) writePublicChangesetsCSVContext(ctx context.Context, name, outDir string) error {
+	return e.writePublicChangesetsCSVContextWithSnapshot(ctx, e.operationSnapshot(), name, outDir)
+}
+
+func (e *Engine) writePublicChangesetsCSVContextWithSnapshot(ctx context.Context, snap operationSnapshot, name, outDir string) error {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
 		return err
 	}
-	if err := normalizeChangesetLedgerHeader(e.runtime.LibDir, filepath.Join(name, "changesets.csv")); err != nil {
+	if err := normalizeChangesetLedgerHeader(snap.runtime.LibDir, filepath.Join(name, "changesets.csv")); err != nil {
 		return err
 	}
-	points := e.changesetTailFromRuntimeContext(ctx, name)
+	points := e.changesetTailFromSnapshot(ctx, snap, name)
 	if len(points) == 0 {
 		var err error
-		points, err = e.ChangesetSeriesContext(ctx, name)
+		points, err = e.ChangesetSeriesContextWithRuntime(ctx, snap.runtime, name)
 		if err != nil {
 			return err
 		}
@@ -98,16 +106,20 @@ func (e *Engine) writePublicChangesetsCSVContext(ctx context.Context, name, outD
 }
 
 func (e *Engine) writePublicRetentionJSONContext(ctx context.Context, name, outDir string) error {
+	return e.writePublicRetentionJSONContextWithSnapshot(ctx, e.operationSnapshot(), name, outDir)
+}
+
+func (e *Engine) writePublicRetentionJSONContextWithSnapshot(ctx context.Context, snap operationSnapshot, name, outDir string) error {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
 		return err
 	}
-	data, err := readFileInRoot(e.runtime.LibDir, filepath.Join(name, "retention.json"))
+	data, err := readFileInRoot(snap.runtime.LibDir, filepath.Join(name, "retention.json"))
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return err
 		}
-		retention, err := e.buildRetentionData(ctx, name, e.now().UTC().Unix())
+		retention, err := e.buildRetentionDataWithRuntime(ctx, snap.runtime, name, e.now().UTC().Unix())
 		if err != nil {
 			return err
 		}
@@ -121,9 +133,13 @@ func (e *Engine) writePublicRetentionJSONContext(ctx context.Context, name, outD
 }
 
 func (e *Engine) publicHistorySeriesContext(ctx context.Context, name string) []HistoryPoint {
-	points := e.historyFromLedgerCSVContext(ctx, name)
+	return e.publicHistorySeriesContextWithRuntime(ctx, e.Runtime(), name)
+}
+
+func (e *Engine) publicHistorySeriesContextWithRuntime(ctx context.Context, rt Runtime, name string) []HistoryPoint {
+	points := e.historyFromLedgerCSVContextWithRuntime(ctx, rt, name)
 	if len(points) == 0 {
-		points = e.historyFromWebCSVContext(ctx, name)
+		points = e.historyFromWebCSVContextWithRuntime(ctx, rt, name)
 	}
 	return points
 }

@@ -154,6 +154,12 @@ full feed-row builder, rebuild the scheduler snapshot, or walk all cache entries
 from the HTTP handler to make the poll fresher. A cold missing scheduler cache
 is an unknown cache state, not proof that all health buckets are zero.
 
+Full admin builders that need config, runtime, policy, scheduler rows, feed
+rows, or artifact rows MUST use one coherent config/runtime/policy generation
+per response. They MAY build richer diagnostics than the light heartbeat, but
+they MUST pass the captured generation through inner builders instead of mixing
+fresh config/runtime/cache snapshots while constructing one response.
+
 ### 2. Feed inventory
 
 A full table of feeds remains the main operator inventory.

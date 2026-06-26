@@ -21,8 +21,12 @@ func sortedStringSet(values map[string]struct{}) []string {
 }
 
 func (e *Engine) loadFeedEntitySidecarMTimes() map[string]time.Time {
+	return e.loadFeedEntitySidecarMTimesWithRuntime(e.Runtime())
+}
+
+func (e *Engine) loadFeedEntitySidecarMTimesWithRuntime(rt Runtime) map[string]time.Time {
 	out := map[string]time.Time{}
-	paths, err := sortedJSONFiles(e.entityFeedsDir())
+	paths, err := sortedJSONFiles(entityFeedsDirForRuntime(rt))
 	if err != nil {
 		return out
 	}
@@ -96,18 +100,22 @@ func asnDetailLogicalMTime(sidecar *asnDetailSidecar, feedTimes map[string]time.
 }
 
 func (e *Engine) stagePublicSitemapFiles(webBatch *stagedPublishBatch, generated []output.GeneratedFile) ([]output.GeneratedFile, error) {
+	return e.stagePublicSitemapFilesWithSnapshot(e.operationSnapshot(), webBatch, generated)
+}
+
+func (e *Engine) stagePublicSitemapFilesWithSnapshot(snap operationSnapshot, webBatch *stagedPublishBatch, generated []output.GeneratedFile) ([]output.GeneratedFile, error) {
 	if webBatch == nil {
 		return generated, nil
 	}
-	siteBase := e.publicSiteBaseURL()
-	files, err := e.writeSitemapFiles(webBatch.stageDir, siteBase, e.publicFeedURLPrefix(siteBase), e.publicOutputNames())
+	siteBase := publicSiteBaseURLForRuntime(snap.runtime)
+	files, err := e.writeSitemapFilesWithSnapshot(snap, webBatch.stageDir, siteBase, publicFeedURLPrefixForRuntime(snap.runtime, siteBase), e.publicOutputNamesForSnapshot(snap))
 	if err != nil {
 		return nil, err
 	}
 	for _, name := range files {
-		generated = append(generated, output.GeneratedFile{Path: filepath.Join(e.outputDir(), name), Redistributable: true})
+		generated = append(generated, output.GeneratedFile{Path: filepath.Join(outputDirForRuntime(snap.runtime), name), Redistributable: true})
 	}
-	stale, err := staleSitemapShardNames(e.outputDir(), files)
+	stale, err := staleSitemapShardNames(outputDirForRuntime(snap.runtime), files)
 	if err != nil {
 		return nil, err
 	}

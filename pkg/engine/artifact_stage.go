@@ -17,32 +17,40 @@ import (
 )
 
 func (e *Engine) fetchAndStageArtifact(ctx context.Context, name string, force, enableAll bool) (DownloadDecision, error) {
-	artifact := e.cfg.ArtifactByName(name)
+	return e.fetchAndStageArtifactWithSnapshot(ctx, e.operationSnapshot(), name, force, enableAll)
+}
+
+func (e *Engine) fetchAndStageArtifactWithSnapshot(ctx context.Context, snap operationSnapshot, name string, force, enableAll bool) (DownloadDecision, error) {
+	artifact := snap.cfg.ArtifactByName(name)
 	if artifact == nil {
 		return DownloadDecision{Name: name, Status: DownloadStatusFailed, Message: "unknown artifact"}, fmt.Errorf("unknown artifact %q", name)
 	}
 	switch artifact.Type {
 	case config.ArtifactTypeDroneBLBuildzone:
-		return e.fetchAndStageDroneBLArtifact(ctx, artifact, force, enableAll)
+		return e.fetchAndStageDroneBLArtifactWithSnapshot(ctx, snap, artifact, force, enableAll)
 	default:
 		return DownloadDecision{Name: name, Status: DownloadStatusFailed, Message: "unsupported artifact type"}, fmt.Errorf("unsupported artifact type %q", artifact.Type)
 	}
 }
 
-func (e *Engine) artifactDownloadMaxSize(artifact *config.Artifact) int64 {
+func artifactDownloadMaxSizeForRuntime(rt Runtime, artifact *config.Artifact) int64 {
 	if artifact != nil && artifact.MaxDownloadSize != 0 {
 		return artifact.MaxDownloadSize
 	}
-	return e.runtime.MaxDownloadSize
+	return rt.MaxDownloadSize
 }
 
 func (e *Engine) fetchAndStageDroneBLArtifact(ctx context.Context, artifact *config.Artifact, force, enableAll bool) (DownloadDecision, error) {
+	return e.fetchAndStageDroneBLArtifactWithSnapshot(ctx, e.operationSnapshot(), artifact, force, enableAll)
+}
+
+func (e *Engine) fetchAndStageDroneBLArtifactWithSnapshot(ctx context.Context, snap operationSnapshot, artifact *config.Artifact, force, enableAll bool) (DownloadDecision, error) {
 	name := artifact.Name
 	entry := e.state.Entry(name)
 	e.seedEntryFromArtifactConfig(entry, name, artifact)
 	entry.MarkDownloadStarted(e.now().UTC().Unix())
 
-	fetchDir := filepath.Join(e.artifactRootDir(name), "fetch")
+	fetchDir := filepath.Join(artifactRootDirForRuntime(snap.runtime, name), "fetch")
 	buildzonePath := filepath.Join(fetchDir, "buildzone")
 	rsyncURL := artifact.RSyncURL
 	if rsyncURL == "" {
@@ -51,32 +59,36 @@ func (e *Engine) fetchAndStageDroneBLArtifact(ctx context.Context, artifact *con
 	if err := dronebl.FetchBuildzone(ctx, dronebl.FetchOptions{
 		RsyncURL: rsyncURL,
 		DataDir:  fetchDir,
-		Timeout:  e.runtime.MaxDownloadTime,
+		Timeout:  snap.runtime.MaxDownloadTime,
 	}); err != nil {
 		e.incrementFailure(entry)
 		entry.MarkDownloadFetchFailed(err.Error())
 		return DownloadDecision{Name: name, Status: DownloadStatusDownloadFailed, Message: err.Error()}, err
 	}
 
-	finalPath := e.artifactSourcePath(name)
-	result, err := e.downloads.Fetch(ctx, downloader.Request{
+	finalPath := artifactSourcePathForRuntime(snap.runtime, name)
+	result, err := snap.downloads.Fetch(ctx, downloader.Request{
 		Name:            name,
 		URL:             fileURL(buildzonePath),
 		ReferencePath:   finalPath,
-		MaxDownloadSize: e.artifactDownloadMaxSize(artifact),
-		TmpDir:          e.runtime.TmpDir,
+		MaxDownloadSize: artifactDownloadMaxSizeForRuntime(snap.runtime, artifact),
+		TmpDir:          snap.runtime.TmpDir,
 	})
 	if err != nil {
 		e.incrementFailure(entry)
 		entry.MarkDownloadFetchFailed(err.Error())
 		return DownloadDecision{Name: name, Status: DownloadStatusDownloadFailed, Message: err.Error()}, err
 	}
-	return e.applyArtifactFetchResult(ctx, artifact, entry, buildzonePath, result, force, enableAll)
+	return e.applyArtifactFetchResultWithSnapshot(ctx, snap, artifact, entry, buildzonePath, result, force, enableAll)
 }
 
 func (e *Engine) applyArtifactFetchResult(ctx context.Context, artifact *config.Artifact, entry *cache.Entry, fetchedPath string, result *downloader.Result, force, enableAll bool) (DownloadDecision, error) {
+	return e.applyArtifactFetchResultWithSnapshot(ctx, e.operationSnapshot(), artifact, entry, fetchedPath, result, force, enableAll)
+}
+
+func (e *Engine) applyArtifactFetchResultWithSnapshot(ctx context.Context, snap operationSnapshot, artifact *config.Artifact, entry *cache.Entry, fetchedPath string, result *downloader.Result, force, enableAll bool) (DownloadDecision, error) {
 	name := artifact.Name
-	finalPath := e.artifactSourcePath(name)
+	finalPath := artifactSourcePathForRuntime(snap.runtime, name)
 	if result == nil {
 		return DownloadDecision{Name: name, Status: DownloadStatusFailed, Message: "empty downloader result"}, fmt.Errorf("empty downloader result for artifact %s", name)
 	}
@@ -98,7 +110,7 @@ func (e *Engine) applyArtifactFetchResult(ctx context.Context, artifact *config.
 		if !force {
 			return DownloadDecision{Name: name, Status: DownloadStatusSame, Message: result.Message}, nil
 		}
-		decision, err := e.materializeArtifactChildren(ctx, name, fetchedPath, enableAll, force)
+		decision, err := e.materializeArtifactChildrenWithSnapshot(ctx, snap, name, fetchedPath, enableAll, force)
 		decision.Name = name
 		decision.Status = DownloadStatusSame
 		decision.Message = result.Message
@@ -115,7 +127,7 @@ func (e *Engine) applyArtifactFetchResult(ctx context.Context, artifact *config.
 			return DownloadDecision{Name: name, Status: DownloadStatusFailed, Message: err.Error()}, err
 		}
 		entry.MarkDownloadDownloaded()
-		decision, err := e.materializeArtifactChildren(ctx, name, stagedPath(finalPath), enableAll, force)
+		decision, err := e.materializeArtifactChildrenWithSnapshot(ctx, snap, name, stagedPath(finalPath), enableAll, force)
 		if err != nil {
 			return DownloadDecision{Name: name, Status: DownloadStatusDownloaded, Message: err.Error()}, err
 		}
@@ -138,26 +150,34 @@ func (e *Engine) applyArtifactFetchResult(ctx context.Context, artifact *config.
 }
 
 func (e *Engine) materializeArtifactChildren(ctx context.Context, artifactName, rawPath string, enableAll, force bool) (DownloadDecision, error) {
-	artifact := e.cfg.ArtifactByName(artifactName)
+	return e.materializeArtifactChildrenWithSnapshot(ctx, e.operationSnapshot(), artifactName, rawPath, enableAll, force)
+}
+
+func (e *Engine) materializeArtifactChildrenWithSnapshot(ctx context.Context, snap operationSnapshot, artifactName, rawPath string, enableAll, force bool) (DownloadDecision, error) {
+	artifact := snap.cfg.ArtifactByName(artifactName)
 	if artifact == nil {
 		return DownloadDecision{Name: artifactName}, fmt.Errorf("unknown artifact %q", artifactName)
 	}
 	switch artifact.Type {
 	case config.ArtifactTypeDroneBLBuildzone:
-		return e.materializeDroneBLChildren(ctx, artifact, rawPath, enableAll, force)
+		return e.materializeDroneBLChildrenWithSnapshot(ctx, snap, artifact, rawPath, enableAll, force)
 	default:
 		return DownloadDecision{Name: artifactName}, fmt.Errorf("unsupported artifact type %q", artifact.Type)
 	}
 }
 
 func (e *Engine) materializeDroneBLChildren(ctx context.Context, artifact *config.Artifact, rawPath string, enableAll, force bool) (DownloadDecision, error) {
+	return e.materializeDroneBLChildrenWithSnapshot(ctx, e.operationSnapshot(), artifact, rawPath, enableAll, force)
+}
+
+func (e *Engine) materializeDroneBLChildrenWithSnapshot(ctx context.Context, snap operationSnapshot, artifact *config.Artifact, rawPath string, enableAll, force bool) (DownloadDecision, error) {
 	name := artifact.Name
-	specs := e.droneBLArtifactSpecs(name, enableAll)
+	specs := droneBLArtifactSpecsForSnapshot(snap, name, enableAll)
 	if len(specs) == 0 {
 		return DownloadDecision{Name: name}, nil
 	}
 
-	extractDir := e.artifactExtractDir(name)
+	extractDir := artifactExtractDirForRuntime(snap.runtime, name)
 	if err := os.MkdirAll(extractDir, generatedDirMode); err != nil {
 		return DownloadDecision{Name: name}, err
 	}
@@ -175,10 +195,10 @@ func (e *Engine) materializeDroneBLChildren(ctx context.Context, artifact *confi
 	defer func() { _ = os.RemoveAll(outDir) }()
 
 	report, err := dronebl.Update(ctx, dronebl.Options{
-		WorkDir:       e.artifactRootDir(name),
+		WorkDir:       artifactRootDirForRuntime(snap.runtime, name),
 		OutputDir:     outDir,
 		BuildzonePath: rawPath,
-		Timeout:       e.runtime.MaxDownloadTime,
+		Timeout:       snap.runtime.MaxDownloadTime,
 		SkipFetch:     true,
 		Specs:         specs,
 	})
@@ -196,7 +216,7 @@ func (e *Engine) materializeDroneBLChildren(ctx context.Context, artifact *confi
 	decision := DownloadDecision{Name: name}
 	for _, spec := range specs {
 		childName := spec.Name
-		src := e.cfg.Sources[childName]
+		src := snap.cfg.Sources[childName]
 		if src == nil {
 			return DownloadDecision{Name: name}, fmt.Errorf("artifact child %q not found", childName)
 		}
@@ -205,20 +225,20 @@ func (e *Engine) materializeDroneBLChildren(ctx context.Context, artifact *confi
 		entry.MarkArtifactChildMaterializing(e.now().UTC().Unix())
 
 		childOutputPath := filepath.Join(outDir, childName+".source")
-		result, err := e.downloads.Fetch(ctx, downloader.Request{
+		result, err := snap.downloads.Fetch(ctx, downloader.Request{
 			Name:            childName,
 			URL:             fileURL(childOutputPath),
-			ReferencePath:   e.sourcePath(childName),
+			ReferencePath:   snap.sourcePath(childName),
 			AcceptEmpty:     true,
-			MaxDownloadSize: e.artifactDownloadMaxSize(artifact),
-			TmpDir:          e.runtime.TmpDir,
+			MaxDownloadSize: artifactDownloadMaxSizeForRuntime(snap.runtime, artifact),
+			TmpDir:          snap.runtime.TmpDir,
 		})
 		if err != nil {
 			e.incrementFailure(entry)
 			entry.MarkDownloadFetchFailed(err.Error())
 			return DownloadDecision{Name: name}, err
 		}
-		childDecision, err := e.applyRawFeedDownloadResult(ctx, entry, src, result, e.sourcePath(childName), e.feedBodyPath(childName), force, enableAll)
+		childDecision, err := e.applyRawFeedDownloadResultWithSnapshot(ctx, snap, entry, src, result, snap.sourcePath(childName), snap.feedBodyPath(childName), force, enableAll)
 		if err != nil {
 			return DownloadDecision{Name: name}, err
 		}
@@ -229,10 +249,14 @@ func (e *Engine) materializeDroneBLChildren(ctx context.Context, artifact *confi
 }
 
 func (e *Engine) droneBLArtifactSpecs(artifactName string, enableAll bool) []dronebl.OutputSpec {
-	children := e.cfg.ArtifactChildren(artifactName)
+	return droneBLArtifactSpecsForSnapshot(e.operationSnapshot(), artifactName, enableAll)
+}
+
+func droneBLArtifactSpecsForSnapshot(snap operationSnapshot, artifactName string, enableAll bool) []dronebl.OutputSpec {
+	children := snap.cfg.ArtifactChildren(artifactName)
 	specs := make([]dronebl.OutputSpec, 0, len(children))
 	for _, src := range children {
-		if src == nil || !EffectiveSourceEnabled(e.cfg, e.runtime, src.Name, enableAll) {
+		if src == nil || !EffectiveSourceEnabled(snap.cfg, snap.runtime, src.Name, enableAll) {
 			continue
 		}
 		ref, err := config.ParseArtifactURL(src.URL)

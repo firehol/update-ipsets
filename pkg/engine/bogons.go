@@ -59,10 +59,17 @@ func (b *bogonDatasets) closeAll() {
 // Missing feeds (e.g. a bogon source whose first download has not happened
 // yet) log a warning and are skipped instead of failing the run.
 func (e *Engine) loadBogonSources(ctx context.Context) (*bogonDatasets, error) {
+	return e.loadBogonSourcesWithSnapshot(ctx, e.operationSnapshot())
+}
+
+func (e *Engine) loadBogonSourcesWithSnapshot(ctx context.Context, snap operationSnapshot) (*bogonDatasets, error) {
 	if err := contextErr(ctx); err != nil {
 		return nil, err
 	}
-	bogonSources := e.cfg.SourcesWithUse(config.UseBogons)
+	if snap.cfg == nil {
+		return &bogonDatasets{Providers: map[string]*bogonProviderSet{}}, nil
+	}
+	bogonSources := snap.cfg.SourcesWithUse(config.UseBogons)
 	if len(bogonSources) == 0 {
 		return &bogonDatasets{Providers: map[string]*bogonProviderSet{}}, nil
 	}
@@ -78,7 +85,7 @@ func (e *Engine) loadBogonSources(ctx context.Context) (*bogonDatasets, error) {
 		func() {
 			defer loadOp.Add(1, int64(len(bogonSources)), nil)
 			name := src.Name
-			latest, err := e.openLatestSet(ctx, name)
+			latest, err := e.openLatestSetWithSnapshot(ctx, snap, name)
 			if err != nil {
 				e.logger.Warn("bogon source skipped: latest set not available",
 					"source", name, "error", err)
@@ -166,6 +173,10 @@ type bogonFeedJSON struct {
 // caller must pass the provider name in updatedNames so all feeds get
 // rebuilt against the fresh provider data.
 func (e *Engine) writeBogonComparisonFiles(ctx context.Context, datasets *bogonDatasets, updatedNames []string, outDir string, setCache *latestSetCache) error {
+	return e.writeBogonComparisonFilesWithSnapshot(ctx, e.operationSnapshot(), datasets, updatedNames, outDir, setCache)
+}
+
+func (e *Engine) writeBogonComparisonFilesWithSnapshot(ctx context.Context, snap operationSnapshot, datasets *bogonDatasets, updatedNames []string, outDir string, setCache *latestSetCache) error {
 	if err := contextErr(ctx); err != nil {
 		return err
 	}
@@ -173,11 +184,11 @@ func (e *Engine) writeBogonComparisonFiles(ctx context.Context, datasets *bogonD
 		return nil
 	}
 	if setCache == nil {
-		setCache = newLatestSetCache(e)
+		setCache = newLatestSetCacheForSnapshot(e, snap)
 		defer setCache.CloseAll(e.logger)
 	}
 
-	targetNames := targetFeedsForFanOut(e.cfg, updatedNames, e.publicOutputNames(), config.UseBogons)
+	targetNames := targetFeedsForFanOut(snap.cfg, updatedNames, e.publicOutputNamesForSnapshot(snap), config.UseBogons)
 	if len(targetNames) == 0 {
 		return nil
 	}
@@ -205,7 +216,7 @@ func (e *Engine) writeBogonComparisonFiles(ctx context.Context, datasets *bogonD
 		return err
 	}
 
-	numWorkers := e.runtime.HeavyPhaseWorkers()
+	numWorkers := snap.runtime.HeavyPhaseWorkers()
 	if numWorkers < 1 {
 		numWorkers = 1
 	}

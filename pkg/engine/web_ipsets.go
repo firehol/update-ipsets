@@ -14,8 +14,12 @@ import (
 )
 
 func (e *Engine) copyUpdatedIPSetsToWebContext(ctx context.Context, updatedNames []string) ([]output.GeneratedFile, error) {
+	return e.copyUpdatedIPSetsToWebContextWithSnapshot(ctx, e.operationSnapshot(), updatedNames)
+}
+
+func (e *Engine) copyUpdatedIPSetsToWebContextWithSnapshot(ctx context.Context, snap operationSnapshot, updatedNames []string) ([]output.GeneratedFile, error) {
 	ctx = nonNilContext(ctx)
-	if e.runtime.WebDirForIPSets == "" || !dirExists(e.runtime.WebDirForIPSets) {
+	if snap.runtime.WebDirForIPSets == "" || !dirExists(snap.runtime.WebDirForIPSets) {
 		return nil, nil
 	}
 	names := dedupeStrings(updatedNames)
@@ -28,11 +32,11 @@ func (e *Engine) copyUpdatedIPSetsToWebContext(ctx context.Context, updatedNames
 		if err := contextErr(ctx); err != nil {
 			return nil, err
 		}
-		if !e.isPublicFeedName(name) {
+		if !isPublicFeedNameForConfig(snap.cfg, name) {
 			progress.Add(1, int64(len(names)), nil)
 			continue
 		}
-		if !e.isRedistributable(name) {
+		if !isRedistributableForConfig(snap.cfg, name) {
 			progress.Add(1, int64(len(names)), nil)
 			continue
 		}
@@ -45,12 +49,12 @@ func (e *Engine) copyUpdatedIPSetsToWebContext(ctx context.Context, updatedNames
 			progress.Add(1, int64(len(names)), nil)
 			return nil, fmt.Errorf("set %q has unexpected materialized file %q", name, entry.File)
 		}
-		if _, ok := safeRuntimeFilePath(e.runtime.BaseDir, entry.File); !ok {
+		if _, ok := safeRuntimeFilePath(snap.runtime.BaseDir, entry.File); !ok {
 			progress.Add(1, int64(len(names)), nil)
 			return nil, fmt.Errorf("set %q has unsafe materialized file %q", name, entry.File)
 		}
-		dst := filepath.Join(e.runtime.WebDirForIPSets, entry.File)
-		mod, err := copyFileViaNewContext(ctx, e.runtime.BaseDir, entry.File, dst, e.runtime.WebOwner)
+		dst := filepath.Join(snap.runtime.WebDirForIPSets, entry.File)
+		mod, err := copyFileViaNewContext(ctx, snap.runtime.BaseDir, entry.File, dst, snap.runtime.WebOwner)
 		if err != nil {
 			if os.IsNotExist(err) {
 				progress.Add(1, int64(len(names)), nil)

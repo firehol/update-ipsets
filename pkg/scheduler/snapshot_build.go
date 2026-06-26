@@ -37,6 +37,10 @@ type Snapshot struct {
 }
 
 func BuildSnapshot(cfg *config.Config, rt engine.Runtime, entries []cache.Entry, enableAll bool, now time.Time) Snapshot {
+	return BuildSnapshotWithPolicy(cfg, rt, feedhealth.PolicyFromConfig(cfg), entries, enableAll, now)
+}
+
+func BuildSnapshotWithPolicy(cfg *config.Config, rt engine.Runtime, policy feedhealth.Policy, entries []cache.Entry, enableAll bool, now time.Time) Snapshot {
 	index := make(map[string]cache.Entry, len(entries))
 	for _, entry := range entries {
 		index[entry.Name] = entry
@@ -55,7 +59,7 @@ func BuildSnapshot(cfg *config.Config, rt engine.Runtime, entries []cache.Entry,
 		// filters them out at serve time. Surfacing them in BuildSnapshot
 		// keeps the admin view as a strict superset of the public view.
 		frequency := scheduledFrequencyMinutes(src)
-		health := feedhealth.Classify(entryViewForHealth(entry), src, feedhealth.PolicyFromRuntime(cfg.Runtime), now)
+		health := feedhealth.Classify(entryViewForHealth(entry), src, policy, now)
 		next, detail := nextDue(entry, frequency, sourcePathForCheck, now, rt.IgnoreRepeatingDownloadErrors, health.Class == feedhealth.ClassUnmaintained, health.Class == feedhealth.ClassArchived)
 		if staticSourceMaterializationChanged(src, sourcePathForCheck) {
 			next = now
@@ -93,6 +97,10 @@ func BuildSnapshot(cfg *config.Config, rt engine.Runtime, entries []cache.Entry,
 }
 
 func BuildArtifactItems(cfg *config.Config, rt engine.Runtime, entries []cache.Entry, enableAll bool, now time.Time) []Item {
+	return BuildArtifactItemsWithPolicy(cfg, rt, feedhealth.PolicyFromConfig(cfg), entries, enableAll, now)
+}
+
+func BuildArtifactItemsWithPolicy(cfg *config.Config, rt engine.Runtime, policy feedhealth.Policy, entries []cache.Entry, enableAll bool, now time.Time) []Item {
 	if cfg == nil || len(cfg.Artifacts) == 0 {
 		return nil
 	}
@@ -107,7 +115,7 @@ func BuildArtifactItems(cfg *config.Config, rt engine.Runtime, entries []cache.E
 			continue
 		}
 		sourcePath := filepath.Join(rt.LibDir, "artifacts", name, "source")
-		health := feedhealth.Classify(entryViewForHealth(index[name]), &config.Source{Frequency: artifact.Frequency}, feedhealth.PolicyFromRuntime(cfg.Runtime), now)
+		health := feedhealth.Classify(entryViewForHealth(index[name]), &config.Source{Frequency: artifact.Frequency}, policy, now)
 		next, detail := nextDue(index[name], artifact.Frequency, sourcePath, now, rt.IgnoreRepeatingDownloadErrors, health.Class == feedhealth.ClassUnmaintained, false)
 		items = append(items, Item{
 			Name:             name,

@@ -19,7 +19,7 @@ func (e *Engine) ensureDirectories() error {
 	if e == nil {
 		return nil
 	}
-	return ensureDirectoriesForRuntime(e.runtime)
+	return ensureDirectoriesForRuntime(e.Runtime())
 }
 
 func ensureDirectoriesForRuntime(rt Runtime) error {
@@ -52,6 +52,10 @@ func ensureDirectoriesForRuntime(rt Runtime) error {
 }
 
 func (e *Engine) processSource(ctx context.Context, src *config.Source, opts RunOptions, reason runreason.Reason) FeedProcessingResult {
+	return e.processSourceWithSnapshot(ctx, e.operationSnapshot(), src, opts, reason)
+}
+
+func (e *Engine) processSourceWithSnapshot(ctx context.Context, snap operationSnapshot, src *config.Source, opts RunOptions, reason runreason.Reason) FeedProcessingResult {
 	if src == nil {
 		return processingException(ProcessingExceptionInvalidInput, "nil source", fmt.Errorf("nil source"))
 	}
@@ -66,10 +70,14 @@ func (e *Engine) processSource(ctx context.Context, src *config.Source, opts Run
 	if src.HasUse(config.UseASN) || src.HasUse(config.UseGeoIP) {
 		return processingOK("database source handled by heavy block", false)
 	}
-	return e.processConcreteSource(ctx, src.Name, src, src.Output, opts, reason)
+	return e.processConcreteSourceWithSnapshot(ctx, snap, src.Name, src, src.Output, opts, reason)
 }
 
 func (e *Engine) processConcreteSource(ctx context.Context, runName string, src *config.Source, output string, opts RunOptions, reason runreason.Reason) FeedProcessingResult {
+	return e.processConcreteSourceWithSnapshot(ctx, e.operationSnapshot(), runName, src, output, opts, reason)
+}
+
+func (e *Engine) processConcreteSourceWithSnapshot(ctx context.Context, snap operationSnapshot, runName string, src *config.Source, output string, opts RunOptions, reason runreason.Reason) FeedProcessingResult {
 	entry := e.state.Entry(runName)
 	entry.ApplyProcessingSourceConfig(cache.ProcessingSourceConfigSnapshot{
 		Name:              runName,
@@ -87,12 +95,12 @@ func (e *Engine) processConcreteSource(ctx context.Context, runName string, src 
 	attempt := e.beginFeedAttempt(entry, reason)
 	defer attempt.finish()
 
-	if !e.isEnabled(runName, opts) {
+	if !snap.isEnabled(runName, opts) {
 		entry.MarkSourceProcessingDisabled(e.now().UTC().Unix())
 		return processingOK("disabled", false)
 	}
 
-	bodyPath := e.feedBodyPath(runName)
+	bodyPath := snap.feedBodyPath(runName)
 	processingBodyPath, err := claimProcessingFeedBody(bodyPath)
 	if err != nil {
 		entry.MarkSourceProcessingMissingInput(bodyPath)
@@ -108,19 +116,23 @@ func (e *Engine) processConcreteSource(ctx context.Context, runName string, src 
 	sourceMTime := info.ModTime().UTC()
 	observedAt := e.now().UTC()
 	entry.MarkSourceProcessingStarted()
-	return e.processAndCommit(ctx, runName, src, output, entry, processingBodyPath, info.Size(), sourceMTime, observedAt)
+	return e.processAndCommitWithSnapshot(ctx, snap, runName, src, output, entry, processingBodyPath, info.Size(), sourceMTime, observedAt)
 }
 
 // processAndCommit parses an already-prepared canonical feed body and commits
 // the downstream artifacts derived from it.
 func (e *Engine) processAndCommit(ctx context.Context, runName string, src *config.Source, output string, entry *cache.Entry, sourcePath string, sourceBytes int64, sourceMTime, observedAt time.Time) FeedProcessingResult {
+	return e.processAndCommitWithSnapshot(ctx, e.operationSnapshot(), runName, src, output, entry, sourcePath, sourceBytes, sourceMTime, observedAt)
+}
+
+func (e *Engine) processAndCommitWithSnapshot(ctx context.Context, snap operationSnapshot, runName string, src *config.Source, output string, entry *cache.Entry, sourcePath string, sourceBytes int64, sourceMTime, observedAt time.Time) FeedProcessingResult {
 	work := FeedProcessingWork{InputBytes: sourceBytes}
 	started := time.Now()
 	parseOp := e.beginActiveOperation("sources.parse_feed_body", runName, "read", "bytes", sourceBytes)
 	var resolveOp *activeOperationHandle
 	parseOpts := iprange.DefaultParseOptions()
 	parseOpts.DefaultPrefix = 32
-	parseOpts.DNSThreads = e.runtime.ParallelDNSQueries
+	parseOpts.DNSThreads = snap.runtime.ParallelDNSQueries
 	parseOpts.Progress = func(progress iprange.ParseProgress) {
 		switch progress.Stage {
 		case "resolve":
@@ -165,7 +177,7 @@ func (e *Engine) processAndCommit(ctx context.Context, runName string, src *conf
 		diffTotal += int64(entrySnapshot.Entries)
 	}
 	diffOp := e.beginActiveOperation("sources.diff_previous_latest", runName, "diff", "ranges", diffTotal)
-	retentionDiff := e.retentionDiffWithPreviousLatest(ctx, runName, finalSet)
+	retentionDiff := e.retentionDiffWithPreviousLatestWithSnapshot(ctx, snap, runName, finalSet)
 	if diffOp != nil {
 		diffOp.Update(diffTotal, diffTotal, map[string]int64{
 			"added_ips":   int64Clamp(retentionDiff.added),
@@ -176,7 +188,7 @@ func (e *Engine) processAndCommit(ctx context.Context, runName string, src *conf
 
 	started = time.Now()
 	finalizeOp := e.beginActiveOperation("sources.finalize", runName, "write", "operation", 1)
-	if err := e.finalize(ctx, runName, src, output, sourcePath, finalSet, sourceMTime, observedAt); err != nil {
+	if err := e.finalizeWithSnapshot(ctx, snap, runName, src, output, sourcePath, finalSet, sourceMTime, observedAt); err != nil {
 		if finalizeOp != nil {
 			finalizeOp.Finish()
 		}
@@ -197,7 +209,7 @@ func (e *Engine) processAndCommit(ctx context.Context, runName string, src *conf
 
 	started = time.Now()
 	retentionOp := e.beginActiveOperation("sources.update_retention", runName, "update", "operation", 1)
-	if err := e.updateRetentionFromDiff(ctx, runName, retentionDiff, finalSet, sourceMTime); err != nil {
+	if err := e.updateRetentionFromDiffWithSnapshot(ctx, snap, runName, retentionDiff, finalSet, sourceMTime); err != nil {
 		if retentionOp != nil {
 			retentionOp.Finish()
 		}
@@ -237,7 +249,11 @@ func (e *Engine) processAndCommit(ctx context.Context, runName string, src *conf
 }
 
 func (e *Engine) retentionDiffWithPreviousLatest(ctx context.Context, name string, current *iprange.IPSet) retentionUpdateDiff {
-	previous, err := e.openPreviousLatestSet(ctx, name)
+	return e.retentionDiffWithPreviousLatestWithSnapshot(ctx, e.operationSnapshot(), name, current)
+}
+
+func (e *Engine) retentionDiffWithPreviousLatestWithSnapshot(ctx context.Context, snap operationSnapshot, name string, current *iprange.IPSet) retentionUpdateDiff {
+	previous, err := e.openPreviousLatestSetWithRuntime(ctx, snap.runtime, name)
 	if err != nil {
 		e.logger.Warn("could not open previous binary set, treating as first run", "source", name, "error", err)
 		return retentionDiff(iprange.New(name), current)

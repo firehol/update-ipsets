@@ -65,8 +65,8 @@ func (r *Runner) enqueueProviderDefaultsReprocess(now time.Time) {
 }
 func (r *Runner) enqueueRecoveredStagedSource(name string) {
 	queuedAt := r.now().UTC()
-	if r.eng.IsProviderDatabase(name) {
-		r.enqueueProviderWave(runreason.ReasonScheduledDue, queuedAt, true, true, []string{name})
+	if targets, ok := r.eng.ProviderReprocessTargetsForSource(name, r.enableAll); ok {
+		r.enqueueProviderWaveTargets(runreason.ReasonScheduledDue, queuedAt, true, true, targets, []string{name})
 		return
 	}
 	r.enqueueProcessing(queuedWork{
@@ -80,6 +80,10 @@ func (r *Runner) enqueueRecoveredStagedSource(name string) {
 
 func (r *Runner) enqueueProviderWave(reason runreason.Reason, queuedAt time.Time, forceRun, immediate bool, promote []string) {
 	targets := r.eng.FullFeedReprocessTargets(r.enableAll)
+	r.enqueueProviderWaveTargets(reason, queuedAt, forceRun, immediate, targets, promote)
+}
+
+func (r *Runner) enqueueProviderWaveTargets(reason runreason.Reason, queuedAt time.Time, forceRun, immediate bool, targets, promote []string) {
 	for _, name := range targets {
 		r.enqueueProcessing(queuedWork{
 			Name:      name,
@@ -90,11 +94,4 @@ func (r *Runner) enqueueProviderWave(reason runreason.Reason, queuedAt time.Time
 			Promote:   append([]string(nil), promote...),
 		})
 	}
-}
-
-func (r *Runner) promoteNamesForProviderReprocess(name string) []string {
-	if name == "" || !r.eng.HasStagedDownload(name) {
-		return nil
-	}
-	return []string{name}
 }

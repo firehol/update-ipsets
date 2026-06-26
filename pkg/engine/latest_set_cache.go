@@ -14,7 +14,8 @@ import (
 // same target feeds, so reopening the same binary/text set thousands of
 // times is pure overhead.
 type latestSetCache struct {
-	engine *Engine
+	engine   *Engine
+	snapshot operationSnapshot
 
 	mu     sync.Mutex
 	closed bool
@@ -35,6 +36,12 @@ func newLatestSetCache(engine *Engine) *latestSetCache {
 		summaries: make(map[string]latestSetSummary),
 		filters:   make(map[string]latestSetFilter),
 	}
+}
+
+func newLatestSetCacheForSnapshot(engine *Engine, snap operationSnapshot) *latestSetCache {
+	cache := newLatestSetCache(engine)
+	cache.snapshot = snap
+	return cache
 }
 
 type latestSetSummary struct {
@@ -107,7 +114,7 @@ func (c *latestSetCache) OpenContext(ctx context.Context, name string) (*closabl
 		c.loads[name] = load
 		c.mu.Unlock()
 
-		src, err := c.engine.openLatestSet(ctx, name)
+		src, err := c.openLatestSet(ctx, name)
 		ctxErr := contextErr(ctx)
 		c.mu.Lock()
 		closed := c.closed
@@ -149,6 +156,13 @@ func (c *latestSetCache) OpenContext(ctx context.Context, name string) (*closabl
 		c.mu.Unlock()
 		return src, nil
 	}
+}
+
+func (c *latestSetCache) openLatestSet(ctx context.Context, name string) (*closableSource, error) {
+	if c.snapshot.cfg != nil {
+		return c.engine.openLatestSetWithSnapshot(ctx, c.snapshot, name)
+	}
+	return c.engine.openLatestSet(ctx, name)
 }
 
 func (c *latestSetCache) Summary(ctx context.Context, name string) (iprange.RangeSourceSummary, error) {

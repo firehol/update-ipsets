@@ -11,9 +11,14 @@ import (
 )
 
 func (e *Engine) patchCountryIndex(webBatch *webPublishBatch, updates map[string]*countryDetailSidecar) error {
-	payload := e.emptyCountryIndexPayload()
+	return e.patchCountryIndexWithSnapshot(e.operationSnapshot(), webBatch, updates)
+}
+
+func (e *Engine) patchCountryIndexWithSnapshot(snap operationSnapshot, webBatch *webPublishBatch, updates map[string]*countryDetailSidecar) error {
+	payload := e.emptyCountryIndexPayloadWithSnapshot(snap)
 	start := time.Now()
-	data, err := readFileInRoot(e.outputDir(), e.publicCountryIndexRelPath())
+	outDir := outputDirForRuntime(snap.runtime)
+	data, err := readFileInRoot(outDir, e.publicCountryIndexRelPath())
 	if err == nil {
 		e.observeRunCounter("entity.refresh.country_index_read", 1, int64(len(data)))
 		e.observeRunOperation("entity.refresh.country_index_read", time.Since(start))
@@ -46,7 +51,7 @@ func (e *Engine) patchCountryIndex(webBatch *webPublishBatch, updates map[string
 			AttributedIPs: sidecar.Totals.AttributedIPsInFeed,
 		}
 	}
-	payload.Provider = e.emptyCountryIndexPayload().Provider
+	payload.Provider = e.emptyCountryIndexPayloadWithSnapshot(snap).Provider
 	payload.Countries = make([]CountryIndexEntry, 0, len(rows))
 	for _, row := range rows {
 		payload.Countries = append(payload.Countries, row)
@@ -64,9 +69,14 @@ func (e *Engine) patchCountryIndex(webBatch *webPublishBatch, updates map[string
 }
 
 func (e *Engine) patchASNIndex(webBatch *webPublishBatch, updates map[uint32]*asnDetailSidecar) error {
-	payload := e.emptyASNIndexPayload()
+	return e.patchASNIndexWithSnapshot(e.operationSnapshot(), webBatch, updates)
+}
+
+func (e *Engine) patchASNIndexWithSnapshot(snap operationSnapshot, webBatch *webPublishBatch, updates map[uint32]*asnDetailSidecar) error {
+	payload := e.emptyASNIndexPayloadWithSnapshot(snap)
 	start := time.Now()
-	data, err := readFileInRoot(e.outputDir(), e.publicASNIndexRelPath())
+	outDir := outputDirForRuntime(snap.runtime)
+	data, err := readFileInRoot(outDir, e.publicASNIndexRelPath())
 	if err == nil {
 		e.observeRunCounter("entity.refresh.asn_index_read", 1, int64(len(data)))
 		e.observeRunOperation("entity.refresh.asn_index_read", time.Since(start))
@@ -97,7 +107,7 @@ func (e *Engine) patchASNIndex(webBatch *webPublishBatch, updates map[uint32]*as
 			AttributedIPs: sidecar.Totals.AttributedIPs,
 		}
 	}
-	payload.Provider = e.emptyASNIndexPayload().Provider
+	payload.Provider = e.emptyASNIndexPayloadWithSnapshot(snap).Provider
 	payload.ASNs = make([]ASNIndexEntry, 0, len(rows))
 	for _, row := range rows {
 		payload.ASNs = append(payload.ASNs, row)
@@ -115,21 +125,29 @@ func (e *Engine) patchASNIndex(webBatch *webPublishBatch, updates map[uint32]*as
 }
 
 func (e *Engine) emptyCountryIndexPayload() *CountryIndexPayload {
-	provider := e.preferredGeoProvider()
+	return e.emptyCountryIndexPayloadWithSnapshot(e.operationSnapshot())
+}
+
+func (e *Engine) emptyCountryIndexPayloadWithSnapshot(snap operationSnapshot) *CountryIndexPayload {
+	provider := preferredGeoProviderForConfig(snap.cfg)
 	return &CountryIndexPayload{
 		Provider: HomeSummaryProvider{
 			Name:  provider,
-			Label: providerDisplayLabel(e.lookupSource(provider)),
+			Label: providerDisplayLabel(lookupSourceForConfig(snap.cfg, provider)),
 		},
 	}
 }
 
 func (e *Engine) emptyASNIndexPayload() *ASNIndexPayload {
-	provider := e.preferredASNProvider()
+	return e.emptyASNIndexPayloadWithSnapshot(e.operationSnapshot())
+}
+
+func (e *Engine) emptyASNIndexPayloadWithSnapshot(snap operationSnapshot) *ASNIndexPayload {
+	provider := preferredASNProviderForConfig(snap.cfg)
 	return &ASNIndexPayload{
 		Provider: HomeSummaryProvider{
 			Name:  provider,
-			Label: providerDisplayLabel(e.lookupSource(provider)),
+			Label: providerDisplayLabel(lookupSourceForConfig(snap.cfg, provider)),
 		},
 	}
 }

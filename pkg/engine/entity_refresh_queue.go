@@ -607,13 +607,14 @@ func (e *Engine) runEntityArtifactRefreshQueue(ctx context.Context, task *Backgr
 			len(names),
 		)
 	}
-	if e.entityArtifactsNeedBootstrapFast() {
+	snap := e.operationSnapshot()
+	if e.entityArtifactsNeedBootstrapFastWithSnapshot(snap) {
 		if task != nil {
 			task.Update("bootstrap", "entity artifacts are missing or stale; rebuilding full entity surface", 0, 0)
 		}
-		return e.rebuildEntityArtifactsFromLive(ctx, task)
+		return e.rebuildEntityArtifactsFromLiveWithSnapshot(ctx, snap, task)
 	}
-	return e.refreshEntityArtifactsForFeedUpdates(ctx, names, task)
+	return e.refreshEntityArtifactsForFeedUpdatesWithSnapshot(ctx, snap, names, task)
 }
 
 func (e *Engine) runEntityHealthRefreshQueue(ctx context.Context, task *BackgroundTaskHandle) error {
@@ -636,11 +637,12 @@ func (e *Engine) runEntityHealthRefreshQueue(ctx context.Context, task *Backgrou
 			len(names),
 		)
 	}
-	if e.entityArtifactsNeedBootstrapFast() {
+	snap := e.operationSnapshot()
+	if e.entityArtifactsNeedBootstrapFastWithSnapshot(snap) {
 		if task != nil {
 			task.Update("bootstrap", "entity artifacts are missing or stale; rebuilding full entity surface", 0, 0)
 		}
-		return e.rebuildEntityArtifactsFromLive(ctx, task)
+		return e.rebuildEntityArtifactsFromLiveWithSnapshot(ctx, snap, task)
 	}
-	return e.refreshEntityArtifactsForHealthTransitions(ctx, names, task)
+	return e.refreshEntityArtifactsForHealthTransitionsWithSnapshot(ctx, snap, names, task)
 }

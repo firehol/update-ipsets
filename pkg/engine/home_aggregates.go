@@ -72,26 +72,34 @@ func (e *Engine) publicHomeAggregatesRelPath() string {
 }
 
 func (e *Engine) PublicHomeAggregatesPath() string {
-	return filepath.Join(e.outputDir(), e.publicHomeAggregatesRelPath())
+	return publicHomeAggregatesPathForRuntime(e.Runtime())
+}
+
+func publicHomeAggregatesPathForRuntime(rt Runtime) string {
+	return filepath.Join(outputDirForRuntime(rt), filepath.Join("home", "aggregates.json"))
 }
 
 func (e *Engine) stageHomeAggregates(ctx context.Context, stageDir, inputDir string) (output.GeneratedFile, error) {
+	return e.stageHomeAggregatesWithSnapshot(ctx, e.operationSnapshot(), stageDir, inputDir)
+}
+
+func (e *Engine) stageHomeAggregatesWithSnapshot(ctx context.Context, snap operationSnapshot, stageDir, inputDir string) (output.GeneratedFile, error) {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
 		return output.GeneratedFile{}, err
 	}
-	if e == nil || e.cfg == nil {
+	if e == nil || snap.cfg == nil {
 		return output.GeneratedFile{}, fmt.Errorf("engine is not configured")
 	}
 	if stageDir == "" {
 		return output.GeneratedFile{}, fmt.Errorf("homepage aggregate stage directory is required")
 	}
 	if inputDir == "" {
-		inputDir = e.outputDir()
+		inputDir = outputDirForRuntime(snap.runtime)
 	}
 
 	started := time.Now()
-	payload, err := e.buildHomeAggregatesInDir(ctx, inputDir)
+	payload, err := e.buildHomeAggregatesInDirWithSnapshot(ctx, snap, inputDir)
 	if err != nil {
 		e.observeRunOperation("metadata.write_home_aggregates", time.Since(started))
 		return output.GeneratedFile{}, err
@@ -102,41 +110,45 @@ func (e *Engine) stageHomeAggregates(ctx context.Context, stageDir, inputDir str
 		e.observeRunOperation("metadata.write_home_aggregates", time.Since(started))
 		return output.GeneratedFile{}, err
 	}
-	_, refTime, _ := e.homeAggregatesReference()
+	_, refTime, _ := e.homeAggregatesReferenceWithSnapshot(snap)
 	timestamp := e.now().UTC()
 	if refTime.After(timestamp) {
 		timestamp = refTime
 	}
 	e.observeRunOperation("metadata.write_home_aggregates", time.Since(started))
 	return output.GeneratedFile{
-		Path:            filepath.Join(e.outputDir(), rel),
+		Path:            filepath.Join(outputDirForRuntime(snap.runtime), rel),
 		Timestamp:       timestamp,
 		Redistributable: true,
 	}, nil
 }
 
 func (e *Engine) buildHomeAggregatesInDir(ctx context.Context, inputDir string) (*homeAggregatesPayload, error) {
-	if e == nil || e.cfg == nil {
+	return e.buildHomeAggregatesInDirWithSnapshot(ctx, e.operationSnapshot(), inputDir)
+}
+
+func (e *Engine) buildHomeAggregatesInDirWithSnapshot(ctx context.Context, snap operationSnapshot, inputDir string) (*homeAggregatesPayload, error) {
+	if e == nil || snap.cfg == nil {
 		return nil, fmt.Errorf("engine is not configured")
 	}
-	geoProvider := e.preferredGeoProvider()
-	asnProvider := e.preferredASNProvider()
-	geoSrc := e.lookupSource(geoProvider)
-	asnSrc := e.lookupSource(asnProvider)
-	policy := feedhealth.PolicyFromRuntime(e.cfg.Runtime)
+	geoProvider := preferredGeoProviderForConfig(snap.cfg)
+	asnProvider := preferredASNProviderForConfig(snap.cfg)
+	geoSrc := lookupSourceForConfig(snap.cfg, geoProvider)
+	asnSrc := lookupSourceForConfig(snap.cfg, asnProvider)
+	policy := snap.feedHealthPolicy
 	now := e.now().UTC()
-	view := newEntityOutputView(e, inputDir)
+	view := newEntityOutputViewWithRuntime(e, snap.runtime, inputDir)
 
 	categories := map[string]*homeMutableCategoryAggregate{}
-	entries := e.EntriesSnapshot()
+	entries := e.entriesSnapshot(snap.cfg, configuredNamesForConfig(snap.cfg))
 	progress := e.beginActiveOperation("metadata.write_home_aggregates", "", "aggregate", "feeds", int64(len(entries)))
 	defer progress.Finish()
 	for _, entry := range entries {
 		if err := contextErr(ctx); err != nil {
 			return nil, err
 		}
-		src := e.lookupSource(entry.Name)
-		if !homeSummaryEligible(e.cfg, src, nil) {
+		src := lookupSourceForConfig(snap.cfg, entry.Name)
+		if !homeSummaryEligible(snap.cfg, src, nil) {
 			progress.Add(1, int64(len(entries)), nil)
 			continue
 		}
@@ -308,11 +320,12 @@ func sortedHomeCategoryKeys(categories map[string]*homeMutableCategoryAggregate)
 }
 
 func (e *Engine) loadHomeAggregatesInDir(outputDir string) (*homeAggregatesPayload, error) {
-	if e == nil || e.cfg == nil {
+	snap := e.operationSnapshot()
+	if e == nil || snap.cfg == nil {
 		return nil, fmt.Errorf("engine is not configured")
 	}
 	if outputDir == "" {
-		outputDir = e.outputDir()
+		outputDir = outputDirForRuntime(snap.runtime)
 	}
 	started := time.Now()
 	payload, size, err := readHomeAggregatesFile(outputDir, e.publicHomeAggregatesRelPath())

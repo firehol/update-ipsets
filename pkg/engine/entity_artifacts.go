@@ -19,7 +19,11 @@ type entityPublishBatch struct {
 }
 
 func (e *Engine) newEntityPublishBatch() (*entityPublishBatch, error) {
-	batch, err := newStagedPublishBatch(e.entitiesDir(), "", entityPublishStagePattern)
+	return newEntityPublishBatchForRuntime(e.Runtime())
+}
+
+func newEntityPublishBatchForRuntime(rt Runtime) (*entityPublishBatch, error) {
+	batch, err := newStagedPublishBatch(entitiesDirForRuntime(rt), "", entityPublishStagePattern)
 	if err != nil {
 		return nil, err
 	}
@@ -27,27 +31,51 @@ func (e *Engine) newEntityPublishBatch() (*entityPublishBatch, error) {
 }
 
 func (e *Engine) entitiesDir() string {
-	return filepath.Join(e.runtime.LibDir, "entities")
+	return entitiesDirForRuntime(e.Runtime())
+}
+
+func entitiesDirForRuntime(rt Runtime) string {
+	return filepath.Join(rt.LibDir, "entities")
 }
 
 func (e *Engine) entityFeedsDir() string {
-	return filepath.Join(e.entitiesDir(), "feeds")
+	return entityFeedsDirForRuntime(e.Runtime())
+}
+
+func entityFeedsDirForRuntime(rt Runtime) string {
+	return filepath.Join(entitiesDirForRuntime(rt), "feeds")
 }
 
 func (e *Engine) entityFeedPendingDir() string {
-	return filepath.Join(e.entitiesDir(), "feeds-pending")
+	return entityFeedPendingDirForRuntime(e.Runtime())
+}
+
+func entityFeedPendingDirForRuntime(rt Runtime) string {
+	return filepath.Join(entitiesDirForRuntime(rt), "feeds-pending")
 }
 
 func (e *Engine) entityCountriesDir() string {
-	return filepath.Join(e.entitiesDir(), "countries")
+	return entityCountriesDirForRuntime(e.Runtime())
+}
+
+func entityCountriesDirForRuntime(rt Runtime) string {
+	return filepath.Join(entitiesDirForRuntime(rt), "countries")
 }
 
 func (e *Engine) entityASNsDir() string {
-	return filepath.Join(e.entitiesDir(), "asns")
+	return entityASNsDirForRuntime(e.Runtime())
+}
+
+func entityASNsDirForRuntime(rt Runtime) string {
+	return filepath.Join(entitiesDirForRuntime(rt), "asns")
 }
 
 func (e *Engine) entityVersionPath() string {
-	return filepath.Join(e.entitiesDir(), "version")
+	return entityVersionPathForRuntime(e.Runtime())
+}
+
+func entityVersionPathForRuntime(rt Runtime) string {
+	return filepath.Join(entitiesDirForRuntime(rt), "version")
 }
 
 func (e *Engine) publicCountryIndexRelPath() string {
@@ -67,19 +95,35 @@ func (e *Engine) publicASNDetailRelPath(asn uint32) string {
 }
 
 func (e *Engine) PublicCountryIndexPath() string {
-	return filepath.Join(e.outputDir(), e.publicCountryIndexRelPath())
+	return publicCountryIndexPathForRuntime(e.Runtime())
+}
+
+func publicCountryIndexPathForRuntime(rt Runtime) string {
+	return filepath.Join(outputDirForRuntime(rt), "countries", "index.json")
 }
 
 func (e *Engine) PublicCountryDetailPath(code string) string {
-	return filepath.Join(e.outputDir(), e.publicCountryDetailRelPath(code))
+	return publicCountryDetailPathForRuntime(e.Runtime(), code)
+}
+
+func publicCountryDetailPathForRuntime(rt Runtime, code string) string {
+	return filepath.Join(outputDirForRuntime(rt), "countries", strings.ToUpper(strings.TrimSpace(code))+".json")
 }
 
 func (e *Engine) PublicASNIndexPath() string {
-	return filepath.Join(e.outputDir(), e.publicASNIndexRelPath())
+	return publicASNIndexPathForRuntime(e.Runtime())
+}
+
+func publicASNIndexPathForRuntime(rt Runtime) string {
+	return filepath.Join(outputDirForRuntime(rt), "asns", "index.json")
 }
 
 func (e *Engine) PublicASNDetailPath(asn uint32) string {
-	return filepath.Join(e.outputDir(), e.publicASNDetailRelPath(asn))
+	return publicASNDetailPathForRuntime(e.Runtime(), asn)
+}
+
+func publicASNDetailPathForRuntime(rt Runtime, asn uint32) string {
+	return filepath.Join(outputDirForRuntime(rt), "asns", strconv.FormatUint(uint64(asn), 10)+".json")
 }
 
 func (e *Engine) entityFeedSidecarRelPath(name string) string {
@@ -99,7 +143,11 @@ func (e *Engine) entityASNSidecarRelPath(asn uint32) string {
 }
 
 func (e *Engine) entityArtifactsNeedBootstrapFast() bool {
-	version, err := readFileInRoot(e.entitiesDir(), "version")
+	return e.entityArtifactsNeedBootstrapFastWithSnapshot(e.operationSnapshot())
+}
+
+func (e *Engine) entityArtifactsNeedBootstrapFastWithSnapshot(snap operationSnapshot) bool {
+	version, err := readFileInRoot(entitiesDirForRuntime(snap.runtime), "version")
 	if err != nil {
 		return true
 	}
@@ -107,16 +155,16 @@ func (e *Engine) entityArtifactsNeedBootstrapFast() bool {
 		return true
 	}
 	required := []string{
-		filepath.Join(e.outputDir(), e.publicCountryIndexRelPath()),
-		filepath.Join(e.outputDir(), e.publicASNIndexRelPath()),
-		e.PublicHomeAggregatesPath(),
+		filepath.Join(outputDirForRuntime(snap.runtime), e.publicCountryIndexRelPath()),
+		filepath.Join(outputDirForRuntime(snap.runtime), e.publicASNIndexRelPath()),
+		publicHomeAggregatesPathForRuntime(snap.runtime),
 	}
 	for _, path := range required {
 		if _, err := os.Stat(path); err != nil {
 			return true
 		}
 	}
-	if _, _, err := e.loadEntityFeedPresenceIndex(); err != nil {
+	if _, _, err := loadEntityFeedPresenceIndexForRuntime(snap.runtime); err != nil {
 		return true
 	}
 	return false
@@ -150,6 +198,10 @@ func (e *Engine) RebuildEntityArtifactsWithTrigger(ctx context.Context, trigger 
 }
 
 func (e *Engine) rebuildEntityArtifactsWithTriggerAdmitted(ctx context.Context, trigger string) error {
+	return e.rebuildEntityArtifactsWithTriggerAdmittedWithSnapshot(ctx, e.operationSnapshot(), trigger)
+}
+
+func (e *Engine) rebuildEntityArtifactsWithTriggerAdmittedWithSnapshot(ctx context.Context, snap operationSnapshot, trigger string) error {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
 		return err
@@ -169,7 +221,7 @@ func (e *Engine) rebuildEntityArtifactsWithTriggerAdmitted(ctx context.Context, 
 		0,
 		0,
 		func(task *BackgroundTaskHandle) error {
-			return e.rebuildEntityArtifactsFromLive(ctx, task)
+			return e.rebuildEntityArtifactsFromLiveWithSnapshot(ctx, snap, task)
 		},
 	)
 }
@@ -205,8 +257,9 @@ func (e *Engine) refreshEntityArtifactsForHealthTransitionsAdmitted(ctx context.
 	if len(feedNames) == 0 {
 		return nil
 	}
-	if e.entityArtifactsNeedBootstrapFast() {
-		return e.rebuildEntityArtifactsWithTriggerAdmitted(ctx, "health_transition")
+	snap := e.operationSnapshot()
+	if e.entityArtifactsNeedBootstrapFastWithSnapshot(snap) {
+		return e.rebuildEntityArtifactsWithTriggerAdmittedWithSnapshot(ctx, snap, "health_transition")
 	}
 	return e.withEngineLaneBackgroundTask(
 		ctx,
@@ -219,51 +272,67 @@ func (e *Engine) refreshEntityArtifactsForHealthTransitionsAdmitted(ctx context.
 		0,
 		len(feedNames),
 		func(task *BackgroundTaskHandle) error {
-			return e.refreshEntityArtifactsForHealthTransitions(ctx, feedNames, task)
+			return e.refreshEntityArtifactsForHealthTransitionsWithSnapshot(ctx, snap, feedNames, task)
 		},
 	)
 }
 
 func (e *Engine) refreshEntityArtifactsForHealthTransitions(ctx context.Context, feedNames []string, task *BackgroundTaskHandle) error {
+	return e.refreshEntityArtifactsForHealthTransitionsWithSnapshot(ctx, e.operationSnapshot(), feedNames, task)
+}
+
+func (e *Engine) refreshEntityArtifactsForHealthTransitionsWithSnapshot(ctx context.Context, snap operationSnapshot, feedNames []string, task *BackgroundTaskHandle) error {
 	return e.runOptimisticEntityArtifactMutation(ctx, task, backgroundEntityTaskDetail("health", len(feedNames)), func() (*entityArtifactMutationPlan, error) {
-		return e.stageEntityArtifactsForHealthTransitions(ctx, feedNames, task)
+		return e.stageEntityArtifactsForHealthTransitionsWithSnapshot(ctx, snap, feedNames, task)
 	})
 }
 
 func (e *Engine) stageEntityArtifactsForHealthTransitions(ctx context.Context, feedNames []string, task *BackgroundTaskHandle) (*entityArtifactMutationPlan, error) {
+	return e.stageEntityArtifactsForHealthTransitionsWithSnapshot(ctx, e.operationSnapshot(), feedNames, task)
+}
+
+func (e *Engine) stageEntityArtifactsForHealthTransitionsWithSnapshot(ctx context.Context, snap operationSnapshot, feedNames []string, task *BackgroundTaskHandle) (*entityArtifactMutationPlan, error) {
 	ctx = nonNilContext(ctx)
 	affectedCountries := map[string]struct{}{}
 	affectedASNs := map[uint32]struct{}{}
-	if err := e.collectHealthTransitionAffectedEntities(ctx, feedNames, task, affectedCountries, affectedASNs); err != nil {
+	if err := e.collectHealthTransitionAffectedEntities(ctx, snap, feedNames, task, affectedCountries, affectedASNs); err != nil {
 		return nil, err
 	}
 	if len(affectedCountries) == 0 && len(affectedASNs) == 0 {
-		return e.stageHealthTransitionHomeAggregate(ctx)
+		return e.stageHealthTransitionHomeAggregate(ctx, snap)
 	}
-	return e.stageHealthTransitionEntityPayloads(ctx, affectedCountries, affectedASNs, task)
+	return e.stageHealthTransitionEntityPayloads(ctx, snap, affectedCountries, affectedASNs, task)
 }
 
 func (e *Engine) rebuildEntityArtifactsFromLive(ctx context.Context, task *BackgroundTaskHandle) error {
+	return e.rebuildEntityArtifactsFromLiveWithSnapshot(ctx, e.operationSnapshot(), task)
+}
+
+func (e *Engine) rebuildEntityArtifactsFromLiveWithSnapshot(ctx context.Context, snap operationSnapshot, task *BackgroundTaskHandle) error {
 	return e.runOptimisticEntityArtifactMutation(ctx, task, backgroundEntityTaskDetail("full", 0), func() (*entityArtifactMutationPlan, error) {
-		return e.stageRebuildEntityArtifactsFromLive(ctx, task)
+		return e.stageRebuildEntityArtifactsFromLiveWithSnapshot(ctx, snap, task)
 	})
 }
 
 func (e *Engine) stageRebuildEntityArtifactsFromLive(ctx context.Context, task *BackgroundTaskHandle) (*entityArtifactMutationPlan, error) {
+	return e.stageRebuildEntityArtifactsFromLiveWithSnapshot(ctx, e.operationSnapshot(), task)
+}
+
+func (e *Engine) stageRebuildEntityArtifactsFromLiveWithSnapshot(ctx context.Context, snap operationSnapshot, task *BackgroundTaskHandle) (*entityArtifactMutationPlan, error) {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
 		return nil, err
 	}
-	webBatch, err := e.newWebPublishBatch()
+	webBatch, err := newWebPublishBatchForRuntime(snap.runtime)
 	if err != nil {
 		return nil, err
 	}
-	entityBatch, err := e.newEntityPublishBatch()
+	entityBatch, err := newEntityPublishBatchForRuntime(snap.runtime)
 	if err != nil {
 		webBatch.cleanup()
 		return nil, err
 	}
-	generated, err := e.writeEntityArtifacts(ctx, nil, true, webBatch.stagedPublishBatch, entityBatch.stagedPublishBatch, task)
+	generated, err := e.writeEntityArtifactsWithSnapshot(ctx, snap, nil, true, webBatch.stagedPublishBatch, entityBatch.stagedPublishBatch, task)
 	if err != nil {
 		webBatch.cleanup()
 		entityBatch.cleanup()
@@ -299,17 +368,18 @@ func (e *Engine) stageRebuildEntityArtifactsForFeeds(ctx context.Context, feedNa
 	if len(feedNames) == 0 {
 		return nil, nil
 	}
-	webBatch, err := e.newWebPublishBatch()
+	snap := e.operationSnapshot()
+	webBatch, err := newWebPublishBatchForRuntime(snap.runtime)
 	if err != nil {
 		return nil, err
 	}
-	entityBatch, err := e.newEntityPublishBatch()
+	entityBatch, err := newEntityPublishBatchForRuntime(snap.runtime)
 	if err != nil {
 		webBatch.cleanup()
 		return nil, err
 	}
 
-	generated, err := e.writeEntityArtifacts(ctx, feedNames, false, webBatch.stagedPublishBatch, entityBatch.stagedPublishBatch, task)
+	generated, err := e.writeEntityArtifactsWithSnapshot(ctx, snap, feedNames, false, webBatch.stagedPublishBatch, entityBatch.stagedPublishBatch, task)
 	if err != nil {
 		webBatch.cleanup()
 		entityBatch.cleanup()

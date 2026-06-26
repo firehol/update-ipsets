@@ -35,12 +35,19 @@ func (a asnDatasets) closeAll(logger interface{ Warn(string, ...any) }) {
 // the source name whose values are open asnloc.Database instances.
 // Mirrors processGeoIPDatabases in shape and lifecycle.
 func (e *Engine) processASNDatabases(ctx context.Context, opts RunOptions) (asnDatasets, error) {
-	asnSources := e.cfg.SourcesWithUse(config.UseASN)
+	return e.processASNDatabasesWithSnapshot(ctx, e.operationSnapshot(), opts)
+}
+
+func (e *Engine) processASNDatabasesWithSnapshot(ctx context.Context, snap operationSnapshot, opts RunOptions) (asnDatasets, error) {
+	if snap.cfg == nil {
+		return nil, nil
+	}
+	asnSources := snap.cfg.SourcesWithUse(config.UseASN)
 	if len(asnSources) == 0 {
 		return nil, nil
 	}
 	reason := normalizeRunReason(opts)
-	asnDir := filepath.Join(e.runtime.LibDir, "asn")
+	asnDir := filepath.Join(snap.runtime.LibDir, "asn")
 	if err := os.MkdirAll(asnDir, generatedDirMode); err != nil {
 		return nil, err
 	}
@@ -116,6 +123,10 @@ type asnFeedJSON struct {
 //
 // regardless of which providers are configured.
 func (e *Engine) writeASNComparisonFiles(ctx context.Context, datasets asnDatasets, bogonUnion *iprange.IPSet, updatedNames []string, outDir string, setCache *latestSetCache) error {
+	return e.writeASNComparisonFilesWithSnapshot(ctx, e.operationSnapshot(), datasets, bogonUnion, updatedNames, outDir, setCache)
+}
+
+func (e *Engine) writeASNComparisonFilesWithSnapshot(ctx context.Context, snap operationSnapshot, datasets asnDatasets, bogonUnion *iprange.IPSet, updatedNames []string, outDir string, setCache *latestSetCache) error {
 	if err := contextErr(ctx); err != nil {
 		return err
 	}
@@ -123,11 +134,11 @@ func (e *Engine) writeASNComparisonFiles(ctx context.Context, datasets asnDatase
 		return nil
 	}
 	if setCache == nil {
-		setCache = newLatestSetCache(e)
+		setCache = newLatestSetCacheForSnapshot(e, snap)
 		defer setCache.CloseAll(e.logger)
 	}
 
-	targetNames := targetFeedsForFanOut(e.cfg, updatedNames, e.publicOutputNames(), config.UseASN, config.UseBogons)
+	targetNames := targetFeedsForFanOut(snap.cfg, updatedNames, e.publicOutputNamesForSnapshot(snap), config.UseASN, config.UseBogons)
 	if len(targetNames) == 0 {
 		return nil
 	}
@@ -146,7 +157,7 @@ func (e *Engine) writeASNComparisonFiles(ctx context.Context, datasets asnDatase
 	compareOp := e.beginActiveOperation("asn.write_comparisons", "", "compare", "feed_provider_pairs", totalPairs)
 	defer compareOp.Finish()
 
-	numWorkers := e.runtime.HeavyPhaseWorkers()
+	numWorkers := snap.runtime.HeavyPhaseWorkers()
 	if numWorkers < 1 {
 		numWorkers = 1
 	}

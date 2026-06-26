@@ -30,9 +30,13 @@ func (e *Engine) buildFeedEntityDelta(name string) (feedEntityDelta, error) {
 }
 
 func (e *Engine) buildFeedEntityDeltaWithPresence(name string, presence *entityArtifactFeedPresence) (feedEntityDelta, error) {
+	return e.buildFeedEntityDeltaWithSnapshot(name, e.operationSnapshot(), presence)
+}
+
+func (e *Engine) buildFeedEntityDeltaWithSnapshot(name string, snap operationSnapshot, presence *entityArtifactFeedPresence) (feedEntityDelta, error) {
 	delta := feedEntityDelta{name: name}
 
-	oldPath := filepath.Join(e.entityFeedsDir(), name+".json")
+	oldPath := filepath.Join(entityFeedsDirForRuntime(snap.runtime), name+".json")
 	oldSidecar, err := e.loadFeedEntitySidecar(oldPath)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
@@ -45,7 +49,7 @@ func (e *Engine) buildFeedEntityDeltaWithPresence(name string, presence *entityA
 		if found {
 			return delta, errEntitySurgicalNeedsFullRebuild
 		}
-		if e.feedEntitySidecarExpected(name, e.preferredGeoProvider(), e.preferredASNProvider(), nil) {
+		if e.feedEntitySidecarExpectedWithSnapshot(snap, name, preferredGeoProviderForConfig(snap.cfg), preferredASNProviderForConfig(snap.cfg), nil) {
 			return delta, errEntitySurgicalNeedsFullRebuild
 		}
 	} else {
@@ -59,7 +63,7 @@ func (e *Engine) buildFeedEntityDeltaWithPresence(name string, presence *entityA
 		delta.oldIndex = indexFeedEntitySidecar(oldSidecar)
 	}
 
-	newPath := filepath.Join(e.entityFeedPendingDir(), name+".json")
+	newPath := filepath.Join(entityFeedPendingDirForRuntime(snap.runtime), name+".json")
 	newSidecar, err := e.loadFeedEntitySidecar(newPath)
 	if err != nil {
 		if !errors.Is(err, os.ErrNotExist) {
@@ -132,7 +136,11 @@ func filterPublicOutputNames(e *Engine, values []string) []string {
 	if e == nil {
 		return nil
 	}
-	allowed := stringExactSet(e.publicOutputNames())
+	return filterPublicOutputNamesForSnapshot(e, e.operationSnapshot(), values)
+}
+
+func filterPublicOutputNamesForSnapshot(e *Engine, snap operationSnapshot, values []string) []string {
+	allowed := stringExactSet(e.publicOutputNamesForSnapshot(snap))
 	out := make([]string, 0, len(values))
 	for _, value := range uniqueNonEmptyStrings(values) {
 		if _, ok := allowed[value]; ok {

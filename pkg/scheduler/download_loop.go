@@ -11,15 +11,17 @@ import (
 )
 
 func (r *Runner) runFetchLoop(ctx context.Context, wg *sync.WaitGroup) {
-	workers := r.eng.Runtime().ParallelDownloads
-	if workers < 1 {
-		workers = 1
-	}
 	for {
 		now := r.now().UTC()
 		prev := r.currentSnapshot()
-		snapshot := BuildSnapshot(r.eng.Config(), r.eng.Runtime(), r.eng.EntriesSnapshot(), r.enableAll, now)
-		artifactItems := BuildArtifactItems(r.eng.Config(), r.eng.Runtime(), r.eng.EntriesSnapshotWithArtifacts(), r.enableAll, now)
+		cfg, rt, policy := r.eng.ConfigRuntimePolicySnapshot()
+		workers := rt.ParallelDownloads
+		if workers < 1 {
+			workers = 1
+		}
+		entries := r.eng.EntriesSnapshotForConfig(cfg)
+		snapshot := BuildSnapshotWithPolicy(cfg, rt, policy, entries, r.enableAll, now)
+		artifactItems := BuildArtifactItemsWithPolicy(cfg, rt, policy, r.eng.EntriesSnapshotWithArtifactsForConfig(cfg), r.enableAll, now)
 		r.storeSnapshot(snapshot)
 		transitions := healthTransitionDetails(prev, snapshot)
 		if len(transitions) > 0 {
@@ -39,7 +41,7 @@ func (r *Runner) runFetchLoop(ctx context.Context, wg *sync.WaitGroup) {
 			r.stateMu.Unlock()
 		}
 		r.enqueueProviderDefaultsReprocess(now)
-		r.enqueueAutomaticDue(snapshot, now)
+		r.enqueueAutomaticDue(cfg, snapshot, now)
 		r.enqueueAutomaticArtifactDue(artifactItems, now)
 		if r.dispatchDownloads(ctx, workers, wg) {
 			continue

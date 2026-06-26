@@ -132,14 +132,68 @@ func TestRunDueActionDoesNotNeedEngineSnapshot(t *testing.T) {
 	}
 }
 
+func TestProcessingIntervalUsesReloadedRuntimeSnapshot(t *testing.T) {
+	root := t.TempDir()
+	cfgPath := filepath.Join(root, "config.yaml")
+	writeSchedulerProcessingIntervalConfig(t, cfgPath, root, 1)
+
+	eng, err := engine.New(cfgPath, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	runner := New(eng, true, nil)
+	if got, want := runner.processingInterval(), time.Minute; got != want {
+		t.Fatalf("initial processing interval = %s, want %s", got, want)
+	}
+
+	writeSchedulerProcessingIntervalConfig(t, cfgPath, root, 3)
+	if err := eng.ReloadContext(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := runner.processingInterval(), 3*time.Minute; got != want {
+		t.Fatalf("reloaded processing interval = %s, want %s", got, want)
+	}
+}
+
+func writeSchedulerProcessingIntervalConfig(t *testing.T, cfgPath, root string, intervalMinutes int) {
+	t.Helper()
+	cfg := fmt.Sprintf(`
+runtime:
+  base_dir: %q
+  history_dir: %q
+  lib_dir: %q
+  errors_dir: %q
+  web_dir: %q
+  cache_dir: %q
+  tmp_dir: %q
+  ipsets_apply: false
+  processing_interval_minutes: %d
+sources:
+  sample:
+    static:
+      - 10.0.0.1
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor: [passthrough]
+    category: attacks
+    info: sample feed
+    maintainer: test
+    maintainer_url: https://example.test
+`, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"), filepath.Join(root, "tmp"), intervalMinutes)
+	if err := os.WriteFile(cfgPath, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestDownloadWorkerPanicClearsActiveQueue(t *testing.T) {
 	runner := &Runner{
 		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 		download: downloadLoopState{
 			wake:           make(chan struct{}, 1),
-			waiting:        map[string]queuedWork{},
+			waiting:        nil,
 			active:         map[string]ActiveQueueFeed{"sample": {Name: "sample"}},
-			refetchPending: map[string]queuedWork{},
+			refetchPending: map[string]queuedWork{"sample": {Name: "sample"}},
 		},
 	}
 
@@ -327,6 +381,66 @@ sources:
 	}
 	if _, ok := runner.processing.waiting["iptoasn"]; ok {
 		t.Fatalf("provider databases must not be full-feed reprocess targets, got %#v", runner.processing.waiting)
+	}
+}
+
+func TestManualProviderReprocessQueuesTargetsWithPromotion(t *testing.T) {
+	eng, root := newSchedulerPolicyEngine(t, `
+defaults:
+  asn_provider: iptoasn
+sources:
+  iptoasn:
+    url: https://example.test/asn.tsv
+    frequency: 1440
+    use: [asn]
+    format: iptoasn_combined_tsv
+    info: asn provider
+    maintainer: test
+    maintainer_url: https://example.test
+  sample:
+    url: https://example.test/sample.txt
+    frequency: 60
+    ipv: ipv4
+    output: ipset
+    processor:
+      - passthrough
+    category: attacks
+    info: sample feed
+    maintainer: test
+    maintainer_url: https://example.test
+`)
+	if err := os.WriteFile(filepath.Join(root, "base", "sample.ipset"), []byte("1.2.3.4\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	providerDir := filepath.Join(root, "lib", "asn", "iptoasn")
+	if err := os.MkdirAll(providerDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(providerDir, "source.new"), []byte("1.0.0.0\t1.0.0.255\t13335\tCF\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	runner := New(eng, true, nil)
+	now := time.Unix(1_700_000_000, 0).UTC()
+	runner.now = func() time.Time { return now }
+
+	runner.handleAction(t.Context(), PendingAction{
+		Names:     []string{"iptoasn"},
+		Reprocess: true,
+		Reason:    runreason.ReasonManualReprocess,
+	})
+
+	got, ok := runner.processing.waiting["sample"]
+	if !ok {
+		t.Fatalf("expected provider reprocess to queue sample, got %#v", runner.processing.waiting)
+	}
+	if got.Reason != runreason.ReasonManualReprocess || !got.ForceRun || !got.Immediate {
+		t.Fatalf("provider reprocess work = %#v, want forced immediate manual reprocess", got)
+	}
+	if len(got.Promote) != 1 || got.Promote[0] != "iptoasn" {
+		t.Fatalf("provider reprocess promote list = %#v, want [iptoasn]", got.Promote)
+	}
+	if _, ok := runner.processing.waiting["iptoasn"]; ok {
+		t.Fatalf("provider database must not be queued as a processing target, got %#v", runner.processing.waiting)
 	}
 }
 

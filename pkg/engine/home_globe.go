@@ -38,7 +38,8 @@ func (e *Engine) HomeGlobe(categories []string) (*HomeGlobePayload, error) {
 // handlers pass the resolved Options.WebDir so requests only read the artifact
 // tree they serve.
 func (e *Engine) HomeGlobeInDir(categories []string, outputDir string) (*HomeGlobePayload, error) {
-	if e == nil || e.cfg == nil {
+	snap := e.operationSnapshot()
+	if e == nil || snap.cfg == nil {
 		return nil, fmt.Errorf("engine is not configured")
 	}
 	start := time.Now()

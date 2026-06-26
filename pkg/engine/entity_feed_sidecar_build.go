@@ -22,6 +22,10 @@ type feedEntitySidecarBuildResult struct {
 }
 
 func (e *Engine) buildFeedEntitySidecars(ctx context.Context, names []string, view entityOutputView, task *BackgroundTaskHandle) (map[string]*feedEntitySidecar, error) {
+	return e.buildFeedEntitySidecarsWithSnapshot(ctx, e.operationSnapshot(), names, view, task)
+}
+
+func (e *Engine) buildFeedEntitySidecarsWithSnapshot(ctx context.Context, snap operationSnapshot, names []string, view entityOutputView, task *BackgroundTaskHandle) (map[string]*feedEntitySidecar, error) {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
 		return nil, err
@@ -29,10 +33,10 @@ func (e *Engine) buildFeedEntitySidecars(ctx context.Context, names []string, vi
 	if len(names) == 0 {
 		return nil, nil
 	}
-	geoProvider := e.preferredGeoProvider()
-	asnProvider := e.preferredASNProvider()
-	geoPrepared := e.loadGeoProviderForLookup(geoProvider)
-	asnLease := e.loadASNProviderForLookup(asnProvider)
+	geoProvider := preferredGeoProviderForConfig(snap.cfg)
+	asnProvider := preferredASNProviderForConfig(snap.cfg)
+	geoPrepared := loadGeoProviderForLookupSnapshot(snap.cfg, snap.runtime, snap.geoProviders, geoProvider)
+	asnLease := loadASNProviderForLookupSnapshot(snap.cfg, snap.runtime, snap.asnLookupCache, asnProvider)
 	if asnLease != nil {
 		defer asnLease.Close()
 	}
@@ -46,12 +50,12 @@ func (e *Engine) buildFeedEntitySidecars(ctx context.Context, names []string, vi
 		task.Update("building feed sidecars", fmt.Sprintf("computing entity sidecars for %d feeds", len(names)), 0, len(names))
 	}
 
-	workers := e.runtime.BackgroundWorkers()
+	workers := snap.runtime.BackgroundWorkers()
 	if workers < 1 {
 		workers = 1
 	}
-	buildCtx, cancel, results := e.startFeedEntitySidecarBuild(ctx, names, workers, view, geoProvider, asnProvider, geoPrepared, asnDB, func() (*latestSetCache, func()) {
-		setCache := newLatestSetCache(e)
+	buildCtx, cancel, results := e.startFeedEntitySidecarBuildWithSnapshot(ctx, snap, names, workers, view, geoProvider, asnProvider, geoPrepared, asnDB, func() (*latestSetCache, func()) {
+		setCache := newLatestSetCacheForSnapshot(e, snap)
 		return setCache, func() { setCache.CloseAll(e.logger) }
 	})
 	defer cancel()
@@ -83,43 +87,47 @@ func (e *Engine) buildFeedEntitySidecars(ctx context.Context, names []string, vi
 }
 
 func (e *Engine) stageFeedEntitySidecarsFromLoadedProviders(ctx context.Context, geoProviders geoPreparedProviders, asnDBs asnDatasets, updatedNames []string, webStageDir string, entityBatch *stagedPublishBatch, setCache *latestSetCache) ([]string, error) {
+	return e.stageFeedEntitySidecarsFromLoadedProvidersWithSnapshot(ctx, e.operationSnapshot(), geoProviders, asnDBs, updatedNames, webStageDir, entityBatch, setCache)
+}
+
+func (e *Engine) stageFeedEntitySidecarsFromLoadedProvidersWithSnapshot(ctx context.Context, snap operationSnapshot, geoProviders geoPreparedProviders, asnDBs asnDatasets, updatedNames []string, webStageDir string, entityBatch *stagedPublishBatch, setCache *latestSetCache) ([]string, error) {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
 		return nil, err
 	}
-	if e == nil || e.cfg == nil || entityBatch == nil {
+	if e == nil || snap.cfg == nil || entityBatch == nil {
 		return nil, nil
 	}
-	targetFeeds := targetFeedsForFanOut(e.cfg, updatedNames, e.publicOutputNames(), config.UseGeoIP, config.UseASN, config.UseBogons)
+	targetFeeds := targetFeedsForFanOut(snap.cfg, updatedNames, e.publicOutputNamesForSnapshot(snap), config.UseGeoIP, config.UseASN, config.UseBogons)
 	if len(targetFeeds) == 0 {
 		return nil, nil
 	}
 
-	geoProvider := e.preferredGeoProvider()
-	asnProvider := e.preferredASNProvider()
-	geoRefPath, geoRefTime, err := e.entityGeoProviderReference(geoProvider)
+	geoProvider := preferredGeoProviderForConfig(snap.cfg)
+	asnProvider := preferredASNProviderForConfig(snap.cfg)
+	geoRefPath, geoRefTime, err := e.entityGeoProviderReferenceWithSnapshot(snap, geoProvider)
 	if err != nil {
 		return nil, err
 	}
-	asnRefPath, asnRefTime, err := e.entityASNProviderReference(asnProvider)
+	asnRefPath, asnRefTime, err := e.entityASNProviderReferenceWithSnapshot(snap, asnProvider)
 	if err != nil {
 		return nil, err
 	}
 	geoPrepared := geoProviders[geoProvider]
 	asnDB := asnDBs[asnProvider]
-	view := newEntityOutputView(e, webStageDir)
+	view := newEntityOutputViewWithRuntime(e, snap.runtime, webStageDir)
 	if setCache == nil {
-		setCache = newLatestSetCache(e)
+		setCache = newLatestSetCacheForSnapshot(e, snap)
 		defer setCache.CloseAll(e.logger)
 	}
 
-	workers := e.runtime.HeavyPhaseWorkers()
+	workers := snap.runtime.HeavyPhaseWorkers()
 	if workers < 1 {
 		workers = 1
 	}
 	progress := e.beginActiveOperation("entities.stage_feed_sidecars", "", "build", "feeds", int64(len(targetFeeds)))
 	defer progress.Finish()
-	buildCtx, cancel, results := e.startFeedEntitySidecarBuild(ctx, targetFeeds, workers, view, geoProvider, asnProvider, geoPrepared, asnDB, func() (*latestSetCache, func()) {
+	buildCtx, cancel, results := e.startFeedEntitySidecarBuildWithSnapshot(ctx, snap, targetFeeds, workers, view, geoProvider, asnProvider, geoPrepared, asnDB, func() (*latestSetCache, func()) {
 		return setCache, nil
 	})
 	defer cancel()
@@ -163,6 +171,10 @@ func (e *Engine) stageFeedEntitySidecarsFromLoadedProviders(ctx context.Context,
 }
 
 func (e *Engine) startFeedEntitySidecarBuild(ctx context.Context, names []string, workers int, view entityOutputView, geoProvider, asnProvider string, geoPrepared *geoPreparedProvider, asnDB *asnloc.Database, setCacheForWorker func() (*latestSetCache, func())) (context.Context, context.CancelFunc, <-chan feedEntitySidecarBuildResult) {
+	return e.startFeedEntitySidecarBuildWithSnapshot(ctx, e.operationSnapshot(), names, workers, view, geoProvider, asnProvider, geoPrepared, asnDB, setCacheForWorker)
+}
+
+func (e *Engine) startFeedEntitySidecarBuildWithSnapshot(ctx context.Context, snap operationSnapshot, names []string, workers int, view entityOutputView, geoProvider, asnProvider string, geoPrepared *geoPreparedProvider, asnDB *asnloc.Database, setCacheForWorker func() (*latestSetCache, func())) (context.Context, context.CancelFunc, <-chan feedEntitySidecarBuildResult) {
 	entries := e.state.SnapshotEntries()
 	results := make(chan feedEntitySidecarBuildResult, feedEntitySidecarResultBufferSize(len(names), workers))
 	ctx, cancel := context.WithCancel(ctx)
@@ -174,7 +186,7 @@ func (e *Engine) startFeedEntitySidecarBuild(ctx context.Context, names []string
 			if closeSetCache != nil {
 				defer closeSetCache()
 			}
-			resolver := newEffectiveEntryResolver(e.cfg, entries)
+			resolver := newEffectiveEntryResolver(snap.cfg, entries)
 			for {
 				select {
 				case <-ctx.Done():
@@ -183,7 +195,7 @@ func (e *Engine) startFeedEntitySidecarBuild(ctx context.Context, names []string
 					if !ok {
 						return
 					}
-					sidecar, err := e.buildSingleFeedEntitySidecar(ctx, name, view, resolver, geoProvider, asnProvider, geoPrepared, asnDB, setCache)
+					sidecar, err := e.buildSingleFeedEntitySidecar(ctx, snap, name, view, resolver, geoProvider, asnProvider, geoPrepared, asnDB, setCache)
 					if err != nil {
 						sendFeedEntitySidecarBuildError(ctx, results, feedEntitySidecarBuildResult{name: name, err: fmt.Errorf("build feed entity sidecar %s: %w", name, err)})
 						cancel()

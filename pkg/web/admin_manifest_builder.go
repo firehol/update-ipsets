@@ -37,7 +37,7 @@ func newFeedManifestBuilder(name string, src *config.Source, cfg *config.Config,
 		cfg:        cfg,
 		rt:         rt,
 		eng:        eng,
-		resp:       ManifestResponse{Feed: name, ProcessedDate: manifestProcessedDate(eng, name)},
+		resp:       ManifestResponse{Feed: name, ProcessedDate: manifestProcessedDate(eng, cfg, name)},
 		root:       daemonRoot(baseDir),
 		baseDir:    baseDir,
 		webDir:     webDir,
@@ -56,8 +56,8 @@ func (b *feedManifestBuilder) build() ManifestResponse {
 	return b.resp
 }
 
-func manifestProcessedDate(eng *engine.Engine, name string) int64 {
-	for _, entry := range eng.EntriesSnapshot() {
+func manifestProcessedDate(eng *engine.Engine, cfg *config.Config, name string) int64 {
+	for _, entry := range eng.EntriesSnapshotForConfig(cfg) {
 		if entry.Name == name {
 			return entry.ProcessedDate
 		}

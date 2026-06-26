@@ -37,15 +37,19 @@ type pipelineRunPlan struct {
 	insightUpdated          []string
 }
 
-func (e *Engine) processRunSources(ctx context.Context, opts RunOptions, reason runreason.Reason, report *Report, workers int) {
+func (e *Engine) processRunSources(ctx context.Context, snap operationSnapshot, opts RunOptions, reason runreason.Reason, report *Report, workers int) {
 	if workers < 1 {
 		workers = 1
+	}
+	cfg := snap.cfg
+	if cfg == nil {
+		return
 	}
 	explicitHistory := make([]string, 0)
 	explicitMerges := make([]string, 0)
 	var (
 		mu      sync.Mutex
-		results = make(map[string]*sourceResult, len(e.cfg.Sources))
+		results = make(map[string]*sourceResult, len(cfg.Sources))
 		wg      sync.WaitGroup
 		sem     = make(chan struct{}, workers)
 	)
@@ -69,7 +73,7 @@ func (e *Engine) processRunSources(ctx context.Context, opts RunOptions, reason 
 			}
 			defer func() { <-sem }()
 
-			src := e.cfg.Sources[name]
+			src := cfg.Sources[name]
 			if src == nil {
 				mu.Lock()
 				results[name] = &sourceResult{name: name, result: processingOK("unknown source", false)}
@@ -77,7 +81,7 @@ func (e *Engine) processRunSources(ctx context.Context, opts RunOptions, reason 
 				return
 			}
 			started := time.Now()
-			result := e.processSource(ctx, src, opts, reason)
+			result := e.processSourceWithSnapshot(ctx, snap, src, opts, reason)
 			elapsed := time.Since(started)
 			e.observeFeedWork(name, result, elapsed)
 			e.logFeedProcessingSummary(name, elapsed, result)
@@ -87,18 +91,18 @@ func (e *Engine) processRunSources(ctx context.Context, opts RunOptions, reason 
 		})
 	}
 
-	batchNames := e.processingBatchNames(opts.Selected)
+	batchNames := e.processingBatchNamesForSnapshot(snap, opts.Selected)
 	e.startRunBatch(batchNames)
 	e.observeRunCounter("sources.feeds_expected", int64(len(batchNames)), 0)
 	for _, name := range batchNames {
-		src := e.cfg.Sources[name]
+		src := cfg.Sources[name]
 		if src == nil {
 			continue
 		}
 		switch {
-		case e.IsHistoryDerivative(name):
+		case snap.isHistoryDerivative(name):
 			explicitHistory = append(explicitHistory, name)
-		case e.IsMerge(name):
+		case snap.isMerge(name):
 			explicitMerges = append(explicitMerges, name)
 		default:
 			enqueue(name, reason)
@@ -134,26 +138,32 @@ func (e *Engine) processRunSources(ctx context.Context, opts RunOptions, reason 
 }
 
 func (e *Engine) buildPipelineRunPlan(report *Report, opts RunOptions) pipelineRunPlan {
+	return e.buildPipelineRunPlanWithSnapshot(e.operationSnapshot(), report, opts)
+}
+
+func (e *Engine) buildPipelineRunPlanWithSnapshot(snap operationSnapshot, report *Report, opts RunOptions) pipelineRunPlan {
+	cfg := snap.cfg
+	rt := snap.runtime
 	// Capture the critical-infrastructure provider-set identity exactly once
 	// per pipeline run. Every downstream consumer in this run (artifact
 	// stamping, marker writing) MUST use this captured value, not a fresh
 	// recomputation, so the on-disk marker and the per-feed artifacts always
 	// agree within the same run.
-	currentCriticalProviderSetID := CriticalInfrastructureProviderSetIDForSnapshot(e.cfg)
+	currentCriticalProviderSetID := CriticalInfrastructureProviderSetIDForSnapshot(cfg)
 	e.criticalProviderSetMu.Lock()
 	e.criticalProviderSetID = currentCriticalProviderSetID
 	e.criticalProviderSetCached = true
 	e.criticalProviderSetMu.Unlock()
-	markerPath := CriticalInfrastructureProviderSetMarkerPath(e.runtime)
-	criticalProviderSetChanged := markerPath != "" && readCriticalInfrastructureProviderSetMarker(e.runtime) != currentCriticalProviderSetID
+	markerPath := CriticalInfrastructureProviderSetMarkerPath(rt)
+	criticalProviderSetChanged := markerPath != "" && readCriticalInfrastructureProviderSetMarker(rt) != currentCriticalProviderSetID
 
 	plan := pipelineRunPlan{
 		hasUpdates:                 len(report.Updated) > 0,
 		criticalProviderSetChanged: criticalProviderSetChanged,
 		criticalProviderSetID:      currentCriticalProviderSetID,
-		providerDefaultsChanged:    e.providerDefaultsChanged(),
+		providerDefaultsChanged:    ProviderDefaultsChangedForConfig(cfg, rt),
 	}
-	plan.databaseSelected = e.databaseSourceSelected(opts.Selected)
+	plan.databaseSelected = databaseSourceSelectedForConfig(cfg, opts.Selected)
 
 	// Recheck and Reprocess are explicit operator intent: even when no
 	// source has changed, they force the heavy comparison path so generated
@@ -162,7 +172,7 @@ func (e *Engine) buildPipelineRunPlan(report *Report, opts RunOptions) pipelineR
 		!plan.databaseSelected &&
 		!plan.criticalProviderSetChanged &&
 		!plan.providerDefaultsChanged &&
-		e.runtime.SkipComparisonIfNoUpdates &&
+		rt.SkipComparisonIfNoUpdates &&
 		!opts.Recheck &&
 		!opts.Reprocess
 	plan.shouldPublish = plan.hasUpdates ||
@@ -176,7 +186,7 @@ func (e *Engine) buildPipelineRunPlan(report *Report, opts RunOptions) pipelineR
 
 	plan.onlyCriticalProviderSet = !plan.skipHeavy &&
 		!plan.providerDefaultsChanged &&
-		e.onlyCriticalProviderSetChangedRun(plan.criticalProviderSetChanged, report.Updated, plan.databaseSelected, opts)
+		onlyCriticalProviderSetChangedRunForConfig(cfg, plan.criticalProviderSetChanged, report.Updated, plan.databaseSelected, opts)
 
 	plan.fanOutUpdated = report.Updated
 	if opts.Reprocess && len(opts.Selected) == 0 {
@@ -195,9 +205,9 @@ func (e *Engine) buildPipelineRunPlan(report *Report, opts RunOptions) pipelineR
 	if opts.Reprocess && len(opts.Selected) == 0 {
 		plan.comparisonUpdated = nil
 	}
-	plan.perFeedNames = e.perFeedPublicationNames(report.Updated, opts)
+	plan.perFeedNames = e.perFeedPublicationNamesForSnapshot(snap, report.Updated, opts)
 	if plan.providerDefaultsChanged {
-		plan.perFeedNames = e.publicOutputNames()
+		plan.perFeedNames = e.publicOutputNamesForSnapshot(snap)
 	}
 	plan.insightUpdated = report.Updated
 	if plan.criticalProviderSetChanged || plan.providerDefaultsChanged || (opts.Reprocess && len(opts.Selected) == 0) {
@@ -207,8 +217,15 @@ func (e *Engine) buildPipelineRunPlan(report *Report, opts RunOptions) pipelineR
 }
 
 func (e *Engine) databaseSourceSelected(selected []string) bool {
+	return databaseSourceSelectedForConfig(e.Config(), selected)
+}
+
+func databaseSourceSelectedForConfig(cfg *config.Config, selected []string) bool {
 	for _, name := range selected {
-		src := e.cfg.Sources[name]
+		if cfg == nil {
+			continue
+		}
+		src := cfg.Sources[name]
 		if src != nil && (src.HasUse(config.UseASN) || src.HasUse(config.UseGeoIP)) {
 			return true
 		}
@@ -216,42 +233,42 @@ func (e *Engine) databaseSourceSelected(selected []string) bool {
 	return false
 }
 
-func (e *Engine) runHeavyPhases(ctx context.Context, opts RunOptions, report *Report, plan pipelineRunPlan, webOutDir string, publishBatch *stagedPublishBatch, setCache *latestSetCache) (*entityPublishBatch, error) {
+func (e *Engine) runHeavyPhases(ctx context.Context, snap operationSnapshot, opts RunOptions, report *Report, plan pipelineRunPlan, webOutDir string, publishBatch *stagedPublishBatch, setCache *latestSetCache) (*entityPublishBatch, error) {
 	if plan.skipHeavy {
 		return nil, nil
 	}
 	if plan.onlyCriticalProviderSet {
-		return nil, e.runCriticalOnlyPhase(ctx, plan, webOutDir, publishBatch, setCache)
+		return nil, e.runCriticalOnlyPhase(ctx, snap, plan, webOutDir, publishBatch, setCache)
 	}
-	return e.runFullHeavyPhases(ctx, opts, report, plan, webOutDir, publishBatch, setCache)
+	return e.runFullHeavyPhases(ctx, snap, opts, report, plan, webOutDir, publishBatch, setCache)
 }
 
-func (e *Engine) runCriticalOnlyPhase(ctx context.Context, plan pipelineRunPlan, webOutDir string, publishBatch *stagedPublishBatch, setCache *latestSetCache) error {
+func (e *Engine) runCriticalOnlyPhase(ctx context.Context, snap operationSnapshot, plan pipelineRunPlan, webOutDir string, publishBatch *stagedPublishBatch, setCache *latestSetCache) error {
 	if err := contextErr(ctx); err != nil {
 		return err
 	}
 	e.setRunPhase(RunPhaseCritical)
-	criticalDS, err := e.loadCriticalInfrastructureSources(ctx, plan.criticalProviderSetID)
+	criticalDS, err := e.loadCriticalInfrastructureSourcesWithSnapshot(ctx, snap, plan.criticalProviderSetID)
 	if err != nil {
 		return err
 	}
 	defer criticalDS.closeAll()
-	if err := e.writeCriticalInfrastructureFiles(ctx, criticalDS, plan.criticalFanOutUpdated, webOutDir, setCache); err != nil {
+	if err := e.writeCriticalInfrastructureFilesWithSnapshot(ctx, snap, criticalDS, plan.criticalFanOutUpdated, webOutDir, setCache); err != nil {
 		return err
 	}
-	return e.markStaleCriticalInfrastructureArtifactDeletes(publishBatch)
+	return markStaleCriticalInfrastructureArtifactDeletesForConfig(publishBatch, snap.cfg, outputDirForRuntime(snap.runtime))
 }
 
-func (e *Engine) runFullHeavyPhases(ctx context.Context, opts RunOptions, report *Report, plan pipelineRunPlan, webOutDir string, publishBatch *stagedPublishBatch, setCache *latestSetCache) (*entityPublishBatch, error) {
+func (e *Engine) runFullHeavyPhases(ctx context.Context, snap operationSnapshot, opts RunOptions, report *Report, plan pipelineRunPlan, webOutDir string, publishBatch *stagedPublishBatch, setCache *latestSetCache) (*entityPublishBatch, error) {
 	if err := contextErr(ctx); err != nil {
 		return nil, err
 	}
 	e.setRunPhase(RunPhaseGeoIP)
-	geoProviders, err := e.processGeoIPDatabases(ctx, opts)
+	geoProviders, err := e.processGeoIPDatabasesWithSnapshot(ctx, snap, opts)
 	if err != nil {
 		return nil, err
 	}
-	if err := e.writeCountryComparisonFiles(ctx, geoProviders, plan.fanOutUpdated, webOutDir, setCache); err != nil {
+	if err := e.writeCountryComparisonFilesWithSnapshot(ctx, snap, geoProviders, plan.fanOutUpdated, webOutDir, setCache); err != nil {
 		return nil, err
 	}
 
@@ -259,12 +276,12 @@ func (e *Engine) runFullHeavyPhases(ctx context.Context, opts RunOptions, report
 		return nil, err
 	}
 	e.setRunPhase(RunPhaseBogons)
-	bogonDS, err := e.loadBogonSources(ctx)
+	bogonDS, err := e.loadBogonSourcesWithSnapshot(ctx, snap)
 	if err != nil {
 		return nil, err
 	}
 	defer bogonDS.closeAll()
-	if err := e.writeBogonComparisonFiles(ctx, bogonDS, plan.fanOutUpdated, webOutDir, setCache); err != nil {
+	if err := e.writeBogonComparisonFilesWithSnapshot(ctx, snap, bogonDS, plan.fanOutUpdated, webOutDir, setCache); err != nil {
 		return nil, err
 	}
 	bogonProviderTotal := int64(0)
@@ -283,12 +300,12 @@ func (e *Engine) runFullHeavyPhases(ctx context.Context, opts RunOptions, report
 		return nil, err
 	}
 	e.setRunPhase(RunPhaseASN)
-	asnDBs, err := e.processASNDatabases(ctx, opts)
+	asnDBs, err := e.processASNDatabasesWithSnapshot(ctx, snap, opts)
 	if err != nil {
 		return nil, err
 	}
 	defer asnDBs.closeAll(e.logger)
-	if err := e.writeASNComparisonFiles(ctx, asnDBs, bogonUnion, plan.fanOutUpdated, webOutDir, setCache); err != nil {
+	if err := e.writeASNComparisonFilesWithSnapshot(ctx, snap, asnDBs, bogonUnion, plan.fanOutUpdated, webOutDir, setCache); err != nil {
 		return nil, err
 	}
 
@@ -296,15 +313,15 @@ func (e *Engine) runFullHeavyPhases(ctx context.Context, opts RunOptions, report
 		return nil, err
 	}
 	e.setRunPhase(RunPhaseCritical)
-	criticalDS, err := e.loadCriticalInfrastructureSources(ctx, plan.criticalProviderSetID)
+	criticalDS, err := e.loadCriticalInfrastructureSourcesWithSnapshot(ctx, snap, plan.criticalProviderSetID)
 	if err != nil {
 		return nil, err
 	}
 	defer criticalDS.closeAll()
-	if err := e.writeCriticalInfrastructureFiles(ctx, criticalDS, plan.criticalFanOutUpdated, webOutDir, setCache); err != nil {
+	if err := e.writeCriticalInfrastructureFilesWithSnapshot(ctx, snap, criticalDS, plan.criticalFanOutUpdated, webOutDir, setCache); err != nil {
 		return nil, err
 	}
-	if err := e.markStaleCriticalInfrastructureArtifactDeletes(publishBatch); err != nil {
+	if err := markStaleCriticalInfrastructureArtifactDeletesForConfig(publishBatch, snap.cfg, outputDirForRuntime(snap.runtime)); err != nil {
 		return nil, err
 	}
 
@@ -313,17 +330,17 @@ func (e *Engine) runFullHeavyPhases(ctx context.Context, opts RunOptions, report
 	}
 	e.setRunPhase(RunPhaseEntities)
 	if e.entityArtifactFullRebuildQueuedOrRunning() {
-		report.EntityRefreshTargets = targetFeedsForFanOut(e.cfg, plan.fanOutUpdated, e.publicOutputNames(), config.UseGeoIP, config.UseASN, config.UseBogons)
+		report.EntityRefreshTargets = targetFeedsForFanOut(snap.cfg, plan.fanOutUpdated, e.publicOutputNamesForSnapshot(snap), config.UseGeoIP, config.UseASN, config.UseBogons)
 		e.observeRunCounter("entity.sidecar_stage.deferred_full_rebuild", int64(len(report.EntityRefreshTargets)), 0)
 		return nil, nil
 	}
 	expectedEntityGeneration := e.entityArtifactGenerationSnapshot()
-	entityBatch, err := e.newEntityPublishBatch()
+	entityBatch, err := newEntityPublishBatchForRuntime(snap.runtime)
 	if err != nil {
 		return nil, err
 	}
 	entityBatch.expectedGeneration = expectedEntityGeneration
-	entityRefreshTargets, err := e.stageFeedEntitySidecarsFromLoadedProviders(ctx, geoProviders, asnDBs, plan.fanOutUpdated, webOutDir, entityBatch.stagedPublishBatch, setCache)
+	entityRefreshTargets, err := e.stageFeedEntitySidecarsFromLoadedProvidersWithSnapshot(ctx, snap, geoProviders, asnDBs, plan.fanOutUpdated, webOutDir, entityBatch.stagedPublishBatch, setCache)
 	if err != nil {
 		entityBatch.cleanup()
 		return nil, err
@@ -332,17 +349,17 @@ func (e *Engine) runFullHeavyPhases(ctx context.Context, opts RunOptions, report
 	return entityBatch, nil
 }
 
-func (e *Engine) writeRunMetadataAndInsights(ctx context.Context, opts RunOptions, report *Report, plan pipelineRunPlan, webOutDir string, setCache *latestSetCache) ([]output.GeneratedFile, error) {
+func (e *Engine) writeRunMetadataAndInsights(ctx context.Context, snap operationSnapshot, opts RunOptions, report *Report, plan pipelineRunPlan, webOutDir string, setCache *latestSetCache) ([]output.GeneratedFile, error) {
 	if err := contextErr(ctx); err != nil {
 		return nil, err
 	}
 	e.setRunPhase(RunPhaseMetadata)
-	generated, err := e.writeMetadataFiles(ctx, plan.skipHeavy, plan.comparisonUpdated, plan.perFeedNames, webOutDir, setCache, opts.EnableAll)
+	generated, err := e.writeMetadataFilesWithSnapshot(ctx, snap, plan.skipHeavy, plan.comparisonUpdated, plan.perFeedNames, webOutDir, setCache, opts.EnableAll)
 	if err != nil {
 		return nil, err
 	}
 	if !plan.skipHeavy && !plan.onlyCriticalProviderSet {
-		homeAggregate, err := e.stageHomeAggregates(ctx, webOutDir, webOutDir)
+		homeAggregate, err := e.stageHomeAggregatesWithSnapshot(ctx, snap, webOutDir, webOutDir)
 		if err != nil {
 			return nil, err
 		}
@@ -353,11 +370,11 @@ func (e *Engine) writeRunMetadataAndInsights(ctx context.Context, opts RunOption
 			return nil, err
 		}
 		e.setRunPhase(RunPhaseInsights)
-		if err := e.writeInsightsForFeeds(ctx, plan.insightUpdated, webOutDir); err != nil {
+		if err := e.writeInsightsForFeedsWithSnapshot(ctx, snap, plan.insightUpdated, webOutDir); err != nil {
 			return nil, err
 		}
 	}
-	mdGenerated, err := e.writeMarkdownFilesForFeeds(ctx, plan.perFeedNames, webOutDir)
+	mdGenerated, err := e.writeMarkdownFilesForFeedsWithSnapshot(ctx, snap, plan.perFeedNames, webOutDir)
 	if err != nil {
 		e.logger.Warn("markdown generation error", "error", err)
 	} else {
@@ -367,6 +384,10 @@ func (e *Engine) writeRunMetadataAndInsights(ctx context.Context, opts RunOption
 }
 
 func (e *Engine) publishRunArtifacts(ctx context.Context, opts RunOptions, report *Report, plan pipelineRunPlan, generated []output.GeneratedFile, webBatch *webPublishBatch, entityBatch *entityPublishBatch) error {
+	return e.publishRunArtifactsWithSnapshot(ctx, e.operationSnapshot(), opts, report, plan, generated, webBatch, entityBatch)
+}
+
+func (e *Engine) publishRunArtifactsWithSnapshot(ctx context.Context, snap operationSnapshot, opts RunOptions, report *Report, plan pipelineRunPlan, generated []output.GeneratedFile, webBatch *webPublishBatch, entityBatch *entityPublishBatch) error {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
 		return err
@@ -421,7 +442,7 @@ func (e *Engine) publishRunArtifacts(ctx context.Context, opts RunOptions, repor
 			return err
 		}
 	}
-	copied, err := e.copyUpdatedIPSetsToWebContext(ctx, report.Updated)
+	copied, err := e.copyUpdatedIPSetsToWebContextWithSnapshot(ctx, snap, report.Updated)
 	if err != nil {
 		return err
 	}
@@ -442,8 +463,8 @@ func (e *Engine) publishRunArtifacts(ctx context.Context, opts RunOptions, repor
 			return err
 		}
 	}
-	if plan.providerDefaultsChanged || e.providerDefaultsChanged() {
-		if err := e.writeProviderDefaultsMarker(); err != nil {
+	if plan.providerDefaultsChanged {
+		if err := writeProviderDefaultsMarkerForConfigRuntime(snap.cfg, snap.runtime); err != nil {
 			return err
 		}
 	}

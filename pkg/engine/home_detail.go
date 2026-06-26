@@ -150,14 +150,17 @@ type MaintainerDetailPayload struct {
 // not yet part of this payload — they land with a future maintainer
 // registry spec.
 func (e *Engine) MaintainerDetail(slug string) (*MaintainerDetailPayload, error) {
-	if e == nil || e.cfg == nil {
+	return e.MaintainerDetailWithSnapshot(e.operationSnapshot(), slug)
+}
+
+func (e *Engine) MaintainerDetailWithSnapshot(snap operationSnapshot, slug string) (*MaintainerDetailPayload, error) {
+	if e == nil || snap.cfg == nil {
 		return nil, fmt.Errorf("engine is not configured")
 	}
 	normalized := strings.TrimSpace(slug)
 	if normalized == "" {
 		return nil, fmt.Errorf("maintainer slug is required")
 	}
-	policy := feedhealth.PolicyFromRuntime(e.cfg.Runtime)
 	now := e.now().UTC()
 
 	grouped := map[string][]MaintainerDetailFeed{}
@@ -166,12 +169,12 @@ func (e *Engine) MaintainerDetail(slug string) (*MaintainerDetailPayload, error)
 	var totalIPs uint64
 	feedCount := 0
 
-	for _, entry := range e.EntriesSnapshot() {
-		src := e.lookupSource(entry.Name)
-		if !homeSummaryEligible(e.cfg, src, nil) {
+	for _, entry := range e.entriesSnapshot(snap.cfg, configuredNamesForConfig(snap.cfg)) {
+		src := lookupSourceForConfig(snap.cfg, entry.Name)
+		if !homeSummaryEligible(snap.cfg, src, nil) {
 			continue
 		}
-		health := feedhealth.Classify(&entry, src, policy, now)
+		health := feedhealth.Classify(&entry, src, snap.feedHealthPolicy, now)
 		if !homeGlobeHealthEligible(health.Class) {
 			continue
 		}
@@ -250,11 +253,19 @@ type MaintainerIndexPayload struct {
 // narrows the list to maintainers publishing at least one feed in the
 // selected categories.
 func (e *Engine) MaintainerIndex(categories []string) (*MaintainerIndexPayload, error) {
-	if e == nil || e.cfg == nil {
+	cfg, _, policy := e.configRuntimePolicySnapshot()
+	return e.maintainerIndexWithConfigPolicy(cfg, policy, categories)
+}
+
+func (e *Engine) MaintainerIndexWithSnapshot(snap operationSnapshot, categories []string) (*MaintainerIndexPayload, error) {
+	return e.maintainerIndexWithConfigPolicy(snap.cfg, snap.feedHealthPolicy, categories)
+}
+
+func (e *Engine) maintainerIndexWithConfigPolicy(cfg *config.Config, policy feedhealth.Policy, categories []string) (*MaintainerIndexPayload, error) {
+	if e == nil || cfg == nil {
 		return nil, fmt.Errorf("engine is not configured")
 	}
 	filter := normalizeCategoryFilter(categories)
-	policy := feedhealth.PolicyFromRuntime(e.cfg.Runtime)
 	now := e.now().UTC()
 
 	type maintainerRow struct {
@@ -267,9 +278,9 @@ func (e *Engine) MaintainerIndex(categories []string) (*MaintainerIndexPayload, 
 	}
 	rows := map[string]*maintainerRow{}
 
-	for _, entry := range e.EntriesSnapshot() {
-		src := e.lookupSource(entry.Name)
-		if !homeSummaryEligible(e.cfg, src, nil) {
+	for _, entry := range e.entriesSnapshot(cfg, configuredNamesForConfig(cfg)) {
+		src := lookupSourceForConfig(cfg, entry.Name)
+		if !homeSummaryEligible(cfg, src, nil) {
 			continue
 		}
 		health := feedhealth.Classify(&entry, src, policy, now)

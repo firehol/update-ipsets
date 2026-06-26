@@ -2,7 +2,8 @@ package scheduler
 
 import (
 	"context"
-	"github.com/firehol/update-ipsets/pkg/config"
+	"time"
+
 	"github.com/firehol/update-ipsets/pkg/runreason"
 )
 
@@ -23,14 +24,13 @@ func (r *Runner) handleAction(ctx context.Context, action PendingAction) {
 			r.logger.Warn("manual recheck requires explicit feed names")
 			return
 		}
-		for _, name := range names {
-			if !r.eng.IsDownloadable(name) {
-				r.logger.Warn("recheck skipped for source without downloader-stage support", "name", name)
+		for _, admission := range r.eng.ResolveRecheckAdmissions(ctx, names) {
+			if !admission.Downloadable {
+				r.logger.Warn("recheck skipped for source without downloader-stage support", "name", admission.Name)
 				continue
 			}
-			target := r.eng.ResolveRecheckTarget(ctx, name)
 			r.enqueueDownload(queuedWork{
-				Name:      target,
+				Name:      admission.Target,
 				Reason:    actionReason(action),
 				QueuedAt:  r.now().UTC(),
 				ForceRun:  true,
@@ -40,43 +40,29 @@ func (r *Runner) handleAction(ctx context.Context, action PendingAction) {
 		r.wakeDownloadLoop()
 		r.wakeProcessLoop()
 	case action.Reprocess:
-		names := action.Names
-		if len(names) == 0 {
-			names = config.SortedSourceNames(r.eng.Config())
-		}
-		for _, name := range names {
-			if !r.eng.HasLocalReprocessState(name) {
-				r.logger.Warn("reprocess skipped without local staged or committed state", "name", name)
+		for _, admission := range r.eng.ReprocessAdmissions(action.Names, r.enableAll) {
+			if !admission.HasLocalState {
+				r.logger.Warn("reprocess skipped without local staged or committed state", "name", admission.Name)
 				continue
 			}
-			if r.eng.IsProviderDatabase(name) {
-				r.enqueueProviderWave(actionReason(action), r.now().UTC(), true, true, r.promoteNamesForProviderReprocess(name))
+			if admission.ProviderDatabase {
+				r.enqueueProviderWaveTargets(actionReason(action), r.now().UTC(), true, true, admission.ProcessingNames, admission.PromoteNames)
 				continue
 			}
-			r.enqueueProcessing(queuedWork{
-				Name:      name,
-				Reason:    actionReason(action),
-				QueuedAt:  r.now().UTC(),
-				ForceRun:  true,
-				Immediate: true,
-			})
+			r.enqueueProcessingNames(actionReason(action), r.now().UTC(), true, true, admission.ProcessingNames, nil)
 		}
 		r.wakeProcessLoop()
 	case action.RunDue:
 		r.wakeDownloadLoop()
 		r.wakeProcessLoop()
 	default:
-		names := action.Names
-		if len(names) == 0 {
-			names = config.SortedSourceNames(r.eng.Config())
-		}
-		for _, name := range names {
-			if !r.eng.IsDownloadable(name) {
-				r.logger.Warn("run skipped for source without downloader-stage support", "name", name)
+		for _, admission := range r.eng.DownloadAdmissions(action.Names) {
+			if !admission.Downloadable {
+				r.logger.Warn("run skipped for source without downloader-stage support", "name", admission.Name)
 				continue
 			}
 			r.enqueueDownload(queuedWork{
-				Name:      name,
+				Name:      admission.Name,
 				Reason:    actionReason(action),
 				QueuedAt:  r.now().UTC(),
 				ForceRun:  false,
@@ -86,6 +72,20 @@ func (r *Runner) handleAction(ctx context.Context, action PendingAction) {
 		r.wakeDownloadLoop()
 	}
 }
+
+func (r *Runner) enqueueProcessingNames(reason runreason.Reason, queuedAt time.Time, forceRun, immediate bool, names, promote []string) {
+	for _, name := range names {
+		r.enqueueProcessing(queuedWork{
+			Name:      name,
+			Reason:    reason,
+			QueuedAt:  queuedAt,
+			ForceRun:  forceRun,
+			Immediate: immediate,
+			Promote:   append([]string(nil), promote...),
+		})
+	}
+}
+
 func actionReason(action PendingAction) runreason.Reason {
 	if action.Reason.Valid() && action.Reason != runreason.ReasonUnknown {
 		return action.Reason

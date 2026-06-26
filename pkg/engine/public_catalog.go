@@ -71,7 +71,7 @@ func (e *Engine) PublicFeedSummaries() []PublicFeedSummary {
 	if e == nil {
 		return nil
 	}
-	cfg := e.Config()
+	cfg, _, policy := e.configRuntimePolicySnapshot()
 	if cfg == nil {
 		return nil
 	}
@@ -84,7 +84,7 @@ func (e *Engine) PublicFeedSummaries() []PublicFeedSummary {
 			continue
 		}
 		src := lookupSourceForConfig(cfg, entry.Name)
-		out = append(out, buildPublicFeedSummary(entry, src, feedhealth.PolicyFromRuntime(cfg.Runtime), now, isRedistributableForConfig(cfg, entry.Name)))
+		out = append(out, buildPublicFeedSummary(entry, src, policy, now, isRedistributableForConfig(cfg, entry.Name)))
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	observePublicFeedSummaries(out, now)

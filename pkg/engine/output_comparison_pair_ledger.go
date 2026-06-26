@@ -91,29 +91,41 @@ func (s *comparisonPairLedgerSnapshot) lookup(left, right comparisonSetInfo) (ui
 }
 
 func (e *Engine) comparisonPairLedgerPath() string {
-	if e == nil || e.runtime.CacheDir == "" {
+	return comparisonPairLedgerPathForRuntime(e.operationSnapshot().runtime)
+}
+
+func comparisonPairLedgerPathForRuntime(rt Runtime) string {
+	if rt.CacheDir == "" {
 		return ""
 	}
-	return filepath.Join(e.runtime.CacheDir, comparisonPairLedgerFileName)
+	return filepath.Join(rt.CacheDir, comparisonPairLedgerFileName)
 }
 
 func (e *Engine) comparisonPairLegacyLedgerPath() string {
-	if e == nil || e.runtime.CacheDir == "" {
+	return comparisonPairLegacyLedgerPathForRuntime(e.operationSnapshot().runtime)
+}
+
+func comparisonPairLegacyLedgerPathForRuntime(rt Runtime) string {
+	if rt.CacheDir == "" {
 		return ""
 	}
-	return filepath.Join(e.runtime.CacheDir, comparisonPairLegacyLedgerFileName)
+	return filepath.Join(rt.CacheDir, comparisonPairLegacyLedgerFileName)
 }
 
 func (e *Engine) loadComparisonPairLedger() (*comparisonPairLedgerSnapshot, int, int64, error) {
+	return e.loadComparisonPairLedgerWithSnapshot(e.operationSnapshot())
+}
+
+func (e *Engine) loadComparisonPairLedgerWithSnapshot(snap operationSnapshot) (*comparisonPairLedgerSnapshot, int, int64, error) {
 	snapshot := newComparisonPairLedgerSnapshot()
-	path := e.comparisonPairLedgerPath()
+	path := comparisonPairLedgerPathForRuntime(snap.runtime)
 	if path == "" {
 		return snapshot, 0, 0, errComparisonPairLedgerMissing
 	}
 	info, err := os.Stat(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return e.loadComparisonPairLegacyLedger()
+			return e.loadComparisonPairLegacyLedgerWithSnapshot(snap)
 		}
 		return snapshot, 0, 0, fmt.Errorf("stat comparison pair ledger: %w", err)
 	}
@@ -142,8 +154,12 @@ func (e *Engine) loadComparisonPairLedger() (*comparisonPairLedgerSnapshot, int,
 }
 
 func (e *Engine) loadComparisonPairLegacyLedger() (*comparisonPairLedgerSnapshot, int, int64, error) {
+	return e.loadComparisonPairLegacyLedgerWithSnapshot(e.operationSnapshot())
+}
+
+func (e *Engine) loadComparisonPairLegacyLedgerWithSnapshot(snap operationSnapshot) (*comparisonPairLedgerSnapshot, int, int64, error) {
 	snapshot := newComparisonPairLedgerSnapshot()
-	path := e.comparisonPairLegacyLedgerPath()
+	path := comparisonPairLegacyLedgerPathForRuntime(snap.runtime)
 	if path == "" {
 		return snapshot, 0, 0, errComparisonPairLedgerMissing
 	}
@@ -185,7 +201,11 @@ func (e *Engine) loadComparisonPairLegacyLedger() (*comparisonPairLedgerSnapshot
 }
 
 func (e *Engine) writeComparisonPairLedger(infos []comparisonSetInfo, results []comparisonPairResult) (int, int64, error) {
-	path := e.comparisonPairLedgerPath()
+	return e.writeComparisonPairLedgerWithSnapshot(e.operationSnapshot(), infos, results)
+}
+
+func (e *Engine) writeComparisonPairLedgerWithSnapshot(snap operationSnapshot, infos []comparisonSetInfo, results []comparisonPairResult) (int, int64, error) {
+	path := comparisonPairLedgerPathForRuntime(snap.runtime)
 	if path == "" {
 		return 0, 0, nil
 	}
@@ -224,14 +244,18 @@ func (e *Engine) writeComparisonPairLedger(infos []comparisonSetInfo, results []
 	if err := writeFileAtomic(path, data, generatedFileMode); err != nil {
 		return 0, int64(len(data)), err
 	}
-	if err := e.removeComparisonPairLegacyLedger(); err != nil {
+	if err := e.removeComparisonPairLegacyLedgerWithSnapshot(snap); err != nil {
 		return len(entries), int64(len(data)), err
 	}
 	return len(entries), int64(len(data)), nil
 }
 
 func (e *Engine) removeComparisonPairLegacyLedger() error {
-	path := e.comparisonPairLegacyLedgerPath()
+	return e.removeComparisonPairLegacyLedgerWithSnapshot(e.operationSnapshot())
+}
+
+func (e *Engine) removeComparisonPairLegacyLedgerWithSnapshot(snap operationSnapshot) error {
+	path := comparisonPairLegacyLedgerPathForRuntime(snap.runtime)
 	if path == "" {
 		return nil
 	}

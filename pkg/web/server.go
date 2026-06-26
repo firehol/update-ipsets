@@ -288,18 +288,10 @@ func readyMessage(servers []namedServer) string {
 }
 
 func publicRawFeedRel(eng *engine.Engine, name string) (string, bool) {
-	if eng == nil || !eng.IsPublicFeedName(name) || !eng.IsRedistributable(name) || !eng.PublicRawFeedAllowed(name) {
+	if eng == nil {
 		return "", false
 	}
-	snap := eng.EntrySnapshot(name)
-	if snap == nil || !rawFeedFileMatches(name, snap.File) {
-		return "", false
-	}
-	return snap.File, true
-}
-
-func rawFeedFileMatches(name, file string) bool {
-	return file == name+".ipset" || file == name+".netset"
+	return eng.PublicRawFeedFile(name)
 }
 
 func sanitizeSchedulerSnapshot(snap scheduler.Snapshot) scheduler.Snapshot {

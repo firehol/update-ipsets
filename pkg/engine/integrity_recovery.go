@@ -19,13 +19,14 @@ import (
 // materialized local input still exists they can recheck directly; otherwise
 // their recovery trigger is the artifact parent.
 func (e *Engine) IntegrityRecoveryPlan(findings []IntegrityFinding) (recheck []string, reprocess []string) {
-	if e == nil || e.cfg == nil || len(findings) == 0 {
+	snap := e.operationSnapshot()
+	if e == nil || snap.cfg == nil || len(findings) == 0 {
 		return nil, nil
 	}
 	recheckSet := map[string]struct{}{}
 	reprocessSet := map[string]struct{}{}
 	for _, finding := range findings {
-		recheckTargets, reprocessTargets := e.integrityRecoveryForFinding(finding)
+		recheckTargets, reprocessTargets := e.integrityRecoveryForFindingWithSnapshot(snap, finding)
 		for _, target := range recheckTargets {
 			recheckSet[target] = struct{}{}
 		}
@@ -42,10 +43,14 @@ func (e *Engine) IntegrityRecoveryPlan(findings []IntegrityFinding) (recheck []s
 }
 
 func (e *Engine) integrityRecoveryForFinding(finding IntegrityFinding) (recheck []string, reprocess []string) {
-	if e == nil || e.cfg == nil {
+	return e.integrityRecoveryForFindingWithSnapshot(e.operationSnapshot(), finding)
+}
+
+func (e *Engine) integrityRecoveryForFindingWithSnapshot(snap operationSnapshot, finding IntegrityFinding) (recheck []string, reprocess []string) {
+	if e == nil || snap.cfg == nil {
 		return nil, nil
 	}
-	findingSource := e.cfg.Sources[finding.Feed]
+	findingSource := snap.cfg.Sources[finding.Feed]
 	if findingSource == nil {
 		return nil, nil
 	}
@@ -57,7 +62,7 @@ func (e *Engine) integrityRecoveryForFinding(finding IntegrityFinding) (recheck 
 				recheckSet[blocked] = struct{}{}
 				continue
 			}
-			if target, ok := e.integrityRecheckTarget(blocked); ok {
+			if target, ok := e.integrityRecheckTargetWithSnapshot(snap, blocked); ok {
 				recheckSet[target] = struct{}{}
 			}
 		}
@@ -69,7 +74,7 @@ func (e *Engine) integrityRecoveryForFinding(finding IntegrityFinding) (recheck 
 		}
 	}
 
-	if target, ok := e.integrityRecheckTarget(finding.Feed); ok {
+	if target, ok := e.integrityRecheckTargetWithSnapshot(snap, finding.Feed); ok {
 		return appendUniqueStrings(recheck, []string{target}), nil
 	}
 
@@ -77,43 +82,51 @@ func (e *Engine) integrityRecoveryForFinding(finding IntegrityFinding) (recheck 
 }
 
 func (e *Engine) integrityRecheckTarget(name string) (string, bool) {
-	if e == nil || e.cfg == nil {
+	return e.integrityRecheckTargetWithSnapshot(e.operationSnapshot(), name)
+}
+
+func (e *Engine) integrityRecheckTargetWithSnapshot(snap operationSnapshot, name string) (string, bool) {
+	if e == nil || snap.cfg == nil {
 		return "", false
 	}
-	src := e.cfg.Sources[name]
+	src := snap.cfg.Sources[name]
 	if src == nil {
 		return "", false
 	}
 	if src.ArtifactParent != "" {
-		if fileExists(preferStagedPath(e.sourcePath(name))) {
+		if fileExists(preferStagedPath(snap.sourcePath(name))) {
 			return name, true
 		}
-		if e.integrityHasCommittedOrStagedSource(name) {
+		if e.integrityHasCommittedOrStagedSourceWithSnapshot(snap, name) {
 			return "", false
 		}
-		if e.cfg.ArtifactByName(src.ArtifactParent) != nil {
+		if snap.cfg.ArtifactByName(src.ArtifactParent) != nil {
 			return src.ArtifactParent, true
 		}
 		return "", false
 	}
-	if e.IsDownloadable(name) && !e.integrityHasCommittedOrStagedSource(name) {
+	if snap.isDownloadable(name) && !e.integrityHasCommittedOrStagedSourceWithSnapshot(snap, name) {
 		return name, true
 	}
 	return "", false
 }
 
 func (e *Engine) integrityHasCommittedOrStagedSource(name string) bool {
-	if e == nil || e.cfg == nil {
+	return e.integrityHasCommittedOrStagedSourceWithSnapshot(e.operationSnapshot(), name)
+}
+
+func (e *Engine) integrityHasCommittedOrStagedSourceWithSnapshot(snap operationSnapshot, name string) bool {
+	if e == nil || snap.cfg == nil {
 		return false
 	}
-	src := e.cfg.Sources[name]
+	src := snap.cfg.Sources[name]
 	if src == nil {
 		return false
 	}
-	if e.IsProviderDatabase(name) {
-		return fileExists(preferStagedPath(e.providerArchivePath(name, src)))
+	if src.HasUse(config.UseASN) || src.HasUse(config.UseGeoIP) {
+		return fileExists(preferStagedPath(providerArchivePathForRuntime(snap.runtime, name, src)))
 	}
-	return fileExists(latestFeedBodyPath(e.feedBodyPath(name)))
+	return fileExists(latestFeedBodyPath(snap.feedBodyPath(name)))
 }
 
 func sortedNames(values map[string]struct{}) []string {

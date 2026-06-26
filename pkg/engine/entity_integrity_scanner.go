@@ -8,11 +8,14 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/firehol/update-ipsets/pkg/cache"
 )
 
 type entityIntegrityScanner struct {
 	ctx                 context.Context
 	e                   *Engine
+	snapshot            operationSnapshot
 	findings            []EntityIntegrityFinding
 	plan                entityIntegrityPlan
 	geoProvider         string
@@ -30,16 +33,26 @@ type entityIntegrityScanner struct {
 }
 
 func newEntityIntegrityScanner(ctx context.Context, e *Engine) *entityIntegrityScanner {
+	snap := e.operationSnapshot()
+	var entries map[string]cache.Entry
+	if e != nil && e.state != nil {
+		entries = e.state.SnapshotEntries()
+	}
+	now := time.Now().UTC()
+	if e != nil && e.now != nil {
+		now = e.now().UTC()
+	}
 	return &entityIntegrityScanner{
 		ctx:                 nonNilContext(ctx),
 		e:                   e,
+		snapshot:            snap,
 		findings:            make([]EntityIntegrityFinding, 0),
 		countryRefs:         map[string]entityDependencyRef{},
 		asnRefs:             map[uint32]entityDependencyRef{},
 		countryPublicHealth: map[string]map[string]string{},
 		asnPublicHealth:     map[uint32]map[string]string{},
 		healthChecks:        make([]entityHealthCheck, 0, 32),
-		health:              e.newFeedHealthClassifier(),
+		health:              e.newFeedHealthClassifierForConfigPolicy(snap.cfg, snap.feedHealthPolicy, entries, now),
 	}
 }
 
@@ -81,7 +94,7 @@ func (s *entityIntegrityScanner) run() error {
 	if err := s.checkEntityIndexes(); err != nil {
 		return err
 	}
-	if err := s.e.checkHomeAggregatesIntegrity(&s.findings, &s.plan, s.health); err != nil {
+	if err := s.e.checkHomeAggregatesIntegrityWithSnapshot(s.snapshot, &s.findings, &s.plan, s.health); err != nil {
 		return err
 	}
 	if err := s.checkHealthDrift(); err != nil {
@@ -99,7 +112,7 @@ func (s *entityIntegrityScanner) checkContext() error {
 }
 
 func (s *entityIntegrityScanner) checkGlobalPrerequisites() (bool, error) {
-	versionPath := s.e.entityVersionPath()
+	versionPath := entityVersionPathForRuntime(s.snapshot.runtime)
 	versionInfo, err := os.Stat(versionPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -116,7 +129,7 @@ func (s *entityIntegrityScanner) checkGlobalPrerequisites() (bool, error) {
 		}
 		return false, err
 	}
-	versionData, err := readFileInRoot(s.e.entitiesDir(), "version")
+	versionData, err := readFileInRoot(entitiesDirForRuntime(s.snapshot.runtime), "version")
 	if err != nil {
 		return false, err
 	}
@@ -134,7 +147,7 @@ func (s *entityIntegrityScanner) checkGlobalPrerequisites() (bool, error) {
 		return true, nil
 	}
 
-	configPath, configTime, err := s.e.latestEntityConfigInputTime()
+	configPath, configTime, err := s.e.latestEntityConfigInputTimeWithSnapshot(s.snapshot)
 	if err != nil {
 		return false, err
 	}
@@ -153,7 +166,7 @@ func (s *entityIntegrityScanner) checkGlobalPrerequisites() (bool, error) {
 		})
 		return true, nil
 	}
-	if _, _, err := s.e.loadEntityFeedPresenceIndex(); err != nil {
+	if _, _, err := loadEntityFeedPresenceIndexForRuntime(s.snapshot.runtime); err != nil {
 		s.plan.markFull()
 		kind := "feed_presence_index_malformed"
 		reason := "entity feed presence index is unreadable"
@@ -165,7 +178,7 @@ func (s *entityIntegrityScanner) checkGlobalPrerequisites() (bool, error) {
 			Scope:        "global",
 			Kind:         kind,
 			Subject:      "entity_artifacts",
-			Path:         s.e.entityFeedPresenceIndexPath(),
+			Path:         entityFeedPresenceIndexPathForRuntime(s.snapshot.runtime),
 			RepairAction: "full_rebuild",
 			Reason:       reason,
 		})
@@ -175,15 +188,15 @@ func (s *entityIntegrityScanner) checkGlobalPrerequisites() (bool, error) {
 }
 
 func (s *entityIntegrityScanner) loadProviderReferences() error {
-	s.geoProvider = s.e.preferredGeoProvider()
-	s.asnProvider = s.e.preferredASNProvider()
+	s.geoProvider = preferredGeoProviderForConfig(s.snapshot.cfg)
+	s.asnProvider = preferredASNProviderForConfig(s.snapshot.cfg)
 
 	var err error
-	s.geoRefPath, s.geoRefTime, err = s.e.entityGeoProviderReference(s.geoProvider)
+	s.geoRefPath, s.geoRefTime, err = s.e.entityGeoProviderReferenceWithSnapshot(s.snapshot, s.geoProvider)
 	if err != nil {
 		return err
 	}
-	s.asnRefPath, s.asnRefTime, err = s.e.entityASNProviderReference(s.asnProvider)
+	s.asnRefPath, s.asnRefTime, err = s.e.entityASNProviderReferenceWithSnapshot(s.snapshot, s.asnProvider)
 	return err
 }
 

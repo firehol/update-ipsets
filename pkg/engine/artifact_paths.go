@@ -29,25 +29,26 @@ func artifactExtractDirForRuntime(rt Runtime, name string) string {
 }
 
 func (e *Engine) isArtifact(name string) bool {
-	return e != nil && e.cfg != nil && e.cfg.ArtifactByName(name) != nil
+	cfg := e.Config()
+	return cfg != nil && cfg.ArtifactByName(name) != nil
 }
 
 func (e *Engine) artifactRootDir(name string) string {
-	return artifactRootDirForRuntime(e.runtime, name)
+	return artifactRootDirForRuntime(e.Runtime(), name)
 }
 
 func (e *Engine) sourceEnablePath(name string) string {
-	return sourceEnablePathForRuntime(e.runtime, name)
+	return sourceEnablePathForRuntime(e.Runtime(), name)
 }
 
 func (e *Engine) artifactEnablePath(name string) string {
-	return artifactEnablePathForRuntime(e.runtime, name)
+	return artifactEnablePathForRuntime(e.Runtime(), name)
 }
 
 func (e *Engine) artifactSourcePath(name string) string {
-	return artifactSourcePathForRuntime(e.runtime, name)
+	return artifactSourcePathForRuntime(e.Runtime(), name)
 }
 
 func (e *Engine) artifactExtractDir(name string) string {
-	return artifactExtractDirForRuntime(e.runtime, name)
+	return artifactExtractDirForRuntime(e.Runtime(), name)
 }

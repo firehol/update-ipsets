@@ -90,7 +90,8 @@ func (e *Engine) HomeSummary(categories []string, limit int) (*HomeSummaryPayloa
 // Public web handlers pass the resolved Options.WebDir so requests only read
 // the artifact tree they serve.
 func (e *Engine) HomeSummaryInDir(categories []string, limit int, outputDir string) (*HomeSummaryPayload, error) {
-	if e == nil || e.cfg == nil {
+	snap := e.operationSnapshot()
+	if e == nil || snap.cfg == nil {
 		return nil, fmt.Errorf("engine is not configured")
 	}
 	start := time.Now()

@@ -387,10 +387,17 @@ func cloneStringMap(in map[string]string) map[string]string {
 // the exact same identity as the runtime marker written at the end of the
 // run.
 func (e *Engine) loadCriticalInfrastructureSources(ctx context.Context, providerSetID string) (*criticalDatasets, error) {
+	return e.loadCriticalInfrastructureSourcesWithSnapshot(ctx, e.operationSnapshot(), providerSetID)
+}
+
+func (e *Engine) loadCriticalInfrastructureSourcesWithSnapshot(ctx context.Context, snap operationSnapshot, providerSetID string) (*criticalDatasets, error) {
 	if err := contextErr(ctx); err != nil {
 		return nil, err
 	}
-	sources := e.cfg.SourcesWithUse(config.UseCriticalInfrastructure)
+	if snap.cfg == nil {
+		return &criticalDatasets{Providers: map[string]*criticalProviderSet{}}, nil
+	}
+	sources := snap.cfg.SourcesWithUse(config.UseCriticalInfrastructure)
 	if len(sources) == 0 {
 		return &criticalDatasets{Providers: map[string]*criticalProviderSet{}}, nil
 	}
@@ -413,7 +420,7 @@ func (e *Engine) loadCriticalInfrastructureSources(ctx context.Context, provider
 			}
 			name := src.Name
 			out.Configured = append(out.Configured, name)
-			latest, err := e.openLatestSet(ctx, name)
+			latest, err := e.openLatestSetWithSnapshot(ctx, snap, name)
 			if err != nil {
 				e.logger.Warn("critical infrastructure source skipped: latest set not available",
 					"source", name, "error", err)
@@ -442,6 +449,10 @@ func (e *Engine) loadCriticalInfrastructureSources(ctx context.Context, provider
 }
 
 func (e *Engine) writeCriticalInfrastructureFiles(ctx context.Context, datasets *criticalDatasets, updatedNames []string, outDir string, setCache *latestSetCache) error {
+	return e.writeCriticalInfrastructureFilesWithSnapshot(ctx, e.operationSnapshot(), datasets, updatedNames, outDir, setCache)
+}
+
+func (e *Engine) writeCriticalInfrastructureFilesWithSnapshot(ctx context.Context, snap operationSnapshot, datasets *criticalDatasets, updatedNames []string, outDir string, setCache *latestSetCache) error {
 	if err := contextErr(ctx); err != nil {
 		return err
 	}
@@ -449,22 +460,22 @@ func (e *Engine) writeCriticalInfrastructureFiles(ctx context.Context, datasets 
 		return nil
 	}
 	if setCache == nil {
-		setCache = newLatestSetCache(e)
+		setCache = newLatestSetCacheForSnapshot(e, snap)
 		defer setCache.CloseAll(e.logger)
 	}
 
 	roles := []string{config.UseCriticalInfrastructure}
-	if len(e.cfg.CriticalASNContext) > 0 {
+	if snap.cfg != nil && len(snap.cfg.CriticalASNContext) > 0 {
 		roles = append(roles, config.UseASN)
 	}
-	targetNames := criticalTargetNames(e.cfg, targetFeedsForFanOut(e.cfg, updatedNames, e.publicOutputNames(), roles...))
+	targetNames := criticalTargetNames(snap.cfg, targetFeedsForFanOut(snap.cfg, updatedNames, e.publicOutputNamesForSnapshot(snap), roles...))
 	if len(targetNames) == 0 {
 		return nil
 	}
 	compareOp := e.beginActiveOperation("critical.write_comparisons", "", "compare", "feeds", int64(len(targetNames)))
 	defer compareOp.Finish()
 
-	numWorkers := e.runtime.HeavyPhaseWorkers()
+	numWorkers := snap.runtime.HeavyPhaseWorkers()
 	if numWorkers < 1 {
 		numWorkers = 1
 	}
@@ -477,7 +488,7 @@ func (e *Engine) writeCriticalInfrastructureFiles(ctx context.Context, datasets 
 			return err
 		}
 		defer compareOp.Add(1, int64(len(targetNames)), nil)
-		tiers, err := e.writeCriticalInfrastructureForFeed(ctx, name, datasets, outDir, setCache)
+		tiers, err := e.writeCriticalInfrastructureForFeedWithSnapshot(ctx, snap, name, datasets, outDir, setCache)
 		if err != nil {
 			return err
 		}
@@ -519,10 +530,14 @@ func (e *Engine) setCriticalOverlapSummary(name string, tiers []string) {
 }
 
 func (e *Engine) clearCriticalOverlapSummaries() {
+	e.clearCriticalOverlapSummariesForConfig(e.Config())
+}
+
+func (e *Engine) clearCriticalOverlapSummariesForConfig(cfg *config.Config) {
 	if e == nil || e.state == nil {
 		return
 	}
-	for _, entry := range e.EntriesSnapshot() {
+	for _, entry := range e.entriesSnapshot(cfg, configuredNamesForConfig(cfg)) {
 		if len(entry.CriticalOverlapTiers) == 0 {
 			continue
 		}
@@ -540,18 +555,22 @@ func (e *Engine) writeCriticalProviderPayload(outDir, feedName, providerName str
 }
 
 func (e *Engine) criticalASNContextForFeed(feedName string, feedIPs uint64, outDir string) (*criticalASNContextJSON, error) {
-	if e == nil || e.cfg == nil || len(e.cfg.CriticalASNContext) == 0 {
+	return e.criticalASNContextForFeedWithSnapshot(e.operationSnapshot(), feedName, feedIPs, outDir)
+}
+
+func (e *Engine) criticalASNContextForFeedWithSnapshot(snap operationSnapshot, feedName string, feedIPs uint64, outDir string) (*criticalASNContextJSON, error) {
+	if e == nil || snap.cfg == nil || len(snap.cfg.CriticalASNContext) == 0 {
 		return nil, nil
 	}
-	provider, payload, err := e.readPreferredASNPayload(feedName, outDir)
+	provider, payload, err := e.readPreferredASNPayloadWithSnapshot(snap, feedName, outDir)
 	if err != nil {
 		return nil, err
 	}
 	if payload == nil {
 		return nil, nil
 	}
-	contextByASN := make(map[uint32]config.CriticalASNContext, len(e.cfg.CriticalASNContext))
-	for _, entry := range e.cfg.CriticalASNContext {
+	contextByASN := make(map[uint32]config.CriticalASNContext, len(snap.cfg.CriticalASNContext))
+	for _, entry := range snap.cfg.CriticalASNContext {
 		contextByASN[entry.ASN] = entry
 	}
 	out := &criticalASNContextJSON{
@@ -598,6 +617,10 @@ func (e *Engine) criticalASNContextForFeed(feedName string, feedIPs uint64, outD
 }
 
 func (e *Engine) readPreferredASNPayload(feedName, outDir string) (string, *asnFeedJSON, error) {
+	return e.readPreferredASNPayloadWithSnapshot(e.operationSnapshot(), feedName, outDir)
+}
+
+func (e *Engine) readPreferredASNPayloadWithSnapshot(snap operationSnapshot, feedName, outDir string) (string, *asnFeedJSON, error) {
 	// Respect the configured default ASN provider (defaults.asn_provider).
 	// Plain SourcesWithUse() iterates in YAML insertion order, which means
 	// the first alphabetically-named ASN provider wins regardless of the
@@ -605,12 +628,15 @@ func (e *Engine) readPreferredASNPayload(feedName, outDir string) (string, *asnF
 	// though iptoasn is the configured default. SourcesWithUseDefaultFirst
 	// moves the default to the front and keeps the remaining catalog
 	// order as a fallback when the default has no payload for this feed.
-	for _, provider := range e.cfg.SourcesWithUseDefaultFirst(config.UseASN) {
+	if snap.cfg == nil {
+		return "", nil, nil
+	}
+	for _, provider := range snap.cfg.SourcesWithUseDefaultFirst(config.UseASN) {
 		if provider == nil {
 			continue
 		}
 		rel := feedName + "_asn_" + provider.Name + ".json"
-		data, err := readFirstExisting(singleCandidatePath(outDir, rel), singleCandidatePath(e.outputDir(), rel))
+		data, err := readFirstExisting(singleCandidatePath(outDir, rel), singleCandidatePath(outputDirForRuntime(snap.runtime), rel))
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
 				continue
@@ -744,7 +770,7 @@ func (e *Engine) CleanupStaleCriticalInfrastructureArtifactsContext(ctx context.
 	}
 	providers := criticalInfrastructureProvidersForConfig(cfg)
 	if len(providers) == 0 {
-		e.clearCriticalOverlapSummaries()
+		e.clearCriticalOverlapSummariesForConfig(cfg)
 	}
 	batch, err := newWebPublishBatchForRuntime(rt)
 	if err != nil {

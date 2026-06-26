@@ -61,6 +61,7 @@ func (e *Engine) CheckIntegrityWithOptionsContext(ctx context.Context, opts Inte
 
 type integrityCheck struct {
 	e        *Engine
+	snapshot operationSnapshot
 	opts     IntegrityOptions
 	webDir   string
 	baseDir  string
@@ -75,29 +76,31 @@ type integritySourceContext struct {
 }
 
 func (e *Engine) newIntegrityCheck(opts IntegrityOptions) (integrityCheck, bool) {
-	if e == nil || e.cfg == nil {
+	snap := e.operationSnapshot()
+	if e == nil || snap.cfg == nil {
 		return integrityCheck{}, false
 	}
 	webDir := opts.WebDir
 	if webDir == "" {
-		webDir = e.runtime.WebDir
+		webDir = snap.runtime.WebDir
 	}
-	baseDir := e.runtime.BaseDir
+	baseDir := snap.runtime.BaseDir
 	if webDir == "" || baseDir == "" {
 		return integrityCheck{}, false
 	}
 	return integrityCheck{
 		e:        e,
+		snapshot: snap,
 		opts:     opts,
 		webDir:   webDir,
 		baseDir:  baseDir,
-		resolver: newEffectiveEntryResolver(e.cfg, e.state.SnapshotEntries()),
+		resolver: newEffectiveEntryResolver(snap.cfg, e.state.SnapshotEntries()),
 	}, true
 }
 
 func (c integrityCheck) findings(ctx context.Context) ([]IntegrityFinding, error) {
 	var findings []IntegrityFinding
-	for _, name := range config.SortedSourceNames(c.e.cfg) {
+	for _, name := range config.SortedSourceNames(c.snapshot.cfg) {
 		if err := contextErr(ctx); err != nil {
 			return nil, err
 		}
@@ -117,14 +120,14 @@ func (c integrityCheck) findings(ctx context.Context) ([]IntegrityFinding, error
 }
 
 func (c integrityCheck) sourceContext(name string) (integritySourceContext, bool) {
-	src := c.e.cfg.Sources[name]
+	src := c.snapshot.cfg.Sources[name]
 	if src == nil || src.Hidden {
 		return integritySourceContext{}, false
 	}
 	if src.HasUse(config.UseASN) || src.HasUse(config.UseGeoIP) {
 		return integritySourceContext{}, false
 	}
-	health := c.e.classifyEffectiveEntryHealth(name, c.resolver.entryFromSnapshot(name))
+	health := feedhealth.Classify(c.resolver.entryFromSnapshot(name), src, c.snapshot.feedHealthPolicy, c.e.now().UTC())
 	if health.Class == feedhealth.ClassArchived && !c.opts.IncludeArchived {
 		return integritySourceContext{}, false
 	}
@@ -140,7 +143,7 @@ func (c integrityCheck) findingForSource(ctx context.Context, source integritySo
 	if err := contextErr(ctx); err != nil {
 		return IntegrityFinding{}, false, err
 	}
-	if blockedFeeds := c.e.integrityBlockedFeeds(source.name, source.src, c.resolver, c.opts.EnableAll); len(blockedFeeds) > 0 {
+	if blockedFeeds := c.e.integrityBlockedFeedsWithSnapshot(c.snapshot, source.name, source.src, c.resolver, c.opts.EnableAll); len(blockedFeeds) > 0 {
 		return c.blockedFeedFinding(source, blockedFeeds), true, nil
 	}
 	if source.entry == nil || source.entry.ProcessedDate == 0 {
@@ -157,7 +160,7 @@ func (c integrityCheck) findingForSource(ctx context.Context, source integritySo
 	if c.e.now().UTC().Sub(processedTime) < integrityInFlightTolerance {
 		return IntegrityFinding{}, false, nil
 	}
-	if finding, ok := c.e.integrityHistoryDerivativeFinding(source.name, source.src, processedTime, sourcePath, sourceMTime); ok {
+	if finding, ok := c.e.integrityHistoryDerivativeFindingWithSnapshot(c.snapshot, source.name, source.src, processedTime, sourcePath, sourceMTime); ok {
 		return finding, true, nil
 	}
 	finding, ok, err := c.secondaryArtifactFinding(ctx, source, processedTime, sourcePath, sourceMTime)
@@ -182,7 +185,7 @@ func (c integrityCheck) blockedFeedFinding(source integritySourceContext, blocke
 }
 
 func (c integrityCheck) neverProcessedFinding(name string) (IntegrityFinding, bool) {
-	if _, err := os.Stat(c.e.sourceEnablePath(name)); err != nil {
+	if _, err := os.Stat(sourceEnablePathForRuntime(c.snapshot.runtime, name)); err != nil {
 		return IntegrityFinding{}, false
 	}
 	return IntegrityFinding{
@@ -193,7 +196,7 @@ func (c integrityCheck) neverProcessedFinding(name string) (IntegrityFinding, bo
 }
 
 func (c integrityCheck) missingSourceFinding(source integritySourceContext, processedTime time.Time) (IntegrityFinding, bool) {
-	if c.e.shouldSuppressMissingSourceIntegrity(source.name, source.entry, source.src) {
+	if c.e.shouldSuppressMissingSourceIntegrityWithSnapshot(c.snapshot, source.name, source.entry, source.src) {
 		return IntegrityFinding{}, false
 	}
 	return IntegrityFinding{
@@ -217,7 +220,7 @@ func (c integrityCheck) secondaryArtifactFinding(ctx context.Context, source int
 	if err != nil {
 		return IntegrityFinding{}, false, err
 	}
-	finding.BlockedFeeds = appendUniqueStrings(finding.BlockedFeeds, c.e.integrityBlockedBogonProviderArtifacts(finding, artifactByRelPath))
+	finding.BlockedFeeds = appendUniqueStrings(finding.BlockedFeeds, c.e.integrityBlockedBogonProviderArtifactsWithSnapshot(c.snapshot, finding, artifactByRelPath))
 	if integrityFindingClean(finding) {
 		return IntegrityFinding{}, false, nil
 	}
@@ -226,7 +229,7 @@ func (c integrityCheck) secondaryArtifactFinding(ctx context.Context, source int
 }
 
 func (c integrityCheck) scanSecondaryArtifacts(ctx context.Context, finding *IntegrityFinding, source integritySourceContext, processedTime time.Time) (map[string]secondaryArtifactDescriptor, error) {
-	artifacts := c.e.expectedSecondaryArtifacts(source.name)
+	artifacts := c.e.expectedSecondaryArtifactsWithSnapshot(c.snapshot, source.name)
 	artifactByRelPath := make(map[string]secondaryArtifactDescriptor, len(artifacts))
 	for _, artifact := range artifacts {
 		if err := contextErr(ctx); err != nil {
@@ -253,11 +256,11 @@ func (c integrityCheck) scanSecondaryArtifact(finding *IntegrityFinding, source 
 		finding.StaleFiles = append(finding.StaleFiles, artifact.RelPath)
 		return
 	}
-	if err := validateStructuredSecondaryArtifact(artifact, path, c.e); err != nil {
+	if err := validateStructuredSecondaryArtifactWithSnapshot(artifact, path, c.e, c.snapshot); err != nil {
 		finding.MalformedFiles = append(finding.MalformedFiles, artifact.RelPath)
 		return
 	}
-	if artifact.Kind == secondaryArtifactMetadata && validatePublicMetadataArtifactPolicy(path, c.e.isRedistributable(source.name) && source.health.Class != feedhealth.ClassArchived) != nil {
+	if artifact.Kind == secondaryArtifactMetadata && validatePublicMetadataArtifactPolicy(path, isRedistributableForConfig(c.snapshot.cfg, source.name) && source.health.Class != feedhealth.ClassArchived) != nil {
 		finding.MalformedFiles = append(finding.MalformedFiles, artifact.RelPath)
 	}
 }

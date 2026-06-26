@@ -37,9 +37,13 @@ type sitemapIndex struct {
 }
 
 func (e *Engine) writePublicMetadataFiles(outDir string, outputNames []string) ([]string, error) {
-	siteBase := e.publicSiteBaseURL()
-	feedPrefix := e.publicFeedURLPrefix(siteBase)
-	files, err := e.writeSitemapFiles(outDir, siteBase, feedPrefix, outputNames)
+	return e.writePublicMetadataFilesWithSnapshot(e.operationSnapshot(), outDir, outputNames)
+}
+
+func (e *Engine) writePublicMetadataFilesWithSnapshot(snap operationSnapshot, outDir string, outputNames []string) ([]string, error) {
+	siteBase := publicSiteBaseURLForRuntime(snap.runtime)
+	feedPrefix := publicFeedURLPrefixForRuntime(snap.runtime, siteBase)
+	files, err := e.writeSitemapFilesWithSnapshot(snap, outDir, siteBase, feedPrefix, outputNames)
 	if err != nil {
 		return nil, err
 	}
@@ -54,6 +58,10 @@ func (e *Engine) writePublicMetadataFiles(outDir string, outputNames []string) (
 }
 
 func (e *Engine) writeSitemapFiles(outDir, siteBase, feedPrefix string, outputNames []string) ([]string, error) {
+	return e.writeSitemapFilesWithSnapshot(e.operationSnapshot(), outDir, siteBase, feedPrefix, outputNames)
+}
+
+func (e *Engine) writeSitemapFilesWithSnapshot(snap operationSnapshot, outDir, siteBase, feedPrefix string, outputNames []string) ([]string, error) {
 	const indexName = "sitemap.xml"
 	files := []string{indexName}
 	if siteBase == "" {
@@ -76,8 +84,8 @@ func (e *Engine) writeSitemapFiles(outDir, siteBase, feedPrefix string, outputNa
 	}{
 		{name: "sitemap-pages.xml", urls: publicPageSitemapURLs(siteBase)},
 		{name: "sitemap-feeds.xml", urls: publicFeedSitemapURLs(feedPrefix, outputNames)},
-		{name: "sitemap-countries.xml", urls: e.publicCountrySitemapURLs(siteBase, outDir)},
-		{name: "sitemap-maintainers.xml", urls: e.publicMaintainerSitemapURLs(siteBase)},
+		{name: "sitemap-countries.xml", urls: e.publicCountrySitemapURLsWithSnapshot(snap, siteBase, outDir)},
+		{name: "sitemap-maintainers.xml", urls: e.publicMaintainerSitemapURLsWithSnapshot(snap, siteBase)},
 	}
 	for _, shard := range shards {
 		if err := writeSitemapURLSet(filepath.Join(outDir, shard.name), shard.urls); err != nil {
@@ -85,7 +93,7 @@ func (e *Engine) writeSitemapFiles(outDir, siteBase, feedPrefix string, outputNa
 		}
 		files = append(files, shard.name)
 	}
-	for i, urls := range chunkStrings(e.publicASNSitemapURLs(siteBase, outDir), maxSitemapURLs) {
+	for i, urls := range chunkStrings(e.publicASNSitemapURLsWithSnapshot(snap, siteBase, outDir), maxSitemapURLs) {
 		name := fmt.Sprintf("sitemap-asns-%04d.xml", i+1)
 		if err := writeSitemapURLSet(filepath.Join(outDir, name), urls); err != nil {
 			return nil, err
@@ -131,10 +139,14 @@ func publicFeedSitemapURLs(feedPrefix string, outputNames []string) []string {
 }
 
 func (e *Engine) publicCountrySitemapURLs(siteBase, outDir string) []string {
-	if index := e.loadCountryIndexForSitemap(outDir); index != nil {
+	return e.publicCountrySitemapURLsWithSnapshot(e.operationSnapshot(), siteBase, outDir)
+}
+
+func (e *Engine) publicCountrySitemapURLsWithSnapshot(snap operationSnapshot, siteBase, outDir string) []string {
+	if index := e.loadCountryIndexForSitemapWithSnapshot(snap, outDir); index != nil {
 		return countrySitemapURLsFromIndex(siteBase, index)
 	}
-	index, err := e.buildCountryIndex(newEntityOutputView(e, outDir))
+	index, err := e.buildCountryIndexWithSnapshot(snap, newEntityOutputViewWithRuntime(e, snap.runtime, outDir))
 	if err != nil || index == nil {
 		return nil
 	}
@@ -158,10 +170,14 @@ func countrySitemapURLsFromIndex(siteBase string, index *CountryIndexPayload) []
 }
 
 func (e *Engine) publicASNSitemapURLs(siteBase, outDir string) []string {
-	if index := e.loadASNIndexForSitemap(outDir); index != nil {
+	return e.publicASNSitemapURLsWithSnapshot(e.operationSnapshot(), siteBase, outDir)
+}
+
+func (e *Engine) publicASNSitemapURLsWithSnapshot(snap operationSnapshot, siteBase, outDir string) []string {
+	if index := e.loadASNIndexForSitemapWithSnapshot(snap, outDir); index != nil {
 		return asnSitemapURLsFromIndex(siteBase, index)
 	}
-	index, err := e.buildASNIndex(newEntityOutputView(e, outDir))
+	index, err := e.buildASNIndexWithSnapshot(snap, newEntityOutputViewWithRuntime(e, snap.runtime, outDir))
 	if err != nil || index == nil {
 		return nil
 	}
@@ -184,7 +200,11 @@ func asnSitemapURLsFromIndex(siteBase string, index *ASNIndexPayload) []string {
 }
 
 func (e *Engine) loadCountryIndexForSitemap(outDir string) *CountryIndexPayload {
-	for _, candidate := range sitemapIndexCandidatePaths(outDir, e.outputDir(), e.publicCountryIndexRelPath()) {
+	return e.loadCountryIndexForSitemapWithSnapshot(e.operationSnapshot(), outDir)
+}
+
+func (e *Engine) loadCountryIndexForSitemapWithSnapshot(snap operationSnapshot, outDir string) *CountryIndexPayload {
+	for _, candidate := range sitemapIndexCandidatePaths(outDir, outputDirForRuntime(snap.runtime), e.publicCountryIndexRelPath()) {
 		data, err := readFileInRoot(candidate.rootDir, candidate.rel)
 		if err != nil {
 			continue
@@ -198,7 +218,11 @@ func (e *Engine) loadCountryIndexForSitemap(outDir string) *CountryIndexPayload 
 }
 
 func (e *Engine) loadASNIndexForSitemap(outDir string) *ASNIndexPayload {
-	for _, candidate := range sitemapIndexCandidatePaths(outDir, e.outputDir(), e.publicASNIndexRelPath()) {
+	return e.loadASNIndexForSitemapWithSnapshot(e.operationSnapshot(), outDir)
+}
+
+func (e *Engine) loadASNIndexForSitemapWithSnapshot(snap operationSnapshot, outDir string) *ASNIndexPayload {
+	for _, candidate := range sitemapIndexCandidatePaths(outDir, outputDirForRuntime(snap.runtime), e.publicASNIndexRelPath()) {
 		data, err := readFileInRoot(candidate.rootDir, candidate.rel)
 		if err != nil {
 			continue
@@ -230,7 +254,11 @@ func sitemapIndexCandidatePaths(stageDir, liveDir, rel string) []rootedCandidate
 }
 
 func (e *Engine) publicMaintainerSitemapURLs(siteBase string) []string {
-	index, err := e.MaintainerIndex(nil)
+	return e.publicMaintainerSitemapURLsWithSnapshot(e.operationSnapshot(), siteBase)
+}
+
+func (e *Engine) publicMaintainerSitemapURLsWithSnapshot(snap operationSnapshot, siteBase string) []string {
+	index, err := e.MaintainerIndexWithSnapshot(snap, nil)
 	if err != nil || index == nil {
 		return nil
 	}

@@ -34,7 +34,10 @@ func loadSnapshotSet(ctx context.Context, name, rootDir, rel string) (*iprange.I
 }
 
 func (e *Engine) openPreviousLatestSet(ctx context.Context, name string) (*closableSource, error) {
-	rt := e.Runtime()
+	return e.openPreviousLatestSetWithRuntime(ctx, e.Runtime(), name)
+}
+
+func (e *Engine) openPreviousLatestSetWithRuntime(ctx context.Context, rt Runtime, name string) (*closableSource, error) {
 	for _, filename := range []string{"latest", "latest.set"} {
 		rel := filepath.Join(name, filename)
 		path := filepath.Join(rt.LibDir, rel)
@@ -59,11 +62,14 @@ func isIgnoredRetentionSnapshotName(name string) bool {
 }
 
 func (e *Engine) buildRetentionData(ctx context.Context, name string, updatedAt int64) (*RetentionData, error) {
+	return e.buildRetentionDataWithRuntime(ctx, e.Runtime(), name, updatedAt)
+}
+
+func (e *Engine) buildRetentionDataWithRuntime(ctx context.Context, rt Runtime, name string, updatedAt int64) (*RetentionData, error) {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
 		return nil, err
 	}
-	rt := e.Runtime()
 	dir := filepath.Join(rt.LibDir, name)
 	entry := e.state.Entry(name)
 	started := entry.StartedDate

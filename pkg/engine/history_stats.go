@@ -1,22 +1,31 @@
 package engine
 
 import (
+	"context"
 	"path/filepath"
 
 	"github.com/firehol/update-ipsets/pkg/cache"
 )
 
 func (e *Engine) refreshHistoryStatsFromLedger(name string, entry *cache.Entry, frequency int) bool {
+	return e.refreshHistoryStatsFromLedgerWithSnapshot(e.operationSnapshot(), name, entry, frequency)
+}
+
+func (e *Engine) refreshHistoryStatsFromLedgerWithRuntime(rt Runtime, name string, entry *cache.Entry, frequency int) bool {
+	return e.refreshHistoryStatsFromLedgerWithSnapshot(operationSnapshot{runtime: rt}, name, entry, frequency)
+}
+
+func (e *Engine) refreshHistoryStatsFromLedgerWithSnapshot(snap operationSnapshot, name string, entry *cache.Entry, frequency int) bool {
 	if e == nil || entry == nil {
 		return false
 	}
-	if e.historyStatsFromRuntime(name, entry, frequency) {
+	if e.historyStatsFromSnapshot(context.Background(), snap, name, entry, frequency) {
 		return true
 	}
-	if e.runtime.LibDir == "" {
+	if snap.runtime.LibDir == "" {
 		return false
 	}
-	points := parseHistoryCSVInRoot(e.runtime.LibDir, filepath.Join(name, "history.csv"), name)
+	points := parseHistoryCSVInRoot(snap.runtime.LibDir, filepath.Join(name, "history.csv"), name)
 	return applyHistoryPointsToEntry(entry, points, frequency)
 }
 

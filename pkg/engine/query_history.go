@@ -48,18 +48,22 @@ func (e *Engine) ChangesetSeries(name string) ([]ChangesetPoint, error) {
 }
 
 func (e *Engine) ChangesetSeriesContext(ctx context.Context, name string) ([]ChangesetPoint, error) {
+	return e.ChangesetSeriesContextWithRuntime(ctx, e.Runtime(), name)
+}
+
+func (e *Engine) ChangesetSeriesContextWithRuntime(ctx context.Context, rt Runtime, name string) ([]ChangesetPoint, error) {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
 		return nil, err
 	}
-	out, err := e.readChangesetLedgerContext(ctx, name)
+	out, err := e.readChangesetLedgerContextWithRuntime(ctx, rt, name)
 	if err != nil {
 		return nil, err
 	}
 	if len(out) > 0 {
 		out = out[1:]
 	}
-	window := e.webChartsEntries()
+	window := webChartsEntriesFromRuntime(rt)
 	if len(out) > window {
 		out = out[len(out)-window:]
 	}
@@ -91,6 +95,10 @@ func (e *Engine) PublicChangesetSeriesInDir(name, dir string) ([]ChangesetPoint,
 }
 
 func (e *Engine) readChangesetLedgerContext(ctx context.Context, name string) ([]ChangesetPoint, error) {
+	return e.readChangesetLedgerContextWithRuntime(ctx, e.Runtime(), name)
+}
+
+func (e *Engine) readChangesetLedgerContextWithRuntime(ctx context.Context, rt Runtime, name string) ([]ChangesetPoint, error) {
 	ctx = nonNilContext(ctx)
 	if err := contextErr(ctx); err != nil {
 		return nil, err
@@ -98,7 +106,6 @@ func (e *Engine) readChangesetLedgerContext(ctx context.Context, name string) ([
 	if e == nil {
 		return nil, nil
 	}
-	rt := e.Runtime()
 	if rt.LibDir == "" {
 		return nil, nil
 	}
@@ -121,6 +128,10 @@ func (e *Engine) historyFromLedgerCSV(name string) []HistoryPoint {
 }
 
 func (e *Engine) historyFromLedgerCSVContext(ctx context.Context, name string) []HistoryPoint {
+	return e.historyFromLedgerCSVContextWithRuntime(ctx, e.Runtime(), name)
+}
+
+func (e *Engine) historyFromLedgerCSVContextWithRuntime(ctx context.Context, rt Runtime, name string) []HistoryPoint {
 	ctx = nonNilContext(ctx)
 	if contextErr(ctx) != nil {
 		return nil
@@ -128,7 +139,6 @@ func (e *Engine) historyFromLedgerCSVContext(ctx context.Context, name string) [
 	if e == nil {
 		return nil
 	}
-	rt := e.Runtime()
 	if rt.LibDir == "" {
 		return nil
 	}
@@ -136,11 +146,15 @@ func (e *Engine) historyFromLedgerCSVContext(ctx context.Context, name string) [
 }
 
 func (e *Engine) historyFromWebCSVContext(ctx context.Context, name string) []HistoryPoint {
+	return e.historyFromWebCSVContextWithRuntime(ctx, e.Runtime(), name)
+}
+
+func (e *Engine) historyFromWebCSVContextWithRuntime(ctx context.Context, rt Runtime, name string) []HistoryPoint {
 	ctx = nonNilContext(ctx)
 	if contextErr(ctx) != nil {
 		return nil
 	}
-	dir := e.outputDir()
+	dir := outputDirForRuntime(rt)
 	if dir == "" {
 		return nil
 	}

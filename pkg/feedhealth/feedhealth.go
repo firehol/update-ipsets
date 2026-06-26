@@ -68,6 +68,22 @@ func PolicyFromRuntime(rt config.RuntimeConfig) Policy {
 	}
 }
 
+func PolicyFromConfig(cfg *config.Config) Policy {
+	if cfg == nil {
+		return Policy{}
+	}
+	policy := PolicyFromRuntime(cfg.Runtime)
+	if len(policy.CategoryThresholds) == 0 {
+		return policy
+	}
+	cloned := make(map[string]config.FeedHealthCategoryThresholds, len(policy.CategoryThresholds))
+	for category, thresholds := range policy.CategoryThresholds {
+		cloned[category] = thresholds
+	}
+	policy.CategoryThresholds = cloned
+	return policy
+}
+
 func (p Policy) ThresholdsForCategory(category string) config.FeedHealthCategoryThresholds {
 	if threshold, ok := p.CategoryThresholds[category]; ok {
 		return threshold

@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/firehol/update-ipsets/pkg/config"
 	"github.com/firehol/update-ipsets/pkg/iprange"
 )
 
@@ -96,15 +97,21 @@ func (e *Engine) openLatestSet(ctx context.Context, name string) (*closableSourc
 	if e == nil {
 		return nil, fmt.Errorf("unknown set %q", name)
 	}
-	cfg, rt := e.configRuntimeSnapshot()
-	if cfg == nil || !configuredNamesForConfig(cfg)[name] {
+	return e.openLatestSetWithSnapshot(ctx, e.operationSnapshot(), name)
+}
+
+func (e *Engine) openLatestSetWithSnapshot(ctx context.Context, snap operationSnapshot, name string) (*closableSource, error) {
+	if e == nil {
+		return nil, fmt.Errorf("unknown set %q", name)
+	}
+	if snap.cfg == nil || !configuredNamesForConfig(snap.cfg)[name] {
 		return nil, fmt.Errorf("unknown set %q", name)
 	}
 	if hook := openLatestSetHookForTest(); hook != nil {
 		hook(name)
 	}
 	for _, filename := range []string{"latest", "latest.set"} {
-		binaryPath := filepath.Join(rt.LibDir, name, filename)
+		binaryPath := filepath.Join(snap.runtime.LibDir, name, filename)
 		start := time.Now()
 		fs, err := iprange.OpenFileSet(binaryPath)
 		if err == nil {
@@ -117,7 +124,7 @@ func (e *Engine) openLatestSet(ctx context.Context, name string) (*closableSourc
 			return &closableSource{RangeSource: fs, close: fs.Close}, nil
 		}
 	}
-	return e.loadTextSetWithRuntime(ctx, name, rt)
+	return e.loadTextSetWithRuntime(ctx, name, snap.runtime)
 }
 
 func (e *Engine) hasBinaryLatestSet(name string) bool {
@@ -141,6 +148,17 @@ func (e *Engine) hasUsableSet(name string) bool {
 		return false
 	}
 	cfg, rt := e.configRuntimeSnapshot()
+	return e.hasUsableSetForConfigRuntime(cfg, rt, name)
+}
+
+func (e *Engine) hasUsableSetForSnapshot(snap operationSnapshot, name string) bool {
+	if e == nil {
+		return false
+	}
+	return e.hasUsableSetForConfigRuntime(snap.cfg, snap.runtime, name)
+}
+
+func (e *Engine) hasUsableSetForConfigRuntime(cfg *config.Config, rt Runtime, name string) bool {
 	if hasBinaryLatestSetForRuntime(rt, name) {
 		return true
 	}

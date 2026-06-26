@@ -1,11 +1,13 @@
 package scheduler
 
 import (
-	"github.com/firehol/update-ipsets/pkg/runreason"
 	"time"
+
+	"github.com/firehol/update-ipsets/pkg/config"
+	"github.com/firehol/update-ipsets/pkg/runreason"
 )
 
-func (r *Runner) enqueueAutomaticDue(snapshot Snapshot, now time.Time) {
+func (r *Runner) enqueueAutomaticDue(cfg *config.Config, snapshot Snapshot, now time.Time) {
 	engineRunning := false
 	if r != nil && r.eng != nil {
 		engineRunning = r.eng.StatusSnapshotLight().Running
@@ -17,14 +19,17 @@ func (r *Runner) enqueueAutomaticDue(snapshot Snapshot, now time.Time) {
 		if !item.NextDue.IsZero() && item.NextDue.After(now) {
 			continue
 		}
-		src := r.eng.Config().Sources[item.Name]
-		if src == nil || r.eng.IsHistoryDerivative(item.Name) || src.ArtifactParent != "" {
+		var src *config.Source
+		if cfg != nil {
+			src = cfg.Sources[item.Name]
+		}
+		if src == nil || src.Provenance == config.ProvenanceSecondaryRetention || src.ArtifactParent != "" {
 			continue
 		}
 		if !shouldEnqueueAutomaticDue(item, engineRunning) {
 			continue
 		}
-		if r.eng.IsDownloadable(item.Name) {
+		if src.URL != "" || len(src.Static) > 0 {
 			r.considerAutomaticDownload(queuedWork{
 				Name:     item.Name,
 				Reason:   runreason.ReasonScheduledDue,

@@ -13,17 +13,21 @@ import (
 )
 
 func (e *Engine) finalize(ctx context.Context, name string, src *config.Source, output string, bodyPath string, finalSet *iprange.IPSet, sourceMTime time.Time, observedAt time.Time) error {
-	path := e.finalPath(name, output)
+	return e.finalizeWithSnapshot(ctx, e.operationSnapshot(), name, src, output, bodyPath, finalSet, sourceMTime, observedAt)
+}
+
+func (e *Engine) finalizeWithSnapshot(ctx context.Context, snap operationSnapshot, name string, src *config.Source, output string, bodyPath string, finalSet *iprange.IPSet, sourceMTime time.Time, observedAt time.Time) error {
+	path := finalPathForRuntime(snap.runtime, name, output)
 	hash := hashForOutput(output)
 	entry := e.state.Entry(name)
 	baseline := entry.Snapshot()
-	rawPath := e.sourcePath(name)
+	rawPath := snap.sourcePath(name)
 
-	if e.runtime.IPSetsApply {
+	if snap.runtime.IPSetsApply {
 		started := time.Now()
 		if err := e.applyKernelSet(name, hash, bodyPath); err != nil {
-			if e.runtime.ErrorsDir != "" {
-				if writeErr := writeFeedBodyAtomic(filepath.Join(e.runtime.ErrorsDir, filepath.Base(path)), nil, bodyPath, time.Time{}); writeErr != nil {
+			if snap.runtime.ErrorsDir != "" {
+				if writeErr := writeFeedBodyAtomic(filepath.Join(snap.runtime.ErrorsDir, filepath.Base(path)), nil, bodyPath, time.Time{}); writeErr != nil {
 					e.logger.Warn("failed to write error snapshot", "source", name, "error", writeErr)
 				}
 			}
@@ -36,7 +40,7 @@ func (e *Engine) finalize(ctx context.Context, name string, src *config.Source, 
 
 	// Write the binary latest before promoting the canonical text file so
 	// FileSet-based readers and the committed feed body stay aligned.
-	latestDir := filepath.Join(e.runtime.LibDir, name)
+	latestDir := filepath.Join(snap.runtime.LibDir, name)
 	if err := os.MkdirAll(latestDir, generatedDirMode); err != nil {
 		return err
 	}
@@ -52,7 +56,7 @@ func (e *Engine) finalize(ctx context.Context, name string, src *config.Source, 
 	e.observeFeedOperation(name, "sources.finalize.write_latest", writeLatestDur)
 
 	writeTextStarted := time.Now()
-	header := e.renderHeader(name, src, hash, finalSet, sourceMTime)
+	header := e.renderHeaderWithRuntime(snap.runtime, name, src, hash, finalSet, sourceMTime)
 	if err := writeFeedBodyAtomic(path, header, bodyPath, sourceMTime); err != nil {
 		return fmt.Errorf("write final file for %s: %w", name, err)
 	}
@@ -81,6 +85,18 @@ func (e *Engine) finalize(ctx context.Context, name string, src *config.Source, 
 		}
 		contentHash = hash.Hex()
 	}
+	// Always track evolution data in the internal full ledger. The public
+	// _history.csv is generated later from the last WebChartsEntries rows,
+	// matching the bash pipeline's lib/history split.
+	appendHistoryStarted := time.Now()
+	historyErr := appendCSV(filepath.Join(latestDir, "history.csv"), "DateTime,Entries,UniqueIPs\n",
+		fmt.Sprintf("%d,%d,%d\n", sourceMTime.UTC().Unix(), finalSet.Entries(), finalSet.UniqueCount()))
+	appendHistoryDur := time.Since(appendHistoryStarted)
+	e.observeRunOperation("sources.finalize.append_history", appendHistoryDur)
+	e.observeFeedOperation(name, "sources.finalize.append_history", appendHistoryDur)
+	if historyErr != nil {
+		return fmt.Errorf("append history data for %s: %w", name, historyErr)
+	}
 	entry.ApplyFinalizedSourceSet(cache.FinalizedSourceSetSnapshot{
 		File:          filepath.Base(path),
 		Source:        sourceFile,
@@ -92,19 +108,8 @@ func (e *Engine) finalize(ctx context.Context, name string, src *config.Source, 
 		Entries:       finalSet.Entries(),
 		UniqueIPs:     finalSet.UniqueCount(),
 	})
-	// Always track evolution data in the internal full ledger. The public
-	// _history.csv is generated later from the last WebChartsEntries rows,
-	// matching the bash pipeline's lib/history split.
-	appendHistoryStarted := time.Now()
-	if err := appendCSV(filepath.Join(latestDir, "history.csv"), "DateTime,Entries,UniqueIPs\n",
-		fmt.Sprintf("%d,%d,%d\n", sourceMTime.UTC().Unix(), finalSet.Entries(), finalSet.UniqueCount())); err != nil {
-		e.logger.Warn("failed to append history data", "source", name, "error", err)
-	}
-	appendHistoryDur := time.Since(appendHistoryStarted)
-	e.observeRunOperation("sources.finalize.append_history", appendHistoryDur)
-	e.observeFeedOperation(name, "sources.finalize.append_history", appendHistoryDur)
 	observeHistoryStarted := time.Now()
-	if !e.observeHistoryPointContext(ctx, name, HistoryPoint{
+	if !e.observeHistoryPointWithSnapshot(ctx, snap, name, HistoryPoint{
 		Timestamp: sourceMTime.UTC().Unix(),
 		Name:      name,
 		Entries:   finalSet.Entries(),

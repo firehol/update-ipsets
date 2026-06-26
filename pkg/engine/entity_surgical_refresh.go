@@ -12,6 +12,7 @@ import (
 
 type entitySurgicalRefreshState struct {
 	e     *Engine
+	snap  operationSnapshot
 	ctx   context.Context
 	task  *BackgroundTaskHandle
 	web   *webPublishBatch
@@ -34,21 +35,29 @@ type entitySurgicalRefreshState struct {
 }
 
 func (e *Engine) refreshEntityArtifactsForFeedUpdates(ctx context.Context, feedNames []string, task *BackgroundTaskHandle) error {
+	return e.refreshEntityArtifactsForFeedUpdatesWithSnapshot(ctx, e.operationSnapshot(), feedNames, task)
+}
+
+func (e *Engine) refreshEntityArtifactsForFeedUpdatesWithSnapshot(ctx context.Context, snap operationSnapshot, feedNames []string, task *BackgroundTaskHandle) error {
 	return e.runOptimisticEntityArtifactMutation(ctx, task, backgroundEntityTaskDetail("feeds", len(feedNames)), func() (*entityArtifactMutationPlan, error) {
-		plan, err := e.stageRefreshEntityArtifactsForFeedUpdates(ctx, feedNames, task)
+		plan, err := e.stageRefreshEntityArtifactsForFeedUpdatesWithSnapshot(ctx, snap, feedNames, task)
 		if errors.Is(err, errEntitySurgicalNeedsFullRebuild) {
-			return e.stageRebuildEntityArtifactsFromLive(ctx, task)
+			return e.stageRebuildEntityArtifactsFromLiveWithSnapshot(ctx, snap, task)
 		}
 		return plan, err
 	})
 }
 
 func (e *Engine) stageRefreshEntityArtifactsForFeedUpdates(ctx context.Context, feedNames []string, task *BackgroundTaskHandle) (*entityArtifactMutationPlan, error) {
+	return e.stageRefreshEntityArtifactsForFeedUpdatesWithSnapshot(ctx, e.operationSnapshot(), feedNames, task)
+}
+
+func (e *Engine) stageRefreshEntityArtifactsForFeedUpdatesWithSnapshot(ctx context.Context, snap operationSnapshot, feedNames []string, task *BackgroundTaskHandle) (*entityArtifactMutationPlan, error) {
 	ctx = nonNilContext(ctx)
 	if len(feedNames) == 0 {
 		return nil, nil
 	}
-	state, err := e.newEntitySurgicalRefreshState(ctx, feedNames, task)
+	state, err := e.newEntitySurgicalRefreshStateWithSnapshot(ctx, snap, feedNames, task)
 	if err != nil {
 		return nil, err
 	}
@@ -76,23 +85,28 @@ func (e *Engine) stageRefreshEntityArtifactsForFeedUpdates(ctx context.Context, 
 }
 
 func (e *Engine) newEntitySurgicalRefreshState(ctx context.Context, feedNames []string, task *BackgroundTaskHandle) (*entitySurgicalRefreshState, error) {
-	webBatch, err := e.newWebPublishBatch()
+	return e.newEntitySurgicalRefreshStateWithSnapshot(ctx, e.operationSnapshot(), feedNames, task)
+}
+
+func (e *Engine) newEntitySurgicalRefreshStateWithSnapshot(ctx context.Context, snap operationSnapshot, feedNames []string, task *BackgroundTaskHandle) (*entitySurgicalRefreshState, error) {
+	webBatch, err := newWebPublishBatchForRuntime(snap.runtime)
 	if err != nil {
 		return nil, err
 	}
-	entityBatch, err := e.newEntityPublishBatch()
+	entityBatch, err := newEntityPublishBatchForRuntime(snap.runtime)
 	if err != nil {
 		webBatch.cleanup()
 		return nil, err
 	}
 	return &entitySurgicalRefreshState{
 		e:                 e,
+		snap:              snap,
 		ctx:               ctx,
 		task:              task,
 		web:               webBatch,
 		ent:               entityBatch,
-		targetFeeds:       filterPublicOutputNames(e, feedNames),
-		presence:          newEntityArtifactFeedPresence(e),
+		targetFeeds:       filterPublicOutputNamesForSnapshot(e, snap, feedNames),
+		presence:          newEntityArtifactFeedPresenceWithRuntime(e, snap.runtime),
 		affectedCountries: map[string]struct{}{},
 		affectedASNs:      map[uint32]struct{}{},
 	}, nil
@@ -113,7 +127,7 @@ func (s *entitySurgicalRefreshState) loadFeedDeltas() error {
 		if err := contextErr(s.ctx); err != nil {
 			return err
 		}
-		delta, err := s.e.buildFeedEntityDeltaWithPresence(name, s.presence)
+		delta, err := s.e.buildFeedEntityDeltaWithSnapshot(name, s.snap, s.presence)
 		if err != nil {
 			if errors.Is(err, errEntitySurgicalNeedsFullRebuild) {
 				s.e.observeRunCounter("entity.refresh.full_rebuild_fallback", 1, 0)
@@ -184,7 +198,7 @@ func (s *entitySurgicalRefreshState) startDetailPatch() {
 	s.generated = make([]output.GeneratedFile, 0, s.total+2)
 	s.countryUpdates = map[string]*countryDetailSidecar{}
 	s.asnUpdates = map[uint32]*asnDetailSidecar{}
-	s.feedTimes = s.e.loadFeedEntitySidecarMTimes()
+	s.feedTimes = s.e.loadFeedEntitySidecarMTimesWithRuntime(s.snap.runtime)
 	for _, delta := range s.deltas {
 		if delta.new == nil {
 			delete(s.feedTimes, delta.name)
@@ -192,7 +206,7 @@ func (s *entitySurgicalRefreshState) startDetailPatch() {
 		}
 		s.feedTimes[delta.name] = delta.newMTime
 	}
-	s.health = s.e.newFeedHealthClassifier()
+	s.health = s.e.newFeedHealthClassifierForConfigPolicy(s.snap.cfg, s.snap.feedHealthPolicy, s.e.state.SnapshotEntries(), s.e.now().UTC())
 }
 
 func (s *entitySurgicalRefreshState) detailPatchDetail() string {
@@ -203,7 +217,7 @@ func (s *entitySurgicalRefreshState) loadMergedFeedSidecars() (map[string]*feedE
 	if s.allSidecars != nil {
 		return s.allSidecars, nil
 	}
-	sidecars, err := s.e.loadAllFeedEntitySidecars()
+	sidecars, err := s.e.loadAllFeedEntitySidecarsWithRuntime(s.snap.runtime)
 	if err != nil {
 		return nil, err
 	}
@@ -265,8 +279,8 @@ func (s *entitySurgicalRefreshState) stageRebuiltCountryDetail(code string, side
 	if err := s.e.writeObservedJSONFileAt(filepath.Join(s.web.stageDir, rel), payload, logicalTime, "entity.refresh.country_public_write"); err != nil {
 		return err
 	}
-	s.generated = append(s.generated, output.GeneratedFile{Path: filepath.Join(s.e.outputDir(), rel), Timestamp: logicalTime, Redistributable: true})
-	if mdFile, _ := s.e.stageCountryMarkdown(code, payload, s.web.stageDir); mdFile.Path != "" {
+	s.generated = append(s.generated, output.GeneratedFile{Path: filepath.Join(outputDirForRuntime(s.snap.runtime), rel), Timestamp: logicalTime, Redistributable: true})
+	if mdFile, _ := s.e.stageCountryMarkdownWithRuntime(s.snap.runtime, code, payload, s.web.stageDir); mdFile.Path != "" {
 		mdFile.Timestamp = logicalTime
 		s.generated = append(s.generated, mdFile)
 	}
@@ -293,8 +307,8 @@ func (s *entitySurgicalRefreshState) stageRebuiltASNDetail(asn uint32, sidecar *
 	if err := s.e.writeObservedJSONFileAt(filepath.Join(s.web.stageDir, rel), payload, logicalTime, "entity.refresh.asn_public_write"); err != nil {
 		return err
 	}
-	s.generated = append(s.generated, output.GeneratedFile{Path: filepath.Join(s.e.outputDir(), rel), Timestamp: logicalTime, Redistributable: true})
-	if mdFile, _ := s.e.stageASNMarkdown(asn, payload, s.web.stageDir); mdFile.Path != "" {
+	s.generated = append(s.generated, output.GeneratedFile{Path: filepath.Join(outputDirForRuntime(s.snap.runtime), rel), Timestamp: logicalTime, Redistributable: true})
+	if mdFile, _ := s.e.stageASNMarkdownWithRuntime(s.snap.runtime, asn, payload, s.web.stageDir); mdFile.Path != "" {
 		mdFile.Timestamp = logicalTime
 		s.generated = append(s.generated, mdFile)
 	}
@@ -331,10 +345,10 @@ func (s *entitySurgicalRefreshState) patchEntityIndexes() error {
 		if err := contextErr(s.ctx); err != nil {
 			return err
 		}
-		if err := s.e.patchCountryIndex(s.web, s.countryUpdates); err != nil {
+		if err := s.e.patchCountryIndexWithSnapshot(s.snap, s.web, s.countryUpdates); err != nil {
 			return err
 		}
-		s.generated = append(s.generated, output.GeneratedFile{Path: filepath.Join(s.e.outputDir(), s.e.publicCountryIndexRelPath()), Redistributable: true})
+		s.generated = append(s.generated, output.GeneratedFile{Path: filepath.Join(outputDirForRuntime(s.snap.runtime), s.e.publicCountryIndexRelPath()), Redistributable: true})
 		indexProgress++
 		if s.task != nil {
 			s.task.Update("patching entity indexes", "updating country and ASN indexes from patched entities", indexProgress, indexSteps)
@@ -344,10 +358,10 @@ func (s *entitySurgicalRefreshState) patchEntityIndexes() error {
 		if err := contextErr(s.ctx); err != nil {
 			return err
 		}
-		if err := s.e.patchASNIndex(s.web, s.asnUpdates); err != nil {
+		if err := s.e.patchASNIndexWithSnapshot(s.snap, s.web, s.asnUpdates); err != nil {
 			return err
 		}
-		s.generated = append(s.generated, output.GeneratedFile{Path: filepath.Join(s.e.outputDir(), s.e.publicASNIndexRelPath()), Redistributable: true})
+		s.generated = append(s.generated, output.GeneratedFile{Path: filepath.Join(outputDirForRuntime(s.snap.runtime), s.e.publicASNIndexRelPath()), Redistributable: true})
 		indexProgress++
 		if s.task != nil {
 			s.task.Update("patching entity indexes", "updating country and ASN indexes from patched entities", indexProgress, indexSteps)

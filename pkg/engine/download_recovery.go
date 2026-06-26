@@ -26,15 +26,16 @@ func (e *Engine) RecoverStagedArtifacts(ctx context.Context) ([]string, error) {
 	if err := contextErr(ctx); err != nil {
 		return nil, err
 	}
+	snap := e.operationSnapshot()
 	var out []string
-	for _, name := range config.SortedArtifactNames(e.cfg) {
+	for _, name := range config.SortedArtifactNames(snap.cfg) {
 		if err := contextErr(ctx); err != nil {
 			return nil, err
 		}
-		if !e.isArtifact(name) {
+		if snap.cfg == nil || snap.cfg.ArtifactByName(name) == nil {
 			continue
 		}
-		finalPath := e.artifactSourcePath(name)
+		finalPath := artifactSourcePathForRuntime(snap.runtime, name)
 		if err := os.Remove(pendingTempPath(finalPath)); err != nil && !os.IsNotExist(err) && e.logger != nil {
 			e.logger.Warn("failed to remove pending artifact temp file during recovery scan", "artifact", name, "error", err)
 		}
@@ -51,15 +52,16 @@ func (e *Engine) RecoverStagedArtifact(ctx context.Context, name string, enableA
 	if err := contextErr(ctx); err != nil {
 		return DownloadDecision{Name: name, Status: DownloadStatusFailed, Message: err.Error()}, err
 	}
-	if !e.isArtifact(name) {
+	snap := e.operationSnapshot()
+	if snap.cfg == nil || snap.cfg.ArtifactByName(name) == nil {
 		return DownloadDecision{Name: name, Status: DownloadStatusFailed, Message: "unknown artifact"}, fmt.Errorf("unknown artifact %q", name)
 	}
-	finalPath := e.artifactSourcePath(name)
+	finalPath := artifactSourcePathForRuntime(snap.runtime, name)
 	stagePath := stagedPath(finalPath)
 	if !fileExists(stagePath) {
 		return DownloadDecision{Name: name, Status: DownloadStatusSkipped, Message: "no staged artifact source"}, nil
 	}
-	decision, err := e.materializeArtifactChildren(ctx, name, stagePath, enableAll, true)
+	decision, err := e.materializeArtifactChildrenWithSnapshot(ctx, snap, name, stagePath, enableAll, true)
 	if err != nil {
 		if isRecoveredArtifactCorruption(err) {
 			corruptPath := stagePath + ".corrupt"

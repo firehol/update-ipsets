@@ -115,19 +115,22 @@ func (e *Engine) Metadata(name string) (any, error) {
 }
 
 func (e *Engine) MetadataWithEnableAll(name string, enableAll bool) (any, error) {
+	snap := e.operationSnapshot()
 	entry, err := e.Entry(name)
 	if err != nil {
 		return nil, err
 	}
-	return e.buildSetMetadataWithEnableAll(name, entry, enableAll), nil
+	return e.buildSetMetadataWithSnapshot(snap, name, entry, outputDirForRuntime(snap.runtime), enableAll, nil), nil
 }
 
 func (e *Engine) buildSetMetadataWithEnableAll(name string, entry *cache.Entry, enableAll bool) setMetadata {
-	return e.buildSetMetadataInDirWithEnableAll(name, entry, e.outputDir(), enableAll)
+	snap := e.operationSnapshot()
+	return e.buildSetMetadataWithSnapshot(snap, name, entry, outputDirForRuntime(snap.runtime), enableAll, nil)
 }
 
 func (e *Engine) buildSetMetadataInDirWithEnableAll(name string, entry *cache.Entry, outDir string, enableAll bool) setMetadata {
-	return e.buildSetMetadataFromEffectiveEntryInDir(name, e.entryViewFromFreshStateSnapshot(name, entry), outDir, enableAll)
+	snap := e.operationSnapshot()
+	return e.buildSetMetadataWithSnapshot(snap, name, e.entryViewFromFreshStateSnapshot(name, entry), outDir, enableAll, nil)
 }
 
 func (e *Engine) buildSetMetadataFromEffectiveEntryInDir(name string, entry *cache.Entry, outDir string, enableAll bool) setMetadata {
@@ -135,18 +138,26 @@ func (e *Engine) buildSetMetadataFromEffectiveEntryInDir(name string, entry *cac
 }
 
 func (e *Engine) buildSetMetadataFromEffectiveEntryInDirWithResolver(name string, entry *cache.Entry, outDir string, enableAll bool, resolver *effectiveEntryResolver) setMetadata {
-	redistributable := e.isRedistributable(name)
-	meta := e.baseSetMetadata(name, entry)
-	e.applyMetadataConfigFallbacks(name, &meta)
-	e.applyMetadataArtifactFields(name, entry, outDir, redistributable, &meta)
-	e.applyMetadataSourceFields(name, redistributable, enableAll, resolver, &meta)
+	return e.buildSetMetadataWithSnapshot(e.operationSnapshot(), name, entry, outDir, enableAll, resolver)
+}
+
+func (e *Engine) buildSetMetadataWithSnapshot(snap operationSnapshot, name string, entry *cache.Entry, outDir string, enableAll bool, resolver *effectiveEntryResolver) setMetadata {
+	redistributable := isRedistributableForConfig(snap.cfg, name)
+	meta := e.baseSetMetadataWithSnapshot(snap, name, entry)
+	applyMetadataConfigFallbacksForConfig(snap.cfg, name, &meta)
+	e.applyMetadataArtifactFieldsWithSnapshot(snap, name, entry, outDir, redistributable, &meta)
+	e.applyMetadataSourceFieldsWithSnapshot(snap, name, redistributable, enableAll, resolver, &meta)
 	clearMetadataRawFieldsForPolicy(redistributable, &meta)
 	return meta
 }
 
 func (e *Engine) baseSetMetadata(name string, entry *cache.Entry) setMetadata {
+	return e.baseSetMetadataWithSnapshot(e.operationSnapshot(), name, entry)
+}
+
+func (e *Engine) baseSetMetadataWithSnapshot(snap operationSnapshot, name string, entry *cache.Entry) setMetadata {
 	category := entry.Category
-	if src := e.lookupSource(name); src != nil && src.Category != "" {
+	if src := lookupSourceForConfig(snap.cfg, name); src != nil && src.Category != "" {
 		category = src.Category
 	}
 	return setMetadata{
@@ -185,18 +196,14 @@ func (e *Engine) baseSetMetadata(name string, entry *cache.Entry) setMetadata {
 		ChangeRatioMedian:  entry.ChangeRatioMedianPct,
 		ChangeRatioP75:     entry.ChangeRatioP75Pct,
 		ChangeRatioSamples: entry.ChangeRatioSamples,
-		Health:             e.classifyEffectiveEntryHealth(name, entry),
+		Health:             e.classifyEffectiveEntryHealthWithSnapshot(snap, name, entry),
 		Downloader:         entry.Downloader,
 	}
 }
 
-func (e *Engine) applyMetadataConfigFallbacks(name string, meta *setMetadata) {
-	// License + attribution are config-time facts, not runtime state.
-	// finalize.go copies them into the cache.Entry on every successful
-	// processing run, but cached entries written before that change
-	// landed have empty values until the next refresh. Fall back to
-	// the live config so users see the right answer immediately.
-	cfg := e.Config()
+func applyMetadataConfigFallbacksForConfig(cfg *config.Config, name string, meta *setMetadata) {
+	// License + attribution are config-time facts. Use the operation
+	// snapshot's config so metadata output stays in one config generation.
 	if cfg == nil {
 		return
 	}
@@ -213,30 +220,37 @@ func (e *Engine) applyMetadataConfigFallbacks(name string, meta *setMetadata) {
 }
 
 func (e *Engine) applyMetadataArtifactFields(name string, entry *cache.Entry, outDir string, redistributable bool, meta *setMetadata) {
+	e.applyMetadataArtifactFieldsWithSnapshot(e.operationSnapshot(), name, entry, outDir, redistributable, meta)
+}
+
+func (e *Engine) applyMetadataArtifactFieldsWithSnapshot(snap operationSnapshot, name string, entry *cache.Entry, outDir string, redistributable bool, meta *setMetadata) {
 	if redistributable {
 		meta.Source = entry.PublicURL
 	}
-	if metadataArtifactExists(e, outDir, name+"_comparison.json") {
+	if metadataArtifactExistsForRuntime(snap.runtime, outDir, name+"_comparison.json") {
 		meta.Comparison = name + "_comparison.json"
 	}
-	e.applyMetadataGeoArtifacts(name, outDir, meta)
-	rt := e.Runtime()
-	if redistributable && entry.File != "" && rt.LocalCopyURL != "" {
-		meta.FileLocal = strings.TrimRight(rt.LocalCopyURL, "/") + "/" + entry.File
+	applyMetadataGeoArtifactsForConfigRuntime(snap.cfg, snap.runtime, outDir, name, meta)
+	if redistributable && entry.File != "" && snap.runtime.LocalCopyURL != "" {
+		meta.FileLocal = strings.TrimRight(snap.runtime.LocalCopyURL, "/") + "/" + entry.File
 	}
-	if redistributable && entry.File != "" && rt.GitHubChangesURL != "" {
-		meta.CommitHistory = strings.TrimRight(rt.GitHubChangesURL, "/") + "/" + entry.File
+	if redistributable && entry.File != "" && snap.runtime.GitHubChangesURL != "" {
+		meta.CommitHistory = strings.TrimRight(snap.runtime.GitHubChangesURL, "/") + "/" + entry.File
 	}
 }
 
 func (e *Engine) applyMetadataGeoArtifacts(name, outDir string, meta *setMetadata) {
-	cfg := e.Config()
+	cfg, rt := e.configRuntimeSnapshot()
+	applyMetadataGeoArtifactsForConfigRuntime(cfg, rt, outDir, name, meta)
+}
+
+func applyMetadataGeoArtifactsForConfigRuntime(cfg *config.Config, rt Runtime, outDir string, name string, meta *setMetadata) {
 	if cfg == nil {
 		return
 	}
 	for _, src := range cfg.SourcesWithUse(config.UseGeoIP) {
 		file := name + "_" + src.Name + ".json"
-		if !metadataArtifactExists(e, outDir, file) {
+		if !metadataArtifactExistsForRuntime(rt, outDir, file) {
 			continue
 		}
 		if meta.Geo == nil {
@@ -247,11 +261,19 @@ func (e *Engine) applyMetadataGeoArtifacts(name, outDir string, meta *setMetadat
 }
 
 func metadataArtifactExists(e *Engine, outDir, file string) bool {
-	return fileExists(filepath.Join(outDir, file)) || fileExists(filepath.Join(e.outputDir(), file))
+	return metadataArtifactExistsForRuntime(e.Runtime(), outDir, file)
+}
+
+func metadataArtifactExistsForRuntime(rt Runtime, outDir, file string) bool {
+	return fileExists(filepath.Join(outDir, file)) || fileExists(filepath.Join(outputDirForRuntime(rt), file))
 }
 
 func (e *Engine) applyMetadataSourceFields(name string, redistributable, enableAll bool, resolver *effectiveEntryResolver, meta *setMetadata) {
-	src := e.lookupSource(name)
+	e.applyMetadataSourceFieldsWithSnapshot(e.operationSnapshot(), name, redistributable, enableAll, resolver, meta)
+}
+
+func (e *Engine) applyMetadataSourceFieldsWithSnapshot(snap operationSnapshot, name string, redistributable, enableAll bool, resolver *effectiveEntryResolver, meta *setMetadata) {
+	src := lookupSourceForConfig(snap.cfg, name)
 	if src == nil {
 		meta.DontRedistribute = !redistributable
 		return
@@ -267,7 +289,7 @@ func (e *Engine) applyMetadataSourceFields(name string, redistributable, enableA
 	meta.Processor = formatProcessorSteps(src.Processor)
 	meta.DontRedistribute = !redistributable
 	if src.Provenance == config.ProvenanceSecondaryMerge {
-		e.applyMetadataMergeComposition(src, enableAll, resolver, meta)
+		e.applyMetadataMergeCompositionWithSnapshot(snap, src, enableAll, resolver, meta)
 	}
 }
 
@@ -282,7 +304,16 @@ func applyMetadataEnrichment(src *config.Source, meta *setMetadata) {
 }
 
 func (e *Engine) applyMetadataMergeComposition(src *config.Source, enableAll bool, resolver *effectiveEntryResolver, meta *setMetadata) {
-	composition := e.mergeCompositionWithResolver(src, enableAll, resolver)
+	e.applyMetadataMergeCompositionWithSnapshot(e.operationSnapshot(), src, enableAll, resolver, meta)
+}
+
+func (e *Engine) applyMetadataMergeCompositionWithSnapshot(snap operationSnapshot, src *config.Source, enableAll bool, resolver *effectiveEntryResolver, meta *setMetadata) {
+	entries := map[string]cache.Entry{}
+	if e != nil && e.state != nil {
+		entries = e.state.SnapshotEntries()
+	}
+	health := e.newFeedHealthClassifierForConfigPolicy(snap.cfg, snap.feedHealthPolicy, entries, e.now().UTC())
+	composition := e.mergeCompositionWithResolverForSnapshot(src, enableAll, resolver, health, snap)
 	meta.MergeIncluded = append([]MergeInputState(nil), composition.Included...)
 	meta.MergeSubtracted = append([]MergeInputState(nil), composition.Subtracted...)
 	meta.MergeExcluded = append([]MergeInputState(nil), composition.Excluded...)

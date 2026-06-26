@@ -21,7 +21,7 @@ func (s *entityIntegrityScanner) scanCountryDetails() error {
 }
 
 func (s *entityIntegrityScanner) checkCountryDetail(code string, ref entityDependencyRef) error {
-	sidecarPath := filepath.Join(s.e.entityCountriesDir(), code+".json")
+	sidecarPath := filepath.Join(entityCountriesDirForRuntime(s.snapshot.runtime), code+".json")
 	sidecarInfo, err := os.Stat(sidecarPath)
 	if err != nil {
 		return s.handleMissingCountrySidecar(err, code, sidecarPath, ref)
@@ -64,7 +64,7 @@ func (s *entityIntegrityScanner) handleMissingCountrySidecar(err error, code, si
 }
 
 func (s *entityIntegrityScanner) checkCountryPublicDetail(code, sidecarPath string, sidecarMTime time.Time) error {
-	publicPath := s.e.PublicCountryDetailPath(code)
+	publicPath := publicCountryDetailPathForRuntime(s.snapshot.runtime, code)
 	publicInfo, err := os.Stat(publicPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -85,7 +85,7 @@ func (s *entityIntegrityScanner) checkCountryPublicDetail(code, sidecarPath stri
 		return err
 	}
 	publicMTime := publicInfo.ModTime().UTC()
-	healths, err := loadCountryDetailPublicHealth(s.e.outputDir(), s.e.publicCountryDetailRelPath(code))
+	healths, err := loadCountryDetailPublicHealth(outputDirForRuntime(s.snapshot.runtime), s.e.publicCountryDetailRelPath(code))
 	if err != nil {
 		s.findings = append(s.findings, EntityIntegrityFinding{
 			Scope:        "country",
@@ -133,7 +133,7 @@ func (s *entityIntegrityScanner) scanASNDetails() error {
 
 func (s *entityIntegrityScanner) checkASNDetail(asn uint32, ref entityDependencyRef) error {
 	subject := strconv.FormatUint(uint64(asn), 10)
-	sidecarPath := filepath.Join(s.e.entityASNsDir(), subject+".json")
+	sidecarPath := filepath.Join(entityASNsDirForRuntime(s.snapshot.runtime), subject+".json")
 	sidecarInfo, err := os.Stat(sidecarPath)
 	if err != nil {
 		return s.handleMissingASNSidecar(err, asn, subject, sidecarPath, ref)
@@ -176,7 +176,7 @@ func (s *entityIntegrityScanner) handleMissingASNSidecar(err error, asn uint32, 
 }
 
 func (s *entityIntegrityScanner) checkASNPublicDetail(asn uint32, subject, sidecarPath string, sidecarMTime time.Time) error {
-	publicPath := s.e.PublicASNDetailPath(asn)
+	publicPath := publicASNDetailPathForRuntime(s.snapshot.runtime, asn)
 	publicInfo, err := os.Stat(publicPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -197,7 +197,7 @@ func (s *entityIntegrityScanner) checkASNPublicDetail(asn uint32, subject, sidec
 		return err
 	}
 	publicMTime := publicInfo.ModTime().UTC()
-	healths, err := loadASNDetailPublicHealth(s.e.outputDir(), s.e.publicASNDetailRelPath(asn))
+	healths, err := loadASNDetailPublicHealth(outputDirForRuntime(s.snapshot.runtime), s.e.publicASNDetailRelPath(asn))
 	if err != nil {
 		s.findings = append(s.findings, EntityIntegrityFinding{
 			Scope:        "asn",
@@ -239,7 +239,7 @@ func (s *entityIntegrityScanner) checkEntityIndexes() error {
 }
 
 func (s *entityIntegrityScanner) checkCountryIndex() error {
-	countryIndexPath := s.e.PublicCountryIndexPath()
+	countryIndexPath := publicCountryIndexPathForRuntime(s.snapshot.runtime)
 	if _, err := os.Stat(countryIndexPath); err != nil {
 		if os.IsNotExist(err) {
 			s.findings = append(s.findings, EntityIntegrityFinding{
@@ -259,7 +259,7 @@ func (s *entityIntegrityScanner) checkCountryIndex() error {
 }
 
 func (s *entityIntegrityScanner) checkASNIndex() error {
-	asnIndexPath := s.e.PublicASNIndexPath()
+	asnIndexPath := publicASNIndexPathForRuntime(s.snapshot.runtime)
 	if _, err := os.Stat(asnIndexPath); err != nil {
 		if os.IsNotExist(err) {
 			s.findings = append(s.findings, EntityIntegrityFinding{

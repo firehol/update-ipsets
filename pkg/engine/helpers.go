@@ -35,10 +35,14 @@ const (
 // Returns an empty string if the URL still contains unexpanded ${...}
 // variables after expansion (i.e. a required API key is not set).
 func (e *Engine) expandURL(url string) string {
+	return e.expandURLWithRuntime(e.Runtime(), url)
+}
+
+func (e *Engine) expandURLWithRuntime(rt Runtime, url string) string {
 	expanded := expandTemplate(url, map[string]string{
 		"HOME":     os.Getenv("HOME"),
-		"base_dir": e.runtime.BaseDir,
-		"BASE_DIR": e.runtime.BaseDir,
+		"base_dir": rt.BaseDir,
+		"BASE_DIR": rt.BaseDir,
 	}, e.now().UTC())
 	if varName, unexpanded := hasUnexpandedVars(expanded); unexpanded {
 		e.logger.Warn("URL has missing environment variable, skipping download", "var", varName, "url_template", url)
@@ -48,17 +52,32 @@ func (e *Engine) expandURL(url string) string {
 }
 
 func (e *Engine) isEnabled(name string, opts RunOptions) bool {
-	return EffectiveSourceEnabledForRun(
-		e.cfg,
-		e.runtime,
-		name,
-		opts.EnableAll,
-		opts.Manual || isSelected(name, opts.Selected),
-	)
+	return e.operationSnapshot().isEnabled(name, opts)
 }
 
 func (e *Engine) sourcePath(name string) string {
-	return sourcePathForRuntime(e.runtime, name)
+	return sourcePathForRuntime(e.Runtime(), name)
+}
+
+func (e *Engine) applyRenamesAndDeletes() error {
+	return e.applyRenamesAndDeletesWithSnapshot(e.operationSnapshot())
+}
+
+func (e *Engine) applyRenamesAndDeletesWithSnapshot(snap operationSnapshot) error {
+	if snap.cfg == nil {
+		return nil
+	}
+	for oldName, newName := range snap.cfg.Renames {
+		if err := e.renameIPSetWithSnapshot(snap, oldName, newName); err != nil {
+			return err
+		}
+	}
+	for _, name := range snap.cfg.Deleted {
+		if err := e.deleteIPSetWithSnapshot(snap, name); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func processingPath(path string) string {
@@ -163,32 +182,22 @@ func claimProcessingFeedBody(path string) (string, error) {
 	return "", os.ErrNotExist
 }
 
-func (e *Engine) applyRenamesAndDeletes() error {
-	for oldName, newName := range e.cfg.Renames {
-		if err := e.renameIPSet(oldName, newName); err != nil {
-			return err
-		}
-	}
-	for _, name := range e.cfg.Deleted {
-		if err := e.deleteIPSet(name); err != nil {
-			return err
-		}
-	}
-	return nil
+func (e *Engine) renameIPSet(oldName, newName string) error {
+	return e.renameIPSetWithSnapshot(e.operationSnapshot(), oldName, newName)
 }
 
-func (e *Engine) renameIPSet(oldName, newName string) error {
+func (e *Engine) renameIPSetWithSnapshot(snap operationSnapshot, oldName, newName string) error {
 	if oldName == "" || newName == "" || oldName == newName {
 		return nil
 	}
 	for _, suffix := range []string{".source", ".ipset", ".ipset.new", ".ipset.processing", ".netset", ".netset.new", ".netset.processing", ".split", ".setinfo"} {
-		oldPath := filepath.Join(e.runtime.BaseDir, oldName+suffix)
-		newPath := filepath.Join(e.runtime.BaseDir, newName+suffix)
+		oldPath := filepath.Join(snap.runtime.BaseDir, oldName+suffix)
+		newPath := filepath.Join(snap.runtime.BaseDir, newName+suffix)
 		if err := renameIfPresent(oldPath, newPath); err != nil {
 			return err
 		}
 	}
-	for _, dir := range []string{e.runtime.HistoryDir, e.runtime.LibDir} {
+	for _, dir := range []string{snap.runtime.HistoryDir, snap.runtime.LibDir} {
 		oldPath := filepath.Join(dir, oldName)
 		newPath := filepath.Join(dir, newName)
 		if fileExists(oldPath) && !fileExists(newPath) {
@@ -197,9 +206,10 @@ func (e *Engine) renameIPSet(oldName, newName string) error {
 			}
 		}
 	}
-	for _, suffix := range e.publicArtifactSuffixes() {
-		oldPath := filepath.Join(e.outputDir(), oldName+suffix)
-		newPath := filepath.Join(e.outputDir(), newName+suffix)
+	outDir := outputDirForRuntime(snap.runtime)
+	for _, suffix := range publicArtifactSuffixesForConfig(snap.cfg) {
+		oldPath := filepath.Join(outDir, oldName+suffix)
+		newPath := filepath.Join(outDir, newName+suffix)
 		if err := renameIfPresent(oldPath, newPath); err != nil {
 			return err
 		}
@@ -209,23 +219,28 @@ func (e *Engine) renameIPSet(oldName, newName string) error {
 }
 
 func (e *Engine) deleteIPSet(name string) error {
+	return e.deleteIPSetWithSnapshot(e.operationSnapshot(), name)
+}
+
+func (e *Engine) deleteIPSetWithSnapshot(snap operationSnapshot, name string) error {
 	if name == "" {
 		return nil
 	}
 	for _, suffix := range []string{".source", ".ipset", ".ipset.new", ".ipset.processing", ".netset", ".netset.new", ".netset.processing", ".split", ".setinfo"} {
-		if err := os.Remove(filepath.Join(e.runtime.BaseDir, name+suffix)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if err := os.Remove(filepath.Join(snap.runtime.BaseDir, name+suffix)); err != nil && !errors.Is(err, os.ErrNotExist) {
 			e.logger.Warn("failed to remove ipset file during cleanup", "source", name, "suffix", suffix, "error", err)
 		}
 	}
-	for _, suffix := range e.publicArtifactSuffixes() {
-		if err := os.Remove(filepath.Join(e.outputDir(), name+suffix)); err != nil && !errors.Is(err, os.ErrNotExist) {
+	outDir := outputDirForRuntime(snap.runtime)
+	for _, suffix := range publicArtifactSuffixesForConfig(snap.cfg) {
+		if err := os.Remove(filepath.Join(outDir, name+suffix)); err != nil && !errors.Is(err, os.ErrNotExist) {
 			e.logger.Warn("failed to remove ipset web file during cleanup", "source", name, "suffix", suffix, "error", err)
 		}
 	}
-	if err := os.RemoveAll(filepath.Join(e.runtime.HistoryDir, name)); err != nil {
+	if err := os.RemoveAll(filepath.Join(snap.runtime.HistoryDir, name)); err != nil {
 		e.logger.Warn("failed to remove ipset history dir during cleanup", "source", name, "error", err)
 	}
-	if err := os.RemoveAll(filepath.Join(e.runtime.LibDir, name)); err != nil {
+	if err := os.RemoveAll(filepath.Join(snap.runtime.LibDir, name)); err != nil {
 		e.logger.Warn("failed to remove ipset lib dir during cleanup", "source", name, "error", err)
 	}
 	e.state.Remove(name)
@@ -240,6 +255,10 @@ func renameIfPresent(oldPath, newPath string) error {
 }
 
 func (e *Engine) publicArtifactSuffixes() []string {
+	return publicArtifactSuffixesForConfig(e.Config())
+}
+
+func publicArtifactSuffixesForConfig(cfg *config.Config) []string {
 	suffixes := []string{
 		"_comparison.json",
 		"_history.csv",
@@ -251,17 +270,17 @@ func (e *Engine) publicArtifactSuffixes() []string {
 		".json",
 		".html",
 	}
-	if e.cfg != nil {
-		for _, src := range e.cfg.SourcesWithUse(config.UseGeoIP) {
+	if cfg != nil {
+		for _, src := range cfg.SourcesWithUse(config.UseGeoIP) {
 			suffixes = append(suffixes, "_"+src.Name+".json")
 		}
-		for _, src := range e.cfg.SourcesWithUse(config.UseASN) {
+		for _, src := range cfg.SourcesWithUse(config.UseASN) {
 			suffixes = append(suffixes, "_asn_"+src.Name+".json")
 		}
-		for _, src := range e.cfg.SourcesWithUse(config.UseBogons) {
+		for _, src := range cfg.SourcesWithUse(config.UseBogons) {
 			suffixes = append(suffixes, "_bogons_"+src.Name+".json")
 		}
-		for _, src := range e.cfg.SourcesWithUse(config.UseCriticalInfrastructure) {
+		for _, src := range cfg.SourcesWithUse(config.UseCriticalInfrastructure) {
 			suffixes = append(suffixes, "_critical_"+src.Name+".json")
 		}
 	}
@@ -316,6 +335,10 @@ func publicURL(src *config.Source) string {
 
 func (e *Engine) isRedistributable(name string) bool {
 	return isRedistributableForConfig(e.Config(), name)
+}
+
+func IsRedistributableForConfig(cfg *config.Config, name string) bool {
+	return isRedistributableForConfig(cfg, name)
 }
 
 func isRedistributableForConfig(cfg *config.Config, name string) bool {
@@ -716,6 +739,15 @@ func targetFeedsForFanOut(cfg *config.Config, updatedNames []string, outputNames
 
 func (e *Engine) perFeedPublicationNames(updatedNames []string, opts RunOptions) []string {
 	outputNames := e.publicOutputNames()
+	return perFeedPublicationNamesFromOutputs(outputNames, updatedNames, opts)
+}
+
+func (e *Engine) perFeedPublicationNamesForSnapshot(snap operationSnapshot, updatedNames []string, opts RunOptions) []string {
+	outputNames := e.publicOutputNamesForSnapshot(snap)
+	return perFeedPublicationNamesFromOutputs(outputNames, updatedNames, opts)
+}
+
+func perFeedPublicationNamesFromOutputs(outputNames, updatedNames []string, opts RunOptions) []string {
 	if opts.Reprocess && len(opts.Selected) == 0 {
 		return outputNames
 	}

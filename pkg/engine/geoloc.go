@@ -13,12 +13,19 @@ import (
 )
 
 func (e *Engine) processGeoIPDatabases(ctx context.Context, opts RunOptions) (geoPreparedProviders, error) {
-	geoSources := e.cfg.SourcesWithUse(config.UseGeoIP)
+	return e.processGeoIPDatabasesWithSnapshot(ctx, e.operationSnapshot(), opts)
+}
+
+func (e *Engine) processGeoIPDatabasesWithSnapshot(ctx context.Context, snap operationSnapshot, opts RunOptions) (geoPreparedProviders, error) {
+	if snap.cfg == nil {
+		return nil, nil
+	}
+	geoSources := snap.cfg.SourcesWithUse(config.UseGeoIP)
 	if len(geoSources) == 0 {
 		return nil, nil
 	}
 	reason := normalizeRunReason(opts)
-	sourceDir := filepath.Join(e.runtime.LibDir, "geolocation")
+	sourceDir := filepath.Join(snap.runtime.LibDir, "geolocation")
 	if err := os.MkdirAll(sourceDir, generatedDirMode); err != nil {
 		return nil, err
 	}
@@ -71,7 +78,11 @@ func (e *Engine) processGeoIPDatabases(ctx context.Context, opts RunOptions) (ge
 				return
 			}
 			entry.MarkProviderProcessing()
-			prepared, err := e.geoProviders.LoadOrParse(name, src.Format, processingPath)
+			if snap.geoProviders == nil {
+				entry.MarkProviderConfigError("geolocation provider cache is not available")
+				return
+			}
+			prepared, err := snap.geoProviders.LoadOrParse(name, src.Format, processingPath)
 			if err != nil {
 				e.logger.Error("geolocation parse failed", "name", name, "format", src.Format, "path", processingPath, "error", err)
 				entry.MarkProviderParseFailed(err.Error())
@@ -113,6 +124,10 @@ func (e *Engine) processGeoIPDatabases(ctx context.Context, opts RunOptions) (ge
 // fresh provider data. When updatedNames is empty, all sources are
 // compared (initial run).
 func (e *Engine) writeCountryComparisonFiles(ctx context.Context, datasets geoPreparedProviders, updatedNames []string, outDir string, setCache *latestSetCache) error {
+	return e.writeCountryComparisonFilesWithSnapshot(ctx, e.operationSnapshot(), datasets, updatedNames, outDir, setCache)
+}
+
+func (e *Engine) writeCountryComparisonFilesWithSnapshot(ctx context.Context, snap operationSnapshot, datasets geoPreparedProviders, updatedNames []string, outDir string, setCache *latestSetCache) error {
 	if err := contextErr(ctx); err != nil {
 		return err
 	}
@@ -120,11 +135,11 @@ func (e *Engine) writeCountryComparisonFiles(ctx context.Context, datasets geoPr
 		return nil
 	}
 	if setCache == nil {
-		setCache = newLatestSetCache(e)
+		setCache = newLatestSetCacheForSnapshot(e, snap)
 		defer setCache.CloseAll(e.logger)
 	}
 
-	targetNames := targetFeedsForFanOut(e.cfg, updatedNames, e.publicOutputNames(), config.UseGeoIP)
+	targetNames := targetFeedsForFanOut(snap.cfg, updatedNames, e.publicOutputNamesForSnapshot(snap), config.UseGeoIP)
 	if len(targetNames) == 0 {
 		return nil
 	}
@@ -142,7 +157,7 @@ func (e *Engine) writeCountryComparisonFiles(ctx context.Context, datasets geoPr
 	compareOp := e.beginActiveOperation("geoip.write_comparisons", "", "compare", "feed_provider_pairs", totalPairs)
 	defer compareOp.Finish()
 
-	numWorkers := e.runtime.HeavyPhaseWorkers()
+	numWorkers := snap.runtime.HeavyPhaseWorkers()
 	if numWorkers < 1 {
 		numWorkers = 1
 	}

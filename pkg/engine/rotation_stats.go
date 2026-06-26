@@ -8,15 +8,23 @@ import (
 )
 
 func (e *Engine) refreshRotationStatsFromLedger(name string, entry *cache.Entry) bool {
+	return e.refreshRotationStatsFromLedgerWithSnapshot(e.operationSnapshot(), name, entry)
+}
+
+func (e *Engine) refreshRotationStatsFromLedgerWithRuntime(rt Runtime, name string, entry *cache.Entry) bool {
+	return e.refreshRotationStatsFromLedgerWithSnapshot(operationSnapshot{runtime: rt}, name, entry)
+}
+
+func (e *Engine) refreshRotationStatsFromLedgerWithSnapshot(snap operationSnapshot, name string, entry *cache.Entry) bool {
 	if e == nil || entry == nil {
 		return false
 	}
-	sizes := e.readSizeSeries(name)
+	sizes := e.readSizeSeriesWithSnapshot(snap, name)
 	if len(sizes) == 0 {
 		clearRotationStats(entry)
 		return false
 	}
-	churn := e.readChurnSeries(name, sizes)
+	churn := e.readChurnSeriesWithSnapshot(snap, name, sizes)
 	if len(churn) == 0 {
 		clearRotationStats(entry)
 		return false
