@@ -259,10 +259,10 @@ func handleAdminStatus(eng *engine.Engine, runner *scheduler.Runner) http.Handle
 		apiNoCache(w)
 		buildStarted := time.Now()
 		var status any
-		if r.URL.Query().Get("mode") == "light" {
-			status = buildAdminStatusLight(eng, runner)
-		} else {
+		if r.URL.Query().Get("mode") == "full" {
 			status = buildAdminStatus(eng, runner)
+		} else {
+			status = buildAdminStatusLight(eng, runner)
 		}
 		eng.ObserveOperation("http.admin_status.build", time.Since(buildStarted))
 		writeStarted := time.Now()
@@ -341,11 +341,15 @@ func handleAdminFeedsRouter(eng *engine.Engine, runner *scheduler.Runner, _ Opti
 		case "recheck":
 			requirePOST(w, r, func() {
 				target := eng.ResolveRecheckTarget(r.Context(), name)
-				runner.TriggerSources(scheduler.PendingAction{
+				if !runner.TryTriggerSources(scheduler.PendingAction{
 					Names:   []string{target},
 					Recheck: true,
 					Reason:  runreason.ReasonManualRecheck,
-				})
+				}) {
+					observeAPIRecalculation(r, "admin", "feed_recheck", "conflict", 0)
+					writeJSON(w, http.StatusConflict, map[string]string{"error": "scheduler action queue is full"})
+					return
+				}
 				observeAPIRecalculation(r, "admin", "feed_recheck", "scheduled", 1)
 				writeJSON(w, http.StatusAccepted, map[string]string{"status": "scheduled", "name": target, "action": "recheck"})
 			})
@@ -357,11 +361,15 @@ func handleAdminFeedsRouter(eng *engine.Engine, runner *scheduler.Runner, _ Opti
 					writeJSON(w, http.StatusConflict, map[string]string{"error": "no staged or committed local input exists for reprocess"})
 					return
 				}
-				runner.TriggerSources(scheduler.PendingAction{
+				if !runner.TryTriggerSources(scheduler.PendingAction{
 					Names:     []string{name},
 					Reprocess: true,
 					Reason:    runreason.ReasonManualReprocess,
-				})
+				}) {
+					observeAPIRecalculation(r, "admin", "feed_reprocess", "conflict", 0)
+					writeJSON(w, http.StatusConflict, map[string]string{"error": "scheduler action queue is full"})
+					return
+				}
 				observeAPIRecalculation(r, "admin", "feed_reprocess", "scheduled", 1)
 				writeJSON(w, http.StatusAccepted, map[string]string{"status": "scheduled", "name": name, "action": "reprocess"})
 			})
@@ -429,11 +437,15 @@ func handleAdminArtifactsRouter(eng *engine.Engine, runner *scheduler.Runner) ht
 
 		case "recheck":
 			requirePOST(w, r, func() {
-				runner.TriggerSources(scheduler.PendingAction{
+				if !runner.TryTriggerSources(scheduler.PendingAction{
 					Names:   []string{name},
 					Recheck: true,
 					Reason:  runreason.ReasonManualRecheck,
-				})
+				}) {
+					observeAPIRecalculation(r, "admin", "artifact_recheck", "conflict", 0)
+					writeJSON(w, http.StatusConflict, map[string]string{"error": "scheduler action queue is full"})
+					return
+				}
 				observeAPIRecalculation(r, "admin", "artifact_recheck", "scheduled", 1)
 				writeJSON(w, http.StatusAccepted, map[string]string{"status": "scheduled", "name": name, "action": "recheck"})
 			})

@@ -10,9 +10,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/firehol/update-ipsets/internal/runtimeinfo"
 	"github.com/firehol/update-ipsets/pkg/engine"
 	"github.com/firehol/update-ipsets/pkg/scheduler"
 )
@@ -85,6 +87,28 @@ func TestRuntimeStatsSamplerPopulatesCachedDetailedStatus(t *testing.T) {
 	}
 }
 
+func TestDetailedStatusCachedDoesNotCaptureRuntimeBeforeSampler(t *testing.T) {
+	detailedStatusCache.mu.Lock()
+	detailedStatusCache.sampledAt = time.Time{}
+	detailedStatusCache.info = detailedSystemInfo{}
+	detailedStatusCache.mu.Unlock()
+
+	info := detailedStatusCached()
+
+	if info.Goroutines != 0 {
+		t.Fatalf("cached fallback goroutines = %d, want 0 before sampler sample", info.Goroutines)
+	}
+	if info.GoMemLimit != 0 {
+		t.Fatalf("cached fallback go memory limit = %d, want 0 before sampler sample", info.GoMemLimit)
+	}
+	if info.Uptime == "" || info.UptimeSeconds <= 0 {
+		t.Fatalf("cached fallback uptime not populated: %+v", info)
+	}
+	if info.DiskFree != "unknown" {
+		t.Fatalf("cached fallback disk free = %q, want unknown", info.DiskFree)
+	}
+}
+
 func TestRuntimeStatsSamplerStartIsIdempotent(t *testing.T) {
 	before := runtime.NumGoroutine()
 	ctx, cancel := context.WithCancel(t.Context())
@@ -97,6 +121,37 @@ func TestRuntimeStatsSamplerStartIsIdempotent(t *testing.T) {
 	waitForRuntimeSamplerGoroutine(t, before+1)
 	cancel()
 	waitForRuntimeSamplerGoroutine(t, before)
+}
+
+func TestRuntimeStatsSamplerRecoversPanic(t *testing.T) {
+	detailedStatusCache.mu.Lock()
+	detailedStatusCache.sampledAt = time.Time{}
+	detailedStatusCache.info = detailedSystemInfo{}
+	detailedStatusCache.mu.Unlock()
+
+	var calls atomic.Int32
+	restore := setDetailedStatusCaptureForTest(func() runtimeinfo.Snapshot {
+		if calls.Add(1) == 1 {
+			panic("forced web runtime stats panic")
+		}
+		return runtimeinfo.Snapshot{
+			Goroutines: 88,
+			HeapSys:    123,
+			GoMemLimit: 456,
+		}
+	})
+	t.Cleanup(restore)
+
+	refreshDetailedStatusSafely()
+	refreshDetailedStatusSafely()
+
+	detailedStatusCache.mu.RLock()
+	cached := detailedStatusCache.info
+	sampledAt := detailedStatusCache.sampledAt
+	detailedStatusCache.mu.RUnlock()
+	if sampledAt.IsZero() || cached.Goroutines != 88 || cached.HeapSys != 123 {
+		t.Fatalf("cached detailed status = %+v sampled_at=%v, want recovered second sample", cached, sampledAt)
+	}
 }
 
 func waitForRuntimeSamplerGoroutine(t *testing.T, wantMax int) {

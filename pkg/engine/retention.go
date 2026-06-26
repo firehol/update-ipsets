@@ -34,9 +34,10 @@ func loadSnapshotSet(ctx context.Context, name, rootDir, rel string) (*iprange.I
 }
 
 func (e *Engine) openPreviousLatestSet(ctx context.Context, name string) (*closableSource, error) {
+	rt := e.Runtime()
 	for _, filename := range []string{"latest", "latest.set"} {
 		rel := filepath.Join(name, filename)
-		path := filepath.Join(e.runtime.LibDir, rel)
+		path := filepath.Join(rt.LibDir, rel)
 		if !fileExists(path) {
 			continue
 		}
@@ -44,7 +45,7 @@ func (e *Engine) openPreviousLatestSet(ctx context.Context, name string) (*closa
 		if err == nil {
 			return &closableSource{RangeSource: fs, close: fs.Close}, nil
 		}
-		set, loadErr := loadSnapshotSet(ctx, name, e.runtime.LibDir, rel)
+		set, loadErr := loadSnapshotSet(ctx, name, rt.LibDir, rel)
 		if loadErr != nil {
 			return nil, loadErr
 		}
@@ -59,7 +60,11 @@ func isIgnoredRetentionSnapshotName(name string) bool {
 
 func (e *Engine) buildRetentionData(ctx context.Context, name string, updatedAt int64) (*RetentionData, error) {
 	ctx = nonNilContext(ctx)
-	dir := filepath.Join(e.runtime.LibDir, name)
+	if err := contextErr(ctx); err != nil {
+		return nil, err
+	}
+	rt := e.Runtime()
+	dir := filepath.Join(rt.LibDir, name)
 	entry := e.state.Entry(name)
 	started := entry.StartedDate
 	if started == 0 {
@@ -71,9 +76,12 @@ func (e *Engine) buildRetentionData(ctx context.Context, name string, updatedAt 
 	// retention file's date <= started. We use int (0/1) to match the JSON.
 	incomplete := 0
 
-	if data, err := readFileInRoot(e.runtime.LibDir, filepath.Join(name, "retention.csv")); err == nil {
+	if data, err := readFileInRoot(rt.LibDir, filepath.Join(name, "retention.csv")); err == nil {
 		lines := strings.Split(strings.TrimSpace(string(data)), "\n")
 		for _, line := range lines[1:] {
+			if err := contextErr(ctx); err != nil {
+				return nil, err
+			}
 			if strings.TrimSpace(line) == "" {
 				continue
 			}
@@ -99,6 +107,9 @@ func (e *Engine) buildRetentionData(ctx context.Context, name string, updatedAt 
 	files, err := os.ReadDir(newDir)
 	if err == nil {
 		for _, file := range files {
+			if err := contextErr(ctx); err != nil {
+				return nil, err
+			}
 			if file.IsDir() {
 				continue
 			}
@@ -115,7 +126,7 @@ func (e *Engine) buildRetentionData(ctx context.Context, name string, updatedAt 
 			// loadSnapshotSet handles both binary and legacy text
 			// snapshots so the bash-era files in lib/{name}/new/
 			// keep loading correctly across the format migration.
-			set, err := loadSnapshotSet(ctx, file.Name(), e.runtime.LibDir, filepath.Join(name, "new", file.Name()))
+			set, err := loadSnapshotSet(ctx, file.Name(), rt.LibDir, filepath.Join(name, "new", file.Name()))
 			if err != nil {
 				return nil, err
 			}

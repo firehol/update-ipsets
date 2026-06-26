@@ -1,7 +1,6 @@
 package iprange
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -31,93 +30,6 @@ type binaryHeader6 struct {
 	lines      int
 	uniqueIPs  Uint128
 	dataOffset int64
-}
-
-func parseBinaryHeader6(r io.Reader) (binaryHeader6, error) {
-	br := bufio.NewReader(r)
-	var consumed int64
-
-	line, err := br.ReadString('\n')
-	if err != nil {
-		return binaryHeader6{}, fmt.Errorf("reading header: %w", err)
-	}
-	consumed += int64(len(line))
-	if line != BinaryHeaderV20IPv6 {
-		return binaryHeader6{}, fmt.Errorf("expecting binary v2 header but found %q", strings.TrimSpace(line))
-	}
-
-	family, err := br.ReadString('\n')
-	if err != nil {
-		return binaryHeader6{}, fmt.Errorf("reading family: %w", err)
-	}
-	consumed += int64(len(family))
-	if strings.TrimSpace(family) != "ipv6" {
-		return binaryHeader6{}, fmt.Errorf("expected family 'ipv6' but found %q", strings.TrimSpace(family))
-	}
-
-	mode, err := br.ReadString('\n')
-	if err != nil {
-		return binaryHeader6{}, fmt.Errorf("reading optimization marker: %w", err)
-	}
-	consumed += int64(len(mode))
-	modeStr := strings.TrimSpace(mode)
-	if modeStr != "optimized" && modeStr != "non-optimized" {
-		return binaryHeader6{}, fmt.Errorf("invalid optimization marker %q", modeStr)
-	}
-
-	recordSize, n, err := readHeaderInt(br, "record size ")
-	if err != nil {
-		return binaryHeader6{}, err
-	}
-	consumed += int64(n)
-	if recordSize != 32 {
-		return binaryHeader6{}, fmt.Errorf("invalid record size %d (expected 32)", recordSize)
-	}
-
-	records, n, err := readHeaderInt(br, "records ")
-	if err != nil {
-		return binaryHeader6{}, err
-	}
-	consumed += int64(n)
-
-	payloadBytes, n, err := readHeaderInt(br, "bytes ")
-	if err != nil {
-		return binaryHeader6{}, err
-	}
-	consumed += int64(n)
-
-	lines, n, err := readHeaderInt(br, "lines ")
-	if err != nil {
-		return binaryHeader6{}, err
-	}
-	consumed += int64(n)
-
-	uniqueLine, err := br.ReadString('\n')
-	if err != nil {
-		return binaryHeader6{}, fmt.Errorf("reading unique ips: %w", err)
-	}
-	consumed += int64(len(uniqueLine))
-	if !strings.HasPrefix(uniqueLine, "unique ips ") {
-		return binaryHeader6{}, fmt.Errorf("expected 'unique ips' line, got %q", strings.TrimSpace(uniqueLine))
-	}
-	uniqueIPs, err := parseUint128(strings.TrimSpace(strings.TrimPrefix(uniqueLine, "unique ips ")))
-	if err != nil {
-		return binaryHeader6{}, fmt.Errorf("parsing unique ips: %w", err)
-	}
-
-	if payloadBytes != records*32+4 {
-		return binaryHeader6{}, fmt.Errorf("invalid payload size %d (expected %d)", payloadBytes, records*32+4)
-	}
-
-	return binaryHeader6{
-		optimized:  modeStr == "optimized",
-		recordSize: recordSize,
-		records:    records,
-		bytes:      payloadBytes,
-		lines:      lines,
-		uniqueIPs:  uniqueIPs,
-		dataOffset: consumed,
-	}, nil
 }
 
 func parseBinaryHeader6File(f *os.File) (binaryHeader6, error) {

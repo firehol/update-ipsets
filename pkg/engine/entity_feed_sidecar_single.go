@@ -7,10 +7,13 @@ import (
 	"sort"
 	"strings"
 
+	"context"
+
 	"github.com/firehol/update-ipsets/pkg/asnloc"
 )
 
-func (e *Engine) buildSingleFeedEntitySidecar(name string, view entityOutputView, resolver *effectiveEntryResolver, geoProvider, asnProvider string, geoPrepared *geoPreparedProvider, asnDB *asnloc.Database, setCache *latestSetCache) (*feedEntitySidecar, error) {
+func (e *Engine) buildSingleFeedEntitySidecar(ctx context.Context, name string, view entityOutputView, resolver *effectiveEntryResolver, geoProvider, asnProvider string, geoPrepared *geoPreparedProvider, asnDB *asnloc.Database, setCache *latestSetCache) (*feedEntitySidecar, error) {
+	ctx = nonNilContext(ctx)
 	sidecar, ok := e.newFeedEntitySidecar(name, resolver, geoProvider, asnProvider)
 	if !ok {
 		return nil, nil
@@ -22,7 +25,7 @@ func (e *Engine) buildSingleFeedEntitySidecar(name string, view entityOutputView
 	}
 	asnsByNumber := feedEntityASNRows(view, name, asnProvider)
 
-	if err := e.enrichFeedEntityJointRows(name, countriesByCode, asnsByNumber, geoPrepared, asnDB, setCache); err != nil {
+	if err := e.enrichFeedEntityJointRows(ctx, name, countriesByCode, asnsByNumber, geoPrepared, asnDB, setCache); err != nil {
 		return nil, err
 	}
 
@@ -109,7 +112,8 @@ func feedEntityASNRows(view entityOutputView, name, asnProvider string) map[uint
 	return out
 }
 
-func (e *Engine) enrichFeedEntityJointRows(name string, countriesByCode map[string]*feedEntityCountryContribution, asnsByNumber map[uint32]*feedEntityASNContribution, geoPrepared *geoPreparedProvider, asnDB *asnloc.Database, setCache *latestSetCache) error {
+func (e *Engine) enrichFeedEntityJointRows(ctx context.Context, name string, countriesByCode map[string]*feedEntityCountryContribution, asnsByNumber map[uint32]*feedEntityASNContribution, geoPrepared *geoPreparedProvider, asnDB *asnloc.Database, setCache *latestSetCache) error {
+	ctx = nonNilContext(ctx)
 	if geoPrepared == nil || asnDB == nil || len(countriesByCode) == 0 || len(asnsByNumber) == 0 {
 		return nil
 	}
@@ -117,11 +121,11 @@ func (e *Engine) enrichFeedEntityJointRows(name string, countriesByCode map[stri
 		setCache = newLatestSetCache(e)
 		defer setCache.CloseAll(e.logger)
 	}
-	latest, err := setCache.Open(name)
+	latest, err := setCache.OpenContext(ctx, name)
 	if err != nil {
 		return fmt.Errorf("open latest set for entity sidecar %s: %w", name, err)
 	}
-	counts, namesByASN, stats, err := countCountryASNJointSource(latest.RangeSource, asnDB, geoPrepared)
+	counts, namesByASN, stats, err := countCountryASNJointSource(ctx, latest.RangeSource, asnDB, geoPrepared)
 	if err != nil {
 		return fmt.Errorf("count country/asn attribution for %s: %w", name, err)
 	}

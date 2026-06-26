@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"sync"
 	"time"
 
 	"github.com/firehol/update-ipsets/pkg/output"
@@ -11,6 +12,9 @@ import (
 const entityArtifactMutationMaxAttempts = 3
 
 var errEntityArtifactStageStale = errors.New("entity artifact staged mutation is stale")
+
+var entityArtifactPublishHookMu sync.Mutex
+var entityArtifactPublishAfterLeaseHook func()
 
 type entityArtifactMutationPlan struct {
 	web       *webPublishBatch
@@ -49,6 +53,76 @@ func (e *Engine) bumpEntityArtifactGenerationLocked() {
 		return
 	}
 	e.entityArtifactsGeneration++
+}
+
+type entityArtifactPublishLease struct {
+	engine      *Engine
+	holdStarted time.Time
+	released    bool
+}
+
+func setEntityArtifactPublishAfterLeaseHookForTest(fn func()) func() {
+	entityArtifactPublishHookMu.Lock()
+	old := entityArtifactPublishAfterLeaseHook
+	entityArtifactPublishAfterLeaseHook = fn
+	entityArtifactPublishHookMu.Unlock()
+	return func() {
+		entityArtifactPublishHookMu.Lock()
+		entityArtifactPublishAfterLeaseHook = old
+		entityArtifactPublishHookMu.Unlock()
+	}
+}
+
+func entityArtifactPublishAfterLeaseHookForTest() func() {
+	entityArtifactPublishHookMu.Lock()
+	defer entityArtifactPublishHookMu.Unlock()
+	return entityArtifactPublishAfterLeaseHook
+}
+
+func (e *Engine) acquireEntityArtifactPublishLease(ctx context.Context, expectedGeneration uint64) (*entityArtifactPublishLease, error) {
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
+		return nil, err
+	}
+	waitStarted := time.Now()
+	e.entityArtifactPublishMu.Lock()
+	lease := &entityArtifactPublishLease{
+		engine:      e,
+		holdStarted: time.Now(),
+	}
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			lease.release(false)
+			panic(recovered)
+		}
+	}()
+	e.observeRunOperation("entity.writer_lock_wait", time.Since(waitStarted))
+	e.entityArtifactsMu.Lock()
+	stale := e.entityArtifactsGeneration != expectedGeneration
+	e.entityArtifactsMu.Unlock()
+	if stale {
+		lease.release(false)
+		return nil, errEntityArtifactStageStale
+	}
+	if hook := entityArtifactPublishAfterLeaseHookForTest(); hook != nil {
+		hook()
+	}
+	return lease, nil
+}
+
+func (l *entityArtifactPublishLease) release(mutatesLive bool) {
+	if l == nil || l.released {
+		return
+	}
+	l.released = true
+	e := l.engine
+	if mutatesLive {
+		e.entityArtifactsMu.Lock()
+		e.bumpEntityArtifactGenerationLocked()
+		e.entityArtifactsMu.Unlock()
+	}
+	e.observeRunOperation("entity.writer_lock_hold", time.Since(l.holdStarted))
+	e.entityArtifactPublishMu.Unlock()
 }
 
 func (e *Engine) runOptimisticEntityArtifactMutation(ctx context.Context, task *BackgroundTaskHandle, detail string, stage func() (*entityArtifactMutationPlan, error)) error {
@@ -91,26 +165,15 @@ func (e *Engine) publishEntityArtifactMutationPlan(ctx context.Context, task *Ba
 	if task != nil {
 		task.Update("waiting for entity artifact writer", detail, 0, 0)
 	}
-	waitStarted := time.Now()
-	e.entityArtifactsMu.Lock()
-	e.observeRunOperation("entity.writer_lock_wait", time.Since(waitStarted))
-	holdStarted := time.Now()
-	defer e.entityArtifactsMu.Unlock()
-	defer func() {
-		e.observeRunOperation("entity.writer_lock_hold", time.Since(holdStarted))
-	}()
-	if e.entityArtifactsGeneration != expectedGeneration {
-		return errEntityArtifactStageStale
+	lease, err := e.acquireEntityArtifactPublishLease(ctx, expectedGeneration)
+	if err != nil {
+		return err
 	}
 	if task != nil && plan.publishStage != "" {
 		task.Update(plan.publishStage, plan.publishDetail, plan.publishCurrent, plan.publishTotal)
 	}
 	mutatesLive := plan.entity != nil || plan.web != nil
-	defer func() {
-		if mutatesLive {
-			e.bumpEntityArtifactGenerationLocked()
-		}
-	}()
+	defer lease.release(mutatesLive)
 	var published []string
 	if plan.entity != nil {
 		if _, err := plan.entity.publishContext(ctx); err != nil {
@@ -124,7 +187,11 @@ func (e *Engine) publishEntityArtifactMutationPlan(ctx context.Context, task *Ba
 			return err
 		}
 	}
-	if err := e.syncGeneratedFiles(plan.generated, published); err != nil {
+	// Release the entity publish lease before git work. The git lane may run
+	// subprocesses, but it must still be awaited here because it stages live
+	// file paths, not immutable content snapshots.
+	lease.release(mutatesLive)
+	if err := e.syncGeneratedFiles(ctx, plan.generated, published); err != nil {
 		return err
 	}
 	if mutatesLive {

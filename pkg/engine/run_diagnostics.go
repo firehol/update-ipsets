@@ -2,20 +2,46 @@ package engine
 
 import (
 	"context"
-	"os"
-	"runtime"
-	"runtime/debug"
+	"fmt"
 	"sort"
-	"strconv"
-	"strings"
 	"sync"
-	"syscall"
 	"time"
 
+	"github.com/firehol/update-ipsets/internal/runtimeinfo"
 	"github.com/firehol/update-ipsets/pkg/runreason"
 )
 
-const engineProgressLogInterval = time.Minute
+const (
+	engineProgressLogInterval        = time.Minute
+	engineRuntimeStatsSampleInterval = 5 * time.Second
+)
+
+var (
+	engineRuntimeStatsCaptureMu sync.Mutex
+	engineRuntimeStatsCapture   = runtimeinfo.Capture
+)
+
+func setEngineRuntimeStatsCaptureForTest(fn func() runtimeinfo.Snapshot) func() {
+	engineRuntimeStatsCaptureMu.Lock()
+	old := engineRuntimeStatsCapture
+	if fn == nil {
+		engineRuntimeStatsCapture = runtimeinfo.Capture
+	} else {
+		engineRuntimeStatsCapture = fn
+	}
+	engineRuntimeStatsCaptureMu.Unlock()
+	return func() {
+		engineRuntimeStatsCaptureMu.Lock()
+		engineRuntimeStatsCapture = old
+		engineRuntimeStatsCaptureMu.Unlock()
+	}
+}
+
+func engineRuntimeStatsCaptureSnapshot() func() runtimeinfo.Snapshot {
+	engineRuntimeStatsCaptureMu.Lock()
+	defer engineRuntimeStatsCaptureMu.Unlock()
+	return engineRuntimeStatsCapture
+}
 
 type engineRunDiagnostics struct {
 	reason     runreason.Reason
@@ -52,17 +78,60 @@ type engineRuntimeStats struct {
 	OpenFDs                 int    `json:"open_fds,omitempty"`
 }
 
-type engineRuntimeDelta struct {
-	NumGC                   int64  `json:"num_gc,omitempty"`
-	PauseTotalMS            int64  `json:"pause_total_ms,omitempty"`
-	CPUUserMS               int64  `json:"cpu_user_ms,omitempty"`
-	CPUSystemMS             int64  `json:"cpu_system_ms,omitempty"`
-	CPUTotalMS              int64  `json:"cpu_total_ms,omitempty"`
-	ProcReadBytes           uint64 `json:"proc_read_bytes,omitempty"`
-	ProcWriteBytes          uint64 `json:"proc_write_bytes,omitempty"`
-	ProcCancelledWriteBytes uint64 `json:"proc_cancelled_write_bytes,omitempty"`
-	ProcReadSyscalls        uint64 `json:"proc_read_syscalls,omitempty"`
-	ProcWriteSyscalls       uint64 `json:"proc_write_syscalls,omitempty"`
+type engineRuntimeDelta = runtimeinfo.Delta
+
+func engineRuntimeStatsFromSample(sample runtimeinfo.Snapshot) engineRuntimeStats {
+	return engineRuntimeStats{
+		Goroutines:              sample.Goroutines,
+		HeapAlloc:               sample.HeapAlloc,
+		HeapSys:                 sample.HeapSys,
+		HeapInuse:               sample.HeapInuse,
+		HeapIdle:                sample.HeapIdle,
+		HeapReleased:            sample.HeapReleased,
+		HeapObjects:             sample.HeapObjects,
+		NumGC:                   sample.NumGC,
+		PauseTotalMS:            sample.PauseTotalMS,
+		GoMemLimit:              sample.GoMemLimit,
+		RSSKB:                   sample.RSSKB,
+		VMSKB:                   sample.VMSKB,
+		DataKB:                  sample.DataKB,
+		CPUUserMS:               sample.CPUUserMS,
+		CPUSystemMS:             sample.CPUSystemMS,
+		CPUTotalMS:              sample.CPUTotalMS,
+		ProcReadBytes:           sample.ProcReadBytes,
+		ProcWriteBytes:          sample.ProcWriteBytes,
+		ProcCancelledWriteBytes: sample.ProcCancelledWriteBytes,
+		ProcReadSyscalls:        sample.ProcReadSyscalls,
+		ProcWriteSyscalls:       sample.ProcWriteSyscalls,
+		OpenFDs:                 sample.OpenFDs,
+	}
+}
+
+func (stats engineRuntimeStats) runtimeInfoSnapshot() runtimeinfo.Snapshot {
+	return runtimeinfo.Snapshot{
+		Goroutines:              stats.Goroutines,
+		HeapAlloc:               stats.HeapAlloc,
+		HeapSys:                 stats.HeapSys,
+		HeapInuse:               stats.HeapInuse,
+		HeapIdle:                stats.HeapIdle,
+		HeapReleased:            stats.HeapReleased,
+		HeapObjects:             stats.HeapObjects,
+		NumGC:                   stats.NumGC,
+		PauseTotalMS:            stats.PauseTotalMS,
+		GoMemLimit:              stats.GoMemLimit,
+		RSSKB:                   stats.RSSKB,
+		VMSKB:                   stats.VMSKB,
+		DataKB:                  stats.DataKB,
+		CPUUserMS:               stats.CPUUserMS,
+		CPUSystemMS:             stats.CPUSystemMS,
+		CPUTotalMS:              stats.CPUTotalMS,
+		ProcReadBytes:           stats.ProcReadBytes,
+		ProcWriteBytes:          stats.ProcWriteBytes,
+		ProcCancelledWriteBytes: stats.ProcCancelledWriteBytes,
+		ProcReadSyscalls:        stats.ProcReadSyscalls,
+		ProcWriteSyscalls:       stats.ProcWriteSyscalls,
+		OpenFDs:                 stats.OpenFDs,
+	}
 }
 
 type activeOperationHandle struct {
@@ -70,7 +139,7 @@ type activeOperationHandle struct {
 	id string
 }
 
-func newEngineRunDiagnostics(reason runreason.Reason, opts RunOptions, startedAt time.Time) engineRunDiagnostics {
+func (e *Engine) newEngineRunDiagnostics(reason runreason.Reason, opts RunOptions, startedAt time.Time) engineRunDiagnostics {
 	return engineRunDiagnostics{
 		reason:     reason,
 		selected:   len(opts.Selected),
@@ -78,7 +147,7 @@ func newEngineRunDiagnostics(reason runreason.Reason, opts RunOptions, startedAt
 		reprocess:  opts.Reprocess,
 		manual:     opts.Manual,
 		startedAt:  startedAt,
-		startStats: captureEngineRuntimeStats(),
+		startStats: e.cachedEngineRuntimeStats(),
 	}
 }
 
@@ -120,7 +189,7 @@ func (e *Engine) logRunProgress(diag engineRunDiagnostics) {
 	}
 	metrics, activeFeeds, activeOps, phase := e.currentRunDiagnosticsSnapshot()
 	now := time.Now()
-	stats := captureEngineRuntimeStats()
+	stats := e.cachedEngineRuntimeStats()
 	e.logger.Info("engine run progress",
 		"reason", diag.reason.String(),
 		"selected", diag.selected,
@@ -147,11 +216,18 @@ func (e *Engine) logRunDiagnosticSummary(report *Report, runErr error, diag engi
 		return
 	}
 	metrics, activeFeeds, activeOps, phase := e.currentRunDiagnosticsSnapshot()
+	e.logRunDiagnosticSummarySnapshot(report, runErr, diag, metrics, activeFeeds, activeOps, phase)
+}
+
+func (e *Engine) logRunDiagnosticSummarySnapshot(report *Report, runErr error, diag engineRunDiagnostics, metrics RunMetricsSnapshot, activeFeeds []ActiveFeed, activeOps []ActiveOperation, phase RunPhase) {
+	if e == nil || e.logger == nil || report == nil {
+		return
+	}
 	status := "ok"
 	if runErr != nil {
 		status = "error"
 	}
-	stats := captureEngineRuntimeStats()
+	stats := e.cachedEngineRuntimeStats()
 	e.logger.Info("engine run diagnostic summary",
 		"reason", diag.reason.String(),
 		"status", status,
@@ -183,9 +259,7 @@ func (e *Engine) logRunPhaseSummary(completed RunPhaseTimingSnapshot) {
 	}
 	metrics, activeFeeds, activeOps, currentPhase := e.currentRunDiagnosticsSnapshot()
 	var phaseMetrics RunPhaseMetricsSnapshot
-	e.mu.RLock()
-	current := e.currentMetrics
-	e.mu.RUnlock()
+	current := e.currentRunMetrics()
 	if current != nil {
 		phaseMetrics = current.phaseSnapshot(completed.Phase, completed.DurationMS)
 	}
@@ -236,11 +310,11 @@ func (e *Engine) currentRunDiagnosticsSnapshot() (RunMetricsSnapshot, []ActiveFe
 		return RunMetricsSnapshot{}, nil, nil, RunPhaseUnknown
 	}
 	e.mu.RLock()
-	current := e.currentMetrics
-	activeFeeds := e.snapshotActiveFeedsLocked()
-	activeOps := e.snapshotActiveOperationsLocked(time.Now().UTC())
 	phase := e.currentPhase
 	e.mu.RUnlock()
+	current := e.currentRunMetrics()
+	activeFeeds := e.snapshotActiveFeeds()
+	activeOps := e.snapshotActiveOperations(time.Now().UTC())
 	if current == nil {
 		return RunMetricsSnapshot{}, activeFeeds, activeOps, phase
 	}
@@ -259,20 +333,23 @@ func (e *Engine) beginActiveOperation(operation, feed, stage, unit string, total
 	}
 	id := activeOperationKey(operation, feed, stage)
 	startedAt := time.Now().UTC()
-	e.mu.Lock()
+	e.mu.RLock()
+	phase := e.currentPhase
+	e.mu.RUnlock()
+	e.activeOperationsMu.Lock()
 	if e.activeOperations == nil {
 		e.activeOperations = make(map[string]ActiveOperation)
 	}
 	e.activeOperations[id] = ActiveOperation{
 		Operation: operation,
-		Phase:     e.currentPhase,
+		Phase:     phase,
 		Feed:      feed,
 		Stage:     stage,
 		Unit:      unit,
 		StartedAt: startedAt,
 		Total:     total,
 	}
-	e.mu.Unlock()
+	e.activeOperationsMu.Unlock()
 	return &activeOperationHandle{e: e, id: id}
 }
 
@@ -283,7 +360,7 @@ func (h *activeOperationHandle) Update(current, total int64, counters map[string
 	if current < 0 && total < 0 && len(counters) == 0 {
 		return
 	}
-	h.e.mu.Lock()
+	h.e.activeOperationsMu.Lock()
 	op, ok := h.e.activeOperations[h.id]
 	if ok {
 		if current >= 0 {
@@ -297,7 +374,7 @@ func (h *activeOperationHandle) Update(current, total int64, counters map[string
 		}
 		h.e.activeOperations[h.id] = op
 	}
-	h.e.mu.Unlock()
+	h.e.activeOperationsMu.Unlock()
 }
 
 func (h *activeOperationHandle) Add(delta, total int64, counters map[string]int64) {
@@ -307,7 +384,7 @@ func (h *activeOperationHandle) Add(delta, total int64, counters map[string]int6
 	if delta == 0 && total < 0 && len(counters) == 0 {
 		return
 	}
-	h.e.mu.Lock()
+	h.e.activeOperationsMu.Lock()
 	op, ok := h.e.activeOperations[h.id]
 	if ok {
 		op.Current += delta
@@ -322,24 +399,24 @@ func (h *activeOperationHandle) Add(delta, total int64, counters map[string]int6
 		}
 		h.e.activeOperations[h.id] = op
 	}
-	h.e.mu.Unlock()
+	h.e.activeOperationsMu.Unlock()
 }
 
 func (h *activeOperationHandle) Finish() {
 	if h == nil || h.e == nil || h.id == "" {
 		return
 	}
-	h.e.mu.Lock()
+	h.e.activeOperationsMu.Lock()
 	delete(h.e.activeOperations, h.id)
-	h.e.mu.Unlock()
+	h.e.activeOperationsMu.Unlock()
 }
 
-func (e *Engine) snapshotActiveOperationsLocked(now time.Time) []ActiveOperation {
-	if len(e.activeOperations) == 0 {
+func activeOperationsFromMap(in map[string]ActiveOperation, now time.Time) []ActiveOperation {
+	if len(in) == 0 {
 		return nil
 	}
-	out := make([]ActiveOperation, 0, len(e.activeOperations))
-	for _, op := range e.activeOperations {
+	out := make([]ActiveOperation, 0, len(in))
+	for _, op := range in {
 		if !op.StartedAt.IsZero() {
 			op.ElapsedMS = telemetryDurationMillis(now.Sub(op.StartedAt))
 		}
@@ -364,6 +441,15 @@ func (e *Engine) snapshotActiveOperationsLocked(now time.Time) []ActiveOperation
 	return out
 }
 
+func (e *Engine) snapshotActiveOperations(now time.Time) []ActiveOperation {
+	if e == nil {
+		return nil
+	}
+	e.activeOperationsMu.RLock()
+	defer e.activeOperationsMu.RUnlock()
+	return activeOperationsFromMap(e.activeOperations, now)
+}
+
 func activeOperationKey(operation, feed, stage string) string {
 	return operation + "\x00" + feed + "\x00" + stage
 }
@@ -379,48 +465,65 @@ func copyInt64Map(in map[string]int64) map[string]int64 {
 	return out
 }
 
-func captureEngineRuntimeStats() engineRuntimeStats {
-	var mem runtime.MemStats
-	runtime.ReadMemStats(&mem)
-	stats := engineRuntimeStats{
-		Goroutines:   runtime.NumGoroutine(),
-		HeapAlloc:    mem.HeapAlloc,
-		HeapSys:      mem.HeapSys,
-		HeapInuse:    mem.HeapInuse,
-		HeapIdle:     mem.HeapIdle,
-		HeapReleased: mem.HeapReleased,
-		HeapObjects:  mem.HeapObjects,
-		NumGC:        mem.NumGC,
-		PauseTotalMS: int64(mem.PauseTotalNs / uint64(time.Millisecond)),
-		GoMemLimit:   engineGoMemLimit(),
+func (e *Engine) startEngineRuntimeStatsSampler(ctx context.Context) {
+	if e == nil || ctx == nil {
+		return
 	}
-	readEngineProcessMemory(&stats)
-	readEngineProcessUsage(&stats)
-	readEngineProcessIO(&stats)
-	readEngineOpenFDs(&stats)
-	return stats
+	e.runtimeStatsSamplerOnce.Do(func() {
+		go func() {
+			e.refreshEngineRuntimeStatsSafely()
+			ticker := time.NewTicker(engineRuntimeStatsSampleInterval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					e.refreshEngineRuntimeStatsSafely()
+				}
+			}
+		}()
+	})
+}
+
+func (e *Engine) refreshEngineRuntimeStatsSafely() {
+	defer func() {
+		if recovered := recover(); recovered != nil && e != nil && e.logger != nil {
+			e.logger.Error("engine runtime stats sampler panic recovered", "error", fmt.Sprint(recovered))
+		}
+	}()
+	e.refreshEngineRuntimeStats()
+}
+
+func (e *Engine) refreshEngineRuntimeStats() {
+	if e == nil {
+		return
+	}
+	stats := engineRuntimeStatsFromSample(engineRuntimeStatsCaptureSnapshot()())
+	e.runtimeStatsMu.Lock()
+	e.runtimeStats = stats
+	e.runtimeStatsSampledAt = time.Now().UTC()
+	e.runtimeStatsMu.Unlock()
+}
+
+func (e *Engine) cachedEngineRuntimeStats() engineRuntimeStats {
+	if e == nil {
+		return engineRuntimeStats{}
+	}
+	e.runtimeStatsMu.RLock()
+	stats := e.runtimeStats
+	sampledAt := e.runtimeStatsSampledAt
+	e.runtimeStatsMu.RUnlock()
+	if !sampledAt.IsZero() {
+		return stats
+	}
+	return engineRuntimeStats{
+		GoMemLimit: runtimeinfo.GoMemLimit(),
+	}
 }
 
 func diffEngineRuntimeStats(start, end engineRuntimeStats) engineRuntimeDelta {
-	return engineRuntimeDelta{
-		NumGC:                   int64(end.NumGC) - int64(start.NumGC),
-		PauseTotalMS:            end.PauseTotalMS - start.PauseTotalMS,
-		CPUUserMS:               end.CPUUserMS - start.CPUUserMS,
-		CPUSystemMS:             end.CPUSystemMS - start.CPUSystemMS,
-		CPUTotalMS:              end.CPUTotalMS - start.CPUTotalMS,
-		ProcReadBytes:           unsignedDelta(start.ProcReadBytes, end.ProcReadBytes),
-		ProcWriteBytes:          unsignedDelta(start.ProcWriteBytes, end.ProcWriteBytes),
-		ProcCancelledWriteBytes: unsignedDelta(start.ProcCancelledWriteBytes, end.ProcCancelledWriteBytes),
-		ProcReadSyscalls:        unsignedDelta(start.ProcReadSyscalls, end.ProcReadSyscalls),
-		ProcWriteSyscalls:       unsignedDelta(start.ProcWriteSyscalls, end.ProcWriteSyscalls),
-	}
-}
-
-func unsignedDelta(start, end uint64) uint64 {
-	if end <= start {
-		return 0
-	}
-	return end - start
+	return runtimeinfo.Diff(start.runtimeInfoSnapshot(), end.runtimeInfoSnapshot())
 }
 
 func ratePerSecond(completed, elapsedMS int64) float64 {
@@ -445,90 +548,4 @@ func clampInt64(value, min, max int64) int64 {
 		return max
 	}
 	return value
-}
-
-func engineGoMemLimit() int64 {
-	limit := debug.SetMemoryLimit(-1)
-	if limit <= 0 || limit >= 1<<62 {
-		return -1
-	}
-	return limit
-}
-
-func readEngineProcessMemory(stats *engineRuntimeStats) {
-	data, err := os.ReadFile("/proc/self/status")
-	if err != nil {
-		return
-	}
-	for _, line := range strings.Split(string(data), "\n") {
-		key, value, ok := strings.Cut(line, ":")
-		if !ok {
-			continue
-		}
-		fields := strings.Fields(strings.TrimSpace(value))
-		if len(fields) == 0 {
-			continue
-		}
-		n, err := strconv.ParseUint(fields[0], 10, 64)
-		if err != nil {
-			continue
-		}
-		switch key {
-		case "VmRSS":
-			stats.RSSKB = n
-		case "VmSize":
-			stats.VMSKB = n
-		case "VmData":
-			stats.DataKB = n
-		}
-	}
-}
-
-func readEngineProcessUsage(stats *engineRuntimeStats) {
-	var usage syscall.Rusage
-	if err := syscall.Getrusage(syscall.RUSAGE_SELF, &usage); err != nil {
-		return
-	}
-	user := usage.Utime.Sec*1000 + int64(usage.Utime.Usec)/1000
-	system := usage.Stime.Sec*1000 + int64(usage.Stime.Usec)/1000
-	stats.CPUUserMS = user
-	stats.CPUSystemMS = system
-	stats.CPUTotalMS = user + system
-}
-
-func readEngineProcessIO(stats *engineRuntimeStats) {
-	data, err := os.ReadFile("/proc/self/io")
-	if err != nil {
-		return
-	}
-	for _, line := range strings.Split(string(data), "\n") {
-		key, value, ok := strings.Cut(line, ":")
-		if !ok {
-			continue
-		}
-		n, err := strconv.ParseUint(strings.TrimSpace(value), 10, 64)
-		if err != nil {
-			continue
-		}
-		switch key {
-		case "read_bytes":
-			stats.ProcReadBytes = n
-		case "write_bytes":
-			stats.ProcWriteBytes = n
-		case "cancelled_write_bytes":
-			stats.ProcCancelledWriteBytes = n
-		case "syscr":
-			stats.ProcReadSyscalls = n
-		case "syscw":
-			stats.ProcWriteSyscalls = n
-		}
-	}
-}
-
-func readEngineOpenFDs(stats *engineRuntimeStats) {
-	entries, err := os.ReadDir("/proc/self/fd")
-	if err != nil {
-		return
-	}
-	stats.OpenFDs = len(entries)
 }

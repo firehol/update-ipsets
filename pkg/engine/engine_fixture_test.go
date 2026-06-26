@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"go/ast"
 	"go/parser"
 	"go/token"
@@ -45,6 +46,7 @@ func newEngineFixture(t testing.TB, opts ...engineFixtureOption) *Engine {
 		logger:         slog.New(slog.DiscardHandler),
 		now:            time.Now,
 		engineLane:     NewWorkLane(rt.EngineLaneWorkers()),
+		gitLane:        NewWorkLane(1),
 		geoProviders:   newGeoProviderCache(),
 		asnLookupCache: newASNDatabaseCache(),
 		ledgerCache:    newRuntimeLedgerCache(),
@@ -69,6 +71,9 @@ func newEngineFixture(t testing.TB, opts ...engineFixtureOption) *Engine {
 	} else {
 		eng.engineLane.SetLimit(eng.runtime.EngineLaneWorkers())
 	}
+	if eng.gitLane == nil {
+		eng.gitLane = NewWorkLane(1)
+	}
 	if eng.geoProviders == nil {
 		eng.geoProviders = newGeoProviderCache()
 	}
@@ -87,6 +92,14 @@ func newEngineFixture(t testing.TB, opts ...engineFixtureOption) *Engine {
 	if eng.querySetCache == nil {
 		eng.querySetCache = newSharedLatestSetCache(eng)
 	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		_ = eng.StopCachePersistence(ctx)
+		if eng.gitLane != nil {
+			eng.gitLane.Shutdown(time.Second)
+		}
+	})
 	return eng
 }
 

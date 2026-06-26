@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -190,10 +191,6 @@ func handleAdminEntityIntegrity(ctx context.Context, eng *engine.Engine) http.Ha
 		}
 		writeJSON(w, http.StatusOK, report)
 	}
-}
-
-func handleAdminEntityIntegrityRebuild(eng *engine.Engine) http.HandlerFunc {
-	return handleAdminEntityIntegrityRebuildWithContext(context.Background(), eng)
 }
 
 func handleAdminEntityIntegrityRebuildWithContext(ctx context.Context, eng *engine.Engine) http.HandlerFunc {
@@ -458,19 +455,23 @@ func handleAdminIntegrityReprocess(ctx context.Context, eng *engine.Engine, runn
 			recheckNames, reprocessNames := eng.IntegrityRecoveryPlan(findings)
 			if len(recheckNames) > 0 {
 				observeIntegrityRecoveryTargets("pipeline", "recheck", len(recheckNames))
-				runner.TriggerSources(scheduler.PendingAction{
+				if err := runner.TriggerSourcesWithin(laneCtx, scheduler.LaneActionAdmissionTimeout, scheduler.PendingAction{
 					Names:   recheckNames,
 					Recheck: true,
 					Reason:  runreason.ReasonIntegrityReprocess,
-				})
+				}); err != nil {
+					return fmt.Errorf("queue integrity recheck work: %w", err)
+				}
 			}
 			if len(reprocessNames) > 0 {
 				observeIntegrityRecoveryTargets("pipeline", "reprocess", len(reprocessNames))
-				runner.TriggerSources(scheduler.PendingAction{
+				if err := runner.TriggerSourcesWithin(laneCtx, scheduler.LaneActionAdmissionTimeout, scheduler.PendingAction{
 					Names:     reprocessNames,
 					Reprocess: true,
 					Reason:    runreason.ReasonIntegrityReprocess,
-				})
+				}); err != nil {
+					return fmt.Errorf("queue integrity reprocess work: %w", err)
+				}
 			}
 			return laneCtx.Err()
 		})

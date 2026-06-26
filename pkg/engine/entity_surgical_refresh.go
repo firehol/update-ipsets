@@ -310,6 +310,9 @@ func (s *entitySurgicalRefreshState) advanceDetailProgress() {
 }
 
 func (s *entitySurgicalRefreshState) patchEntityIndexes() error {
+	if err := contextErr(s.ctx); err != nil {
+		return err
+	}
 	indexSteps := 0
 	if len(s.countryUpdates) > 0 {
 		indexSteps++
@@ -325,6 +328,9 @@ func (s *entitySurgicalRefreshState) patchEntityIndexes() error {
 		s.task.Update("patching entity indexes", "updating country and ASN indexes from patched entities", 0, indexSteps)
 	}
 	if len(s.countryUpdates) > 0 {
+		if err := contextErr(s.ctx); err != nil {
+			return err
+		}
 		if err := s.e.patchCountryIndex(s.web, s.countryUpdates); err != nil {
 			return err
 		}
@@ -335,6 +341,9 @@ func (s *entitySurgicalRefreshState) patchEntityIndexes() error {
 		}
 	}
 	if len(s.asnUpdates) > 0 {
+		if err := contextErr(s.ctx); err != nil {
+			return err
+		}
 		if err := s.e.patchASNIndex(s.web, s.asnUpdates); err != nil {
 			return err
 		}
@@ -372,8 +381,14 @@ func (s *entitySurgicalRefreshState) patchedArtifactsPlan() (*entityArtifactMuta
 }
 
 func (s *entitySurgicalRefreshState) stageFeedPresenceIndex() error {
+	if err := contextErr(s.ctx); err != nil {
+		return err
+	}
 	sidecars, err := s.loadMergedFeedSidecars()
 	if err != nil {
+		return err
+	}
+	if err := contextErr(s.ctx); err != nil {
 		return err
 	}
 	return stageEntityFeedPresenceIndex(s.ent.stagedPublishBatch, entityFeedPresenceNamesFromSidecars(sidecars))

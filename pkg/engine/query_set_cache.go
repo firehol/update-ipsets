@@ -14,6 +14,8 @@ type sharedLatestSetCache struct {
 
 	mu      sync.Mutex
 	entries map[string]*sharedLatestSetCacheEntry
+	loads   map[string]*sharedLatestSetCacheLoad
+	version map[string]uint64
 }
 
 type sharedLatestSetCacheEntry struct {
@@ -22,10 +24,16 @@ type sharedLatestSetCacheEntry struct {
 	stale bool
 }
 
+type sharedLatestSetCacheLoad struct {
+	done chan struct{}
+}
+
 func newSharedLatestSetCache(engine *Engine) *sharedLatestSetCache {
 	return &sharedLatestSetCache{
 		engine:  engine,
 		entries: make(map[string]*sharedLatestSetCacheEntry),
+		loads:   make(map[string]*sharedLatestSetCacheLoad),
+		version: make(map[string]uint64),
 	}
 }
 
@@ -42,35 +50,83 @@ func (c *sharedLatestSetCache) AcquireContext(ctx context.Context, name string) 
 		return nil, nil, err
 	}
 
-	c.mu.Lock()
-	if entry, ok := c.entries[name]; ok && !entry.stale && entry.src != nil {
-		entry.refs++
-		c.mu.Unlock()
-		return entry.src, c.releaseFunc(name, entry), nil
-	}
+	for {
+		if err := contextErr(ctx); err != nil {
+			return nil, nil, err
+		}
 
-	src, err := c.engine.openLatestSet(ctx, name)
-	if err != nil {
+		c.mu.Lock()
+		if entry, ok := c.entries[name]; ok && !entry.stale && entry.src != nil {
+			entry.refs++
+			c.mu.Unlock()
+			return entry.src, c.releaseFunc(name, entry), nil
+		}
+		if load := c.loads[name]; load != nil {
+			done := load.done
+			c.mu.Unlock()
+			select {
+			case <-done:
+				continue
+			case <-ctx.Done():
+				return nil, nil, ctx.Err()
+			}
+		}
+		version := c.version[name]
+		load := &sharedLatestSetCacheLoad{done: make(chan struct{})}
+		c.loads[name] = load
 		c.mu.Unlock()
-		return nil, nil, err
-	}
-	if !latestSetCacheable(src) {
-		c.mu.Unlock()
-		return src, func() {
+
+		src, err := c.engine.openLatestSet(ctx, name)
+		ctxErr := contextErr(ctx)
+		c.mu.Lock()
+		if c.loads[name] == load {
+			delete(c.loads, name)
+		}
+		close(load.done)
+		if ctxErr != nil {
+			c.mu.Unlock()
 			if src != nil {
 				_ = src.Close()
 			}
-		}, nil
-	}
+			return nil, nil, ctxErr
+		}
+		if err != nil {
+			c.mu.Unlock()
+			return nil, nil, err
+		}
+		if c.version[name] != version {
+			c.mu.Unlock()
+			if src != nil {
+				_ = src.Close()
+			}
+			continue
+		}
+		if !latestSetCacheable(src) {
+			c.mu.Unlock()
+			return src, func() {
+				if src != nil {
+					_ = src.Close()
+				}
+			}, nil
+		}
+		if entry, ok := c.entries[name]; ok && !entry.stale && entry.src != nil {
+			entry.refs++
+			c.mu.Unlock()
+			if src != nil {
+				_ = src.Close()
+			}
+			return entry.src, c.releaseFunc(name, entry), nil
+		}
 
-	entry := &sharedLatestSetCacheEntry{
-		src:  src,
-		refs: 1,
-	}
-	c.entries[name] = entry
-	c.mu.Unlock()
+		entry := &sharedLatestSetCacheEntry{
+			src:  src,
+			refs: 1,
+		}
+		c.entries[name] = entry
+		c.mu.Unlock()
 
-	return src, c.releaseFunc(name, entry), nil
+		return src, c.releaseFunc(name, entry), nil
+	}
 }
 
 func (c *sharedLatestSetCache) releaseFunc(name string, entry *sharedLatestSetCacheEntry) func() {
@@ -109,6 +165,7 @@ func (c *sharedLatestSetCache) Invalidate(name string) {
 	var toClose *closableSource
 
 	c.mu.Lock()
+	c.version[name]++
 	entry, ok := c.entries[name]
 	if !ok {
 		c.mu.Unlock()

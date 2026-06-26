@@ -16,6 +16,10 @@ type RunOptions struct {
 	Manual     bool
 	CleanupOld bool
 	Reason     runreason.Reason
+	// AsyncCachePersistence lets daemon scheduler runs return after the cache
+	// save is accepted by the persistence worker. Direct callers leave this
+	// false so one-shot runs do not exit before their cache state is durable.
+	AsyncCachePersistence bool
 	// BeforePublish runs after processing/local artifact generation has
 	// completed successfully and immediately before public publication
 	// begins. The scheduler uses this hook to promote only the staged
@@ -33,6 +37,36 @@ type Report struct {
 	Failed               []string          `json:"failed,omitempty"`
 	Messages             map[string]string `json:"messages,omitempty"`
 	Statuses             map[string]string `json:"statuses,omitempty"`
+}
+
+type RunState string
+
+const (
+	RunStateIdle       RunState = "idle"
+	RunStateRunning    RunState = "running"
+	RunStateFinalizing RunState = "finalizing"
+)
+
+type CachePersistenceState string
+
+const (
+	CachePersistenceIdle    CachePersistenceState = "idle"
+	CachePersistencePending CachePersistenceState = "pending"
+	CachePersistenceSaving  CachePersistenceState = "saving"
+	CachePersistenceFailed  CachePersistenceState = "failed"
+	CachePersistenceStopped CachePersistenceState = "stopped"
+)
+
+type CachePersistenceSnapshot struct {
+	State       CachePersistenceState `json:"state"`
+	Pending     bool                  `json:"pending,omitempty"`
+	Saving      bool                  `json:"saving,omitempty"`
+	LastStarted time.Time             `json:"last_started,omitempty"`
+	LastSaved   time.Time             `json:"last_saved,omitempty"`
+	LastError   string                `json:"last_error,omitempty"`
+	Accepted    uint64                `json:"accepted,omitempty"`
+	Completed   uint64                `json:"completed,omitempty"`
+	Failed      uint64                `json:"failed,omitempty"`
 }
 
 type QueryMatch struct {
@@ -109,6 +143,7 @@ type RetentionData struct {
 
 type StatusSnapshot struct {
 	Running                      bool                         `json:"running"`
+	RunState                     RunState                     `json:"run_state"`
 	LastStarted                  time.Time                    `json:"last_started,omitempty"`
 	LastEnded                    time.Time                    `json:"last_ended,omitempty"`
 	LastError                    string                       `json:"last_error,omitempty"`
@@ -122,6 +157,8 @@ type StatusSnapshot struct {
 	ActiveOperations             []ActiveOperation            `json:"active_operations,omitempty"`
 	BackgroundTasks              []BackgroundTaskSnapshot     `json:"background_tasks,omitempty"`
 	EngineLane                   LaneSnapshot                 `json:"engine_lane"`
+	GitLane                      LaneSnapshot                 `json:"git_lane"`
+	CachePersistence             CachePersistenceSnapshot     `json:"cache_persistence"`
 	PipelineIntegrityCache       PipelineIntegrityCacheStatus `json:"pipeline_integrity_cache"`
 	EntityIntegrityCache         EntityIntegrityCacheStatus   `json:"entity_integrity_cache"`
 	BackgroundLimit              int                          `json:"background_limit,omitempty"`
@@ -152,10 +189,10 @@ type StatusSnapshot struct {
 
 type StatusSnapshotLight struct {
 	Running                      bool                         `json:"running"`
+	RunState                     RunState                     `json:"run_state"`
 	LastStarted                  time.Time                    `json:"last_started,omitempty"`
 	LastEnded                    time.Time                    `json:"last_ended,omitempty"`
 	LastError                    string                       `json:"last_error,omitempty"`
-	LastReport                   *Report                      `json:"last_report,omitempty"`
 	CurrentReason                runreason.Reason             `json:"current_reason,omitempty"`
 	LastReason                   runreason.Reason             `json:"last_reason,omitempty"`
 	CurrentPhase                 RunPhase                     `json:"current_phase,omitempty"`
@@ -165,6 +202,8 @@ type StatusSnapshotLight struct {
 	ActiveOperations             []ActiveOperation            `json:"active_operations,omitempty"`
 	BackgroundTasks              []BackgroundTaskSnapshot     `json:"background_tasks,omitempty"`
 	EngineLane                   LaneSnapshot                 `json:"engine_lane"`
+	GitLane                      LaneSnapshot                 `json:"git_lane"`
+	CachePersistence             CachePersistenceSnapshot     `json:"cache_persistence"`
 	PipelineIntegrityCache       PipelineIntegrityCacheStatus `json:"pipeline_integrity_cache"`
 	EntityIntegrityCache         EntityIntegrityCacheStatus   `json:"entity_integrity_cache"`
 	BackgroundLimit              int                          `json:"background_limit,omitempty"`

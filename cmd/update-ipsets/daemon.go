@@ -4,15 +4,20 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
+	"runtime/debug"
 	"syscall"
 	"time"
 
 	"github.com/firehol/update-ipsets/internal/observability"
 	"github.com/firehol/update-ipsets/pkg/engine"
 	"github.com/firehol/update-ipsets/pkg/web"
+	"go.opentelemetry.io/otel/attribute"
 )
+
+const daemonControlPanicDiagnosticMaxBytes = 16 * 1024
 
 func runDaemon(args []string) int {
 	args = compactCLIArgs(args)
@@ -79,25 +84,7 @@ func runDaemon(args []string) int {
 	hup := make(chan os.Signal, 1)
 	signal.Notify(hup, syscall.SIGHUP)
 	defer signal.Stop(hup)
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-hup:
-				if err := eng.Reload(); err != nil {
-					logger.Error("config reload failed", "error", err)
-				} else {
-					logger.Info("config reloaded", "config_path", eng.Runtime().ConfigPath)
-					if _, err := eng.QueueEntityArtifactsEnsure(ctx, "reload"); err != nil {
-						logger.Error("entity artifact ensure after reload failed to queue", "error", err)
-					} else {
-						logger.Info("country and ASN entity artifacts check queued after reload")
-					}
-				}
-			}
-		}
-	}()
+	go runReloadSignalLoop(ctx, logger, hup, eng)
 	if err := web.Run(ctx, eng, web.Options{
 		Listen:                    *listen,
 		AdminListen:               *adminListen,
@@ -118,6 +105,53 @@ func runDaemon(args []string) int {
 		return 1
 	}
 	return 0
+}
+
+type daemonReloadEngine interface {
+	ReloadContext(context.Context) error
+	Runtime() engine.Runtime
+	QueueEntityArtifactsEnsure(context.Context, string) (engine.EntityArtifactQueueResult, error)
+}
+
+func runReloadSignalLoop(ctx context.Context, logger *slog.Logger, hup <-chan os.Signal, eng daemonReloadEngine) {
+	defer recoverDaemonControlPanic(logger, "sighup_loop")
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-hup:
+			handleReloadSignal(ctx, logger, eng)
+		}
+	}
+}
+
+func handleReloadSignal(ctx context.Context, logger *slog.Logger, eng daemonReloadEngine) {
+	defer recoverDaemonControlPanic(logger, "sighup_reload")
+	if err := eng.ReloadContext(ctx); err != nil {
+		logger.Error("config reload failed", "error", err)
+		return
+	}
+	logger.Info("config reloaded", "config_path", eng.Runtime().ConfigPath)
+	if _, err := eng.QueueEntityArtifactsEnsure(ctx, "reload"); err != nil {
+		logger.Error("entity artifact ensure after reload failed to queue", "error", err)
+	} else {
+		logger.Info("country and ASN entity artifacts check queued after reload")
+	}
+}
+
+func recoverDaemonControlPanic(logger *slog.Logger, name string) {
+	if recovered := recover(); recovered != nil {
+		if name == "" {
+			name = "unknown"
+		}
+		observability.Count(context.Background(), "daemon.goroutine.panics", 1, attribute.String("daemon.goroutine", name))
+		if logger != nil {
+			logger.Error("daemon control goroutine panic recovered",
+				"goroutine", name,
+				"panic", recovered,
+				"stack", web.SanitizeDiagnosticText(string(debug.Stack()), daemonControlPanicDiagnosticMaxBytes))
+		}
+	}
 }
 
 func compactCLIArgs(args []string) []string {

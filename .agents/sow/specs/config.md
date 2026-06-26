@@ -89,11 +89,17 @@ separate from `max_background_workers`: the engine lane limits admission and
 serialization of broad engine-owned operations, while background worker counts
 limit bounded fan-out inside an admitted operation.
 
+The runtime model MUST support `push_to_git_timeout`, expressed in seconds.
+This bounds each Git subprocess used by generated artifact publication,
+including add, diff, commit, push, and auto-maintenance. The default is `600`;
+zero or omission means the default; negative authored values are invalid.
+
 Runtime resource-control integers that default when set to zero MUST reject
 negative authored values during validation. This includes download/DNS worker
 counts, processing/heavy/engine-lane/background worker counts, ingest ceiling,
-scheduling interval controls, download-error suppression count, and public
-artifact cache limits. Zero keeps its existing default or disabled meaning.
+scheduling interval controls, git publication timeout, download-error
+suppression count, and public artifact cache limits. Zero keeps its existing
+default or disabled meaning.
 
 ### Categories
 

@@ -123,19 +123,22 @@ Shows:
 - queue backlog
 
 The high-frequency admin status endpoint is
-`GET /api/v1/admin/status?mode=light`. It MUST remain lightweight enough to poll
-while the engine is doing heavy metadata, comparison, entity, retention, or
-publish work. It MUST expose live run state, active operations, and background
-tasks, but it MUST NOT clone or serialize the full current-run, last-run, or
-lifetime metric trees on every poll. Full `GET /api/v1/admin/status` responses
-are for lower-frequency diagnostics, not heartbeat polling required to reload
-the admin shell.
+`GET /api/v1/admin/status`; `mode=light` is an equivalent explicit spelling.
+It MUST remain lightweight enough to poll while the engine is doing heavy
+metadata, comparison, entity, retention, or publish work. It MUST expose live
+run state, active operations, and background tasks, but it MUST NOT clone or
+serialize the full current-run, last-run, or lifetime metric trees on every
+poll. Full `GET /api/v1/admin/status?mode=full` responses are for
+lower-frequency diagnostics, not heartbeat polling required to reload the admin
+shell.
 
 The high-frequency status endpoint MUST include the typed engine-lane snapshot
 under `engine.engine_lane`. That snapshot is the authoritative admission state
 for broad engine-owned work and MUST expose at least the lane limit, active
 count, waiting count, active work, and waiting work. The status endpoint MUST
-also keep backward-compatible `engine.background_limit` and
+also include the dedicated git-publication FIFO snapshot under
+`engine.git_lane` so queued or active git publication is visible while run
+finalization proceeds. It MUST keep backward-compatible `engine.background_limit` and
 `engine.background_running` fields as aliases for the engine-lane limit and
 active count, while `engine.max_background_workers` continues to mean bounded
 fan-out inside admitted work.
@@ -145,6 +148,11 @@ visibility summary used by the heartbeat. It MUST NOT return only
 `total_configured` while leaving health buckets, enabled/disabled counts,
 hidden count, entry totals, or unique-IP totals at zero. The summary may be
 computed from lightweight feed state, but it is part of the heartbeat contract.
+When cached scheduler/feed heartbeat state exists, the high-frequency status
+endpoint MUST use that cached state even if it is stale. It MUST NOT call the
+full feed-row builder, rebuild the scheduler snapshot, or walk all cache entries
+from the HTTP handler to make the poll fresher. A cold missing scheduler cache
+is an unknown cache state, not proof that all health buckets are zero.
 
 ### 2. Feed inventory
 

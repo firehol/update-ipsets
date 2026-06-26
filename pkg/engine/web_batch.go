@@ -51,7 +51,11 @@ func newStagedPublishBatch(liveDir, owner, pattern string) (*stagedPublishBatch,
 }
 
 func (e *Engine) newWebPublishBatch() (*webPublishBatch, error) {
-	batch, err := newStagedPublishBatch(e.outputDir(), e.runtime.WebOwner, webPublishStagePattern)
+	return newWebPublishBatchForRuntime(e.Runtime())
+}
+
+func newWebPublishBatchForRuntime(rt Runtime) (*webPublishBatch, error) {
+	batch, err := newStagedPublishBatch(outputDirForRuntime(rt), rt.WebOwner, webPublishStagePattern)
 	if err != nil {
 		return nil, err
 	}

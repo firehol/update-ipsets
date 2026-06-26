@@ -142,35 +142,3 @@ func entityDetailFilesExist(privatePath, publicPath string) bool {
 	}
 	return true
 }
-
-func (e *Engine) emptyCountryDetailSidecar(code string) *countryDetailSidecar {
-	geoProvider := e.preferredGeoProvider()
-	asnProvider := e.preferredASNProvider()
-	return &countryDetailSidecar{
-		Code: strings.ToUpper(strings.TrimSpace(code)),
-		Provider: HomeSummaryProvider{
-			Name:  geoProvider,
-			Label: providerDisplayLabel(e.lookupSource(geoProvider)),
-		},
-		ASNProvider: HomeSummaryProvider{
-			Name:  asnProvider,
-			Label: providerDisplayLabel(e.lookupSource(asnProvider)),
-		},
-	}
-}
-
-func (e *Engine) emptyASNDetailSidecar(asn uint32) *asnDetailSidecar {
-	asnProvider := e.preferredASNProvider()
-	geoProvider := e.preferredGeoProvider()
-	return &asnDetailSidecar{
-		ASN: asn,
-		Provider: HomeSummaryProvider{
-			Name:  asnProvider,
-			Label: providerDisplayLabel(e.lookupSource(asnProvider)),
-		},
-		GeoProvider: HomeSummaryProvider{
-			Name:  geoProvider,
-			Label: providerDisplayLabel(e.lookupSource(geoProvider)),
-		},
-	}
-}

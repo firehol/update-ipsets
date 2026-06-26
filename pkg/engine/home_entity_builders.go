@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sort"
@@ -259,7 +260,11 @@ func (e *Engine) ASNIndex() (*ASNIndexPayload, error) {
 }
 
 func (e *Engine) CountryDetail(code string) (*CountryDetailPayload, error) {
-	sidecar, err := e.buildCountryDetailSidecar(code, newEntityOutputView(e, ""))
+	return e.CountryDetailContext(context.Background(), code)
+}
+
+func (e *Engine) CountryDetailContext(ctx context.Context, code string) (*CountryDetailPayload, error) {
+	sidecar, err := e.buildCountryDetailSidecar(ctx, code, newEntityOutputView(e, ""))
 	if err != nil {
 		return nil, err
 	}
@@ -267,7 +272,11 @@ func (e *Engine) CountryDetail(code string) (*CountryDetailPayload, error) {
 }
 
 func (e *Engine) ASNDetail(asn uint32) (*ASNDetailPayload, error) {
-	sidecar, err := e.buildASNDetailSidecar(asn, newEntityOutputView(e, ""))
+	return e.ASNDetailContext(context.Background(), asn)
+}
+
+func (e *Engine) ASNDetailContext(ctx context.Context, asn uint32) (*ASNDetailPayload, error) {
+	sidecar, err := e.buildASNDetailSidecar(ctx, asn, newEntityOutputView(e, ""))
 	if err != nil {
 		return nil, err
 	}
@@ -424,7 +433,8 @@ func (e *Engine) buildASNIndex(view entityOutputView) (*ASNIndexPayload, error) 
 	return payload, nil
 }
 
-func (e *Engine) buildCountryDetailSidecar(code string, view entityOutputView) (*countryDetailSidecar, error) {
+func (e *Engine) buildCountryDetailSidecar(ctx context.Context, code string, view entityOutputView) (*countryDetailSidecar, error) {
+	ctx = nonNilContext(ctx)
 	if e == nil || e.cfg == nil {
 		return nil, fmt.Errorf("engine is not configured")
 	}
@@ -432,28 +442,29 @@ func (e *Engine) buildCountryDetailSidecar(code string, view entityOutputView) (
 	if normalized == "" {
 		return nil, fmt.Errorf("country code is required")
 	}
-	providers := e.entityDetailProviders()
+	providers := e.entityDetailProvidersContext(ctx)
 	defer providers.Close()
 	builder := newCountryDetailBuilder(normalized)
 	matches := e.addCountryDetailFeedMatches(builder, providers.geo.Name, view)
-	e.addCountryDetailASNMatches(builder, matches, providers)
+	e.addCountryDetailASNMatches(ctx, builder, matches, providers)
 	return builder.buildAllowEmpty(providers.geo, providers.asn), nil
 }
 
-func (e *Engine) buildASNDetailSidecar(asn uint32, view entityOutputView) (*asnDetailSidecar, error) {
+func (e *Engine) buildASNDetailSidecar(ctx context.Context, asn uint32, view entityOutputView) (*asnDetailSidecar, error) {
+	ctx = nonNilContext(ctx)
 	if e == nil || e.cfg == nil {
 		return nil, fmt.Errorf("engine is not configured")
 	}
 	if asn == 0 {
 		return nil, fmt.Errorf("asn must be a positive integer")
 	}
-	providers := e.entityDetailProviders()
+	providers := e.entityDetailProvidersContext(ctx)
 	defer providers.Close()
 	builder := newASNDetailBuilder(asn)
 	if providers.asn.Name == "" {
 		return builder.buildAllowEmpty(providers.asn, providers.geo), nil
 	}
 	matches := e.addASNDetailFeedMatches(builder, providers.asn.Name, view)
-	e.addASNDetailCountryMatches(builder, matches, providers)
+	e.addASNDetailCountryMatches(ctx, builder, matches, providers)
 	return builder.buildAllowEmpty(providers.asn, providers.geo), nil
 }

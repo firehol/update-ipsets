@@ -3,20 +3,45 @@ package web
 import (
 	"context"
 	"fmt"
-	"os"
-	"runtime"
-	"runtime/debug"
-	"strconv"
-	"strings"
+	"log/slog"
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/firehol/update-ipsets/internal/runtimeinfo"
 )
 
 var startedAt = time.Now()
 
-const detailedStatusSampleMaxAge = time.Second
 const runtimeStatsSampleInterval = 5 * time.Second
+const detailedStatusSampleMaxAge = runtimeStatsSampleInterval
+
+var (
+	detailedStatusCaptureMu sync.Mutex
+	detailedStatusCapture   = runtimeinfo.Capture
+)
+
+func setDetailedStatusCaptureForTest(fn func() runtimeinfo.Snapshot) func() {
+	detailedStatusCaptureMu.Lock()
+	old := detailedStatusCapture
+	if fn == nil {
+		detailedStatusCapture = runtimeinfo.Capture
+	} else {
+		detailedStatusCapture = fn
+	}
+	detailedStatusCaptureMu.Unlock()
+	return func() {
+		detailedStatusCaptureMu.Lock()
+		detailedStatusCapture = old
+		detailedStatusCaptureMu.Unlock()
+	}
+}
+
+func detailedStatusCaptureSnapshot() func() runtimeinfo.Snapshot {
+	detailedStatusCaptureMu.Lock()
+	defer detailedStatusCaptureMu.Unlock()
+	return detailedStatusCapture
+}
 
 var detailedStatusCache struct {
 	mu        sync.RWMutex
@@ -120,9 +145,7 @@ func detailedStatusCached() detailedSystemInfo {
 	return detailedSystemInfo{
 		UptimeSeconds: now.Sub(startedAt).Seconds(),
 		Uptime:        now.Sub(startedAt).Truncate(time.Second).String(),
-		Goroutines:    runtime.NumGoroutine(),
 		DiskFree:      "unknown",
-		GoMemLimit:    goMemLimit(),
 	}
 }
 
@@ -142,7 +165,7 @@ func (s *runtimeStatsSampler) Start(ctx context.Context) {
 	}
 	s.once.Do(func() {
 		go func() {
-			refreshDetailedStatus()
+			refreshDetailedStatusSafely()
 			ticker := time.NewTicker(runtimeStatsSampleInterval)
 			defer ticker.Stop()
 			for {
@@ -150,51 +173,58 @@ func (s *runtimeStatsSampler) Start(ctx context.Context) {
 				case <-ctx.Done():
 					return
 				case <-ticker.C:
-					refreshDetailedStatus()
+					refreshDetailedStatusSafely()
 				}
 			}
 		}()
 	})
 }
 
+func refreshDetailedStatusSafely() {
+	defer recoverDaemonControlPanic(slog.Default(), "runtime_stats_sampler")
+	refreshDetailedStatus()
+}
+
 func captureDetailedStatus(now time.Time) detailedSystemInfo {
-	var mem runtime.MemStats
-	runtime.ReadMemStats(&mem)
-
 	up := now.Sub(startedAt)
-
-	diskFree := "unknown"
-	var stat syscall.Statfs_t
-	if err := syscall.Statfs(".", &stat); err == nil {
-		diskFree = humanBytes(stat.Bavail * uint64(stat.Bsize))
-	}
-
+	sample := detailedStatusCaptureSnapshot()()
 	info := detailedSystemInfo{
 		UptimeSeconds: up.Seconds(),
 		Uptime:        up.Truncate(time.Second).String(),
-		Goroutines:    runtime.NumGoroutine(),
-		DiskFree:      diskFree,
+		Goroutines:    sample.Goroutines,
+		DiskFree:      "unknown",
 
-		HeapAlloc:    mem.HeapAlloc,
-		HeapSys:      mem.HeapSys,
-		HeapInuse:    mem.HeapInuse,
-		HeapIdle:     mem.HeapIdle,
-		HeapReleased: mem.HeapReleased,
-		HeapObjects:  mem.HeapObjects,
-		StackInuse:   mem.StackInuse,
-		Sys:          mem.Sys,
+		HeapAlloc:    sample.HeapAlloc,
+		HeapSys:      sample.HeapSys,
+		HeapInuse:    sample.HeapInuse,
+		HeapIdle:     sample.HeapIdle,
+		HeapReleased: sample.HeapReleased,
+		HeapObjects:  sample.HeapObjects,
+		StackInuse:   sample.StackInuse,
+		Sys:          sample.Sys,
 
-		NumGC:        mem.NumGC,
-		PauseTotalNs: mem.PauseTotalNs,
-		LastGCUnix:   int64(mem.LastGC),
+		NumGC:        sample.NumGC,
+		PauseTotalNs: sample.PauseTotalNS,
+		LastGCUnix:   sample.LastGCUnix,
 
-		GoMemLimit: goMemLimit(),
+		GoMemLimit: runtimeinfo.GoMemLimit(),
+
+		RSSKB:              sample.RSSKB,
+		VMSKB:              sample.VMSKB,
+		DataKB:             sample.DataKB,
+		CPUUserSeconds:     sample.CPUUserSeconds,
+		CPUSystemSeconds:   sample.CPUSystemSeconds,
+		CPUTotalSeconds:    sample.CPUTotalSeconds,
+		ProcReadBytes:      sample.ProcReadBytes,
+		ProcWriteBytes:     sample.ProcWriteBytes,
+		ProcCancelledWrite: sample.ProcCancelledWriteBytes,
+		ProcReadSyscalls:   sample.ProcReadSyscalls,
+		ProcWriteSyscalls:  sample.ProcWriteSyscalls,
+		OpenFDs:            sample.OpenFDs,
 	}
-
-	readProcessMemory(&info)
-	readProcessUsage(&info)
-	readProcessIO(&info)
-	readOpenFDs(&info)
+	// Keep disk space separate from runtimeinfo because it depends on the
+	// current working directory used by the web process.
+	info.DiskFree = currentDiskFree()
 	return info
 }
 
@@ -205,102 +235,10 @@ func withCurrentUptime(info detailedSystemInfo, now time.Time) detailedSystemInf
 	return info
 }
 
-// goMemLimit returns the current GOMEMLIMIT value, or -1 if unset / math.MaxInt64.
-func goMemLimit() int64 {
-	limit := debug.SetMemoryLimit(-1) // read current without changing
-	if limit <= 0 || limit >= 1<<62 {
-		return -1
+func currentDiskFree() string {
+	var stat syscall.Statfs_t
+	if err := syscall.Statfs(".", &stat); err != nil {
+		return "unknown"
 	}
-	return limit
-}
-
-// readProcessMemory populates RSS/VMS from /proc/self/status on Linux.
-// On other platforms this is a no-op.
-func readProcessMemory(info *detailedSystemInfo) {
-	data, err := os.ReadFile("/proc/self/status")
-	if err != nil {
-		return
-	}
-	for _, line := range strings.Split(string(data), "\n") {
-		key, value, ok := strings.Cut(line, ":")
-		if !ok {
-			continue
-		}
-		value = strings.TrimSpace(value)
-		// Values are typically "12345 kB".
-		numStr := strings.Fields(value)
-		if len(numStr) == 0 {
-			continue
-		}
-		n, err := strconv.ParseUint(numStr[0], 10, 64)
-		if err != nil {
-			continue
-		}
-		switch key {
-		case "VmRSS":
-			info.RSSKB = n
-		case "VmSize":
-			info.VMSKB = n
-		case "VmData":
-			info.DataKB = n
-		}
-	}
-}
-
-func readProcessUsage(info *detailedSystemInfo) {
-	if info == nil {
-		return
-	}
-	var usage syscall.Rusage
-	if err := syscall.Getrusage(syscall.RUSAGE_SELF, &usage); err != nil {
-		return
-	}
-	user := float64(usage.Utime.Sec) + float64(usage.Utime.Usec)/1_000_000
-	system := float64(usage.Stime.Sec) + float64(usage.Stime.Usec)/1_000_000
-	info.CPUUserSeconds = user
-	info.CPUSystemSeconds = system
-	info.CPUTotalSeconds = user + system
-}
-
-func readProcessIO(info *detailedSystemInfo) {
-	if info == nil {
-		return
-	}
-	data, err := os.ReadFile("/proc/self/io")
-	if err != nil {
-		return
-	}
-	for _, line := range strings.Split(string(data), "\n") {
-		key, value, ok := strings.Cut(line, ":")
-		if !ok {
-			continue
-		}
-		n, err := strconv.ParseUint(strings.TrimSpace(value), 10, 64)
-		if err != nil {
-			continue
-		}
-		switch key {
-		case "read_bytes":
-			info.ProcReadBytes = n
-		case "write_bytes":
-			info.ProcWriteBytes = n
-		case "cancelled_write_bytes":
-			info.ProcCancelledWrite = n
-		case "syscr":
-			info.ProcReadSyscalls = n
-		case "syscw":
-			info.ProcWriteSyscalls = n
-		}
-	}
-}
-
-func readOpenFDs(info *detailedSystemInfo) {
-	if info == nil {
-		return
-	}
-	entries, err := os.ReadDir("/proc/self/fd")
-	if err != nil {
-		return
-	}
-	info.OpenFDs = len(entries)
+	return humanBytes(stat.Bavail * uint64(stat.Bsize))
 }

@@ -34,7 +34,7 @@ func (e *Engine) writeCriticalInfrastructureForFeed(ctx context.Context, name st
 }
 
 func (e *Engine) newCriticalFeedWriter(ctx context.Context, name string, datasets *criticalDatasets, outDir string, setCache *latestSetCache) (*criticalFeedWriter, error) {
-	src, err := setCache.Open(name)
+	src, err := setCache.OpenContext(ctx, name)
 	if err != nil {
 		e.logger.Warn("critical infrastructure comparison skipped: cannot open set",
 			"set", name, "error", err)

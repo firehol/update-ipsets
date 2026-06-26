@@ -90,7 +90,8 @@ func (e *Engine) ProviderDefaultsChanged() bool {
 	if e == nil {
 		return false
 	}
-	return ProviderDefaultsChangedForConfig(e.cfg, e.runtime)
+	cfg, rt := e.configRuntimeSnapshot()
+	return ProviderDefaultsChangedForConfig(cfg, rt)
 }
 
 func (e *Engine) providerDefaultsChanged() bool {
@@ -101,11 +102,12 @@ func (e *Engine) writeProviderDefaultsMarker() error {
 	if e == nil {
 		return nil
 	}
-	path := ProviderDefaultsSetMarkerPath(e.runtime)
+	cfg, rt := e.configRuntimeSnapshot()
+	path := ProviderDefaultsSetMarkerPath(rt)
 	if path == "" {
 		return nil
 	}
-	current := providerDefaultsSetIDForConfig(e.cfg)
+	current := providerDefaultsSetIDForConfig(cfg)
 	if current == "" {
 		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
 			return err

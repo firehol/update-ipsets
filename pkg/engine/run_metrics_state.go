@@ -6,16 +6,20 @@ import (
 	"github.com/firehol/update-ipsets/internal/observability"
 )
 
+func (e *Engine) currentRunMetrics() *runMetrics {
+	if e == nil {
+		return nil
+	}
+	return e.currentMetricsPtr.Load()
+}
+
 func (e *Engine) observeRunOperation(name string, dur time.Duration) {
 	if e == nil || name == "" {
 		return
 	}
 	observability.Duration(observability.BackgroundContext(), name, dur)
 	e.lifetimeOperations.Observe(name, dur)
-	e.mu.RLock()
-	current := e.currentMetrics
-	e.mu.RUnlock()
-	if current != nil {
+	if current := e.currentRunMetrics(); current != nil {
 		current.observeOperation(name, dur)
 	}
 }
@@ -31,10 +35,7 @@ func (e *Engine) observeRunOperationAggregate(name string, count int64, total, m
 	observability.Count(observability.BackgroundContext(), name, count)
 	observability.Duration(observability.BackgroundContext(), name+".aggregate", total)
 	e.lifetimeOperations.ObserveAggregate(name, count, total, max)
-	e.mu.RLock()
-	current := e.currentMetrics
-	e.mu.RUnlock()
-	if current != nil {
+	if current := e.currentRunMetrics(); current != nil {
 		current.observeOperationAggregate(name, count, total, max)
 	}
 }
@@ -43,10 +44,7 @@ func (e *Engine) observeFeedOperation(feedName, operation string, dur time.Durat
 	if e == nil || feedName == "" || operation == "" {
 		return
 	}
-	e.mu.RLock()
-	current := e.currentMetrics
-	e.mu.RUnlock()
-	if current != nil {
+	if current := e.currentRunMetrics(); current != nil {
 		current.observeFeedOperation(feedName, operation, dur)
 	}
 }
@@ -57,10 +55,7 @@ func (e *Engine) observeRunCounter(name string, count, bytes int64) {
 	}
 	observability.Observe(observability.BackgroundContext(), name, count, bytes, 0)
 	e.lifetimeCounters.Add(name, count, bytes)
-	e.mu.RLock()
-	current := e.currentMetrics
-	e.mu.RUnlock()
-	if current != nil {
+	if current := e.currentRunMetrics(); current != nil {
 		current.observeCounter(name, count, bytes)
 	}
 }
@@ -73,9 +68,7 @@ func (e *Engine) feedMetricsSnapshot(name string) (FeedTimingSnapshot, bool) {
 	if e == nil || name == "" {
 		return FeedTimingSnapshot{}, false
 	}
-	e.mu.RLock()
-	current := e.currentMetrics
-	e.mu.RUnlock()
+	current := e.currentRunMetrics()
 	if current == nil {
 		return FeedTimingSnapshot{}, false
 	}
@@ -93,10 +86,7 @@ func (e *Engine) observeFeedWork(name string, result FeedProcessingResult, elaps
 	if result.Work.UniqueIPs > 0 {
 		e.observeRunCounter("sources.unique_ips_processed", result.Work.UniqueIPs, 0)
 	}
-	e.mu.RLock()
-	current := e.currentMetrics
-	e.mu.RUnlock()
-	if current != nil {
+	if current := e.currentRunMetrics(); current != nil {
 		current.observeFeedWork(name, result, elapsed)
 	}
 }

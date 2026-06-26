@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/firehol/update-ipsets/pkg/cache"
 	"github.com/firehol/update-ipsets/pkg/config"
 	"github.com/firehol/update-ipsets/pkg/output"
 	"github.com/firehol/update-ipsets/pkg/runreason"
@@ -318,10 +317,12 @@ func (e *Engine) runFullHeavyPhases(ctx context.Context, opts RunOptions, report
 		e.observeRunCounter("entity.sidecar_stage.deferred_full_rebuild", int64(len(report.EntityRefreshTargets)), 0)
 		return nil, nil
 	}
+	expectedEntityGeneration := e.entityArtifactGenerationSnapshot()
 	entityBatch, err := e.newEntityPublishBatch()
 	if err != nil {
 		return nil, err
 	}
+	entityBatch.expectedGeneration = expectedEntityGeneration
 	entityRefreshTargets, err := e.stageFeedEntitySidecarsFromLoadedProviders(ctx, geoProviders, asnDBs, plan.fanOutUpdated, webOutDir, entityBatch.stagedPublishBatch, setCache)
 	if err != nil {
 		entityBatch.cleanup()
@@ -374,6 +375,9 @@ func (e *Engine) publishRunArtifacts(ctx context.Context, opts RunOptions, repor
 		if err := opts.BeforePublish(report); err != nil {
 			return err
 		}
+		if err := contextErr(ctx); err != nil {
+			return err
+		}
 	}
 	e.setRunPhase(RunPhasePublish)
 	timestampOp := e.beginActiveOperation("publish.apply_timestamps", "", "timestamps", "files", int64(len(generated)))
@@ -397,16 +401,21 @@ func (e *Engine) publishRunArtifacts(ctx context.Context, opts RunOptions, repor
 			return err
 		}
 		entityPublishOp := e.beginActiveOperation("publish.promote_entity_artifacts", "", "publish", "files", 0)
-		e.entityArtifactsMu.Lock()
 		entityPublishTotal, countErr := entityBatch.publishWorkTotal(ctx)
 		if countErr == nil {
 			entityPublishOp.Update(0, entityPublishTotal, nil)
-			_, err = entityBatch.publishContext(ctx, entityPublishOp)
-			e.bumpEntityArtifactGenerationLocked()
+			err = func() error {
+				lease, err := e.acquireEntityArtifactPublishLease(ctx, entityBatch.expectedGeneration)
+				if err != nil {
+					return err
+				}
+				defer lease.release(true)
+				_, err = entityBatch.publishContext(ctx, entityPublishOp)
+				return err
+			}()
 		} else {
 			err = countErr
 		}
-		e.entityArtifactsMu.Unlock()
 		entityPublishOp.Finish()
 		if err != nil {
 			return err
@@ -420,7 +429,7 @@ func (e *Engine) publishRunArtifacts(ctx context.Context, opts RunOptions, repor
 	for _, file := range copied {
 		published = append(published, file.Path)
 	}
-	if err := e.syncGeneratedFiles(generated, published); err != nil {
+	if err := e.syncGeneratedFiles(ctx, generated, published); err != nil {
 		return err
 	}
 	// The runtime marker carries the SAME identity that was stamped into
@@ -438,5 +447,5 @@ func (e *Engine) publishRunArtifacts(ctx context.Context, opts RunOptions, repor
 			return err
 		}
 	}
-	return cache.Save(e.cachePath, e.state)
+	return nil
 }

@@ -1,12 +1,14 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/firehol/update-ipsets/pkg/asnloc"
 )
@@ -117,6 +119,158 @@ func TestASNDatabaseCacheKeepsExistingEntryWhenReplacementOpenFails(t *testing.T
 	}
 	if got := cache.dbs["asn"]; got != entry {
 		t.Fatalf("cache entry after failed replacement = %#v, want original entry", got)
+	}
+}
+
+func TestASNDatabaseCacheOpenDoesNotBlockIndependentProvider(t *testing.T) {
+	cache := newASNDatabaseCache()
+	firstOpenStarted := make(chan struct{})
+	releaseFirstOpen := make(chan struct{})
+	firstDone := make(chan error, 1)
+
+	go func() {
+		lease, err := cache.acquire("asn-a", "/tmp/asn-a.source", 1, func() (*asnloc.Database, error) {
+			close(firstOpenStarted)
+			<-releaseFirstOpen
+			return &asnloc.Database{Provider: "asn-a"}, nil
+		})
+		if lease != nil {
+			lease.Close()
+		}
+		firstDone <- err
+	}()
+
+	select {
+	case <-firstOpenStarted:
+	case <-time.After(time.Second):
+		t.Fatal("first provider open did not start")
+	}
+
+	secondDone := make(chan error, 1)
+	go func() {
+		lease, err := cache.acquire("asn-b", "/tmp/asn-b.source", 1, func() (*asnloc.Database, error) {
+			return &asnloc.Database{Provider: "asn-b"}, nil
+		})
+		if lease != nil {
+			lease.Close()
+		}
+		secondDone <- err
+	}()
+
+	select {
+	case err := <-secondDone:
+		if err != nil {
+			close(releaseFirstOpen)
+			t.Fatalf("second provider acquire error = %v", err)
+		}
+	case <-time.After(200 * time.Millisecond):
+		close(releaseFirstOpen)
+		t.Fatal("independent provider acquire was blocked by another provider open")
+	}
+
+	close(releaseFirstOpen)
+	if err := <-firstDone; err != nil {
+		t.Fatalf("first provider acquire error = %v", err)
+	}
+}
+
+func TestASNDatabaseCacheDeduplicatesConcurrentSameProviderOpen(t *testing.T) {
+	cache := newASNDatabaseCache()
+	firstOpenStarted := make(chan struct{})
+	releaseFirstOpen := make(chan struct{})
+	secondOpenCalled := make(chan struct{})
+	firstDone := make(chan error, 1)
+	var openCalls atomic.Int64
+
+	go func() {
+		lease, err := cache.acquire("asn", "/tmp/asn.source", 1, func() (*asnloc.Database, error) {
+			openCalls.Add(1)
+			close(firstOpenStarted)
+			<-releaseFirstOpen
+			return &asnloc.Database{Provider: "asn"}, nil
+		})
+		if lease != nil {
+			lease.Close()
+		}
+		firstDone <- err
+	}()
+
+	select {
+	case <-firstOpenStarted:
+	case <-time.After(time.Second):
+		t.Fatal("first provider open did not start")
+	}
+
+	secondDone := make(chan error, 1)
+	go func() {
+		lease, err := cache.acquire("asn", "/tmp/asn.source", 1, func() (*asnloc.Database, error) {
+			openCalls.Add(1)
+			close(secondOpenCalled)
+			return &asnloc.Database{Provider: "asn-duplicate"}, nil
+		})
+		if lease != nil {
+			lease.Close()
+		}
+		secondDone <- err
+	}()
+
+	select {
+	case <-secondOpenCalled:
+		close(releaseFirstOpen)
+		t.Fatal("duplicate provider acquire opened the same cache key concurrently")
+	case <-time.After(200 * time.Millisecond):
+	}
+
+	close(releaseFirstOpen)
+	if err := <-firstDone; err != nil {
+		t.Fatalf("first provider acquire error = %v", err)
+	}
+	select {
+	case err := <-secondDone:
+		if err != nil {
+			t.Fatalf("second provider acquire error = %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("second provider acquire did not finish after first open completed")
+	}
+	if got, want := openCalls.Load(), int64(1); got != want {
+		t.Fatalf("open calls = %d, want %d", got, want)
+	}
+}
+
+func TestASNDatabaseCacheAcquireContextCancelsWhileWaitingForSameProviderOpen(t *testing.T) {
+	cache := newASNDatabaseCache()
+	key := asnDatabaseCacheKey{provider: "asn", path: "/tmp/asn.source", sizeModKey: 1}
+	load := &asnDatabaseLoad{done: make(chan struct{})}
+	cache.mu.Lock()
+	cache.ensureLocked()
+	cache.loads[key] = load
+	cache.mu.Unlock()
+
+	secondOpenCalled := make(chan struct{})
+	ctx, cancel := context.WithCancel(t.Context())
+	secondDone := make(chan error, 1)
+	go func() {
+		lease, err := cache.acquireContext(ctx, "asn", "/tmp/asn.source", 1, func() (*asnloc.Database, error) {
+			close(secondOpenCalled)
+			return &asnloc.Database{Provider: "asn-duplicate"}, nil
+		})
+		if lease != nil {
+			lease.Close()
+		}
+		secondDone <- err
+	}()
+
+	cancel()
+	select {
+	case <-secondOpenCalled:
+		t.Fatal("canceled same-provider waiter opened a duplicate database")
+	case err := <-secondDone:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("canceled same-provider waiter error = %v, want context.Canceled", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("canceled same-provider waiter did not return")
 	}
 }
 

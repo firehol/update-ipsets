@@ -346,6 +346,24 @@ limit `1`, MUST be bounded by its configured limit at higher values, and MUST
 not be acquired by the public/admin web server or watchdog sampling paths.
 One `RunOnce` invocation is one engine-lane item; the engine lane admits the
 whole processing run, not individual heavy phases inside that run.
+The engine-lane item stages all artifacts needed by that run, then releases the
+lane before final publication waits. The run remains serialized as
+`finalizing`: a later `RunOnce` MUST NOT start until local publication, required
+git publication for that run, and cache-persistence admission have completed.
+This preserves run-to-artifact/git fidelity while keeping the engine lane
+available for unrelated non-run work.
+
+Engine-lane start notifications and shutdown notifications MUST be delivered
+outside the lane mutex and with non-blocking send semantics. A queued synchronous
+caller with a full or abandoned start channel MUST NOT wedge shutdown,
+rescheduling, or later work admission.
+
+Engine-lane callback panics and lane finalization panics MUST be contained.
+Callback panics are returned as failed work. Finalization panics MUST mark the
+affected item failed, release the active slot, wake the idle waiter if needed,
+and allow later queued work to start. Lane shutdown ownership MUST be attached
+to at most one service context; duplicate context attachments are observable and
+MUST NOT create duplicate shutdown goroutines.
 
 The engine lane is an admission and serialization boundary. Once a broad
 operation is admitted, it MAY use its own bounded feed-processing, heavy-phase,
@@ -780,13 +798,25 @@ Publication MUST preserve this order:
    artifact-parent source archives, before public artifact publication
 6. apply the logical mtimes required by producer contracts to staged public
    artifacts
-7. publish the staged public artifact tree and save the updated cache state
+7. publish the staged public artifact tree during run finalization outside the
+   engine lane
+8. when configured, sync generated publication files to Git with bounded
+   subprocess deadlines
+9. save the updated cache state from a post-publication snapshot
 
 Publication MUST preserve the integrity timestamp contract. Files written into
 staging directories may temporarily have filesystem write mtimes, but before
 they become committed publication data the publishing path MUST set or preserve
 the logical mtime assigned by the producer. Public artifact freshness MUST NOT
 depend on the instant a staged file was renamed into the live tree.
+
+Git sync is an optional mirror/update step after local publication. Git add,
+diff, commit, push, and auto-maintenance subprocesses MUST be bounded by the
+configured git publication timeout. A timeout is a publication-run failure that
+operators can see and retry, but it MUST NOT corrupt or roll back completed
+local artifact publication. Git publication MUST be serialized through a
+dedicated one-slot FIFO so background entity refreshes and full processing runs
+cannot run overlapping git subprocesses.
 
 When a staged public or entity artifact is byte-identical to the existing live
 artifact, the publishing path MAY keep the live file in place and update its

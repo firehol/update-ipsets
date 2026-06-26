@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -49,8 +50,8 @@ func (e *Engine) beginBackgroundTaskWithLaneWork(kind LaneWorkKind, component La
 	if e == nil {
 		return nil
 	}
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.backgroundTasksMu.Lock()
+	defer e.backgroundTasksMu.Unlock()
 
 	e.backgroundTaskSeq++
 	id := name + "-" + strconv.FormatUint(e.backgroundTaskSeq, 10)
@@ -83,8 +84,8 @@ func (h *BackgroundTaskHandle) Update(stage, detail string, current, total int) 
 	if h == nil || h.engine == nil || h.id == "" {
 		return
 	}
-	h.engine.mu.Lock()
-	defer h.engine.mu.Unlock()
+	h.engine.backgroundTasksMu.Lock()
+	defer h.engine.backgroundTasksMu.Unlock()
 
 	task, ok := h.engine.backgroundTasks[h.id]
 	if !ok {
@@ -105,19 +106,24 @@ func (h *BackgroundTaskHandle) Finish() {
 	if h == nil || h.engine == nil || h.id == "" {
 		return
 	}
-	h.engine.mu.Lock()
-	defer h.engine.mu.Unlock()
+	h.engine.backgroundTasksMu.Lock()
+	defer h.engine.backgroundTasksMu.Unlock()
 	delete(h.engine.backgroundTasks, h.id)
 }
 
-func (e *Engine) withEngineLaneBackgroundTask(ctx context.Context, kind LaneWorkKind, component LaneWorkComponent, name, trigger, stage, detail string, current, total int, fn func(task *BackgroundTaskHandle) error) error {
+func (e *Engine) withEngineLaneBackgroundTask(ctx context.Context, kind LaneWorkKind, component LaneWorkComponent, name, trigger, stage, detail string, current, total int, fn func(task *BackgroundTaskHandle) error) (err error) {
 	ctx = nonNilContext(ctx)
 	metricComponent := backgroundMetricComponent(kind, component)
 	e.observeRunCounter("background.tasks.started", 1, 0)
 	observeBackgroundTask(metricComponent, "started")
 	task := e.beginBackgroundTaskWithLaneWork(kind, component, name, trigger, stage, detail, current, total)
-	if task == nil {
-		err := fn(nil)
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			err = fmt.Errorf("%w: background task panicked: %v", ErrLanePanic, recovered)
+		}
+		if task != nil {
+			task.Finish()
+		}
 		if err != nil {
 			e.observeRunCounter("background.tasks.failed", 1, 0)
 			observeBackgroundTask(metricComponent, "failed")
@@ -125,24 +131,15 @@ func (e *Engine) withEngineLaneBackgroundTask(ctx context.Context, kind LaneWork
 			e.observeRunCounter("background.tasks.completed", 1, 0)
 			observeBackgroundTask(metricComponent, "completed")
 		}
-		return err
+	}()
+	if fn == nil {
+		return errors.New("background task requires callback")
 	}
-	defer task.Finish()
 
 	if err := contextErr(ctx); err != nil {
-		e.observeRunCounter("background.tasks.failed", 1, 0)
-		observeBackgroundTask(metricComponent, "failed")
 		return err
 	}
-	err := fn(task)
-	if err != nil {
-		e.observeRunCounter("background.tasks.failed", 1, 0)
-		observeBackgroundTask(metricComponent, "failed")
-	} else {
-		e.observeRunCounter("background.tasks.completed", 1, 0)
-		observeBackgroundTask(metricComponent, "completed")
-	}
-	return err
+	return fn(task)
 }
 
 func backgroundMetricComponent(kind LaneWorkKind, component LaneWorkComponent) string {
@@ -186,12 +183,12 @@ func observeBackgroundTask(component, result string) {
 	)
 }
 
-func (e *Engine) snapshotBackgroundTasksLocked() []BackgroundTaskSnapshot {
-	if e == nil || len(e.backgroundTasks) == 0 {
+func backgroundTasksFromMap(in map[string]backgroundTaskState) []BackgroundTaskSnapshot {
+	if len(in) == 0 {
 		return nil
 	}
-	out := make([]BackgroundTaskSnapshot, 0, len(e.backgroundTasks))
-	for _, task := range e.backgroundTasks {
+	out := make([]BackgroundTaskSnapshot, 0, len(in))
+	for _, task := range in {
 		out = append(out, task.BackgroundTaskSnapshot)
 	}
 	sort.Slice(out, func(i, j int) bool {
@@ -207,6 +204,15 @@ func (e *Engine) snapshotBackgroundTasksLocked() []BackgroundTaskSnapshot {
 		return out[i].StartedAt.Before(out[j].StartedAt)
 	})
 	return out
+}
+
+func (e *Engine) snapshotBackgroundTasks() []BackgroundTaskSnapshot {
+	if e == nil {
+		return nil
+	}
+	e.backgroundTasksMu.RLock()
+	defer e.backgroundTasksMu.RUnlock()
+	return backgroundTasksFromMap(e.backgroundTasks)
 }
 
 func backgroundEntityTaskDetail(kind string, count int) string {

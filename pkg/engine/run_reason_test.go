@@ -56,6 +56,36 @@ func TestRunPersistsRunReasonAndProcessingDuration(t *testing.T) {
 	}
 }
 
+func TestBeginFeedAttemptConcurrentEntryConfigUpdate(t *testing.T) {
+	eng := newEngineFixture(t)
+	entry := cache.New().Entry("initial")
+	start := make(chan struct{})
+	done := make(chan struct{})
+	var stop atomic.Bool
+
+	go func() {
+		defer close(done)
+		<-start
+		names := []string{"initial", "renamed"}
+		for i := 0; !stop.Load(); i++ {
+			entry.ApplyProcessingSourceConfig(cache.ProcessingSourceConfigSnapshot{Name: names[i%len(names)]})
+		}
+	}()
+	close(start)
+
+	for range 5000 {
+		attempt := eng.beginFeedAttempt(entry, runreason.ReasonScheduledDue)
+		if attempt.name != "initial" && attempt.name != "renamed" {
+			stop.Store(true)
+			<-done
+			t.Fatalf("attempt name = %q, want stable configured name", attempt.name)
+		}
+		attempt.finish()
+	}
+	stop.Store(true)
+	<-done
+}
+
 func TestStatusSnapshotCountsExpandedMergeSources(t *testing.T) {
 	cfg := config.New()
 	cfg.Sources["plain"] = &config.Source{Name: "plain", URL: "https://example.test/plain.txt", Frequency: 60, IPV: "ipv4", Output: "ipset"}
@@ -74,7 +104,9 @@ func TestStatusSnapshotLightOmitsMetricsButKeepsLiveProgress(t *testing.T) {
 	eng.mu.Lock()
 	eng.running = true
 	eng.currentPhase = RunPhaseMetadata
-	eng.currentMetrics = newRunMetrics(started, RunPhaseMetadata)
+	metrics := newRunMetrics(started, RunPhaseMetadata)
+	eng.currentMetrics = metrics
+	eng.currentMetricsPtr.Store(metrics)
 	eng.lastMetrics = &RunMetricsSnapshot{StartedAt: started.Add(-time.Hour)}
 	eng.mu.Unlock()
 	eng.ObserveOperation("metadata.comparison_pair_overlap", time.Second)
@@ -118,6 +150,88 @@ func TestStatusSnapshotLightOmitsMetricsButKeepsLiveProgress(t *testing.T) {
 	}
 	if full.LifetimeMetrics == nil {
 		t.Fatal("full status lost lifetime metrics")
+	}
+}
+
+func TestObserverMetricsDoNotTakeEngineMutex(t *testing.T) {
+	eng := newEngineFixture(t)
+	metrics := newRunMetrics(time.Now().UTC(), RunPhaseMetadata)
+	eng.currentMetricsPtr.Store(metrics)
+	t.Cleanup(func() { eng.currentMetricsPtr.Store(nil) })
+
+	eng.mu.Lock()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		eng.ObserveOperation("http.admin_status.build", time.Millisecond)
+		eng.ObserveCounter("http.admin_status", 1, 128)
+		eng.observeRunOperationAggregate("http.admin_status.aggregate", 2, 2*time.Millisecond, time.Millisecond)
+		eng.observeFeedOperation("sample", "sources.finalize", time.Millisecond)
+	}()
+	select {
+	case <-done:
+	case <-time.After(250 * time.Millisecond):
+		eng.mu.Unlock()
+		t.Fatal("observer metrics blocked on engine mutex")
+	}
+	eng.mu.Unlock()
+}
+
+func TestActiveAndBackgroundUpdatesDoNotTakeEngineMutex(t *testing.T) {
+	eng := newEngineFixture(t)
+	op := eng.beginActiveOperation("metadata.compare_pairs", "", "compare", "pairs", 10)
+	task := eng.beginBackgroundTask("Entity artifacts refresh", "test", "running", "test", 0, 10)
+	t.Cleanup(func() {
+		op.Finish()
+		task.Finish()
+	})
+
+	eng.mu.Lock()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		op.Update(5, 10, map[string]int64{"pairs": 5})
+		op.Add(1, 10, nil)
+		task.Update("running", "progress", 5, 10)
+	}()
+	select {
+	case <-done:
+	case <-time.After(250 * time.Millisecond):
+		eng.mu.Unlock()
+		t.Fatal("active/background progress update blocked on engine mutex")
+	}
+	eng.mu.Unlock()
+}
+
+func TestStatusSnapshotDoesNotHoldEngineMutexWhileReadingActiveOperations(t *testing.T) {
+	eng := newEngineFixture(t)
+	op := eng.beginActiveOperation("metadata.compare_pairs", "", "compare", "pairs", 10)
+	defer op.Finish()
+
+	eng.activeOperationsMu.Lock()
+	statusDone := make(chan struct{})
+	go func() {
+		defer close(statusDone)
+		_ = eng.StatusSnapshotLight()
+	}()
+
+	lockDone := make(chan struct{})
+	go func() {
+		eng.mu.Lock()
+		close(lockDone)
+		eng.mu.Unlock()
+	}()
+	select {
+	case <-lockDone:
+	case <-time.After(250 * time.Millisecond):
+		eng.activeOperationsMu.Unlock()
+		t.Fatal("status snapshot held engine mutex while waiting on active operations")
+	}
+	eng.activeOperationsMu.Unlock()
+	select {
+	case <-statusDone:
+	case <-time.After(250 * time.Millisecond):
+		t.Fatal("status snapshot did not finish after active operation lock was released")
 	}
 }
 
@@ -238,7 +352,7 @@ func TestStatusSnapshotIncludesCurrentBatchAndPhasePlan(t *testing.T) {
 	if !eng.tryMarkRunStart(now, runreason.ReasonManualRun) {
 		t.Fatal("expected run start")
 	}
-	defer eng.markRunEnd(&Report{}, nil)
+	defer eng.markRunIdleAfterFinalization(&Report{StartedAt: now}, nil)
 	eng.startRunBatch([]string{"plain", "plain_1h", "merged"})
 	eng.markRunBatchCompleted("plain")
 	attempt := eng.beginFeedAttempt(&cache.Entry{Name: "plain_1h"}, runreason.ReasonDependencyUpdate)

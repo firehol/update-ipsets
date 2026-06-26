@@ -1,11 +1,15 @@
 package engine
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/firehol/update-ipsets/pkg/cache"
 )
@@ -157,6 +161,35 @@ func TestObserveHistoryPointBootstrapsFromCacheEntryAndPublicTail(t *testing.T) 
 	}
 	if got, want := tail[1].Timestamp, next.Timestamp; got != want {
 		t.Fatalf("tail[1].timestamp after bootstrap observe = %d, want %d", got, want)
+	}
+}
+
+func TestObserveHistoryPointContextHonorsCanceledContext(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	eng := newEngineFixture(t, withRuntime(func(rt *Runtime) {
+		rt.LibDir = root
+		rt.WebChartsEntries = 2
+	}))
+	const name = "sample"
+	if err := appendCSV(filepath.Join(root, name, "history.csv"), "DateTime,Entries,UniqueIPs\n", "1700000000,10,100\n"); err != nil {
+		t.Fatalf("append history row: %v", err)
+	}
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	entry := &cache.Entry{Name: name}
+	if eng.observeHistoryPointContext(ctx, name, HistoryPoint{
+		Timestamp: 1700003600,
+		Name:      name,
+		Entries:   20,
+		UniqueIPs: 200,
+	}, entry, nil, 60) {
+		t.Fatal("observeHistoryPointContext() succeeded with canceled context")
+	}
+	if entry.Version != 0 || entry.Entries != 0 || entry.UniqueIPs != 0 {
+		t.Fatalf("entry was updated despite canceled context: %+v", entry)
 	}
 }
 
@@ -433,12 +466,12 @@ func TestChangesetTailFromRuntimeReadsLargeLedgerTail(t *testing.T) {
 	}
 	var b strings.Builder
 	b.WriteString(changesetLedgerHeader)
-	b.WriteString(fmt.Sprintf("%d,1,1\n", base))
+	fmt.Fprintf(&b, "%d,1,1\n", base)
 	for i := int64(1); i <= 8000; i++ {
-		b.WriteString(fmt.Sprintf("%d,%d,0\n", base+i*3600, i+1))
+		fmt.Fprintf(&b, "%d,%d,0\n", base+i*3600, i+1)
 	}
 	b.WriteString("not,a,valid,row\n")
-	b.WriteString(fmt.Sprintf("%d,0,0\n", base+9000*3600))
+	fmt.Fprintf(&b, "%d,0,0\n", base+9000*3600)
 	if err := writeFileAtomic(path, []byte(b.String()), generatedFileMode); err != nil {
 		t.Fatalf("write changesets ledger: %v", err)
 	}
@@ -467,9 +500,9 @@ func BenchmarkLoadChangesetTailLargeLedger(b *testing.B) {
 	}
 	var body strings.Builder
 	body.WriteString(changesetLedgerHeader)
-	body.WriteString(fmt.Sprintf("%d,1,1\n", base))
+	fmt.Fprintf(&body, "%d,1,1\n", base)
 	for i := int64(1); i <= 100_000; i++ {
-		body.WriteString(fmt.Sprintf("%d,%d,0\n", base+i*3600, i+1))
+		fmt.Fprintf(&body, "%d,%d,0\n", base+i*3600, i+1)
 	}
 	if err := writeFileAtomic(path, []byte(body.String()), generatedFileMode); err != nil {
 		b.Fatalf("write changesets ledger: %v", err)
@@ -485,6 +518,100 @@ func BenchmarkLoadChangesetTailLargeLedger(b *testing.B) {
 		if len(tail) != 200 {
 			b.Fatalf("tail len = %d, want 200", len(tail))
 		}
+	}
+}
+
+func TestRuntimeLedgerHistoryLoadDoesNotHoldFeedLock(t *testing.T) {
+	root := t.TempDir()
+	eng := newEngineFixture(t, withRuntime(func(rt *Runtime) {
+		rt.LibDir = root
+		rt.WebChartsEntries = 2
+	}))
+	const name = "sample"
+	if err := appendCSV(filepath.Join(root, name, "history.csv"), "DateTime,Entries,UniqueIPs\n", "1700000000,10,100\n"); err != nil {
+		t.Fatalf("append history row: %v", err)
+	}
+
+	loadStarted := make(chan struct{})
+	releaseLoad := make(chan struct{})
+	var loadStartedOnce sync.Once
+	restore := setRuntimeLedgerLoadHookForTest(func(kind, feed string) {
+		if kind != "history" || feed != name {
+			return
+		}
+		loadStartedOnce.Do(func() { close(loadStarted) })
+		<-releaseLoad
+	})
+	defer restore()
+
+	tailDone := make(chan struct{})
+	go func() {
+		_ = eng.historyTailFromRuntime(name)
+		close(tailDone)
+	}()
+
+	select {
+	case <-loadStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("history ledger load did not start")
+	}
+
+	observerDone := make(chan struct{})
+	go func() {
+		eng.observeRetentionCohort(name, 1700000000, 1)
+		close(observerDone)
+	}()
+
+	select {
+	case <-observerDone:
+	case <-time.After(200 * time.Millisecond):
+		close(releaseLoad)
+		t.Fatal("history ledger load held the per-feed ledger lock")
+	}
+
+	close(releaseLoad)
+	select {
+	case <-tailDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("history ledger load did not finish")
+	}
+}
+
+func TestRuntimeLedgerLoadersHonorCancelledContext(t *testing.T) {
+	root := t.TempDir()
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	historyPath := filepath.Join(root, "sample", "history.csv")
+	if err := appendCSV(historyPath, "DateTime,Entries,UniqueIPs\n", "1700000000,10,100\n"); err != nil {
+		t.Fatalf("append history row: %v", err)
+	}
+	if _, _, err := loadHistoryLedgerStateContext(ctx, historyPath, "sample", 10); !errors.Is(err, context.Canceled) {
+		t.Fatalf("loadHistoryLedgerStateContext() error = %v, want context.Canceled", err)
+	}
+
+	changesPath := filepath.Join(root, "sample", "changesets.csv")
+	if err := appendCSV(changesPath, changesetLedgerHeader, "1700000000,1,0\n"); err != nil {
+		t.Fatalf("append changeset row: %v", err)
+	}
+	if _, err := loadChangesetTailContext(ctx, changesPath, 10); !errors.Is(err, context.Canceled) {
+		t.Fatalf("loadChangesetTailContext() error = %v, want context.Canceled", err)
+	}
+
+	retentionPath := filepath.Join(root, "sample", "retention.csv")
+	if err := appendCSV(retentionPath, "date_removed,date_added,hours,ips\n", "1700003600,1700000000,1,10\n"); err != nil {
+		t.Fatalf("append retention row: %v", err)
+	}
+	if _, err := loadRetentionPastContext(ctx, retentionPath, 0); !errors.Is(err, context.Canceled) {
+		t.Fatalf("loadRetentionPastContext() error = %v, want context.Canceled", err)
+	}
+
+	cohortDir := filepath.Join(root, "sample")
+	if err := appendCSV(filepath.Join(cohortDir, "retention_cohorts.csv"), "date_added,ips\n", "1700000000,10\n"); err != nil {
+		t.Fatalf("append retention cohort row: %v", err)
+	}
+	if _, err := loadRetentionCohorts(ctx, cohortDir); !errors.Is(err, context.Canceled) {
+		t.Fatalf("loadRetentionCohorts() error = %v, want context.Canceled", err)
 	}
 }
 

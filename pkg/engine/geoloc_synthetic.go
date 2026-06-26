@@ -39,17 +39,18 @@ func (e *Engine) syntheticGeoBucketProvider(bucket string) downloader.InternalPr
 }
 
 func (e *Engine) availableGeoSyntheticProviders() (geoPreparedProviders, time.Time, error) {
-	if e == nil || e.cfg == nil {
+	cfg, rt, geoProviders, _ := e.lookupContextSnapshot()
+	if cfg == nil || geoProviders == nil {
 		return nil, time.Time{}, fmt.Errorf("engine is not initialized")
 	}
 	providers := make(geoPreparedProviders)
 	missing := make([]string, 0)
 	newest := time.Time{}
-	for _, src := range e.cfg.SourcesWithUse(config.UseGeoIP) {
+	for _, src := range cfg.SourcesWithUse(config.UseGeoIP) {
 		if src == nil {
 			continue
 		}
-		path := preferStagedPath(e.providerArchivePath(src.Name, src))
+		path := preferStagedPath(providerArchivePathForRuntime(rt, src.Name, src))
 		info, err := os.Stat(path)
 		if err != nil {
 			if os.IsNotExist(err) {
@@ -58,7 +59,7 @@ func (e *Engine) availableGeoSyntheticProviders() (geoPreparedProviders, time.Ti
 			}
 			return nil, time.Time{}, fmt.Errorf("stat geolocation provider %s: %w", src.Name, err)
 		}
-		prepared, err := e.geoProviders.LoadOrParse(src.Name, src.Format, path)
+		prepared, err := geoProviders.LoadOrParse(src.Name, src.Format, path)
 		if err != nil {
 			return nil, time.Time{}, fmt.Errorf("load geolocation provider %s: %w", src.Name, err)
 		}

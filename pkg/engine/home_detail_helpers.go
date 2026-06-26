@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"sort"
 	"strings"
 
@@ -35,7 +36,8 @@ func detailSurfaceEligible(cfg *config.Config, src *config.Source) bool {
 	return true
 }
 
-func countryFilteredRangeSource(src iprange.RangeSource, prepared *geoPreparedProvider, code string) iprange.RangeSource {
+func countryFilteredRangeSource(ctx context.Context, src iprange.RangeSource, prepared *geoPreparedProvider, code string) iprange.RangeSource {
+	ctx = nonNilContext(ctx)
 	targetIndex := geoPreparedCodeIndex(prepared, strings.ToUpper(strings.TrimSpace(code)))
 	if src == nil || prepared == nil || targetIndex < 0 || len(prepared.segments) == 0 {
 		return iprange.RangeSourceFromIter(nil, 0)
@@ -43,7 +45,7 @@ func countryFilteredRangeSource(src iprange.RangeSource, prepared *geoPreparedPr
 	targetCode := uint16(targetIndex)
 	return iprange.RangeSourceFromIterErr(
 		func(yield func(iprange.Range) bool) error {
-			return iprange.WalkRangeOverlapsContext(nil, src, geoPreparedSegmentIndex(prepared.segments), func(overlap iprange.RangeOverlap) bool {
+			return iprange.WalkRangeOverlapsContext(ctx, src, geoPreparedSegmentIndex(prepared.segments), func(overlap iprange.RangeOverlap) bool {
 				segment := prepared.segments[overlap.RightIndex]
 				if !geoPreparedSegmentHasCode(segment, targetCode) {
 					return true
@@ -55,7 +57,8 @@ func countryFilteredRangeSource(src iprange.RangeSource, prepared *geoPreparedPr
 	)
 }
 
-func countCountriesForASNSource(src iprange.RangeSource, db *asnloc.Database, prepared *geoPreparedProvider, targetASN uint32) ([]CountryValue, uint64, error) {
+func countCountriesForASNSource(ctx context.Context, src iprange.RangeSource, db *asnloc.Database, prepared *geoPreparedProvider, targetASN uint32) ([]CountryValue, uint64, error) {
+	ctx = nonNilContext(ctx)
 	if src == nil || db == nil || prepared == nil || targetASN == 0 || len(prepared.segments) == 0 {
 		return nil, 0, nil
 	}
@@ -64,7 +67,7 @@ func countCountriesForASNSource(src iprange.RangeSource, db *asnloc.Database, pr
 	var totalMapped uint64
 
 	var lookupErr error
-	err := iprange.WalkRangeOverlapsContext(nil, src, geoPreparedSegmentIndex(prepared.segments), func(overlap iprange.RangeOverlap) bool {
+	err := iprange.WalkRangeOverlapsContext(ctx, src, geoPreparedSegmentIndex(prepared.segments), func(overlap iprange.RangeOverlap) bool {
 		segment := prepared.segments[overlap.RightIndex]
 		cur := overlap.Overlap.Lo
 		hi := overlap.Overlap.Hi

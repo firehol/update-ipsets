@@ -8,7 +8,6 @@ import (
 	"io"
 	"net/netip"
 	"os"
-	"strings"
 	"unsafe"
 )
 
@@ -149,43 +148,6 @@ func LoadPath6(ctx context.Context, path string, opts ParseOptions) (*IPSet6, er
 		}
 	}
 	return ParseReader6(ctx, path, f, opts)
-}
-
-func parseIPv6OrMappedEndpoint(token string, opts ParseOptions) (Uint128, Uint128, error) {
-	if looksLikeIPv6(token) {
-		return parseIPv6Endpoint(token, opts)
-	}
-
-	if strings.Contains(token, "/") {
-		parts := strings.SplitN(token, "/", 2)
-		addr, err := ParseIPv4Token(parts[0])
-		if err == nil {
-			prefix, pErr := ParsePrefix(parts[1])
-			if pErr == nil && prefix >= 0 && prefix <= 32 {
-				lo := IPv4ToMapped6(Network(addr, prefix))
-				hi := IPv4ToMapped6(Broadcast(addr, prefix))
-				return lo, hi, nil
-			}
-		}
-	}
-
-	addr, err := ParseIPv4Token(token)
-	if err == nil {
-		mapped := IPv4ToMapped6(addr)
-		if opts.DefaultPrefix < 0 || opts.DefaultPrefix > 128 {
-			return uint128Zero, uint128Zero, ErrInvalidPrefix
-		}
-		if opts.DefaultPrefix >= 32 {
-			return mapped, mapped, nil
-		}
-		lo := addr
-		if opts.UseCIDRNetwork {
-			lo = Network(addr, opts.DefaultPrefix)
-		}
-		return IPv4ToMapped6(lo), IPv4ToMapped6(Broadcast(lo, opts.DefaultPrefix)), nil
-	}
-
-	return parseIPv6Endpoint(token, opts)
 }
 
 func parseIPv6OrMappedEndpointBytes(token []byte, opts ParseOptions) (Uint128, Uint128, error) {

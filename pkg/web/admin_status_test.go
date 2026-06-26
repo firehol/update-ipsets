@@ -159,7 +159,7 @@ func TestSanitizeSchedulerSnapshotClampsOutOfRangeTimes(t *testing.T) {
 	}
 }
 
-func TestAdminStatusKeepsFullDefaultAndLightPollingSnapshot(t *testing.T) {
+func TestAdminStatusModeSelectsLightOnlyForExactLightMode(t *testing.T) {
 	eng, handler := testHandler(t, Options{
 		EnableAll:                 true,
 		AdminAuthMode:             AdminAuthModeDisabled,
@@ -177,10 +177,16 @@ func TestAdminStatusKeepsFullDefaultAndLightPollingSnapshot(t *testing.T) {
 	if !ok {
 		t.Fatalf("admin status engine payload has type %T", payload["engine"])
 	}
-	for _, field := range []string{"config_path", "base_dir", "lifetime_metrics"} {
-		if _, ok := enginePayload[field]; !ok {
-			t.Fatalf("default admin status omitted full field %s", field)
+	for _, field := range []string{"current_metrics", "last_metrics", "lifetime_metrics", "config_path", "base_dir", "last_report"} {
+		if _, ok := enginePayload[field]; ok {
+			t.Fatalf("default admin status included %s; default polling must use the lightweight engine snapshot", field)
 		}
+	}
+	if _, ok := enginePayload["engine_lane"]; !ok {
+		t.Fatal("default admin status omitted engine_lane")
+	}
+	if _, ok := enginePayload["git_lane"]; !ok {
+		t.Fatal("default admin status omitted git_lane")
 	}
 
 	var lightPayload map[string]any
@@ -192,10 +198,139 @@ func TestAdminStatusKeepsFullDefaultAndLightPollingSnapshot(t *testing.T) {
 	if !ok {
 		t.Fatalf("admin light status engine payload has type %T", lightPayload["engine"])
 	}
-	for _, field := range []string{"current_metrics", "last_metrics", "lifetime_metrics", "config_path", "base_dir"} {
+	for _, field := range []string{"current_metrics", "last_metrics", "lifetime_metrics", "config_path", "base_dir", "last_report"} {
 		if _, ok := lightEnginePayload[field]; ok {
 			t.Fatalf("admin light status included %s; live polling must use the lightweight engine snapshot", field)
 		}
+	}
+
+	var fullPayload map[string]any
+	fullStatus, _ := server.getJSON(t, "/api/v1/admin/status?mode=full", &fullPayload)
+	if fullStatus != http.StatusOK {
+		t.Fatalf("admin full status HTTP status = %d, want 200", fullStatus)
+	}
+	fullEnginePayload, ok := fullPayload["engine"].(map[string]any)
+	if !ok {
+		t.Fatalf("admin full status engine payload has type %T", fullPayload["engine"])
+	}
+	for _, field := range []string{"config_path", "base_dir", "lifetime_metrics"} {
+		if _, ok := fullEnginePayload[field]; !ok {
+			t.Fatalf("admin full status omitted full field %s", field)
+		}
+	}
+
+	var unknownPayload map[string]any
+	unknownStatus, _ := server.getJSON(t, "/api/v1/admin/status?mode=unexpected", &unknownPayload)
+	if unknownStatus != http.StatusOK {
+		t.Fatalf("admin unknown-mode status HTTP status = %d, want 200", unknownStatus)
+	}
+	unknownEnginePayload, ok := unknownPayload["engine"].(map[string]any)
+	if !ok {
+		t.Fatalf("admin unknown-mode status engine payload has type %T", unknownPayload["engine"])
+	}
+	for _, field := range []string{"current_metrics", "last_metrics", "lifetime_metrics", "config_path", "base_dir", "last_report"} {
+		if _, ok := unknownEnginePayload[field]; ok {
+			t.Fatalf("admin unknown-mode status included %s; unknown modes must fall back to light", field)
+		}
+	}
+}
+
+func TestAdminStatusLightUsesRuntimeStatsSampler(t *testing.T) {
+	setDetailedStatusCacheForTest(t, time.Now().UTC(), detailedSystemInfo{
+		Goroutines: 321,
+		HeapSys:    654_321,
+		DiskFree:   "cached sentinel",
+		RSSKB:      987,
+	})
+
+	_, handler := testHandler(t, Options{
+		EnableAll:                 true,
+		AdminAuthMode:             AdminAuthModeDisabled,
+		AllowUnauthenticatedAdmin: true,
+	})
+	server := newWebHTTPTestServer(t, handler)
+
+	var lightPayload adminStatusLight
+	status, _ := server.getJSON(t, "/api/v1/admin/status?mode=light", &lightPayload)
+	if status != http.StatusOK {
+		t.Fatalf("admin light status HTTP status = %d, want 200", status)
+	}
+	if lightPayload.System.Goroutines != 321 {
+		t.Fatalf("admin light status goroutines = %d, want cached sampler value 321", lightPayload.System.Goroutines)
+	}
+	if lightPayload.System.HeapSys != 654_321 {
+		t.Fatalf("admin light status heap_sys = %d, want cached sampler value 654321", lightPayload.System.HeapSys)
+	}
+	if lightPayload.System.DiskFree != "cached sentinel" {
+		t.Fatalf("admin light status disk_free = %q, want cached sampler value", lightPayload.System.DiskFree)
+	}
+	if lightPayload.System.RSSKB != 987 {
+		t.Fatalf("admin light status rss_kb = %d, want cached sampler value 987", lightPayload.System.RSSKB)
+	}
+}
+
+func TestAdminStatusLightIncludesEngineLane(t *testing.T) {
+	eng, handler := testHandler(t, Options{
+		EnableAll:                 true,
+		AdminAuthMode:             AdminAuthModeDisabled,
+		AllowUnauthenticatedAdmin: true,
+	})
+	server := newWebHTTPTestServer(t, handler)
+
+	var lightPayload adminStatusLight
+	status, _ := server.getJSON(t, "/api/v1/admin/status?mode=light", &lightPayload)
+	if status != http.StatusOK {
+		t.Fatalf("admin light status HTTP status = %d, want 200", status)
+	}
+	wantLimit := eng.Runtime().EngineLaneWorkers()
+	if lightPayload.Engine.EngineLane.Limit != wantLimit {
+		t.Fatalf("admin light status engine lane limit = %d, want %d", lightPayload.Engine.EngineLane.Limit, wantLimit)
+	}
+	if lightPayload.Engine.MaxEngineLaneWorkers != wantLimit {
+		t.Fatalf("admin light status max_engine_lane_workers = %d, want %d", lightPayload.Engine.MaxEngineLaneWorkers, wantLimit)
+	}
+	if lightPayload.Engine.BackgroundLimit != lightPayload.Engine.EngineLane.Limit {
+		t.Fatalf("admin light status background_limit = %d, want engine lane limit %d", lightPayload.Engine.BackgroundLimit, lightPayload.Engine.EngineLane.Limit)
+	}
+	if lightPayload.Engine.BackgroundRunning != lightPayload.Engine.EngineLane.ActiveCount {
+		t.Fatalf("admin light status background_running = %d, want engine lane active count %d", lightPayload.Engine.BackgroundRunning, lightPayload.Engine.EngineLane.ActiveCount)
+	}
+}
+
+func TestAdminStatusLightIncludesIntegritySummary(t *testing.T) {
+	eng, handler := testHandler(t, Options{
+		EnableAll:                 true,
+		AdminAuthMode:             AdminAuthModeDisabled,
+		AllowUnauthenticatedAdmin: true,
+	})
+	eng.StorePipelineIntegrityFindings(engine.IntegrityOptions{}, []engine.IntegrityFinding{{
+		Feed:   "sample",
+		Reason: "missing secondary files",
+	}}, nil)
+	eng.StoreEntityIntegrityFindings([]engine.EntityIntegrityFinding{{
+		Scope:   "global",
+		Kind:    "version_missing",
+		Subject: "entity_artifacts",
+		Reason:  "missing entity artifact version",
+	}}, nil)
+	server := newWebHTTPTestServer(t, handler)
+
+	var lightPayload adminStatusLight
+	status, _ := server.getJSON(t, "/api/v1/admin/status?mode=light", &lightPayload)
+	if status != http.StatusOK {
+		t.Fatalf("admin light status HTTP status = %d, want 200", status)
+	}
+	if lightPayload.Engine.PipelineIntegrityCache.CacheState != engine.IntegrityCacheFresh {
+		t.Fatalf("pipeline integrity cache state = %q, want %q", lightPayload.Engine.PipelineIntegrityCache.CacheState, engine.IntegrityCacheFresh)
+	}
+	if lightPayload.Engine.PipelineIntegrityCache.Count != 1 {
+		t.Fatalf("pipeline integrity cache count = %d, want 1", lightPayload.Engine.PipelineIntegrityCache.Count)
+	}
+	if lightPayload.Engine.EntityIntegrityCache.CacheState != engine.IntegrityCacheFresh {
+		t.Fatalf("entity integrity cache state = %q, want %q", lightPayload.Engine.EntityIntegrityCache.CacheState, engine.IntegrityCacheFresh)
+	}
+	if lightPayload.Engine.EntityIntegrityCache.Count != 1 {
+		t.Fatalf("entity integrity cache count = %d, want 1", lightPayload.Engine.EntityIntegrityCache.Count)
 	}
 }
 
@@ -227,6 +362,44 @@ func TestAdminStatusLightIncludesFeedHealthSummary(t *testing.T) {
 	}
 	if lightPayload.Feeds != want {
 		t.Fatalf("admin light status feeds summary = %+v, want %+v", lightPayload.Feeds, want)
+	}
+}
+
+func TestAdminStatusLightUsesCachedSchedulerSnapshotWithoutRebuild(t *testing.T) {
+	opts := Options{
+		EnableAll:                 true,
+		AdminAuthMode:             AdminAuthModeDisabled,
+		AllowUnauthenticatedAdmin: true,
+	}
+	eng, _ := testHandler(t, opts)
+	stale := scheduler.Snapshot{
+		GeneratedAt: time.Unix(1_700_000_000, 0).UTC(),
+		Items: []scheduler.Item{{
+			Name:        "cached-sentinel",
+			Enabled:     true,
+			HealthClass: string(feedhealth.ClassHealthy),
+			Entries:     7,
+			UniqueIPs:   11,
+			CheckedAt:   time.Unix(1_700_000_000, 0).UTC(),
+			NextDue:     time.Unix(1_700_000_001, 0).UTC(),
+		}},
+	}
+	if err := scheduler.SaveSnapshot(filepath.Join(eng.Runtime().CacheDir, "scheduler-state.json"), stale); err != nil {
+		t.Fatalf("write scheduler snapshot: %v", err)
+	}
+	runner := scheduler.New(eng, true, nil)
+	server := newWebHTTPTestServer(t, newHandler(eng, opts, runner))
+
+	var lightPayload adminStatusLight
+	status, _ := server.getJSON(t, "/api/v1/admin/status?mode=light", &lightPayload)
+	if status != http.StatusOK {
+		t.Fatalf("admin light status HTTP status = %d, want 200", status)
+	}
+	if got := lightPayload.Scheduler.Items; len(got) != 1 || got[0].Name != "cached-sentinel" {
+		t.Fatalf("light status scheduler items = %+v, want cached sentinel without rebuild", got)
+	}
+	if lightPayload.Feeds.Healthy != 1 || lightPayload.Feeds.TotalEntries != 7 || lightPayload.Feeds.TotalUniqueIPs != 11 {
+		t.Fatalf("light status cached feed summary = %+v, want healthy cached sentinel counters", lightPayload.Feeds)
 	}
 }
 
@@ -271,6 +444,9 @@ func TestAdminStatusLightRespondsWhileEngineLaneBusy(t *testing.T) {
 	if _, ok := enginePayload["engine_lane"]; !ok {
 		t.Fatalf("admin light status omitted engine_lane while lane was busy: %#v", enginePayload)
 	}
+	if _, ok := enginePayload["git_lane"]; !ok {
+		t.Fatalf("admin light status omitted git_lane while lane was busy: %#v", enginePayload)
+	}
 }
 
 func waitForEngineLaneClear(t *testing.T, eng *engine.Engine, timeout time.Duration) {
@@ -291,6 +467,22 @@ func waitForEngineLaneClear(t *testing.T, eng *engine.Engine, timeout time.Durat
 		case <-ticker.C:
 		}
 	}
+}
+
+func setDetailedStatusCacheForTest(t *testing.T, sampledAt time.Time, info detailedSystemInfo) {
+	t.Helper()
+	detailedStatusCache.mu.Lock()
+	oldSampledAt := detailedStatusCache.sampledAt
+	oldInfo := detailedStatusCache.info
+	detailedStatusCache.sampledAt = sampledAt
+	detailedStatusCache.info = info
+	detailedStatusCache.mu.Unlock()
+	t.Cleanup(func() {
+		detailedStatusCache.mu.Lock()
+		detailedStatusCache.sampledAt = oldSampledAt
+		detailedStatusCache.info = oldInfo
+		detailedStatusCache.mu.Unlock()
+	})
 }
 
 func TestBuildSourceFeedUsesInputTriggeredScheduleLabelForDerivedFeeds(t *testing.T) {

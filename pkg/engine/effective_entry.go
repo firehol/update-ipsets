@@ -25,14 +25,18 @@ func newEffectiveEntryResolver(cfg *config.Config, entries map[string]cache.Entr
 }
 
 func (e *Engine) effectiveEntryResolverFromFreshStateSnapshot() *effectiveEntryResolver {
-	if e == nil || e.cfg == nil {
+	if e == nil {
+		return nil
+	}
+	cfg := e.Config()
+	if cfg == nil {
 		return nil
 	}
 	entries := map[string]cache.Entry{}
 	if e.state != nil {
 		entries = e.state.SnapshotEntries()
 	}
-	return newEffectiveEntryResolver(e.cfg, entries)
+	return newEffectiveEntryResolver(cfg, entries)
 }
 
 func (r *effectiveEntryResolver) entry(name string, raw *cache.Entry) *cache.Entry {
@@ -142,10 +146,14 @@ func (r *effectiveEntryResolver) baseLastChange(name string) int64 {
 // entryViewFromFreshStateSnapshot takes a full cache snapshot. Use it only for
 // single-entry code paths; loop/batch paths must reuse an effectiveEntryResolver.
 func (e *Engine) entryViewFromFreshStateSnapshot(name string, raw *cache.Entry) *cache.Entry {
-	if e == nil || raw == nil || e.cfg == nil || e.state == nil {
+	if e == nil || raw == nil || e.state == nil {
 		return raw
 	}
-	return e.effectiveEntryResolverFromFreshStateSnapshot().entry(name, raw)
+	resolver := e.effectiveEntryResolverFromFreshStateSnapshot()
+	if resolver == nil {
+		return raw
+	}
+	return resolver.entry(name, raw)
 }
 
 func (e *Engine) EntrySnapshot(name string) *cache.Entry {

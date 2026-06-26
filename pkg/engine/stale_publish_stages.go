@@ -11,6 +11,7 @@ import (
 )
 
 const stalePublishStageMinAge = 5 * time.Minute
+const publishStageCleanupCoalescingKey = "cleanup:publish_stages:delayed"
 
 type StalePublishStageCleanupResult struct {
 	WebRemoved    int `json:"web_removed"`
@@ -54,12 +55,13 @@ func (e *Engine) CleanupPublishStagesBeforeWithTrigger(ctx context.Context, cuto
 	}
 	var result StalePublishStageCleanupResult
 	err := e.engineLane.Run(ctx, LaneWork{
-		Kind:      LaneWorkCleanup,
-		Component: LaneComponentPublishStages,
-		Name:      "cleanup.publish_stages",
-		Trigger:   trigger,
-		Stage:     "cleanup",
-		Detail:    "removing stale publish stages",
+		Kind:          LaneWorkCleanup,
+		Component:     LaneComponentPublishStages,
+		Name:          "cleanup.publish_stages",
+		Trigger:       trigger,
+		Stage:         "cleanup",
+		Detail:        "removing stale publish stages",
+		CoalescingKey: publishStageCleanupCoalescingKey,
 	}, func(laneCtx context.Context) error {
 		cleanup, cleanupErr := e.CleanupPublishStagesBefore(cutoff)
 		result = cleanup

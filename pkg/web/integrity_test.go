@@ -195,7 +195,7 @@ func TestHandleAdminEntityIntegrityRebuildSchedulesBackgroundRebuild(t *testing.
 
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/integrity/entities/rebuild", nil)
 	rec := httptest.NewRecorder()
-	handleAdminEntityIntegrityRebuild(eng).ServeHTTP(rec, req)
+	handleAdminEntityIntegrityRebuildWithContext(t.Context(), eng).ServeHTTP(rec, req)
 	if rec.Code != http.StatusAccepted {
 		t.Fatalf("status code = %d, want %d", rec.Code, http.StatusAccepted)
 	}

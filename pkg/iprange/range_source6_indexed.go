@@ -73,10 +73,6 @@ func (s indexedRangeSource6) at(i int) (Range6, error) {
 	}
 }
 
-func (s indexedRangeSource6) uniqueCount() (Uint128, bool) {
-	return s.uniqueIPs, s.knownUnique
-}
-
 func decodeRange6At(data []byte, i int) Range6 {
 	off := i * 32
 	return decodeRange6(data[off : off+32])

@@ -2,7 +2,9 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -10,6 +12,86 @@ const (
 	entityRefreshMaxLaneWaves = 2
 	entityRefreshMaxLaneHold  = time.Minute
 )
+
+var (
+	entityRefreshQueueHookMu        sync.Mutex
+	entityArtifactRefreshAfterDrain func()
+	entityHealthRefreshAfterDrain   func()
+	entityArtifactRefreshAfterTask  func()
+	entityHealthRefreshAfterTask    func()
+)
+
+func setEntityArtifactRefreshAfterDrainHookForTest(fn func()) func() {
+	entityRefreshQueueHookMu.Lock()
+	old := entityArtifactRefreshAfterDrain
+	entityArtifactRefreshAfterDrain = fn
+	entityRefreshQueueHookMu.Unlock()
+	return func() {
+		entityRefreshQueueHookMu.Lock()
+		entityArtifactRefreshAfterDrain = old
+		entityRefreshQueueHookMu.Unlock()
+	}
+}
+
+func setEntityHealthRefreshAfterDrainHookForTest(fn func()) func() {
+	entityRefreshQueueHookMu.Lock()
+	old := entityHealthRefreshAfterDrain
+	entityHealthRefreshAfterDrain = fn
+	entityRefreshQueueHookMu.Unlock()
+	return func() {
+		entityRefreshQueueHookMu.Lock()
+		entityHealthRefreshAfterDrain = old
+		entityRefreshQueueHookMu.Unlock()
+	}
+}
+
+func setEntityArtifactRefreshAfterTaskHookForTest(fn func()) func() {
+	entityRefreshQueueHookMu.Lock()
+	old := entityArtifactRefreshAfterTask
+	entityArtifactRefreshAfterTask = fn
+	entityRefreshQueueHookMu.Unlock()
+	return func() {
+		entityRefreshQueueHookMu.Lock()
+		entityArtifactRefreshAfterTask = old
+		entityRefreshQueueHookMu.Unlock()
+	}
+}
+
+func setEntityHealthRefreshAfterTaskHookForTest(fn func()) func() {
+	entityRefreshQueueHookMu.Lock()
+	old := entityHealthRefreshAfterTask
+	entityHealthRefreshAfterTask = fn
+	entityRefreshQueueHookMu.Unlock()
+	return func() {
+		entityRefreshQueueHookMu.Lock()
+		entityHealthRefreshAfterTask = old
+		entityRefreshQueueHookMu.Unlock()
+	}
+}
+
+func entityArtifactRefreshAfterDrainHookForTest() func() {
+	entityRefreshQueueHookMu.Lock()
+	defer entityRefreshQueueHookMu.Unlock()
+	return entityArtifactRefreshAfterDrain
+}
+
+func entityHealthRefreshAfterDrainHookForTest() func() {
+	entityRefreshQueueHookMu.Lock()
+	defer entityRefreshQueueHookMu.Unlock()
+	return entityHealthRefreshAfterDrain
+}
+
+func entityArtifactRefreshAfterTaskHookForTest() func() {
+	entityRefreshQueueHookMu.Lock()
+	defer entityRefreshQueueHookMu.Unlock()
+	return entityArtifactRefreshAfterTask
+}
+
+func entityHealthRefreshAfterTaskHookForTest() func() {
+	entityRefreshQueueHookMu.Lock()
+	defer entityRefreshQueueHookMu.Unlock()
+	return entityHealthRefreshAfterTask
+}
 
 type EntityArtifactQueueResult struct {
 	Ticket    LaneTicket    `json:"ticket"`
@@ -81,8 +163,7 @@ func (e *Engine) QueueEntityArtifactsRefreshForFeedUpdates(ctx context.Context, 
 		Detail:        backgroundEntityTaskDetail("feeds", pending),
 		CoalescingKey: coalescingKey,
 	}, func(laneCtx context.Context) error {
-		e.runQueuedEntityArtifactRefresh(laneCtx, trigger)
-		return nil
+		return e.runQueuedEntityArtifactRefresh(laneCtx, trigger)
 	})
 	if err != nil {
 		e.finishEntityArtifactRefreshQueue()
@@ -122,8 +203,7 @@ func (e *Engine) QueueEntityArtifactsRefreshForHealthTransitions(ctx context.Con
 		Detail:        backgroundEntityTaskDetail("health", pending),
 		CoalescingKey: coalescingKey,
 	}, func(laneCtx context.Context) error {
-		e.runQueuedEntityHealthRefresh(laneCtx)
-		return nil
+		return e.runQueuedEntityHealthRefresh(laneCtx)
 	})
 	if err != nil {
 		e.finishEntityHealthRefreshQueue()
@@ -215,8 +295,14 @@ func (e *Engine) drainEntityHealthRefreshPending() []string {
 	return uniqueNonEmptyStrings(names)
 }
 
-func (e *Engine) runQueuedEntityArtifactRefresh(ctx context.Context, trigger string) {
+func (e *Engine) runQueuedEntityArtifactRefresh(ctx context.Context, trigger string) (runErr error) {
 	ctx = nonNilContext(ctx)
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			e.finishEntityArtifactRefreshQueue()
+			panic(recovered)
+		}
+	}()
 	if trigger == "" {
 		trigger = "feed_update"
 	}
@@ -225,7 +311,7 @@ func (e *Engine) runQueuedEntityArtifactRefresh(ctx context.Context, trigger str
 	for {
 		if err := contextErr(ctx); err != nil {
 			e.finishEntityArtifactRefreshQueue()
-			return
+			return errors.Join(runErr, err)
 		}
 		err := e.withEngineLaneBackgroundTask(
 			ctx,
@@ -244,6 +330,10 @@ func (e *Engine) runQueuedEntityArtifactRefresh(ctx context.Context, trigger str
 		if err != nil && e.logger != nil {
 			e.logger.Error("failed to refresh queued entity artifacts", "trigger", trigger, "error", err)
 		}
+		runErr = errors.Join(runErr, err)
+		if hook := entityArtifactRefreshAfterTaskHookForTest(); hook != nil {
+			hook()
+		}
 		waves++
 
 		e.mu.Lock()
@@ -254,26 +344,32 @@ func (e *Engine) runQueuedEntityArtifactRefresh(ctx context.Context, trigger str
 		}
 		e.mu.Unlock()
 		if !hasPending {
-			return
+			return runErr
 		}
 		if waves >= entityRefreshMaxLaneWaves || time.Since(started) >= entityRefreshMaxLaneHold {
 			coalescingKey, pending, ok := e.prepareEntityArtifactRefreshContinuation()
 			if ok {
-				e.submitEntityArtifactRefreshContinuation(trigger, pending, coalescingKey)
+				e.submitEntityArtifactRefreshContinuation(ctx, trigger, pending, coalescingKey)
 			}
-			return
+			return runErr
 		}
 	}
 }
 
-func (e *Engine) runQueuedEntityHealthRefresh(ctx context.Context) {
+func (e *Engine) runQueuedEntityHealthRefresh(ctx context.Context) (runErr error) {
 	ctx = nonNilContext(ctx)
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			e.finishEntityHealthRefreshQueue()
+			panic(recovered)
+		}
+	}()
 	started := time.Now()
 	waves := 0
 	for {
 		if err := contextErr(ctx); err != nil {
 			e.finishEntityHealthRefreshQueue()
-			return
+			return errors.Join(runErr, err)
 		}
 		err := e.withEngineLaneBackgroundTask(
 			ctx,
@@ -292,6 +388,10 @@ func (e *Engine) runQueuedEntityHealthRefresh(ctx context.Context) {
 		if err != nil && e.logger != nil {
 			e.logger.Error("failed to refresh queued entity health transitions", "error", err)
 		}
+		runErr = errors.Join(runErr, err)
+		if hook := entityHealthRefreshAfterTaskHookForTest(); hook != nil {
+			hook()
+		}
 		waves++
 
 		e.mu.Lock()
@@ -302,14 +402,14 @@ func (e *Engine) runQueuedEntityHealthRefresh(ctx context.Context) {
 		}
 		e.mu.Unlock()
 		if !hasPending {
-			return
+			return runErr
 		}
 		if waves >= entityRefreshMaxLaneWaves || time.Since(started) >= entityRefreshMaxLaneHold {
 			coalescingKey, pending, ok := e.prepareEntityHealthRefreshContinuation()
 			if ok {
-				e.submitEntityHealthRefreshContinuation(pending, coalescingKey)
+				e.submitEntityHealthRefreshContinuation(ctx, pending, coalescingKey)
 			}
-			return
+			return runErr
 		}
 	}
 }
@@ -330,12 +430,13 @@ func (e *Engine) prepareEntityArtifactRefreshContinuation() (string, int, bool) 
 	return entityRefreshContinuationCoalescingKey(e.entityRefreshContinuation), pending, true
 }
 
-func (e *Engine) submitEntityArtifactRefreshContinuation(trigger string, pending int, coalescingKey string) {
+func (e *Engine) submitEntityArtifactRefreshContinuation(ctx context.Context, trigger string, pending int, coalescingKey string) {
 	if e == nil || e.engineLane == nil || pending == 0 || coalescingKey == "" {
 		e.finishEntityArtifactRefreshQueue()
 		return
 	}
-	ticket, err := e.engineLane.Submit(context.Background(), LaneWork{
+	ctx = nonNilContext(ctx)
+	ticket, err := e.engineLane.Submit(ctx, LaneWork{
 		Kind:          LaneWorkEntityRefresh,
 		Component:     LaneComponentEntityArtifacts,
 		Name:          "entity.refresh",
@@ -344,8 +445,7 @@ func (e *Engine) submitEntityArtifactRefreshContinuation(trigger string, pending
 		Detail:        backgroundEntityTaskDetail("feeds", pending),
 		CoalescingKey: coalescingKey,
 	}, func(laneCtx context.Context) error {
-		e.runQueuedEntityArtifactRefresh(laneCtx, trigger)
-		return nil
+		return e.runQueuedEntityArtifactRefresh(laneCtx, trigger)
 	})
 	if err != nil {
 		e.finishEntityArtifactRefreshQueue()
@@ -375,12 +475,13 @@ func (e *Engine) prepareEntityHealthRefreshContinuation() (string, int, bool) {
 	return entityHealthContinuationCoalescingKey(e.entityHealthContinuation), pending, true
 }
 
-func (e *Engine) submitEntityHealthRefreshContinuation(pending int, coalescingKey string) {
+func (e *Engine) submitEntityHealthRefreshContinuation(ctx context.Context, pending int, coalescingKey string) {
 	if e == nil || e.engineLane == nil || pending == 0 || coalescingKey == "" {
 		e.finishEntityHealthRefreshQueue()
 		return
 	}
-	ticket, err := e.engineLane.Submit(context.Background(), LaneWork{
+	ctx = nonNilContext(ctx)
+	ticket, err := e.engineLane.Submit(ctx, LaneWork{
 		Kind:          LaneWorkEntityRefresh,
 		Component:     LaneComponentEntityArtifactsHealth,
 		Name:          "entity.health_refresh",
@@ -389,8 +490,7 @@ func (e *Engine) submitEntityHealthRefreshContinuation(pending int, coalescingKe
 		Detail:        backgroundEntityTaskDetail("health", pending),
 		CoalescingKey: coalescingKey,
 	}, func(laneCtx context.Context) error {
-		e.runQueuedEntityHealthRefresh(laneCtx)
-		return nil
+		return e.runQueuedEntityHealthRefresh(laneCtx)
 	})
 	if err != nil {
 		e.finishEntityHealthRefreshQueue()
@@ -436,13 +536,15 @@ func (e *Engine) entityArtifactFullRebuildQueuedOrRunning() bool {
 	}
 	e.mu.RLock()
 	queued := e.entityRebuildQueued
+	e.mu.RUnlock()
+	e.backgroundTasksMu.RLock()
 	for _, task := range e.backgroundTasks {
 		if task.Kind == LaneWorkEntityRebuild {
 			queued = true
 			break
 		}
 	}
-	e.mu.RUnlock()
+	e.backgroundTasksMu.RUnlock()
 	if queued {
 		return true
 	}
@@ -494,6 +596,9 @@ func (e *Engine) runEntityArtifactRefreshQueue(ctx context.Context, task *Backgr
 	if len(names) == 0 {
 		return nil
 	}
+	if hook := entityArtifactRefreshAfterDrainHookForTest(); hook != nil {
+		hook()
+	}
 	if task != nil {
 		task.Update(
 			"coalescing",
@@ -519,6 +624,9 @@ func (e *Engine) runEntityHealthRefreshQueue(ctx context.Context, task *Backgrou
 	names := e.drainEntityHealthRefreshPending()
 	if len(names) == 0 {
 		return nil
+	}
+	if hook := entityHealthRefreshAfterDrainHookForTest(); hook != nil {
+		hook()
 	}
 	if task != nil {
 		task.Update(

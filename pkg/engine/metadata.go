@@ -1,8 +1,10 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/firehol/update-ipsets/pkg/cache"
@@ -11,38 +13,112 @@ import (
 	"github.com/firehol/update-ipsets/pkg/output"
 )
 
-func (e *Engine) syncGeneratedFiles(generated []output.GeneratedFile, webPublished []string) error {
-	if err := output.SyncGit(output.SyncOptions{
-		BaseDir:       e.runtime.BaseDir,
-		PushToGit:     e.runtime.PushToGit,
-		PushMerged:    e.runtime.PushToGitMerged,
-		CommitOptions: strings.Fields(e.runtime.PushToGitCommitOptions),
-		PushOptions:   strings.Fields(e.runtime.PushToGitPushOptions),
+var syncGeneratedFilesHookMu sync.Mutex
+var syncGeneratedFilesBeforeHook func()
+
+func setSyncGeneratedFilesBeforeHookForTest(fn func()) func() {
+	syncGeneratedFilesHookMu.Lock()
+	old := syncGeneratedFilesBeforeHook
+	syncGeneratedFilesBeforeHook = fn
+	syncGeneratedFilesHookMu.Unlock()
+	return func() {
+		syncGeneratedFilesHookMu.Lock()
+		syncGeneratedFilesBeforeHook = old
+		syncGeneratedFilesHookMu.Unlock()
+	}
+}
+
+func syncGeneratedFilesBeforeHookForTest() func() {
+	syncGeneratedFilesHookMu.Lock()
+	defer syncGeneratedFilesHookMu.Unlock()
+	return syncGeneratedFilesBeforeHook
+}
+
+func (e *Engine) syncGeneratedFiles(ctx context.Context, generated []output.GeneratedFile, webPublished []string) error {
+	if e == nil || e.gitLane == nil {
+		return e.syncGeneratedFilesDirect(ctx, generated, webPublished)
+	}
+	return e.gitLane.Run(ctx, e.gitSyncWork("publish.sync_generated_files"), func(laneCtx context.Context) error {
+		return e.syncGeneratedFilesDirect(laneCtx, generated, webPublished)
+	})
+}
+
+func (e *Engine) gitSyncWork(name string) LaneWork {
+	seq := uint64(0)
+	if e != nil {
+		seq = e.gitSyncSeq.Add(1)
+	}
+	if name == "" {
+		name = "publish.sync_generated_files"
+	}
+	id := fmt.Sprintf("git-sync:%d", seq)
+	return LaneWork{
+		ID:            id,
+		Kind:          LaneWorkGitSync,
+		Component:     LaneComponentPublishStages,
+		Name:          name,
+		CoalescingKey: "git-sync:publish",
+	}
+}
+
+func (e *Engine) syncGeneratedFilesDirect(ctx context.Context, generated []output.GeneratedFile, webPublished []string) error {
+	if hook := syncGeneratedFilesBeforeHookForTest(); hook != nil {
+		hook()
+	}
+	rt := e.Runtime()
+	syncTargets := 0
+	if rt.PushToGit {
+		syncTargets++
+	}
+	outDir := outputDirForRuntime(rt)
+	if rt.PushToGitWeb && outDir != rt.BaseDir {
+		syncTargets++
+	}
+	op := e.beginActiveOperation("publish.sync_generated_files", "", "sync", "repositories", int64(syncTargets))
+	defer op.Finish()
+	if err := output.SyncGitContext(ctx, output.SyncOptions{
+		BaseDir:       rt.BaseDir,
+		PushToGit:     rt.PushToGit,
+		PushMerged:    rt.PushToGitMerged,
+		CommitOptions: strings.Fields(rt.PushToGitCommitOptions),
+		PushOptions:   strings.Fields(rt.PushToGitPushOptions),
+		Timeout:       rt.PushToGitTimeout,
 	}, generated); err != nil {
 		return err
 	}
-	outDir := e.outputDir()
-	if e.runtime.PushToGitWeb && outDir != e.runtime.BaseDir {
+	if rt.PushToGit {
+		op.Add(1, int64(syncTargets), nil)
+	}
+	if rt.PushToGitWeb && outDir != rt.BaseDir {
 		if len(webPublished) > 0 {
 			webGenerated := make([]output.GeneratedFile, 0, len(webPublished))
 			for _, path := range webPublished {
 				webGenerated = append(webGenerated, output.GeneratedFile{Path: path, Redistributable: true})
 			}
-			return output.SyncGit(output.SyncOptions{
+			if err := output.SyncGitContext(ctx, output.SyncOptions{
 				BaseDir:       outDir,
 				PushToGit:     true,
-				PushMerged:    e.runtime.PushToGitMerged,
-				CommitOptions: strings.Fields(e.runtime.PushToGitCommitOptions),
-				PushOptions:   strings.Fields(e.runtime.PushToGitPushOptions),
-			}, webGenerated)
+				PushMerged:    rt.PushToGitMerged,
+				CommitOptions: strings.Fields(rt.PushToGitCommitOptions),
+				PushOptions:   strings.Fields(rt.PushToGitPushOptions),
+				Timeout:       rt.PushToGitTimeout,
+			}, webGenerated); err != nil {
+				return err
+			}
+			op.Add(1, int64(syncTargets), nil)
+			return nil
 		}
-		return output.SyncGit(output.SyncOptions{
+		if err := output.SyncGitContext(ctx, output.SyncOptions{
 			BaseDir:       outDir,
 			PushToGit:     true,
-			PushMerged:    e.runtime.PushToGitMerged,
-			CommitOptions: strings.Fields(e.runtime.PushToGitCommitOptions),
-			PushOptions:   strings.Fields(e.runtime.PushToGitPushOptions),
-		}, filterGeneratedFiles(outDir, generated))
+			PushMerged:    rt.PushToGitMerged,
+			CommitOptions: strings.Fields(rt.PushToGitCommitOptions),
+			PushOptions:   strings.Fields(rt.PushToGitPushOptions),
+			Timeout:       rt.PushToGitTimeout,
+		}, filterGeneratedFiles(outDir, generated)); err != nil {
+			return err
+		}
+		op.Add(1, int64(syncTargets), nil)
 	}
 	return nil
 }

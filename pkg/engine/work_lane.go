@@ -31,6 +31,7 @@ const (
 	LaneWorkIntegrityRefresh   LaneWorkKind = "integrity_refresh"
 	LaneWorkIntegrityReprocess LaneWorkKind = "integrity_reprocess"
 	LaneWorkCleanup            LaneWorkKind = "cleanup"
+	LaneWorkGitSync            LaneWorkKind = "git_sync"
 )
 
 type LaneWorkComponent string
@@ -79,11 +80,12 @@ type LaneTicket struct {
 }
 
 type LaneSnapshot struct {
-	Limit        int                `json:"limit"`
-	ActiveCount  int                `json:"active_count"`
-	WaitingCount int                `json:"waiting_count"`
-	Active       []LaneWorkSnapshot `json:"active,omitempty"`
-	Waiting      []LaneWorkSnapshot `json:"waiting,omitempty"`
+	Limit           int                  `json:"limit"`
+	ActiveCount     int                  `json:"active_count"`
+	WaitingCount    int                  `json:"waiting_count"`
+	Active          []LaneWorkSnapshot   `json:"active,omitempty"`
+	Waiting         []LaneWorkSnapshot   `json:"waiting,omitempty"`
+	LongHoldWarning *LaneLongHoldWarning `json:"long_hold_warning,omitempty"`
 }
 
 type LaneWorkSnapshot struct {
@@ -101,7 +103,6 @@ type LaneWorkSnapshot struct {
 	WaitMS    int64             `json:"wait_ms"`
 	ElapsedMS int64             `json:"elapsed_ms"`
 }
-
 type WorkLane struct {
 	mu         sync.Mutex
 	limit      int
@@ -110,7 +111,15 @@ type WorkLane struct {
 	active     map[string]*laneItem
 	coalescing map[string]*laneItem
 	idle       chan struct{}
+	idleOpen   bool
 	shutdown   bool
+
+	attachStarted         bool
+	attachDuplicateCount  uint64
+	attachCtx             context.Context
+	startNotificationHook func()
+	finishPanicHook       func()
+	finishAfterLockHook   func()
 }
 
 type laneContextKey struct{}
@@ -120,8 +129,23 @@ type laneStart struct {
 	err error
 }
 
+type laneStartNotification struct {
+	ch    chan laneStart
+	start laneStart
+}
+
+type laneWorkerMetric struct {
+	ctx         context.Context
+	work        LaneWork
+	limit       int
+	active      int
+	wait        time.Duration
+	observeWait bool
+}
+
 type laneItem struct {
 	seq       uint64
+	activeKey string
 	work      LaneWork
 	fn        func(context.Context) error
 	syncStart chan laneStart
@@ -156,31 +180,26 @@ func (l *WorkLane) Run(ctx context.Context, work LaneWork, fn func(context.Conte
 	if fn == nil {
 		return errors.New("engine work lane run requires callback")
 	}
-	item := l.newItem(ctx, work, fn)
-	item.syncStart = make(chan laneStart, 1)
+	var item *laneItem
 
 	l.mu.Lock()
 	if l.shutdown {
 		l.mu.Unlock()
 		return ErrLaneShuttingDown
 	}
+	item = l.newItemLocked(ctx, work, fn)
+	item.syncStart = make(chan laneStart, 1)
 	l.queue = append(l.queue, item)
-	starts := l.scheduleLocked(time.Now().UTC())
+	starts, notifications, metrics := l.scheduleLocked(time.Now().UTC())
 	l.mu.Unlock()
+	l.notifyStarts(notifications)
 	l.startAsync(starts)
+	observeLaneWorkerMetrics(metrics)
 
 	for {
 		select {
 		case start := <-item.syncStart:
-			if start.err != nil {
-				return start.err
-			}
-			err := runLaneCallback(start.ctx, fn)
-			l.finishItem(item, err)
-			if item.cancel != nil {
-				item.cancel()
-			}
-			return err
+			return l.runStartedSyncItem(item, start, fn)
 		case <-ctx.Done():
 			l.mu.Lock()
 			if item.state == LaneWorkQueued {
@@ -190,13 +209,40 @@ func (l *WorkLane) Run(ctx context.Context, work LaneWork, fn func(context.Conte
 				return ctx.Err()
 			}
 			l.mu.Unlock()
+			start := <-item.syncStart
+			return l.runStartedSyncItem(item, start, fn)
 		}
 	}
 }
 
+func (l *WorkLane) runStartedSyncItem(item *laneItem, start laneStart, fn func(context.Context) error) error {
+	if start.err != nil {
+		return start.err
+	}
+	if err := contextErr(start.ctx); err != nil {
+		finishErr := l.finishItemSafely(item, nil)
+		if item.cancel != nil {
+			item.cancel()
+		}
+		if finishErr != nil {
+			return finishErr
+		}
+		return err
+	}
+	err := runLaneCallback(start.ctx, fn)
+	finishErr := l.finishItemSafely(item, err)
+	if item.cancel != nil {
+		item.cancel()
+	}
+	if finishErr != nil {
+		return finishErr
+	}
+	return err
+}
+
 func (l *WorkLane) Submit(ctx context.Context, work LaneWork, fn func(context.Context) error) (LaneTicket, error) {
-	ctx = nonNilContext(ctx)
-	if err := contextErr(ctx); err != nil {
+	callerCtx := nonNilContext(ctx)
+	if err := contextErr(callerCtx); err != nil {
 		return LaneTicket{}, err
 	}
 	if fn == nil {
@@ -205,8 +251,16 @@ func (l *WorkLane) Submit(ctx context.Context, work LaneWork, fn func(context.Co
 	if strings.TrimSpace(work.CoalescingKey) == "" {
 		return LaneTicket{}, ErrLaneMissingCoalescingKey
 	}
-	item := l.newItem(ctx, work, fn)
-
+	ctx = l.submitParentContext(callerCtx)
+	if err := contextErr(ctx); err != nil {
+		l.mu.Lock()
+		shutdown := l.shutdown
+		l.mu.Unlock()
+		if shutdown {
+			return LaneTicket{}, ErrLaneShuttingDown
+		}
+		return LaneTicket{}, err
+	}
 	l.mu.Lock()
 	if l.shutdown {
 		l.mu.Unlock()
@@ -217,12 +271,15 @@ func (l *WorkLane) Submit(ctx context.Context, work LaneWork, fn func(context.Co
 		l.mu.Unlock()
 		return ticket, nil
 	}
+	item := l.newItemLocked(ctx, work, fn)
 	l.coalescing[work.CoalescingKey] = item
 	l.queue = append(l.queue, item)
-	starts := l.scheduleLocked(time.Now().UTC())
+	starts, notifications, metrics := l.scheduleLocked(time.Now().UTC())
 	ticket := item.ticketLocked(item.state == LaneWorkQueued, false)
 	l.mu.Unlock()
+	l.notifyStarts(notifications)
 	l.startAsync(starts)
+	observeLaneWorkerMetrics(metrics)
 	return ticket, nil
 }
 
@@ -237,8 +294,6 @@ func (l *WorkLane) TryRun(ctx context.Context, work LaneWork, fn func(context.Co
 	if fn == nil {
 		return false, errors.New("engine work lane try-run requires callback")
 	}
-	item := l.newItem(ctx, work, fn)
-
 	l.mu.Lock()
 	if l.shutdown {
 		l.mu.Unlock()
@@ -249,13 +304,18 @@ func (l *WorkLane) TryRun(ctx context.Context, work LaneWork, fn func(context.Co
 		return false, nil
 	}
 	now := time.Now().UTC()
+	item := l.newItemLocked(ctx, work, fn)
 	l.activateLocked(item, now)
-	l.observeWorkerStartLocked(item, now)
+	metric := l.workerStartMetricLocked(item, now)
 	l.mu.Unlock()
+	observeLaneWorkerMetrics([]laneWorkerMetric{metric})
 	err := runLaneCallback(item.ctx, fn)
-	l.finishItem(item, err)
+	finishErr := l.finishItemSafely(item, err)
 	if item.cancel != nil {
 		item.cancel()
+	}
+	if finishErr != nil {
+		return true, finishErr
 	}
 	return true, err
 }
@@ -269,17 +329,22 @@ func (l *WorkLane) SetLimit(limit int) {
 	}
 	l.mu.Lock()
 	l.limit = limit
-	starts := l.scheduleLocked(time.Now().UTC())
-	l.observeWorkerGaugeLocked(context.Background())
+	starts, notifications, metrics := l.scheduleLocked(time.Now().UTC())
+	metrics = append(metrics, l.workerGaugeMetricLocked(context.Background()))
 	l.mu.Unlock()
+	l.notifyStarts(notifications)
 	l.startAsync(starts)
+	observeLaneWorkerMetrics(metrics)
 }
 
 func (l *WorkLane) Snapshot() LaneSnapshot {
+	return l.snapshotAt(time.Now().UTC())
+}
+
+func (l *WorkLane) snapshotAt(now time.Time) LaneSnapshot {
 	if l == nil {
 		return LaneSnapshot{}
 	}
-	now := time.Now().UTC()
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	active := make([]LaneWorkSnapshot, 0, len(l.active))
@@ -309,6 +374,7 @@ func (l *WorkLane) Shutdown(grace time.Duration) {
 		return
 	}
 	var cancels []context.CancelFunc
+	var notifications []laneStartNotification
 	l.mu.Lock()
 	if !l.shutdown {
 		l.shutdown = true
@@ -319,7 +385,10 @@ func (l *WorkLane) Shutdown(grace time.Duration) {
 			cancels = append(cancels, item.cancel)
 		}
 		if item.syncStart != nil {
-			item.syncStart <- laneStart{err: ErrLaneShuttingDown}
+			notifications = append(notifications, laneStartNotification{
+				ch:    item.syncStart,
+				start: laneStart{err: ErrLaneShuttingDown},
+			})
 		}
 		if key := strings.TrimSpace(item.work.CoalescingKey); key != "" {
 			delete(l.coalescing, key)
@@ -334,6 +403,7 @@ func (l *WorkLane) Shutdown(grace time.Duration) {
 	idle := l.idle
 	l.mu.Unlock()
 
+	l.notifyStarts(notifications)
 	for _, cancel := range cancels {
 		cancel()
 	}
@@ -352,24 +422,61 @@ func (l *WorkLane) AttachContext(ctx context.Context, grace time.Duration) {
 	if l == nil || ctx == nil {
 		return
 	}
+	l.mu.Lock()
+	if l.attachStarted {
+		l.attachDuplicateCount++
+		l.mu.Unlock()
+		observability.Count(observability.BackgroundContext(), "background.workers.attach_duplicate", 1)
+		return
+	}
+	l.attachStarted = true
+	l.attachCtx = ctx
+	l.mu.Unlock()
+
 	go func() {
 		<-ctx.Done()
 		l.Shutdown(grace)
 	}()
 }
 
+func (l *WorkLane) submitParentContext(ctx context.Context) context.Context {
+	ctx = nonNilContext(ctx)
+	if l == nil {
+		return ctx
+	}
+	l.mu.Lock()
+	attached := l.attachCtx
+	l.mu.Unlock()
+	if attached != nil {
+		return attached
+	}
+	if ctx.Value(laneContextKey{}) != l {
+		return ctx
+	}
+	return context.Background()
+}
+
 func (e *Engine) AttachWorkLaneContext(ctx context.Context, grace time.Duration) {
 	if e == nil || e.engineLane == nil {
 		return
 	}
+	e.startEngineRuntimeStatsSampler(ctx)
+	e.startEngineLaneDiagnostics(ctx)
 	e.engineLane.AttachContext(ctx, grace)
+	if e.gitLane != nil {
+		e.gitLane.AttachContext(ctx, grace)
+	}
 }
 
 func (l *WorkLane) newItem(ctx context.Context, work LaneWork, fn func(context.Context) error) *laneItem {
 	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.newItemLocked(ctx, work, fn)
+}
+
+func (l *WorkLane) newItemLocked(ctx context.Context, work LaneWork, fn func(context.Context) error) *laneItem {
 	l.nextSeq++
 	seq := l.nextSeq
-	l.mu.Unlock()
 	now := time.Now().UTC()
 	if work.QueuedAt.IsZero() {
 		work.QueuedAt = now
@@ -385,19 +492,22 @@ func (l *WorkLane) newItem(ctx context.Context, work LaneWork, fn func(context.C
 		work.Name = string(work.Kind)
 	}
 	return &laneItem{
-		ctx:   ctx,
-		seq:   seq,
-		work:  work,
-		fn:    fn,
-		state: LaneWorkQueued,
+		ctx:       ctx,
+		seq:       seq,
+		activeKey: fmt.Sprintf("%d", seq),
+		work:      work,
+		fn:        fn,
+		state:     LaneWorkQueued,
 	}
 }
 
-func (l *WorkLane) scheduleLocked(now time.Time) []*laneItem {
+func (l *WorkLane) scheduleLocked(now time.Time) ([]*laneItem, []laneStartNotification, []laneWorkerMetric) {
 	if l == nil || l.shutdown {
-		return nil
+		return nil, nil, nil
 	}
 	var starts []*laneItem
+	var notifications []laneStartNotification
+	var metrics []laneWorkerMetric
 	for len(l.active) < l.limit && len(l.queue) > 0 {
 		item := l.queue[0]
 		l.queue = l.queue[1:]
@@ -405,52 +515,76 @@ func (l *WorkLane) scheduleLocked(now time.Time) []*laneItem {
 			continue
 		}
 		l.activateLocked(item, now)
-		l.observeWorkerStartLocked(item, now)
+		metrics = append(metrics, l.workerStartMetricLocked(item, now))
 		if item.syncStart != nil {
-			item.syncStart <- laneStart{ctx: item.ctx}
+			notifications = append(notifications, laneStartNotification{
+				ch:    item.syncStart,
+				start: laneStart{ctx: item.ctx},
+			})
 			continue
 		}
 		starts = append(starts, item)
 	}
-	return starts
+	return starts, notifications, metrics
 }
 
 func (l *WorkLane) activateLocked(item *laneItem, now time.Time) {
 	if len(l.active) == 0 {
 		l.idle = make(chan struct{})
+		l.idleOpen = true
 	}
 	item.state = LaneWorkActive
 	item.startedAt = now
 	ctx, cancel := context.WithCancel(item.ctxOrBackground())
 	item.ctx = context.WithValue(ctx, laneContextKey{}, l)
 	item.cancel = cancel
-	l.active[item.work.ID] = item
+	l.active[item.activeKey] = item
 }
 
-func (l *WorkLane) observeWorkerStartLocked(item *laneItem, now time.Time) {
+func (l *WorkLane) workerStartMetricLocked(item *laneItem, now time.Time) laneWorkerMetric {
 	if l == nil || item == nil {
-		return
+		return laneWorkerMetric{}
 	}
 	ctx := item.ctx
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	l.observeWorkerGaugeLocked(ctx)
+	metric := l.workerGaugeMetricLocked(ctx)
 	wait := now.Sub(item.work.QueuedAt)
 	if wait > 0 {
-		observability.Duration(ctx, "background.worker.wait", wait, laneWorkMetricAttrs(item.work)...)
+		metric.work = item.work
+		metric.wait = wait
+		metric.observeWait = true
 	}
+	return metric
 }
 
-func (l *WorkLane) observeWorkerGaugeLocked(ctx context.Context) {
+func (l *WorkLane) workerGaugeMetricLocked(ctx context.Context) laneWorkerMetric {
 	if l == nil {
-		return
+		return laneWorkerMetric{}
 	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	observability.Gauge(ctx, "background.workers.limit", int64(l.limit))
-	observability.Gauge(ctx, "background.workers.active", int64(len(l.active)))
+	return laneWorkerMetric{
+		ctx:    ctx,
+		limit:  l.limit,
+		active: len(l.active),
+	}
+}
+
+func observeLaneWorkerMetrics(metrics []laneWorkerMetric) {
+	for _, metric := range metrics {
+		ctx := metric.ctx
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		observability.Gauge(ctx, "background.workers.limit", int64(metric.limit))
+		observability.Gauge(ctx, "background.workers.active", int64(metric.active))
+		if metric.observeWait && metric.wait > 0 {
+			observability.Duration(ctx, "background.worker.wait", metric.wait, laneWorkMetricAttrs(metric.work)...)
+		}
+	}
 }
 
 func laneWorkMetricAttrs(work LaneWork) []attribute.KeyValue {
@@ -472,7 +606,7 @@ func (l *WorkLane) startAsync(items []*laneItem) {
 	for _, item := range items {
 		go func(item *laneItem) {
 			err := runLaneCallback(item.ctx, item.fn)
-			l.finishItem(item, err)
+			_ = l.finishItemSafely(item, err)
 			if item.cancel != nil {
 				item.cancel()
 			}
@@ -489,29 +623,122 @@ func runLaneCallback(ctx context.Context, fn func(context.Context) error) (err e
 	return fn(ctx)
 }
 
+func notifyLaneStarts(notifications []laneStartNotification) {
+	for _, notification := range notifications {
+		if notification.ch == nil {
+			continue
+		}
+		select {
+		case notification.ch <- notification.start:
+		default:
+		}
+	}
+}
+
+func (l *WorkLane) notifyStarts(notifications []laneStartNotification) {
+	if l != nil && len(notifications) > 0 && l.startNotificationHook != nil {
+		l.startNotificationHook()
+	}
+	notifyLaneStarts(notifications)
+}
+
+func (l *WorkLane) finishItemSafely(item *laneItem, err error) (finishErr error) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			finishErr = l.recoverFinishPanic(item, recovered)
+		}
+	}()
+	l.finishItem(item, err)
+	return nil
+}
+
+func (l *WorkLane) recoverFinishPanic(item *laneItem, recovered any) (err error) {
+	err = fmt.Errorf("%w: work lane finalization panicked: %v", ErrLanePanic, recovered)
+	defer func() {
+		if secondary := recover(); secondary != nil {
+			err = fmt.Errorf("%w: work lane finalization panic recovery panicked: %v", ErrLanePanic, secondary)
+		}
+	}()
+	var starts []*laneItem
+	var notifications []laneStartNotification
+	var metrics []laneWorkerMetric
+	ctx := context.Background()
+	cancel := func() {}
+	func() {
+		l.mu.Lock()
+		defer l.mu.Unlock()
+		if item != nil {
+			if item.ctx != nil {
+				ctx = item.ctx
+			}
+			if item.cancel != nil {
+				cancel = item.cancel
+			}
+			item.state = LaneWorkFailed
+			delete(l.active, item.activeKey)
+			if key := strings.TrimSpace(item.work.CoalescingKey); key != "" {
+				delete(l.coalescing, key)
+			}
+		}
+		if len(l.active) == 0 {
+			l.closeIdleLocked()
+		}
+		starts, notifications, metrics = l.scheduleLocked(time.Now().UTC())
+		metrics = append(metrics, l.workerGaugeMetricLocked(ctx))
+	}()
+
+	cancel()
+	observability.Count(ctx, "background.workers.finalization_panic", 1)
+	l.notifyStarts(notifications)
+	l.startAsync(starts)
+	observeLaneWorkerMetrics(metrics)
+	return err
+}
+
 func (l *WorkLane) finishItem(item *laneItem, err error) {
 	if l == nil || item == nil {
 		return
 	}
-	l.mu.Lock()
-	if err != nil {
-		item.state = LaneWorkFailed
-	} else if contextErr(item.ctx) != nil {
-		item.state = LaneWorkCanceled
-	} else {
-		item.state = LaneWorkCompleted
+	if l.finishPanicHook != nil {
+		l.finishPanicHook()
 	}
-	delete(l.active, item.work.ID)
-	if key := strings.TrimSpace(item.work.CoalescingKey); key != "" {
-		delete(l.coalescing, key)
-	}
-	if len(l.active) == 0 {
-		close(l.idle)
-	}
-	starts := l.scheduleLocked(time.Now().UTC())
-	l.observeWorkerGaugeLocked(item.ctx)
-	l.mu.Unlock()
+	var starts []*laneItem
+	var notifications []laneStartNotification
+	var metrics []laneWorkerMetric
+	func() {
+		l.mu.Lock()
+		defer l.mu.Unlock()
+		if l.finishAfterLockHook != nil {
+			l.finishAfterLockHook()
+		}
+		if err != nil {
+			item.state = LaneWorkFailed
+		} else if contextErr(item.ctx) != nil {
+			item.state = LaneWorkCanceled
+		} else {
+			item.state = LaneWorkCompleted
+		}
+		delete(l.active, item.activeKey)
+		if key := strings.TrimSpace(item.work.CoalescingKey); key != "" {
+			delete(l.coalescing, key)
+		}
+		if len(l.active) == 0 {
+			l.closeIdleLocked()
+		}
+		starts, notifications, metrics = l.scheduleLocked(time.Now().UTC())
+		metrics = append(metrics, l.workerGaugeMetricLocked(item.ctx))
+	}()
+	l.notifyStarts(notifications)
 	l.startAsync(starts)
+	observeLaneWorkerMetrics(metrics)
+}
+
+func (l *WorkLane) closeIdleLocked() {
+	if l == nil || !l.idleOpen {
+		return
+	}
+	close(l.idle)
+	l.idleOpen = false
 }
 
 func (l *WorkLane) removeQueuedLocked(item *laneItem) {

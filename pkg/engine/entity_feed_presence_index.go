@@ -28,10 +28,6 @@ func (e *Engine) entityFeedPresenceIndexPath() string {
 	return filepath.Join(e.entitiesDir(), entityFeedPresenceIndexFileName)
 }
 
-func (e *Engine) entityFeedPresenceIndexRelPath() string {
-	return entityFeedPresenceIndexFileName
-}
-
 func (e *Engine) loadEntityFeedPresenceIndex() (map[string]struct{}, int64, error) {
 	path := e.entityFeedPresenceIndexPath()
 	info, err := os.Stat(path)

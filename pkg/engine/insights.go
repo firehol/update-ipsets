@@ -274,38 +274,6 @@ func (e *Engine) readTopCountries(name string, outDir string) []insights.Country
 	return out
 }
 
-// preferredGeoProvider returns the configured geolocation provider used for
-// canonical summaries, insights, IP context, and entity pages. It falls back to
-// catalog order for programmatic/test configs that do not set defaults.
-func (e *Engine) preferredGeoProvider() string {
-	if e == nil || e.cfg == nil {
-		return ""
-	}
-	if provider := e.cfg.DefaultProviderForRole(config.UseGeoIP); provider != "" {
-		return provider
-	}
-	for _, src := range e.cfg.SourcesWithUse(config.UseGeoIP) {
-		return src.Name
-	}
-	return ""
-}
-
-// preferredASNProvider returns the configured ASN provider used for canonical
-// summaries, insights, IP context, and entity pages. It falls back to catalog
-// order for programmatic/test configs that do not set defaults.
-func (e *Engine) preferredASNProvider() string {
-	if e == nil || e.cfg == nil {
-		return ""
-	}
-	if provider := e.cfg.DefaultProviderForRole(config.UseASN); provider != "" {
-		return provider
-	}
-	for _, src := range e.cfg.SourcesWithUse(config.UseASN) {
-		return src.Name
-	}
-	return ""
-}
-
 // asnFacts is the subset of the ASN JSON file the insights engine
 // consumes.
 type asnFacts struct {

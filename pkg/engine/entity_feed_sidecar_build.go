@@ -183,7 +183,7 @@ func (e *Engine) startFeedEntitySidecarBuild(ctx context.Context, names []string
 					if !ok {
 						return
 					}
-					sidecar, err := e.buildSingleFeedEntitySidecar(name, view, resolver, geoProvider, asnProvider, geoPrepared, asnDB, setCache)
+					sidecar, err := e.buildSingleFeedEntitySidecar(ctx, name, view, resolver, geoProvider, asnProvider, geoPrepared, asnDB, setCache)
 					if err != nil {
 						sendFeedEntitySidecarBuildError(ctx, results, feedEntitySidecarBuildResult{name: name, err: fmt.Errorf("build feed entity sidecar %s: %w", name, err)})
 						cancel()

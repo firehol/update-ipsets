@@ -1,9 +1,12 @@
 package output
 
 import (
+	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -265,4 +268,102 @@ func TestSyncGitIgnoresFilesOutsideRepository(t *testing.T) {
 	if got != "sample.ipset" {
 		t.Fatalf("unexpected committed files: %q", got)
 	}
+}
+
+func TestSyncGitContextTimesOutAndReapsHungGitChildren(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("process-group reaping assertion is Unix-specific")
+	}
+
+	baseDir := t.TempDir()
+	fakeBinDir := t.TempDir()
+	logPath := filepath.Join(t.TempDir(), "git.log")
+	childPIDPath := filepath.Join(t.TempDir(), "child.pid")
+	gitPath := filepath.Join(fakeBinDir, "git")
+	script := `#!/bin/sh
+printf '%s\n' "$*" >> "$GIT_FAKE_LOG"
+case "$1" in
+rev-parse)
+	printf 'true\n'
+	exit 0
+	;;
+add)
+	(
+		trap '' TERM INT
+		while :; do sleep 1; done
+	) &
+	printf '%s\n' "$!" > "$GIT_FAKE_CHILD_PID"
+	trap '' TERM INT
+	while :; do sleep 1; done
+	;;
+diff|commit|push|gc)
+	exit 0
+	;;
+*)
+	exit 0
+	;;
+esac
+`
+	if err := os.WriteFile(gitPath, []byte(script), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("GIT_FAKE_LOG", logPath)
+	t.Setenv("GIT_FAKE_CHILD_PID", childPIDPath)
+
+	if err := os.WriteFile(filepath.Join(baseDir, "sample.ipset"), []byte("1.2.3.4\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	err := SyncGitContext(context.Background(), SyncOptions{
+		BaseDir:   baseDir,
+		PushToGit: true,
+		Timeout:   100 * time.Millisecond,
+	}, []GeneratedFile{{
+		Path:            filepath.Join(baseDir, "sample.ipset"),
+		Redistributable: true,
+	}})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("SyncGitContext error = %v, want context deadline exceeded", err)
+	}
+
+	childPIDBytes, err := os.ReadFile(childPIDPath)
+	if err != nil {
+		t.Fatalf("child pid not recorded: %v", err)
+	}
+	childPID := strings.TrimSpace(string(childPIDBytes))
+	deadline := time.After(2 * time.Second)
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for processExists(childPID) {
+		select {
+		case <-deadline:
+			t.Fatalf("fake git child process %s is still alive after git timeout", childPID)
+		case <-ticker.C:
+		}
+	}
+
+	logBytes, err := os.ReadFile(logPath)
+	if err != nil {
+		t.Fatalf("read fake git log: %v", err)
+	}
+	if !strings.Contains(string(logBytes), "add -- sample.ipset") {
+		t.Fatalf("fake git log does not show hung add command: %s", string(logBytes))
+	}
+}
+
+func TestSyncGitContextRejectsNegativeTimeout(t *testing.T) {
+	err := SyncGitContext(context.Background(), SyncOptions{
+		BaseDir:   t.TempDir(),
+		PushToGit: true,
+		Timeout:   -time.Second,
+	}, nil)
+	if err == nil || !strings.Contains(err.Error(), "git timeout") {
+		t.Fatalf("SyncGitContext negative timeout error = %v, want git timeout validation error", err)
+	}
+}
+
+func processExists(pid string) bool {
+	cmd := exec.Command("kill", "-0", pid)
+	return cmd.Run() == nil
 }

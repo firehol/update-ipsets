@@ -216,7 +216,7 @@ func (e *Engine) ensureEntityArtifactsCurrentWithTriggerAdmitted(ctx context.Con
 		return err
 	}
 	e.setEntityIntegrityRunning("entity_integrity:"+trigger, trigger)
-	findings, plan, err := e.CheckEntityArtifactsIntegrity()
+	findings, plan, err := e.CheckEntityArtifactsIntegrityContext(ctx)
 	if err != nil {
 		e.StoreEntityIntegrityFindings(findings, err)
 		return err
@@ -247,11 +247,19 @@ func (e *Engine) ensureEntityArtifactsCurrentWithTriggerAdmitted(ctx context.Con
 }
 
 func (e *Engine) CheckEntityArtifactsIntegrity() ([]EntityIntegrityFinding, entityIntegrityPlan, error) {
+	return e.CheckEntityArtifactsIntegrityContext(context.Background())
+}
+
+func (e *Engine) CheckEntityArtifactsIntegrityContext(ctx context.Context) ([]EntityIntegrityFinding, entityIntegrityPlan, error) {
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
+		return nil, entityIntegrityPlan{}, err
+	}
 	if e == nil || e.cfg == nil {
 		return nil, entityIntegrityPlan{}, nil
 	}
 
-	scanner := newEntityIntegrityScanner(e)
+	scanner := newEntityIntegrityScanner(ctx, e)
 	if err := scanner.run(); err != nil {
 		return nil, scanner.plan, err
 	}

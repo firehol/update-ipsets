@@ -13,24 +13,36 @@ import (
 	"github.com/firehol/update-ipsets/pkg/runreason"
 )
 
+var ensureRuntimeDirectoryHook func(string)
+
 func (e *Engine) ensureDirectories() error {
+	if e == nil {
+		return nil
+	}
+	return ensureDirectoriesForRuntime(e.runtime)
+}
+
+func ensureDirectoriesForRuntime(rt Runtime) error {
 	dirs := []string{
-		e.runtime.BaseDir,
-		e.runtime.CacheDir,
-		e.runtime.LibDir,
-		e.runtime.HistoryDir,
-		e.runtime.ErrorsDir,
-		e.runtime.TmpDir,
+		rt.BaseDir,
+		rt.CacheDir,
+		rt.LibDir,
+		rt.HistoryDir,
+		rt.ErrorsDir,
+		rt.TmpDir,
 	}
-	if e.runtime.WebDir != "" {
-		dirs = append(dirs, e.runtime.WebDir)
+	if rt.WebDir != "" {
+		dirs = append(dirs, rt.WebDir)
 	}
-	if e.runtime.WebDirForIPSets != "" {
-		dirs = append(dirs, e.runtime.WebDirForIPSets)
+	if rt.WebDirForIPSets != "" {
+		dirs = append(dirs, rt.WebDirForIPSets)
 	}
 	for _, dir := range dirs {
 		if dir == "" {
 			continue
+		}
+		if ensureRuntimeDirectoryHook != nil {
+			ensureRuntimeDirectoryHook(dir)
 		}
 		if err := os.MkdirAll(dir, generatedDirMode); err != nil {
 			return err

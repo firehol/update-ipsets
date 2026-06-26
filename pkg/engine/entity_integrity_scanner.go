@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 )
 
 type entityIntegrityScanner struct {
+	ctx                 context.Context
 	e                   *Engine
 	findings            []EntityIntegrityFinding
 	plan                entityIntegrityPlan
@@ -27,8 +29,9 @@ type entityIntegrityScanner struct {
 	health              *feedHealthClassifier
 }
 
-func newEntityIntegrityScanner(e *Engine) *entityIntegrityScanner {
+func newEntityIntegrityScanner(ctx context.Context, e *Engine) *entityIntegrityScanner {
 	return &entityIntegrityScanner{
+		ctx:                 nonNilContext(ctx),
 		e:                   e,
 		findings:            make([]EntityIntegrityFinding, 0),
 		countryRefs:         map[string]entityDependencyRef{},
@@ -41,20 +44,38 @@ func newEntityIntegrityScanner(e *Engine) *entityIntegrityScanner {
 }
 
 func (s *entityIntegrityScanner) run() error {
+	if err := s.checkContext(); err != nil {
+		return err
+	}
 	done, err := s.checkGlobalPrerequisites()
 	if done || err != nil {
+		return err
+	}
+	if err := s.checkContext(); err != nil {
 		return err
 	}
 	if err := s.loadProviderReferences(); err != nil {
 		return err
 	}
+	if err := s.checkContext(); err != nil {
+		return err
+	}
 	if err := s.scanFeedSidecars(); err != nil {
+		return err
+	}
+	if err := s.checkContext(); err != nil {
 		return err
 	}
 	if err := s.scanCountryDetails(); err != nil {
 		return err
 	}
+	if err := s.checkContext(); err != nil {
+		return err
+	}
 	if err := s.scanASNDetails(); err != nil {
+		return err
+	}
+	if err := s.checkContext(); err != nil {
 		return err
 	}
 	if err := s.checkEntityIndexes(); err != nil {
@@ -63,9 +84,18 @@ func (s *entityIntegrityScanner) run() error {
 	if err := s.e.checkHomeAggregatesIntegrity(&s.findings, &s.plan, s.health); err != nil {
 		return err
 	}
-	s.checkHealthDrift()
+	if err := s.checkHealthDrift(); err != nil {
+		return err
+	}
 	s.sortFindings()
 	return nil
+}
+
+func (s *entityIntegrityScanner) checkContext() error {
+	if s == nil {
+		return nil
+	}
+	return contextErr(s.ctx)
 }
 
 func (s *entityIntegrityScanner) checkGlobalPrerequisites() (bool, error) {

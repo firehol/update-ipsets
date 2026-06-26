@@ -10,6 +10,9 @@ import (
 
 func (s *entityIntegrityScanner) scanCountryDetails() error {
 	for code, ref := range s.countryRefs {
+		if err := s.checkContext(); err != nil {
+			return err
+		}
 		if err := s.checkCountryDetail(code, ref); err != nil {
 			return err
 		}
@@ -118,6 +121,9 @@ func (s *entityIntegrityScanner) checkCountryPublicDetail(code, sidecarPath stri
 
 func (s *entityIntegrityScanner) scanASNDetails() error {
 	for asn, ref := range s.asnRefs {
+		if err := s.checkContext(); err != nil {
+			return err
+		}
 		if err := s.checkASNDetail(asn, ref); err != nil {
 			return err
 		}
@@ -272,8 +278,11 @@ func (s *entityIntegrityScanner) checkASNIndex() error {
 	return nil
 }
 
-func (s *entityIntegrityScanner) checkHealthDrift() {
+func (s *entityIntegrityScanner) checkHealthDrift() error {
 	for _, check := range s.healthChecks {
+		if err := s.checkContext(); err != nil {
+			return err
+		}
 		staleCountries, staleASNs := s.countStaleHealthTargets(check)
 		if staleCountries == 0 && staleASNs == 0 {
 			continue
@@ -291,6 +300,7 @@ func (s *entityIntegrityScanner) checkHealthDrift() {
 		})
 		s.plan.addHealthFeed(check.feed)
 	}
+	return nil
 }
 
 func (s *entityIntegrityScanner) countStaleHealthTargets(check entityHealthCheck) (int, int) {

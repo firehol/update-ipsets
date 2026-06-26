@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
+	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/firehol/update-ipsets/pkg/engine"
@@ -14,6 +16,11 @@ import (
 )
 
 const delayedPublishStageCleanupDelay = 5 * time.Minute
+
+var serveRunServer = serveServer
+
+var startupIntegrityRecoveryHookMu sync.Mutex
+var startupIntegrityRecoveryBeforeCheckHook func()
 
 func Run(ctx context.Context, eng *engine.Engine, opts Options) error {
 	if ctx == nil {
@@ -31,6 +38,7 @@ func Run(ctx context.Context, eng *engine.Engine, opts Options) error {
 	runCtx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	eng.AttachWorkLaneContext(runCtx, 30*time.Second)
+	watchdogDone := startRunWatchdog(runCtx, opts.Logger)
 	newRuntimeStatsSampler().Start(runCtx)
 
 	runner := scheduler.New(eng, opts.EnableAll, opts.Logger)
@@ -40,6 +48,12 @@ func Run(ctx context.Context, eng *engine.Engine, opts Options) error {
 	defer func() {
 		cancel()
 		waitForBackground()
+		<-watchdogDone
+		cachePersistenceCtx, cancelCachePersistence := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancelCachePersistence()
+		if err := eng.StopCachePersistence(cachePersistenceCtx); err != nil {
+			opts.Logger.Warn("cache persistence shutdown timed out", "error", err)
+		}
 	}()
 
 	servers := buildRunServers(runCtx, eng, opts, runner)
@@ -48,7 +62,6 @@ func Run(ctx context.Context, eng *engine.Engine, opts Options) error {
 	}
 
 	startRunShutdownWatcher(runCtx, servers, opts.Logger)
-	startRunWatchdog(runCtx)
 	announceRunReady(servers, opts)
 
 	return serveRunServers(servers, opts.CertFile, opts.KeyFile, cancel)
@@ -79,6 +92,9 @@ func queueStartupIntegrityRecovery(ctx context.Context, eng *engine.Engine, opts
 	integrityWebDir := outputDirFromOptions(eng.Runtime().BaseDir, choose(opts.WebDir, eng.Runtime().WebDir))
 	integrityOpts := engine.IntegrityOptions{EnableAll: opts.EnableAll, WebDir: integrityWebDir}
 	eng.MarkPipelineIntegrityStartupScanRunning(integrityOpts)
+	if hook := startupIntegrityRecoveryBeforeCheckHookForTest(); hook != nil {
+		hook()
+	}
 	findings, err := eng.CheckIntegrityWithOptionsContext(ctx, integrityOpts)
 	eng.StorePipelineIntegrityFindings(integrityOpts, findings, err)
 	if err != nil {
@@ -106,31 +122,47 @@ func queueStartupIntegrityRecovery(ctx context.Context, eng *engine.Engine, opts
 		"recheck", len(recheckNames),
 		"reprocess", len(reprocessNames))
 	if len(recheckNames) > 0 {
-		runner.TriggerSources(scheduler.PendingAction{
+		if err := runner.TriggerSourcesWithin(ctx, scheduler.DefaultActionAdmissionTimeout, scheduler.PendingAction{
 			Names:   recheckNames,
 			Recheck: true,
 			Reason:  runreason.ReasonStartupIntegrityReprocess,
-		})
+		}); err != nil {
+			opts.Logger.Error("failed to queue startup integrity recheck work", "targets", len(recheckNames), "error", err)
+		}
 	}
 	if len(reprocessNames) > 0 {
-		runner.TriggerSources(scheduler.PendingAction{
+		if err := runner.TriggerSourcesWithin(ctx, scheduler.DefaultActionAdmissionTimeout, scheduler.PendingAction{
 			Names:     reprocessNames,
 			Reprocess: true,
 			Reason:    runreason.ReasonStartupIntegrityReprocess,
-		})
+		}); err != nil {
+			opts.Logger.Error("failed to queue startup integrity reprocess work", "targets", len(reprocessNames), "error", err)
+		}
+	}
+}
+
+func startupIntegrityRecoveryBeforeCheckHookForTest() func() {
+	startupIntegrityRecoveryHookMu.Lock()
+	defer startupIntegrityRecoveryHookMu.Unlock()
+	return startupIntegrityRecoveryBeforeCheckHook
+}
+
+func setStartupIntegrityRecoveryBeforeCheckHookForTest(fn func()) func() {
+	startupIntegrityRecoveryHookMu.Lock()
+	old := startupIntegrityRecoveryBeforeCheckHook
+	startupIntegrityRecoveryBeforeCheckHook = fn
+	startupIntegrityRecoveryHookMu.Unlock()
+	return func() {
+		startupIntegrityRecoveryHookMu.Lock()
+		startupIntegrityRecoveryBeforeCheckHook = old
+		startupIntegrityRecoveryHookMu.Unlock()
 	}
 }
 
 func startRunBackgroundWork(ctx context.Context, eng *engine.Engine, opts Options, runner *scheduler.Runner, startedAt time.Time) func() {
-	startupEntityArtifactsDone := make(chan struct{})
-	go func() {
-		defer close(startupEntityArtifactsDone)
-		if err := eng.EnsureEntityArtifactsCurrentWithTrigger(ctx, "startup"); err != nil {
-			opts.Logger.Error("failed to ensure country and ASN entity artifacts at startup", "error", err)
-		} else {
-			opts.Logger.Info("country and ASN entity artifacts checked at startup")
-		}
-	}()
+	startupEntityArtifactsDone := startStartupEntityArtifacts(ctx, opts.Logger, func(ctx context.Context) error {
+		return eng.EnsureEntityArtifactsCurrentWithTrigger(ctx, "startup")
+	})
 
 	runnerDone := make(chan struct{})
 	go func() {
@@ -145,6 +177,23 @@ func startRunBackgroundWork(ctx context.Context, eng *engine.Engine, opts Option
 		<-runnerDone
 		<-delayedStageCleanupDone
 	}
+}
+
+func startStartupEntityArtifacts(ctx context.Context, logger *slog.Logger, ensure func(context.Context) error) <-chan struct{} {
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		defer recoverDaemonControlPanic(logger, "startup_entity_artifacts")
+		if ensure == nil {
+			return
+		}
+		if err := ensure(ctx); err != nil {
+			nonNilLogger(logger).Error("failed to ensure country and ASN entity artifacts at startup", "error", err)
+		} else {
+			nonNilLogger(logger).Info("country and ASN entity artifacts checked at startup")
+		}
+	}()
+	return done
 }
 
 func startDelayedPublishStageCleanup(ctx context.Context, eng *engine.Engine, opts Options, cutoff time.Time) <-chan struct{} {
@@ -213,10 +262,9 @@ func closeRunListeners(servers []namedServer) {
 
 func startRunShutdownWatcher(ctx context.Context, servers []namedServer, logger *slog.Logger) {
 	go func() {
+		defer recoverDaemonControlPanic(logger, "shutdown_watcher")
 		<-ctx.Done()
-		if err := systemd.Stopping("update-ipsets stopping"); err != nil {
-			logger.Error("systemd stopping notification failed", "error", err)
-		}
+		notifyRunStopping(ctx, logger)
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		for _, srv := range servers {
@@ -227,12 +275,28 @@ func startRunShutdownWatcher(ctx context.Context, servers []namedServer, logger 
 	}()
 }
 
-func startRunWatchdog(ctx context.Context) {
+func notifyRunStopping(ctx context.Context, logger *slog.Logger) {
+	defer recoverDaemonControlPanic(logger, "systemd_stopping")
+	if err := systemdStoppingNotify("update-ipsets stopping"); err != nil {
+		reportSystemdNotifyError(ctx, logger, "stopping", err)
+	}
+}
+
+func startRunWatchdog(ctx context.Context, logger *slog.Logger) <-chan struct{} {
 	interval := systemd.WatchdogInterval()
 	if interval <= 0 {
-		return
+		done := make(chan struct{})
+		close(done)
+		return done
 	}
+	notifyDeadline := systemd.NotifyDeadline(interval)
+	var lastBeat atomic.Int64
+	lastBeat.Store(time.Now().UnixNano())
+	_ = startWatchdogSelfHealth(ctx, logger, interval, notifyDeadline, &lastBeat)
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
+		defer recoverDaemonControlPanic(logger, "watchdog")
 		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
 		for {
@@ -240,10 +304,22 @@ func startRunWatchdog(ctx context.Context) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				_ = systemd.Watchdog("update-ipsets running")
+				sendRunWatchdogTick(ctx, logger, &lastBeat)
 			}
 		}
 	}()
+	return done
+}
+
+func sendRunWatchdogTick(ctx context.Context, logger *slog.Logger, lastBeat *atomic.Int64) {
+	defer recoverDaemonControlPanic(logger, "watchdog")
+	if err := systemdWatchdogNotify("update-ipsets running"); err != nil {
+		reportSystemdNotifyError(ctx, logger, "watchdog", err)
+		return
+	}
+	if lastBeat != nil {
+		lastBeat.Store(time.Now().UnixNano())
+	}
 }
 
 func announceRunReady(servers []namedServer, opts Options) {
@@ -253,8 +329,13 @@ func announceRunReady(servers []namedServer, opts Options) {
 			"listen", srv.addr,
 			"tls", opts.CertFile != "" && opts.KeyFile != "")
 	}
-	if err := systemd.Ready(readyMessage(servers)); err != nil {
-		opts.Logger.Error("systemd ready notification failed", "error", err)
+	notifyRunReady(opts.Logger, readyMessage(servers))
+}
+
+func notifyRunReady(logger *slog.Logger, status string) {
+	defer recoverDaemonControlPanic(logger, "systemd_ready")
+	if err := systemdReadyNotify(status); err != nil {
+		reportSystemdNotifyError(context.Background(), logger, "ready", err)
 	}
 }
 
@@ -263,7 +344,13 @@ func serveRunServers(servers []namedServer, certFile, keyFile string, cancel con
 	for _, srv := range servers {
 		srv := srv
 		go func() {
-			err := serveServer(srv, certFile, keyFile)
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					cancel()
+					errCh <- fmt.Errorf("%s listener %s panicked: %v", srv.name, srv.addr, recovered)
+				}
+			}()
+			err := serveRunServer(srv, certFile, keyFile)
 			if isServerClosedError(err) {
 				errCh <- nil
 				return

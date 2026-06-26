@@ -68,19 +68,23 @@ type PublicCriticalFeed struct {
 }
 
 func (e *Engine) PublicFeedSummaries() []PublicFeedSummary {
-	if e == nil || e.cfg == nil {
+	if e == nil {
 		return nil
 	}
-	entries := e.EntriesSnapshot()
+	cfg := e.Config()
+	if cfg == nil {
+		return nil
+	}
+	entries := e.entriesSnapshot(cfg, configuredNamesForConfig(cfg))
 	now := e.now().UTC()
 	out := make([]PublicFeedSummary, 0, len(entries))
 	for i := range entries {
 		entry := &entries[i]
-		if !e.isPublicFeedName(entry.Name) {
+		if !isPublicFeedNameForConfig(cfg, entry.Name) {
 			continue
 		}
-		src := e.lookupSource(entry.Name)
-		out = append(out, buildPublicFeedSummary(entry, src, feedhealth.PolicyFromRuntime(e.cfg.Runtime), now, e.isRedistributable(entry.Name)))
+		src := lookupSourceForConfig(cfg, entry.Name)
+		out = append(out, buildPublicFeedSummary(entry, src, feedhealth.PolicyFromRuntime(cfg.Runtime), now, isRedistributableForConfig(cfg, entry.Name)))
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
 	observePublicFeedSummaries(out, now)

@@ -496,12 +496,37 @@ func (st *State) SnapshotEntries() map[string]Entry {
 	return out
 }
 
+// SnapshotState returns a detached state copy suitable for asynchronous
+// persistence. Later mutations to the source state cannot change the snapshot.
+func (st *State) SnapshotState() *State {
+	if st == nil {
+		return New()
+	}
+	st.mu.RLock()
+	savedAt := st.SavedAt
+	entries := make(map[string]*Entry, len(st.Entries))
+	for name, entry := range st.Entries {
+		if entry == nil {
+			continue
+		}
+		clone := cloneEntry(entry)
+		entries[name] = &clone
+	}
+	st.mu.RUnlock()
+	return &State{
+		SavedAt: savedAt,
+		Entries: entries,
+	}
+}
+
 // RenameEntry atomically moves an entry from oldName to newName.
 func (st *State) RenameEntry(oldName, newName string) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 	if entry := st.Entries[oldName]; entry != nil {
+		unlock := entry.lockEntry()
 		entry.Name = newName
+		unlock()
 		st.Entries[newName] = entry
 		delete(st.Entries, oldName)
 	}

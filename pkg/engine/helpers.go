@@ -82,18 +82,26 @@ func preferStagedPath(path string) string {
 }
 
 func (e *Engine) providerArchivePath(name string, src *config.Source) string {
+	return providerArchivePathForRuntime(e.Runtime(), name, src)
+}
+
+func providerArchivePathForRuntime(rt Runtime, name string, src *config.Source) string {
 	if src != nil && src.HasUse(config.UseASN) {
-		return filepath.Join(e.runtime.LibDir, "asn", name, "source")
+		return filepath.Join(rt.LibDir, "asn", name, "source")
 	}
-	return filepath.Join(e.runtime.LibDir, "geolocation", name+".source")
+	return filepath.Join(rt.LibDir, "geolocation", name+".source")
 }
 
 func (e *Engine) finalPath(name, output string) string {
+	return finalPathForRuntime(e.Runtime(), name, output)
+}
+
+func finalPathForRuntime(rt Runtime, name, output string) string {
 	switch canonicalOutputFamily(output) {
 	case "ipset":
-		return filepath.Join(e.runtime.BaseDir, name+".ipset")
+		return filepath.Join(rt.BaseDir, name+".ipset")
 	default:
-		return filepath.Join(e.runtime.BaseDir, name+".netset")
+		return filepath.Join(rt.BaseDir, name+".netset")
 	}
 }
 
@@ -101,14 +109,15 @@ func (e *Engine) feedBodyPath(name string) string {
 	if e == nil {
 		return ""
 	}
-	if e.cfg == nil {
-		return filepath.Join(e.runtime.BaseDir, name+".ipset")
+	cfg, rt := e.configRuntimeSnapshot()
+	if cfg == nil {
+		return filepath.Join(rt.BaseDir, name+".ipset")
 	}
-	src := e.cfg.Sources[name]
+	src := cfg.Sources[name]
 	if src == nil {
-		return filepath.Join(e.runtime.BaseDir, name+".ipset")
+		return filepath.Join(rt.BaseDir, name+".ipset")
 	}
-	return e.finalPath(name, src.Output)
+	return finalPathForRuntime(rt, name, src.Output)
 }
 
 func (e *Engine) FeedBodyPath(name string) string {
@@ -306,7 +315,14 @@ func publicURL(src *config.Source) string {
 }
 
 func (e *Engine) isRedistributable(name string) bool {
-	src := e.cfg.Sources[name]
+	return isRedistributableForConfig(e.Config(), name)
+}
+
+func isRedistributableForConfig(cfg *config.Config, name string) bool {
+	if cfg == nil {
+		return true
+	}
+	src := cfg.Sources[name]
 	if src == nil {
 		return true
 	}
@@ -322,7 +338,7 @@ func (e *Engine) isRedistributable(name string) bool {
 	}
 	if len(src.DerivedFrom) > 0 {
 		for _, parent := range src.DerivedFrom {
-			if !e.isRedistributable(parent) {
+			if !isRedistributableForConfig(cfg, parent) {
 				return false
 			}
 		}

@@ -55,7 +55,7 @@ func writeGlobalSearch(w http.ResponseWriter, r *http.Request, eng *engine.Engin
 	// are loadable from disk, attach country, ASN, and infrastructure-role
 	// context for the looked-up IP. Errors are non-fatal — the matches
 	// list is the primary payload.
-	if ctx, err := eng.LookupIPContext(ip); err == nil {
+	if ctx, err := eng.LookupIPContextContext(r.Context(), ip); err == nil {
 		resp.Context = ctx
 	}
 	observeAPIRecalculation(r, "public", "search", "ok", 0)
@@ -94,7 +94,7 @@ func writeFeedScopedSearch(w http.ResponseWriter, r *http.Request, eng *engine.E
 		resp.Matches = append(resp.Matches, *match)
 	}
 	if r.URL.Query().Get("details") == "true" {
-		if ctx, err := eng.LookupIPContext(ip); err == nil {
+		if ctx, err := eng.LookupIPContextContext(r.Context(), ip); err == nil {
 			resp.Context = ctx
 		}
 	}

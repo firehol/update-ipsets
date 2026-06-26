@@ -9,6 +9,9 @@ import (
 
 func (s *entityIntegrityScanner) scanFeedSidecars() error {
 	for _, name := range s.e.publicOutputNames() {
+		if err := s.checkContext(); err != nil {
+			return err
+		}
 		if strings.TrimSpace(name) == "" {
 			continue
 		}

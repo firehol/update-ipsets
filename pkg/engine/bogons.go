@@ -231,7 +231,7 @@ func (e *Engine) writeBogonComparisonFiles(ctx context.Context, datasets *bogonD
 				e.observeRunCounter("bogons.overlap_skipped_filter", 1, 0)
 			} else {
 				var err error
-				src, err = setCache.Open(name)
+				src, err = setCache.OpenContext(ctx, name)
 				if err != nil {
 					e.logger.Warn("bogon comparison skipped: cannot open set",
 						"set", name, "provider", providerName, "error", err)
@@ -262,7 +262,7 @@ func (e *Engine) writeBogonComparisonFiles(ctx context.Context, datasets *bogonD
 					// A zero-overlap prefilter does not need the feed body, but
 					// RFC by-range output still needs the source when overlaps exist.
 					var err error
-					src, err = setCache.Open(name)
+					src, err = setCache.OpenContext(ctx, name)
 					if err != nil {
 						e.logger.Warn("bogon comparison skipped: cannot open set",
 							"set", name, "provider", providerName, "error", err)
@@ -306,7 +306,7 @@ func (e *Engine) bogonComparisonTargets(ctx context.Context, names []string, set
 		if err := contextErr(ctx); err != nil {
 			return targets
 		}
-		src, err := setCache.Open(name)
+		src, err := setCache.OpenContext(ctx, name)
 		if err != nil {
 			e.logger.Warn("bogon comparison skipped: cannot open set", "set", name, "error", err)
 			continue

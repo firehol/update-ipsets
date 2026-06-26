@@ -196,10 +196,11 @@ func (e *Engine) applyMetadataConfigFallbacks(name string, meta *setMetadata) {
 	// processing run, but cached entries written before that change
 	// landed have empty values until the next refresh. Fall back to
 	// the live config so users see the right answer immediately.
-	if e.cfg == nil {
+	cfg := e.Config()
+	if cfg == nil {
 		return
 	}
-	src := e.cfg.SourceByName(name)
+	src := cfg.SourceByName(name)
 	if src == nil {
 		return
 	}
@@ -219,19 +220,21 @@ func (e *Engine) applyMetadataArtifactFields(name string, entry *cache.Entry, ou
 		meta.Comparison = name + "_comparison.json"
 	}
 	e.applyMetadataGeoArtifacts(name, outDir, meta)
-	if redistributable && entry.File != "" && e.runtime.LocalCopyURL != "" {
-		meta.FileLocal = strings.TrimRight(e.runtime.LocalCopyURL, "/") + "/" + entry.File
+	rt := e.Runtime()
+	if redistributable && entry.File != "" && rt.LocalCopyURL != "" {
+		meta.FileLocal = strings.TrimRight(rt.LocalCopyURL, "/") + "/" + entry.File
 	}
-	if redistributable && entry.File != "" && e.runtime.GitHubChangesURL != "" {
-		meta.CommitHistory = strings.TrimRight(e.runtime.GitHubChangesURL, "/") + "/" + entry.File
+	if redistributable && entry.File != "" && rt.GitHubChangesURL != "" {
+		meta.CommitHistory = strings.TrimRight(rt.GitHubChangesURL, "/") + "/" + entry.File
 	}
 }
 
 func (e *Engine) applyMetadataGeoArtifacts(name, outDir string, meta *setMetadata) {
-	if e.cfg == nil {
+	cfg := e.Config()
+	if cfg == nil {
 		return
 	}
-	for _, src := range e.cfg.SourcesWithUse(config.UseGeoIP) {
+	for _, src := range cfg.SourcesWithUse(config.UseGeoIP) {
 		file := name + "_" + src.Name + ".json"
 		if !metadataArtifactExists(e, outDir, file) {
 			continue
@@ -299,15 +302,22 @@ func clearMetadataRawFieldsForPolicy(redistributable bool, meta *setMetadata) {
 // name, accounting for split _ip / _net derivatives that share a parent.
 // Returns nil if no source matches (merges and unconfigured names).
 func (e *Engine) lookupSource(name string) *config.Source {
-	if e == nil || e.cfg == nil {
+	if e == nil {
 		return nil
 	}
-	if src := e.cfg.Sources[name]; src != nil {
+	return lookupSourceForConfig(e.Config(), name)
+}
+
+func lookupSourceForConfig(cfg *config.Config, name string) *config.Source {
+	if cfg == nil {
+		return nil
+	}
+	if src := cfg.Sources[name]; src != nil {
 		return src
 	}
 	if strings.HasSuffix(name, "_ip") || strings.HasSuffix(name, "_net") {
 		base := strings.TrimSuffix(strings.TrimSuffix(name, "_ip"), "_net")
-		if src := e.cfg.Sources[base]; src != nil {
+		if src := cfg.Sources[base]; src != nil {
 			return src
 		}
 	}

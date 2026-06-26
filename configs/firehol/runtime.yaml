@@ -72,6 +72,9 @@ runtime:
   web_dir: ${WEB_DIR-}
   web_dir_for_ipsets: ${WEB_DIR_FOR_IPSETS-}
   ipsets_apply: true
+  # Timeout in seconds for each git subprocess used by generated artifact
+  # publication. Zero means the built-in default of 600 seconds.
+  push_to_git_timeout: 600
   # Daemon resource controls — keep the daemon lightweight.
   # max_ingest_workers: optional ceiling for all ingest worker pools.
   # Set 0 to disable this shared ceiling and use the per-domain values below.

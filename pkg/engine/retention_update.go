@@ -141,7 +141,7 @@ func (e *Engine) updateRetentionWithDiff(ctx context.Context, name string, paths
 	}
 
 	started := e.retentionStartedAt(name, updatedAtUnix)
-	past := e.retentionPastFromRuntime(name, started)
+	past := e.retentionPastFromRuntimeContext(ctx, name, started)
 	if diff.removed == 0 {
 		return e.refreshRetentionWithoutRemovals(ctx, name, paths, started, updatedAtUnix, past)
 	}

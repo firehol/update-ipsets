@@ -140,6 +140,7 @@ func (r *Runner) activeDownloadCount() int {
 }
 
 func (r *Runner) startNextDownload() (queuedWork, bool) {
+	configSnapshot := r.schedulerConfigSnapshot()
 	r.stateMu.Lock()
 	defer r.stateMu.Unlock()
 	if len(r.download.waiting) == 0 {
@@ -154,7 +155,7 @@ func (r *Runner) startNextDownload() (queuedWork, bool) {
 			blocked = item
 			blockedFirst = false
 		}
-		if !r.downloadInputsSettledLocked(item.Name) {
+		if !r.downloadInputsSettledLocked(configSnapshot.DerivedFrom(item.Name)) {
 			continue
 		}
 		if first || queuedWorkBefore(item, next) {
@@ -179,15 +180,11 @@ func (r *Runner) startNextDownload() (queuedWork, bool) {
 	return next, true
 }
 
-func (r *Runner) downloadInputsSettledLocked(name string) bool {
-	if r == nil || r.eng == nil {
+func (r *Runner) downloadInputsSettledLocked(parents []string) bool {
+	if len(parents) == 0 {
 		return true
 	}
-	src := r.eng.Config().Sources[name]
-	if src == nil || len(src.DerivedFrom) == 0 {
-		return true
-	}
-	for _, parent := range src.DerivedFrom {
+	for _, parent := range parents {
 		if _, waiting := r.download.waiting[parent]; waiting {
 			return false
 		}

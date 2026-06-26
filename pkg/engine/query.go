@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/firehol/update-ipsets/pkg/cache"
+	"github.com/firehol/update-ipsets/pkg/config"
 	"github.com/firehol/update-ipsets/pkg/iprange"
 )
 
@@ -142,7 +143,11 @@ func (e *Engine) populateQueryMatchTiming(ctx context.Context, match *QueryMatch
 }
 
 func (e *Engine) queryMatchFirstSeen(ctx context.Context, name string, ipv4 uint32) int64 {
-	if e == nil || e.runtime.LibDir == "" {
+	if e == nil {
+		return 0
+	}
+	rt := e.Runtime()
+	if rt.LibDir == "" {
 		return 0
 	}
 	cohorts := e.retentionCohortsFromRuntime(ctx, name)
@@ -163,12 +168,12 @@ func (e *Engine) queryMatchFirstSeen(ctx context.Context, name string, ipv4 uint
 	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
 
 	for _, addedAt := range keys {
-		path, rel, err := e.retentionCohortPath(name, addedAt)
+		path, rel, err := retentionCohortPathForRuntime(rt, name, addedAt)
 		if err != nil {
 			e.logger.Warn("query: cannot resolve retention cohort", "feed", name, "added_at", addedAt, "error", err)
 			continue
 		}
-		src, err := openRetentionCohortSet(ctx, name, e.runtime.LibDir, rel, path)
+		src, err := openRetentionCohortSet(ctx, name, rt.LibDir, rel, path)
 		if err != nil {
 			e.logger.Warn("query: cannot open retention cohort", "feed", name, "cohort", path, "error", err)
 			continue
@@ -188,11 +193,11 @@ func (e *Engine) queryMatchFirstSeen(ctx context.Context, name string, ipv4 uint
 	return 0
 }
 
-func (e *Engine) retentionCohortPath(name string, addedAt int64) (string, string, error) {
-	if e == nil || e.runtime.LibDir == "" || name == "" || addedAt <= 0 {
+func retentionCohortPathForRuntime(rt Runtime, name string, addedAt int64) (string, string, error) {
+	if rt.LibDir == "" || name == "" || addedAt <= 0 {
 		return "", "", fmt.Errorf("invalid retention cohort lookup for %q at %d", name, addedAt)
 	}
-	dir := filepath.Join(e.runtime.LibDir, name, "new")
+	dir := filepath.Join(rt.LibDir, name, "new")
 	relDir := filepath.Join(name, "new")
 	base := strconv.FormatInt(addedAt, 10)
 	for _, filename := range []string{base, base + ".set"} {
@@ -214,204 +219,6 @@ func openRetentionCohortSet(ctx context.Context, name, rootDir, rel, path string
 		return nil, err
 	}
 	return &closableSource{RangeSource: set}, nil
-}
-
-func (e *Engine) HistorySeries(name string) ([]HistoryPoint, error) {
-	// Read from the internal full ledger first. Bash keeps
-	// LIB_DIR/<feed>/history.csv append-only and generates public
-	// <feed>_history.csv as a last-N window from it.
-	points := e.historyFromLedgerCSV(name)
-	if len(points) == 0 {
-		// Compatibility fallback for Go rewrite data written before the
-		// internal ledger was restored.
-		points = e.historyFromWebCSV(name)
-	}
-
-	if len(points) == 0 {
-		return nil, nil
-	}
-	return points, nil
-}
-
-// ChangesetSeries returns the (timestamp, added, removed) tuples written to
-// <LibDir>/<name>/changesets.csv by the retention step. Each tuple corresponds
-// to exactly one successful update where the binary set changed. A missing file
-// returns an empty slice and a nil error — young feeds or feeds that never
-// changed since tracking started simply have no changesets yet.
-//
-// The results match the bash public changeset window: ignore historical
-// zero-delta rows, drop the bootstrap row, then return the last
-// WebChartsEntries real changes.
-func (e *Engine) ChangesetSeries(name string) ([]ChangesetPoint, error) {
-	out, err := e.readChangesetLedger(name)
-	if err != nil {
-		return nil, err
-	}
-	if len(out) > 0 {
-		out = out[1:]
-	}
-	window := e.webChartsEntries()
-	if len(out) > window {
-		out = out[len(out)-window:]
-	}
-	return out, nil
-}
-
-// PublicChangesetSeries reads the already-published web changeset artifact.
-// It intentionally does not fall back to the internal ledger because public
-// requests must not regenerate missing artifacts.
-func (e *Engine) PublicChangesetSeries(name string) ([]ChangesetPoint, error) {
-	return e.PublicChangesetSeriesInDir(name, e.outputDir())
-}
-
-func (e *Engine) PublicChangesetSeriesInDir(name, dir string) ([]ChangesetPoint, error) {
-	if _, err := e.Entry(name); err != nil {
-		return nil, err
-	}
-	if dir == "" {
-		dir = e.outputDir()
-	}
-	data, err := readFileInRoot(dir, name+"_changesets.csv")
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, fmt.Errorf("no changeset data for %q", name)
-		}
-		return nil, err
-	}
-	return parseChangesetCSVData(data), nil
-}
-
-func (e *Engine) readChangesetLedger(name string) ([]ChangesetPoint, error) {
-	if e == nil || e.runtime.LibDir == "" {
-		return nil, nil
-	}
-	data, err := readFileInRoot(e.runtime.LibDir, filepath.Join(name, "changesets.csv"))
-	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return parseChangesetCSVData(data), nil
-}
-
-// historyFromLedgerCSV reads the internal append-only history ledger.
-func (e *Engine) historyFromLedgerCSV(name string) []HistoryPoint {
-	if e == nil || e.runtime.LibDir == "" {
-		return nil
-	}
-	return parseHistoryCSVInRoot(e.runtime.LibDir, filepath.Join(name, "history.csv"), name)
-}
-
-// historyFromWebCSV reads _history.csv from the web output dir. This preserves
-// legacy Go-rewrite data that was written before the internal bash-compatible
-// full ledger was restored.
-func (e *Engine) historyFromWebCSV(name string) []HistoryPoint {
-	dir := e.outputDir()
-	if dir == "" {
-		return nil
-	}
-	return parseHistoryCSVInRoot(dir, name+"_history.csv", name)
-}
-
-// parseHistoryCSV reads a CSV with header "DateTime,Entries,UniqueIPs".
-func parseHistoryCSVInRoot(rootDir, rel, name string) []HistoryPoint {
-	data, err := readFileInRoot(rootDir, rel)
-	if err != nil {
-		return nil
-	}
-	return parseHistoryCSVData(data, name)
-}
-
-func parseHistoryCSVData(data []byte, name string) []HistoryPoint {
-	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-	if len(lines) <= 1 {
-		return nil
-	}
-	points := make([]HistoryPoint, 0, len(lines)-1)
-	for _, line := range lines[1:] {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		parts := strings.Split(line, ",")
-		if len(parts) != 3 {
-			continue
-		}
-		ts, err1 := strconv.ParseInt(strings.TrimSpace(parts[0]), 10, 64)
-		entries, err2 := strconv.Atoi(strings.TrimSpace(parts[1]))
-		ips, err3 := strconv.ParseUint(strings.TrimSpace(parts[2]), 10, 64)
-		if err1 != nil || err2 != nil || err3 != nil {
-			continue
-		}
-		if !validHistoryTimestamp(ts) {
-			continue
-		}
-		points = append(points, HistoryPoint{
-			Timestamp: ts,
-			Name:      name,
-			Entries:   entries,
-			UniqueIPs: ips,
-		})
-	}
-	return points
-}
-
-func parseChangesetCSVData(data []byte) []ChangesetPoint {
-	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-	if len(lines) <= 1 {
-		return nil
-	}
-	out := make([]ChangesetPoint, 0, len(lines)-1)
-	for _, line := range lines[1:] {
-		line = strings.TrimSpace(line)
-		if line == "" {
-			continue
-		}
-		if point, ok := parseChangesetCSVLine(line); ok {
-			out = append(out, point)
-		}
-	}
-	return out
-}
-
-func parseChangesetCSVLine(line string) (ChangesetPoint, bool) {
-	tsText, rest, ok := strings.Cut(line, ",")
-	if !ok {
-		return ChangesetPoint{}, false
-	}
-	addedText, removedText, ok := strings.Cut(rest, ",")
-	if !ok || strings.Contains(removedText, ",") {
-		return ChangesetPoint{}, false
-	}
-	ts, err := parseInt64(tsText)
-	if err != nil {
-		return ChangesetPoint{}, false
-	}
-	added, err := parseUint64(addedText)
-	if err != nil {
-		return ChangesetPoint{}, false
-	}
-	removed, err := parseUint64(removedText)
-	if err != nil {
-		return ChangesetPoint{}, false
-	}
-	if added == 0 && removed == 0 {
-		return ChangesetPoint{}, false
-	}
-	return ChangesetPoint{
-		Timestamp: ts,
-		Added:     added,
-		Removed:   removed,
-	}, true
-}
-
-func validHistoryTimestamp(ts int64) bool {
-	const (
-		minHistoryUnix = 946684800  // 2000-01-01T00:00:00Z
-		maxHistoryUnix = 4102444800 // 2100-01-01T00:00:00Z
-	)
-	return ts >= minHistoryUnix && ts <= maxHistoryUnix
 }
 
 func (e *Engine) CompareSet(ctx context.Context, name string) ([]CompareRow, error) {
@@ -444,7 +251,8 @@ func (e *Engine) CompareSet(ctx context.Context, name string) ([]CompareRow, err
 	}
 	names = filtered
 	e.observeRunCounter("http.compare_set.candidates", int64(len(names)), 0)
-	targetFamily := leafAncestors(e.cfg, name)
+	cfg := e.Config()
+	targetFamily := leafAncestors(cfg, name)
 
 	out := make([]CompareRow, 0, len(names))
 	for _, candidate := range names {
@@ -480,7 +288,7 @@ func (e *Engine) CompareSet(ctx context.Context, name string) ([]CompareRow, err
 		}
 
 		category := snap.Category
-		related := familiesIntersect(targetFamily, leafAncestors(e.cfg, candidate))
+		related := familiesIntersect(targetFamily, leafAncestors(cfg, candidate))
 		out = append(out, CompareRow{
 			Name:     candidate,
 			Category: category,
@@ -511,12 +319,24 @@ func familiesIntersect(left, right map[string]bool) bool {
 }
 
 func (e *Engine) Retention(name string) (*RetentionData, error) {
+	return e.RetentionContext(context.Background(), name)
+}
+
+func (e *Engine) RetentionContext(ctx context.Context, name string) (*RetentionData, error) {
 	// Try pre-built JSON first (generated by updateRetention during processing).
-	data, err := readFileInRoot(e.runtime.LibDir, filepath.Join(name, "retention.json"))
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
+		return nil, err
+	}
+	if e == nil {
+		return nil, fmt.Errorf("unknown set %q", name)
+	}
+	rt := e.Runtime()
+	data, err := readFileInRoot(rt.LibDir, filepath.Join(name, "retention.json"))
 	if err != nil {
 		// JSON doesn't exist yet (e.g. immediately after bash-state import) —
 		// build it from the retained CSV evidence.
-		return e.buildRetentionData(context.Background(), name, e.now().UTC().Unix())
+		return e.buildRetentionData(ctx, name, e.now().UTC().Unix())
 	}
 	var out RetentionData
 	if err := json.Unmarshal(data, &out); err != nil {
@@ -525,13 +345,13 @@ func (e *Engine) Retention(name string) (*RetentionData, error) {
 	return &out, nil
 }
 
-func (e *Engine) mergeCount() int {
-	if e == nil || e.cfg == nil {
+func mergeCountForConfig(cfg *config.Config) int {
+	if cfg == nil {
 		return 0
 	}
 	count := 0
-	for name := range e.cfg.Sources {
-		if e.IsMerge(name) {
+	for _, src := range cfg.Sources {
+		if src != nil && src.Provenance == config.ProvenanceSecondaryMerge {
 			count++
 		}
 	}
@@ -539,16 +359,21 @@ func (e *Engine) mergeCount() int {
 }
 
 func (e *Engine) EntriesSnapshot() []cache.Entry {
-	return e.entriesSnapshot(e.configuredNames())
+	cfg := e.Config()
+	return e.entriesSnapshot(cfg, configuredNamesForConfig(cfg))
 }
 
 func (e *Engine) EntriesSnapshotWithArtifacts() []cache.Entry {
-	return e.entriesSnapshot(e.configuredNamesWithArtifacts())
+	cfg := e.Config()
+	return e.entriesSnapshot(cfg, configuredNamesWithArtifactsForConfig(cfg))
 }
 
-func (e *Engine) entriesSnapshot(configured map[string]bool) []cache.Entry {
+func (e *Engine) entriesSnapshot(cfg *config.Config, configured map[string]bool) []cache.Entry {
+	if cfg == nil {
+		return nil
+	}
 	snapMap := e.state.SnapshotEntries()
-	resolver := newEffectiveEntryResolver(e.cfg, snapMap)
+	resolver := newEffectiveEntryResolver(cfg, snapMap)
 	names := make([]string, 0, len(snapMap))
 	for name := range snapMap {
 		if configured[name] {

@@ -26,16 +26,21 @@ type runBatchState struct {
 	items     map[string]runBatchItemState
 }
 
+type runBatchSnapshotState struct {
+	startedAt time.Time
+	order     []string
+	items     map[string]runBatchItemState
+}
+
 func (e *Engine) setRunPhase(phase RunPhase) {
 	if e == nil {
 		return
 	}
 	e.mu.Lock()
 	e.currentPhase = phase
-	current := e.currentMetrics
 	e.mu.Unlock()
 	observeEnginePhaseCurrent(phase)
-	if current != nil {
+	if current := e.currentRunMetrics(); current != nil {
 		if completed, ok := current.setPhase(phase); ok {
 			if completed.Phase != phase {
 				e.logRunPhaseSummary(completed)
@@ -133,24 +138,40 @@ func (e *Engine) markRunBatchCompleted(name string) {
 	e.mu.Unlock()
 }
 
-func (e *Engine) snapshotRunBatchLocked() *RunBatchSnapshot {
+func (e *Engine) copyRunBatchLocked() *runBatchSnapshotState {
 	if e == nil || e.currentBatch == nil || len(e.currentBatch.order) == 0 {
 		return nil
 	}
-	snap := &RunBatchSnapshot{
-		Names:     append([]string(nil), e.currentBatch.order...),
-		StartedAt: e.currentBatch.startedAt,
+	items := make(map[string]runBatchItemState, len(e.currentBatch.items))
+	for name, item := range e.currentBatch.items {
+		items[name] = item
 	}
-	for _, name := range e.currentBatch.order {
-		item, ok := e.currentBatch.items[name]
+	return &runBatchSnapshotState{
+		startedAt: e.currentBatch.startedAt,
+		order:     append([]string(nil), e.currentBatch.order...),
+		items:     items,
+	}
+}
+
+func snapshotRunBatch(batch *runBatchSnapshotState, activeFeeds []ActiveFeed) *RunBatchSnapshot {
+	if batch == nil || len(batch.order) == 0 {
+		return nil
+	}
+	activeNames := make(map[string]struct{}, len(activeFeeds))
+	for _, feed := range activeFeeds {
+		activeNames[feed.Name] = struct{}{}
+	}
+	snap := &RunBatchSnapshot{
+		Names:     append([]string(nil), batch.order...),
+		StartedAt: batch.startedAt,
+	}
+	for _, name := range batch.order {
+		item, ok := batch.items[name]
 		if !ok {
 			continue
 		}
+		_, active := activeNames[name]
 		snap.Total++
-		active := false
-		if e.activeFeeds != nil {
-			_, active = e.activeFeeds[name]
-		}
 		switch item.kind {
 		case runBatchItemHistory:
 			snap.HistoryTotal++

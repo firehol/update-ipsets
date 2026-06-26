@@ -3,13 +3,16 @@ package engine
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"errors"
 	"maps"
 	"os"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/firehol/update-ipsets/pkg/config"
 	"github.com/firehol/update-ipsets/pkg/geoloc"
 	"github.com/firehol/update-ipsets/pkg/iprange"
 )
@@ -35,6 +38,51 @@ func TestLatestSetCacheReusesOpenSets(t *testing.T) {
 	}
 	if got := first.UniqueIPs(); got == 0 {
 		t.Fatalf("expected cached latest set to stay usable, got %d unique IPs", got)
+	}
+}
+
+func TestLatestSetCacheCloseAllDoesNotHoldLockWhileClosingSources(t *testing.T) {
+	eng := newEngineFixture(t)
+	cache := newLatestSetCache(eng)
+	closeStarted := make(chan struct{})
+	releaseClose := make(chan struct{})
+	cache.sets["sample"] = &closableSource{close: func() error {
+		close(closeStarted)
+		<-releaseClose
+		return nil
+	}}
+
+	closeDone := make(chan struct{})
+	go func() {
+		defer close(closeDone)
+		cache.CloseAll(eng.logger)
+	}()
+	select {
+	case <-closeStarted:
+	case <-time.After(time.Second):
+		t.Fatal("CloseAll did not start closing cached source")
+	}
+
+	openDone := make(chan error, 1)
+	go func() {
+		_, err := cache.OpenContext(context.Background(), "other")
+		openDone <- err
+	}()
+	select {
+	case err := <-openDone:
+		if !errors.Is(err, errLatestSetCacheClosed) {
+			t.Fatalf("OpenContext while CloseAll source close blocked = %v, want cache closed", err)
+		}
+	case <-time.After(200 * time.Millisecond):
+		close(releaseClose)
+		t.Fatal("OpenContext blocked behind CloseAll source close")
+	}
+
+	close(releaseClose)
+	select {
+	case <-closeDone:
+	case <-time.After(time.Second):
+		t.Fatal("CloseAll did not finish after source close was released")
 	}
 }
 
@@ -129,6 +177,76 @@ func TestLatestSetCacheDoesNotReuseTextFallbackSets(t *testing.T) {
 
 	if first == second {
 		t.Fatalf("expected text fallback opens to stay uncached, got shared pointer %p", first)
+	}
+}
+
+func TestLatestSetCacheSlowOpenDoesNotBlockDifferentCachedSet(t *testing.T) {
+	cfg := config.New()
+	cfg.Sources["slow"] = &config.Source{Name: "slow"}
+	cfg.Sources["fast"] = &config.Source{Name: "fast"}
+	eng := newEngineFixture(t, withConfig(cfg))
+	writeLatestSetForQueryCacheTest(t, eng, "slow", "10.0.0.1\n")
+	writeLatestSetForQueryCacheTest(t, eng, "fast", "10.0.0.2\n")
+
+	cache := newLatestSetCache(eng)
+	defer cache.CloseAll(eng.logger)
+
+	if src, err := cache.Open("fast"); err != nil {
+		t.Fatalf("prime fast cache: %v", err)
+	} else if src == nil {
+		t.Fatal("prime fast cache returned nil source")
+	}
+
+	slowStarted := make(chan struct{})
+	releaseSlow := make(chan struct{})
+	var slowStartedOnce sync.Once
+	restore := setOpenLatestSetHookForTest(func(name string) {
+		if name != "slow" {
+			return
+		}
+		slowStartedOnce.Do(func() { close(slowStarted) })
+		<-releaseSlow
+	})
+	defer restore()
+
+	slowDone := make(chan error, 1)
+	go func() {
+		src, err := cache.Open("slow")
+		if err == nil && src == nil {
+			err = errors.New("slow open returned nil source")
+		}
+		slowDone <- err
+	}()
+
+	select {
+	case <-slowStarted:
+	case <-time.After(2 * time.Second):
+		t.Fatal("slow latest-set open did not start")
+	}
+
+	fastDone := make(chan error, 1)
+	go func() {
+		src, err := cache.Open("fast")
+		if err == nil && src == nil {
+			err = errors.New("fast cached open returned nil source")
+		}
+		fastDone <- err
+	}()
+
+	select {
+	case err := <-fastDone:
+		if err != nil {
+			close(releaseSlow)
+			t.Fatalf("cached fast open while slow feed opens: %v", err)
+		}
+	case <-time.After(200 * time.Millisecond):
+		close(releaseSlow)
+		t.Fatal("cached fast open blocked behind slow feed open")
+	}
+
+	close(releaseSlow)
+	if err := <-slowDone; err != nil {
+		t.Fatalf("slow latest-set open: %v", err)
 	}
 }
 
@@ -290,7 +408,7 @@ func TestCountryFilteredRangeSourcePropagatesSourceErrors(t *testing.T) {
 		return sentinel
 	}, -1)
 
-	filtered := countryFilteredRangeSource(src, prepared, "US")
+	filtered := countryFilteredRangeSource(t.Context(), src, prepared, "US")
 	err = iprange.WalkRangesContext(t.Context(), filtered, func(iprange.Range) bool {
 		return true
 	})

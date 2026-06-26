@@ -1,6 +1,7 @@
 package web
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +13,29 @@ import (
 	"github.com/firehol/update-ipsets/pkg/engine"
 	"github.com/firehol/update-ipsets/pkg/scheduler"
 )
+
+func TestServeRunServersReturnsErrorWhenServerGoroutinePanics(t *testing.T) {
+	oldServe := serveRunServer
+	serveRunServer = func(namedServer, string, string) error {
+		panic("forced server panic")
+	}
+	t.Cleanup(func() {
+		serveRunServer = oldServe
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	err := serveRunServers([]namedServer{{
+		name:   "admin",
+		addr:   "127.0.0.1:0",
+		server: &http.Server{},
+	}}, "", "", cancel)
+	if err == nil || !strings.Contains(err.Error(), "forced server panic") {
+		t.Fatalf("serveRunServers error = %v, want recovered panic", err)
+	}
+	if ctx.Err() == nil {
+		t.Fatal("serveRunServers did not call cancel after server panic")
+	}
+}
 
 func TestAPIEndpointsAndCORS(t *testing.T) {
 	t.Setenv("UPDATE_IPSETS_ADMIN_USER", "admin")

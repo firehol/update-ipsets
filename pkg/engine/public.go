@@ -34,13 +34,20 @@ func isPublicFeedSource(src *config.Source) bool {
 }
 
 func (e *Engine) isPublicFeedName(name string) bool {
-	if e == nil || e.cfg == nil || name == "" {
+	if e == nil {
 		return false
 	}
-	if !e.configuredNames()[name] {
+	return isPublicFeedNameForConfig(e.Config(), name)
+}
+
+func isPublicFeedNameForConfig(cfg *config.Config, name string) bool {
+	if cfg == nil || name == "" {
 		return false
 	}
-	return isPublicFeedSource(e.lookupSource(name))
+	if !configuredNamesForConfig(cfg)[name] {
+		return false
+	}
+	return isPublicFeedSource(lookupSourceForConfig(cfg, name))
 }
 
 func (e *Engine) IsPublicFeedName(name string) bool {
@@ -95,10 +102,11 @@ func (e *Engine) SetData(name string) ([]byte, *cache.Entry, error) {
 	if !rawFeedFileMatches(name, entry.File) {
 		return nil, nil, fmt.Errorf("set %q has unexpected materialized file %q", name, entry.File)
 	}
-	if _, ok := safeRuntimeFilePath(e.runtime.BaseDir, entry.File); !ok {
+	rt := e.Runtime()
+	if _, ok := safeRuntimeFilePath(rt.BaseDir, entry.File); !ok {
 		return nil, nil, fmt.Errorf("set %q has unsafe materialized file %q", name, entry.File)
 	}
-	data, err := readFileInRoot(e.runtime.BaseDir, entry.File)
+	data, err := readFileInRoot(rt.BaseDir, entry.File)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -192,10 +200,14 @@ type GeoProvider struct {
 // from the bogon provider tabs would defeat its purpose. The Hidden
 // flag affects per-source pages, not comparison tabs.
 func (e *Engine) BogonProviders() []BogonProvider {
-	if e == nil || e.cfg == nil {
+	if e == nil {
 		return nil
 	}
-	sources := e.cfg.SourcesWithUse(config.UseBogons)
+	cfg := e.Config()
+	if cfg == nil {
+		return nil
+	}
+	sources := cfg.SourcesWithUse(config.UseBogons)
 	out := make([]BogonProvider, 0, len(sources))
 	for _, src := range sources {
 		out = append(out, BogonProvider{
@@ -215,10 +227,14 @@ func (e *Engine) BogonProviders() []BogonProvider {
 // first, followed by the remaining sources in catalog order. Hidden sources are
 // included because ASN tabs represent reference data, not navigable feed pages.
 func (e *Engine) ASNProviders() []ASNProvider {
-	if e == nil || e.cfg == nil {
+	if e == nil {
 		return nil
 	}
-	sources := e.cfg.SourcesWithUseDefaultFirst(config.UseASN)
+	cfg := e.Config()
+	if cfg == nil {
+		return nil
+	}
+	sources := cfg.SourcesWithUseDefaultFirst(config.UseASN)
 	out := make([]ASNProvider, 0, len(sources))
 	for _, src := range sources {
 		out = append(out, ASNProvider{
@@ -239,10 +255,14 @@ func (e *Engine) ASNProviders() []ASNProvider {
 // GeoProviders returns configured geolocation sources with the explicit default
 // source first, followed by the remaining sources in catalog order.
 func (e *Engine) GeoProviders() []GeoProvider {
-	if e == nil || e.cfg == nil {
+	if e == nil {
 		return nil
 	}
-	sources := e.cfg.SourcesWithUseDefaultFirst(config.UseGeoIP)
+	cfg := e.Config()
+	if cfg == nil {
+		return nil
+	}
+	sources := cfg.SourcesWithUseDefaultFirst(config.UseGeoIP)
 	out := make([]GeoProvider, 0, len(sources))
 	for _, src := range sources {
 		out = append(out, GeoProvider{
@@ -449,10 +469,14 @@ func (e *Engine) Compose(ctx context.Context, include, exclude []string, format 
 }
 
 func (e *Engine) outputDir() string {
-	if e.runtime.WebDir != "" {
-		return e.runtime.WebDir
+	return outputDirForRuntime(e.Runtime())
+}
+
+func outputDirForRuntime(rt Runtime) string {
+	if rt.WebDir != "" {
+		return rt.WebDir
 	}
-	return e.runtime.BaseDir
+	return rt.BaseDir
 }
 
 func (e *Engine) outputNames() []string {
@@ -489,23 +513,32 @@ func (e *Engine) publicOutputNames() []string {
 // produced separate _ip and _net variants from one source) is
 // no longer supported — only ipset and netset.
 func (e *Engine) configuredNames() map[string]bool {
-	names := make(map[string]bool, len(e.cfg.Sources)+len(e.cfg.Merges))
+	return configuredNamesForConfig(e.Config())
+}
 
-	for name, src := range e.cfg.Sources {
+func configuredNamesForConfig(cfg *config.Config) map[string]bool {
+	if cfg == nil {
+		return map[string]bool{}
+	}
+	names := make(map[string]bool, len(cfg.Sources)+len(cfg.Merges))
+	for name, src := range cfg.Sources {
 		names[name] = true
 		for _, minutes := range src.History {
 			names[name+historyLabel(minutes)] = true
 		}
 	}
-	for name := range e.cfg.Merges {
+	for name := range cfg.Merges {
 		names[name] = true
 	}
 	return names
 }
 
-func (e *Engine) configuredNamesWithArtifacts() map[string]bool {
-	names := e.configuredNames()
-	for name := range e.cfg.Artifacts {
+func configuredNamesWithArtifactsForConfig(cfg *config.Config) map[string]bool {
+	names := configuredNamesForConfig(cfg)
+	if cfg == nil {
+		return names
+	}
+	for name := range cfg.Artifacts {
 		names[name] = true
 	}
 	return names

@@ -85,6 +85,13 @@ For request-scoped dynamic lookups over local feed state:
   final response materialization checkpoints
 - request handling MUST NOT repeatedly reopen the same committed local files
   when a correct local cache can avoid that cost
+- local file/index caches MUST NOT hold global cache mutexes while opening,
+  mmaping, parsing, closing, or hashing local artifacts; they must check cache
+  state under lock, do file work outside the lock, then re-lock to publish or
+  discard the result
+- same-key cache loads SHOULD use context-cancellable in-flight wait state so a
+  slow load for one feed cannot freeze unrelated cached-feed lookups or trapped
+  same-feed request goroutines
 - if timing metadata such as `first_seen` is exposed, the request path SHOULD
   stop as soon as the contract allows instead of scanning farther than needed
 
@@ -95,6 +102,12 @@ MUST NOT acquire downloader workers, processing workers, engine-lane slots, or
 heavy/background fan-out workers. Endpoints that request expensive operator work
 MUST enqueue that work into the proper bounded lane and return queued/running
 state instead of doing the broad work in the request goroutine.
+High-frequency status paths MUST NOT refresh scheduler snapshots, full feed-row
+inventories, cache-entry lists, Go runtime memory stats, procfs process stats,
+or filesystem-wide diagnostics inline. They MUST use cached scheduler/feed
+heartbeat state and shared short-lived runtime samples. If the cache is cold,
+the endpoint should report the cached/unknown state rather than rebuilding broad
+state in the request goroutine.
 
 ## No repeated-view upstream dependency rule
 
@@ -172,6 +185,12 @@ new geo/ASN/bogon/critical/comparison/entity work, wait for already-running
 bounded workers to settle, preserve committed truth, and return cancellation
 instead of publishing a partially computed batch.
 
+Generated artifact Git sync is also part of the bounded cancellation contract.
+Every Git subprocess used by publication MUST have a context/deadline, and a
+timeout MUST return a visible failure instead of silently blocking watchdog,
+admin status, or later engine-lane work. Published local artifacts remain the
+authoritative state even if the optional Git mirror sync times out.
+
 Long-running scheduler runners MUST have structured ownership of their child
 goroutines. When the runner context is cancelled, `Run` should not return until
 fetch, processing, recovery, and in-flight download workers have observed the
@@ -192,6 +211,17 @@ integrity-triggered reprocess admission, entity artifact repair, entity refresh,
 full entity rebuild, and generated-artifact cleanup. Downloader acquisition and
 artifact-parent recovery remain in the downloader FIFO. Public/admin HTTP
 serving and watchdog sampling MUST remain outside both lanes.
+The engine lane MUST remain live under shutdown and panic paths: queued caller
+notifications must not be sent while holding the lane mutex, duplicate service
+context attachment must not create duplicate shutdown owners, and callback or
+finalization panics must not permanently consume a lane slot.
+
+Git publication work MUST use its own bounded FIFO lane with concurrency `1`.
+Full `RunOnce` callers wait for their git publication job during run
+finalization so git failures remain run failures and later runs cannot publish
+newer content before the earlier run has staged its commit. Background entity
+artifact refreshes MAY enqueue git publication and return after local artifact
+publication; they MUST NOT hold an engine-lane slot while git subprocesses run.
 
 ## Reload rule
 
@@ -203,6 +233,21 @@ Rules:
 - an invalid reload MUST leave the previous valid configuration authoritative
 - reload MUST NOT corrupt committed state, staged state, or queue ownership
 - reload-visible success and failure MUST be logged clearly
+- daemon-triggered reload MUST use the daemon/service context for reload itself
+  and for reload-follow-up queue submissions
+- reload MUST NOT hold the broad engine state mutex while creating directories,
+  bootstrapping or repairing cache entries from filesystem evidence, closing
+  retired provider handles, or submitting cleanup/entity follow-up work to the
+  engine lane
+- reload may use a dedicated reload serialization mutex, but status,
+  watchdog, and light admin reads MUST NOT wait for broad reload filesystem
+  work behind that mutex
+- feed and artifact enable/disable operations that write marker files use a
+  point-in-time configuration/runtime snapshot for their filesystem paths. They
+  MUST NOT hold the broad engine state mutex while doing filesystem work. If a
+  successful reload races with such an operation, the marker write applies to
+  the captured runtime snapshot; later status and scheduler evaluations observe
+  the committed marker files from the active runtime paths.
 
 ## Logging and diagnostics rule
 
@@ -224,6 +269,14 @@ HTTP handlers MUST be wrapped with same-goroutine panic recovery that logs
 structured request context and returns a 500 response. Recovery does not make
 handler panics acceptable control flow; it exists to keep one bad request from
 terminating or silently dropping the operator/public HTTP contract.
+
+Watchdog and daemon-control panic diagnostics MUST be bounded and sanitized.
+Default diagnostic goroutine samples target at most 100 goroutines and at most
+64 KiB of text unless implementation evidence justifies another cap. Panic
+diagnostics may use a smaller named cap. Diagnostic text MUST redact or omit
+credential-like key/value pairs, bearer tokens, cookies, request bodies,
+payloads, raw IP addresses, raw feed snippets, and long path lists. Long paths
+needed for debugging SHOULD retain only a bounded suffix.
 
 Public/API rate limiting MUST avoid unbounded background cleanup goroutines.
 Per-client limiter state MAY be pruned lazily from request handling, and the
@@ -339,6 +392,27 @@ Parsing large local source bodies is material engine work. Parser progress
 SHOULD expose byte, line, accepted-range, and hostname-resolution counters so a
 source phase that spends minutes on local input can be distinguished from
 retention, finalization, or downstream phase work.
+
+Run lifecycle status MUST distinguish `idle`, `running`, and `finalizing`.
+The legacy boolean `running` may remain for compatibility, but operator/admin
+surfaces MUST expose the typed state when available. The `finalizing` state
+starts after engine-lane processing work has ended and before final artifact
+publication, git publication, final accounting, and cache persistence have been
+accepted or reported as failed. While a run is `finalizing`, the engine lane may
+admit unrelated non-run work, but a second `RunOnce` MUST be rejected until the
+first run leaves finalization.
+
+Run-exit cache persistence MUST NOT hold an engine-lane slot while performing
+disk I/O. Engine runs SHOULD submit a detached cache-state snapshot to a
+serialized cache-persistence worker after final artifact publication work has
+finished and the run metrics have been detached.
+Daemon scheduler runs MAY return after the save is accepted by the worker;
+direct one-shot callers SHOULD wait outside the engine lane for a bounded cache
+save so their process does not exit before durable state is written.
+
+Cache-persistence worker state MUST be visible in admin status. At minimum,
+status SHOULD identify `idle`, `pending`, `saving`, `failed`, and `stopped`
+states, plus the last error and basic accepted/completed/failed counters.
 
 The standalone `pkg/iprange` library MUST NOT import or assume a telemetry
 framework. It MAY return plain local operation stats for parsing, binary I/O,
@@ -483,6 +557,9 @@ Frequently polled HTTP handlers and background batch processors MUST be treated
 as hot paths. They MUST avoid duplicating full-cache snapshots inside per-row
 loops and SHOULD build each logical snapshot once per request or batch, then
 reuse indexed views for row rendering.
+The light admin status handler is a hot path. It MUST NOT call the full admin
+feed inventory builder, rebuild the scheduler snapshot, or collect runtime and
+process diagnostics synchronously on each poll.
 
 ## Write-failure and disk-exhaustion rule
 

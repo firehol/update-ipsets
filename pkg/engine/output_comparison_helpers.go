@@ -1,32 +1,8 @@
 package engine
 
 import (
-	"sync/atomic"
-	"time"
-
 	"github.com/firehol/update-ipsets/pkg/config"
 )
-
-func recordAtomicDuration(count, totalNS, maxNS *atomic.Int64, dur time.Duration) {
-	if count == nil || totalNS == nil || maxNS == nil {
-		return
-	}
-	if dur < 0 {
-		dur = 0
-	}
-	ns := dur.Nanoseconds()
-	count.Add(1)
-	totalNS.Add(ns)
-	for {
-		current := maxNS.Load()
-		if ns <= current {
-			return
-		}
-		if maxNS.CompareAndSwap(current, ns) {
-			return
-		}
-	}
-}
 
 // leafAncestors returns the set of positive leaf (primary, non-derivative)
 // source names that a given feed ultimately derives from. It walks positive

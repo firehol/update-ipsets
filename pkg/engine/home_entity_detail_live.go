@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"strings"
 
 	"github.com/firehol/update-ipsets/pkg/asnloc"
@@ -15,9 +16,14 @@ type entityDetailProviderSet struct {
 }
 
 func (e *Engine) entityDetailProviders() entityDetailProviderSet {
+	return e.entityDetailProvidersContext(context.Background())
+}
+
+func (e *Engine) entityDetailProvidersContext(ctx context.Context) entityDetailProviderSet {
+	ctx = nonNilContext(ctx)
 	geoProvider := e.preferredGeoProvider()
 	asnProvider := e.preferredASNProvider()
-	asnLease := e.loadASNProviderForLookup(asnProvider)
+	asnLease := e.loadASNProviderForLookupContext(ctx, asnProvider)
 	var asnDB *asnloc.Database
 	if asnLease != nil {
 		asnDB = asnLease.Database()
@@ -128,18 +134,19 @@ func countryComparisonValue(view entityOutputView, feedName, provider, code stri
 	return 0
 }
 
-func (e *Engine) addCountryDetailASNMatches(builder *countryDetailBuilder, matches []string, providers entityDetailProviderSet) {
+func (e *Engine) addCountryDetailASNMatches(ctx context.Context, builder *countryDetailBuilder, matches []string, providers entityDetailProviderSet) {
+	ctx = nonNilContext(ctx)
 	if builder == nil || providers.geoPrepared == nil || providers.asnDB == nil || len(matches) == 0 {
 		return
 	}
 	setCache := newLatestSetCache(e)
 	defer setCache.CloseAll(e.logger)
 	for _, name := range matches {
-		latest, err := setCache.Open(name)
+		latest, err := setCache.OpenContext(ctx, name)
 		if err != nil || latest == nil || latest.RangeSource == nil {
 			continue
 		}
-		counts, names, err := providers.asnDB.CountFeed(countryFilteredRangeSource(latest.RangeSource, providers.geoPrepared, builder.code))
+		counts, names, err := providers.asnDB.CountFeed(countryFilteredRangeSource(ctx, latest.RangeSource, providers.geoPrepared, builder.code))
 		if err != nil {
 			continue
 		}
@@ -189,18 +196,19 @@ func asnComparisonValue(view entityOutputView, feedName, provider string, asn ui
 	return 0, ""
 }
 
-func (e *Engine) addASNDetailCountryMatches(builder *asnDetailBuilder, matches []string, providers entityDetailProviderSet) {
+func (e *Engine) addASNDetailCountryMatches(ctx context.Context, builder *asnDetailBuilder, matches []string, providers entityDetailProviderSet) {
+	ctx = nonNilContext(ctx)
 	if builder == nil || providers.asnDB == nil || providers.geoPrepared == nil || len(matches) == 0 {
 		return
 	}
 	setCache := newLatestSetCache(e)
 	defer setCache.CloseAll(e.logger)
 	for _, name := range matches {
-		latest, err := setCache.Open(name)
+		latest, err := setCache.OpenContext(ctx, name)
 		if err != nil || latest == nil || latest.RangeSource == nil {
 			continue
 		}
-		values, totalMapped, err := countCountriesForASNSource(latest.RangeSource, providers.asnDB, providers.geoPrepared, builder.asn)
+		values, totalMapped, err := countCountriesForASNSource(ctx, latest.RangeSource, providers.asnDB, providers.geoPrepared, builder.asn)
 		if err != nil || totalMapped == 0 {
 			continue
 		}

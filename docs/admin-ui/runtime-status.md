@@ -24,11 +24,12 @@ The four live queues are shown in the current-run panel below the heartbeat. See
 
 ## Admin status API
 
-The admin UI polls `GET /api/v1/admin/status?mode=light` for high-frequency
-heartbeat updates. That response is intentionally compact so the page keeps
-responding while heavy engine work is running. Full `GET /api/v1/admin/status`
-responses include more fields than the heartbeat renders and are intended for
-lower-frequency diagnostics.
+The admin UI polls `GET /api/v1/admin/status` for high-frequency heartbeat
+updates; `mode=light` is an equivalent explicit spelling. That response is
+intentionally compact so the page keeps responding while heavy engine work is
+running. Full `GET /api/v1/admin/status?mode=full` responses include more
+fields than the heartbeat renders and are intended for lower-frequency
+diagnostics.
 
 Important top-level blocks:
 

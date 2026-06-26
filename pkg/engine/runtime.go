@@ -46,6 +46,7 @@ type Runtime struct {
 	PushToGitCommitOptions        string
 	PushToGitPushOptions          string
 	PushToGitWeb                  bool
+	PushToGitTimeout              time.Duration
 	WebChartsEntries              int
 	WebArtifactCacheMaxEntries    int
 	WebArtifactCacheMaxBytes      int64
@@ -170,6 +171,7 @@ func runtimeFromConfig(rt config.RuntimeConfig, pathCtx runtimePathContext, now 
 		PushToGitCommitOptions:        rt.PushToGitCommitOptions,
 		PushToGitPushOptions:          rt.PushToGitPushOptions,
 		PushToGitWeb:                  rt.PushToGitWeb,
+		PushToGitTimeout:              time.Duration(rt.PushToGitTimeout) * time.Second,
 		WebChartsEntries:              rt.WebChartsEntries,
 		WebArtifactCacheMaxEntries:    rt.WebArtifactCacheMaxEntries,
 		WebArtifactCacheMaxBytes:      rt.WebArtifactCacheMaxBytes,
@@ -253,6 +255,9 @@ func applyRuntimeWorkerDefaults(r *Runtime) {
 	if r.ProcessingIntervalMinutes <= 0 {
 		r.ProcessingIntervalMinutes = 10
 	}
+	if r.PushToGitTimeout <= 0 {
+		r.PushToGitTimeout = 600 * time.Second
+	}
 }
 
 func applyRuntimeIngestWorkerCeiling(r *Runtime) {
@@ -281,12 +286,14 @@ func (e *Engine) ApplyRuntimeOverrides(webDir, filesDir string) error {
 	if e == nil {
 		return nil
 	}
+	var rt Runtime
 	e.mu.Lock()
 	e.runtimeOverrideWebDir = strings.TrimSpace(webDir)
 	e.runtimeOverrideFilesDir = strings.TrimSpace(filesDir)
 	e.applyRuntimeOverridesLocked()
+	rt = e.runtime
 	e.mu.Unlock()
-	return e.ensureDirectories()
+	return ensureDirectoriesForRuntime(rt)
 }
 
 func (e *Engine) applyRuntimeOverridesLocked() {

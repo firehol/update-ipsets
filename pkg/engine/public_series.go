@@ -19,8 +19,12 @@ const (
 )
 
 func (e *Engine) webChartsEntries() int {
-	if e != nil && e.runtime.WebChartsEntries > 0 {
-		return e.runtime.WebChartsEntries
+	return webChartsEntriesFromRuntime(e.Runtime())
+}
+
+func webChartsEntriesFromRuntime(rt Runtime) int {
+	if rt.WebChartsEntries > 0 {
+		return rt.WebChartsEntries
 	}
 	return 500
 }
@@ -32,50 +36,78 @@ func trimHistoryWindow(points []HistoryPoint, limit int) []HistoryPoint {
 	return points[len(points)-limit:]
 }
 
-func (e *Engine) writePublicHistoryCSV(name, outDir string) error {
-	points := e.historyTailFromRuntime(name)
+func (e *Engine) writePublicHistoryCSVContext(ctx context.Context, name, outDir string) error {
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
+	points := e.historyTailFromRuntimeContext(ctx, name)
 	if len(points) == 0 {
-		points = e.publicHistorySeries(name)
+		points = e.publicHistorySeriesContext(ctx, name)
 		points = trimHistoryWindow(points, e.webChartsEntries())
+	}
+	if err := contextErr(ctx); err != nil {
+		return err
 	}
 	sort.Slice(points, func(i, j int) bool { return points[i].Timestamp < points[j].Timestamp })
 
 	var buf bytes.Buffer
 	buf.WriteString("DateTime,Entries,UniqueIPs\n")
 	for _, point := range points {
+		if err := contextErr(ctx); err != nil {
+			return err
+		}
 		fmt.Fprintf(&buf, "%d,%d,%d\n", point.Timestamp, point.Entries, point.UniqueIPs)
 	}
 	return writeFileAtomicAt(filepath.Join(outDir, name+"_history.csv"), buf.Bytes(), generatedFileMode, e.feedProcessingTimestamp(name))
 }
 
 func (e *Engine) writePublicChangesetsCSV(name, outDir string) error {
+	return e.writePublicChangesetsCSVContext(context.Background(), name, outDir)
+}
+
+func (e *Engine) writePublicChangesetsCSVContext(ctx context.Context, name, outDir string) error {
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
 	if err := normalizeChangesetLedgerHeader(e.runtime.LibDir, filepath.Join(name, "changesets.csv")); err != nil {
 		return err
 	}
-	points := e.changesetTailFromRuntime(name)
+	points := e.changesetTailFromRuntimeContext(ctx, name)
 	if len(points) == 0 {
 		var err error
-		points, err = e.ChangesetSeries(name)
+		points, err = e.ChangesetSeriesContext(ctx, name)
 		if err != nil {
 			return err
 		}
+	}
+	if err := contextErr(ctx); err != nil {
+		return err
 	}
 
 	var buf bytes.Buffer
 	buf.WriteString("DateTime,AddedIPs,RemovedIPs\n")
 	for _, point := range points {
+		if err := contextErr(ctx); err != nil {
+			return err
+		}
 		fmt.Fprintf(&buf, "%d,%d,%d\n", point.Timestamp, point.Added, point.Removed)
 	}
 	return writeFileAtomicAt(filepath.Join(outDir, name+"_changesets.csv"), buf.Bytes(), generatedFileMode, e.feedProcessingTimestamp(name))
 }
 
-func (e *Engine) writePublicRetentionJSON(name, outDir string) error {
+func (e *Engine) writePublicRetentionJSONContext(ctx context.Context, name, outDir string) error {
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
 	data, err := readFileInRoot(e.runtime.LibDir, filepath.Join(name, "retention.json"))
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return err
 		}
-		retention, err := e.buildRetentionData(context.Background(), name, e.now().UTC().Unix())
+		retention, err := e.buildRetentionData(ctx, name, e.now().UTC().Unix())
 		if err != nil {
 			return err
 		}
@@ -88,10 +120,10 @@ func (e *Engine) writePublicRetentionJSON(name, outDir string) error {
 	return writeFileAtomicAt(filepath.Join(outDir, name+"_retention.json"), data, generatedFileMode, e.feedProcessingTimestamp(name))
 }
 
-func (e *Engine) publicHistorySeries(name string) []HistoryPoint {
-	points := e.historyFromLedgerCSV(name)
+func (e *Engine) publicHistorySeriesContext(ctx context.Context, name string) []HistoryPoint {
+	points := e.historyFromLedgerCSVContext(ctx, name)
 	if len(points) == 0 {
-		points = e.historyFromWebCSV(name)
+		points = e.historyFromWebCSVContext(ctx, name)
 	}
 	return points
 }

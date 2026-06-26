@@ -192,10 +192,7 @@ func (d *Database) CountFeedExcludingContext(ctx context.Context, src, exclude i
 	var countErr error
 	err = iprange.ExcludeRangesContext(ctx, src, exclude, func(r iprange.Range) bool {
 		_, countErr = d.countFeedRange(r, counts, names)
-		if countErr != nil {
-			return false
-		}
-		return true
+		return countErr == nil
 	})
 	if countErr != nil {
 		return counts, names, countErr
@@ -243,26 +240,6 @@ func (d *Database) CountFeedWithBogonsContext(ctx context.Context, src iprange.R
 	// Database walk for the bogon-free residual of the feed.
 	counts, names, err = d.CountFeedExcludingContext(ctx, src, bogonSet)
 	return counts, names, bogonCount, err
-}
-
-// countFeedRanges walks the supplied range stream through the ASN
-// database. It is the shared core of CountFeed and CountFeedWithBogons.
-func (d *Database) countFeedRanges(seq func(yield func(iprange.Range) bool)) (counts map[uint32]uint64, names map[uint32]string, total uint64, err error) {
-	counts = map[uint32]uint64{}
-	names = map[uint32]string{}
-	if d == nil || seq == nil {
-		return counts, names, 0, nil
-	}
-	seq(func(r iprange.Range) bool {
-		var rangeTotal uint64
-		rangeTotal, err = d.countFeedRange(r, counts, names)
-		total += rangeTotal
-		if err != nil {
-			return false
-		}
-		return true
-	})
-	return counts, names, total, err
 }
 
 func (d *Database) countFeedRange(r iprange.Range, counts map[uint32]uint64, names map[uint32]string) (uint64, error) {

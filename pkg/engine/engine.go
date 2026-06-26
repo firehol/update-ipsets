@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/firehol/update-ipsets/internal/telemetry"
@@ -19,34 +20,54 @@ import (
 )
 
 type Engine struct {
-	cfg                       *config.Config
-	runtime                   Runtime
-	cachePath                 string
-	state                     *cache.State
-	downloads                 *downloader.Client
-	logger                    *slog.Logger
-	now                       func() time.Time
-	mu                        sync.RWMutex
-	running                   bool
-	lastStarted               time.Time
-	lastEnded                 time.Time
-	lastError                 string
-	lastReport                *Report
-	currentReason             runreason.Reason
-	lastReason                runreason.Reason
-	currentPhase              RunPhase
-	currentBatch              *runBatchState
-	currentPhasePlan          []RunPhase
-	currentPhasePlanFinal     bool
-	activeFeeds               map[string]ActiveFeed
-	activeOperations          map[string]ActiveOperation
-	backgroundTaskSeq         uint64
-	backgroundTasks           map[string]backgroundTaskState
-	engineLane                *WorkLane
-	pipelineIntegrityCacheMu  sync.RWMutex
-	pipelineIntegrityCaches   map[pipelineIntegrityCacheKey]*pipelineIntegrityCacheState
-	entityIntegrityCacheMu    sync.RWMutex
-	entityIntegrityCache      entityIntegrityCacheState
+	cfg                         *config.Config
+	runtime                     Runtime
+	cachePath                   string
+	state                       *cache.State
+	downloads                   *downloader.Client
+	logger                      *slog.Logger
+	now                         func() time.Time
+	reloadMu                    sync.Mutex
+	mu                          sync.RWMutex
+	running                     bool
+	runState                    RunState
+	lastStarted                 time.Time
+	lastEnded                   time.Time
+	lastError                   string
+	lastReport                  *Report
+	currentReason               runreason.Reason
+	lastReason                  runreason.Reason
+	currentPhase                RunPhase
+	currentBatch                *runBatchState
+	currentPhasePlan            []RunPhase
+	currentPhasePlanFinal       bool
+	activeFeedsMu               sync.RWMutex
+	activeFeeds                 map[string]ActiveFeed
+	activeOperationsMu          sync.RWMutex
+	activeOperations            map[string]ActiveOperation
+	backgroundTasksMu           sync.RWMutex
+	backgroundTaskSeq           uint64
+	backgroundTasks             map[string]backgroundTaskState
+	engineLane                  *WorkLane
+	gitLane                     *WorkLane
+	gitSyncSeq                  atomic.Uint64
+	engineLaneDiagnosticsOnce   sync.Once
+	engineLaneLongHoldWarningMu sync.RWMutex
+	engineLaneLongHoldWarning   *LaneLongHoldWarning
+	cachePersistenceMu          sync.Mutex
+	cachePersistence            *cachePersistenceWorker
+	runtimeStatsMu              sync.RWMutex
+	runtimeStatsSamplerOnce     sync.Once
+	runtimeStatsSampledAt       time.Time
+	runtimeStats                engineRuntimeStats
+	pipelineIntegrityCacheMu    sync.RWMutex
+	pipelineIntegrityCaches     map[pipelineIntegrityCacheKey]*pipelineIntegrityCacheState
+	entityIntegrityCacheMu      sync.RWMutex
+	entityIntegrityCache        entityIntegrityCacheState
+	// Entity artifact publication takes entityArtifactPublishMu as the
+	// serialization lease. If both locks are needed, take this lock before
+	// entityArtifactsMu; entityArtifactsMu protects generation only.
+	entityArtifactPublishMu   sync.Mutex
 	entityArtifactsMu         sync.Mutex
 	entityArtifactsGeneration uint64
 	entityRebuildQueued       bool
@@ -56,6 +77,7 @@ type Engine struct {
 	entityHealthPending       map[string]struct{}
 	entityHealthRunning       bool
 	entityHealthContinuation  int
+	currentMetricsPtr         atomic.Pointer[runMetrics]
 	currentMetrics            *runMetrics
 	lastMetrics               *RunMetricsSnapshot
 	lifetimeOperations        telemetry.TimingBook
@@ -149,6 +171,7 @@ func New(configPath string, logger *slog.Logger) (*Engine, error) {
 		logger:         logger,
 		now:            time.Now,
 		engineLane:     NewWorkLane(rt.EngineLaneWorkers()),
+		gitLane:        NewWorkLane(1),
 		geoProviders:   newGeoProviderCache(),
 		asnLookupCache: newASNDatabaseCache(),
 		ledgerCache:    newRuntimeLedgerCache(),
@@ -205,63 +228,73 @@ func (e *Engine) buildRetentionMaxWindow() {
 }
 
 func (e *Engine) SetPushToGit(enabled bool) {
+	if e == nil {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
 	e.runtime.PushToGit = enabled
 }
 
 func (e *Engine) Reload() error {
-	e.logger.Info("reloading configuration", "path", e.runtime.ConfigPath)
-	cfg, err := config.Load(e.runtime.ConfigPath)
-	if err != nil {
-		e.logger.Error("config reload failed", "error", err)
-		e.mu.Lock()
-		e.configReloadCount++
-		e.lastConfigReloadError = err.Error()
-		e.mu.Unlock()
+	return e.ReloadContext(context.Background())
+}
+
+func (e *Engine) ReloadContext(ctx context.Context) error {
+	if e == nil {
+		return nil
+	}
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
 		return err
 	}
-	for _, dir := range []string{e.runtime.DistributionSuppliedIPSets, e.runtime.AdminSuppliedIPSets, e.runtime.UserSuppliedIPSets} {
+	e.reloadMu.Lock()
+	defer e.reloadMu.Unlock()
+
+	currentRuntime := e.Runtime()
+	e.logger.Info("reloading configuration", "path", currentRuntime.ConfigPath)
+	cfg, err := config.Load(currentRuntime.ConfigPath)
+	if err != nil {
+		e.logger.Error("config reload failed", "error", err)
+		e.recordConfigReloadError(err)
+		return err
+	}
+	for _, dir := range []string{currentRuntime.DistributionSuppliedIPSets, currentRuntime.AdminSuppliedIPSets, currentRuntime.UserSuppliedIPSets} {
 		extra, err := config.LoadDirectory(dir)
 		if err != nil {
 			e.logger.Error("config reload: failed to load supplemental dir", "dir", dir, "error", err)
-			e.mu.Lock()
-			e.configReloadCount++
-			e.lastConfigReloadError = err.Error()
-			e.mu.Unlock()
+			e.recordConfigReloadError(err)
 			return err
 		}
 		cfg.Merge(extra)
 	}
 	if err := config.Validate(cfg); err != nil {
 		e.logger.Error("config reload: validation failed", "error", err)
-		e.mu.Lock()
-		e.configReloadCount++
-		e.lastConfigReloadError = err.Error()
-		e.mu.Unlock()
+		e.recordConfigReloadError(err)
 		return err
 	}
 	rt, err := resolveRuntime(cfg, e.now().UTC())
 	if err != nil {
-		e.mu.Lock()
-		e.configReloadCount++
-		e.lastConfigReloadError = err.Error()
-		e.mu.Unlock()
+		e.recordConfigReloadError(err)
 		return err
 	}
-	rt.ConfigPath = e.runtime.ConfigPath
+	rt.ConfigPath = currentRuntime.ConfigPath
 	var staleASNLookups map[string]*asnloc.Database
 	webDirChanged := false
+	var effectiveRuntime Runtime
+	var lane *WorkLane
 	e.mu.Lock()
 	previousWebDir := e.runtime.WebDir
 	e.cfg = cfg
 	e.runtime = rt
 	e.applyRuntimeOverridesLocked()
-	webDirChanged = previousWebDir != e.runtime.WebDir
-	e.downloads = downloader.New(rt.MaxConnectTime, rt.MaxDownloadTime)
+	effectiveRuntime = e.runtime
+	webDirChanged = previousWebDir != effectiveRuntime.WebDir
+	e.downloads = downloader.New(effectiveRuntime.MaxConnectTime, effectiveRuntime.MaxDownloadTime)
 	if e.engineLane == nil {
-		e.engineLane = NewWorkLane(rt.EngineLaneWorkers())
-	} else {
-		e.engineLane.SetLimit(rt.EngineLaneWorkers())
+		e.engineLane = NewWorkLane(effectiveRuntime.EngineLaneWorkers())
 	}
+	lane = e.engineLane
 	e.geoProviders = newGeoProviderCache()
 	if e.asnLookupCache == nil {
 		e.asnLookupCache = newASNDatabaseCache()
@@ -269,29 +302,36 @@ func (e *Engine) Reload() error {
 		staleASNLookups = e.asnLookupCache.retireAll()
 	}
 	e.ledgerCache = newRuntimeLedgerCache()
-	finishLockedError := func(err error) error {
-		e.configReloadCount++
-		e.lastConfigReloadError = err.Error()
-		e.mu.Unlock()
+	e.registerSyntheticInternalSources()
+	e.buildRetentionMaxWindow()
+	e.mu.Unlock()
+
+	if lane != nil {
+		lane.SetLimit(effectiveRuntime.EngineLaneWorkers())
+	}
+	e.reconcileEntriesFromSourceConfigForSnapshot(cfg, effectiveRuntime)
+	if err := ensureDirectoriesForRuntime(effectiveRuntime); err != nil {
 		closeASNLookupDatabases(staleASNLookups, e.logger)
+		e.recordConfigReloadError(err)
 		return err
 	}
-	if err := e.ensureDirectories(); err != nil {
-		return finishLockedError(err)
-	}
-	e.registerSyntheticInternalSources()
-	e.reconcileEntriesFromSourceConfig()
-	e.buildRetentionMaxWindow()
 	if err := e.bootstrapMissingEntriesFromDisk(); err != nil {
-		return finishLockedError(err)
+		closeASNLookupDatabases(staleASNLookups, e.logger)
+		e.recordConfigReloadError(err)
+		return err
 	}
 	if err := e.repairInvalidEntryTimestamps(); err != nil {
-		return finishLockedError(err)
+		closeASNLookupDatabases(staleASNLookups, e.logger)
+		e.recordConfigReloadError(err)
+		return err
 	}
 	if err := e.bootstrapLegacyFailureStarts(); err != nil {
-		return finishLockedError(err)
+		closeASNLookupDatabases(staleASNLookups, e.logger)
+		e.recordConfigReloadError(err)
+		return err
 	}
 	e.refreshCriticalInfrastructureProviderSetID()
+	e.mu.Lock()
 	e.configReloadCount++
 	e.lastConfigReload = e.now()
 	e.lastConfigReloadError = ""
@@ -300,39 +340,79 @@ func (e *Engine) Reload() error {
 	if webDirChanged {
 		e.MarkIntegrityCachesStale()
 	}
-	if _, err := e.QueueCriticalInfrastructureCleanup(context.Background(), "reload"); err != nil {
-		e.mu.Lock()
-		e.lastConfigReloadError = err.Error()
-		e.mu.Unlock()
+	if _, err := e.QueueCriticalInfrastructureCleanup(ctx, "reload"); err != nil {
+		e.setConfigReloadError(err)
 		return err
 	}
 	return nil
 }
 
+func (e *Engine) recordConfigReloadError(err error) {
+	if e == nil || err == nil {
+		return
+	}
+	e.mu.Lock()
+	e.configReloadCount++
+	e.lastConfigReloadError = err.Error()
+	e.mu.Unlock()
+}
+
+func (e *Engine) setConfigReloadError(err error) {
+	if e == nil || err == nil {
+		return
+	}
+	e.mu.Lock()
+	e.lastConfigReloadError = err.Error()
+	e.mu.Unlock()
+}
+
 func (e *Engine) AcquireLock() (*FileLock, error) {
-	return acquireLock(e.runtime.LockFile)
+	return acquireLock(e.Runtime().LockFile)
 }
 
 func (e *Engine) Config() *config.Config {
+	if e == nil {
+		return nil
+	}
+	e.mu.RLock()
+	defer e.mu.RUnlock()
 	return e.cfg
 }
 
 func (e *Engine) Runtime() Runtime {
+	if e == nil {
+		return Runtime{}
+	}
+	e.mu.RLock()
+	defer e.mu.RUnlock()
 	return e.runtime
 }
 
+func (e *Engine) configRuntimeSnapshot() (*config.Config, Runtime) {
+	if e == nil {
+		return nil, Runtime{}
+	}
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	return e.cfg, e.runtime
+}
+
 func (e *Engine) Enable(names []string, all bool) error {
+	if e == nil {
+		return nil
+	}
+	cfg, rt := e.configRuntimeSnapshot()
 	if all {
 		// After config.ExpandDerivatives, every feed (including
 		// merges and retention variants) is in cfg.Sources. The
 		// old sortedMergeNames walk is redundant.
-		names = config.SortedSourceNames(e.cfg)
+		names = config.SortedSourceNames(cfg)
 	}
 	for _, name := range names {
 		if name == "" {
 			continue
 		}
-		path := e.sourceEnablePath(name)
+		path := sourceEnablePathForRuntime(rt, name)
 		if err := os.MkdirAll(filepath.Dir(path), generatedDirMode); err != nil {
 			return err
 		}
@@ -344,14 +424,18 @@ func (e *Engine) Enable(names []string, all bool) error {
 }
 
 func (e *Engine) EnableArtifacts(names []string, all bool) error {
+	if e == nil {
+		return nil
+	}
+	cfg, rt := e.configRuntimeSnapshot()
 	if all {
-		names = config.SortedArtifactNames(e.cfg)
+		names = config.SortedArtifactNames(cfg)
 	}
 	for _, name := range names {
-		if name == "" || !e.isArtifact(name) {
+		if name == "" || cfg == nil || cfg.ArtifactByName(name) == nil {
 			continue
 		}
-		path := e.artifactEnablePath(name)
+		path := artifactEnablePathForRuntime(rt, name)
 		if err := os.MkdirAll(filepath.Dir(path), generatedDirMode); err != nil {
 			return err
 		}
@@ -363,17 +447,21 @@ func (e *Engine) EnableArtifacts(names []string, all bool) error {
 }
 
 func (e *Engine) Disable(names []string, all bool) error {
+	if e == nil {
+		return nil
+	}
+	cfg, rt := e.configRuntimeSnapshot()
 	if all {
 		// After config.ExpandDerivatives, every feed (including
 		// merges and retention variants) is in cfg.Sources. The
 		// old sortedMergeNames walk is redundant.
-		names = config.SortedSourceNames(e.cfg)
+		names = config.SortedSourceNames(cfg)
 	}
 	for _, name := range names {
 		if name == "" {
 			continue
 		}
-		if err := os.Remove(e.sourceEnablePath(name)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if err := os.Remove(sourceEnablePathForRuntime(rt, name)); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
 	}
@@ -381,14 +469,18 @@ func (e *Engine) Disable(names []string, all bool) error {
 }
 
 func (e *Engine) DisableArtifacts(names []string, all bool) error {
+	if e == nil {
+		return nil
+	}
+	cfg, rt := e.configRuntimeSnapshot()
 	if all {
-		names = config.SortedArtifactNames(e.cfg)
+		names = config.SortedArtifactNames(cfg)
 	}
 	for _, name := range names {
-		if name == "" || !e.isArtifact(name) {
+		if name == "" || cfg == nil || cfg.ArtifactByName(name) == nil {
 			continue
 		}
-		if err := os.Remove(e.artifactEnablePath(name)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		if err := os.Remove(artifactEnablePathForRuntime(rt, name)); err != nil && !errors.Is(err, os.ErrNotExist) {
 			return err
 		}
 	}

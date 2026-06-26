@@ -7,10 +7,53 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 )
 
 var ErrIntegrityCacheNotFresh = errors.New("integrity cache is not fresh")
+
+var (
+	integrityRefreshHookMu            sync.Mutex
+	pipelineIntegrityAfterRunningHook func()
+	entityIntegrityAfterRunningHook   func()
+)
+
+func setPipelineIntegrityAfterRunningHookForTest(fn func()) func() {
+	integrityRefreshHookMu.Lock()
+	old := pipelineIntegrityAfterRunningHook
+	pipelineIntegrityAfterRunningHook = fn
+	integrityRefreshHookMu.Unlock()
+	return func() {
+		integrityRefreshHookMu.Lock()
+		pipelineIntegrityAfterRunningHook = old
+		integrityRefreshHookMu.Unlock()
+	}
+}
+
+func setEntityIntegrityAfterRunningHookForTest(fn func()) func() {
+	integrityRefreshHookMu.Lock()
+	old := entityIntegrityAfterRunningHook
+	entityIntegrityAfterRunningHook = fn
+	integrityRefreshHookMu.Unlock()
+	return func() {
+		integrityRefreshHookMu.Lock()
+		entityIntegrityAfterRunningHook = old
+		integrityRefreshHookMu.Unlock()
+	}
+}
+
+func pipelineIntegrityAfterRunningHookForTest() func() {
+	integrityRefreshHookMu.Lock()
+	defer integrityRefreshHookMu.Unlock()
+	return pipelineIntegrityAfterRunningHook
+}
+
+func entityIntegrityAfterRunningHookForTest() func() {
+	integrityRefreshHookMu.Lock()
+	defer integrityRefreshHookMu.Unlock()
+	return entityIntegrityAfterRunningHook
+}
 
 type IntegrityCacheState string
 
@@ -183,10 +226,19 @@ func (e *Engine) QueuePipelineIntegrityRefresh(ctx context.Context, opts Integri
 		Detail:        "checking pipeline artifact integrity",
 		CoalescingKey: pipelineIntegrityCoalescingKey(opts),
 	}
-	ticket, err := e.engineLane.Submit(ctx, work, func(laneCtx context.Context) error {
+	ticket, err := e.engineLane.Submit(ctx, work, func(laneCtx context.Context) (scanErr error) {
 		e.setPipelineIntegrityRunning(opts, workID, work.Trigger)
-		findings, scanErr := e.CheckIntegrityWithOptionsContext(laneCtx, opts)
-		e.setPipelineIntegritySettled(opts, workID, findings, scanErr)
+		var findings []IntegrityFinding
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				scanErr = fmt.Errorf("%w: pipeline integrity refresh panicked: %v", ErrLanePanic, recovered)
+			}
+			e.setPipelineIntegritySettled(opts, workID, findings, scanErr)
+		}()
+		if hook := pipelineIntegrityAfterRunningHookForTest(); hook != nil {
+			hook()
+		}
+		findings, scanErr = e.CheckIntegrityWithOptionsContext(laneCtx, opts)
 		return scanErr
 	})
 	if err != nil {
@@ -250,13 +302,22 @@ func (e *Engine) QueueEntityIntegrityRefresh(ctx context.Context, trigger string
 		Detail:        "checking entity artifact integrity",
 		CoalescingKey: "integrity:entity:refresh",
 	}
-	ticket, err := e.engineLane.Submit(ctx, work, func(laneCtx context.Context) error {
+	ticket, err := e.engineLane.Submit(ctx, work, func(laneCtx context.Context) (scanErr error) {
 		e.setEntityIntegrityRunning(workID, work.Trigger)
-		findings, _, scanErr := e.CheckEntityArtifactsIntegrity()
+		var findings []EntityIntegrityFinding
+		defer func() {
+			if recovered := recover(); recovered != nil {
+				scanErr = fmt.Errorf("%w: entity integrity refresh panicked: %v", ErrLanePanic, recovered)
+			}
+			e.setEntityIntegritySettled(workID, findings, scanErr)
+		}()
+		if hook := entityIntegrityAfterRunningHookForTest(); hook != nil {
+			hook()
+		}
+		findings, _, scanErr = e.CheckEntityArtifactsIntegrityContext(laneCtx)
 		if scanErr == nil {
 			scanErr = contextErr(laneCtx)
 		}
-		e.setEntityIntegritySettled(workID, findings, scanErr)
 		return scanErr
 	})
 	if err != nil {
@@ -318,7 +379,7 @@ func (e *Engine) normalizeIntegrityOptions(opts IntegrityOptions) IntegrityOptio
 	}
 	opts.WebDir = strings.TrimSpace(opts.WebDir)
 	if opts.WebDir == "" {
-		opts.WebDir = e.runtime.WebDir
+		opts.WebDir = e.Runtime().WebDir
 	}
 	return opts
 }
@@ -383,9 +444,15 @@ func (e *Engine) setPipelineIntegrityQueued(opts IntegrityOptions, workID string
 	if ticket.Coalesced && strings.TrimSpace(ticket.ID) != "" {
 		workID = ticket.ID
 	}
-	if state.workID == workID &&
-		(state.state == IntegrityCacheRefreshRunning || state.state == IntegrityCacheFresh) {
-		return
+	if state.workID == workID {
+		switch state.state {
+		case IntegrityCacheRefreshQueued, IntegrityCacheRefreshRunning, IntegrityCacheFresh:
+			return
+		case IntegrityCacheCold, IntegrityCacheStale:
+			if !state.endedAt.IsZero() {
+				return
+			}
+		}
 	}
 	cacheState := IntegrityCacheRefreshQueued
 	if ticket.State == LaneWorkActive {
@@ -403,7 +470,7 @@ func (e *Engine) setPipelineIntegrityRunning(opts IntegrityOptions, workID, trig
 	defer e.pipelineIntegrityCacheMu.Unlock()
 	state := e.pipelineIntegrityCacheForUpdateLocked(opts)
 	now := time.Now().UTC()
-	if e != nil && e.now != nil {
+	if e.now != nil {
 		now = e.now().UTC()
 	}
 	state.scope = opts
@@ -421,13 +488,14 @@ func (e *Engine) setPipelineIntegritySettled(opts IntegrityOptions, workID strin
 	defer e.pipelineIntegrityCacheMu.Unlock()
 	state := e.pipelineIntegrityCacheForUpdateLocked(opts)
 	now := time.Now().UTC()
-	if e != nil && e.now != nil {
+	if e.now != nil {
 		now = e.now().UTC()
 	}
 	state.scope = opts
 	state.workID = workID
 	state.endedAt = now
 	state.startupScanRunning = false
+	state.ticket = nil
 	if err != nil {
 		state.lastError = err.Error()
 		if len(state.findings) == 0 {
@@ -442,7 +510,6 @@ func (e *Engine) setPipelineIntegritySettled(opts IntegrityOptions, workID strin
 	state.checkedAt = now
 	state.lastError = ""
 	state.findings = cloneIntegrityFindings(findings)
-	state.ticket = nil
 }
 
 func (e *Engine) setEntityIntegrityQueued(workID string, ticket LaneTicket) {
@@ -451,9 +518,15 @@ func (e *Engine) setEntityIntegrityQueued(workID string, ticket LaneTicket) {
 	if ticket.Coalesced && strings.TrimSpace(ticket.ID) != "" {
 		workID = ticket.ID
 	}
-	if e.entityIntegrityCache.workID == workID &&
-		(e.entityIntegrityCache.state == IntegrityCacheRefreshRunning || e.entityIntegrityCache.state == IntegrityCacheFresh) {
-		return
+	if e.entityIntegrityCache.workID == workID {
+		switch e.entityIntegrityCache.state {
+		case IntegrityCacheRefreshQueued, IntegrityCacheRefreshRunning, IntegrityCacheFresh:
+			return
+		case IntegrityCacheCold, IntegrityCacheStale:
+			if !e.entityIntegrityCache.endedAt.IsZero() {
+				return
+			}
+		}
 	}
 	state := IntegrityCacheRefreshQueued
 	if ticket.State == LaneWorkActive {
@@ -469,7 +542,7 @@ func (e *Engine) setEntityIntegrityRunning(workID, trigger string) {
 	e.entityIntegrityCacheMu.Lock()
 	defer e.entityIntegrityCacheMu.Unlock()
 	now := time.Now().UTC()
-	if e != nil && e.now != nil {
+	if e.now != nil {
 		now = e.now().UTC()
 	}
 	e.entityIntegrityCache.state = IntegrityCacheRefreshRunning
@@ -485,12 +558,13 @@ func (e *Engine) setEntityIntegritySettled(workID string, findings []EntityInteg
 	e.entityIntegrityCacheMu.Lock()
 	defer e.entityIntegrityCacheMu.Unlock()
 	now := time.Now().UTC()
-	if e != nil && e.now != nil {
+	if e.now != nil {
 		now = e.now().UTC()
 	}
 	e.entityIntegrityCache.workID = workID
 	e.entityIntegrityCache.endedAt = now
 	e.entityIntegrityCache.startupScanRunning = false
+	e.entityIntegrityCache.ticket = nil
 	if err != nil {
 		e.entityIntegrityCache.lastError = err.Error()
 		if len(e.entityIntegrityCache.findings) == 0 {
@@ -505,7 +579,6 @@ func (e *Engine) setEntityIntegritySettled(workID string, findings []EntityInteg
 	e.entityIntegrityCache.checkedAt = now
 	e.entityIntegrityCache.lastError = ""
 	e.entityIntegrityCache.findings = cloneEntityIntegrityFindings(findings)
-	e.entityIntegrityCache.ticket = nil
 }
 
 func (s pipelineIntegrityCacheState) snapshotLocked() PipelineIntegrityCacheSnapshot {

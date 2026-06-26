@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/firehol/update-ipsets/pkg/asnloc"
+	"github.com/firehol/update-ipsets/pkg/config"
 )
 
 // fileSizeModKey returns a cheap composite key derived from a file's
@@ -46,8 +48,10 @@ type IPContext struct {
 // search endpoint answer immediately after daemon start without
 // waiting for the first batch run.
 type asnDatabaseCache struct {
-	mu  sync.Mutex
-	dbs map[string]*asnDatabaseCacheEntry
+	mu         sync.Mutex
+	dbs        map[string]*asnDatabaseCacheEntry
+	loads      map[asnDatabaseCacheKey]*asnDatabaseLoad
+	generation uint64
 }
 
 type asnDatabaseCacheEntry struct {
@@ -59,6 +63,16 @@ type asnDatabaseCacheEntry struct {
 	closed     bool
 }
 
+type asnDatabaseCacheKey struct {
+	provider   string
+	path       string
+	sizeModKey int64
+}
+
+type asnDatabaseLoad struct {
+	done chan struct{}
+}
+
 type asnDatabaseLease struct {
 	cache *asnDatabaseCache
 	entry *asnDatabaseCacheEntry
@@ -67,7 +81,10 @@ type asnDatabaseLease struct {
 }
 
 func newASNDatabaseCache() *asnDatabaseCache {
-	return &asnDatabaseCache{dbs: make(map[string]*asnDatabaseCacheEntry)}
+	return &asnDatabaseCache{
+		dbs:   make(map[string]*asnDatabaseCacheEntry),
+		loads: make(map[asnDatabaseCacheKey]*asnDatabaseLoad),
+	}
 }
 
 func (l *asnDatabaseLease) Database() *asnloc.Database {
@@ -92,41 +109,102 @@ func (l *asnDatabaseLease) Close() {
 }
 
 func (c *asnDatabaseCache) acquire(provider, path string, sizeModKey int64, open func() (*asnloc.Database, error)) (*asnDatabaseLease, error) {
+	return c.acquireContext(context.Background(), provider, path, sizeModKey, open)
+}
+
+func (c *asnDatabaseCache) acquireContext(ctx context.Context, provider, path string, sizeModKey int64, open func() (*asnloc.Database, error)) (*asnDatabaseLease, error) {
+	ctx = nonNilContext(ctx)
 	if c == nil {
 		return nil, fmt.Errorf("asn lookup cache is not initialized")
 	}
-	c.mu.Lock()
-	if cached, ok := c.dbs[provider]; ok && cached.db != nil && !cached.retired && !cached.closed && cached.path == path && cached.sizeModKey == sizeModKey {
-		cached.refs++
-		lease := &asnDatabaseLease{cache: c, entry: cached, db: cached.db}
+	key := asnDatabaseCacheKey{provider: provider, path: path, sizeModKey: sizeModKey}
+	for {
+		if err := contextErr(ctx); err != nil {
+			return nil, err
+		}
+		c.mu.Lock()
+		c.ensureLocked()
+		if cached, ok := c.dbs[provider]; ok && cached.matches(key) {
+			cached.refs++
+			lease := &asnDatabaseLease{cache: c, entry: cached, db: cached.db}
+			c.mu.Unlock()
+			return lease, nil
+		}
+		if load := c.loads[key]; load != nil {
+			done := load.done
+			c.mu.Unlock()
+			select {
+			case <-done:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+			continue
+		}
+
+		load := &asnDatabaseLoad{done: make(chan struct{})}
+		loadGeneration := c.generation
+		c.loads[key] = load
 		c.mu.Unlock()
+
+		db, err := open()
+		ctxErr := contextErr(ctx)
+
+		c.mu.Lock()
+		if c.loads[key] == load {
+			delete(c.loads, key)
+			close(load.done)
+		}
+		if ctxErr != nil {
+			c.mu.Unlock()
+			if db != nil {
+				_ = db.Close()
+			}
+			return nil, ctxErr
+		}
+		if err != nil {
+			c.mu.Unlock()
+			return nil, err
+		}
+		if loadGeneration != c.generation {
+			c.mu.Unlock()
+			_ = db.Close()
+			continue
+		}
+		if cached, ok := c.dbs[provider]; ok && cached.matches(key) {
+			cached.refs++
+			lease := &asnDatabaseLease{cache: c, entry: cached, db: cached.db}
+			c.mu.Unlock()
+			_ = db.Close()
+			return lease, nil
+		}
+		var toClose *asnloc.Database
+		if existing, ok := c.dbs[provider]; ok && existing != nil {
+			toClose = existing.retireLocked()
+		}
+		entry := &asnDatabaseCacheEntry{
+			db:         db,
+			path:       path,
+			sizeModKey: sizeModKey,
+			refs:       1,
+		}
+		c.dbs[provider] = entry
+		lease := &asnDatabaseLease{cache: c, entry: entry, db: db}
+		c.mu.Unlock()
+
+		if toClose != nil {
+			_ = toClose.Close()
+		}
 		return lease, nil
 	}
+}
 
-	db, err := open()
-	if err != nil {
-		c.mu.Unlock()
-		return nil, err
+func (c *asnDatabaseCache) ensureLocked() {
+	if c.dbs == nil {
+		c.dbs = make(map[string]*asnDatabaseCacheEntry)
 	}
-
-	var toClose *asnloc.Database
-	if existing, ok := c.dbs[provider]; ok && existing != nil {
-		toClose = existing.retireLocked()
+	if c.loads == nil {
+		c.loads = make(map[asnDatabaseCacheKey]*asnDatabaseLoad)
 	}
-	entry := &asnDatabaseCacheEntry{
-		db:         db,
-		path:       path,
-		sizeModKey: sizeModKey,
-		refs:       1,
-	}
-	c.dbs[provider] = entry
-	lease := &asnDatabaseLease{cache: c, entry: entry, db: db}
-	c.mu.Unlock()
-
-	if toClose != nil {
-		_ = toClose.Close()
-	}
-	return lease, nil
 }
 
 func (c *asnDatabaseCache) release(entry *asnDatabaseCacheEntry) *asnloc.Database {
@@ -152,6 +230,7 @@ func (c *asnDatabaseCache) retireAll() map[string]*asnloc.Database {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if len(c.dbs) == 0 {
+		c.generation++
 		return nil
 	}
 	dbs := make(map[string]*asnloc.Database, len(c.dbs))
@@ -164,7 +243,12 @@ func (c *asnDatabaseCache) retireAll() map[string]*asnloc.Database {
 		}
 	}
 	c.dbs = make(map[string]*asnDatabaseCacheEntry)
+	c.generation++
 	return dbs
+}
+
+func (e *asnDatabaseCacheEntry) matches(key asnDatabaseCacheKey) bool {
+	return e != nil && e.db != nil && !e.retired && !e.closed && e.path == key.path && e.sizeModKey == key.sizeModKey
 }
 
 func (e *asnDatabaseCacheEntry) retireLocked() *asnloc.Database {
@@ -194,38 +278,66 @@ func closeASNLookupDatabases(dbs map[string]*asnloc.Database, logger interface{ 
 // for a single IPv4 address. The IP string must parse to a valid IPv4
 // address; IPv6 is not yet supported by the downstream providers.
 func (e *Engine) LookupIPContext(ipStr string) (*IPContext, error) {
-	if e == nil || e.cfg == nil {
+	return e.LookupIPContextContext(context.Background(), ipStr)
+}
+
+func (e *Engine) LookupIPContextContext(ctx context.Context, ipStr string) (*IPContext, error) {
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
+		return nil, err
+	}
+	cfg, rt, geoProviders, asnLookupCache := e.lookupContextSnapshot()
+	if cfg == nil {
 		return nil, fmt.Errorf("engine is not configured")
 	}
 	ipv4, err := parseIPv4ForLookup(ipStr)
 	if err != nil {
 		return nil, err
 	}
-	ctx := &IPContext{IP: ipStr}
-	if provider := e.preferredGeoProvider(); provider != "" {
-		if prepared := e.loadGeoProviderForLookup(provider); prepared != nil {
-			ctx.CountryCode = lookupCountryInPreparedProvider(prepared, ipv4)
-			ctx.GeoProvider = provider
-			ctx.GeoProviderLabel = providerDisplayLabel(e.lookupSource(provider))
+	result := &IPContext{IP: ipStr}
+	if provider := preferredGeoProviderForConfig(cfg); provider != "" {
+		if prepared := loadGeoProviderForLookupSnapshot(cfg, rt, geoProviders, provider); prepared != nil {
+			result.CountryCode = lookupCountryInPreparedProvider(prepared, ipv4)
+			result.GeoProvider = provider
+			result.GeoProviderLabel = providerDisplayLabel(lookupSourceForConfig(cfg, provider))
 		}
 	}
-	if provider := e.preferredASNProvider(); provider != "" {
-		if lease := e.loadASNProviderForLookup(provider); lease != nil {
+	if err := contextErr(ctx); err != nil {
+		return nil, err
+	}
+	if provider := preferredASNProviderForConfig(cfg); provider != "" {
+		if lease := loadASNProviderForLookupSnapshotContext(ctx, cfg, rt, asnLookupCache, provider); lease != nil {
 			defer lease.Close()
 			db := lease.Database()
 			if db == nil {
-				return ctx, nil
+				return result, nil
 			}
 			record, _, lookupErr := db.Lookup(ipv4)
 			if lookupErr == nil && record.ASN != 0 {
-				ctx.ASN = record.ASN
-				ctx.ASNName = record.Name
-				ctx.ASNProvider = provider
-				ctx.ASNProviderLabel = providerDisplayLabel(e.lookupSource(provider))
+				result.ASN = record.ASN
+				result.ASNName = record.Name
+				result.ASNProvider = provider
+				result.ASNProviderLabel = providerDisplayLabel(lookupSourceForConfig(cfg, provider))
 			}
 		}
 	}
-	return ctx, nil
+	if err := contextErr(ctx); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (e *Engine) lookupContextSnapshot() (*config.Config, Runtime, *geoProviderCache, *asnDatabaseCache) {
+	if e == nil {
+		return nil, Runtime{}, nil, nil
+	}
+	e.mu.RLock()
+	cfg := e.cfg
+	rt := e.runtime
+	geoProviders := e.geoProviders
+	asnLookupCache := e.asnLookupCache
+	e.mu.RUnlock()
+	return cfg, rt, geoProviders, asnLookupCache
 }
 
 // loadGeoProviderForLookup returns the engine's cached geo dataset
@@ -233,10 +345,15 @@ func (e *Engine) LookupIPContext(ipStr string) (*IPContext, error) {
 // The returned value is nil when no on-disk copy exists (e.g. daemon
 // has never completed its first run).
 func (e *Engine) loadGeoProviderForLookup(provider string) *geoPreparedProvider {
-	if e == nil || e.cfg == nil || e.geoProviders == nil {
+	cfg, rt, geoProviders, _ := e.lookupContextSnapshot()
+	return loadGeoProviderForLookupSnapshot(cfg, rt, geoProviders, provider)
+}
+
+func loadGeoProviderForLookupSnapshot(cfg *config.Config, rt Runtime, geoProviders *geoProviderCache, provider string) *geoPreparedProvider {
+	if cfg == nil || geoProviders == nil {
 		return nil
 	}
-	src := e.lookupSource(provider)
+	src := lookupSourceForConfig(cfg, provider)
 	if src == nil {
 		return nil
 	}
@@ -244,11 +361,11 @@ func (e *Engine) loadGeoProviderForLookup(provider string) *geoPreparedProvider 
 	if !ok || spec.role != formatRoleGeoIP {
 		return nil
 	}
-	path := filepath.Join(e.runtime.LibDir, "geolocation", provider+".source")
+	path := filepath.Join(rt.LibDir, "geolocation", provider+".source")
 	if !fileExists(path) {
 		return nil
 	}
-	prepared, err := e.geoProviders.LoadOrParse(provider, src.Format, path)
+	prepared, err := geoProviders.LoadOrParse(provider, src.Format, path)
 	if err != nil {
 		return nil
 	}
@@ -259,10 +376,27 @@ func (e *Engine) loadGeoProviderForLookup(provider string) *geoPreparedProvider 
 // database for the given provider, opening it from disk when cold. Callers
 // must close the lease when the lookup/build operation is complete.
 func (e *Engine) loadASNProviderForLookup(provider string) *asnDatabaseLease {
-	if e == nil || e.cfg == nil || e.asnLookupCache == nil {
+	return e.loadASNProviderForLookupContext(context.Background(), provider)
+}
+
+func (e *Engine) loadASNProviderForLookupContext(ctx context.Context, provider string) *asnDatabaseLease {
+	cfg, rt, _, asnLookupCache := e.lookupContextSnapshot()
+	return loadASNProviderForLookupSnapshotContext(ctx, cfg, rt, asnLookupCache, provider)
+}
+
+func loadASNProviderForLookupSnapshot(cfg *config.Config, rt Runtime, asnLookupCache *asnDatabaseCache, provider string) *asnDatabaseLease {
+	return loadASNProviderForLookupSnapshotContext(context.Background(), cfg, rt, asnLookupCache, provider)
+}
+
+func loadASNProviderForLookupSnapshotContext(ctx context.Context, cfg *config.Config, rt Runtime, asnLookupCache *asnDatabaseCache, provider string) *asnDatabaseLease {
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
 		return nil
 	}
-	src := e.lookupSource(provider)
+	if cfg == nil || asnLookupCache == nil {
+		return nil
+	}
+	src := lookupSourceForConfig(cfg, provider)
 	if src == nil {
 		return nil
 	}
@@ -270,7 +404,7 @@ func (e *Engine) loadASNProviderForLookup(provider string) *asnDatabaseLease {
 	if !ok || spec.role != formatRoleASN {
 		return nil
 	}
-	path := filepath.Join(e.runtime.LibDir, "asn", provider, spec.dataFile)
+	path := filepath.Join(rt.LibDir, "asn", provider, spec.dataFile)
 	if !fileExists(path) {
 		return nil
 	}
@@ -279,7 +413,7 @@ func (e *Engine) loadASNProviderForLookup(provider string) *asnDatabaseLease {
 		return nil
 	}
 
-	lease, err := e.asnLookupCache.acquire(provider, path, key, func() (*asnloc.Database, error) {
+	lease, err := asnLookupCache.acquireContext(ctx, provider, path, key, func() (*asnloc.Database, error) {
 		return asnloc.Open(src.Format, path)
 	})
 	if err != nil {

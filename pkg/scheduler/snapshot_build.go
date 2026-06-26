@@ -22,8 +22,11 @@ type Item struct {
 	Enabled          bool      `json:"enabled"`
 	HealthClass      string    `json:"health_class,omitempty"`
 	FrequencyMinutes int       `json:"frequency_minutes"`
+	Entries          int       `json:"entries,omitempty"`
+	UniqueIPs        uint64    `json:"unique_ips,omitempty"`
 	Failures         int       `json:"failures"`
 	CheckedAt        time.Time `json:"checked_at,omitempty"`
+	NeverRun         bool      `json:"never_run,omitempty"`
 	NextDue          time.Time `json:"next_due,omitempty"`
 	Detail           string    `json:"detail,omitempty"`
 }
@@ -69,8 +72,11 @@ func BuildSnapshot(cfg *config.Config, rt engine.Runtime, entries []cache.Entry,
 			Enabled:          enabled,
 			HealthClass:      string(health.Class),
 			FrequencyMinutes: frequency,
+			Entries:          entry.Entries,
+			UniqueIPs:        entry.UniqueIPs,
 			Failures:         entry.DownloadFailures,
 			CheckedAt:        unixTime(entry.CheckedDate),
+			NeverRun:         entry.CheckedDate == 0 && entry.SourceDate == 0,
 			NextDue:          next,
 			Detail:           detail,
 		})
@@ -294,15 +300,18 @@ func nextWait(now time.Time, groups ...[]Item) time.Duration {
 	}
 	return best
 }
+
+var saveSchedulerSnapshot = SaveSnapshot
+
 func (r *Runner) storeSnapshot(snapshot Snapshot) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
 	changed := !snapshotItemsEqual(r.snapshot.Items, snapshot.Items)
 	r.snapshot = snapshot
+	r.mu.Unlock()
 	if !changed {
 		return
 	}
-	if err := SaveSnapshot(r.statePath, snapshot); err != nil {
+	if err := saveSchedulerSnapshot(r.statePath, snapshot); err != nil {
 		r.logger.Error("failed to persist scheduler snapshot", "error", err)
 		r.metrics.recordSnapshotPersistError()
 	}

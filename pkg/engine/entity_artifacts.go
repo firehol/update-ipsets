@@ -15,6 +15,7 @@ const entityPublishStagePrefix = ".update-ipsets-entities-"
 
 type entityPublishBatch struct {
 	*stagedPublishBatch
+	expectedGeneration uint64
 }
 
 func (e *Engine) newEntityPublishBatch() (*entityPublishBatch, error) {

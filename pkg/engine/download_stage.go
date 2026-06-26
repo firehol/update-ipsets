@@ -40,7 +40,12 @@ func (e *Engine) IsDownloadable(name string) bool {
 }
 
 func (e *Engine) IsProviderDatabase(name string) bool {
-	if e == nil || e.cfg == nil {
+	if e == nil {
+		return false
+	}
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	if e.cfg == nil {
 		return false
 	}
 	src := e.cfg.Sources[name]
@@ -341,7 +346,7 @@ func (e *Engine) fetchStaticSource(src *config.Source, rawPath string) (*downloa
 }
 
 func (e *Engine) applyRawFeedDownloadResult(ctx context.Context, entry *cache.Entry, src *config.Source, result *downloader.Result, rawPath, bodyPath string, force, enableAll bool) (DownloadDecision, error) {
-	name := entry.Name
+	name := entry.Snapshot().Name
 	switch result.Status {
 	case downloader.StatusFailed:
 		result.CleanUp()
@@ -422,7 +427,7 @@ func (e *Engine) applyRawFeedDownloadResult(ctx context.Context, entry *cache.En
 }
 
 func (e *Engine) rebuildCanonicalFeedBodyFromRetainedRaw(ctx context.Context, entry *cache.Entry, src *config.Source, rawPath, bodyPath string, modifiedAt time.Time, force, enableAll bool) (DownloadDecision, bool, error) {
-	name := entry.Name
+	name := entry.Snapshot().Name
 	if rawPath == "" || !fileExists(rawPath) {
 		return DownloadDecision{}, false, nil
 	}
@@ -616,7 +621,7 @@ func (e *Engine) fetchAndStageMerge(ctx context.Context, src *config.Source, for
 }
 
 func (e *Engine) applyStagedDownloadResult(entry *cache.Entry, finalPath string, result *downloader.Result, force, enableAll bool) (DownloadDecision, error) {
-	name := entry.Name
+	name := entry.Snapshot().Name
 	if result == nil {
 		return DownloadDecision{Name: name, Status: DownloadStatusFailed, Message: "empty downloader result"}, fmt.Errorf("empty downloader result for %s", name)
 	}
@@ -684,7 +689,7 @@ func (e *Engine) applyStagedDownloadResult(entry *cache.Entry, finalPath string,
 }
 
 func (e *Engine) applyPreparedFeedBodyResult(entry *cache.Entry, finalPath string, body []byte, modifiedAt time.Time, force bool) (DownloadDecision, error) {
-	name := entry.Name
+	name := entry.Snapshot().Name
 	entry.RecordDownloadSourceDate(modifiedAt)
 	comparePath := latestFeedBodyPath(finalPath)
 	same, err := canonicalFeedBodySame(comparePath, body)
@@ -735,7 +740,7 @@ func (e *Engine) applyPreparedFeedBodyResult(entry *cache.Entry, finalPath strin
 }
 
 func (e *Engine) applyExistingFeedBodySameResult(entry *cache.Entry, finalPath string, modifiedAt time.Time, force bool) (DownloadDecision, error) {
-	name := entry.Name
+	name := entry.Snapshot().Name
 	entry.RecordDownloadSourceDate(modifiedAt)
 	if err := touchFileAt(finalPath, modifiedAt); err != nil {
 		entry.MarkDownloadOperationFailed(err.Error())

@@ -7,9 +7,11 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/firehol/update-ipsets/internal/runtimeinfo"
 	"github.com/firehol/update-ipsets/pkg/iprange"
 	"github.com/firehol/update-ipsets/pkg/runreason"
 )
@@ -34,7 +36,7 @@ func TestRunDiagnosticSummaryIncludesOperationsCountersAndActiveWork(t *testing.
 		EndedAt:   started.Add(2 * time.Second),
 		Updated:   []string{"sample"},
 	}
-	diag := newEngineRunDiagnostics(runreason.ReasonScheduledDue, RunOptions{}, started)
+	diag := eng.newEngineRunDiagnostics(runreason.ReasonScheduledDue, RunOptions{}, started)
 	eng.logRunDiagnosticSummary(report, nil, diag)
 
 	entry := findJSONLogByMessage(t, logs.String(), "engine run diagnostic summary")
@@ -73,11 +75,53 @@ func TestRunDiagnosticSummaryIncludesPhaseActiveOperation(t *testing.T) {
 		StartedAt: started,
 		EndedAt:   started.Add(2 * time.Second),
 	}
-	diag := newEngineRunDiagnostics(runreason.ReasonScheduledDue, RunOptions{}, started)
+	diag := eng.newEngineRunDiagnostics(runreason.ReasonScheduledDue, RunOptions{}, started)
 	eng.logRunDiagnosticSummary(report, nil, diag)
 
 	entry := findJSONLogByMessage(t, logs.String(), "engine run diagnostic summary")
 	assertJSONOperation(t, entry["active_operations"], "metadata.write_per_feed_outputs", "")
+}
+
+func TestRunDiagnosticsUseCachedRuntimeStats(t *testing.T) {
+	eng := newEngineFixture(t)
+	eng.runtimeStatsMu.Lock()
+	eng.runtimeStats = engineRuntimeStats{
+		Goroutines: 123,
+		GoMemLimit: 456,
+	}
+	eng.runtimeStatsSampledAt = time.Now().UTC()
+	eng.runtimeStatsMu.Unlock()
+
+	diag := eng.newEngineRunDiagnostics(runreason.ReasonScheduledDue, RunOptions{}, time.Now().UTC())
+	if diag.startStats.Goroutines != 123 {
+		t.Fatalf("diagnostic goroutines = %d, want cached value 123", diag.startStats.Goroutines)
+	}
+	if diag.startStats.GoMemLimit != 456 {
+		t.Fatalf("diagnostic GoMemLimit = %d, want cached value 456", diag.startStats.GoMemLimit)
+	}
+}
+
+func TestEngineRuntimeStatsSamplerRecoversPanic(t *testing.T) {
+	eng := newEngineFixture(t)
+	var calls atomic.Int32
+	restore := setEngineRuntimeStatsCaptureForTest(func() runtimeinfo.Snapshot {
+		if calls.Add(1) == 1 {
+			panic("forced engine runtime stats panic")
+		}
+		return runtimeinfo.Snapshot{
+			Goroutines: 77,
+			GoMemLimit: 99,
+		}
+	})
+	t.Cleanup(restore)
+
+	eng.refreshEngineRuntimeStatsSafely()
+	eng.refreshEngineRuntimeStatsSafely()
+
+	stats := eng.cachedEngineRuntimeStats()
+	if stats.Goroutines != 77 || stats.GoMemLimit != 99 {
+		t.Fatalf("cached engine runtime stats = %+v, want recovered second sample", stats)
+	}
 }
 
 func TestReconcileRetentionCohortsLogsExactAccounting(t *testing.T) {

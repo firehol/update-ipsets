@@ -126,6 +126,7 @@ type RuntimeConfig struct {
 	PushToGitCommitOptions        string `yaml:"push_to_git_commit_options,omitempty"`
 	PushToGitPushOptions          string `yaml:"push_to_git_push_options,omitempty"`
 	PushToGitWeb                  bool   `yaml:"push_to_git_web,omitempty"`
+	PushToGitTimeout              int    `yaml:"push_to_git_timeout,omitempty"`
 	MaxConnectTime                int    `yaml:"max_connect_time,omitempty"`
 	UserAgent                     string `yaml:"user_agent,omitempty"`
 	MaxDownloadTime               int    `yaml:"max_download_time,omitempty"`
@@ -603,6 +604,7 @@ func DefaultRuntime() RuntimeConfig {
 		PushToGitCommitOptions:               "",
 		PushToGitPushOptions:                 "",
 		PushToGitWeb:                         false,
+		PushToGitTimeout:                     600,
 		MaxConnectTime:                       10,
 		UserAgent:                            "FireHOL-Update-Ipsets/3.0 (linux-gnu) https://iplists.firehol.org/",
 		MaxDownloadTime:                      300,

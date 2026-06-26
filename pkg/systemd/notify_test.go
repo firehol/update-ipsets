@@ -115,6 +115,25 @@ func TestWatchdogIntervalInvalidValues(t *testing.T) {
 	}
 }
 
+func TestNotifyDeadlinePolicy(t *testing.T) {
+	cases := []struct {
+		name             string
+		watchdogInterval time.Duration
+		want             time.Duration
+	}{
+		{name: "no watchdog", want: 2 * time.Second},
+		{name: "short watchdog", watchdogInterval: 500 * time.Millisecond, want: 250 * time.Millisecond},
+		{name: "long watchdog capped", watchdogInterval: 10 * time.Second, want: 2 * time.Second},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := systemd.NotifyDeadline(tc.watchdogInterval); got != tc.want {
+				t.Fatalf("NotifyDeadline(%s) = %s, want %s", tc.watchdogInterval, got, tc.want)
+			}
+		})
+	}
+}
+
 func listenNotifySocket(t *testing.T) (string, *net.UnixConn) {
 	t.Helper()
 	socketPath := filepath.Join(t.TempDir(), "notify.sock")

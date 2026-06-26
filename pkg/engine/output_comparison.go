@@ -145,7 +145,7 @@ func (e *Engine) prepareComparisonSetInfos(ctx context.Context, names []string, 
 			progress.Add(1, int64(len(names)), nil)
 			continue
 		}
-		src, err := setCache.Open(name)
+		src, err := setCache.OpenContext(ctx, name)
 		if err != nil {
 			e.logger.Warn("comparison skipped: cannot open set", "set", name, "error", err)
 			progress.Add(1, int64(len(names)), nil)
@@ -341,7 +341,7 @@ func (e *Engine) compareSetPairBatches(ctx context.Context, pairs []comparisonPa
 }
 
 func (e *Engine) compareSetPairBatch(ctx context.Context, pairs []comparisonOrientedPair, infos []comparisonSetInfo, setCache *latestSetCache, stats *comparisonPairStats) []comparisonPairResult {
-	sources, iprangePairs, originalPairs := e.comparisonPairBatchSources(pairs, infos, setCache)
+	sources, iprangePairs, originalPairs := e.comparisonPairBatchSources(ctx, pairs, infos, setCache)
 	if len(iprangePairs) == 0 {
 		return nil
 	}
@@ -376,7 +376,8 @@ func (e *Engine) compareSetPairBatch(ctx context.Context, pairs []comparisonOrie
 	return results
 }
 
-func (e *Engine) comparisonPairBatchSources(pairs []comparisonOrientedPair, infos []comparisonSetInfo, setCache *latestSetCache) ([]iprange.CompareSource, []iprange.ComparePair, []comparisonPair) {
+func (e *Engine) comparisonPairBatchSources(ctx context.Context, pairs []comparisonOrientedPair, infos []comparisonSetInfo, setCache *latestSetCache) ([]iprange.CompareSource, []iprange.ComparePair, []comparisonPair) {
+	ctx = nonNilContext(ctx)
 	if setCache == nil {
 		return nil, nil, nil
 	}
@@ -390,7 +391,7 @@ func (e *Engine) comparisonPairBatchSources(pairs []comparisonOrientedPair, info
 		if _, bad := badSources[idx]; bad {
 			return 0, false
 		}
-		src, err := setCache.Open(infos[idx].name)
+		src, err := setCache.OpenContext(ctx, infos[idx].name)
 		if err != nil {
 			badSources[idx] = struct{}{}
 			if e.logger != nil {

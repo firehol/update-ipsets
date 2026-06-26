@@ -162,7 +162,7 @@ func (e *Engine) writeCountryComparisonFiles(ctx context.Context, datasets geoPr
 				return err
 			}
 			defer compareOp.Add(1, totalPairs, nil)
-			src, err := setCache.Open(name)
+			src, err := setCache.OpenContext(ctx, name)
 			if err != nil {
 				e.logger.Warn("geolocation comparison skipped: cannot open set", "set", name, "provider", provider, "error", err)
 				return nil

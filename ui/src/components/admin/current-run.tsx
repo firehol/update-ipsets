@@ -94,6 +94,12 @@ export function CurrentRunPanel({
   if (!status) return null;
 
   const running = status.engine.running;
+  const runState = status.engine.run_state ?? (running ? "running" : "idle");
+  const cachePersistence = status.engine.cache_persistence;
+  const cachePersistenceActive =
+    cachePersistence?.state === "pending" ||
+    cachePersistence?.state === "saving" ||
+    cachePersistence?.state === "failed";
   const lastReport = status.engine.last_report;
   const feedIndex = new Map(feeds.map((feed) => [feed.name, feed]));
   const downloadRefetchPending = status.queues?.download_refetch_pending ?? [];
@@ -141,10 +147,8 @@ export function CurrentRunPanel({
   );
   const isEntityRebuildTask = (task: (typeof backgroundTasks)[number]) =>
     task.kind === "entity_rebuild" || task.name === "Entity artifacts rebuild";
-  const backgroundRunning =
-    status.engine.background_running ?? backgroundTasks.length;
-  const backgroundLimit = status.engine.background_limit ?? 1;
   const engineLane = status.engine.engine_lane;
+  const gitLane = status.engine.git_lane;
   const engineLaneActive = [...(engineLane?.active ?? [])].sort(
     (left, right) =>
       parseGoTime(left.started_at) - parseGoTime(right.started_at) ||
@@ -155,13 +159,36 @@ export function CurrentRunPanel({
       parseGoTime(left.queued_at) - parseGoTime(right.queued_at) ||
       left.name.localeCompare(right.name),
   );
-  const engineLaneWorkCount = engineLaneActive.length + engineLaneWaiting.length;
+  const gitLaneActive = [...(gitLane?.active ?? [])].sort(
+    (left, right) =>
+      parseGoTime(left.started_at) - parseGoTime(right.started_at) ||
+      left.name.localeCompare(right.name),
+  );
+  const gitLaneWaiting = [...(gitLane?.waiting ?? [])].sort(
+    (left, right) =>
+      parseGoTime(left.queued_at) - parseGoTime(right.queued_at) ||
+      left.name.localeCompare(right.name),
+  );
+  const engineLaneWorkCount =
+    engineLaneActive.length +
+    engineLaneWaiting.length +
+    gitLaneActive.length +
+    gitLaneWaiting.length;
+  const backgroundRunning =
+    (status.engine.background_running ?? backgroundTasks.length) +
+    (gitLane?.active_count ?? gitLaneActive.length);
+  const backgroundLimit =
+    (status.engine.background_limit ?? 1) + (gitLane?.limit ?? 0);
+  const backgroundWaiting =
+    (engineLane?.waiting_count ?? engineLaneWaiting.length) +
+    (gitLane?.waiting_count ?? gitLaneWaiting.length);
   const hasBackgroundWork =
     backgroundTasks.length > 0 ||
     engineLaneWorkCount > 0 ||
     (status.engine.entity_refresh_pending ?? 0) > 0 ||
     (status.engine.entity_health_pending ?? 0) > 0 ||
     Boolean(status.engine.entity_rebuild_pending) ||
+    cachePersistenceActive ||
     recentHealthTransitions.length > 0;
 
   return (
@@ -169,7 +196,11 @@ export function CurrentRunPanel({
       <div className="mb-4 flex items-center gap-2">
         <Clock className="h-4 w-4 text-muted-foreground" />
         <span className="eyebrow">
-          {running ? "Run in progress" : "Schedule"}
+          {runState === "finalizing"
+            ? "Run finalizing"
+            : running
+              ? "Run in progress"
+              : "Schedule"}
         </span>
         <div className="ml-auto flex items-center gap-3">
           {lastReport && (
@@ -302,9 +333,7 @@ export function CurrentRunPanel({
             </div>
             <div>
               waiting:{" "}
-              <span className="text-foreground">
-                {engineLane?.waiting_count ?? engineLaneWaiting.length}
-              </span>
+              <span className="text-foreground">{backgroundWaiting}</span>
             </div>
           </div>
         </div>
@@ -324,6 +353,22 @@ export function CurrentRunPanel({
                 />
               ))}
               {engineLaneWaiting.map((work) => (
+                <EngineLaneWorkItem
+                  key={work.id}
+                  work={work}
+                  label="waiting"
+                  nowMs={nowMs}
+                />
+              ))}
+              {gitLaneActive.map((work) => (
+                <EngineLaneWorkItem
+                  key={work.id}
+                  work={work}
+                  label="active"
+                  nowMs={nowMs}
+                />
+              ))}
+              {gitLaneWaiting.map((work) => (
                 <EngineLaneWorkItem
                   key={work.id}
                   work={work}
@@ -361,6 +406,35 @@ export function CurrentRunPanel({
                     feeds coalescing
                   </div>
                 )}
+              {cachePersistenceActive && cachePersistence && (
+                <div className="border-b border-border/60 px-6 py-3 text-sm text-muted-foreground">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-semibold text-foreground">
+                      Cache persistence
+                    </span>
+                    <span>{cachePersistence.state}</span>
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                    {cachePersistence.last_started && (
+                      <span>
+                        started{" "}
+                        {relativeTime(parseGoTime(cachePersistence.last_started))}
+                      </span>
+                    )}
+                    {cachePersistence.last_saved && (
+                      <span>
+                        saved{" "}
+                        {relativeTime(parseGoTime(cachePersistence.last_saved))}
+                      </span>
+                    )}
+                    {cachePersistence.last_error && (
+                      <span className="text-destructive">
+                        {cachePersistence.last_error}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
               {backgroundTasks.map((task) => (
                 <div
                   key={task.id}

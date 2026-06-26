@@ -342,11 +342,15 @@ func (s *surfaceRoutes) handleAdminRun() http.HandlerFunc {
 			if reprocess {
 				reason = runreason.ReasonManualReprocess
 			}
-			s.runner.TriggerSources(scheduler.PendingAction{
+			if !s.runner.TryTriggerSources(scheduler.PendingAction{
 				Recheck:   recheck,
 				Reprocess: reprocess,
 				Reason:    reason,
-			})
+			}) {
+				observeAPIRecalculation(r, "admin", "run_reprocess", "conflict", 0)
+				writeJSON(w, http.StatusConflict, map[string]string{"error": "scheduler action queue is full"})
+				return
+			}
 			observeAPIRecalculation(r, "admin", "run_reprocess", "scheduled", 0)
 			writeJSON(w, http.StatusAccepted, map[string]string{
 				"status":    "scheduled",

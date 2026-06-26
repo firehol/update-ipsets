@@ -358,6 +358,7 @@ func validateRuntimeResourceControls(runtime RuntimeConfig) error {
 		"runtime.max_engine_lane_workers":          runtime.MaxEngineLaneWorkers,
 		"runtime.min_run_interval_seconds":         runtime.MinRunIntervalSeconds,
 		"runtime.processing_interval_minutes":      runtime.ProcessingIntervalMinutes,
+		"runtime.push_to_git_timeout":              runtime.PushToGitTimeout,
 	} {
 		if value < 0 {
 			return fmt.Errorf("%s must be zero or positive, got %d", field, value)

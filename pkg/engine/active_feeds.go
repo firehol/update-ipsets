@@ -6,8 +6,8 @@ func (e *Engine) markFeedStart(name string, feed ActiveFeed) {
 	if e == nil || name == "" {
 		return
 	}
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.activeFeedsMu.Lock()
+	defer e.activeFeedsMu.Unlock()
 	if e.activeFeeds == nil {
 		e.activeFeeds = make(map[string]ActiveFeed)
 	}
@@ -18,20 +18,20 @@ func (e *Engine) markFeedEnd(name string) {
 	if e == nil || name == "" {
 		return
 	}
-	e.mu.Lock()
-	defer e.mu.Unlock()
+	e.activeFeedsMu.Lock()
+	defer e.activeFeedsMu.Unlock()
 	if e.activeFeeds == nil {
 		return
 	}
 	delete(e.activeFeeds, name)
 }
 
-func (e *Engine) snapshotActiveFeedsLocked() []ActiveFeed {
-	if len(e.activeFeeds) == 0 {
+func activeFeedsFromMap(in map[string]ActiveFeed) []ActiveFeed {
+	if len(in) == 0 {
 		return nil
 	}
-	out := make([]ActiveFeed, 0, len(e.activeFeeds))
-	for _, feed := range e.activeFeeds {
+	out := make([]ActiveFeed, 0, len(in))
+	for _, feed := range in {
 		out = append(out, feed)
 	}
 	sort.Slice(out, func(i, j int) bool {
@@ -43,11 +43,18 @@ func (e *Engine) snapshotActiveFeedsLocked() []ActiveFeed {
 	return out
 }
 
+func (e *Engine) snapshotActiveFeeds() []ActiveFeed {
+	if e == nil {
+		return nil
+	}
+	e.activeFeedsMu.RLock()
+	defer e.activeFeedsMu.RUnlock()
+	return activeFeedsFromMap(e.activeFeeds)
+}
+
 func (e *Engine) ActiveFeedsSnapshot() []ActiveFeed {
 	if e == nil {
 		return nil
 	}
-	e.mu.RLock()
-	defer e.mu.RUnlock()
-	return e.snapshotActiveFeedsLocked()
+	return e.snapshotActiveFeeds()
 }

@@ -6,7 +6,6 @@ import (
 	"math"
 	"net/netip"
 	"strconv"
-	"strings"
 )
 
 // Uint128 is the public 128-bit integer used by the IPv6 set API.
@@ -477,42 +476,6 @@ func Mapped6ToIPv4(addr Uint128) (uint32, bool) {
 		return 0, false
 	}
 	return uint32(addr.Lo), true
-}
-
-func parseIPv6Endpoint(token string, opts ParseOptions) (Uint128, Uint128, error) {
-	if strings.Contains(token, "/") {
-		parts := strings.SplitN(token, "/", 2)
-		addr, err := ParseIPv6Token(parts[0])
-		if err != nil {
-			return uint128Zero, uint128Zero, err
-		}
-		prefix, err := ParsePrefix6(parts[1])
-		if err != nil {
-			return uint128Zero, uint128Zero, err
-		}
-		lo := addr
-		if opts.UseCIDRNetwork {
-			lo = Network6(addr, prefix)
-		}
-		return lo, Broadcast6(lo, prefix), nil
-	}
-
-	addr, err := ParseIPv6Token(token)
-	if err != nil {
-		return uint128Zero, uint128Zero, err
-	}
-	if opts.DefaultPrefix == 128 {
-		return addr, addr, nil
-	}
-	lo := addr
-	if opts.UseCIDRNetwork {
-		lo = Network6(addr, opts.DefaultPrefix)
-	}
-	return lo, Broadcast6(lo, opts.DefaultPrefix), nil
-}
-
-func looksLikeIPv6(token string) bool {
-	return strings.Contains(token, ":")
 }
 
 // splitRange6 recursively splits an IPv6 range into CIDR prefixes.

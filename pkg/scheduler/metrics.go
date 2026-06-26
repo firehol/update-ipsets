@@ -24,6 +24,11 @@ type MetricsSnapshot struct {
 	LastBatchSize              int                            `json:"last_batch_size"`
 	LastBatchDurationMS        int64                          `json:"last_batch_duration_ms"`
 	SnapshotPersistErrors      int64                          `json:"snapshot_persist_errors,omitempty"`
+	RecoveredPanics            int64                          `json:"recovered_panics,omitempty"`
+	ActionAdmissionFailures    int64                          `json:"action_admission_failures,omitempty"`
+	Degraded                   bool                           `json:"degraded,omitempty"`
+	DegradedReason             string                         `json:"degraded_reason,omitempty"`
+	DegradedAt                 time.Time                      `json:"degraded_at,omitempty"`
 	Operations                 []telemetry.TimingStatSnapshot `json:"operations,omitempty"`
 }
 
@@ -44,6 +49,11 @@ type metricsState struct {
 	lastBatchSize              int
 	lastBatchDuration          time.Duration
 	snapshotPersistErrors      int64
+	recoveredPanics            int64
+	actionAdmissionFailures    int64
+	degraded                   bool
+	degradedReason             string
+	degradedAt                 time.Time
 	operations                 telemetry.TimingBook
 }
 
@@ -68,6 +78,11 @@ func (m *metricsState) snapshot() MetricsSnapshot {
 		LastBatchSize:              m.lastBatchSize,
 		LastBatchDurationMS:        schedulerDurationMillis(m.lastBatchDuration),
 		SnapshotPersistErrors:      m.snapshotPersistErrors,
+		RecoveredPanics:            m.recoveredPanics,
+		ActionAdmissionFailures:    m.actionAdmissionFailures,
+		Degraded:                   m.degraded,
+		DegradedReason:             m.degradedReason,
+		DegradedAt:                 m.degradedAt,
 		Operations:                 m.operations.Snapshot(),
 	}
 }
@@ -194,6 +209,35 @@ func (m *metricsState) recordSnapshotPersistError() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.snapshotPersistErrors++
+}
+
+func (m *metricsState) recordRecoveredPanic(component string, now time.Time) {
+	if m == nil {
+		return
+	}
+	observability.Count(observability.BackgroundContext(), "scheduler.recovered_panics", 1,
+		attribute.String("scheduler.component", component))
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.recoveredPanics++
+	m.markDegradedLocked("panic:"+component, now)
+}
+
+func (m *metricsState) recordActionAdmissionFailure(now time.Time) {
+	if m == nil {
+		return
+	}
+	observability.Count(observability.BackgroundContext(), "scheduler.action.admission_failures", 1)
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.actionAdmissionFailures++
+	m.markDegradedLocked("action_admission_failed", now)
+}
+
+func (m *metricsState) markDegradedLocked(reason string, now time.Time) {
+	m.degraded = true
+	m.degradedReason = reason
+	m.degradedAt = now
 }
 
 func schedulerDurationMillis(d time.Duration) int64 {

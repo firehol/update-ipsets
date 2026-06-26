@@ -4,7 +4,7 @@
 
 Status: open
 
-Sub-state: implementation in progress; comparison-pair ledger cache fixed and benchmarked; entity artifact staging/publish lock scope optimized with generation revalidation; JSON replacement candidates re-analyzed; new-baseline startup entity rebuild overlap hotfix implemented and validated; entity feed-presence index and `pkg/iprange` batched comparison implemented and validated; bounded retention removal reconciliation and history audit harness implemented and validated.
+Sub-state: implementation in progress; comparison-pair ledger cache fixed and benchmarked; entity artifact staging/publish lock scope optimized with generation revalidation; JSON replacement candidates re-analyzed; new-baseline startup entity rebuild overlap hotfix implemented and validated; entity feed-presence index and `pkg/iprange` batched comparison implemented and validated; bounded retention removal reconciliation and history audit harness implemented and validated; 32-hour production baseline analyzed.
 
 ## Requirements
 
@@ -1139,6 +1139,225 @@ Follow-up mapping:
     risk repeating that work before the state cache is saved
   - decide whether metadata comparison latest-set open fan-out and entity
     output JSON reads should become the next focused optimization slice
+
+## Production Baseline - 2026-06-23
+
+Purpose:
+
+- Analyze the first long stable production run after bounded lanes and recent
+  runtime artifact optimizations.
+- Identify the next optimization targets using measured timings, operation
+  counters, process I/O counters, and current kernel pressure signals.
+- Preserve the history-safety rule: ten years of feed history remains
+  irreplaceable source-of-truth data, and optimizations must be non-destructive
+  unless separately proven and approved.
+
+Evidence collected:
+
+- Production service was active since `2026-06-22 05:19:40 UTC` with
+  `NRestarts=0`.
+- The relevant logs were in the systemd log namespace `iplists`.
+- Local analysis copied `81388` namespaced service log lines covering
+  `2026-06-22T05:19:40.732Z` through `2026-06-23T13:28:12.499Z`.
+- The window contained `1614` completed engine run diagnostic summaries.
+- All parsed runs reported `status=ok`; there were `0` failed runs in the
+  completed run summaries.
+- Current kernel pressure at analysis time showed I/O pressure:
+  `/proc/pressure/io` `some avg300=5.98%`, `full avg300=5.06%`.
+- Current process I/O counters at analysis time showed about `1.26 TB`
+  kernel-accounted reads and `705 GB` kernel-accounted writes since process
+  start.
+
+Aggregate run facts:
+
+- Completed run elapsed time:
+  - total: `42864548ms`
+  - average: `26557ms`
+  - p50: `18092ms`
+  - p95: `66649ms`
+  - p99: `117237ms`
+  - max: `288731ms`
+- Runtime deltas summed from completed run summaries:
+  - `ProcReadBytes`: `277189660672`
+  - `ProcWriteBytes`: `139437322240`
+  - `ProcCancelledWriteBytes`: `5846650880`
+  - `ProcReadSyscalls`: `40715960`
+  - `ProcWriteSyscalls`: `897938904`
+  - `CPUTotalMS`: `45567063`
+  - `NumGC`: `27287`
+  - `PauseTotalMS`: `10115`
+- Slowest phases by summed duration:
+  - `metadata`: `21267005ms`
+  - `asn`: `9866016ms`
+  - `sources`: `5556839ms`
+  - `critical_infrastructure`: `3458423ms`
+  - `publish`: `637874ms`
+  - `entities`: `556787ms`
+
+Top measured operation costs:
+
+- `metadata.write_comparison_files`: `15930436ms`, `1614` calls, max
+  `67530ms`.
+- `metadata.comparison_pair_overlap`: `8757329ms`, `1473003` counted rows,
+  max batch `25041ms`.
+- `metadata.write_home_aggregates`: `4191165ms`, `1614` calls, max `7033ms`.
+- `sources.update_retention`: `3549737ms`, `5590` calls, max `240534ms`.
+- `metadata.comparison_merge_rows`: `3513728ms`, `650442` feed-row writes,
+  max `1330ms`.
+- `metadata.comparison_prepare_sets`: `3086097ms`, `1614` calls, max
+  `4156ms`.
+- `sources.finalize`: `1580185ms`, `5590` calls, max `9150ms`.
+- `sources.finalize.write_text`: `1374955ms`, `5590` calls, max `6212ms`.
+
+Top measured byte counters:
+
+- `engine.latest_set.binary_open`: `236106105842` bytes over `694020` opens.
+- `entity.output_view.asn_json_read`: `94905087199` bytes over `484039`
+  reads.
+- `entity.output_view.asn_json_decode`: `94905087199` bytes over `484039`
+  decodes.
+- `sources.feeds_processed`: `11412261224` bytes over `5590` processed feeds.
+- `metadata.comparison_pair_ledger_read`: `10593987735` bytes over `1614`
+  reads.
+- `metadata.comparison_pair_ledger_write`: `10594050834` bytes over `1614`
+  writes.
+- `http.admin_feeds`: `3860782523` response bytes over `4144` responses.
+- `http.admin_status`: `2189500207` response bytes over `13598` responses.
+
+Slowest run patterns:
+
+- The slowest run was at `2026-06-23T09:31:20Z`, took `288731ms`, selected
+  `5` feeds, and spent `245519ms` in `sources`.
+  - Top operation: `sources.update_retention` `241824ms`.
+  - Runtime delta: about `2028 MB` read and `1114 MB` written.
+- Other very slow runs around `225-259s` were also dominated by
+  `sources.update_retention`, with about `2.0-2.2 GB` read per run.
+- Several `112-152s` runs were dominated by `metadata`, especially
+  `metadata.write_comparison_files` and `metadata.comparison_pair_overlap`.
+- Run elapsed time correlated strongly with:
+  - CPU milliseconds: `0.984`
+  - metadata phase milliseconds: `0.791`
+  - source phase milliseconds: `0.774`
+  - read bytes: `0.762`
+  - write syscalls: `0.760`
+  - write bytes: `0.713`
+
+Retention findings:
+
+- `dronebl_anonymizers` is the dominant retention outlier:
+  - combined retention time: `1259131ms`
+  - reconcile runs: `6`
+  - refresh runs: `36`
+  - reconciled cohorts: `743039`
+  - refresh cohorts: `4458172`
+  - input IPs in reconcile: `918706439`
+- Other high retention costs:
+  - `firehol_proxies`: `308457ms`
+  - `firehol_anonymous`: `209263ms`
+  - `serpro_reputation`: `198647ms`
+  - `firehol_level4`: `180577ms`
+  - `blocklist_net_ua`: `180348ms`
+- Interpretation: bounded `pkg/iprange` cohort comparison fixed memory and
+  correctness pressure, but the engine still routinely scans millions of
+  historical cohort records for retention bookkeeping.
+
+Metadata findings:
+
+- The comparison-pair ledger binary format reduced the old full-JSON ledger
+  problem, but every run still performs broad metadata work:
+  - `metadata.comparison_pair_ledger_lookup`: `130738842`
+  - `metadata.comparison_pair_ledger_hit`: `128446721`
+  - `metadata.comparison_pair_candidates`: `1473003`
+  - `metadata.comparison_pair_overlap`: `1473003`
+- `engine.latest_set.binary_open` is now the largest measured byte counter.
+  Opening binary sets is cheap per call, but the fan-out is large enough to
+  produce about `236 GB` of accounted file-open/read surface over the window.
+- `entity.output_view.asn_json_read/decode` remains a large repeated JSON
+  read/decode surface at about `95 GB` each over the window.
+
+Admin/API findings:
+
+- Admin responses are no longer the dominant stall seen before the light-status
+  fix, but they are still measurable:
+  - `http.admin_status.total`: `340042ms` over `13598` calls.
+  - `http.admin_feeds.total`: `230618ms` over `4144` calls.
+  - `http.admin_status`: about `2.19 GB` response bytes.
+  - `http.admin_feeds`: about `3.86 GB` response bytes.
+- Interpretation: admin endpoints are now survivable, but the feed/status
+  payloads still generate non-trivial JSON and network/local I/O during heavy
+  runs.
+
+Download failure noise:
+
+- The window contained `1031` `download loop failed` logs.
+- Top repeated failures were `cleantalk_updated`, `cleantalk_new`, `dm_tor`,
+  `zeus`, and `zeus_badips`.
+- These are not the main CPU/I/O bottleneck in the run summaries, but repeated
+  known failures create log volume and scheduler noise.
+
+Integrity findings:
+
+- Only two integrity findings appeared, both at startup for stale secondary
+  files on two feeds.
+- No recurring integrity storm was observed in the analyzed window.
+
+Ranked optimization candidates:
+
+1. Retention derived indexes for cohort scans.
+   - Evidence: `sources.update_retention` max `240534ms`; slowest runs spend
+     most wall time in retention; `dronebl_anonymizers` alone accounts for
+     `1259131ms` retention time and millions of cohort refresh records.
+   - Direction: add non-destructive derived retention indexes/summaries that
+     are rebuilt from preserved cohort files when missing or invalid. Do not
+     rewrite or delete history/cohorts in place.
+   - Expected benefit: reduces the worst multi-minute source runs and lowers
+     read I/O during retention.
+2. Metadata latest-set open fan-out reduction.
+   - Evidence: `engine.latest_set.binary_open` accounts for about `236 GB` of
+     measured bytes and `694020` opens.
+   - Direction: reuse trusted file-set metadata and opened sources within a
+     run where safe; add an internal trusted-open path for application-written
+     `.set` files if tests prove header/size validation is enough for this
+     call class.
+   - Expected benefit: reduces repeated open/validation/read surface during
+     metadata and comparison phases.
+3. Metadata comparison writer narrowing.
+   - Evidence: `metadata.write_comparison_files` is the top operation at
+     `15930436ms`; comparison merge rows remain `3513728ms`.
+   - Direction: avoid per-run read/merge/write checks for feeds whose
+     comparison row set cannot change; keep sparse-zero-by-absence semantics;
+     consider a per-feed comparison-row content hash or ledger-backed dirty
+     set.
+   - Expected benefit: reduces metadata wall time and write syscalls.
+4. Home/entity aggregate JSON read elimination.
+   - Evidence: `entity.output_view.asn_json_read/decode` each accounts for
+     about `95 GB` over `484039` reads/decodes.
+   - Direction: move remaining home aggregate inputs away from repeated
+     country/ASN JSON sidecar reads toward a compact run-local or generated
+     binary/index source, while preserving public JSON output.
+   - Expected benefit: lowers metadata/home aggregation read I/O and JSON CPU.
+5. Admin feed/status payload reduction.
+   - Evidence: admin endpoints still produced about `6 GB` combined response
+     bytes and `570660ms` operation time across the window.
+   - Direction: keep light polling cheap, add stronger ETag/unchanged response
+     behavior or narrower mode-specific payloads for feed lists.
+   - Expected benefit: reduces operator UI load during heavy processing,
+     though it is no longer the top production blocker.
+6. Known-failing downloader backoff/noise control.
+   - Evidence: `1031` repeated download failure logs from known failed feeds.
+   - Direction: add classified cooldown/backoff for permanent or long-lived
+     upstream failures without hiding status from operators.
+   - Expected benefit: reduces log volume and retry noise, not the main I/O
+     bottleneck.
+
+Recommendation:
+
+- Next implementation slice should be retention derived indexes first.
+- Rationale: it attacks the worst wall-clock outliers and the strongest
+  wait-I/O symptom while respecting the history-preservation contract.
+- Metadata fan-out and entity/home JSON elimination should follow as separate
+  focused slices, because their correctness risks and validation fixtures are
+  different.
 
 ## Outcome
 

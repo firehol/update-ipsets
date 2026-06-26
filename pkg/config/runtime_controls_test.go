@@ -68,6 +68,12 @@ func TestValidateRejectsNegativeRuntimeResourceControls(t *testing.T) {
 			},
 		},
 		{
+			name: "push to git timeout",
+			mutate: func(rt *RuntimeConfig) {
+				rt.PushToGitTimeout = -1
+			},
+		},
+		{
 			name: "bytes",
 			mutate: func(rt *RuntimeConfig) {
 				rt.WebArtifactCacheMaxBytes = -1
@@ -104,6 +110,7 @@ func TestValidateAcceptsZeroRuntimeResourceControls(t *testing.T) {
 	cfg.Runtime.MaxBackgroundWorkers = 0
 	cfg.Runtime.MinRunIntervalSeconds = 0
 	cfg.Runtime.ProcessingIntervalMinutes = 0
+	cfg.Runtime.PushToGitTimeout = 0
 	if err := Validate(cfg); err != nil {
 		t.Fatalf("Validate() with zero runtime resource controls error = %v", err)
 	}

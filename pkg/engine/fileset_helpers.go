@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/firehol/update-ipsets/pkg/iprange"
@@ -63,16 +64,47 @@ func (c *closableSource) Contains(ip uint32) bool {
 	return false
 }
 
+var (
+	openLatestSetHookMu sync.Mutex
+	openLatestSetHook   func(string)
+)
+
+func setOpenLatestSetHookForTest(fn func(string)) func() {
+	openLatestSetHookMu.Lock()
+	previous := openLatestSetHook
+	openLatestSetHook = fn
+	openLatestSetHookMu.Unlock()
+
+	return func() {
+		openLatestSetHookMu.Lock()
+		openLatestSetHook = previous
+		openLatestSetHookMu.Unlock()
+	}
+}
+
+func openLatestSetHookForTest() func(string) {
+	openLatestSetHookMu.Lock()
+	defer openLatestSetHookMu.Unlock()
+	return openLatestSetHook
+}
+
 // openLatestSet opens the binary latest file for name from the lib
 // directory. If the binary file doesn't exist or can't be opened, it
 // falls back to parsing the text .ipset/.netset file from BaseDir.
 // The returned closableSource must be closed after use.
 func (e *Engine) openLatestSet(ctx context.Context, name string) (*closableSource, error) {
-	if e == nil || e.cfg == nil || !e.configuredNames()[name] {
+	if e == nil {
 		return nil, fmt.Errorf("unknown set %q", name)
 	}
+	cfg, rt := e.configRuntimeSnapshot()
+	if cfg == nil || !configuredNamesForConfig(cfg)[name] {
+		return nil, fmt.Errorf("unknown set %q", name)
+	}
+	if hook := openLatestSetHookForTest(); hook != nil {
+		hook(name)
+	}
 	for _, filename := range []string{"latest", "latest.set"} {
-		binaryPath := filepath.Join(e.runtime.LibDir, name, filename)
+		binaryPath := filepath.Join(rt.LibDir, name, filename)
 		start := time.Now()
 		fs, err := iprange.OpenFileSet(binaryPath)
 		if err == nil {
@@ -85,15 +117,19 @@ func (e *Engine) openLatestSet(ctx context.Context, name string) (*closableSourc
 			return &closableSource{RangeSource: fs, close: fs.Close}, nil
 		}
 	}
-	return e.loadTextSet(ctx, name)
+	return e.loadTextSetWithRuntime(ctx, name, rt)
 }
 
 func (e *Engine) hasBinaryLatestSet(name string) bool {
 	if e == nil {
 		return false
 	}
+	return hasBinaryLatestSetForRuntime(e.Runtime(), name)
+}
+
+func hasBinaryLatestSetForRuntime(rt Runtime, name string) bool {
 	for _, filename := range []string{"latest", "latest.set"} {
-		if fileExists(filepath.Join(e.runtime.LibDir, name, filename)) {
+		if fileExists(filepath.Join(rt.LibDir, name, filename)) {
 			return true
 		}
 	}
@@ -104,30 +140,29 @@ func (e *Engine) hasUsableSet(name string) bool {
 	if e == nil {
 		return false
 	}
-	if e.hasBinaryLatestSet(name) {
+	cfg, rt := e.configRuntimeSnapshot()
+	if hasBinaryLatestSetForRuntime(rt, name) {
 		return true
 	}
 	if entry := e.state.EntrySnapshot(name); entry != nil && entry.File != "" {
 		return true
 	}
-	src := e.lookupSource(name)
+	src := lookupSourceForConfig(cfg, name)
 	if src == nil {
 		return false
 	}
-	return fileExists(e.finalPath(name, src.Output))
+	return fileExists(finalPathForRuntime(rt, name, src.Output))
 }
 
-// loadTextSet loads a text .ipset or .netset file for name into memory
-// and wraps it in a closableSource.
-func (e *Engine) loadTextSet(ctx context.Context, name string) (*closableSource, error) {
-	entry := e.state.Entry(name)
+func (e *Engine) loadTextSetWithRuntime(ctx context.Context, name string, rt Runtime) (*closableSource, error) {
+	entry := e.state.EntrySnapshot(name)
 	if entry == nil || entry.File == "" {
 		return nil, fmt.Errorf("set %q has no materialized file", name)
 	}
 	if !rawFeedFileMatches(name, entry.File) {
 		return nil, fmt.Errorf("set %q has unexpected materialized file %q", name, entry.File)
 	}
-	path, ok := safeRuntimeFilePath(e.runtime.BaseDir, entry.File)
+	path, ok := safeRuntimeFilePath(rt.BaseDir, entry.File)
 	if !ok {
 		return nil, fmt.Errorf("set %q has unsafe materialized file %q", name, entry.File)
 	}

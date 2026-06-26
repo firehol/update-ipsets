@@ -102,7 +102,11 @@ work, and engine-owned cleanup work.
 
 A `RunOnce` call MUST be admitted as one engine-lane work item. The lane
 controls top-level run admission; it MUST NOT split a run into separate lane
-items for each processing phase.
+items for each processing phase. The lane-held portion stages computed
+artifacts. Final local publication, required git publication, and cache
+persistence happen after the lane-held portion while the run remains
+`finalizing`, so a later `RunOnce` cannot overlap the earlier run's publication
+or git commit.
 
 The engine lane is a top-level admission boundary. It MUST preserve FIFO order
 for admitted engine-owned work and MUST NOT replace the worker limits used
@@ -145,7 +149,9 @@ For each admitted feed, the engine MUST conceptually execute these stages:
 6. update feed-local change-rate and rotation statistics
 7. run required downstream enrichment, comparison, and insight work
 8. stage the resulting public artifacts and assign their logical mtimes
-9. publish the staged public artifacts and save the updated cache state
+9. release the engine lane, publish the staged public artifacts during
+   finalization, run required git publication, and save a post-publication cache
+   snapshot
 
 The precise end-to-end queue choreography is owned by [pipeline.md](pipeline.md).
 This document owns the engine-local contract.
@@ -171,6 +177,11 @@ Change and rotation measurements that only need the bounded
 artifacts, or tail reads of the append-only ledgers. They MUST NOT rescan full
 `changesets.csv` ledgers just to refresh the bounded rotation/change-ratio
 window.
+
+Runtime history, changeset, and retention cache locks protect in-memory feed
+state only. They MUST NOT be held while reading, tailing, parsing, or hashing
+ledger files. File work must run with context checks where a caller context is
+available, then publish refreshed state under the short feed-local lock.
 
 For retention/state ownership, the engine MUST keep distinct:
 
@@ -390,6 +401,12 @@ least:
 - open_failed
 - unavailable
 - stale
+
+Engine status snapshots MUST hold the broad engine state mutex only long enough
+to copy scalar run state and configuration counters. Active feeds, active
+operations, background tasks, and current run metrics MUST have independent
+ownership so progress updates and high-frequency status reads do not block
+behind broad engine state.
 
 The engine MUST NOT silently drop a processing request once it has been
 admitted.

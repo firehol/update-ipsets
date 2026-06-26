@@ -58,6 +58,9 @@ The user also clarified:
 - phases should have strong separation of concerns but may trust each other;
 - every phase may keep its own disk state so reprocessing is fast;
 - the whole pipeline must resume after crashes without data loss;
+- the engine must not hold long-lived global feed-list locks or long-lived
+  per-feed locks while processing; active in-memory feed/catalog state must be
+  immutable to readers and replaced by copy-on-write snapshot swaps;
 - implementation must wait until the design, gap analysis, and performance
   analysis are complete on paper.
 
@@ -108,6 +111,9 @@ Unknowns:
 - A performance analysis lists duplicated work, avoidable work, required but
   inefficient work, candidate caches, candidate file-format changes, expected
   benefit, risk, and validation method.
+- The runtime concurrency model forbids processing-time locks over the whole
+  feed list or an active feed. Any in-memory update uses immutable snapshots and
+  a near-instant swap.
 - A history-preservation and migration test strategy is written before any
   implementation.
 - SOW-0097, SOW-0103, SOW-0104, and SOW-0105 are closed as consolidated into
@@ -1429,6 +1435,69 @@ Public serving caveat:
   staged, and restart must finish or clean up any interrupted publication before
   accepting new publication work.
 
+### Non-Blocking Runtime Snapshot Contract
+
+User requirement:
+
+- While the engine is running, processing work must not lock the whole feed list.
+- Processing work must not hold a lock on the active feed being processed.
+- Active in-memory feed/catalog state must be immutable to readers.
+- Updates build new state privately and publish it by copy-on-write snapshot
+  replacement.
+- A lock, if used, may be held only for an instant to swap a pointer/snapshot or
+  update a tiny coordinator bookkeeping record.
+
+Forbidden while holding a feed/catalog lock:
+
+- upstream downloads;
+- parsing or canonicalization;
+- binary format reads/writes;
+- retention computation;
+- feed comparisons;
+- provider/reference preparation;
+- insight generation;
+- public artifact rendering;
+- JSON/markdown serialization;
+- disk I/O other than the tiny state needed for the swap marker itself.
+
+Reader contract:
+
+- Public APIs, admin reads, lookups, comparisons, and status views acquire a
+  reference to one immutable snapshot and operate on that snapshot without
+  holding processing locks.
+- A reader may observe the previous official snapshot while a new snapshot is
+  being built.
+- A reader must never observe a partially mutated feed object or catalog map.
+- Snapshot retirement waits until existing readers have released references or
+  the language/runtime equivalent makes the old snapshot unreachable safely.
+
+Writer contract:
+
+- Writers build replacement feed/provider/catalog state off to the side.
+- Writers validate the replacement state before publishing it.
+- Writers publish by replacing a snapshot reference, not by mutating the active
+  snapshot in place.
+- The replacement may be per-feed, per-provider, per-phase, or whole-catalog
+  depending on the artifact family, but the active object seen by readers remains
+  immutable.
+
+Implementation-language notes:
+
+- In Go, candidate mechanisms include immutable structs/maps plus
+  `atomic.Pointer`, `atomic.Value`, or a very short mutex-protected pointer swap.
+- In Rust, candidate mechanisms include `Arc` snapshots plus an atomic swap
+  primitive such as an `ArcSwap`-style pattern.
+- These are examples, not design decisions. The invariant is language
+  independent: no long-lived reader/writer locks around engine work.
+
+Relationship to sequential phases:
+
+- Sequential phases 2-5 control phase execution and durable handover order.
+- The snapshot contract controls live in-memory visibility to public/admin/API
+  readers.
+- These are complementary: the orchestrator may serialize phase work while
+  readers continue using the previous immutable snapshot.
+
 ### Commit Patterns
 
 These are design patterns, not approved directory names. The implementation may
@@ -1764,6 +1833,32 @@ Required assertions:
 - Ledger rows are not double-counted.
 - Public serving uses official artifacts only.
 - Re-running the same durable input revision is idempotent.
+
+### Non-Blocking Snapshot Validation Requirements
+
+Before implementation changes live in-memory feed/catalog state, tests must
+cover these concurrency cases:
+
+- public lookup/read while downloader is preparing an update;
+- public lookup/read while processor builds replacement feed state;
+- public lookup/read while comparisons build new overlap facts;
+- public lookup/read while insights/public artifacts stage publication;
+- admin status reads while phase state changes;
+- multiple readers holding an old snapshot while a writer publishes a new
+  snapshot;
+- a writer failure before the snapshot swap;
+- a writer failure immediately after the snapshot swap.
+
+Required assertions:
+
+- Readers are never blocked by long-running processing work.
+- Readers observe either the old official snapshot or the new official snapshot,
+  never a partially mutated one.
+- No engine phase holds a global feed-list lock or active-feed lock while doing
+  parsing, comparison, retention, serialization, or disk I/O.
+- Snapshot swaps are bounded to tiny critical sections.
+- Old snapshots remain valid for readers that acquired them before the swap.
+- Failed writer work does not modify the active snapshot.
 
 ## Paper Performance Analysis v1
 
@@ -2122,6 +2217,40 @@ Risk:
   write, during downstream work, after downstream completion, and before
   handover acknowledgement.
 
+### Decision 9 - Non-Blocking Runtime Snapshots
+
+Selection: active in-memory feed/catalog state is immutable to readers and
+updated by copy-on-write snapshot replacement. Processing work must not hold
+long-lived locks on the global feed list or on a specific active feed.
+
+Reason:
+
+- The public website and APIs must remain responsive while ingestion/processing
+  runs.
+- A feed currently being processed is still part of the public product and must
+  remain readable from its previous official state until the replacement is
+  ready.
+- Long-lived locks around parsing, comparisons, retention, disk I/O, or
+  publication would turn ingestion into user-visible downtime or latency spikes.
+
+Implication:
+
+- Readers acquire an immutable snapshot reference and release it after the
+  request/status operation.
+- Writers build replacement state privately, validate it, and swap it into place
+  with only a near-instant pointer/snapshot swap.
+- Old snapshots remain valid until no active reader can observe them.
+- This applies regardless of whether the final implementation language is Go,
+  Rust, or a mixed system.
+
+Risk:
+
+- Copy-on-write can increase peak memory while a replacement snapshot is being
+  built.
+- The design must minimize replacement scope and use file-backed/mmap artifacts
+  where possible so snapshot isolation does not double large heap objects.
+- Tests must prove readers cannot observe partially mutated active state.
+
 ## Plan
 
 1. Complete phase-boundary map.
@@ -2170,6 +2299,16 @@ Risk:
   markers, and handovers, and each artifact family must choose an explicit
   commit pattern.
 
+### 2026-06-21
+
+- Recorded the non-blocking runtime snapshot requirement: processing must not
+  hold long-lived locks on the global feed list or active feeds; active
+  in-memory feed/catalog state is immutable to readers and updated by
+  copy-on-write snapshot replacement.
+- Added explicit validation requirements proving public/admin/API readers are
+  not blocked by long-running processing and can observe only old or new
+  official snapshots, never partially mutated active state.
+
 ## Validation
 
 Acceptance criteria evidence:
@@ -2193,6 +2332,10 @@ Acceptance criteria evidence:
   `## Durable Phase Handover Contract`.
 - Performance and continuity design: recorded under
   `## Performance And Continuity Design v1`.
+- Non-blocking runtime snapshot contract: recorded under
+  `### Non-Blocking Runtime Snapshot Contract`.
+- Non-blocking snapshot validation: recorded under
+  `### Non-Blocking Snapshot Validation Requirements`.
 - Gap analysis: recorded under `## Gap Analysis v1`.
 - Paper performance analysis: recorded under `## Paper Performance Analysis v1`.
 - History preservation and migration test strategy: recorded under
@@ -2208,8 +2351,8 @@ Tests or equivalent validation:
   - Result for SOW-0106: OK in `current/` with `Status: in-progress`.
   - Result for consolidated SOWs: OK in `done/` with `Status: closed`.
   - Overall repo SOW verdict remains partial because of unrelated current SOW
-    hygiene issues: SOW-0016 helper files missing status/gates, SOW-0109 gate
-    hygiene, and the existing root `TODO-GATED.md` marker.
+    hygiene issues: SOW-0016 helper files missing status/gates, SOW-0116
+    status/directory mismatch, and the existing root `TODO-GATED.md` marker.
   - No code has been changed.
 
 Real-use evidence:

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sync"
 
@@ -15,9 +16,11 @@ import (
 type latestSetCache struct {
 	engine *Engine
 
-	mu   sync.Mutex
-	sets map[string]*closableSource
-	errs map[string]error
+	mu     sync.Mutex
+	closed bool
+	sets   map[string]*closableSource
+	errs   map[string]error
+	loads  map[string]*latestSetLoad
 
 	summaries map[string]latestSetSummary
 	filters   map[string]latestSetFilter
@@ -28,6 +31,7 @@ func newLatestSetCache(engine *Engine) *latestSetCache {
 		engine:    engine,
 		sets:      make(map[string]*closableSource),
 		errs:      make(map[string]error),
+		loads:     make(map[string]*latestSetLoad),
 		summaries: make(map[string]latestSetSummary),
 		filters:   make(map[string]latestSetFilter),
 	}
@@ -43,31 +47,108 @@ type latestSetFilter struct {
 	err    error
 }
 
+type latestSetLoad struct {
+	done     chan struct{}
+	finished bool
+}
+
+var errLatestSetCacheClosed = errors.New("latest set cache closed")
+
+func finishLatestSetLoad(load *latestSetLoad) {
+	if load == nil || load.finished {
+		return
+	}
+	close(load.done)
+	load.finished = true
+}
+
 func (c *latestSetCache) Open(name string) (*closableSource, error) {
+	return c.OpenContext(context.Background(), name)
+}
+
+func (c *latestSetCache) OpenContext(ctx context.Context, name string) (*closableSource, error) {
+	ctx = nonNilContext(ctx)
 	if c == nil || c.engine == nil {
 		return nil, nil
 	}
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if src, ok := c.sets[name]; ok {
-		return src, nil
-	}
-	if err, ok := c.errs[name]; ok {
+	if err := contextErr(ctx); err != nil {
 		return nil, err
 	}
 
-	src, err := c.engine.openLatestSet(context.Background(), name)
-	if err != nil {
-		c.errs[name] = err
-		return nil, err
-	}
-	if !latestSetCacheable(src) {
+	for {
+		if err := contextErr(ctx); err != nil {
+			return nil, err
+		}
+
+		c.mu.Lock()
+		if c.closed {
+			c.mu.Unlock()
+			return nil, errLatestSetCacheClosed
+		}
+		if src, ok := c.sets[name]; ok {
+			c.mu.Unlock()
+			return src, nil
+		}
+		if err, ok := c.errs[name]; ok {
+			c.mu.Unlock()
+			return nil, err
+		}
+		if load := c.loads[name]; load != nil {
+			done := load.done
+			c.mu.Unlock()
+			select {
+			case <-done:
+				continue
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+		}
+		load := &latestSetLoad{done: make(chan struct{})}
+		c.loads[name] = load
+		c.mu.Unlock()
+
+		src, err := c.engine.openLatestSet(ctx, name)
+		ctxErr := contextErr(ctx)
+		c.mu.Lock()
+		closed := c.closed
+		if c.loads[name] == load {
+			delete(c.loads, name)
+		}
+		finishLatestSetLoad(load)
+		if closed {
+			c.mu.Unlock()
+			if src != nil {
+				_ = src.Close()
+			}
+			return nil, errLatestSetCacheClosed
+		}
+		if ctxErr != nil {
+			c.mu.Unlock()
+			if src != nil {
+				_ = src.Close()
+			}
+			return nil, ctxErr
+		}
+		if err != nil {
+			c.errs[name] = err
+			c.mu.Unlock()
+			return nil, err
+		}
+		if !latestSetCacheable(src) {
+			c.mu.Unlock()
+			return src, nil
+		}
+		if cached, ok := c.sets[name]; ok {
+			c.mu.Unlock()
+			if src != nil {
+				_ = src.Close()
+			}
+			return cached, nil
+		}
+		c.sets[name] = src
+		c.mu.Unlock()
 		return src, nil
 	}
-	c.sets[name] = src
-	return src, nil
 }
 
 func (c *latestSetCache) Summary(ctx context.Context, name string) (iprange.RangeSourceSummary, error) {
@@ -85,7 +166,7 @@ func (c *latestSetCache) Summary(ctx context.Context, name string) (iprange.Rang
 	}
 	c.mu.Unlock()
 
-	src, err := c.Open(name)
+	src, err := c.OpenContext(ctx, name)
 	if err != nil {
 		c.mu.Lock()
 		c.summaries[name] = latestSetSummary{err: err}
@@ -96,7 +177,7 @@ func (c *latestSetCache) Summary(ctx context.Context, name string) (iprange.Rang
 		return iprange.RangeSourceSummary{}, nil
 	}
 	if !latestSetCacheable(src) {
-		defer src.Close()
+		defer func() { _ = src.Close() }()
 	}
 	summary, err := iprange.BuildRangeSourceSummaryContext(ctx, src.RangeSource)
 	if err == nil {
@@ -132,7 +213,7 @@ func (c *latestSetCache) OverlapFilter(ctx context.Context, name string) (iprang
 	}
 	c.mu.Unlock()
 
-	src, err := c.Open(name)
+	src, err := c.OpenContext(ctx, name)
 	if err != nil {
 		c.mu.Lock()
 		c.filters[name] = latestSetFilter{err: err}
@@ -143,7 +224,7 @@ func (c *latestSetCache) OverlapFilter(ctx context.Context, name string) (iprang
 		return iprange.RangeOverlapFilter{}, nil
 	}
 	if !latestSetCacheable(src) {
-		defer src.Close()
+		defer func() { _ = src.Close() }()
 	}
 	filter, err := iprange.BuildRangeOverlapFilterContext(ctx, src.RangeSource)
 	if err == nil {
@@ -170,9 +251,19 @@ func (c *latestSetCache) CloseAll(logger *slog.Logger) {
 	}
 
 	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.closed = true
+	sets := c.sets
+	for _, load := range c.loads {
+		finishLatestSetLoad(load)
+	}
+	c.sets = make(map[string]*closableSource)
+	c.errs = make(map[string]error)
+	c.loads = make(map[string]*latestSetLoad)
+	c.summaries = make(map[string]latestSetSummary)
+	c.filters = make(map[string]latestSetFilter)
+	c.mu.Unlock()
 
-	for name, src := range c.sets {
+	for name, src := range sets {
 		if src == nil {
 			continue
 		}
@@ -180,10 +271,6 @@ func (c *latestSetCache) CloseAll(logger *slog.Logger) {
 			logger.Warn("heavy phase set cache close failed", "set", name, "error", err)
 		}
 	}
-	c.sets = make(map[string]*closableSource)
-	c.errs = make(map[string]error)
-	c.summaries = make(map[string]latestSetSummary)
-	c.filters = make(map[string]latestSetFilter)
 }
 
 func checkRangeSourceErr(src iprange.RangeSource) error {

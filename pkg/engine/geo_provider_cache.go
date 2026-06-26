@@ -260,7 +260,7 @@ func buildGeoPreparedSegments(events []geoSegmentEvent, codeCount int) []geoPrep
 }
 
 func (p *geoPreparedProvider) CountSource(src iprange.RangeSource) ([]CountryValue, uint64) {
-	values, totalMapped, _ := p.CountSourceContext(nil, src)
+	values, totalMapped, _ := p.CountSourceContext(context.Background(), src)
 	return values, totalMapped
 }
 

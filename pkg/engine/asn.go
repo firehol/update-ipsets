@@ -158,7 +158,7 @@ func (e *Engine) writeASNComparisonFiles(ctx context.Context, datasets asnDatase
 				return err
 			}
 			defer compareOp.Add(1, totalPairs, nil)
-			src, err := setCache.Open(name)
+			src, err := setCache.OpenContext(ctx, name)
 			if err != nil {
 				e.logger.Warn("ASN comparison skipped: cannot open set", "set", name, "provider", provider, "error", err)
 				return nil
@@ -210,7 +210,7 @@ func (e *Engine) precomputeASNBogonSplits(ctx context.Context, targetNames []str
 		}
 		func() {
 			defer progress.Add(1, int64(len(targetNames)), nil)
-			src, err := setCache.Open(name)
+			src, err := setCache.OpenContext(ctx, name)
 			if err != nil {
 				e.logger.Warn("ASN bogon split skipped: cannot open set", "set", name, "error", err)
 				return

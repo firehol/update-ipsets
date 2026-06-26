@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"sort"
 	"strings"
 
@@ -231,7 +232,8 @@ type countryASNJointStats struct {
 	countryASNHits int64
 }
 
-func countCountryASNJointSource(src iprange.RangeSource, db *asnloc.Database, prepared *geoPreparedProvider) (map[string]map[uint32]uint64, map[uint32]string, countryASNJointStats, error) {
+func countCountryASNJointSource(ctx context.Context, src iprange.RangeSource, db *asnloc.Database, prepared *geoPreparedProvider) (map[string]map[uint32]uint64, map[uint32]string, countryASNJointStats, error) {
+	ctx = nonNilContext(ctx)
 	var stats countryASNJointStats
 	if src == nil || db == nil || prepared == nil || len(prepared.segments) == 0 || len(prepared.countryCodes) == 0 {
 		return nil, nil, stats, nil
@@ -243,7 +245,7 @@ func countCountryASNJointSource(src iprange.RangeSource, db *asnloc.Database, pr
 	var lastSource iprange.Range
 	var haveLastSource bool
 	var lookupErr error
-	err := iprange.WalkRangeOverlapsContext(nil, src, geoPreparedSegmentIndex(prepared.segments), func(overlap iprange.RangeOverlap) bool {
+	err := iprange.WalkRangeOverlapsContext(ctx, src, geoPreparedSegmentIndex(prepared.segments), func(overlap iprange.RangeOverlap) bool {
 		if !haveLastSource || overlap.Left != lastSource {
 			stats.sourceRanges++
 			lastSource = overlap.Left

@@ -34,7 +34,7 @@ func (e *Engine) beginFeedAttempt(entry *cache.Entry, reason runreason.Reason) *
 	started := e.now().UTC()
 	name := ""
 	if entry != nil {
-		name = entry.Name
+		name = entry.Snapshot().Name
 		entry.MarkRunStarted(reason)
 	}
 	e.markFeedStart(name, ActiveFeed{

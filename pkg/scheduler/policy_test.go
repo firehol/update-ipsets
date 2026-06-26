@@ -1,7 +1,11 @@
 package scheduler
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"testing"
@@ -27,6 +31,150 @@ func TestTriggerQueuedActionRejectsDuplicatePendingAction(t *testing.T) {
 	}
 	if runner.TriggerQueuedAction(PendingAction{Names: []string{"sample"}}) {
 		t.Fatal("expected duplicate queued action to be rejected while first action is pending")
+	}
+}
+
+func TestTriggerSourcesContextTimesOutWhenActionQueueFull(t *testing.T) {
+	runner := &Runner{
+		actionCh: make(chan PendingAction, 1),
+		logger:   slog.New(slog.NewTextHandler(io.Discard, nil)),
+		download: downloadLoopState{
+			wake: make(chan struct{}, 1),
+		},
+		processing: processingLoopState{
+			wake: make(chan struct{}, 1),
+		},
+	}
+	runner.actionCh <- PendingAction{Names: []string{"first"}}
+
+	ctx, cancel := context.WithTimeout(t.Context(), 20*time.Millisecond)
+	defer cancel()
+	started := time.Now()
+	err := runner.TriggerSourcesContext(ctx, PendingAction{Names: []string{"second"}})
+	elapsed := time.Since(started)
+
+	if !errors.Is(err, ErrActionQueueSaturated) || !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("TriggerSourcesContext() error = %v, want saturated deadline", err)
+	}
+	if elapsed > 250*time.Millisecond {
+		t.Fatalf("TriggerSourcesContext() elapsed = %s, want bounded by caller context", elapsed)
+	}
+	metrics := runner.MetricsSnapshot()
+	if metrics.ActionAdmissionFailures != 1 || !metrics.Degraded {
+		t.Fatalf("scheduler metrics after admission failure = %+v", metrics)
+	}
+}
+
+func TestTryTriggerSourcesDoesNotBlockWhenActionQueueFull(t *testing.T) {
+	runner := &Runner{
+		actionCh: make(chan PendingAction, 1),
+		download: downloadLoopState{
+			wake: make(chan struct{}, 1),
+		},
+		processing: processingLoopState{
+			wake: make(chan struct{}, 1),
+		},
+	}
+	runner.actionCh <- PendingAction{Names: []string{"first"}}
+
+	started := time.Now()
+	if runner.TryTriggerSources(PendingAction{Names: []string{"second"}}) {
+		t.Fatal("TryTriggerSources() accepted action despite full queue")
+	}
+	if elapsed := time.Since(started); elapsed > 50*time.Millisecond {
+		t.Fatalf("TryTriggerSources() elapsed = %s, want non-blocking", elapsed)
+	}
+}
+
+func TestHandleActionRecoveredRecordsPanicAndContinues(t *testing.T) {
+	runner := &Runner{
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		download: downloadLoopState{
+			wake: make(chan struct{}, 1),
+		},
+		processing: processingLoopState{
+			wake: make(chan struct{}, 1),
+		},
+	}
+
+	runner.handleActionRecovered(t.Context(), PendingAction{Reprocess: true})
+	metrics := runner.MetricsSnapshot()
+	if metrics.RecoveredPanics != 1 || !metrics.Degraded {
+		t.Fatalf("scheduler metrics after recovered action panic = %+v", metrics)
+	}
+
+	runner.handleActionRecovered(t.Context(), PendingAction{RunDue: true})
+	select {
+	case <-runner.download.wake:
+	case <-time.After(2 * time.Second):
+		t.Fatal("RunDue action did not wake download loop after recovered panic")
+	}
+}
+
+func TestRunDueActionDoesNotNeedEngineSnapshot(t *testing.T) {
+	runner := &Runner{
+		download: downloadLoopState{
+			wake: make(chan struct{}, 1),
+		},
+		processing: processingLoopState{
+			wake: make(chan struct{}, 1),
+		},
+	}
+
+	runner.handleActionRecovered(t.Context(), PendingAction{RunDue: true})
+	if metrics := runner.MetricsSnapshot(); metrics.RecoveredPanics != 0 {
+		t.Fatalf("RunDue action recovered panics = %d, want 0", metrics.RecoveredPanics)
+	}
+	select {
+	case <-runner.download.wake:
+	case <-time.After(2 * time.Second):
+		t.Fatal("RunDue action did not wake download loop")
+	}
+}
+
+func TestDownloadWorkerPanicClearsActiveQueue(t *testing.T) {
+	runner := &Runner{
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		download: downloadLoopState{
+			wake:           make(chan struct{}, 1),
+			waiting:        map[string]queuedWork{},
+			active:         map[string]ActiveQueueFeed{"sample": {Name: "sample"}},
+			refetchPending: map[string]queuedWork{},
+		},
+	}
+
+	runner.runDownload(t.Context(), queuedWork{Name: "sample"})
+
+	if _, ok := runner.download.active["sample"]; ok {
+		t.Fatalf("download panic left sample active: %#v", runner.download.active)
+	}
+	if metrics := runner.MetricsSnapshot(); metrics.RecoveredPanics != 1 || !metrics.Degraded {
+		t.Fatalf("scheduler metrics after download panic = %+v", metrics)
+	}
+}
+
+func TestProcessingBatchPanicRequeuesActiveWork(t *testing.T) {
+	queued := queuedWork{Name: "sample", Reason: runreason.ReasonManualRun, QueuedAt: time.Unix(1_700_000_000, 0).UTC()}
+	runner := &Runner{
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		processing: processingLoopState{
+			waiting:  map[string]queuedWork{},
+			active:   map[string]ActiveQueueFeed{"sample": {Name: "sample"}},
+			deferred: map[string]queuedWork{},
+			wake:     make(chan struct{}, 1),
+		},
+	}
+
+	runner.recoverProcessingBatchPanic([]queuedWork{queued}, "processing panic")
+
+	if _, ok := runner.processing.active["sample"]; ok {
+		t.Fatalf("processing panic left sample active: %#v", runner.processing.active)
+	}
+	if _, ok := runner.processing.waiting["sample"]; !ok {
+		t.Fatalf("processing panic did not requeue sample: %#v", runner.processing.waiting)
+	}
+	if metrics := runner.MetricsSnapshot(); metrics.RecoveredPanics != 1 || !metrics.Degraded {
+		t.Fatalf("scheduler metrics after processing panic = %+v", metrics)
 	}
 }
 

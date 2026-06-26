@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -8,13 +9,20 @@ import (
 	"strings"
 )
 
-func readFileTail(path string, bytesWanted int64) ([]byte, bool, error) {
+func readFileTailContext(ctx context.Context, path string, bytesWanted int64) ([]byte, bool, error) {
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
+		return nil, false, err
+	}
 	file, err := openFilePathUnderRoot(filepath.Dir(path), path)
 	if err != nil {
 		return nil, false, err
 	}
 	defer func() { _ = file.Close() }()
 
+	if err := contextErr(ctx); err != nil {
+		return nil, false, err
+	}
 	info, err := file.Stat()
 	if err != nil {
 		return nil, false, err
@@ -28,6 +36,9 @@ func readFileTail(path string, bytesWanted int64) ([]byte, bool, error) {
 	}
 	if bytesWanted > int64(int(^uint(0)>>1)) {
 		return nil, false, fmt.Errorf("tail window too large for %s", path)
+	}
+	if err := contextErr(ctx); err != nil {
+		return nil, false, err
 	}
 	offset := size - bytesWanted
 	buf := make([]byte, int(bytesWanted))
@@ -81,12 +92,24 @@ func trimChangesetTail(points []ChangesetPoint, complete bool, limit int) ([]Cha
 }
 
 func loadChangesetTail(path string, limit int) ([]ChangesetPoint, error) {
+	return loadChangesetTailContext(context.Background(), path, limit)
+}
+
+func loadChangesetTailContext(ctx context.Context, path string, limit int) ([]ChangesetPoint, error) {
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
+		return nil, err
+	}
+	runRuntimeLedgerLoadHook("changesets", "")
 	if limit < 1 {
 		limit = 1
 	}
 	window := int64(64 * 1024)
 	for {
-		data, complete, err := readFileTail(path, window)
+		if err := contextErr(ctx); err != nil {
+			return nil, err
+		}
+		data, complete, err := readFileTailContext(ctx, path, window)
 		if err != nil {
 			return nil, err
 		}

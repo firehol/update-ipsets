@@ -128,10 +128,14 @@ type criticalAggregateJSON struct {
 // reference sources in YAML declaration order. Hidden sources are included
 // because the endpoint describes comparison providers, not navigable feed pages.
 func (e *Engine) CriticalInfrastructureProviders() []CriticalInfrastructureProvider {
-	if e == nil || e.cfg == nil {
+	return criticalInfrastructureProvidersForConfig(e.Config())
+}
+
+func criticalInfrastructureProvidersForConfig(cfg *config.Config) []CriticalInfrastructureProvider {
+	if cfg == nil {
 		return nil
 	}
-	sources := e.cfg.SourcesWithUse(config.UseCriticalInfrastructure)
+	sources := cfg.SourcesWithUse(config.UseCriticalInfrastructure)
 	out := make([]CriticalInfrastructureProvider, 0, len(sources))
 	for _, src := range sources {
 		if src == nil || src.Critical == nil {
@@ -160,7 +164,7 @@ func (e *Engine) refreshCriticalInfrastructureProviderSetID() string {
 	if e == nil {
 		return ""
 	}
-	id := CriticalInfrastructureProviderSetIDForSnapshot(e.cfg)
+	id := CriticalInfrastructureProviderSetIDForSnapshot(e.Config())
 	e.criticalProviderSetMu.Lock()
 	e.criticalProviderSetID = id
 	e.criticalProviderSetCached = true
@@ -235,18 +239,6 @@ func CriticalInfrastructureProviderSetChangedForSnapshot(cfg *config.Config, rt 
 	return previous != current
 }
 
-// writeCriticalInfrastructureProviderSetMarker writes the marker from the
-// engine's currently-computed identity. Prefer
-// writeCriticalInfrastructureProviderSetMarkerValue from inside a pipeline run
-// so the marker value matches the value stamped into artifacts produced by
-// the same run.
-func (e *Engine) writeCriticalInfrastructureProviderSetMarker() error {
-	if e == nil {
-		return nil
-	}
-	return e.writeCriticalInfrastructureProviderSetMarkerValue(e.refreshCriticalInfrastructureProviderSetID())
-}
-
 // writeCriticalInfrastructureProviderSetMarkerValue writes the supplied
 // identity to the runtime marker. An empty identity removes the marker so a
 // catalog that drops all critical providers stops claiming a non-empty
@@ -255,7 +247,11 @@ func (e *Engine) writeCriticalInfrastructureProviderSetMarkerValue(id string) er
 	if e == nil {
 		return nil
 	}
-	path := CriticalInfrastructureProviderSetMarkerPath(e.runtime)
+	path := CriticalInfrastructureProviderSetMarkerPath(e.Runtime())
+	return writeCriticalInfrastructureProviderSetMarkerValueAtPath(path, id)
+}
+
+func writeCriticalInfrastructureProviderSetMarkerValueAtPath(path, id string) error {
 	if path == "" {
 		return nil
 	}
@@ -657,17 +653,22 @@ func criticalTargetNames(cfg *config.Config, names []string) []string {
 }
 
 func (e *Engine) IsCriticalInfrastructureTarget(name string) bool {
-	if e == nil || e.cfg == nil {
+	if e == nil {
 		return false
 	}
-	return !isCriticalInfrastructureOutputName(e.cfg, name) && isCriticalInfrastructureComparableName(e.cfg, name)
+	cfg := e.Config()
+	return !isCriticalInfrastructureOutputName(cfg, name) && isCriticalInfrastructureComparableName(cfg, name)
 }
 
 func (e *Engine) markStaleCriticalInfrastructureArtifactDeletes(batch *stagedPublishBatch) error {
-	if e == nil || e.cfg == nil || batch == nil {
+	cfg, rt := e.configRuntimeSnapshot()
+	return markStaleCriticalInfrastructureArtifactDeletesForConfig(batch, cfg, outputDirForRuntime(rt))
+}
+
+func markStaleCriticalInfrastructureArtifactDeletesForConfig(batch *stagedPublishBatch, cfg *config.Config, liveDir string) error {
+	if cfg == nil || batch == nil {
 		return nil
 	}
-	liveDir := e.outputDir()
 	if liveDir == "" {
 		return nil
 	}
@@ -680,13 +681,13 @@ func (e *Engine) markStaleCriticalInfrastructureArtifactDeletes(batch *stagedPub
 	}
 
 	currentProviders := make(map[string]struct{})
-	for _, provider := range e.CriticalInfrastructureProviders() {
+	for _, provider := range criticalInfrastructureProvidersForConfig(cfg) {
 		currentProviders[provider.Name] = struct{}{}
 	}
 	hasProviders := len(currentProviders) > 0
-	publicNames := configuredPublicFeedNames(e.cfg)
+	publicNames := configuredPublicFeedNames(cfg)
 	currentPublic := stringExactSet(publicNames)
-	currentTargets := stringExactSet(criticalTargetNames(e.cfg, publicNames))
+	currentTargets := stringExactSet(criticalTargetNames(cfg, publicNames))
 	for _, entry := range entries {
 		if entry.IsDir() {
 			continue
@@ -726,25 +727,38 @@ func (e *Engine) markStaleCriticalInfrastructureArtifactDeletes(batch *stagedPub
 }
 
 func (e *Engine) CleanupStaleCriticalInfrastructureArtifacts() error {
-	if e == nil || e.cfg == nil {
+	return e.CleanupStaleCriticalInfrastructureArtifactsContext(context.Background())
+}
+
+func (e *Engine) CleanupStaleCriticalInfrastructureArtifactsContext(ctx context.Context) error {
+	if e == nil {
 		return nil
 	}
-	if len(e.CriticalInfrastructureProviders()) == 0 {
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
+	cfg, rt := e.configRuntimeSnapshot()
+	if cfg == nil {
+		return nil
+	}
+	providers := criticalInfrastructureProvidersForConfig(cfg)
+	if len(providers) == 0 {
 		e.clearCriticalOverlapSummaries()
 	}
-	batch, err := e.newWebPublishBatch()
+	batch, err := newWebPublishBatchForRuntime(rt)
 	if err != nil {
 		return err
 	}
 	defer batch.cleanup()
-	if err := e.markStaleCriticalInfrastructureArtifactDeletes(batch.stagedPublishBatch); err != nil {
+	if err := markStaleCriticalInfrastructureArtifactDeletesForConfig(batch.stagedPublishBatch, cfg, outputDirForRuntime(rt)); err != nil {
 		return err
 	}
-	if _, err := batch.publish(); err != nil {
+	if _, err := batch.publishContext(ctx); err != nil {
 		return err
 	}
-	if len(e.CriticalInfrastructureProviders()) == 0 {
-		return e.writeCriticalInfrastructureProviderSetMarker()
+	if len(providers) == 0 {
+		return writeCriticalInfrastructureProviderSetMarkerValueAtPath(CriticalInfrastructureProviderSetMarkerPath(rt), CriticalInfrastructureProviderSetIDForSnapshot(cfg))
 	}
 	return nil
 }
@@ -766,7 +780,7 @@ func (e *Engine) QueueCriticalInfrastructureCleanup(ctx context.Context, trigger
 		Detail:        "removing stale critical infrastructure artifacts",
 		CoalescingKey: criticalInfrastructureCleanupCoalescingKey(trigger),
 	}, func(laneCtx context.Context) error {
-		return e.cleanupStaleCriticalInfrastructureArtifactsAdmitted(trigger)
+		return e.cleanupStaleCriticalInfrastructureArtifactsAdmitted(laneCtx, trigger)
 	})
 }
 
@@ -793,7 +807,7 @@ func (e *Engine) CleanupStaleCriticalInfrastructureArtifactsWithTrigger(ctx cont
 		trigger = "background"
 	}
 	if e.engineLane == nil {
-		return e.cleanupStaleCriticalInfrastructureArtifactsAdmitted(trigger)
+		return e.cleanupStaleCriticalInfrastructureArtifactsAdmitted(ctx, trigger)
 	}
 	return e.engineLane.Run(ctx, LaneWork{
 		Kind:      LaneWorkCleanup,
@@ -803,12 +817,12 @@ func (e *Engine) CleanupStaleCriticalInfrastructureArtifactsWithTrigger(ctx cont
 		Stage:     "cleanup",
 		Detail:    "removing stale critical infrastructure artifacts",
 	}, func(laneCtx context.Context) error {
-		return e.cleanupStaleCriticalInfrastructureArtifactsAdmitted(trigger)
+		return e.cleanupStaleCriticalInfrastructureArtifactsAdmitted(laneCtx, trigger)
 	})
 }
 
-func (e *Engine) cleanupStaleCriticalInfrastructureArtifactsAdmitted(trigger string) error {
-	err := e.CleanupStaleCriticalInfrastructureArtifacts()
+func (e *Engine) cleanupStaleCriticalInfrastructureArtifactsAdmitted(ctx context.Context, trigger string) error {
+	err := e.CleanupStaleCriticalInfrastructureArtifactsContext(ctx)
 	if err != nil && e.logger != nil {
 		e.logger.Warn("failed to cleanup stale critical infrastructure artifacts", "trigger", trigger, "error", err)
 	}
@@ -816,7 +830,11 @@ func (e *Engine) cleanupStaleCriticalInfrastructureArtifactsAdmitted(trigger str
 }
 
 func (e *Engine) CleanupCriticalInfrastructureArtifactsIfUnconfigured() error {
-	if e == nil || e.cfg == nil || len(e.CriticalInfrastructureProviders()) > 0 {
+	if e == nil {
+		return nil
+	}
+	cfg := e.Config()
+	if cfg == nil || len(criticalInfrastructureProvidersForConfig(cfg)) > 0 {
 		return nil
 	}
 	e.clearCriticalOverlapSummaries()

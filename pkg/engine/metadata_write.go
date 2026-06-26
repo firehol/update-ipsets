@@ -188,24 +188,28 @@ func (r *metadataWriteRun) writePerFeedArtifacts(name string, viewEntry *cache.E
 	if viewEntry.File != "" {
 		r.addGenerated(filepath.Join(r.e.runtime.BaseDir, viewEntry.File), time.Unix(viewEntry.SourceDate, 0).UTC(), redistributable)
 	}
-	if err := r.writePerFeedDerivativeArtifacts(name, processedAt, redistributable); err != nil {
+	if err := r.writePerFeedDerivativeArtifacts(r.ctx, name, processedAt, redistributable); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *metadataWriteRun) writePerFeedDerivativeArtifacts(name string, processedAt time.Time, redistributable bool) error {
-	if err := r.e.writePublicHistoryCSV(name, r.outDir); err != nil {
+func (r *metadataWriteRun) writePerFeedDerivativeArtifacts(ctx context.Context, name string, processedAt time.Time, redistributable bool) error {
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
+	if err := r.e.writePublicHistoryCSVContext(ctx, name, r.outDir); err != nil {
 		return err
 	}
 	r.addGenerated(filepath.Join(r.liveOutDir, name+"_history.csv"), processedAt, redistributable)
 
-	if err := r.e.writePublicChangesetsCSV(name, r.outDir); err != nil {
+	if err := r.e.writePublicChangesetsCSVContext(ctx, name, r.outDir); err != nil {
 		return err
 	}
 	r.addGenerated(filepath.Join(r.liveOutDir, name+"_changesets.csv"), processedAt, redistributable)
 
-	if err := r.e.writePublicRetentionJSON(name, r.outDir); err != nil {
+	if err := r.e.writePublicRetentionJSONContext(ctx, name, r.outDir); err != nil {
 		return err
 	}
 	r.addGenerated(filepath.Join(r.liveOutDir, name+"_retention.json"), processedAt, redistributable)

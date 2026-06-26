@@ -1,20 +1,11 @@
 package engine
 
 import (
-	"bufio"
 	"context"
-	"errors"
-	"fmt"
-	"io"
-	"os"
 	"path/filepath"
-	"sort"
-	"strconv"
-	"strings"
 	"sync"
 
 	"github.com/firehol/update-ipsets/pkg/cache"
-	"github.com/firehol/update-ipsets/pkg/iprange"
 )
 
 type historyLedgerStats struct {
@@ -30,6 +21,27 @@ type historyLedgerStats struct {
 	ipsMax        uint64
 	lastEntries   int
 	lastUniqueIPs uint64
+}
+
+type runtimeLedgerSnapshot struct {
+	libDir           string
+	webChartsEntries int
+	ledger           *runtimeLedgerCache
+}
+
+func (e *Engine) runtimeLedgerSnapshot() runtimeLedgerSnapshot {
+	if e == nil {
+		return runtimeLedgerSnapshot{}
+	}
+	e.mu.RLock()
+	rt := e.runtime
+	ledger := e.ledgerCache
+	e.mu.RUnlock()
+	return runtimeLedgerSnapshot{
+		libDir:           rt.LibDir,
+		webChartsEntries: webChartsEntriesFromRuntime(rt),
+		ledger:           ledger,
+	}
 }
 
 func (s *historyLedgerStats) observe(point HistoryPoint) {
@@ -190,528 +202,268 @@ func (c *runtimeLedgerCache) feed(name string) *feedLedgerState {
 	return st
 }
 
-func appendHistoryTail(tail []HistoryPoint, point HistoryPoint, limit int) []HistoryPoint {
-	if limit <= 0 {
-		return nil
-	}
-	tail = append(tail, point)
-	if len(tail) > limit {
-		tail = append([]HistoryPoint(nil), tail[len(tail)-limit:]...)
-	}
-	return tail
-}
-
-func appendChangesTail(tail []ChangesetPoint, point ChangesetPoint, limit int) []ChangesetPoint {
-	if limit <= 0 {
-		return nil
-	}
-	tail = append(tail, point)
-	if len(tail) > limit {
-		tail = append([]ChangesetPoint(nil), tail[len(tail)-limit:]...)
-	}
-	return tail
-}
-
-func readCSVLines(path string, fn func(string) error) error {
-	file, err := openFilePathUnderRoot(filepath.Dir(path), path)
-	if err != nil {
-		return err
-	}
-	defer func() { _ = file.Close() }()
-
-	reader := bufio.NewReader(file)
-	first := true
-	for {
-		line, err := reader.ReadString('\n')
-		if errors.Is(err, io.EOF) && line == "" {
-			return nil
-		}
-		if err != nil && !errors.Is(err, io.EOF) {
-			return err
-		}
-		line = strings.TrimSpace(line)
-		if line == "" {
-			if errors.Is(err, io.EOF) {
-				return nil
-			}
-			continue
-		}
-		if first {
-			first = false
-			if err := fn(line); err != nil {
-				return err
-			}
-			if errors.Is(err, io.EOF) {
-				return nil
-			}
-			continue
-		}
-		if err := fn(line); err != nil {
-			return err
-		}
-		if errors.Is(err, io.EOF) {
-			return nil
-		}
-	}
-}
-
-func loadHistoryLedgerState(path, name string, limit int) (historyLedgerStats, []HistoryPoint, error) {
-	var stats historyLedgerStats
-	if limit < 1 {
-		limit = 1
-	}
-	tail := make([]HistoryPoint, 0, limit)
-	var lastPoint HistoryPoint
-	haveLast := false
-	flushLast := func() {
-		if !haveLast {
-			return
-		}
-		stats.observe(lastPoint)
-		tail = appendObservedHistoryTail(tail, lastPoint, limit)
-	}
-	lineNum := 0
-	err := readCSVLines(path, func(line string) error {
-		lineNum++
-		if lineNum == 1 && strings.EqualFold(line, "DateTime,Entries,UniqueIPs") {
-			return nil
-		}
-		parts := strings.Split(line, ",")
-		if len(parts) != 3 {
-			return nil
-		}
-		ts, err1 := strconv.ParseInt(parts[0], 10, 64)
-		entries, err2 := strconv.Atoi(parts[1])
-		ips, err3 := strconv.ParseUint(parts[2], 10, 64)
-		if err1 != nil || err2 != nil || err3 != nil || !validHistoryTimestamp(ts) {
-			return nil
-		}
-		point := HistoryPoint{Timestamp: ts, Name: name, Entries: entries, UniqueIPs: ips}
-		if haveLast && point.Timestamp > lastPoint.Timestamp {
-			flushLast()
-			haveLast = false
-		}
-		lastPoint = point
-		haveLast = true
-		return nil
-	})
-	if err != nil {
-		return historyLedgerStats{}, nil, err
-	}
-	flushLast()
-	return stats, tail, nil
-}
-
-func loadHistoryTailCSV(path, name string, limit int) ([]HistoryPoint, error) {
-	if limit < 1 {
-		limit = 1
-	}
-	tail := make([]HistoryPoint, 0, limit)
-	var lastPoint HistoryPoint
-	haveLast := false
-	flushLast := func() {
-		if !haveLast {
-			return
-		}
-		tail = appendObservedHistoryTail(tail, lastPoint, limit)
-	}
-	lineNum := 0
-	err := readCSVLines(path, func(line string) error {
-		lineNum++
-		if lineNum == 1 && strings.EqualFold(line, "DateTime,Entries,UniqueIPs") {
-			return nil
-		}
-		parts := strings.Split(line, ",")
-		if len(parts) != 3 {
-			return nil
-		}
-		ts, err1 := strconv.ParseInt(parts[0], 10, 64)
-		entries, err2 := strconv.Atoi(parts[1])
-		ips, err3 := strconv.ParseUint(parts[2], 10, 64)
-		if err1 != nil || err2 != nil || err3 != nil || !validHistoryTimestamp(ts) {
-			return nil
-		}
-		point := HistoryPoint{
-			Timestamp: ts,
-			Name:      name,
-			Entries:   entries,
-			UniqueIPs: ips,
-		}
-		if haveLast && point.Timestamp > lastPoint.Timestamp {
-			flushLast()
-			haveLast = false
-		}
-		lastPoint = point
-		haveLast = true
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	flushLast()
-	return tail, nil
-}
-
-func (e *Engine) historyTailBootstrap(name string) []HistoryPoint {
-	if e == nil {
-		return nil
-	}
-	limit := e.webChartsEntries()
-	if limit < 1 {
-		return nil
-	}
-	if e.runtime.WebDir != "" {
-		path := filepath.Join(e.runtime.WebDir, name+"_history.csv")
-		if tail, err := loadHistoryTailCSV(path, name, limit); err == nil && len(tail) > 0 {
-			return tail
-		}
-	}
-	if e.runtime.LibDir != "" {
-		path := filepath.Join(e.runtime.LibDir, name, "history.csv")
-		if tail, err := loadHistoryTailCSV(path, name, limit); err == nil && len(tail) > 0 {
-			return tail
-		}
-	}
-	return nil
-}
-
-func appendObservedHistoryTail(tail []HistoryPoint, point HistoryPoint, limit int) []HistoryPoint {
-	if len(tail) > 0 {
-		last := tail[len(tail)-1]
-		if last.Timestamp == point.Timestamp {
-			tail[len(tail)-1] = point
-			return tail
-		}
-		if last.Timestamp > point.Timestamp {
-			return tail
-		}
-	}
-	return appendHistoryTail(tail, point, limit)
-}
-
-func loadRetentionPast(path string, started int64) (map[int]uint64, error) {
-	past := make(map[int]uint64)
-	lineNum := 0
-	err := readCSVLines(path, func(line string) error {
-		lineNum++
-		if lineNum == 1 && strings.EqualFold(line, "date_removed,date_added,hours,ips") {
-			return nil
-		}
-		parts := strings.Split(line, ",")
-		if len(parts) != 4 {
-			return nil
-		}
-		addedAt, err1 := strconv.ParseInt(parts[1], 10, 64)
-		hours, err2 := strconv.Atoi(parts[2])
-		ips, err3 := strconv.ParseUint(parts[3], 10, 64)
-		if err1 != nil || err2 != nil || err3 != nil || addedAt <= started {
-			return nil
-		}
-		past[hours] += ips
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return past, nil
-}
-
-func copyRetentionPast(in map[int]uint64) map[int]uint64 {
-	if len(in) == 0 {
-		return map[int]uint64{}
-	}
-	out := make(map[int]uint64, len(in))
-	for hour, ips := range in {
-		out[hour] = ips
-	}
-	return out
-}
-
-func loadRetentionCohortIndex(path string) (map[int64]uint64, error) {
-	out := map[int64]uint64{}
-	lineNum := 0
-	err := readCSVLines(path, func(line string) error {
-		lineNum++
-		if lineNum == 1 && strings.EqualFold(line, "date_added,ips") {
-			return nil
-		}
-		parts := strings.Split(line, ",")
-		if len(parts) != 2 {
-			return nil
-		}
-		addedAt, err1 := strconv.ParseInt(parts[0], 10, 64)
-		ips, err2 := strconv.ParseUint(parts[1], 10, 64)
-		if err1 != nil || err2 != nil || addedAt <= 0 || ips == 0 {
-			return nil
-		}
-		out[addedAt] = ips
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func writeRetentionCohortIndex(path string, cohorts map[int64]uint64) error {
-	var lines []string
-	lines = append(lines, "date_added,ips")
-	keys := make([]int64, 0, len(cohorts))
-	for addedAt, ips := range cohorts {
-		if addedAt <= 0 || ips == 0 {
-			continue
-		}
-		keys = append(keys, addedAt)
-	}
-	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
-	for _, addedAt := range keys {
-		lines = append(lines, fmt.Sprintf("%d,%d", addedAt, cohorts[addedAt]))
-	}
-	return writeFileAtomic(path, []byte(strings.Join(lines, "\n")+"\n"), generatedFileMode)
-}
-
-func loadRetentionCohorts(ctx context.Context, dir string) (map[int64]uint64, error) {
+func (e *Engine) ensureHistoryLedgerLoaded(ctx context.Context, name string, st *feedLedgerState, limit int, libDir string, baseline *cache.Entry) bool {
 	ctx = nonNilContext(ctx)
-	indexPath := filepath.Join(dir, "retention_cohorts.csv")
-	if cohorts, err := loadRetentionCohortIndex(indexPath); err == nil && len(cohorts) > 0 {
-		return cohorts, nil
+	st.mu.Lock()
+	if st.historyLoaded && st.historyLimit >= limit {
+		st.mu.Unlock()
+		return true
+	}
+	st.mu.Unlock()
+
+	var (
+		stats historyLedgerStats
+		tail  []HistoryPoint
+		err   error
+	)
+	if baselineStats, ok := historyLedgerStatsFromEntry(baseline); ok {
+		stats = baselineStats
+		tail = e.historyTailBootstrap(name)
+	} else {
+		stats, tail, err = loadHistoryLedgerStateContext(ctx, filepath.Join(libDir, name, "history.csv"), name, limit)
+		if err != nil {
+			return false
+		}
 	}
 
-	newDir := filepath.Join(dir, "new")
-	entries, err := os.ReadDir(newDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return map[int64]uint64{}, nil
-		}
-		return nil, err
+	st.mu.Lock()
+	if !st.historyLoaded || st.historyLimit < limit {
+		st.historyLoaded = true
+		st.historyStats = stats
+		st.historyTail = tail
+		st.historyLimit = limit
 	}
-	out := make(map[int64]uint64, len(entries))
-	for _, entry := range entries {
-		if entry.IsDir() || isIgnoredRetentionSnapshotName(entry.Name()) {
-			continue
-		}
-		tsStr := strings.TrimSuffix(entry.Name(), ".set")
-		addedAt, err := strconv.ParseInt(tsStr, 10, 64)
-		if err != nil {
-			continue
-		}
-		filePath := filepath.Join(newDir, entry.Name())
-		meta, err := iprange.ReadFileSetMetadata(filePath)
-		if err == nil {
-			out[addedAt] = meta.UniqueIPs
-			continue
-		}
-		set, err := loadSnapshotSet(ctx, entry.Name(), dir, filepath.Join("new", entry.Name()))
-		if err != nil {
-			return nil, err
-		}
-		out[addedAt] = set.UniqueCount()
-	}
-	return out, nil
-}
-
-func buildCurrentRetentionBuckets(cohorts map[int64]uint64, updatedAt, started int64) (map[int]uint64, int) {
-	current := make(map[int]uint64, len(cohorts))
-	incomplete := 0
-	for addedAt, ips := range cohorts {
-		if ips == 0 {
-			continue
-		}
-		hours := int((updatedAt + 1800 - addedAt) / 3600)
-		current[hours] += ips
-		if addedAt <= started {
-			incomplete = 1
-		}
-	}
-	return current, incomplete
+	st.mu.Unlock()
+	return true
 }
 
 func (e *Engine) historyStatsFromRuntime(name string, entry *cache.Entry, frequency int) bool {
-	if e == nil || entry == nil || e.runtime.LibDir == "" {
+	return e.historyStatsFromRuntimeContext(context.Background(), name, entry, frequency)
+}
+
+func (e *Engine) historyStatsFromRuntimeContext(ctx context.Context, name string, entry *cache.Entry, frequency int) bool {
+	ctx = nonNilContext(ctx)
+	snap := e.runtimeLedgerSnapshot()
+	if entry == nil || snap.libDir == "" || snap.ledger == nil {
 		return false
 	}
-	st := e.ledgerCache.feed(name)
+	st := snap.ledger.feed(name)
 	if st == nil {
+		return false
+	}
+	if !e.ensureHistoryLedgerLoaded(ctx, name, st, snap.webChartsEntries, snap.libDir, nil) {
 		return false
 	}
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	if !st.historyLoaded || st.historyLimit < e.webChartsEntries() {
-		stats, tail, err := loadHistoryLedgerState(filepath.Join(e.runtime.LibDir, name, "history.csv"), name, e.webChartsEntries())
-		if err != nil {
-			return false
-		}
-		st.historyLoaded = true
-		st.historyStats = stats
-		st.historyTail = tail
-		st.historyLimit = e.webChartsEntries()
-	}
 	return st.historyStats.apply(entry, frequency)
 }
 
 func (e *Engine) observeHistoryPoint(name string, point HistoryPoint, entry, baseline *cache.Entry, frequency int) bool {
-	if e == nil || entry == nil || e.runtime.LibDir == "" {
+	return e.observeHistoryPointContext(context.Background(), name, point, entry, baseline, frequency)
+}
+
+func (e *Engine) observeHistoryPointContext(ctx context.Context, name string, point HistoryPoint, entry, baseline *cache.Entry, frequency int) bool {
+	ctx = nonNilContext(ctx)
+	snap := e.runtimeLedgerSnapshot()
+	if entry == nil || snap.libDir == "" || snap.ledger == nil {
 		return false
 	}
-	st := e.ledgerCache.feed(name)
+	st := snap.ledger.feed(name)
 	if st == nil {
 		return false
 	}
-	st.mu.Lock()
-	defer st.mu.Unlock()
-	if !st.historyLoaded || st.historyLimit < e.webChartsEntries() {
-		if stats, ok := historyLedgerStatsFromEntry(baseline); ok {
-			st.historyLoaded = true
-			st.historyStats = stats
-			st.historyTail = e.historyTailBootstrap(name)
-			st.historyLimit = e.webChartsEntries()
-		} else {
-			stats, tail, err := loadHistoryLedgerState(filepath.Join(e.runtime.LibDir, name, "history.csv"), name, e.webChartsEntries())
-			if err != nil {
-				return false
-			}
-			st.historyLoaded = true
-			st.historyStats = stats
-			st.historyTail = tail
-			st.historyLimit = e.webChartsEntries()
-		}
+	limit := snap.webChartsEntries
+	if !e.ensureHistoryLedgerLoaded(ctx, name, st, limit, snap.libDir, baseline) {
+		return false
 	}
+
+	st.mu.Lock()
 	if point.Timestamp <= st.historyStats.lastTS {
 		if point.Timestamp == st.historyStats.lastTS {
 			if point.Entries == st.historyStats.lastEntries && point.UniqueIPs == st.historyStats.lastUniqueIPs {
-				st.historyTail = appendObservedHistoryTail(st.historyTail, point, e.webChartsEntries())
-				st.historyLimit = e.webChartsEntries()
+				st.historyTail = appendObservedHistoryTail(st.historyTail, point, limit)
+				st.historyLimit = limit
 				e.observeRunCounter("sources.finalize.observe_history_same_timestamp_noop", 1, 0)
-				return st.historyStats.apply(entry, frequency)
+				applied := st.historyStats.apply(entry, frequency)
+				st.mu.Unlock()
+				return applied
 			}
-			stats, tail, err := loadHistoryLedgerState(filepath.Join(e.runtime.LibDir, name, "history.csv"), name, e.webChartsEntries())
-			if err == nil {
+			expectedLastTS := st.historyStats.lastTS
+			expectedLastEntries := st.historyStats.lastEntries
+			expectedLastIPs := st.historyStats.lastUniqueIPs
+			st.mu.Unlock()
+
+			stats, tail, err := loadHistoryLedgerStateContext(ctx, filepath.Join(snap.libDir, name, "history.csv"), name, limit)
+			st.mu.Lock()
+			if err == nil && st.historyStats.lastTS == expectedLastTS && st.historyStats.lastEntries == expectedLastEntries && st.historyStats.lastUniqueIPs == expectedLastIPs {
 				st.historyLoaded = true
 				st.historyStats = stats
 				st.historyTail = tail
-				st.historyLimit = e.webChartsEntries()
-				return st.historyStats.apply(entry, frequency)
+				st.historyLimit = limit
 			}
+			applied := st.historyStats.apply(entry, frequency)
+			st.mu.Unlock()
+			return applied
 		}
-		return st.historyStats.apply(entry, frequency)
+		applied := st.historyStats.apply(entry, frequency)
+		st.mu.Unlock()
+		return applied
 	}
 	st.historyStats.observe(point)
-	st.historyTail = appendObservedHistoryTail(st.historyTail, point, e.webChartsEntries())
-	st.historyLimit = e.webChartsEntries()
-	return st.historyStats.apply(entry, frequency)
+	st.historyTail = appendObservedHistoryTail(st.historyTail, point, limit)
+	st.historyLimit = limit
+	applied := st.historyStats.apply(entry, frequency)
+	st.mu.Unlock()
+	return applied
 }
 
 func (e *Engine) historyTailFromRuntime(name string) []HistoryPoint {
-	if e == nil || e.runtime.LibDir == "" {
+	return e.historyTailFromRuntimeContext(context.Background(), name)
+}
+
+func (e *Engine) historyTailFromRuntimeContext(ctx context.Context, name string) []HistoryPoint {
+	ctx = nonNilContext(ctx)
+	snap := e.runtimeLedgerSnapshot()
+	if snap.libDir == "" || snap.ledger == nil {
 		return nil
 	}
-	st := e.ledgerCache.feed(name)
+	st := snap.ledger.feed(name)
 	if st == nil {
+		return nil
+	}
+	if !e.ensureHistoryLedgerLoaded(ctx, name, st, snap.webChartsEntries, snap.libDir, nil) {
 		return nil
 	}
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	if !st.historyLoaded || st.historyLimit < e.webChartsEntries() {
-		stats, tail, err := loadHistoryLedgerState(filepath.Join(e.runtime.LibDir, name, "history.csv"), name, e.webChartsEntries())
-		if err != nil {
-			return nil
-		}
-		st.historyLoaded = true
-		st.historyStats = stats
-		st.historyTail = tail
-		st.historyLimit = e.webChartsEntries()
-	}
 	return append([]HistoryPoint(nil), st.historyTail...)
 }
 
+func (e *Engine) ensureChangesetTailLoaded(ctx context.Context, name string, st *feedLedgerState, limit int, libDir string) (bool, bool) {
+	ctx = nonNilContext(ctx)
+	st.mu.Lock()
+	loaded := st.changesLoaded && st.changesLimit >= limit
+	st.mu.Unlock()
+	if loaded {
+		return true, true
+	}
+
+	points, err := loadChangesetTailContext(ctx, filepath.Join(libDir, name, "changesets.csv"), limit)
+	if err != nil {
+		return false, false
+	}
+	st.mu.Lock()
+	if !st.changesLoaded || st.changesLimit < limit {
+		st.changesLoaded = true
+		st.changesTail = points
+		st.changesLimit = limit
+	}
+	st.mu.Unlock()
+	return false, true
+}
+
 func (e *Engine) changesetTailFromRuntime(name string) []ChangesetPoint {
-	if e == nil || e.runtime.LibDir == "" {
+	return e.changesetTailFromRuntimeContext(context.Background(), name)
+}
+
+func (e *Engine) changesetTailFromRuntimeContext(ctx context.Context, name string) []ChangesetPoint {
+	ctx = nonNilContext(ctx)
+	snap := e.runtimeLedgerSnapshot()
+	if snap.libDir == "" || snap.ledger == nil {
 		return nil
 	}
-	st := e.ledgerCache.feed(name)
+	st := snap.ledger.feed(name)
 	if st == nil {
+		return nil
+	}
+	if _, ok := e.ensureChangesetTailLoaded(ctx, name, st, snap.webChartsEntries, snap.libDir); !ok {
 		return nil
 	}
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	if !st.changesLoaded || st.changesLimit < e.webChartsEntries() {
-		points, err := loadChangesetTail(filepath.Join(e.runtime.LibDir, name, "changesets.csv"), e.webChartsEntries())
-		if err != nil {
-			return nil
-		}
-		st.changesLoaded = true
-		st.changesTail = points
-		st.changesLimit = e.webChartsEntries()
-	}
 	return append([]ChangesetPoint(nil), st.changesTail...)
 }
 
 func (e *Engine) observeChangesetPoint(name string, point ChangesetPoint) {
-	if e == nil || e.runtime.LibDir == "" || (point.Added == 0 && point.Removed == 0) {
+	snap := e.runtimeLedgerSnapshot()
+	if snap.libDir == "" || snap.ledger == nil || (point.Added == 0 && point.Removed == 0) {
 		return
 	}
-	st := e.ledgerCache.feed(name)
+	st := snap.ledger.feed(name)
 	if st == nil {
+		return
+	}
+	loadedBefore, ok := e.ensureChangesetTailLoaded(context.Background(), name, st, snap.webChartsEntries, snap.libDir)
+	if !ok || !loadedBefore {
 		return
 	}
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	if !st.changesLoaded || st.changesLimit < e.webChartsEntries() {
-		points, err := loadChangesetTail(filepath.Join(e.runtime.LibDir, name, "changesets.csv"), e.webChartsEntries())
-		if err != nil {
-			return
-		}
-		st.changesLoaded = true
-		st.changesTail = points
-		st.changesLimit = e.webChartsEntries()
-		return
-	}
-	st.changesTail = appendChangesTail(st.changesTail, point, e.webChartsEntries())
-	st.changesLimit = e.webChartsEntries()
+	st.changesTail = appendChangesTail(st.changesTail, point, snap.webChartsEntries)
+	st.changesLimit = snap.webChartsEntries
 }
 
-func (e *Engine) retentionPastFromRuntime(name string, started int64) map[int]uint64 {
-	if e == nil || e.runtime.LibDir == "" {
-		return map[int]uint64{}
+func (e *Engine) ensureRetentionPastLoaded(ctx context.Context, name string, st *feedLedgerState, started int64, libDir string) (bool, bool) {
+	ctx = nonNilContext(ctx)
+	st.mu.Lock()
+	loaded := st.retentionLoaded && st.retentionStarted == started
+	st.mu.Unlock()
+	if loaded {
+		return true, true
 	}
-	st := e.ledgerCache.feed(name)
-	if st == nil {
-		return map[int]uint64{}
+
+	past, err := loadRetentionPastContext(ctx, filepath.Join(libDir, name, "retention.csv"), started)
+	if err != nil {
+		return false, false
 	}
 	st.mu.Lock()
-	defer st.mu.Unlock()
 	if !st.retentionLoaded || st.retentionStarted != started {
-		past, err := loadRetentionPast(filepath.Join(e.runtime.LibDir, name, "retention.csv"), started)
-		if err != nil {
-			return map[int]uint64{}
-		}
 		st.retentionLoaded = true
 		st.retentionStarted = started
 		st.retentionPast = past
 	}
+	st.mu.Unlock()
+	return false, true
+}
+
+func (e *Engine) retentionPastFromRuntime(name string, started int64) map[int]uint64 {
+	return e.retentionPastFromRuntimeContext(context.Background(), name, started)
+}
+
+func (e *Engine) retentionPastFromRuntimeContext(ctx context.Context, name string, started int64) map[int]uint64 {
+	ctx = nonNilContext(ctx)
+	snap := e.runtimeLedgerSnapshot()
+	if snap.libDir == "" || snap.ledger == nil {
+		return map[int]uint64{}
+	}
+	st := snap.ledger.feed(name)
+	if st == nil {
+		return map[int]uint64{}
+	}
+	if _, ok := e.ensureRetentionPastLoaded(ctx, name, st, started, snap.libDir); !ok {
+		return map[int]uint64{}
+	}
+	st.mu.Lock()
+	defer st.mu.Unlock()
 	return copyRetentionPast(st.retentionPast)
 }
 
 func (e *Engine) observeRetentionPast(name string, started int64, hours int, ips uint64) {
-	if e == nil || e.runtime.LibDir == "" || ips == 0 {
+	snap := e.runtimeLedgerSnapshot()
+	if snap.libDir == "" || snap.ledger == nil || ips == 0 {
 		return
 	}
-	st := e.ledgerCache.feed(name)
+	st := snap.ledger.feed(name)
 	if st == nil {
+		return
+	}
+	loadedBefore, ok := e.ensureRetentionPastLoaded(context.Background(), name, st, started, snap.libDir)
+	if !ok || !loadedBefore {
 		return
 	}
 	st.mu.Lock()
 	defer st.mu.Unlock()
-	if !st.retentionLoaded || st.retentionStarted != started {
-		past, err := loadRetentionPast(filepath.Join(e.runtime.LibDir, name, "retention.csv"), started)
-		if err != nil {
-			return
-		}
-		st.retentionLoaded = true
-		st.retentionStarted = started
-		st.retentionPast = past
-		return
-	}
 	if st.retentionPast == nil {
 		st.retentionPast = make(map[int]uint64)
 	}
@@ -719,23 +471,34 @@ func (e *Engine) observeRetentionPast(name string, started int64, hours int, ips
 }
 
 func (e *Engine) retentionCohortsFromRuntime(ctx context.Context, name string) map[int64]uint64 {
-	if e == nil || e.runtime.LibDir == "" {
+	ctx = nonNilContext(ctx)
+	snap := e.runtimeLedgerSnapshot()
+	if snap.libDir == "" || snap.ledger == nil {
 		return map[int64]uint64{}
 	}
-	st := e.ledgerCache.feed(name)
+	st := snap.ledger.feed(name)
 	if st == nil {
 		return map[int64]uint64{}
 	}
+
 	st.mu.Lock()
-	defer st.mu.Unlock()
-	if !st.cohortsLoaded {
-		cohorts, err := loadRetentionCohorts(ctx, filepath.Join(e.runtime.LibDir, name))
+	loaded := st.cohortsLoaded
+	st.mu.Unlock()
+	if !loaded {
+		cohorts, err := loadRetentionCohorts(ctx, filepath.Join(snap.libDir, name))
 		if err != nil {
 			return map[int64]uint64{}
 		}
-		st.cohortsLoaded = true
-		st.cohorts = cohorts
+		st.mu.Lock()
+		if !st.cohortsLoaded {
+			st.cohortsLoaded = true
+			st.cohorts = cohorts
+		}
+		st.mu.Unlock()
 	}
+
+	st.mu.Lock()
+	defer st.mu.Unlock()
 	out := make(map[int64]uint64, len(st.cohorts))
 	for addedAt, ips := range st.cohorts {
 		out[addedAt] = ips
@@ -744,10 +507,11 @@ func (e *Engine) retentionCohortsFromRuntime(ctx context.Context, name string) m
 }
 
 func (e *Engine) observeRetentionCohort(name string, addedAt int64, ips uint64) {
-	if e == nil || e.runtime.LibDir == "" || ips == 0 {
+	snap := e.runtimeLedgerSnapshot()
+	if snap.libDir == "" || snap.ledger == nil || ips == 0 {
 		return
 	}
-	st := e.ledgerCache.feed(name)
+	st := snap.ledger.feed(name)
 	if st == nil {
 		return
 	}
@@ -763,10 +527,11 @@ func (e *Engine) observeRetentionCohort(name string, addedAt int64, ips uint64) 
 }
 
 func (e *Engine) replaceRetentionCohorts(name string, cohorts map[int64]uint64) {
-	if e == nil || e.runtime.LibDir == "" {
+	snap := e.runtimeLedgerSnapshot()
+	if snap.libDir == "" || snap.ledger == nil {
 		return
 	}
-	st := e.ledgerCache.feed(name)
+	st := snap.ledger.feed(name)
 	if st == nil {
 		return
 	}

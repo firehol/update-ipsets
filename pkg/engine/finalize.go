@@ -104,7 +104,7 @@ func (e *Engine) finalize(ctx context.Context, name string, src *config.Source, 
 	e.observeRunOperation("sources.finalize.append_history", appendHistoryDur)
 	e.observeFeedOperation(name, "sources.finalize.append_history", appendHistoryDur)
 	observeHistoryStarted := time.Now()
-	if !e.observeHistoryPoint(name, HistoryPoint{
+	if !e.observeHistoryPointContext(ctx, name, HistoryPoint{
 		Timestamp: sourceMTime.UTC().Unix(),
 		Name:      name,
 		Entries:   finalSet.Entries(),

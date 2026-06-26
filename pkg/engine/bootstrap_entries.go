@@ -4,11 +4,33 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/firehol/update-ipsets/pkg/cache"
 	"github.com/firehol/update-ipsets/pkg/config"
 	"github.com/firehol/update-ipsets/pkg/iprange"
 )
+
+var currentSetStatsHookMu sync.Mutex
+var currentSetStatsBeforeOpenHook func(name string)
+
+func setCurrentSetStatsBeforeOpenHookForTest(fn func(name string)) func() {
+	currentSetStatsHookMu.Lock()
+	old := currentSetStatsBeforeOpenHook
+	currentSetStatsBeforeOpenHook = fn
+	currentSetStatsHookMu.Unlock()
+	return func() {
+		currentSetStatsHookMu.Lock()
+		currentSetStatsBeforeOpenHook = old
+		currentSetStatsHookMu.Unlock()
+	}
+}
+
+func currentSetStatsBeforeOpenHookForTest() func(name string) {
+	currentSetStatsHookMu.Lock()
+	defer currentSetStatsHookMu.Unlock()
+	return currentSetStatsBeforeOpenHook
+}
 
 func (e *Engine) bootstrapMissingEntriesFromDisk() error {
 	if e == nil || e.cfg == nil || e.state == nil {
@@ -58,11 +80,16 @@ func (e *Engine) bootstrapMissingEntriesFromDisk() error {
 }
 
 func (e *Engine) reconcileEntriesFromSourceConfig() {
-	if e == nil || e.cfg == nil || e.state == nil {
+	cfg, rt := e.configRuntimeSnapshot()
+	e.reconcileEntriesFromSourceConfigForSnapshot(cfg, rt)
+}
+
+func (e *Engine) reconcileEntriesFromSourceConfigForSnapshot(cfg *config.Config, rt Runtime) {
+	if e == nil || cfg == nil || e.state == nil {
 		return
 	}
-	for _, name := range config.SortedArtifactNames(e.cfg) {
-		artifact := e.cfg.ArtifactByName(name)
+	for _, name := range config.SortedArtifactNames(cfg) {
+		artifact := cfg.ArtifactByName(name)
 		if artifact == nil {
 			continue
 		}
@@ -73,10 +100,10 @@ func (e *Engine) reconcileEntriesFromSourceConfig() {
 		if entry == nil {
 			continue
 		}
-		e.seedEntryFromArtifactConfig(entry, name, artifact)
+		seedEntryFromArtifactConfigForRuntime(rt, entry, name, artifact)
 	}
-	for _, name := range config.SortedSourceNames(e.cfg) {
-		src := e.cfg.Sources[name]
+	for _, name := range config.SortedSourceNames(cfg) {
+		src := cfg.Sources[name]
 		if src == nil {
 			continue
 		}
@@ -87,8 +114,8 @@ func (e *Engine) reconcileEntriesFromSourceConfig() {
 		if entry == nil {
 			continue
 		}
-		e.seedEntryFromSourceConfig(entry, name, src)
-		e.refreshCriticalEntryContentHashFromDisk(entry, name, src)
+		seedEntryFromSourceConfigForRuntime(rt, entry, name, src)
+		e.refreshCriticalEntryContentHashFromDiskForRuntime(rt, entry, name, src)
 	}
 }
 
@@ -137,8 +164,12 @@ func (e *Engine) bootstrapEntryFromDisk(name string, src *config.Source) (*cache
 }
 
 func (e *Engine) seedEntryFromArtifactConfig(entry *cache.Entry, name string, artifact *config.Artifact) {
+	seedEntryFromArtifactConfigForRuntime(e.Runtime(), entry, name, artifact)
+}
+
+func seedEntryFromArtifactConfigForRuntime(rt Runtime, entry *cache.Entry, name string, artifact *config.Artifact) {
 	sourceFile := ""
-	sourcePath := e.artifactSourcePath(name)
+	sourcePath := artifactSourcePathForRuntime(rt, name)
 	if fileExists(sourcePath) {
 		sourceFile = filepath.Base(sourcePath)
 	}
@@ -155,13 +186,17 @@ func (e *Engine) seedEntryFromArtifactConfig(entry *cache.Entry, name string, ar
 }
 
 func (e *Engine) seedEntryFromSourceConfig(entry *cache.Entry, name string, src *config.Source) {
+	seedEntryFromSourceConfigForRuntime(e.Runtime(), entry, name, src)
+}
+
+func seedEntryFromSourceConfigForRuntime(rt Runtime, entry *cache.Entry, name string, src *config.Source) {
 	sourceFile := ""
-	sourcePath := e.sourcePath(name)
+	sourcePath := sourcePathForRuntime(rt, name)
 	if fileExists(sourcePath) {
 		sourceFile = filepath.Base(sourcePath)
 	}
 	finalFile := ""
-	finalPath := e.finalPath(name, src.Output)
+	finalPath := finalPathForRuntime(rt, name, src.Output)
 	if fileExists(finalPath) {
 		finalFile = filepath.Base(finalPath)
 	}
@@ -200,10 +235,17 @@ type setStats struct {
 }
 
 func (e *Engine) currentSetStats(name string, src *config.Source) (setStats, bool) {
+	return e.currentSetStatsForRuntime(e.Runtime(), name, src)
+}
+
+func (e *Engine) currentSetStatsForRuntime(rt Runtime, name string, src *config.Source) (setStats, bool) {
+	if hook := currentSetStatsBeforeOpenHookForTest(); hook != nil {
+		hook(name)
+	}
 	needsContentHash := src != nil && src.HasUse(config.UseCriticalInfrastructure)
 	for _, latestPath := range []string{
-		filepath.Join(e.runtime.LibDir, name, "latest"),
-		filepath.Join(e.runtime.LibDir, name, "latest.set"),
+		filepath.Join(rt.LibDir, name, "latest"),
+		filepath.Join(rt.LibDir, name, "latest.set"),
 	} {
 		if !fileExists(latestPath) {
 			continue
@@ -233,7 +275,7 @@ func (e *Engine) currentSetStats(name string, src *config.Source) (setStats, boo
 		return stats, true
 	}
 
-	finalPath := e.finalPath(name, src.Output)
+	finalPath := finalPathForRuntime(rt, name, src.Output)
 	if !fileExists(finalPath) {
 		return setStats{}, false
 	}
@@ -261,14 +303,14 @@ func (e *Engine) currentSetStats(name string, src *config.Source) (setStats, boo
 	}, true
 }
 
-func (e *Engine) refreshCriticalEntryContentHashFromDisk(entry *cache.Entry, name string, src *config.Source) {
+func (e *Engine) refreshCriticalEntryContentHashFromDiskForRuntime(rt Runtime, entry *cache.Entry, name string, src *config.Source) {
 	if entry == nil || src == nil || !src.HasUse(config.UseCriticalInfrastructure) {
 		if entry != nil {
 			entry.ClearContentHash()
 		}
 		return
 	}
-	stats, ok := e.currentSetStats(name, src)
+	stats, ok := e.currentSetStatsForRuntime(rt, name, src)
 	if !ok || stats.contentHash == "" {
 		return
 	}

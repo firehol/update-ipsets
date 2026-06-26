@@ -57,10 +57,27 @@ export function HeartbeatPanel({
   const f = data.feeds;
   const running = data.engine.running;
   const lastReport = data.engine.last_report;
-  const lastRunSize =
-    (lastReport?.updated?.length ?? 0) +
-    (lastReport?.skipped?.length ?? 0) +
-    (lastReport?.failed?.length ?? 0);
+	const lastRunSize =
+		(lastReport?.updated?.length ?? 0) +
+		(lastReport?.skipped?.length ?? 0) +
+		(lastReport?.failed?.length ?? 0);
+	const currentRunSize = data.engine.current_batch?.total ?? 0;
+  const runState = data.engine.run_state ?? (running ? "running" : "idle");
+  const cachePersistence = data.engine.cache_persistence;
+  const cachePersistenceActive =
+    cachePersistence?.state === "pending" ||
+    cachePersistence?.state === "saving";
+  const daemonLabel =
+    runState === "finalizing"
+      ? "FINALIZING"
+      : running
+        ? "RUNNING"
+        : "Idle";
+	const daemonCaption = cachePersistenceActive
+		? "saving cache state"
+		: running
+			? `${currentRunSize || lastRunSize} feeds in current run`
+			: "waiting for next tick";
   const heapPercent = data.system.heap_alloc / (2 * 1024 * 1024 * 1024);
 
   return (
@@ -79,14 +96,10 @@ export function HeartbeatPanel({
           label="Daemon"
           value={
             <span className={running ? "text-status-healthy" : "text-foreground"}>
-              {running ? "RUNNING" : "Idle"}
+              {daemonLabel}
             </span>
           }
-          caption={
-            running
-              ? `${lastRunSize} feeds in last run`
-              : "waiting for next tick"
-          }
+          caption={daemonCaption}
           accent={running}
         />
         <AdminTile

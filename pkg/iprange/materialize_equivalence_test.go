@@ -237,7 +237,7 @@ func randomizedEquivalenceRanges(rng *rand.Rand, name string, maxRanges int) *IP
 			span = rng.Uint32N(4096)
 		case 3:
 			lo = rng.Uint32() &^ 1
-			span = rng.Uint32N(1)
+			span = 0
 		case 4:
 			lo = rng.Uint32()
 			span = rng.Uint32N(64)

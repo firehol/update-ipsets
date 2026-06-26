@@ -754,6 +754,11 @@ maintain:
 These files are compatibility/convenience outputs for repository publication
 and are not required in non-git deployments.
 
+Generated Git publication sync is bounded by `runtime.push_to_git_timeout` for
+each Git subprocess. A timeout or cancellation MUST be reported as an operator
+visible sync failure; it MUST NOT roll back already committed local publication
+state and MUST NOT leave an engine-lane slot held indefinitely.
+
 The `.git/` directories under generated publication trees are private Git
 object stores, not product data. When generated Git publication is enabled, the
 runtime MAY run Git auto-maintenance after sync attempts. During managed

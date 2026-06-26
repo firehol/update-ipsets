@@ -11,10 +11,14 @@ type PublicCategory struct {
 }
 
 func (e *Engine) PublicCategories() []PublicCategory {
-	if e == nil || e.cfg == nil {
+	if e == nil {
 		return nil
 	}
-	ordered := e.cfg.PublicCategoriesOrdered()
+	cfg := e.Config()
+	if cfg == nil {
+		return nil
+	}
+	ordered := cfg.PublicCategoriesOrdered()
 	out := make([]PublicCategory, 0, len(ordered))
 	for _, category := range ordered {
 		out = append(out, PublicCategory{

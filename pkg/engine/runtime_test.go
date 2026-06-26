@@ -1,15 +1,20 @@
 package engine
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/firehol/update-ipsets/pkg/asnloc"
+	"github.com/firehol/update-ipsets/pkg/cache"
 	"github.com/firehol/update-ipsets/pkg/config"
 )
 
@@ -128,9 +133,13 @@ func TestResolveRuntimeDefaultsBackgroundWorkersToOne(t *testing.T) {
 	if got, want := rt.EngineLaneWorkers(), 1; got != want {
 		t.Fatalf("expected engine lane workers %d, got %d", want, got)
 	}
+	if got, want := rt.PushToGitTimeout, 600*time.Second; got != want {
+		t.Fatalf("expected push-to-git timeout %s, got %s", want, got)
+	}
 
 	cfg.Runtime.MaxBackgroundWorkers = 3
 	cfg.Runtime.MaxEngineLaneWorkers = 4
+	cfg.Runtime.PushToGitTimeout = 42
 	rt, err = resolveRuntime(cfg, time.Date(2026, 4, 24, 0, 0, 0, 0, time.UTC))
 	if err != nil {
 		t.Fatalf("resolveRuntime returned error with explicit background workers: %v", err)
@@ -140,6 +149,9 @@ func TestResolveRuntimeDefaultsBackgroundWorkersToOne(t *testing.T) {
 	}
 	if got, want := rt.EngineLaneWorkers(), 4; got != want {
 		t.Fatalf("expected explicit engine lane workers %d, got %d", want, got)
+	}
+	if got, want := rt.PushToGitTimeout, 42*time.Second; got != want {
+		t.Fatalf("expected explicit push-to-git timeout %s, got %s", want, got)
 	}
 }
 
@@ -262,6 +274,82 @@ func TestReloadAppliesChangedIngestWorkerCeiling(t *testing.T) {
 	waitForEngineLaneIdle(t, eng)
 }
 
+func TestReloadContextHonorsCanceledContextBeforeWork(t *testing.T) {
+	root := t.TempDir()
+	cfgPath := filepath.Join(root, "config.yaml")
+	writeRuntimeReloadConfig(t, cfgPath, root, 2)
+
+	eng, err := New(cfgPath, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := eng.StatusSnapshotLight().ConfigReloadCount
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	err = eng.ReloadContext(ctx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("ReloadContext() error = %v, want context.Canceled", err)
+	}
+	after := eng.StatusSnapshotLight().ConfigReloadCount
+	if after != before {
+		t.Fatalf("reload count changed from %d to %d after canceled reload", before, after)
+	}
+}
+
+func TestReloadContextDoesNotHoldEngineMutexDuringDirectoryCreation(t *testing.T) {
+	root := t.TempDir()
+	cfgPath := filepath.Join(root, "config.yaml")
+	writeRuntimeReloadConfig(t, cfgPath, root, 2)
+
+	eng, err := New(cfgPath, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	newWebDir := filepath.Join(root, "web-reloaded")
+	writeRuntimeReloadConfigWithWebDir(t, cfgPath, root, newWebDir, 2)
+
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	var blocked atomic.Bool
+	ensureRuntimeDirectoryHook = func(dir string) {
+		if dir == newWebDir && blocked.CompareAndSwap(false, true) {
+			close(entered)
+			<-release
+		}
+	}
+	t.Cleanup(func() { ensureRuntimeDirectoryHook = nil })
+
+	done := make(chan error, 1)
+	go func() {
+		done <- eng.ReloadContext(t.Context())
+	}()
+
+	select {
+	case <-entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("reload did not reach directory creation")
+	}
+
+	statusDone := make(chan struct{})
+	go func() {
+		_ = eng.StatusSnapshotLight()
+		close(statusDone)
+	}()
+	select {
+	case <-statusDone:
+	case <-time.After(250 * time.Millisecond):
+		close(release)
+		t.Fatal("light status blocked while reload was creating directories")
+	}
+
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	waitForEngineLaneIdle(t, eng)
+}
+
 func TestReloadRetiresASNLookupCacheWithoutReplacingCache(t *testing.T) {
 	root := t.TempDir()
 	cfgPath := filepath.Join(root, "config.yaml")
@@ -300,6 +388,155 @@ func TestReloadRetiresASNLookupCacheWithoutReplacingCache(t *testing.T) {
 	lease.Close()
 	if !entry.closed {
 		t.Fatalf("retired ASN lookup entry was not closed after lease release")
+	}
+	waitForEngineLaneIdle(t, eng)
+}
+
+func TestReloadConcurrentPublicRuntimeReadersRace(t *testing.T) {
+	root := t.TempDir()
+	cfgPath := filepath.Join(root, "config.yaml")
+	writeRuntimeReloadConfigWithProviders(t, cfgPath, root)
+
+	eng, err := New(cfgPath, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rt := eng.Runtime()
+	if err := os.MkdirAll(filepath.Join(rt.LibDir, "sample", "new"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.MkdirAll(rt.BaseDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(rt.BaseDir, "sample.netset"), []byte("10.0.0.1\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	entry := eng.state.Entry("sample")
+	entry.Name = "sample"
+	entry.File = "sample.netset"
+	entry.IPV = "ipv4"
+	entry.Hash = "net"
+	entry.StartedDate = time.Now().Add(-time.Hour).Unix()
+	entry.SourceDate = time.Now().Unix()
+	entry.ProcessedDate = entry.SourceDate
+	entry.CheckedDate = entry.SourceDate
+	entry.FrequencyMinutes = 60
+
+	ctx := t.Context()
+	stop := make(chan struct{})
+	var stopOnce sync.Once
+	closeStop := func() {
+		stopOnce.Do(func() { close(stop) })
+	}
+
+	errCh := make(chan error, 1)
+	recordErr := func(err error) {
+		if err == nil || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return
+		}
+		select {
+		case errCh <- err:
+		default:
+		}
+		closeStop()
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer closeStop()
+		for i := 0; i < 20; i++ {
+			recordErr(eng.ReloadContext(ctx))
+			select {
+			case <-stop:
+				return
+			default:
+			}
+		}
+	}()
+
+	type raceReader struct {
+		name   string
+		fn     func()
+		active atomic.Int64
+		done   atomic.Int64
+	}
+	readers := []*raceReader{
+		{name: "LookupIPContext", fn: func() { _, _ = eng.LookupIPContext("10.0.0.1") }},
+		{name: "availableGeoSyntheticProviders", fn: func() { _, _, _ = eng.availableGeoSyntheticProviders() }},
+		{name: "historyTailFromRuntime", fn: func() { _ = eng.historyTailFromRuntime("sample") }},
+		{name: "changesetTailFromRuntime", fn: func() { _ = eng.changesetTailFromRuntime("sample") }},
+		{name: "retentionPastFromRuntime", fn: func() { _ = eng.retentionPastFromRuntime("sample", time.Now().Unix()-3600) }},
+		{name: "retentionCohortsFromRuntime", fn: func() { _ = eng.retentionCohortsFromRuntime(ctx, "sample") }},
+		{name: "historyStatsFromRuntime", fn: func() { _ = eng.historyStatsFromRuntime("sample", &cache.Entry{Name: "sample"}, 60) }},
+		{name: "observeHistoryPoint", fn: func() {
+			_ = eng.observeHistoryPoint("sample", HistoryPoint{Timestamp: time.Now().Unix(), Name: "sample", Entries: 1, UniqueIPs: 1}, &cache.Entry{Name: "sample"}, nil, 60)
+		}},
+		{name: "observeChangesetPoint", fn: func() { eng.observeChangesetPoint("sample", ChangesetPoint{Timestamp: time.Now().Unix(), Added: 1}) }},
+		{name: "observeRetentionPast", fn: func() { eng.observeRetentionPast("sample", time.Now().Unix()-3600, 1, 1) }},
+		{name: "observeRetentionCohort", fn: func() { eng.observeRetentionCohort("sample", time.Now().Unix(), 1) }},
+		{name: "IsPublicFeedName", fn: func() { _ = eng.IsPublicFeedName("sample") }},
+		{name: "IsRedistributable", fn: func() { _ = eng.IsRedistributable("sample") }},
+		{name: "PublicRawFeedAllowed", fn: func() { _ = eng.PublicRawFeedAllowed("sample") }},
+		{name: "Entry", fn: func() { _, _ = eng.Entry("sample") }},
+		{name: "SetData", fn: func() { _, _, _ = eng.SetData("sample") }},
+		{name: "Metadata", fn: func() { _, _ = eng.Metadata("sample") }},
+		{name: "PublicCategories", fn: func() { _ = eng.PublicCategories() }},
+		{name: "PublicFeedSummaries", fn: func() { _ = eng.PublicFeedSummaries() }},
+		{name: "BogonProviders", fn: func() { _ = eng.BogonProviders() }},
+		{name: "ASNProviders", fn: func() { _ = eng.ASNProviders() }},
+		{name: "GeoProviders", fn: func() { _ = eng.GeoProviders() }},
+		{name: "CriticalInfrastructureProviders", fn: func() { _ = eng.CriticalInfrastructureProviders() }},
+		{name: "IsCriticalInfrastructureTarget", fn: func() { _ = eng.IsCriticalInfrastructureTarget("sample") }},
+		{name: "QueryIP", fn: func() { _, _ = eng.QueryIP(ctx, "10.0.0.1") }},
+		{name: "QueryFeedIP", fn: func() { _, _, _ = eng.QueryFeedIP(ctx, "sample", "10.0.0.1") }},
+		{name: "HistorySeries", fn: func() { _, _ = eng.HistorySeries("sample") }},
+		{name: "ChangesetSeries", fn: func() { _, _ = eng.ChangesetSeries("sample") }},
+		{name: "Retention", fn: func() { _, _ = eng.Retention("sample") }},
+		{name: "CompareSet", fn: func() { _, _ = eng.CompareSet(ctx, "sample") }},
+		{name: "StatusSnapshotLight", fn: func() { _ = eng.StatusSnapshotLight() }},
+		{name: "StatusSnapshot", fn: func() { _ = eng.StatusSnapshot() }},
+	}
+	for _, reader := range readers {
+		reader := reader
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := 0; i < 50; i++ {
+				select {
+				case <-stop:
+					return
+				default:
+				}
+				reader.active.Add(1)
+				reader.fn()
+				reader.active.Add(-1)
+				reader.done.Add(1)
+				time.Sleep(time.Millisecond)
+			}
+		}()
+	}
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(20 * time.Second):
+		closeStop()
+		for _, reader := range readers {
+			t.Logf("reader %s active=%d done=%d", reader.name, reader.active.Load(), reader.done.Load())
+		}
+		t.Fatal("concurrent reload/readers did not stop")
+	}
+	select {
+	case err := <-errCh:
+		t.Fatalf("concurrent reload/readers error: %v", err)
+	default:
 	}
 	waitForEngineLaneIdle(t, eng)
 }
@@ -419,6 +656,52 @@ func TestReloadStalesOldWebDirIntegrityScope(t *testing.T) {
 func writeRuntimeReloadConfig(t *testing.T, path, root string, ceiling int) {
 	t.Helper()
 	writeRuntimeReloadConfigWithWebDir(t, path, root, filepath.Join(root, "web"), ceiling)
+}
+
+func writeRuntimeReloadConfigWithProviders(t *testing.T, path, root string) {
+	t.Helper()
+	cfg := fmt.Sprintf(`
+runtime:
+  base_dir: %q
+  history_dir: %q
+  lib_dir: %q
+  errors_dir: %q
+  web_dir: %q
+  cache_dir: %q
+  tmp_dir: %q
+  ipsets_apply: false
+  max_ingest_workers: 2
+  parallel_downloads: 2
+  parallel_dns_queries: 2
+  max_processing_workers: 2
+  max_heavy_phase_workers: 2
+  max_background_workers: 2
+  max_engine_lane_workers: 2
+sources:
+  sample:
+    static:
+      - 10.0.0.1
+    frequency: 60
+    ipv: ipv4
+    output: netset
+    processor:
+      - passthrough
+  dbip_country:
+    url: https://example.test/dbip.csv.gz
+    frequency: 1440
+    use: [geoip]
+    format: dbip_country_csv
+    label: DB-IP Country
+  iptoasn:
+    url: https://example.test/iptoasn.tsv
+    frequency: 1440
+    use: [asn]
+    format: iptoasn_combined_tsv
+    label: IPtoASN
+`, filepath.Join(root, "base"), filepath.Join(root, "history"), filepath.Join(root, "lib"), filepath.Join(root, "errors"), filepath.Join(root, "web"), filepath.Join(root, "cache"), filepath.Join(root, "tmp"))
+	if err := os.WriteFile(path, []byte(cfg), 0o600); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func writeRuntimeReloadConfigWithWebDir(t *testing.T, path, root, webDir string, ceiling int) {

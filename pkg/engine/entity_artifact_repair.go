@@ -10,11 +10,9 @@ func (e *Engine) repairEntityArtifactsWithPlanAdmitted(ctx context.Context, trig
 	if !plan.hasWork() {
 		return nil
 	}
-	taskName := "Entity artifacts repair"
+	taskName := backgroundTaskEntityArtifactsRepair
 	if plan.full {
 		taskName = backgroundTaskEntityArtifactsRebuild
-	} else {
-		taskName = backgroundTaskEntityArtifactsRepair
 	}
 	return e.withEngineLaneBackgroundTask(
 		ctx,
@@ -30,7 +28,7 @@ func (e *Engine) repairEntityArtifactsWithPlanAdmitted(ctx context.Context, trig
 			if err := contextErr(ctx); err != nil {
 				return err
 			}
-			_, freshPlan, err := e.CheckEntityArtifactsIntegrity()
+			_, freshPlan, err := e.CheckEntityArtifactsIntegrityContext(ctx)
 			if err != nil {
 				return err
 			}

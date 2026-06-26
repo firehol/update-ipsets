@@ -27,6 +27,12 @@ func (r *Runner) runProcessingLoop(ctx context.Context) {
 	}
 }
 func (r *Runner) runQueuedProcessing(ctx context.Context) {
+	var activeItems []queuedWork
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			r.recoverProcessingBatchPanic(activeItems, recovered)
+		}
+	}()
 	items := r.drainProcessingQueue()
 	if len(items) == 0 {
 		return
@@ -36,15 +42,17 @@ func (r *Runner) runQueuedProcessing(ctx context.Context) {
 	reason := combineReasons(items)
 	reprocess := queuedProcessingReprocess(items)
 	r.markProcessingActive(items)
+	activeItems = items
 	batchStarted := time.Now()
 	runOnceStarted := time.Now()
 	report, err := r.eng.RunOnce(ctx, engine.RunOptions{
-		Selected:   names,
-		EnableAll:  r.enableAll,
-		Reprocess:  reprocess,
-		Manual:     reason != runreason.ReasonScheduledDue,
-		CleanupOld: true,
-		Reason:     reason,
+		Selected:              names,
+		EnableAll:             r.enableAll,
+		Reprocess:             reprocess,
+		Manual:                reason != runreason.ReasonScheduledDue,
+		CleanupOld:            true,
+		Reason:                reason,
+		AsyncCachePersistence: true,
 		BeforePublish: func(report *engine.Report) error {
 			successItems, _ := splitProcessingItemsByFailure(items, report)
 			promoteNames := r.promoteNamesForBatch(successItems, queuedProcessingNames(successItems))
@@ -102,6 +110,17 @@ func (r *Runner) runQueuedProcessing(ctx context.Context) {
 		if _, err := r.eng.QueueEntityArtifactsRefreshForFeedUpdates(ctx, entityTargets, reason.String()); err != nil {
 			r.logger.Error("failed to queue entity artifact refresh", "feeds", len(entityTargets), "trigger", reason.String(), "error", err)
 		}
+	}
+	activeItems = nil
+}
+
+func (r *Runner) recoverProcessingBatchPanic(activeItems []queuedWork, recovered any) {
+	r.recordRecoveredPanic("processing_batch", recovered)
+	if len(activeItems) == 0 {
+		return
+	}
+	if r.finishProcessing(activeItems, true) {
+		r.wakeProcessLoop()
 	}
 }
 

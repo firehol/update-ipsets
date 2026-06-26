@@ -63,10 +63,6 @@ func (r *Runner) handleAction(ctx context.Context, action PendingAction) {
 		}
 		r.wakeProcessLoop()
 	case action.RunDue:
-		now := r.now().UTC()
-		snapshot := BuildSnapshot(r.eng.Config(), r.eng.Runtime(), r.eng.EntriesSnapshot(), r.enableAll, now)
-		r.storeSnapshot(snapshot)
-		r.enqueueAutomaticDue(snapshot, now)
 		r.wakeDownloadLoop()
 		r.wakeProcessLoop()
 	default:

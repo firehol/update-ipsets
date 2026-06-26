@@ -336,19 +336,6 @@ func stripInlineCommentBytes(line []byte) []byte {
 	return bytes.TrimSpace(line)
 }
 
-func splitRangeLine(line string) (string, string, bool) {
-	parts := strings.SplitN(line, "-", 2)
-	if len(parts) != 2 {
-		return "", "", false
-	}
-	left := strings.TrimSpace(parts[0])
-	right := strings.TrimSpace(parts[1])
-	if left == "" || right == "" {
-		return "", "", false
-	}
-	return left, right, true
-}
-
 func splitRangeLineBytes(line []byte) ([]byte, []byte, bool) {
 	idx := bytes.IndexByte(line, '-')
 	if idx < 0 {
@@ -360,38 +347,6 @@ func splitRangeLineBytes(line []byte) ([]byte, []byte, bool) {
 		return nil, nil, false
 	}
 	return left, right, true
-}
-
-func parseRangeEndpoint(token string, opts ParseOptions) (uint32, uint32, error) {
-	if strings.Contains(token, "/") {
-		parts := strings.SplitN(token, "/", 2)
-		addr, err := ParseIPv4Token(parts[0])
-		if err != nil {
-			return 0, 0, err
-		}
-		prefix, err := ParsePrefix(parts[1])
-		if err != nil {
-			return 0, 0, err
-		}
-		lo := addr
-		if opts.UseCIDRNetwork {
-			lo = Network(addr, prefix)
-		}
-		return lo, Broadcast(lo, prefix), nil
-	}
-
-	addr, err := ParseIPv4Token(token)
-	if err != nil {
-		return 0, 0, err
-	}
-	if opts.DefaultPrefix == 32 {
-		return addr, addr, nil
-	}
-	lo := addr
-	if opts.UseCIDRNetwork {
-		lo = Network(addr, opts.DefaultPrefix)
-	}
-	return lo, Broadcast(lo, opts.DefaultPrefix), nil
 }
 
 func parseRangeEndpointBytes(token []byte, opts ParseOptions) (uint32, uint32, error) {
@@ -517,31 +472,6 @@ func parsePrefixBytes(token []byte) (int, error) {
 }
 
 // looksLikeHostname returns true when `line` is plausibly a DNS name
-// the parser should resolve. It REQUIRES at least one dot — without
-// the dot rule, single-word tokens that survive everything else
-// (CSV header cells like "IP", "ENABLED", "total") get sent to DNS
-// resolution and fail with `no such host`. The dot is the cheapest
-// way to distinguish "real hostname" from "stray identifier".
-func looksLikeHostname(line string) bool {
-	if line == "" {
-		return false
-	}
-	hasDot := false
-	for _, r := range line {
-		switch {
-		case r >= 'a' && r <= 'z':
-		case r >= 'A' && r <= 'Z':
-		case r >= '0' && r <= '9':
-		case r == '-', r == '_':
-		case r == '.':
-			hasDot = true
-		default:
-			return false
-		}
-	}
-	return hasDot
-}
-
 func looksLikeHostnameBytes(line []byte) bool {
 	if len(line) == 0 {
 		return false

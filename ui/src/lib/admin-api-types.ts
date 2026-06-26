@@ -383,6 +383,7 @@ export interface AdminStatus {
   };
   engine: {
     running: boolean;
+    run_state?: "idle" | "running" | "finalizing";
     last_started?: string;
     last_ended?: string;
     current_reason?: string;
@@ -412,6 +413,18 @@ export interface AdminStatus {
     background_limit?: number;
     background_running?: number;
     engine_lane?: AdminEngineLane;
+    git_lane?: AdminEngineLane;
+    cache_persistence?: {
+      state: "idle" | "pending" | "saving" | "failed" | "stopped";
+      pending?: boolean;
+      saving?: boolean;
+      last_started?: string;
+      last_saved?: string;
+      last_error?: string;
+      accepted?: number;
+      completed?: number;
+      failed?: number;
+    };
     pipeline_integrity_cache?: AdminPipelineIntegrityCache;
     entity_integrity_cache?: AdminEntityIntegrityCache;
     max_ingest_workers?: number;

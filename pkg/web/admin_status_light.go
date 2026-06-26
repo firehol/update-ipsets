@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/firehol/update-ipsets/pkg/engine"
+	"github.com/firehol/update-ipsets/pkg/feedhealth"
 	"github.com/firehol/update-ipsets/pkg/scheduler"
 )
 
@@ -16,15 +17,13 @@ type adminStatusLight struct {
 	Queues        scheduler.ActivitySnapshot `json:"queues"`
 	Metrics       scheduler.MetricsSnapshot  `json:"metrics"`
 	Feeds         adminFeedsSummary          `json:"feeds"`
-	Artifacts     []adminArtifact            `json:"artifacts,omitempty"`
 }
 
 func buildAdminStatusLight(eng *engine.Engine, runner *scheduler.Runner) adminStatusLight {
 	sys := detailedStatusCached()
 	cfg := eng.Config()
-	activity := runner.ActivitySnapshot()
-	snapshot := runner.Snapshot()
-	feeds := buildAdminFeedsWithStatusEntries(eng, runner, activity, snapshot, eng.EntriesSnapshot())
+	activity := runner.ActivitySnapshotLight()
+	snapshot := runner.CachedSnapshot()
 	return adminStatusLight{
 		PublicBaseURL: strings.TrimSpace(eng.Runtime().PublicBaseURL),
 		System:        adminSystemFromDetailed(sys),
@@ -32,8 +31,61 @@ func buildAdminStatusLight(eng *engine.Engine, runner *scheduler.Runner) adminSt
 		Scheduler:     sanitizeSchedulerSnapshot(snapshot),
 		Queues:        activity,
 		Metrics:       runner.MetricsSnapshot(),
-		Feeds:         summarizeAdminFeeds(len(cfg.Sources), feeds),
+		Feeds:         summarizeAdminFeedsFromSchedulerSnapshot(len(cfg.Sources), snapshot, activity),
 	}
+}
+
+func summarizeAdminFeedsFromSchedulerSnapshot(totalConfigured int, snap scheduler.Snapshot, activity scheduler.ActivitySnapshot) adminFeedsSummary {
+	summary := adminFeedsSummary{TotalConfigured: totalConfigured}
+	if len(snap.Items) == 0 {
+		return summary
+	}
+	active := make(map[string]struct{}, len(activity.DownloadActive)+len(activity.ProcessingActive))
+	for _, item := range activity.DownloadActive {
+		active[item.Name] = struct{}{}
+	}
+	for _, item := range activity.ProcessingActive {
+		active[item.Name] = struct{}{}
+	}
+	for _, item := range snap.Items {
+		if item.Hidden {
+			summary.Hidden++
+		}
+		summary.TotalEntries += item.Entries
+		summary.TotalUniqueIPs += item.UniqueIPs
+		if item.Enabled {
+			summary.TotalEnabled++
+		} else {
+			summary.Disabled++
+			continue
+		}
+		switch item.HealthClass {
+		case string(feedhealth.ClassHealthy):
+			summary.Healthy++
+		case string(feedhealth.ClassDelayed):
+			summary.Delayed++
+		case string(feedhealth.ClassRisky):
+			summary.Risky++
+		case string(feedhealth.ClassUnavailable):
+			summary.Unavailable++
+			summary.Errors++
+		case string(feedhealth.ClassArchived):
+			summary.Archived++
+		case string(feedhealth.ClassEmpty):
+			summary.Empty++
+		case string(feedhealth.ClassUnmaintained):
+			summary.Unmaintained++
+			summary.Stale++
+		}
+		if _, ok := active[item.Name]; ok {
+			summary.Running++
+			continue
+		}
+		if item.NeverRun {
+			summary.NeverRun++
+		}
+	}
+	return summary
 }
 
 func adminSystemFromDetailed(sys detailedSystemInfo) adminSystemInfo {

@@ -379,6 +379,100 @@ func TestWorkLaneSubmitFromWorkerQueuesWithoutDeadlock(t *testing.T) {
 	}
 }
 
+func TestWorkLaneSubmitFromWorkerDetachesQueuedContextFromCompletingWorker(t *testing.T) {
+	t.Parallel()
+
+	lane := NewWorkLane(1)
+	outerReturned := make(chan struct{})
+	innerDone := make(chan error, 1)
+	outerDone := make(chan error, 1)
+	go func() {
+		outerDone <- lane.Run(t.Context(), LaneWork{ID: "outer", Kind: LaneWorkCleanup}, func(ctx context.Context) error {
+			_, err := lane.Submit(ctx, LaneWork{
+				ID:            "inner",
+				Kind:          LaneWorkCleanup,
+				CoalescingKey: "cleanup:inner",
+			}, func(innerCtx context.Context) error {
+				<-outerReturned
+				innerDone <- contextErr(innerCtx)
+				return nil
+			})
+			return err
+		})
+		close(outerReturned)
+	}()
+
+	select {
+	case err := <-outerDone:
+		if err != nil {
+			t.Fatalf("outer Run returned error: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("outer Run did not return")
+	}
+	select {
+	case err := <-innerDone:
+		if err != nil {
+			t.Fatalf("inner queued context was canceled by outer worker completion: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("inner queued work did not run")
+	}
+}
+
+func TestWorkLaneSubmitFromWorkerUsesAttachedContextForContinuationShutdown(t *testing.T) {
+	t.Parallel()
+
+	lane := NewWorkLane(1)
+	rootCtx, cancelRoot := context.WithCancel(t.Context())
+	defer cancelRoot()
+	lane.AttachContext(rootCtx, time.Second)
+	outerReturned := make(chan struct{})
+	innerStarted := make(chan struct{})
+	innerDone := make(chan error, 1)
+	outerDone := make(chan error, 1)
+	go func() {
+		outerDone <- lane.Run(t.Context(), LaneWork{ID: "outer", Kind: LaneWorkCleanup}, func(ctx context.Context) error {
+			_, err := lane.Submit(ctx, LaneWork{
+				ID:            "inner",
+				Kind:          LaneWorkCleanup,
+				CoalescingKey: "cleanup:inner",
+			}, func(innerCtx context.Context) error {
+				<-outerReturned
+				close(innerStarted)
+				<-innerCtx.Done()
+				innerDone <- innerCtx.Err()
+				return innerCtx.Err()
+			})
+			return err
+		})
+		close(outerReturned)
+	}()
+
+	select {
+	case err := <-outerDone:
+		if err != nil {
+			t.Fatalf("outer Run returned error: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("outer Run did not return")
+	}
+	select {
+	case <-innerStarted:
+	case <-time.After(time.Second):
+		t.Fatal("inner queued work did not start")
+	}
+	cancelRoot()
+	select {
+	case err := <-innerDone:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("inner context error = %v, want context.Canceled", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("inner queued work was not canceled by attached context")
+	}
+}
+
 func TestWorkLaneRunPanicReturnsErrorAndReleasesSlot(t *testing.T) {
 	t.Parallel()
 
@@ -520,6 +614,157 @@ func TestWorkLaneShutdownIdleReturnsAndRejectsFutureWork(t *testing.T) {
 	})
 	if !errors.Is(err, ErrLaneShuttingDown) {
 		t.Fatalf("post-shutdown Submit error = %v, want ErrLaneShuttingDown", err)
+	}
+}
+
+func TestWorkLaneShutdownDoesNotBlockOnFullQueuedSyncStart(t *testing.T) {
+	lane := NewWorkLane(1)
+	item := lane.newItem(t.Context(), LaneWork{ID: "queued", Kind: LaneWorkCleanup}, func(context.Context) error {
+		t.Fatal("queued work should not start during shutdown")
+		return nil
+	})
+	item.syncStart = make(chan laneStart, 1)
+	item.syncStart <- laneStart{}
+
+	lane.mu.Lock()
+	lane.queue = append(lane.queue, item)
+	lane.mu.Unlock()
+
+	done := make(chan struct{})
+	go func() {
+		lane.Shutdown(time.Millisecond)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(200 * time.Millisecond):
+		t.Fatal("shutdown blocked while notifying queued sync-start waiter")
+	}
+}
+
+func TestWorkLaneFinishPanicReleasesSlotForLaterWork(t *testing.T) {
+	lane := NewWorkLane(1)
+	var once sync.Once
+	lane.finishPanicHook = func() {
+		once.Do(func() { panic("forced finish panic") })
+	}
+
+	err := lane.Run(t.Context(), LaneWork{ID: "finish-panic", Kind: LaneWorkCleanup}, func(context.Context) error {
+		return nil
+	})
+	if !errors.Is(err, ErrLanePanic) {
+		t.Fatalf("Run with finish panic error = %v, want ErrLanePanic", err)
+	}
+
+	started := false
+	if err := lane.Run(t.Context(), LaneWork{ID: "after-finish-panic", Kind: LaneWorkCleanup}, func(context.Context) error {
+		started = true
+		return nil
+	}); err != nil {
+		t.Fatalf("Run after finish panic returned error: %v", err)
+	}
+	if !started {
+		t.Fatal("work after finish panic did not start")
+	}
+}
+
+func TestWorkLaneFinishPanicCancelsItemContext(t *testing.T) {
+	lane := NewWorkLane(1)
+	var once sync.Once
+	lane.finishPanicHook = func() {
+		once.Do(func() { panic("forced finish panic") })
+	}
+
+	ctxCh := make(chan context.Context, 1)
+	err := lane.Run(t.Context(), LaneWork{ID: "finish-panic-context", Kind: LaneWorkCleanup}, func(ctx context.Context) error {
+		ctxCh <- ctx
+		return nil
+	})
+	if !errors.Is(err, ErrLanePanic) {
+		t.Fatalf("Run with finish panic error = %v, want ErrLanePanic", err)
+	}
+
+	var itemCtx context.Context
+	select {
+	case itemCtx = <-ctxCh:
+	default:
+		t.Fatal("work callback did not capture item context")
+	}
+	select {
+	case <-itemCtx.Done():
+	case <-time.After(time.Second):
+		t.Fatal("item context was not canceled after finish panic recovery")
+	}
+}
+
+func TestWorkLaneFinishPanicAfterLockDoesNotDeadlock(t *testing.T) {
+	lane := NewWorkLane(1)
+	var once sync.Once
+	lane.finishAfterLockHook = func() {
+		once.Do(func() { panic("forced locked finish panic") })
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- lane.Run(t.Context(), LaneWork{ID: "locked-finish-panic", Kind: LaneWorkCleanup}, func(context.Context) error {
+			return nil
+		})
+	}()
+
+	select {
+	case err := <-done:
+		if !errors.Is(err, ErrLanePanic) {
+			t.Fatalf("Run with locked finish panic error = %v, want ErrLanePanic", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Run deadlocked after locked finish panic")
+	}
+
+	started := false
+	if err := lane.Run(t.Context(), LaneWork{ID: "after-locked-finish-panic", Kind: LaneWorkCleanup}, func(context.Context) error {
+		started = true
+		return nil
+	}); err != nil {
+		t.Fatalf("Run after locked finish panic returned error: %v", err)
+	}
+	if !started {
+		t.Fatal("work after locked finish panic did not start")
+	}
+}
+
+func TestWorkLaneAttachContextIsIdempotent(t *testing.T) {
+	lane := NewWorkLane(1)
+	primary, cancelPrimary := context.WithCancel(t.Context())
+	defer cancelPrimary()
+	duplicate, cancelDuplicate := context.WithCancel(t.Context())
+
+	lane.AttachContext(primary, time.Millisecond)
+	lane.AttachContext(duplicate, time.Millisecond)
+	cancelDuplicate()
+	time.Sleep(20 * time.Millisecond)
+
+	lane.mu.Lock()
+	duplicates := lane.attachDuplicateCount
+	shutdown := lane.shutdown
+	lane.mu.Unlock()
+	if duplicates != 1 {
+		t.Fatalf("attach duplicate count = %d, want 1", duplicates)
+	}
+	if shutdown {
+		t.Fatal("duplicate context cancellation shut down the lane")
+	}
+
+	cancelPrimary()
+	waitForSnapshot(t, lane, func(LaneSnapshot) bool {
+		lane.mu.Lock()
+		defer lane.mu.Unlock()
+		return lane.shutdown
+	})
+	if _, err := lane.Submit(t.Context(), LaneWork{ID: "after", CoalescingKey: "after"}, func(context.Context) error {
+		return nil
+	}); !errors.Is(err, ErrLaneShuttingDown) {
+		t.Fatalf("post-primary-cancel Submit error = %v, want ErrLaneShuttingDown", err)
 	}
 }
 

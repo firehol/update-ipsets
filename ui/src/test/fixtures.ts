@@ -127,6 +127,7 @@ export function sampleAdminStatus(
     },
     engine: {
       running: false,
+      run_state: "idle",
       last_started: "2023-11-14T22:13:20Z",
       last_ended: "2023-11-14T22:14:20Z",
       last_report: {
@@ -145,6 +146,16 @@ export function sampleAdminStatus(
         waiting_count: 0,
         active: [],
         waiting: [],
+      },
+      git_lane: {
+        limit: 1,
+        active_count: 0,
+        waiting_count: 0,
+        active: [],
+        waiting: [],
+      },
+      cache_persistence: {
+        state: "idle",
       },
       pipeline_integrity_cache: {
         generation: 0,

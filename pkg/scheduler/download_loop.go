@@ -61,6 +61,16 @@ func (r *Runner) runFetchLoop(ctx context.Context, wg *sync.WaitGroup) {
 }
 func (r *Runner) runDownload(ctx context.Context, item queuedWork) {
 	defer r.wakeDownloadLoop()
+	finished := false
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			r.recordRecoveredPanic("download_worker", recovered)
+			if !finished {
+				r.finishDownload(item.Name)
+			}
+			r.releaseDeferredDownload(item.Name)
+		}
+	}()
 	started := time.Now()
 	decision, err := r.fetchQueuedDownload(ctx, item)
 	r.metrics.observeOperation("scheduler.fetch_and_stage", time.Since(started))
@@ -76,6 +86,7 @@ func (r *Runner) runDownload(ctx context.Context, item queuedWork) {
 		r.eng.ObserveCounter("download.processing_names", int64(len(decision.ProcessingNames)), 0)
 	}
 	r.finishDownload(item.Name)
+	finished = true
 	if err != nil {
 		r.logger.Error("download loop failed", "name", item.Name, "error", err)
 		if item.Kind == queuedWorkKindRecoveredArtifact && errors.Is(err, engine.ErrRecoveredArtifactCorrupt) {

@@ -1,11 +1,30 @@
 package engine
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
 )
+
+func TestCheckEntityArtifactsIntegrityContextHonorsCanceledContext(t *testing.T) {
+	eng, _, _ := newDetailEngineForTest(t)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	findings, plan, err := eng.CheckEntityArtifactsIntegrityContext(ctx)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("CheckEntityArtifactsIntegrityContext returned err=%v; want context.Canceled", err)
+	}
+	if len(findings) != 0 {
+		t.Fatalf("findings=%v; want none after canceled context", findings)
+	}
+	if plan.hasWork() {
+		t.Fatalf("plan=%+v; want no repair work after canceled context", plan)
+	}
+}
 
 func TestCheckEntityArtifactsIntegrityFlagsMissingCountryPublicJSON(t *testing.T) {
 	eng, webDir, libDir := newDetailEngineForTest(t)
