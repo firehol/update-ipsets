@@ -37,6 +37,9 @@ func newSurfaceHandlerWithContext(ctx context.Context, eng *engine.Engine, opts 
 	servePublic := mode != listenerModeAdminOnly
 	serveAdmin := mode != listenerModePublicOnly
 	routes := newSurfaceRoutesWithContext(ctx, eng, opts, runner)
+	if mode == listenerModeAdminOnly {
+		routes.registerAdminServingReloadListener()
+	}
 
 	if servePublic {
 		routes.registerPublicAPI(mux)

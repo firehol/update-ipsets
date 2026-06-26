@@ -20,6 +20,7 @@ import (
 )
 
 func TestDetailedStatusFields(t *testing.T) {
+	setDetailedStatusCacheForTest(t, time.Time{}, detailedSystemInfo{})
 	info := detailedStatus()
 
 	if info.Goroutines <= 0 {
@@ -48,6 +49,7 @@ func TestDetailedStatusRSSOnLinux(t *testing.T) {
 		t.Skip("/proc/self/status not available")
 	}
 
+	setDetailedStatusCacheForTest(t, time.Time{}, detailedSystemInfo{})
 	info := detailedStatus()
 	if info.RSSKB == 0 {
 		t.Fatal("expected non-zero RSS on Linux")

@@ -372,6 +372,10 @@ The MCP endpoint:
 - MUST NOT expose admin operations, internal state, or configuration details
 - MUST serve pre-generated artifacts for `fetch_analysis` — not generate
   markdown on demand during the request
+- MUST read `fetch_analysis` markdown from the same effective published
+  `WebDir` generation as public artifact and markdown routes after a successful
+  runtime reload; it must not keep serving a pre-reload markdown root until
+  daemon restart
 - MUST remain limited to the registered `find_feeds` and `fetch_analysis`
   tools until a later SOW explicitly changes the MCP tool contract
 
@@ -555,6 +559,22 @@ This means:
 - when a `WebDir`/published-output override is configured, feed-scoped artifact
   endpoints MUST read that published artifact tree, not the engine's default
   runtime web directory
+- after a successful runtime reload, public serving MUST use the resolved
+  post-override serving tuple from the committed runtime generation:
+  `WebDir`, `WebDirForIPSets`, `BaseDir`,
+  `WebArtifactCacheMaxEntries`, `WebArtifactCacheMaxBytes`, and
+  `WebArtifactCacheMaxFileBytes`. Runtime config changes hidden by stronger
+  CLI/server overrides are correct no-ops for public serving.
+- when that serving tuple changes, public routes MUST atomically switch to the
+  new roots and a fresh bounded file-cache generation. Cached entries from old
+  roots or old cache-limit generations MUST become unreachable, including when
+  only cache limits changed.
+- raw `.ipset` and `.netset` serving MUST follow the committed generation's
+  `WebDirForIPSets` mirror when configured and the committed generation's
+  `BaseDir` fallback otherwise.
+- reload to an unpopulated new public root MAY return normal missing-file
+  responses from the new root. It MUST NOT silently fall back to the old root
+  and MUST NOT generate missing artifacts on demand.
 - public artifact and raw-download serving MUST open files relative to the
   configured served root and reject traversal or symlink escapes outside that
   root; a bad path, missing file, unreadable file, or escaping symlink is not a

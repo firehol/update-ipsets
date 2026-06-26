@@ -235,10 +235,15 @@ func rootedRegularFileStatus(rootDir, rel string) (exists bool, readable bool) {
 // safePath joins dir and a filename, then verifies the result stays under dir.
 // Returns the joined path and true if safe, or ("", false) if traversal detected.
 func safePath(dir, name string) (string, bool) {
-	joined := filepath.Join(dir, name)
+	cleanRel, ok := cleanRootedRel(name)
+	if !ok {
+		return "", false
+	}
+	base := filepath.Clean(dir)
+	joined := filepath.Join(base, cleanRel)
 	cleaned := filepath.Clean(joined)
-	// Ensure the cleaned path is within dir.
-	if !strings.HasPrefix(cleaned, filepath.Clean(dir)+string(filepath.Separator)) && cleaned != filepath.Clean(dir) {
+	rel, err := filepath.Rel(base, cleaned)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return "", false
 	}
 	return cleaned, true

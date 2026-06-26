@@ -151,6 +151,15 @@ description: "Go, React, config, and repo conventions for update-ipsets. MUST be
   artifacts should stream from disk without entering the long-lived cache; raw
   `.ipset`/`.netset` routes must stay streaming and outside this cache (from
   SOW-0036).
+- Public route handlers must not freeze runtime public-serving roots or web
+  artifact cache limits at server construction. Serve public artifacts, raw
+  ipset/netset files, entity artifacts, homepage artifacts, and MCP markdown
+  through the route-owned public-serving generation refreshed by the engine
+  reload-publication listener. Runtime reloads that change the effective
+  `WebDir`, `WebDirForIPSets`, `BaseDir`, or web artifact cache limits must
+  publish a fresh serving state/cache; public requests remain cache-first
+  readers and must not fall back to stale roots or rebuild missing artifacts
+  (from SOW-0119).
 - Public artifact and raw-download routes must open files relative to the
   configured served root with traversal-resistant APIs such as `os.Root`.
   Lexical path checks alone are not enough because a symlink under `WebDir`,

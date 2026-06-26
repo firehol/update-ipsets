@@ -261,6 +261,25 @@ Rules:
   without mutating the active config object. Runtime policy derived from config
   remains valid only when the caller owns the config snapshot used for that
   derivation.
+- a committed runtime generation MAY notify bounded named reload-publication
+  listeners after the engine generation has been installed and after the broad
+  engine state mutex has been released. Listener registration MUST use fixed
+  named slots or replacement-by-name semantics; it MUST NOT grow through
+  append-only registration on repeated route/server construction.
+- reload-publication listeners MUST be cheap local state refreshes. They MUST
+  NOT run broad repairs, downloads, integrity scans, or other heavy work; those
+  actions belong in scheduler or engine lanes.
+- reload-publication listener dispatch MUST recover listener panics, log or
+  record the listener failure, and continue without crashing the daemon or
+  corrupting reload ownership. Listener failures are reload diagnostics; they
+  do not make the previous runtime generation authoritative again after the new
+  generation has already been installed.
+- pre-publication reload failures, including invalid config and candidate
+  runtime directory-creation failures, MUST leave the previous runtime
+  generation and dependent read models in place. Post-publication maintenance
+  errors MAY be reported as reload errors, but dependent read models that
+  observe committed runtime generations MUST follow the installed generation,
+  not the previous one.
 
 ## Logging and diagnostics rule
 

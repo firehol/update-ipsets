@@ -2,14 +2,12 @@
 
 ## Status
 
-Status: pending
+Status: completed
 
-Sub-state: derivative from SOW-0118. Do not start until SOW-0118 has completed
-unless the user explicitly changes priority.
+Sub-state: implementation, validation, external review, and close-out complete.
 
-This derivative is required by the active thread objective. The overall
-SOW-0118 goal is not complete until this SOW is implemented, validated, reviewed,
-closed, committed, pushed, and installed after SOW-0118.
+This derivative was required by the active thread objective and was completed
+after SOW-0118 was completed, committed, pushed, and locally installed.
 
 ## Requirements
 
@@ -130,7 +128,7 @@ Risks:
 
 ## Pre-Implementation Gate
 
-Status: pending
+Status: plan-approved-for-implementation
 
 Problem / root-cause model:
 
@@ -185,8 +183,9 @@ Existing patterns to reuse:
   reload publication and nil return are made equivalent by moving fallible
   maintenance before publication; otherwise the API must reflect committed
   generation publication rather than nil-return success. Current SOW-0118 code
-  makes runtime-directory creation pre-publication, but later maintenance can
-  still return an error after the engine generation is installed.
+  makes runtime-directory creation pre-publication, but post-publication
+  maintenance can still return an error after the engine generation is
+  installed.
 - Go atomic pointer/value serving-state swaps already used elsewhere in the
   codebase if available; otherwise add a small route-owned atomic holder.
 - Existing web file-cache tests and web HTTP test server fixtures.
@@ -218,7 +217,7 @@ Implementation plan:
 5. Add a bounded generic engine reload-publication hook/listener registration
    API.
    The API must use a fixed named slot or replacement-by-name semantics, so a
-   route rebuild or future server wrapper cannot append unbounded listeners.
+   route rebuild or server wrapper cannot append unbounded listeners.
    The web route layer registers one listener that rebuilds and atomically
    publishes serving state from one coherent config/runtime snapshot. Hooks run
    outside `e.mu`, must not re-enter `ReloadContext`, and must not mutate
@@ -233,9 +232,8 @@ Implementation plan:
    previous serving state in place. If post-publication maintenance can still
    fail, public serving must follow the installed engine generation and the
    maintenance failure must be reported as a reload error, not hidden by serving
-   old roots. Future reload entrypoints must route through `ReloadContext` or
-   the same hook path so public serving cannot miss a committed runtime
-   generation.
+   old roots. Any reload entrypoint must route through `ReloadContext` or the
+   same hook path so public serving cannot miss a committed runtime generation.
 7. When the effective serving root or cache-limit tuple changes, publish a fresh
    file cache so old-root cache entries become unreachable. If the tuple is
    unchanged, the implementation may preserve the existing cache.
@@ -281,7 +279,7 @@ Artifact impact plan:
 - End-user/operator docs: likely update if reload semantics become documented
   operator behavior.
 - End-user/operator skills: no expected impact.
-- SOW lifecycle: this pending derivative is required by SOW-0118.
+- SOW lifecycle: this derivative is required by SOW-0118.
 
 Open-source reference evidence:
 
@@ -308,8 +306,8 @@ Open decisions:
 
 ### 2026-06-26
 
-- Created as a pending derivative from SOW-0118 plan review so the public
-  serving reload gap is tracked explicitly.
+- Created as a derivative from SOW-0118 plan review so the public serving
+  reload gap is tracked explicitly.
 - Added stale-cache acceptance criteria from SOW-0118 plan review: old-root
   cache entries become unreachable by publishing a fresh cache when the
   effective root/limit tuple changes; reduced cache limits must be honored
@@ -328,28 +326,153 @@ Open decisions:
   semantics, the public route layer owns exactly one listener, hooks run outside
   `e.mu`, and hooks must not re-enter reload or mutate runtime override state.
 - Reconciled the reload-listener contract with current `ReloadContext`
-  publish-then-maintain behavior found during plan review. SOW-0118 later moved
-  runtime-directory creation before engine generation installation; later
-  maintenance can still return after publication. The SOW requires public serving
-  to follow the installed engine runtime generation after any committed runtime
-  publication, while pre-publication reload failures keep the prior
-  public-serving state. The SOW also names the exact root/cache-limit tuple,
-  requires partial tuple-change tests, and requires reload-listener panic
-  isolation.
+  publish-then-maintain behavior found during plan review. SOW-0118 moved
+  runtime-directory creation before engine generation installation;
+  post-publication maintenance can still return after publication. The SOW
+  requires public serving to follow the installed engine runtime generation
+  after any committed runtime publication, while pre-publication reload failures
+  keep the prior public-serving state. The SOW also names the exact
+  root/cache-limit tuple, requires partial tuple-change tests, and requires
+  reload-listener panic isolation.
 - Folded in sanitized plan-review v4 advisory clarifications before
   implementation: the effective tuple is the resolved post-override serving
   tuple, and listener dispatch must happen at the committed-generation
   publication point, before post-publication maintenance can return an error.
 
+### 2026-06-27
+
+- Activated after SOW-0118 was completed, committed, pushed, installed, and
+  locally health-checked. Implementation starts with behavioral tests for public
+  artifact rebind, raw-feed root rebind, cache replacement, MCP markdown
+  rebind, and reload listener dispatch behavior.
+- Added behavioral tests before implementation and confirmed they failed on the
+  stale-root behavior: public direct artifacts, raw `.ipset` mirror serving,
+  MCP `fetch_analysis`, public-only split serving, admin/public split listener
+  preservation, pre-publication reload failure, and no runtime-root fallback.
+- Added `pkg/engine` reload-publication listener support with named replacement
+  registration, deterministic dispatch, panic recovery, listener error
+  recording, and dispatch immediately after committed runtime generation
+  installation.
+- Reworked public route serving around an atomic route-owned serving generation
+  that contains the effective post-override `outputDir`, `ipsetsDir`,
+  `BaseDir`, and bounded file-cache generation. The serving generation is
+  refreshed by fixed public/admin listener names after reload publication.
+- Rebound public artifact routes, raw feed routes, entity/homepage artifact
+  routes, admin integrity routes, and MCP markdown reads to load the current
+  serving generation at request/tool execution time.
+- Added coverage for the full effective tuple: `WebDir`, `WebDirForIPSets`,
+  `BaseDir` fallback, CLI/server `WebDir` override no-op, and
+  cache-limit-only changes that must publish a fresh cache generation.
+- Updated `.agents/sow/specs/website.md`,
+  `.agents/sow/specs/operating-principles.md`, and
+  `.agents/skills/project-coding/SKILL.md` with the durable reload/public
+  serving contract.
+
 ## Validation
 
 Acceptance criteria evidence:
 
-- Pending.
+- Runtime reload publication hook:
+  - `pkg/engine/reload_publication.go:24` provides named
+    replacement-by-name listener registration.
+  - `pkg/engine/reload_publication.go:69` dispatches a snapshot of listeners
+    and joins listener errors.
+  - `pkg/engine/reload_publication.go:83` recovers listener panics and records
+    them as listener failures.
+  - `pkg/engine/engine.go:317` dispatches reload-publication listeners after
+    the new runtime generation is installed and outside the broad engine mutex.
+  - `pkg/engine/engine.go:358` records listener failures in reload status
+    without reverting the installed generation.
+- Public serving generation:
+  - `pkg/web/surface_routes.go:20` defines the effective public serving tuple:
+    output root, raw-file root, base fallback root, and cache limits.
+  - `pkg/web/surface_routes.go:74` and `pkg/web/surface_routes.go:78` register
+    fixed public/admin serving refresh listener names.
+  - `pkg/web/surface_routes.go:104` rebuilds serving state from one coherent
+    config/runtime snapshot.
+  - `pkg/web/surface_routes.go:120` preserves the existing cache only when the
+    full tuple is unchanged.
+  - `pkg/web/surface_routes.go:129` publishes a fresh serving state and fresh
+    bounded file cache when the tuple changes.
+  - `pkg/web/surface_routes.go:146` makes MCP markdown reads resolve the current
+    public serving state instead of storing a stale markdown root.
+- Route binding:
+  - `pkg/web/public_routes.go:55` centralizes current-serving-state lookup for
+    public handlers.
+  - `pkg/web/public_routes.go:200`, `pkg/web/public_routes.go:278`, and
+    `pkg/web/public_routes.go:348` use the current output root/cache for
+    feed-scoped metadata, feed artifacts, and critical-infrastructure artifacts.
+  - `pkg/web/public_routes.go:262` and `pkg/web/routes.go:282` use the current
+    raw-file root plus base fallback for API and compatibility raw routes.
+  - `pkg/web/routes.go:49` uses the current output root for admin pipeline
+    integrity routes.
+  - `pkg/web/http.go:237` keeps direct artifact path checks traversal-safe and
+    now correctly handles a configured filesystem-root web directory.
+- Tests:
+  - `pkg/web/runtime_rebind_test.go:24` proves direct public artifact routes
+    follow `WebDir` reload.
+  - `pkg/web/runtime_rebind_test.go:59` proves reload to an empty new web root
+    does not fall back to the old root.
+  - `pkg/web/runtime_rebind_test.go:90` proves public artifacts follow
+    `BaseDir` reload when `WebDir` is empty.
+  - `pkg/web/runtime_rebind_test.go:119` proves public artifact requests can
+    overlap reload without mixed roots or data races.
+  - `pkg/web/runtime_rebind_test.go:225` proves raw routes follow
+    `WebDirForIPSets` reload.
+  - `pkg/web/runtime_rebind_test.go:263` proves raw routes follow `BaseDir`
+    fallback reload when no ipsets mirror is configured.
+  - `pkg/web/runtime_rebind_test.go:301` proves MCP `fetch_analysis` follows
+    `WebDir` reload.
+  - `pkg/web/runtime_rebind_test.go:332` proves stronger `Options.WebDir`
+    overrides make runtime `WebDir` changes a correct no-op.
+  - `pkg/web/runtime_rebind_test.go:369` proves admin integrity routes follow
+    `WebDir` reload.
+  - `pkg/web/runtime_rebind_test.go:408` and
+    `pkg/web/runtime_rebind_test.go:416` prove cache-limit-only reloads publish
+    a fresh cache generation and do not keep serving stale cached bytes.
+  - `pkg/web/runtime_rebind_test.go:469` proves listener failure is recorded
+    without preventing public serving from following the new generation.
+  - `pkg/web/runtime_rebind_test.go:504` proves post-publication cleanup queue
+    failure still leaves public serving bound to the installed generation.
+  - `pkg/web/runtime_rebind_test.go:678` and
+    `pkg/web/runtime_rebind_test.go:709` prove public-only and public/admin
+    split handlers keep public reload binding.
+  - `pkg/web/runtime_rebind_test.go:741` proves pre-publication reload failure
+    keeps the previous public serving generation.
+  - `pkg/web/runtime_rebind_test.go:768` proves public requests do not fall
+    back to runtime `WebDir` when an override points elsewhere.
+  - `pkg/web/http_test.go:8` and `pkg/web/http_test.go:19` prove `safePath`
+    allows filesystem-root web directories for relative files while rejecting
+    root traversal.
+  - `pkg/engine/reload_publication_listener_test.go:12` proves named listener
+    replacement.
+  - `pkg/engine/reload_publication_listener_test.go:52` proves listener panic
+    recovery and reload-status recording.
 
 Tests or equivalent validation:
 
-- Pending.
+- Passed focused reviewer-response tests after external review:
+  - `go test ./pkg/web -run 'TestSafePath|TestPublicArtifactRoutesRebindBaseDirWhenWebDirIsEmpty|TestPublicServingStateFollowsReloadWhenCleanupQueueFails' -count=1`
+- Passed broader package tests:
+  - `go test ./pkg/engine ./pkg/web ./pkg/mcp -count=1`
+  - `go test ./tools/archposture`
+- Passed focused race tests:
+  - `go test -race -count=3 -run 'TestReloadContextDoesNotInstallRuntimeWhenDirectoryCreationFails|TestReloadPublicationListener|TestPublicArtifactRoutesRebind|TestPublicArtifactRoutesReload|TestRawFeedRoutesRebind|TestMCPFetchAnalysisRebinds|TestPublicRuntimeOverrideKeeps|TestAdminIntegrityRouteRebinds|TestPublicFileCache.*ReloadPublishesFreshCache|TestPublicServingStateFollows|TestPublicOnlyHandlerRegisters|TestAdminOnlyHandlerDoesNotReplace|TestReloadFailureKeeps|TestNoPublicRequestFallback|TestSafePath' ./pkg/engine ./pkg/web`
+- Passed strict shuffled package gate:
+  - `make test-strict`
+- Passed lint/build gates:
+  - `make lint`
+  - `make build`
+- Passed diff whitespace check:
+  - `git diff --check`
+- External review:
+  - Six requested open-model reviewers were launched.
+  - Five completed with production-grade verdicts or no blocking findings.
+  - One reviewer session repeated the same read-only inspection loop and was
+    stopped by interrupting that specific session.
+  - Valid reviewer findings were addressed before close: a web-level
+    post-publication cleanup-failure test, a public artifact `BaseDir` reload
+    test when `WebDir` is empty, and the `safePath("/")` edge case plus tests.
 
 Sensitive data gate:
 
@@ -359,24 +482,49 @@ Sensitive data gate:
 
 Artifact maintenance gate:
 
-- SOW lifecycle: pending derivative created.
+- AGENTS.md: no update needed; project-wide workflow did not change.
+- Runtime project skills: `.agents/skills/project-coding/SKILL.md` updated with
+  the public-serving reload generation rule.
+- Specs: `.agents/sow/specs/website.md` updated for public/MCP serving
+  generation behavior; `.agents/sow/specs/operating-principles.md` updated for
+  reload-publication listener behavior.
+- End-user/operator docs: no separate docs update needed. This is transparent
+  reload correctness; operators already expect a successful reload to apply
+  without restart.
+- End-user/operator skills: no impact.
+- SOW lifecycle: current/in-progress derivative updated with implementation and
+  validation evidence, then closed and moved to `.agents/sow/done/` with the
+  implementation commit.
 
 Follow-up mapping:
 
-- This SOW tracks the public serving root/cache reload derivative from
-  SOW-0118.
+- Historical references to this SOW as a derivative from SOW-0118 are resolved
+  by this completed implementation.
+- External-review findings were implemented in this SOW. No valid item remains
+  open for another SOW.
 
 ## Outcome
 
-Pending.
+Completed. Public serving roots, raw feed roots, MCP markdown reads, admin
+integrity routes, and web artifact cache limits now follow committed runtime
+reload generations through bounded reload-publication listeners and an atomic
+route-owned serving generation.
 
 ## Lessons Extracted
 
-Pending.
+- Public handlers must not freeze runtime roots or cache limits at construction
+  time. They need a route-owned serving generation that can be refreshed after
+  committed runtime publication.
+- Reload publication is not identical to a nil `ReloadContext` return. Some
+  post-publication maintenance can fail after the engine generation is already
+  installed, so public serving must follow the installed generation and record
+  the maintenance error separately.
+- Defensive path helpers should share the rooted relative-path validator so
+  filesystem-root web directories do not create divergent traversal behavior.
 
 ## Followup
 
-None yet.
+None.
 
 ## Regression Log
 

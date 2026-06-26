@@ -20,50 +20,52 @@ import (
 )
 
 type Engine struct {
-	cfg                         *config.Config
-	runtime                     Runtime
-	cachePath                   string
-	state                       *cache.State
-	downloads                   *downloader.Client
-	logger                      *slog.Logger
-	now                         func() time.Time
-	reloadMu                    sync.Mutex
-	mu                          sync.RWMutex
-	running                     bool
-	runState                    RunState
-	lastStarted                 time.Time
-	lastEnded                   time.Time
-	lastError                   string
-	lastReport                  *Report
-	currentReason               runreason.Reason
-	lastReason                  runreason.Reason
-	currentPhase                RunPhase
-	currentBatch                *runBatchState
-	currentPhasePlan            []RunPhase
-	currentPhasePlanFinal       bool
-	activeFeedsMu               sync.RWMutex
-	activeFeeds                 map[string]ActiveFeed
-	activeOperationsMu          sync.RWMutex
-	activeOperations            map[string]ActiveOperation
-	backgroundTasksMu           sync.RWMutex
-	backgroundTaskSeq           uint64
-	backgroundTasks             map[string]backgroundTaskState
-	engineLane                  *WorkLane
-	gitLane                     *WorkLane
-	gitSyncSeq                  atomic.Uint64
-	engineLaneDiagnosticsOnce   sync.Once
-	engineLaneLongHoldWarningMu sync.RWMutex
-	engineLaneLongHoldWarning   *LaneLongHoldWarning
-	cachePersistenceMu          sync.Mutex
-	cachePersistence            *cachePersistenceWorker
-	runtimeStatsMu              sync.RWMutex
-	runtimeStatsSamplerOnce     sync.Once
-	runtimeStatsSampledAt       time.Time
-	runtimeStats                engineRuntimeStats
-	pipelineIntegrityCacheMu    sync.RWMutex
-	pipelineIntegrityCaches     map[pipelineIntegrityCacheKey]*pipelineIntegrityCacheState
-	entityIntegrityCacheMu      sync.RWMutex
-	entityIntegrityCache        entityIntegrityCacheState
+	cfg                          *config.Config
+	runtime                      Runtime
+	cachePath                    string
+	state                        *cache.State
+	downloads                    *downloader.Client
+	logger                       *slog.Logger
+	now                          func() time.Time
+	reloadMu                     sync.Mutex
+	reloadPublicationListenersMu sync.Mutex
+	reloadPublicationListeners   map[string]ReloadPublicationListener
+	mu                           sync.RWMutex
+	running                      bool
+	runState                     RunState
+	lastStarted                  time.Time
+	lastEnded                    time.Time
+	lastError                    string
+	lastReport                   *Report
+	currentReason                runreason.Reason
+	lastReason                   runreason.Reason
+	currentPhase                 RunPhase
+	currentBatch                 *runBatchState
+	currentPhasePlan             []RunPhase
+	currentPhasePlanFinal        bool
+	activeFeedsMu                sync.RWMutex
+	activeFeeds                  map[string]ActiveFeed
+	activeOperationsMu           sync.RWMutex
+	activeOperations             map[string]ActiveOperation
+	backgroundTasksMu            sync.RWMutex
+	backgroundTaskSeq            uint64
+	backgroundTasks              map[string]backgroundTaskState
+	engineLane                   *WorkLane
+	gitLane                      *WorkLane
+	gitSyncSeq                   atomic.Uint64
+	engineLaneDiagnosticsOnce    sync.Once
+	engineLaneLongHoldWarningMu  sync.RWMutex
+	engineLaneLongHoldWarning    *LaneLongHoldWarning
+	cachePersistenceMu           sync.Mutex
+	cachePersistence             *cachePersistenceWorker
+	runtimeStatsMu               sync.RWMutex
+	runtimeStatsSamplerOnce      sync.Once
+	runtimeStatsSampledAt        time.Time
+	runtimeStats                 engineRuntimeStats
+	pipelineIntegrityCacheMu     sync.RWMutex
+	pipelineIntegrityCaches      map[pipelineIntegrityCacheKey]*pipelineIntegrityCacheState
+	entityIntegrityCacheMu       sync.RWMutex
+	entityIntegrityCache         entityIntegrityCacheState
 	// Entity artifact publication takes entityArtifactPublishMu as the
 	// serialization lease. If both locks are needed, take this lock before
 	// entityArtifactsMu; entityArtifactsMu protects generation only.
@@ -312,34 +314,31 @@ func (e *Engine) ReloadContext(ctx context.Context) error {
 	if lane != nil {
 		lane.SetLimit(effectiveRuntime.EngineLaneWorkers())
 	}
+	listenerErr := e.dispatchReloadPublication(ReloadPublication{Runtime: effectiveRuntime})
 	e.reconcileEntriesFromSourceConfigForSnapshot(cfg, effectiveRuntime)
 	if err := e.bootstrapMissingEntriesFromDisk(); err != nil {
 		closeASNLookupDatabases(staleASNLookups, e.logger)
-		e.recordConfigReloadError(err)
+		e.recordPublishedConfigReloadError(listenerErr, err)
 		return err
 	}
 	if err := e.repairInvalidEntryTimestamps(); err != nil {
 		closeASNLookupDatabases(staleASNLookups, e.logger)
-		e.recordConfigReloadError(err)
+		e.recordPublishedConfigReloadError(listenerErr, err)
 		return err
 	}
 	if err := e.bootstrapLegacyFailureStarts(); err != nil {
 		closeASNLookupDatabases(staleASNLookups, e.logger)
-		e.recordConfigReloadError(err)
+		e.recordPublishedConfigReloadError(listenerErr, err)
 		return err
 	}
 	e.refreshCriticalInfrastructureProviderSetID()
-	e.mu.Lock()
-	e.configReloadCount++
-	e.lastConfigReload = e.now()
-	e.lastConfigReloadError = ""
-	e.mu.Unlock()
+	e.recordConfigReloadSuccess(listenerErr)
 	closeASNLookupDatabases(staleASNLookups, e.logger)
 	if webDirChanged {
 		e.MarkIntegrityCachesStale()
 	}
 	if _, err := e.QueueCriticalInfrastructureCleanup(ctx, "reload"); err != nil {
-		e.setConfigReloadError(err)
+		e.setConfigReloadError(errors.Join(listenerErr, err))
 		return err
 	}
 	return nil
@@ -351,7 +350,34 @@ func (e *Engine) recordConfigReloadError(err error) {
 	}
 	e.mu.Lock()
 	e.configReloadCount++
+	e.lastConfigReload = e.now()
 	e.lastConfigReloadError = err.Error()
+	e.mu.Unlock()
+}
+
+func (e *Engine) recordPublishedConfigReloadError(listenerErr, err error) {
+	if e == nil || err == nil {
+		return
+	}
+	e.mu.Lock()
+	e.configReloadCount++
+	e.lastConfigReload = e.now()
+	e.lastConfigReloadError = errors.Join(listenerErr, err).Error()
+	e.mu.Unlock()
+}
+
+func (e *Engine) recordConfigReloadSuccess(listenerErr error) {
+	if e == nil {
+		return
+	}
+	e.mu.Lock()
+	e.configReloadCount++
+	e.lastConfigReload = e.now()
+	if listenerErr != nil {
+		e.lastConfigReloadError = listenerErr.Error()
+	} else {
+		e.lastConfigReloadError = ""
+	}
 	e.mu.Unlock()
 }
 

@@ -41,5 +41,12 @@ func TestReloadContextDoesNotInstallRuntimeWhenDirectoryCreationFails(t *testing
 	if afterReloads != beforeReloads+1 {
 		t.Fatalf("reload count = %d after failed reload, want %d", afterReloads, beforeReloads+1)
 	}
+	status := eng.StatusSnapshotLight()
+	if status.LastConfigReload.IsZero() {
+		t.Fatal("last config reload timestamp is zero after failed reload")
+	}
+	if status.LastConfigReloadError == "" {
+		t.Fatal("last config reload error is empty after failed reload")
+	}
 	waitForEngineLaneIdle(t, eng)
 }
