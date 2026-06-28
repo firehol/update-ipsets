@@ -393,14 +393,12 @@ Environment=UPDATE_IPSETS_ADMIN_LISTEN_ARG=${ADMIN_LISTEN_ARG}
 Environment=UPDATE_IPSETS_ADMIN_AUTH_ARG=${ADMIN_AUTH_ARG}
 Environment=UPDATE_IPSETS_ALLOW_UNAUTHENTICATED_ADMIN_ARG=${ALLOW_UNAUTH_ADMIN_ARG}
 
-# OpenTelemetry defaults for the local Netdata otel-plugin. Netdata exposes
-# OTLP/gRPC on 127.0.0.1:4317; traces are disabled here because the local
-# plugin accepts metrics/logs, not trace spans.
+# OpenTelemetry metric-export defaults for the local Netdata otel-plugin.
+# Netdata exposes OTLP/gRPC on 127.0.0.1:4317.
 Environment=UPDATE_IPSETS_OTEL=1
 Environment=UPDATE_IPSETS_OTEL_PROTOCOL=grpc
 Environment=OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4317
 Environment=OTEL_METRIC_EXPORT_INTERVAL=10000
-Environment=OTEL_TRACES_EXPORTER=none
 
 # Path overrides — these env vars are expanded by the YAML config's
 # \${VAR-default} templates, directing all data to ${INSTALL_DIR}.

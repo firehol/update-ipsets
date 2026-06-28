@@ -11,7 +11,7 @@ The installer writes `/etc/systemd/system/update-ipsets.service`. This unit:
 - Starts the daemon with `--enable-all` and `--verbose`
 - Sets all path variables to point under `/opt/update-ipsets/`
 - Configures systemd notify and watchdog support
-- Enables OpenTelemetry export to the local Netdata instance
+- Enables OpenTelemetry metric export to the local Netdata instance
 - Restricts filesystem writes to the mutable directories under `/opt/update-ipsets/`: `data`, `cache`, `lib`, `web`, `run`, and `tmp`
 - Sets `MemoryHigh=1536M`, `MemoryMax=2G`, and `GOMEMLIMIT=1536MiB`
 - Writes logs to the `iplists` journal namespace

@@ -4,7 +4,11 @@ You will learn what update-ipsets logs, how logs are structured, and which event
 
 ## Structured log format
 
-Local stderr and journald output uses Go `slog` text format: a message plus structured `key=value` attributes. OpenTelemetry can also export logs to a collector when OTLP logging is enabled, but the local service log is not JSON.
+Local stderr and journald output uses Go `slog` text format: a message plus
+structured `key=value` attributes. The daemon keeps local log capture bounded
+so logging cannot block ingestion or web serving; if the local buffer fills,
+the `telemetry.logs.dropped` metric records the loss. OpenTelemetry export is
+metrics-only in this daemon version, so logs are not sent through OTLP.
 
 Common fields and attributes:
 
@@ -35,7 +39,12 @@ time=2026-05-01T12:00:01.000Z level=ERROR msg="download loop failed" name=tor_ex
 time=2026-05-01T12:00:00.000Z level=INFO msg="configuration loaded" sources=423 merges=0 geolocation_providers=5 asn_providers=4 bogon_providers=6 critical_infrastructure_providers=21 base_dir=/example/base lib_dir=/example/lib web_dir=/example/www
 ```
 
-Startup logs include configuration loading, cache loading, OpenTelemetry state when enabled, and listener startup. The `sources` value is the expanded in-memory catalog, including history derivatives, merge-derived sources, and synthetic helper feeds. The `merges` value is normally `0` because configured merges are expanded into source entries during configuration loading. If startup fails, the error appears before the process exits.
+Startup logs include configuration loading, cache loading, OpenTelemetry metric
+export state when enabled, and listener startup. The `sources` value is the
+expanded in-memory catalog, including history derivatives, merge-derived
+sources, and synthetic helper feeds. The `merges` value is normally `0` because
+configured merges are expanded into source entries during configuration
+loading. If startup fails, the error appears before the process exits.
 
 ### Shutdown
 

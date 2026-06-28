@@ -12,8 +12,6 @@ import (
 	"github.com/firehol/update-ipsets/internal/fileutil"
 	"github.com/firehol/update-ipsets/internal/observability"
 	"github.com/firehol/update-ipsets/pkg/config"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 // RunStream processes the source file through the processor pipeline and writes
@@ -24,16 +22,16 @@ import (
 // and resuming streaming for subsequent steps.
 func RunStream(ctx context.Context, steps []config.ProcessorStep, srcPath, tmpDir string) (string, error) {
 	started := time.Now()
-	ctx, span := observability.Start(ctx, "processor.stream", attribute.Int("processor.steps", len(steps)))
+	ctx, span := observability.Start(ctx, "processor.stream", observability.Int("processor.steps", len(steps)))
 	var opErr error
 	defer func() {
 		status := "ok"
 		if opErr != nil {
 			status = "error"
 		}
-		attrs := []attribute.KeyValue{
-			attribute.String("processor.mode", "stream"),
-			attribute.String("processor.status", status),
+		attrs := []observability.Attr{
+			observability.String("processor.mode", "stream"),
+			observability.String("processor.status", status),
 		}
 		observability.TryCount("processor.runs", 1, attrs...)
 		observability.TryDuration("processor.run", time.Since(started), attrs...)
@@ -166,10 +164,6 @@ func classifyPipeline(steps []config.ProcessorStep) []pipelineSegment {
 
 // runStreamableSegment chains streaming processors and writes the output to a temp file.
 func runStreamableSegment(ctx context.Context, steps []config.ProcessorStep, srcPath, tmpDir string) (string, error) {
-	started := time.Now()
-	defer func() {
-		observability.TryObserve("processor.stream.segment", 1, 0, time.Since(started), attribute.String("processor.segment", "streamable"))
-	}()
 	if err := checkContext(ctx); err != nil {
 		return "", err
 	}
@@ -201,13 +195,10 @@ func runStreamableSegment(ctx context.Context, steps []config.ProcessorStep, src
 		if fn == nil {
 			return "", fmt.Errorf("stream processor %q not found", name)
 		}
-		stepStarted := time.Now()
 		next, err := fn(reader, step.Args)
 		if err != nil {
-			observability.TryObserve("processor.stream.step", 1, 0, time.Since(stepStarted), attribute.String("processor.step", name), attribute.String("processor.status", "error"))
 			return "", fmt.Errorf("%s: %w", name, err)
 		}
-		observability.TryObserve("processor.stream.step", 1, 0, time.Since(stepStarted), attribute.String("processor.step", name), attribute.String("processor.status", "ok"))
 		if c, ok := next.(io.Closer); ok && next != reader {
 			closers = append(closers, c)
 		}
@@ -220,10 +211,6 @@ func runStreamableSegment(ctx context.Context, steps []config.ProcessorStep, src
 // runBytesSegment reads the source into memory, runs the []byte pipeline,
 // and writes the result to a temp file.
 func runBytesSegment(ctx context.Context, steps []config.ProcessorStep, srcPath, tmpDir string) (string, error) {
-	started := time.Now()
-	defer func() {
-		observability.TryObserve("processor.stream.segment", 1, 0, time.Since(started), attribute.String("processor.segment", "bytes"))
-	}()
 	if err := checkContext(ctx); err != nil {
 		return "", err
 	}
@@ -247,8 +234,8 @@ func runBytesSegment(ctx context.Context, steps []config.ProcessorStep, srcPath,
 func writeReaderToTemp(ctx context.Context, r io.Reader, tmpDir string) (string, error) {
 	started := time.Now()
 	defer func() {
-		observability.TryCount("processor.temp.writes", 1, attribute.String("processor.temp.kind", "stream"))
-		observability.TryDuration("processor.temp.write", time.Since(started), attribute.String("processor.temp.kind", "stream"))
+		observability.TryCount("processor.temp.writes", 1, observability.String("processor.temp.kind", "stream"))
+		observability.TryDuration("processor.temp.write", time.Since(started), observability.String("processor.temp.kind", "stream"))
 	}()
 	if err := checkContext(ctx); err != nil {
 		return "", err
@@ -282,8 +269,8 @@ func writeReaderToTemp(ctx context.Context, r io.Reader, tmpDir string) (string,
 func writeBytesToTemp(ctx context.Context, data []byte, tmpDir string) (string, error) {
 	started := time.Now()
 	defer func() {
-		observability.TryCount("processor.temp.writes", 1, attribute.String("processor.temp.kind", "bytes"))
-		observability.TryDuration("processor.temp.write", time.Since(started), attribute.String("processor.temp.kind", "bytes"))
+		observability.TryCount("processor.temp.writes", 1, observability.String("processor.temp.kind", "bytes"))
+		observability.TryDuration("processor.temp.write", time.Since(started), observability.String("processor.temp.kind", "bytes"))
 	}()
 	if err := checkContext(ctx); err != nil {
 		return "", err
@@ -316,8 +303,8 @@ func writeBytesToTemp(ctx context.Context, data []byte, tmpDir string) (string, 
 func copyToTemp(ctx context.Context, srcPath, tmpDir string) (string, error) {
 	started := time.Now()
 	defer func() {
-		observability.TryCount("processor.temp.writes", 1, attribute.String("processor.temp.kind", "copy"))
-		observability.TryDuration("processor.temp.write", time.Since(started), attribute.String("processor.temp.kind", "copy"))
+		observability.TryCount("processor.temp.writes", 1, observability.String("processor.temp.kind", "copy"))
+		observability.TryDuration("processor.temp.write", time.Since(started), observability.String("processor.temp.kind", "copy"))
 	}()
 	if err := checkContext(ctx); err != nil {
 		return "", err
@@ -382,11 +369,6 @@ func RunStreamToFile(ctx context.Context, steps []config.ProcessorStep, srcPath,
 }
 
 func copyFile(ctx context.Context, src, dst string) error {
-	started := time.Now()
-	var bytes int64
-	defer func() {
-		observability.TryObserve("file.copy", 1, bytes, time.Since(started))
-	}()
 	if err := checkContext(ctx); err != nil {
 		return err
 	}
@@ -407,9 +389,7 @@ func copyFile(ctx context.Context, src, dst string) error {
 		_ = os.Remove(dst)
 		return err
 	}
-	n, err := io.Copy(out, contextReader{ctx: ctx, r: in})
-	bytes = n
-	if err != nil {
+	if _, err := io.Copy(out, contextReader{ctx: ctx, r: in}); err != nil {
 		_ = out.Close()
 		_ = os.Remove(dst)
 		return err

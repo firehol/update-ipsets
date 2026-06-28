@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/firehol/update-ipsets/internal/observability"
 	"github.com/firehol/update-ipsets/pkg/systemd"
 )
 
@@ -81,6 +82,7 @@ func (h *asyncSlogHandler) Handle(_ context.Context, record slog.Record) error {
 	select {
 	case h.queue <- asyncSlogRecord{handler: h.handler, record: record.Clone()}:
 	default:
+		observability.TryCount("telemetry.logs.dropped", 1)
 	}
 	return nil
 }
@@ -185,6 +187,7 @@ func startWatchdogSelfHealth(ctx context.Context, watchdogInterval, notifyDeadli
 					continue
 				}
 				lastDiagnostic = now
+				observability.TryCount("daemon.watchdog.diagnostics", 1)
 				logger.Error("watchdog heartbeat stalled",
 					"elapsed_ms", elapsed.Milliseconds(),
 					"threshold_ms", threshold.Milliseconds(),
@@ -199,6 +202,7 @@ func reportSystemdNotifyError(kind string, err error) {
 	if err == nil {
 		return
 	}
+	observability.TryCount("systemd.notify.failures", 1)
 	logger := plainLivenessLogger()
 	if kind == "" {
 		kind = "unknown"
@@ -245,6 +249,7 @@ func reportDaemonControlPanic(name string, recovered any) {
 	if name == "" {
 		name = "unknown"
 	}
+	observability.TryCount("daemon.goroutine.panics", 1, observability.String("daemon.goroutine", name))
 	logger.Error("daemon control goroutine panic recovered",
 		"goroutine", name,
 		"panic", recovered,

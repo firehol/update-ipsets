@@ -119,14 +119,17 @@ description: "Go, React, config, and repo conventions for update-ipsets. MUST be
 - Pass `context.Context` through long-running download, processing, scheduler, web, and engine operations (example: `pkg/downloader/downloader.go`).
 - Return errors with context and wrap underlying failures with `%w` (example: `pkg/downloader/downloader.go`).
 - Use structured `log/slog` for daemon/operator logs (examples: `cmd/update-ipsets/daemon.go`, `pkg/scheduler/scheduler.go`).
-- Use OpenTelemetry helpers and existing telemetry counters/spans for material CPU, memory, network, and I/O operations outside standalone hot-path libraries (examples: `internal/observability/observability.go`, `pkg/downloader/downloader.go`, `pkg/processor/processor.go`).
-- OpenTelemetry metric labels must be bounded identity, not runtime
+- Use project-owned `internal/observability` helpers for material CPU, memory,
+  network, and I/O operations outside standalone hot-path libraries. Do not
+  import OpenTelemetry from application packages; OTel is allowed only inside
+  the isolated exporter module (from SOW-0121).
+- Metric labels must be compile-time finite bounded identity, not runtime
   measurements. Do not add process IDs, queue depths, batch sizes,
   selected-feed counts, byte counts, fan-in counts, or other ephemeral values
-  as metric attributes or metric resource attributes. Bounded labels such as
-  feed name, status, HTTP status code, processor step, and engine phase are
-  acceptable when they have direct operator value; put live quantities in metric
-  values, admin status, logs, or traces instead (from SOW-0096).
+  as metric attributes or metric resource attributes. Runtime values that do
+  not match a predeclared dimension must map to `other` or be rejected with an
+  exact local telemetry fault counter. Put live quantities in metric values,
+  admin status, logs, or traces instead (from SOW-0096 and SOW-0121).
 - When deferring elapsed-time observation, defer a closure that calls
   `time.Since(started)` inside the closure; deferred direct-call arguments are
   evaluated immediately and will fail `go vet` (from SOW-0022).
@@ -301,10 +304,10 @@ description: "Go, React, config, and repo conventions for update-ipsets. MUST be
 - Do not replace simple scheduler/cadence logic with dependency-graph machinery without explicit approval.
 - Do not make background work invisible; operator-visible daemon work belongs in admin status/UI (from SOW-0004).
 - Do not make web serving depend on telemetry progress. Watchdog, `/healthz`,
-  admin/public serving, and request-path telemetry must not wait for
-  OpenTelemetry export, lazy metric instrument creation, OTel-backed logging,
-  ingestion, integrity, artifact generation, or broad admin/cache snapshots
-  (from SOW-0117 regression).
+  admin/public serving, and request-path telemetry must not wait for OTel
+  export, lazy metric creation, logging sinks, ingestion, integrity, artifact
+  generation, or broad admin/cache snapshots (from SOW-0117 regression and
+  SOW-0121).
 - Public serving-state request paths must be readers of an already-published
   serving state. Refresh serving state from reload-publication runtime data or
   non-blocking engine try-locks outside request handling; if unavailable, return
@@ -314,38 +317,32 @@ description: "Go, React, config, and repo conventions for update-ipsets. MUST be
   collectors, resource detector errors, or expired telemetry setup budgets must
   disable/degrade OTLP export and log a warning, not stop daemon startup or web
   serving (from SOW-0117 regression).
-- Web request telemetry must use project-owned non-blocking helpers or local
-  counters. Do not wrap public/admin servers with request-path `otelhttp`
-  instrumentation; if telemetry cannot keep up, drop samples before delaying a
-  request.
-- Production metric export must use non-blocking `observability.Try*` helpers.
-  Do not call `observability.Count`, `Bytes`, `Duration`, `Gauge`, `Observe`, or
-  `APIRecalculation` from production `cmd/`, `internal/`, or `pkg/` code
-  outside `internal/observability`; those synchronous helpers are implementation
-  details for the async worker and tests (from SOW-0117 regression).
+- Web request telemetry must use project-owned local counters. Do not wrap
+  public/admin servers with request-path `otelhttp` instrumentation.
+- Production metrics are exact local atomic state. Do not add asynchronous
+  metric sample queues or drop metric updates to protect export; exporter
+  failure must not affect local metric truth (from SOW-0121).
 - If web request handlers update local engine/admin timing or counter books,
-  use best-effort `Try*` helpers that drop when the local telemetry lock is
-  busy. Do not call blocking engine telemetry helpers from `pkg/web`.
+  keep the critical section tiny and non-blocking for web serving. Do not call
+  broad engine telemetry snapshots from `pkg/web`.
 - Admin status must also read current-run, lifetime, and scheduler telemetry
   snapshots in a best-effort way. If a telemetry book is busy, omit/degrade that
   telemetry section instead of waiting on a local telemetry lock.
-- Public/admin HTTP middleware must not use the configured application logger
-  directly on the request path. That logger may be OpenTelemetry-backed; use a
-  bounded serving-safe local logger or another drop-before-delay mechanism for
-  access/error and panic logs (from SOW-0117 regression).
-- OpenTelemetry log export must also be drop-before-delay. If an application
-  logger tees local logs to an OTel slog handler, the OTel handler must sit
-  behind a bounded async queue so exporter backpressure cannot delay engine,
-  scheduler, admin, watchdog, or shutdown work (from SOW-0117 regression).
+- Public/admin HTTP middleware must not use a logger that can wait for export,
+  disk, or a remote sink on the request path. Use bounded serving-safe local
+  logging for access/error and panic logs (from SOW-0117 regression and
+  SOW-0121).
+- Logs and traces are bounded local telemetry. Full buffers must drop records
+  before delaying application work and must increment exact local drop
+  counters (`telemetry.logs.dropped`, `telemetry.traces.dropped`) (from
+  SOW-0121).
 - Daemon lifecycle control logs on the web-serving path, including pre-listen
   cleanup, startup integrity recovery, startup entity-artifact checks, ready,
   stopping, watchdog, daemon-control panic recovery, and delayed startup cleanup
   control logs, must use the same serving-safe logger rule. They must not wait
-  for an OpenTelemetry-backed application logger before proving or preserving
+  for an export-backed or sink-blocked application logger before proving or preserving
   web-serving liveness (from SOW-0117 regression).
 - The admin-surface `/metrics` endpoint is telemetry on the web-serving
-  surface. Wrap Prometheus/OpenTelemetry scrape handlers with bounded timeout
-  and single-active-scrape protection; do not mount raw metrics handlers
-  directly on the web mux. If a timed-out scrape worker keeps running after its
-  request context is canceled, later scrapes should fail fast instead of
-  starting replacement exporter goroutines (from SOW-0117 regression).
+  surface. It must render from local metric snapshots through the bounded
+  web scrape wrapper; do not mount raw OTel/Prometheus SDK handlers directly on
+  the web mux (from SOW-0117 regression and SOW-0121).

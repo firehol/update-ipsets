@@ -1,6 +1,11 @@
 # OpenTelemetry Setup
 
-You will learn how to enable, configure, and disable OpenTelemetry export in update-ipsets.
+You will learn how to enable, configure, and disable OpenTelemetry metric export in update-ipsets.
+
+update-ipsets owns its local instrumentation. Metrics are exact local atomic
+state; OpenTelemetry is only an optional OTLP metric exporter. Local logs and
+local traces use bounded in-process queues and are not exported through the
+OpenTelemetry SDK in this daemon version.
 
 The admin surface also serves `GET /metrics` in Prometheus text format. This
 scrape endpoint is available without admin basic authentication and does not
@@ -23,12 +28,10 @@ or set an OTLP endpoint directly:
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 ```
 
-The daemon also enables export automatically when any signal-specific OTLP endpoint is set:
+The daemon also enables export automatically when the metric-specific OTLP endpoint is set:
 
 ```bash
 export OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://localhost:4318
-export OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:4318
-export OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=http://localhost:4318
 ```
 
 Use the collector's OTLP/HTTP endpoint when the protocol is left at the default
@@ -47,7 +50,8 @@ succeeds.
 export UPDATE_IPSETS_OTEL=0
 ```
 
-This disables export even when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. Local structured logs continue writing to stderr regardless of this setting.
+This disables metric export even when `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
+Local structured logs continue writing to stderr regardless of this setting.
 
 ## Choosing the protocol
 
@@ -85,9 +89,8 @@ export OTEL_SERVICE_NAME=update-ipsets
 export OTEL_RESOURCE_ATTRIBUTES=deployment.environment=production,service.namespace=firehol
 ```
 
-The OTLP exporters also honor standard OpenTelemetry collector options. Use
-signal-specific variables only when traces, metrics, or logs need different
-settings:
+The OTLP metric exporter also honors standard OpenTelemetry collector options.
+Use metric-specific variables when metrics need different settings:
 
 ```bash
 export OTEL_EXPORTER_OTLP_HEADERS=tenant=iplists
@@ -97,33 +100,24 @@ export OTEL_EXPORTER_OTLP_COMPRESSION=gzip
 
 For TLS and mTLS collectors, use the standard certificate variables:
 `OTEL_EXPORTER_OTLP_CERTIFICATE`, `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE`, and
-`OTEL_EXPORTER_OTLP_CLIENT_KEY`. Each has signal-specific variants such as
+`OTEL_EXPORTER_OTLP_CLIENT_KEY`. Each has metric-specific variants such as
 `OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE`.
 
-## Suppressing individual signals
+## Suppressing metric export
 
-Disable traces when you only want metrics and logs:
-
-```bash
-export OTEL_TRACES_EXPORTER=none
-```
-
-The same standard form works for metrics and logs:
+Disable OTLP metric export with the standard variable:
 
 ```bash
 export OTEL_METRICS_EXPORTER=none
-export OTEL_LOGS_EXPORTER=none
 ```
 
-Or use the daemon-specific variables:
+Or use the daemon-specific variable:
 
 ```bash
-export UPDATE_IPSETS_OTEL_TRACES=0
 export UPDATE_IPSETS_OTEL_METRICS=0
-export UPDATE_IPSETS_OTEL_LOGS=0
 ```
 
-Each variable disables one signal independently.
+Trace and log OTLP variables are ignored by this daemon version.
 
 ## Metric export interval
 
@@ -145,6 +139,24 @@ export OTEL_METRIC_EXPORT_INTERVAL=10000
 
 Shorter intervals give finer resolution but consume more network and collector resources. The installed default is 10 seconds, matching Netdata's OTel chart interval.
 
+## Local log and trace buffers
+
+Local log and trace capture is bounded and never waits for a remote collector.
+Full buffers drop records before delaying application work. The exact local
+drop counters are `telemetry.logs.dropped` and `telemetry.traces.dropped`.
+Oversized log messages, log string attributes, trace names, and trace string
+attributes are replaced with a fixed truncated marker before enqueue, so the
+bounded queues do not retain arbitrary caller-owned strings.
+
+```bash
+# Default total budget is 50 MiB, split evenly between logs and traces.
+export UPDATE_IPSETS_TELEMETRY_BUFFER_BYTES=50MiB
+
+# Optional per-signal overrides.
+export UPDATE_IPSETS_LOG_BUFFER_BYTES=32MB
+export UPDATE_IPSETS_TRACE_BUFFER_BYTES=18MB
+```
+
 ## Example: minimal HTTP export
 
 ```bash
@@ -153,13 +165,12 @@ OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318 \
 update-ipsets daemon --config /opt/update-ipsets/etc/config
 ```
 
-## Example: full gRPC export with traces suppressed
+## Example: gRPC metric export
 
 ```bash
 UPDATE_IPSETS_OTEL=1 \
 UPDATE_IPSETS_OTEL_PROTOCOL=grpc \
 OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4317 \
 OTEL_METRIC_EXPORT_INTERVAL=10000 \
-OTEL_TRACES_EXPORTER=none \
 update-ipsets daemon --config /opt/update-ipsets/etc/config
 ```

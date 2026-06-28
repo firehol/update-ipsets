@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/firehol/update-ipsets/internal/observability"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -308,7 +307,7 @@ func (c *fileCache) evictLocked() {
 		path, _ := back.Value.(string)
 		entry := c.files[path]
 		c.removeLocked(path, entry)
-		observability.TryCount("web.artifact.cache.evictions", 1, attribute.String("cache.reason", reason))
+		observability.TryCount("web.artifact.cache.evictions", 1, observability.String("cache.reason", reason))
 	}
 }
 
@@ -318,7 +317,7 @@ func (c *fileCache) observeStateLocked() {
 }
 
 func observeWebArtifactCacheLookup(result string) {
-	observability.TryCount("web.artifact.cache.lookups", 1, attribute.String("cache.result", result))
+	observability.TryCount("web.artifact.cache.lookups", 1, observability.String("cache.result", result))
 }
 
 func serveUncachedFile(w http.ResponseWriter, r *http.Request, path string, contentType string) bool {

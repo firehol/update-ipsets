@@ -12,8 +12,6 @@ import (
 	"github.com/firehol/update-ipsets/internal/fileutil"
 	"github.com/firehol/update-ipsets/internal/observability"
 	"github.com/firehol/update-ipsets/pkg/runreason"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 const maxJSONUnixSeconds int64 = 253402300799
@@ -372,9 +370,9 @@ func observeRuntimeCacheOperation(operation, result string, dur time.Duration) {
 	if result == "" {
 		result = "unknown"
 	}
-	attrs := []attribute.KeyValue{
-		attribute.String("cache.operation", operation),
-		attribute.String("cache.result", result),
+	attrs := []observability.Attr{
+		observability.String("cache.operation", operation),
+		observability.String("cache.result", result),
 	}
 	observability.TryCount("runtime.cache.operations", 1, attrs...)
 	observability.TryDuration("runtime.cache.operation", dur, attrs...)

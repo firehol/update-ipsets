@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/firehol/update-ipsets/internal/observability"
 	"github.com/firehol/update-ipsets/pkg/scheduler"
 )
 
@@ -382,6 +383,113 @@ func TestTelemetryRouteNameNormalizesDynamicPaths(t *testing.T) {
 	}
 }
 
+func TestTelemetryRouteNamesResolveToDeclaredMetricBuckets(t *testing.T) {
+	paths := []string{
+		"",
+		"/",
+		"/healthz",
+		"/mcp",
+		"/metrics",
+		"/admin",
+		"/api/v1/status",
+		"/api/v1/home/globe",
+		"/api/v1/home/summary",
+		"/api/v1/sets",
+		"/api/v1/ipsets",
+		"/api/v1/categories",
+		"/api/v1/client-ip",
+		"/api/v1/countries",
+		"/api/v1/asns",
+		"/api/v1/maintainers",
+		"/api/v1/query",
+		"/api/v1/search",
+		"/api/v1/compose",
+		"/api/v1/methodology",
+		"/api/v1/admin/status",
+		"/api/v1/admin/feeds",
+		"/api/v1/admin/artifacts",
+		"/api/v1/admin/schedule",
+		"/api/v1/admin/integrity",
+		"/api/v1/admin/integrity/refresh",
+		"/api/v1/admin/integrity/entities",
+		"/api/v1/admin/integrity/entities/refresh",
+		"/api/v1/admin/integrity/entities/rebuild",
+		"/api/v1/admin/integrity/reprocess",
+		"/api/v1/admin/run",
+		"/api/v1/sets/firehol_level1",
+		"/api/v1/sets/firehol_level1/search",
+		"/api/v1/sets/firehol_level1/data",
+		"/api/v1/sets/firehol_level1/history",
+		"/api/v1/sets/firehol_level1/changesets",
+		"/api/v1/sets/firehol_level1/retention",
+		"/api/v1/sets/firehol_level1/insights",
+		"/api/v1/sets/firehol_level1/countries",
+		"/api/v1/sets/firehol_level1/countries/ipinfo",
+		"/api/v1/sets/firehol_level1/asn",
+		"/api/v1/sets/firehol_level1/asn/ipinfo",
+		"/api/v1/sets/firehol_level1/bogons",
+		"/api/v1/sets/firehol_level1/bogons/rfc",
+		"/api/v1/sets/firehol_level1/infrastructure",
+		"/api/v1/sets/firehol_level1/infrastructure/providers",
+		"/api/v1/sets/firehol_level1/infrastructure/dns",
+		"/api/v1/sets/firehol_level1/comparison/firehol_level2",
+		"/api/v1/sets/firehol_level1/not-real",
+		"/api/v1/ipsets/firehol_level1",
+		"/api/v1/ipsets/firehol_level1/search",
+		"/api/v1/ipsets/firehol_level1/data",
+		"/api/v1/ipsets/firehol_level1/history",
+		"/api/v1/ipsets/firehol_level1/changesets",
+		"/api/v1/ipsets/firehol_level1/retention",
+		"/api/v1/ipsets/firehol_level1/insights",
+		"/api/v1/ipsets/firehol_level1/countries",
+		"/api/v1/ipsets/firehol_level1/countries/ipinfo",
+		"/api/v1/ipsets/firehol_level1/asn",
+		"/api/v1/ipsets/firehol_level1/asn/ipinfo",
+		"/api/v1/ipsets/firehol_level1/bogons",
+		"/api/v1/ipsets/firehol_level1/bogons/rfc",
+		"/api/v1/ipsets/firehol_level1/infrastructure",
+		"/api/v1/ipsets/firehol_level1/infrastructure/providers",
+		"/api/v1/ipsets/firehol_level1/infrastructure/dns",
+		"/api/v1/ipsets/firehol_level1/comparison/firehol_level2",
+		"/api/v1/ipsets/firehol_level1/not-real",
+		"/api/v1/admin/feeds/firehol_level1",
+		"/api/v1/admin/feeds/firehol_level1/disable",
+		"/api/v1/admin/feeds/firehol_level1/enable",
+		"/api/v1/admin/feeds/firehol_level1/manifest",
+		"/api/v1/admin/feeds/firehol_level1/recheck",
+		"/api/v1/admin/feeds/firehol_level1/reprocess",
+		"/api/v1/admin/feeds/firehol_level1/not-real",
+		"/api/v1/admin/artifacts/dronebl",
+		"/api/v1/admin/artifacts/dronebl/disable",
+		"/api/v1/admin/artifacts/dronebl/enable",
+		"/api/v1/admin/artifacts/dronebl/manifest",
+		"/api/v1/admin/artifacts/dronebl/recheck",
+		"/api/v1/admin/artifacts/dronebl/reprocess",
+		"/api/v1/admin/artifacts/dronebl/not-real",
+		"/api/v1/countries/GR",
+		"/api/v1/asns/12345",
+		"/api/v1/maintainers/team",
+		"/api/v1/methodology/source-reliability",
+		"/api/v1/unknown/random",
+		"/files/firehol_level1.netset",
+		"/ipsets/firehol_level1",
+		"/countries/GR",
+		"/asns/12345",
+		"/maintainers/team",
+		"/methodology/source-reliability",
+		"/static/app.js",
+		"/world/countries.json",
+		"/admin/feeds",
+		"/unknown/probe/path",
+	}
+
+	for _, path := range paths {
+		route := telemetryRouteName(path)
+		observability.TryHTTPServerRequest(route, http.MethodGet, http.StatusOK, time.Millisecond)
+		assertHTTPRouteMetricBucket(t, route)
+	}
+}
+
 func TestTelemetryRoutePatternMiddlewareOverridesServeMuxPattern(t *testing.T) {
 	t.Parallel()
 
@@ -400,6 +508,30 @@ func TestTelemetryRoutePatternMiddlewareOverridesServeMuxPattern(t *testing.T) {
 	if got, want := req.Pattern, "/api/v1/sets/{name}/search"; got != want {
 		t.Fatalf("request pattern = %q, want %q", got, want)
 	}
+}
+
+func assertHTTPRouteMetricBucket(t *testing.T, route string) {
+	t.Helper()
+	for _, snap := range observability.SnapshotMetrics() {
+		if snap.Name != "http.server.request.duration" || snap.Count == 0 {
+			continue
+		}
+		labels := metricLabelMap(snap.Labels)
+		if labels["http.route"] == route &&
+			labels["http.request.method"] == http.MethodGet &&
+			labels["http.response.status_code"] == "200" {
+			return
+		}
+	}
+	t.Fatalf("telemetry route %q did not resolve to a declared http.route metric bucket", route)
+}
+
+func metricLabelMap(labels []observability.MetricLabelSnapshot) map[string]string {
+	out := make(map[string]string, len(labels))
+	for _, label := range labels {
+		out[label.Key] = label.Value
+	}
+	return out
 }
 
 func assertAllowExactly(t *testing.T, headers http.Header, want string) {

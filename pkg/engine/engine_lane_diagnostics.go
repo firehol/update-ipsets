@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/firehol/update-ipsets/internal/observability"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -81,8 +80,7 @@ func (e *Engine) logLongRunningEngineLaneWork(ctx context.Context, now time.Time
 		observability.TryCount(
 			"background.worker.long_running",
 			1,
-			attribute.String("background.component", string(work.Component)),
-			attribute.String("engine.work.kind", string(work.Kind)),
+			observability.String("background.component", backgroundMetricComponent(work.Kind, work.Component)),
 		)
 		e.logger.Warn("engine lane work running longer than expected",
 			"id", work.ID,

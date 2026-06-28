@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/firehol/update-ipsets/internal/observability"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 type BackgroundTaskSnapshot struct {
@@ -177,8 +175,8 @@ func observeBackgroundTask(component, result string) {
 	observability.TryCount(
 		"background.tasks",
 		1,
-		attribute.String("background.component", component),
-		attribute.String("background.result", result),
+		observability.String("background.component", component),
+		observability.String("background.result", result),
 	)
 }
 

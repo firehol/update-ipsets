@@ -19,7 +19,6 @@ Environment="UPDATE_IPSETS_OTEL=1"
 Environment="UPDATE_IPSETS_OTEL_PROTOCOL=grpc"
 Environment="OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4317"
 Environment="OTEL_METRIC_EXPORT_INTERVAL=10000"
-Environment="OTEL_TRACES_EXPORTER=none"
 ```
 
 Then reload and restart:
@@ -31,20 +30,18 @@ sudo systemctl restart update-ipsets
 
 ## What this configuration does
 
-- Enables OpenTelemetry export
+- Enables OpenTelemetry metric export
 - Uses gRPC protocol (required by Netdata's otel-plugin)
 - Pushes metrics every 10 seconds, matching Netdata's default OTel chart interval
-- Suppresses traces — update-ipsets primarily needs metrics, not distributed tracing
-- Exports logs through OpenTelemetry unless you set `OTEL_LOGS_EXPORTER=none`
+- Keeps traces and logs local in bounded daemon-owned buffers
 
 ## Verifying the integration
 
-After restarting, open Netdata and look for new charts under the `update_ipsets` or `iprange` application group. You should see counters for:
+After restarting, open Netdata and look for new charts under the `update_ipsets` application group. You should see counters for:
 
-- Download operations (`download.ok`, `download.failed`, `download.error`, `download.status.downloaded`, etc.)
-- Processing phases and queues (`engine.queued`, `engine.batch.completed`, `engine.<phase>`)
-- iprange primitives (`iprange.load.text`, `iprange.merge.ops`, etc.)
-- Public/admin API activity (`http.admin_status`, `http.home_summary.requests`, etc.)
+- Download operations (`download.fetches`, `download.errors`, `download.fetch.bytes`, `download.fetch.duration_ms`)
+- Processing phases and queues (`engine.runs`, `engine.run.duration_ms`, `scheduler.queue.*`)
+- Public/admin API activity (`http.server.request.duration`, `api.recalculation.*`)
 
 Process CPU, memory, and file-descriptor usage is available through the admin status API under `system` and through Netdata's normal host/process monitoring charts.
 

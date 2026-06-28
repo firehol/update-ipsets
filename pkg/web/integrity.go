@@ -13,8 +13,6 @@ import (
 	"github.com/firehol/update-ipsets/pkg/engine"
 	"github.com/firehol/update-ipsets/pkg/runreason"
 	"github.com/firehol/update-ipsets/pkg/scheduler"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -623,13 +621,13 @@ func observeIntegrityCheck(kind, result string, findings int, dur time.Duration)
 	if result == "" {
 		result = "unknown"
 	}
-	attrs := []attribute.KeyValue{
-		attribute.String("integrity.kind", kind),
-		attribute.String("integrity.result", result),
+	attrs := []observability.Attr{
+		observability.String("integrity.kind", kind),
+		observability.String("integrity.result", result),
 	}
 	observability.TryCount("integrity.checks", 1, attrs...)
 	observability.TryDuration("integrity.check", dur, attrs...)
-	observability.TryGauge("integrity.findings", int64(findings), attribute.String("integrity.kind", kind))
+	observability.TryGauge("integrity.findings", int64(findings), observability.String("integrity.kind", kind))
 }
 
 func observeIntegrityRecoveryTargets(kind, action string, targets int) {
@@ -645,7 +643,7 @@ func observeIntegrityRecoveryTargets(kind, action string, targets int) {
 	observability.TryCount(
 		"integrity.recovery.targets",
 		int64(targets),
-		attribute.String("integrity.kind", kind),
-		attribute.String("integrity.action", action),
+		observability.String("integrity.kind", kind),
+		observability.String("integrity.action", action),
 	)
 }

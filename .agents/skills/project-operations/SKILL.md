@@ -46,7 +46,9 @@ description: "Install, daemon, admin, and runtime operation guidance for update-
 - Admin auth: `UPDATE_IPSETS_ADMIN_USER`, `UPDATE_IPSETS_ADMIN_PASSWORD` (evidence: `README.md`, `pkg/web/middleware.go`).
 - GeoLite2 license: `MAXMIND_LICENSE_KEY` (evidence: `configs/firehol/sources/geolocation/geolite2_country.yaml`, `configs/firehol/sources/asn/maxmind_geolite2_asn.yaml`).
 - DroneBL rsync secret: `DRONEBL_RSYNC_PASSWORD` or `RSYNC_PASSWORD` (evidence: `tools/dronebl2ipsets/fetch.go`, `tools/dronebl2ipsets/README.md`).
-- OpenTelemetry can be enabled with `UPDATE_IPSETS_OTEL=1` and local Netdata OTLP/gRPC endpoint `http://127.0.0.1:4317` (evidence: `install.sh`, `README.md`, `internal/observability/observability.go`).
+- OpenTelemetry metric export can be enabled with `UPDATE_IPSETS_OTEL=1` and
+  local Netdata OTLP/gRPC endpoint `http://127.0.0.1:4317` (evidence:
+  `install.sh`, `README.md`, `internal/observability/observability.go`).
 
 ## Smoke checks
 
@@ -61,42 +63,42 @@ description: "Install, daemon, admin, and runtime operation guidance for update-
 
 - Public serving must stay cache-first and cheap; do not trigger upstream downloads or broad recomputation from public requests (evidence: `.agents/sow/specs/operating-principles.md`).
 - Watchdog, `/healthz`, and request-path telemetry are part of web-serving
-  availability. They must not wait for OpenTelemetry export, lazy instrument
-  creation, OTel-backed logging, ingestion, integrity, or artifact work.
-- Web-serving telemetry is still required, but it must be emitted through
-  non-blocking local/project-owned paths. If telemetry export is slow or the
-  queue is full, metric samples are dropped before public/admin serving is
-  delayed.
+  availability. They must not wait for OTel export, lazy metric creation,
+  logging sinks, ingestion, integrity, or artifact work.
+- Web-serving telemetry is still required, but metrics must be exact local
+  atomic state. Export slowness must not change local metric values.
 - OpenTelemetry startup is fail-open. Bad OTLP configuration, an unreachable
-  collector, resource detector errors, or a telemetry setup timeout should log a
+  collector, resource detector errors, or a telemetry setup timeout MUST log a
   warning and disable/degrade OTLP export instead of preventing daemon startup or
   web serving.
-- Production metric export uses non-blocking `observability.Try*` helpers
-  application-wide. Under telemetry backpressure, metric samples may be dropped
-  before downloader, processor, engine, admin, public, health, or watchdog work
-  is delayed.
-- Local admin/engine timing books used by web handlers follow the same rule:
-  request paths must use best-effort try-lock helpers and drop samples instead
-  of waiting for telemetry bookkeeping.
+- Production metric recording uses project-owned `observability.Try*` helpers
+  application-wide. Metrics are not exporter-owned samples and must not be
+  dropped for exporter backpressure.
+- Local admin/engine timing books used by web handlers must keep critical
+  sections tiny and must not force broad snapshots on request paths.
 - Admin status diagnostic reads of local telemetry books must be best-effort
   too. Busy current-run, lifetime, or scheduler telemetry sections should be
   omitted/degraded, not waited on.
 - Public/admin HTTP middleware logs are request-path telemetry. They must use
-  bounded serving-safe local logging or another drop-before-delay mechanism,
-  not the OpenTelemetry-backed application logger.
-- OpenTelemetry log export is best-effort. If the application logger tees to an
-  OTel log handler, the OTel branch must use a bounded async queue and may drop
-  records before delaying engine, scheduler, admin, watchdog, or shutdown work.
+  bounded serving-safe local logging, not a logger that can wait for export,
+  disk, or a remote sink on the request path.
+- Logs and traces are bounded local queues. Full buffers drop records before
+  delaying engine, scheduler, admin, watchdog, or shutdown work, and the exact
+  local counters `telemetry.logs.dropped` and `telemetry.traces.dropped` expose
+  those losses.
+- Local log/trace buffers are configured with
+  `UPDATE_IPSETS_TELEMETRY_BUFFER_BYTES`, `UPDATE_IPSETS_LOG_BUFFER_BYTES`, and
+  `UPDATE_IPSETS_TRACE_BUFFER_BYTES`. Values accept bytes or binary
+  `KB`/`KiB`, `MB`/`MiB`, and `GB`/`GiB` suffixes.
 - Daemon lifecycle control logs on the web-serving path, including pre-listen
   cleanup, startup integrity recovery, startup entity-artifact checks, ready,
   stopping, watchdog, daemon-control panic recovery, and delayed startup cleanup
   control logs, must also use serving-safe local logging instead of the
-  OpenTelemetry-backed application logger.
+  export-backed or sink-blocked application logger.
 - The admin-surface `/metrics` endpoint is also telemetry on the web-serving
-  surface. It should return `503 Service Unavailable` for concurrent or timed
-  out scrapes instead of stacking blocked scrape work. If a timed-out scrape
-  worker is still running, later scrapes should fail fast until that worker
-  exits.
+  surface. It renders local metric snapshots and MUST return
+  `503 Service Unavailable` for concurrent or timed out scrapes instead of
+  stacking blocked scrape work.
 - Engine-lane work must be visible through admin status/UI. `max_engine_lane_workers`
   controls top-level processing/integrity/entity admission; `max_background_workers`
   controls bounded fan-out inside admitted background/entity work (from

@@ -2,8 +2,6 @@ package engine
 
 import (
 	"time"
-
-	"github.com/firehol/update-ipsets/internal/observability"
 )
 
 func (e *Engine) currentRunMetrics() *runMetrics {
@@ -17,7 +15,6 @@ func (e *Engine) observeRunOperation(name string, dur time.Duration) {
 	if e == nil || name == "" {
 		return
 	}
-	observability.TryDuration(name, dur)
 	e.observeRunOperationLocal(name, dur)
 }
 
@@ -35,7 +32,6 @@ func (e *Engine) ObserveOperation(name string, dur time.Duration) {
 	if e == nil || name == "" {
 		return
 	}
-	observability.TryDuration(name, dur)
 	e.observeRunOperationLocal(name, dur)
 }
 
@@ -43,7 +39,6 @@ func (e *Engine) TryObserveOperation(name string, dur time.Duration) {
 	if e == nil || name == "" {
 		return
 	}
-	observability.TryDuration(name, dur)
 	e.tryObserveRunOperationLocal(name, dur)
 }
 
@@ -51,8 +46,6 @@ func (e *Engine) observeRunOperationAggregate(name string, count int64, total, m
 	if e == nil || name == "" {
 		return
 	}
-	observability.TryCount(name, count)
-	observability.TryDuration(name+".aggregate", total)
 	e.lifetimeOperations.ObserveAggregate(name, count, total, max)
 	if current := e.currentRunMetrics(); current != nil {
 		current.observeOperationAggregate(name, count, total, max)
@@ -82,7 +75,6 @@ func (e *Engine) observeRunCounter(name string, count, bytes int64) {
 	if e == nil || name == "" {
 		return
 	}
-	observability.TryObserve(name, count, bytes, 0)
 	e.observeRunCounterLocal(name, count, bytes)
 }
 
@@ -100,7 +92,6 @@ func (e *Engine) ObserveCounter(name string, count, bytes int64) {
 	if e == nil || name == "" {
 		return
 	}
-	observability.TryObserve(name, count, bytes, 0)
 	e.observeRunCounterLocal(name, count, bytes)
 }
 
@@ -108,7 +99,6 @@ func (e *Engine) TryObserveCounter(name string, count, bytes int64) {
 	if e == nil || name == "" {
 		return
 	}
-	observability.TryObserve(name, count, bytes, 0)
 	e.tryObserveRunCounterLocal(name, count, bytes)
 }
 

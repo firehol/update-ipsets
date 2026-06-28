@@ -6,8 +6,6 @@ import (
 
 	"github.com/firehol/update-ipsets/internal/observability"
 	"github.com/firehol/update-ipsets/pkg/config"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -237,6 +235,6 @@ func observeEnginePhaseCurrent(current RunPhase) {
 		if current == phase {
 			value = 1
 		}
-		observability.TryGauge("engine.phase.current", value, attribute.String("engine.phase", string(phase)))
+		observability.TryGauge("engine.phase.current", value, observability.String("engine.phase", string(phase)))
 	}
 }

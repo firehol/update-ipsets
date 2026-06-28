@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/firehol/update-ipsets/internal/observability"
-
-	"go.opentelemetry.io/otel/attribute"
 	yaml "go.yaml.in/yaml/v3"
 )
 
@@ -147,7 +145,7 @@ func observeConfigLoad(result string, dur time.Duration) {
 	if result == "" {
 		result = "unknown"
 	}
-	attr := attribute.String("config.result", result)
+	attr := observability.String("config.result", result)
 	observability.TryCount("config.loads", 1, attr)
 	observability.TryDuration("config.load", dur, attr)
 }

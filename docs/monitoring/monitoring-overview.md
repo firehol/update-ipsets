@@ -14,23 +14,24 @@ update-ipsets exposes two independent monitoring surfaces.
 - Sample twice, compute deltas, divide by elapsed time to get rates.
 - No collector or agent required. Works with `curl`, cron, or any HTTP client.
 
-**OpenTelemetry export** — continuous push of metrics, traces, and logs to a collector.
+**OpenTelemetry metric export** — continuous push of designed metrics to a collector.
 
 - Configure an OTLP endpoint and the daemon pushes data automatically.
-- Works with Netdata, Grafana, Jaeger, Honeycomb, or any OTLP-compatible backend.
-- Exports application counters, operation duration histograms, optional traces, and logs.
+- Works with Netdata, Grafana, or any OTLP-compatible metrics backend.
+- Exports application counters, gauges, and duration aggregates from the local metric registry.
 
-Use the admin API for quick checks and ad-hoc debugging. Use OpenTelemetry for continuous dashboards, alerting, and historical trends.
+Use the admin API for quick checks and ad-hoc debugging. Use OpenTelemetry
+metric export for continuous dashboards, alerting, and historical trends.
 
 ## What to watch
 
 These signals give the most operational insight.
 
-- **Download failure rate** — in OpenTelemetry, compare `download.failed`, `download.error`, and `download.status.download_failed` against successful statuses such as `download.ok` and `download.status.downloaded`. In the admin API, inspect `engine.lifetime_metrics.counters` entries beginning with `download.status.`.
+- **Download failure rate** — in exported metrics, compare `download.errors` and `download.fetches{download.status="error"}` against successful `download.fetches` statuses. In the admin API, inspect `engine.lifetime_metrics.counters` entries beginning with `download.status.`.
 - **Scheduler throughput** — sample `metrics.download_enqueued`, `metrics.download_started`, `metrics.download_finished`, `metrics.processing_enqueued`, and `metrics.processing_batches_completed`.
-- **Processing duration** — watch `engine.<phase>.duration_ms`, `engine.last_metrics.phase_times`, and operation timings in `engine.lifetime_metrics.operations`.
+- **Processing duration** — watch `engine.phase.duration_ms`, `engine.run.duration_ms`, `engine.last_metrics.phase_times`, and operation timings in `engine.lifetime_metrics.operations`.
 - **Memory** — track `system.rss_kb`, `system.heap_alloc`, `system.heap_sys`, `system.num_gc`, and host process charts. Sustained growth above `GOMEMLIMIT` suggests a leak or an unbounded workload.
-- **Public/API activity** — watch HTTP counters in `engine.lifetime_metrics.counters`, such as `http.home_summary.requests`, `http.compare_set.requests`, `http.admin_status`, and `http.admin_feeds`.
+- **Public/API activity** — in exported metrics, watch `http.server.request.duration` and `api.recalculation.*`. In the admin API, detailed counters such as `http.home_summary.requests`, `http.compare_set.requests`, `http.admin_status`, and `http.admin_feeds` remain under `engine.lifetime_metrics.counters`.
 
 ## Quick check with the admin API
 
@@ -57,4 +58,6 @@ jq '.engine.lifetime_metrics.counters[]? | select(.name | startswith("download.s
 
 ## Quick check with OpenTelemetry
 
-See [OpenTelemetry Setup](opentelemetry-setup.md) for configuration. Once enabled, point your collector at the daemon's OTLP endpoint and build dashboards from the metric names in the [Telemetry Reference](telemetry-reference.md).
+See [OpenTelemetry Setup](opentelemetry-setup.md) for configuration. Once
+enabled, point your collector at the daemon's OTLP endpoint and build dashboards
+from the metric names in the [Telemetry Reference](telemetry-reference.md).

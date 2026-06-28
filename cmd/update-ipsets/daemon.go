@@ -14,7 +14,6 @@ import (
 	"github.com/firehol/update-ipsets/internal/observability"
 	"github.com/firehol/update-ipsets/pkg/engine"
 	"github.com/firehol/update-ipsets/pkg/web"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 const daemonControlPanicDiagnosticMaxBytes = 16 * 1024
@@ -54,12 +53,12 @@ func runDaemon(args []string) int {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		if err := otelSetup.Shutdown(shutdownCtx); err != nil {
-			logger.Error("opentelemetry shutdown failed", "error", err)
+			fmt.Fprintln(os.Stderr, "telemetry shutdown failed:", err)
 		}
 	}()
 	logger = otelSetup.Logger
 	if otelSetup.Enabled {
-		logger.Info("opentelemetry enabled")
+		logger.Info("opentelemetry metric export enabled")
 	}
 	eng, err := engine.New(*configPath, logger)
 	if err != nil {
@@ -145,7 +144,7 @@ func recoverDaemonControlPanic(logger *slog.Logger, name string) {
 		if name == "" {
 			name = "unknown"
 		}
-		observability.TryCount("daemon.goroutine.panics", 1, attribute.String("daemon.goroutine", name))
+		observability.TryCount("daemon.goroutine.panics", 1, observability.String("daemon.goroutine", name))
 		if logger != nil {
 			logger.Error("daemon control goroutine panic recovered",
 				"goroutine", name,

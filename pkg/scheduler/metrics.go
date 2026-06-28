@@ -6,7 +6,6 @@ import (
 
 	"github.com/firehol/update-ipsets/internal/observability"
 	"github.com/firehol/update-ipsets/internal/telemetry"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 type MetricsSnapshot struct {
@@ -97,9 +96,9 @@ func (m *metricsState) recordDownloadEnqueue(waiting int) {
 		return
 	}
 	observability.TryCount("scheduler.queue.admissions", 1,
-		attribute.String("scheduler.queue", "download"),
-		attribute.String("scheduler.result", "queued"))
-	observability.TryGauge("scheduler.queue.depth", int64(waiting), attribute.String("scheduler.queue", "download"))
+		observability.String("scheduler.queue", "download"),
+		observability.String("scheduler.result", "queued"))
+	observability.TryGauge("scheduler.queue.depth", int64(waiting), observability.String("scheduler.queue", "download"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.downloadEnqueued++
@@ -113,8 +112,8 @@ func (m *metricsState) recordDownloadDeferred() {
 		return
 	}
 	observability.TryCount("scheduler.queue.admissions", 1,
-		attribute.String("scheduler.queue", "download"),
-		attribute.String("scheduler.result", "deferred"))
+		observability.String("scheduler.queue", "download"),
+		observability.String("scheduler.result", "deferred"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.downloadDeferred++
@@ -124,7 +123,7 @@ func (m *metricsState) recordDownloadStart() {
 	if m == nil {
 		return
 	}
-	observability.TryCount("scheduler.work.started", 1, attribute.String("scheduler.queue", "download"))
+	observability.TryCount("scheduler.work.started", 1, observability.String("scheduler.queue", "download"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.downloadStarted++
@@ -134,7 +133,7 @@ func (m *metricsState) recordDownloadFinish() {
 	if m == nil {
 		return
 	}
-	observability.TryCount("scheduler.work.completed", 1, attribute.String("scheduler.queue", "download"))
+	observability.TryCount("scheduler.work.completed", 1, observability.String("scheduler.queue", "download"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.downloadFinished++
@@ -145,9 +144,9 @@ func (m *metricsState) recordProcessingEnqueue(waiting int) {
 		return
 	}
 	observability.TryCount("scheduler.queue.admissions", 1,
-		attribute.String("scheduler.queue", "processing"),
-		attribute.String("scheduler.result", "queued"))
-	observability.TryGauge("scheduler.queue.depth", int64(waiting), attribute.String("scheduler.queue", "processing"))
+		observability.String("scheduler.queue", "processing"),
+		observability.String("scheduler.result", "queued"))
+	observability.TryGauge("scheduler.queue.depth", int64(waiting), observability.String("scheduler.queue", "processing"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.processingEnqueued++
@@ -161,9 +160,9 @@ func (m *metricsState) recordProcessingRequeue(waiting int) {
 		return
 	}
 	observability.TryCount("scheduler.queue.admissions", 1,
-		attribute.String("scheduler.queue", "processing"),
-		attribute.String("scheduler.result", "requeued"))
-	observability.TryGauge("scheduler.queue.depth", int64(waiting), attribute.String("scheduler.queue", "processing"))
+		observability.String("scheduler.queue", "processing"),
+		observability.String("scheduler.result", "requeued"))
+	observability.TryGauge("scheduler.queue.depth", int64(waiting), observability.String("scheduler.queue", "processing"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.processingRequeued++
@@ -176,8 +175,8 @@ func (m *metricsState) recordBatchStart(size int) {
 	if m == nil {
 		return
 	}
-	observability.TryCount("scheduler.work.started", 1, attribute.String("scheduler.queue", "processing"))
-	observability.TryGauge("scheduler.batch.items", int64(size), attribute.String("scheduler.queue", "processing"))
+	observability.TryCount("scheduler.work.started", 1, observability.String("scheduler.queue", "processing"))
+	observability.TryGauge("scheduler.batch.items", int64(size), observability.String("scheduler.queue", "processing"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.processingBatchesStarted++
@@ -189,9 +188,9 @@ func (m *metricsState) recordBatchComplete(size int, dur time.Duration) {
 	if m == nil {
 		return
 	}
-	observability.TryCount("scheduler.work.completed", 1, attribute.String("scheduler.queue", "processing"))
-	observability.TryDuration("scheduler.batch", dur, attribute.String("scheduler.queue", "processing"))
-	observability.TryGauge("scheduler.batch.items", int64(size), attribute.String("scheduler.queue", "processing"))
+	observability.TryCount("scheduler.work.completed", 1, observability.String("scheduler.queue", "processing"))
+	observability.TryDuration("scheduler.batch", dur, observability.String("scheduler.queue", "processing"))
+	observability.TryGauge("scheduler.batch.items", int64(size), observability.String("scheduler.queue", "processing"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.processingBatchesCompleted++
@@ -203,7 +202,6 @@ func (m *metricsState) observeOperation(name string, dur time.Duration) {
 	if m == nil {
 		return
 	}
-	observability.TryDuration(name, dur)
 	m.operations.TryObserve(name, dur)
 }
 
@@ -221,7 +219,7 @@ func (m *metricsState) recordRecoveredPanic(component string, now time.Time) {
 		return
 	}
 	observability.TryCount("scheduler.recovered_panics", 1,
-		attribute.String("scheduler.component", component))
+		observability.String("scheduler.component", component))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.recoveredPanics++

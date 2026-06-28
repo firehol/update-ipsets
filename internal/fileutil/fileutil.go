@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/firehol/update-ipsets/internal/observability"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
@@ -91,14 +90,14 @@ func WriteAtomicNoSync(path string, data []byte, mode os.FileMode) error {
 func writeAtomic(path string, data []byte, mode os.FileMode, syncFile bool) error {
 	started := time.Now()
 	_, span := observability.Start(context.Background(), "file.write_atomic",
-		attribute.String("file.path", path),
-		attribute.Bool("file.sync", syncFile),
-		attribute.Int("file.bytes", len(data)),
+		observability.String("file.path", path),
+		observability.Bool("file.sync", syncFile),
+		observability.Int("file.bytes", len(data)),
 	)
 	var opErr error
 	defer func() {
-		attrs := []attribute.KeyValue{
-			attribute.Bool("file.sync", syncFile),
+		attrs := []observability.Attr{
+			observability.Bool("file.sync", syncFile),
 		}
 		observability.TryObserve("file.write_atomic", 1, int64(len(data)), time.Since(started), attrs...)
 		observability.End(span, opErr)

@@ -9,8 +9,6 @@ import (
 	"time"
 
 	"github.com/firehol/update-ipsets/internal/observability"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 var (
@@ -549,23 +547,12 @@ func observeLaneWorkerMetrics(metrics []laneWorkerMetric) {
 		observability.TryGauge("background.workers.limit", int64(metric.limit))
 		observability.TryGauge("background.workers.active", int64(metric.active))
 		if metric.observeWait && metric.wait > 0 {
-			observability.TryDuration("background.worker.wait", metric.wait, laneWorkMetricAttrs(metric.work)...)
+			observability.TryDuration(
+				"background.worker.wait",
+				metric.wait,
+				observability.String("background.component", backgroundMetricComponent(metric.work.Kind, metric.work.Component)),
+			)
 		}
-	}
-}
-
-func laneWorkMetricAttrs(work LaneWork) []attribute.KeyValue {
-	component := backgroundMetricComponent(work.Kind, work.Component)
-	if component == "" {
-		component = "other"
-	}
-	kind := string(work.Kind)
-	if kind == "" {
-		kind = "unknown"
-	}
-	return []attribute.KeyValue{
-		attribute.String("background.component", component),
-		attribute.String("engine.work.kind", kind),
 	}
 }
 

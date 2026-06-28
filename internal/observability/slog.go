@@ -5,65 +5,23 @@ import (
 	"log/slog"
 	"sync"
 	"sync/atomic"
+	"time"
+	"unsafe"
 )
 
 const asyncLogQueueSize = 8192
-
-type teeHandler struct {
-	handlers []slog.Handler
-}
-
-func newTeeHandler(handlers ...slog.Handler) slog.Handler {
-	out := &teeHandler{}
-	for _, h := range handlers {
-		if h != nil {
-			out.handlers = append(out.handlers, h)
-		}
-	}
-	return out
-}
-
-func (h *teeHandler) Enabled(ctx context.Context, level slog.Level) bool {
-	for _, handler := range h.handlers {
-		if handler.Enabled(ctx, level) {
-			return true
-		}
-	}
-	return false
-}
-
-func (h *teeHandler) Handle(ctx context.Context, record slog.Record) error {
-	var first error
-	for _, handler := range h.handlers {
-		if !handler.Enabled(ctx, record.Level) {
-			continue
-		}
-		if err := handler.Handle(ctx, record.Clone()); err != nil && first == nil {
-			first = err
-		}
-	}
-	return first
-}
-
-func (h *teeHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	handlers := make([]slog.Handler, 0, len(h.handlers))
-	for _, handler := range h.handlers {
-		handlers = append(handlers, handler.WithAttrs(attrs))
-	}
-	return &teeHandler{handlers: handlers}
-}
-
-func (h *teeHandler) WithGroup(name string) slog.Handler {
-	handlers := make([]slog.Handler, 0, len(h.handlers))
-	for _, handler := range h.handlers {
-		handlers = append(handlers, handler.WithGroup(name))
-	}
-	return &teeHandler{handlers: handlers}
-}
+const maxAsyncLogAttrs = 8
+const maxAsyncLogStringBytes = 4096
+const truncatedLogValue = "[truncated]"
 
 type asyncLogRecord struct {
 	handler slog.Handler
-	record  slog.Record
+	time    time.Time
+	level   slog.Level
+	pc      uintptr
+	message string
+	attrs   [maxAsyncLogAttrs]slog.Attr
+	nattrs  uint8
 }
 
 type asyncLogState struct {
@@ -105,11 +63,28 @@ func (h *asyncLogHandler) Handle(_ context.Context, record slog.Record) error {
 		return nil
 	}
 	if h.state.closed.Load() {
+		TryCount("telemetry.logs.dropped", 1)
 		return nil
 	}
+	event := asyncLogRecord{
+		handler: h.handler,
+		time:    record.Time,
+		level:   record.Level,
+		pc:      record.PC,
+		message: boundedLogString(record.Message),
+	}
+	record.Attrs(func(attr slog.Attr) bool {
+		if int(event.nattrs) >= len(event.attrs) {
+			return false
+		}
+		event.attrs[event.nattrs] = boundedLogAttr(attr)
+		event.nattrs++
+		return true
+	})
 	select {
-	case h.state.queue <- asyncLogRecord{handler: h.handler, record: record.Clone()}:
+	case h.state.queue <- event:
 	default:
+		TryCount("telemetry.logs.dropped", 1)
 	}
 	return nil
 }
@@ -118,8 +93,12 @@ func (h *asyncLogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	if h == nil || h.handler == nil || h.state == nil {
 		return h
 	}
+	bounded := make([]slog.Attr, len(attrs))
+	for i := range attrs {
+		bounded[i] = boundedLogAttr(attrs[i])
+	}
 	return &asyncLogHandler{
-		handler: h.handler.WithAttrs(attrs),
+		handler: h.handler.WithAttrs(bounded),
 		state:   h.state,
 	}
 }
@@ -158,12 +137,12 @@ func (s *asyncLogState) run() {
 	for {
 		select {
 		case event := <-s.queue:
-			handleAsyncLogRecord(event)
+			handleAsyncLogRecordSafely(event)
 		case <-s.stopC:
 			for {
 				select {
 				case event := <-s.queue:
-					handleAsyncLogRecord(event)
+					handleAsyncLogRecordSafely(event)
 				default:
 					return
 				}
@@ -172,9 +151,60 @@ func (s *asyncLogState) run() {
 	}
 }
 
+func handleAsyncLogRecordSafely(event asyncLogRecord) {
+	defer func() {
+		if recover() != nil {
+			TryCount("telemetry.logs.dropped", 1)
+		}
+	}()
+	handleAsyncLogRecord(event)
+}
+
 func handleAsyncLogRecord(event asyncLogRecord) {
 	if event.handler == nil {
 		return
 	}
-	_ = event.handler.Handle(context.Background(), event.record)
+	record := slog.NewRecord(event.time, event.level, event.message, event.pc)
+	if event.nattrs > 0 {
+		record.AddAttrs(event.attrs[:event.nattrs]...)
+	}
+	_ = event.handler.Handle(context.Background(), record)
+}
+
+func asyncLogQueueCapacity(bufferBytes int64) int {
+	if bufferBytes <= 0 {
+		return asyncLogQueueSize
+	}
+	recordSize := int64(unsafe.Sizeof(asyncLogRecord{}))
+	if recordSize <= 0 {
+		return asyncLogQueueSize
+	}
+	capacity := bufferBytes / recordSize
+	if capacity < 1 {
+		return 1
+	}
+	if capacity > int64(^uint(0)>>1) {
+		return int(^uint(0) >> 1)
+	}
+	return int(capacity)
+}
+
+func boundedLogAttr(attr slog.Attr) slog.Attr {
+	attr.Key = boundedLogString(attr.Key)
+	switch attr.Value.Kind() {
+	case slog.KindString:
+		attr.Value = slog.StringValue(boundedLogString(attr.Value.String()))
+	case slog.KindAny:
+		if value, ok := attr.Value.Any().(string); ok {
+			attr.Value = slog.StringValue(boundedLogString(value))
+		}
+	}
+	return attr
+}
+
+func boundedLogString(value string) string {
+	if len(value) <= maxAsyncLogStringBytes {
+		return value
+	}
+	return truncatedLogValue
 }

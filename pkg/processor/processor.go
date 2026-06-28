@@ -13,8 +13,6 @@ import (
 
 	"github.com/firehol/update-ipsets/internal/observability"
 	"github.com/firehol/update-ipsets/pkg/config"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 type stepFunc func(context.Context, []byte, map[string]string) ([]byte, error)
@@ -103,16 +101,16 @@ var registry = map[string]stepFunc{
 
 func Run(ctx context.Context, steps []config.ProcessorStep, input []byte) ([]byte, error) {
 	started := time.Now()
-	ctx, span := observability.Start(ctx, "processor.run", attribute.Int("processor.steps", len(steps)), attribute.Int("processor.input.bytes", len(input)))
+	ctx, span := observability.Start(ctx, "processor.run", observability.Int("processor.steps", len(steps)), observability.Int("processor.input.bytes", len(input)))
 	var opErr error
 	defer func() {
 		status := "ok"
 		if opErr != nil {
 			status = "error"
 		}
-		attrs := []attribute.KeyValue{
-			attribute.String("processor.mode", "memory"),
-			attribute.String("processor.status", status),
+		attrs := []observability.Attr{
+			observability.String("processor.mode", "memory"),
+			observability.String("processor.status", status),
 		}
 		observability.TryCount("processor.runs", 1, attrs...)
 		observability.TryDuration("processor.run", time.Since(started), attrs...)
@@ -141,14 +139,11 @@ func Run(ctx context.Context, steps []config.ProcessorStep, input []byte) ([]byt
 			opErr = fmt.Errorf("unknown processor step %q", name)
 			return nil, opErr
 		}
-		stepStarted := time.Now()
 		next, err := fn(ctx, out, step.Args)
 		if err != nil {
 			opErr = fmt.Errorf("%s: %w", name, err)
-			observability.TryObserve("processor.step", 1, int64(len(out)), time.Since(stepStarted), attribute.String("processor.step", name), attribute.String("processor.status", "error"))
 			return nil, opErr
 		}
-		observability.TryObserve("processor.step", 1, int64(len(out)), time.Since(stepStarted), attribute.String("processor.step", name), attribute.String("processor.status", "ok"))
 		if err := checkContext(ctx); err != nil {
 			opErr = err
 			return nil, err

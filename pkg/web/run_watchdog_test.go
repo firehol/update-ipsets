@@ -12,6 +12,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/firehol/update-ipsets/internal/observability"
 )
 
 func TestWatchdogSelfHealthCadenceAndThreshold(t *testing.T) {
@@ -29,6 +31,29 @@ func TestWatchdogSelfHealthCadenceAndThreshold(t *testing.T) {
 	}
 	if got, want := watchdogSelfHealthThreshold(2*time.Second, 2*time.Second), 4*time.Second; got != want {
 		t.Fatalf("watchdogSelfHealthThreshold(deadline wins) = %s, want %s", got, want)
+	}
+}
+
+func TestDaemonControlPanicReportsFiniteMetricBuckets(t *testing.T) {
+	names := []string{
+		"runtime_stats_sampler",
+		"startup_integrity_recovery",
+		"startup_entity_artifacts",
+		"startup_critical_infrastructure_cleanup",
+		"shutdown_watcher",
+		"systemd_stopping",
+		"systemd_ready",
+		"watchdog",
+		"watchdog_self_health",
+	}
+	for _, name := range names {
+		reportDaemonControlPanic(name, "test panic")
+	}
+	reportDaemonControlPanic("", "test panic")
+
+	names = append(names, "unknown")
+	for _, name := range names {
+		assertMetricCounterBucket(t, "daemon.goroutine.panics", map[string]string{"daemon.goroutine": name})
 	}
 }
 
@@ -142,6 +167,7 @@ func TestRunWatchdogUpdatesHeartbeatOnlyAfterSuccessfulNotify(t *testing.T) {
 	var lastBeat atomic.Int64
 	oldBeat := time.Now().Add(-time.Hour).UnixNano()
 	lastBeat.Store(oldBeat)
+	notifyFailuresBefore := metricCounterValue("systemd.notify.failures", nil)
 	var notifyCalls atomic.Int64
 	systemdWatchdogNotify = func(string) error {
 		notifyCalls.Add(1)
@@ -164,12 +190,35 @@ func TestRunWatchdogUpdatesHeartbeatOnlyAfterSuccessfulNotify(t *testing.T) {
 	if got := lastBeat.Load(); got != oldBeat {
 		t.Fatalf("failed watchdog notify updated heartbeat to %d, want %d", got, oldBeat)
 	}
+	if got := metricCounterValue("systemd.notify.failures", nil); got <= notifyFailuresBefore {
+		t.Fatalf("systemd.notify.failures = %d, want above previous value %d", got, notifyFailuresBefore)
+	}
 
 	systemdWatchdogNotify = func(string) error { return nil }
 	sendRunWatchdogTick(t.Context(), &lastBeat)
 	if got := lastBeat.Load(); got <= oldBeat {
 		t.Fatalf("successful watchdog notify left heartbeat at %d, want newer than %d", got, oldBeat)
 	}
+}
+
+func TestWatchdogSelfHealthReportsStalledHeartbeat(t *testing.T) {
+	before := metricCounterValue("daemon.watchdog.diagnostics", nil)
+	var lastBeat atomic.Int64
+	lastBeat.Store(time.Now().Add(-time.Hour).UnixNano())
+	ctx, cancel := context.WithCancel(t.Context())
+	done := startWatchdogSelfHealth(ctx, 20*time.Millisecond, 10*time.Millisecond, &lastBeat)
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(2 * time.Second):
+			t.Fatal("watchdog self-health observer did not stop after context cancellation")
+		}
+	})
+
+	waitForWebCondition(t, func() bool {
+		return metricCounterValue("daemon.watchdog.diagnostics", nil) > before
+	}, "watchdog self-health diagnostic counter")
 }
 
 func TestWatchdogSelfHealthStopsOnContextCancel(t *testing.T) {
@@ -184,6 +233,61 @@ func TestWatchdogSelfHealthStopsOnContextCancel(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("watchdog self-health observer did not stop after context cancellation")
 	}
+}
+
+func TestAsyncLivenessLoggerCountsFullQueueDrops(t *testing.T) {
+	before := metricCounterValue("telemetry.logs.dropped", nil)
+	blocking := newBlockingLivenessSlogHandler()
+	handler := newAsyncSlogHandler(blocking, 1)
+	logger := slog.New(handler)
+	t.Cleanup(func() {
+		close(blocking.release)
+		handler.Close()
+	})
+
+	logger.Info("first")
+	select {
+	case <-blocking.entered:
+	case <-time.After(time.Second):
+		t.Fatal("liveness logger did not enter blocking handler")
+	}
+	logger.Info("second")
+	logger.Info("third")
+
+	if got := metricCounterValue("telemetry.logs.dropped", nil); got <= before {
+		t.Fatalf("telemetry.logs.dropped = %d, want above previous value %d", got, before)
+	}
+}
+
+type blockingLivenessSlogHandler struct {
+	entered     chan struct{}
+	release     chan struct{}
+	enteredOnce sync.Once
+}
+
+func newBlockingLivenessSlogHandler() *blockingLivenessSlogHandler {
+	return &blockingLivenessSlogHandler{
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+}
+
+func (h *blockingLivenessSlogHandler) Enabled(context.Context, slog.Level) bool {
+	return true
+}
+
+func (h *blockingLivenessSlogHandler) Handle(context.Context, slog.Record) error {
+	h.enteredOnce.Do(func() { close(h.entered) })
+	<-h.release
+	return nil
+}
+
+func (h *blockingLivenessSlogHandler) WithAttrs([]slog.Attr) slog.Handler {
+	return h
+}
+
+func (h *blockingLivenessSlogHandler) WithGroup(string) slog.Handler {
+	return h
 }
 
 func TestWatchdogDiagnosticSanitizesAndCaps(t *testing.T) {
@@ -222,4 +326,32 @@ func TestWatchdogDiagnosticSanitizesAndCaps(t *testing.T) {
 	if got := sanitizedGoroutineSample(1, 256); len(got) > 256 {
 		t.Fatalf("sanitized goroutine sample length = %d, want capped", len(got))
 	}
+}
+
+func assertMetricCounterBucket(t *testing.T, name string, labels map[string]string) {
+	t.Helper()
+	if metricCounterValue(name, labels) != 0 {
+		return
+	}
+	t.Fatalf("metric %q did not expose labels %v", name, labels)
+}
+
+func metricCounterValue(name string, labels map[string]string) int64 {
+	for _, snap := range observability.SnapshotMetrics() {
+		if snap.Name != name || snap.Value == 0 {
+			continue
+		}
+		got := metricLabelMap(snap.Labels)
+		matched := true
+		for key, value := range labels {
+			if got[key] != value {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return snap.Value
+		}
+	}
+	return 0
 }

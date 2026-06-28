@@ -14,8 +14,6 @@ import (
 	"github.com/firehol/update-ipsets/pkg/config"
 	"github.com/firehol/update-ipsets/pkg/output"
 	"github.com/firehol/update-ipsets/pkg/runreason"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 func (e *Engine) RunOnce(ctx context.Context, opts RunOptions) (*Report, error) {
@@ -141,11 +139,11 @@ func (e *Engine) runOnceAdmitted(ctx context.Context, opts RunOptions) (report *
 	runHasStarted := false
 	var runDiagnostics engineRunDiagnostics
 	ctx, span := observability.Start(ctx, "engine.run",
-		attribute.String("run.reason", runReason.String()),
-		attribute.Bool("run.recheck", opts.Recheck),
-		attribute.Bool("run.reprocess", opts.Reprocess),
-		attribute.Bool("run.manual", opts.Manual),
-		attribute.Int("run.selected", len(opts.Selected)),
+		observability.String("run.reason", runReason.String()),
+		observability.Bool("run.recheck", opts.Recheck),
+		observability.Bool("run.reprocess", opts.Reprocess),
+		observability.Bool("run.manual", opts.Manual),
+		observability.Int("run.selected", len(opts.Selected)),
 	)
 	defer func() {
 		observability.End(span, runErr)
@@ -153,9 +151,9 @@ func (e *Engine) runOnceAdmitted(ctx context.Context, opts RunOptions) (report *
 		if runErr != nil {
 			status = "error"
 		}
-		attrs := []attribute.KeyValue{
-			attribute.String("run.reason", runReason.String()),
-			attribute.String("run.status", status),
+		attrs := []observability.Attr{
+			observability.String("run.reason", runReason.String()),
+			observability.String("run.status", status),
 		}
 		observability.TryCount("engine.runs", 1, attrs...)
 		observability.TryDuration("engine.run", time.Since(runStarted), attrs...)

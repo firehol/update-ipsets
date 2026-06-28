@@ -125,8 +125,10 @@ web request and watchdog path must continue or fail the serving probe according
 to HTTP availability, not according to telemetry progress.
 Request-path telemetry MUST use local/project-owned non-blocking recording. It
 MUST NOT wrap web serving with synchronous OpenTelemetry SDK instrumentation.
-When telemetry queues are full, request-path metric samples MUST be dropped
-before delaying a public, admin, `/healthz`, or watchdog request.
+Metric updates are exact local atomic state and MUST NOT be dropped for exporter
+backpressure. Bounded log/trace queues MAY drop records when full, but they MUST
+increment exact local drop counters before delaying a public, admin, `/healthz`,
+or watchdog request.
 Public serving-state refresh is also part of this contract. Request handlers
 MUST read an already-published serving state. Initial serving-state setup MAY use
 a non-blocking engine try-lock; reload listeners SHOULD use the runtime supplied
@@ -143,18 +145,18 @@ serving state before request handlers rely on new artifacts. Public/admin
 handlers MUST NOT call engine public-catalog helpers or cache snapshots from the
 request path to decide these identities.
 If web handlers also update local project telemetry books used by admin
-diagnostics, those updates MUST be best-effort try-lock/drop operations, not
-blocking mutex waits. Background engine/scheduler work may keep exact blocking
-local telemetry where it is outside the web-serving path.
+diagnostics, those updates MUST keep critical sections tiny and MUST NOT wait
+behind broad diagnostic snapshots. Background engine/scheduler work may keep
+exact local telemetry where it is outside the web-serving path.
 Admin status diagnostic snapshots that expose local telemetry books MUST also be
-best-effort. If a current-run, lifetime, or scheduler telemetry book is busy,
-the admin response should omit or degrade that telemetry section instead of
+bounded. If a current-run, lifetime, or scheduler telemetry book is busy, the
+admin response should omit or degrade that diagnostic section instead of
 waiting.
 Request-path logging for public/admin HTTP middleware is also web-serving
 telemetry. Access/error/panic logs emitted by HTTP middleware MUST NOT use an
-OpenTelemetry-backed application logger or any logger that can wait for
-telemetry export. They MUST use a bounded serving-safe local logger or another
-drop-before-delay mechanism.
+export-backed application logger or any logger that can wait for telemetry
+export. They MUST use a bounded serving-safe local logger that records drops
+when its buffer is full.
 
 The systemd watchdog MUST prove web serving, not only process liveness. Once
 listeners are up, watchdog ticks SHOULD perform a bounded local HTTP `/healthz`
@@ -168,7 +170,7 @@ Daemon lifecycle control logs on the web-serving path, including pre-listen
 cleanup, startup integrity recovery, startup entity-artifact checks, ready,
 stopping, watchdog, daemon-control panic recovery, and delayed startup cleanup
 control logs, MUST follow the same serving-safe logging rule. They MUST NOT wait
-for an OpenTelemetry-backed application logger before proving or preserving
+for an export-backed or sink-blocked application logger before proving or preserving
 web-serving liveness.
 
 ## No repeated-view upstream dependency rule
@@ -511,39 +513,30 @@ states, plus the last error and basic accepted/completed/failed counters.
 The standalone `pkg/iprange` library MUST NOT import or assume a telemetry
 framework. It MAY return plain local operation stats for parsing, binary I/O,
 source algebra, and lookups. Engine, CLI, daemon, or admin callers own turning
-those local stats into OpenTelemetry metrics, structured logs, admin status, or
-another operator surface.
+those local stats into local metrics, structured logs, admin status, OTLP
+metric export, or another operator surface.
 
-Request-path telemetry MUST be non-blocking relative to web availability.
-Metric instruments used by frequent HTTP, admin status, watchdog, and liveness
-paths MUST be created during telemetry initialization or otherwise obtained from
-a non-blocking cache before those paths run. A request, `/healthz` response, or
+Request-path telemetry MUST be non-blocking relative to web availability. Local
+metric series used by frequent HTTP, admin status, watchdog, and liveness paths
+MUST be predeclared during telemetry initialization and updated through atomics
+or equivalent lockless per-series state. A request, `/healthz` response, or
 watchdog proof MUST NOT create OpenTelemetry instruments lazily, wait for an
-exporter flush, or hold a telemetry registry lock that can be blocked by export
-or batch processing.
-Request-path OpenTelemetry export, request-path middleware logging, and
-web-serving lifecycle control logging MUST be fed through bounded, drop-on-full
-handoffs or equivalent local-only mechanisms. Losing telemetry samples or
-access/error/lifecycle log entries is acceptable; delaying web serving to
-preserve telemetry or logs is not.
-OpenTelemetry log export MUST follow the same drop-before-delay rule. If the
-application logger tees local logs to an OTel slog handler, the OTel branch MUST
-use a bounded async queue. Exporter backpressure MAY drop OTel log records; it
-MUST NOT delay engine, scheduler, admin, public, health, watchdog, or shutdown
-work.
-Request-path local telemetry updates, including engine/admin operation timing
-books, MUST follow the same rule: try to record and drop if the local telemetry
-book is busy.
+exporter flush, or hold a telemetry lock that can be blocked by export or batch
+processing.
+Request-path middleware logging, web-serving lifecycle control logging, and
+local trace capture MUST be fed through bounded local queues or equivalent
+local-only mechanisms. Losing bounded log/trace records after the configured
+buffer fills is acceptable only when the exact local counters
+`telemetry.logs.dropped` and `telemetry.traces.dropped` are incremented;
+delaying web serving to preserve logs/traces is not acceptable.
 Admin diagnostic status reads of local telemetry books MUST likewise try to
 snapshot and omit busy telemetry sections rather than wait.
-Production OpenTelemetry metric export MUST use project-owned non-blocking
-helpers application-wide. Production `cmd/`, `internal/`, and `pkg/` code
-outside the observability implementation MUST NOT call synchronous metric
-helpers directly. If telemetry export is congested, dropping metric samples is
-preferred to delaying downloader, processor, engine, admin, public, health, or
-watchdog work. Trace span lifecycle may remain on background processing paths,
-but it MUST NOT be added to admin, public, `/healthz`, watchdog, or request
-middleware paths without a new non-blocking design.
+Production metric recording MUST use project-owned observability helpers
+application-wide. Application packages MUST NOT import OpenTelemetry APIs or
+SDKs; OTel is allowed only inside the isolated exporter module. If telemetry
+export is congested, export must fall behind or fail without changing local
+metric truth. Trace span lifecycle is local and bounded; it MUST NOT use OTel
+contexts, OTel spans, or OTel HTTP middleware in application hot paths.
 
 At minimum, telemetry SHOULD cover:
 
@@ -566,35 +559,34 @@ Adding telemetry does not make waste acceptable. Counters exist to prove where
 work is happening, prioritize fixes, and verify that later changes reduce the
 operational profile.
 
-OpenTelemetry metric identity MUST be bounded and operationally meaningful.
-Bounded labels such as feed name, status, HTTP route, component, operation,
-engine phase, and static source/downloader type may be used when they provide
-direct diagnostic value. Ephemeral runtime quantities MUST NOT be metric labels
-or metric resource attributes. This includes process IDs, queue depths, batch
-sizes, selected-feed counts, processor-step counts, input byte counts, fan-in
-counts, and other values that are measurements or runtime state rather than
-stable identity.
+Local metric identity MUST be compile-time finite and operationally meaningful.
+Allowed labels are declared in code as finite value sets. Runtime values that do
+not match a declared value MUST map to a declared bucket such as `other` or be
+rejected with an exact local telemetry fault counter. Ephemeral runtime
+quantities MUST NOT be metric labels or metric resource attributes. This
+includes feed/provider names unless explicitly compiled into the metric schema,
+process IDs, queue depths, batch sizes, selected-feed counts, processor-step
+counts, input byte counts, fan-in counts, and other values that are
+measurements or runtime state rather than stable identity.
 
-Default OpenTelemetry metric instruments MUST be allow-listed. Detailed
-internal operation timings may remain in admin snapshots, traces, or logs, but
-they MUST NOT automatically become Prometheus/OTLP metric families unless an
-area-specific metric model records the operator question, alerting use case,
-allowed labels, and cardinality impact.
+Default metric instruments MUST be allow-listed in the local descriptor table.
+Detailed internal operation timings may remain in admin snapshots, traces, or
+logs, but they MUST NOT automatically become Prometheus/OTLP metric families
+unless an area-specific metric model records the operator question, alerting use
+case, allowed labels, and cardinality impact.
 
-OpenTelemetry metrics MUST use a stable service resource identity by default.
-Automatic host, OS, process resource attributes, and service-version values MAY
-be present on traces and logs, but MUST NOT be attached to metrics unless the
-operator explicitly adds them through standard OpenTelemetry resource
-environment configuration. Host, process CPU, memory, file-descriptor, and I/O
-details remain available through admin status and host/process monitoring
-instead of metric identity labels.
+OTLP metric export MUST use a stable service resource identity by default.
+Automatic host, OS, process resource attributes, and service-version values
+MUST NOT be attached to metrics unless the operator explicitly adds them through
+standard OpenTelemetry resource environment configuration. Host, process CPU,
+memory, file-descriptor, and I/O details remain available through admin status
+and host/process monitoring instead of metric identity labels.
 
 HTTP API metrics MUST follow a low-cardinality RED model. The default
-OpenTelemetry HTTP server metric is `http.server.request.duration`; it is
-emitted by the daemon's non-blocking HTTP wrapper, not by a request-path
-`otelhttp` server wrapper. It MUST keep only `http.route`,
-`http.request.method`, and `http.response.status_code` labels. HTTP routes MUST
-be normalized templates
+HTTP server metric is `http.server.request.duration`; it is emitted by the
+daemon's local HTTP wrapper, not by a request-path `otelhttp` server wrapper.
+It MUST keep only `http.route`, `http.request.method`, and
+`http.response.status_code` labels. HTTP routes MUST be normalized templates
 such as `/api/v1/sets/{name}/search` or
 `/api/v1/admin/feeds/{name}/recheck`, never raw feed names, provider names,
 client IPs, query strings, or arbitrary probe paths. Default OpenTelemetry
@@ -613,38 +605,32 @@ scrape endpoint without admin basic authentication. In split-listener mode,
 this route MUST be served only by the admin listener. In shared-listener mode,
 the shared listener exposes the route, so operators MUST treat listener binding
 and network access control as the protection boundary for this endpoint. The
-Prometheus endpoint MUST use the same OpenTelemetry metric views and stable
-metric resource identity as OTLP metric export. It SHOULD use an application
-registry rather than the process-global Prometheus registry so the scrape
-surface represents update-ipsets telemetry rather than unrelated runtime
-collectors. Because `/metrics` is telemetry on the web-serving surface, scrapes
+Prometheus endpoint MUST render from the same local metric registry used by OTLP
+metric export. It MUST NOT mount a raw OpenTelemetry or Prometheus SDK handler
+directly. Because `/metrics` is telemetry on the web-serving surface, scrapes
 MUST be bounded: a blocked scrape MUST time out, and concurrent scrapes MUST be
-rejected before they can stack up behind telemetry collection. If a timed-out
-scrape exporter keeps running after its request context is canceled, later
-scrapes MUST keep failing fast instead of starting replacement exporter
-goroutines until the existing scrape worker exits.
+rejected before they can stack up behind telemetry collection.
 
-The daemon MUST provide OpenTelemetry-compatible export for traces, metrics, and
-logs. OpenTelemetry export is opt-in and MUST be enabled when either:
+The daemon MAY provide OpenTelemetry-compatible metric export through the
+isolated exporter module. OpenTelemetry export is opt-in and MUST be enabled
+when either:
 
 - `UPDATE_IPSETS_OTEL` is `1`, `true`, or `enabled`
 - an OTLP endpoint environment variable is present, such as
-  `OTEL_EXPORTER_OTLP_ENDPOINT`, `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`,
-  `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`, or `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT`
+  `OTEL_EXPORTER_OTLP_ENDPOINT` or `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT`
 
 `UPDATE_IPSETS_OTEL=0`, `false`, or `disabled` MUST disable export even if
-endpoint variables are present. When enabled, the daemon MUST preserve the
-existing local log output while also sending logs through the OpenTelemetry log
-bridge.
+endpoint variables are present. Local logs and local traces are project-owned
+bounded queues; they are not OpenTelemetry SDK providers in application hot
+paths.
 
 OpenTelemetry export MUST be fail-open during daemon startup. Invalid OTLP
 configuration, unreachable collectors, resource-detector errors, or expired
 telemetry setup budgets MUST disable the affected OTLP export path and log a
 warning, not prevent the daemon from starting or the website from serving. The
 local admin Prometheus `/metrics` surface SHOULD remain available when OTLP
-export degrades. If local metrics setup itself fails, only `/metrics` may be
-disabled; public/admin page serving, `/healthz`, and the watchdog contract MUST
-continue without telemetry export.
+export degrades. Public/admin page serving, `/healthz`, and the watchdog
+contract MUST continue without telemetry export.
 
 The daemon MUST support both OTLP HTTP/protobuf and OTLP/gRPC exporters.
 Protocol selection MUST accept `UPDATE_IPSETS_OTEL_PROTOCOL` first, then
@@ -656,9 +642,9 @@ the Go OpenTelemetry gRPC exporters reject bare `host:port` values.
 When export is enabled, the daemon MUST use the standard OpenTelemetry resource
 environment detector and default OTLP exporter environment configuration. This
 means standard variables such as `OTEL_SERVICE_NAME`,
-`OTEL_RESOURCE_ATTRIBUTES`, OTLP headers, timeout, compression, insecure, and
-TLS/mTLS certificate variables are honored by the OpenTelemetry SDK/exporters
-in addition to the project-specific enablement and signal-control variables.
+`OTEL_RESOURCE_ATTRIBUTES`, OTLP metric headers, timeout, compression, insecure,
+and TLS/mTLS certificate variables are honored by the isolated metric exporter
+in addition to the project-specific enablement variable.
 
 The installed service MUST default to direct local Netdata export:
 
@@ -666,21 +652,34 @@ The installed service MUST default to direct local Netdata export:
 - `UPDATE_IPSETS_OTEL_PROTOCOL=grpc`
 - `OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4317`
 - `OTEL_METRIC_EXPORT_INTERVAL=10000`
-- `OTEL_TRACES_EXPORTER=none`
 
 The metric export interval MUST be configurable through
 `UPDATE_IPSETS_OTEL_METRIC_INTERVAL` or `OTEL_METRIC_EXPORT_INTERVAL`; integer
 values are milliseconds, and duration strings such as `10s` MUST also be
-accepted. Individual OpenTelemetry signals MUST be suppressible with
-`UPDATE_IPSETS_OTEL_TRACES`, `UPDATE_IPSETS_OTEL_METRICS`,
-`UPDATE_IPSETS_OTEL_LOGS`, or the standard `OTEL_<SIGNAL>_EXPORTER=none`
-variables.
+accepted. OTLP metric export MUST be suppressible with
+`UPDATE_IPSETS_OTEL_METRICS=0` or `OTEL_METRICS_EXPORTER=none`.
 
-Primitive operation metrics MUST collapse operation-specific names into a small
-stable surface. When callers export `pkg/iprange` stats to OpenTelemetry, the
-default namespace MUST include only `iprange.operations` and
-`iprange.operation.duration_ms`, with labels limited to `ip.version` and
-`iprange.operation`.
+Local log and trace buffers MUST be configurable through:
+
+- `UPDATE_IPSETS_TELEMETRY_BUFFER_BYTES`: total default budget, default 50 MiB
+- `UPDATE_IPSETS_LOG_BUFFER_BYTES`: optional log-buffer override
+- `UPDATE_IPSETS_TRACE_BUFFER_BYTES`: optional trace-buffer override
+
+If log/trace overrides are unset, the total budget is split evenly between
+local logs and local traces. Buffer values are bytes by default and MAY use
+`KB`/`KiB`, `MB`/`MiB`, or `GB`/`GiB` suffixes. All suffixes are interpreted
+as powers of 1024.
+
+Runtime and process gauges MUST be updated by a local daemon-owned sampler.
+Prometheus scrapes and OTLP export collection MUST read the sampled local gauge
+state and MUST NOT read `/proc`, walk file descriptors, or run runtime
+collection work from scrape/export request paths.
+
+Primitive operation stats from `pkg/iprange` MUST remain plain local counters
+returned to callers. `pkg/iprange` MUST NOT import project telemetry packages
+or OpenTelemetry. Callers MAY expose those stats through admin snapshots or a
+future predeclared metric surface, but no default iprange metric family exists
+until a production caller records it from returned operation stats.
 
 Queue and phase metrics MUST also use stable family names:
 
@@ -691,7 +690,7 @@ Queue and phase metrics MUST also use stable family names:
 - engine runs and phases use `engine.runs`, `engine.run.duration_ms`,
   `engine.running`, `engine.phase.duration_ms`, and `engine.phase.current`
 - engine-lane admission state and compatibility background counters use
-  `background.worker.wait`, `background.workers.limit`, and
+  `background.worker.wait.duration_ms`, `background.workers.limit`, and
   `background.workers.active`
 
 Frequently polled HTTP handlers and background batch processors MUST be treated

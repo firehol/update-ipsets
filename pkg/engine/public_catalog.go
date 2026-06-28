@@ -2,7 +2,6 @@ package engine
 
 import (
 	"sort"
-	"strings"
 	"time"
 
 	"github.com/firehol/update-ipsets/internal/observability"
@@ -10,7 +9,6 @@ import (
 	"github.com/firehol/update-ipsets/pkg/config"
 	"github.com/firehol/update-ipsets/pkg/enrichment"
 	"github.com/firehol/update-ipsets/pkg/feedhealth"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 type PublicFeedSummary struct {
@@ -140,7 +138,7 @@ func (e *Engine) TryPublicServingCatalogSnapshot() (PublicServingCatalogSnapshot
 			}
 		}
 	}
-	observePublicFeedSummaries(out.Feeds, now)
+	observePublicFeedSummaries(out.Feeds)
 	return out, true
 }
 
@@ -189,7 +187,7 @@ func (e *Engine) PublicFeedSummaries() []PublicFeedSummary {
 		out = append(out, buildPublicFeedSummary(entry, src, policy, now, isRedistributableForConfig(cfg, entry.Name)))
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	observePublicFeedSummaries(out, now)
+	observePublicFeedSummaries(out)
 	return out
 }
 
@@ -267,74 +265,20 @@ func buildPublicFeedSummary(entry *cache.Entry, src *config.Source, policy feedh
 	return summary
 }
 
-func observePublicFeedSummaries(summaries []PublicFeedSummary, now time.Time) {
+func observePublicFeedSummaries(summaries []PublicFeedSummary) {
+	var entries int64
+	var uniqueIPs int64
+	var errors int64
 	for i := range summaries {
 		summary := summaries[i]
-		attrs := []attribute.KeyValue{attribute.String("feed.name", summary.Name)}
-		observability.TryGauge("feed.state", feedStateCode(summary), attrs...)
-		observability.TryGauge("feed.health.state", feedHealthCode(summary.Health.Class), attrs...)
-		observability.TryGauge("feed.entries", int64(summary.Entries), attrs...)
-		observability.TryGauge("feed.unique_ips", uint64ToInt64(summary.UniqueIPs), attrs...)
-		observability.TryGauge("feed.errors", int64(summary.DownloadFailures), attrs...)
-		observability.TryGauge("feed.freshness.seconds", feedFreshnessSeconds(summary, now), attrs...)
-		observability.TryGauge("feed.last_success.timestamp", summary.ProcessedDate, attrs...)
+		entries += int64(summary.Entries)
+		uniqueIPs += uint64ToInt64(summary.UniqueIPs)
+		errors += int64(summary.DownloadFailures)
 	}
-}
-
-func feedStateCode(summary PublicFeedSummary) int64 {
-	status := strings.ToLower(strings.TrimSpace(summary.LastStatus))
-	switch {
-	case status == "disabled":
-		return 1
-	case summary.ProcessedDate == 0 && summary.CheckedDate == 0:
-		return 2
-	case status == "running" || status == "downloading" || status == "processing" || status == "materializing":
-		return 3
-	case summary.LastError != "" || summary.Health.Class == feedhealth.ClassUnavailable:
-		return 6
-	case summary.Health.Class == feedhealth.ClassDelayed ||
-		summary.Health.Class == feedhealth.ClassRisky ||
-		summary.Health.Class == feedhealth.ClassUnmaintained ||
-		summary.Health.Class == feedhealth.ClassArchived ||
-		summary.Health.Class == feedhealth.ClassEmpty:
-		return 5
-	case status == "":
-		return 0
-	default:
-		return 4
-	}
-}
-
-func feedHealthCode(class feedhealth.Class) int64 {
-	switch class {
-	case feedhealth.ClassHealthy:
-		return 1
-	case feedhealth.ClassDelayed:
-		return 2
-	case feedhealth.ClassRisky:
-		return 3
-	case feedhealth.ClassUnavailable:
-		return 4
-	case feedhealth.ClassArchived:
-		return 5
-	case feedhealth.ClassEmpty:
-		return 6
-	case feedhealth.ClassUnmaintained:
-		return 7
-	default:
-		return 0
-	}
-}
-
-func feedFreshnessSeconds(summary PublicFeedSummary, now time.Time) int64 {
-	if summary.ProcessedDate <= 0 {
-		return 0
-	}
-	freshness := now.UTC().Unix() - summary.ProcessedDate
-	if freshness < 0 {
-		return 0
-	}
-	return freshness
+	observability.TryGauge("feed.catalog.feeds", int64(len(summaries)))
+	observability.TryGauge("feed.catalog.entries", entries)
+	observability.TryGauge("feed.catalog.unique_ips", uniqueIPs)
+	observability.TryGauge("feed.catalog.errors", errors)
 }
 
 func uint64ToInt64(value uint64) int64 {

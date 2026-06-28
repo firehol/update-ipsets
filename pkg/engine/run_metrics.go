@@ -7,8 +7,6 @@ import (
 
 	"github.com/firehol/update-ipsets/internal/observability"
 	"github.com/firehol/update-ipsets/internal/telemetry"
-
-	"go.opentelemetry.io/otel/attribute"
 )
 
 const maxSlowFeedSnapshots = 12
@@ -197,7 +195,6 @@ func (m *runMetrics) observeFeedOperation(feedName, operation string, dur time.D
 	if m == nil || feedName == "" || operation == "" {
 		return
 	}
-	observability.TryDuration(operation, dur, attribute.String("feed.name", feedName))
 	m.mu.Lock()
 	feed := m.feeds[feedName]
 	if feed == nil {
@@ -588,7 +585,7 @@ func (m *runMetrics) advancePhaseLocked(now time.Time, next RunPhase) (RunPhaseT
 			DurationMS: telemetryDurationMillis(dur),
 		}
 		ok = true
-		observability.TryDuration("engine.phase", dur, attribute.String("engine.phase", string(m.currentPhase)))
+		observability.TryDuration("engine.phase", dur, observability.String("engine.phase", string(m.currentPhase)))
 	}
 	m.currentPhase = next
 	m.phaseStartedAt = now

@@ -177,40 +177,38 @@ systemd sets these automatically when the service uses `Type=notify` and `Watchd
 | `NOTIFY_SOCKET` | systemd | Socket used for readiness and watchdog notifications. |
 | `WATCHDOG_USEC` | systemd | Watchdog interval in microseconds. The daemon sends watchdog heartbeats at half this interval. |
 
-## OpenTelemetry
+## OpenTelemetry metric export
 
-The daemon can export traces, metrics, and logs through OTLP. See the [Monitoring](../monitoring/monitoring-overview.md) section for the full setup guide.
+The daemon owns its local instrumentation. Metrics are exact local atomic state,
+and OpenTelemetry is only an optional OTLP metric exporter. Local logs and local
+traces use bounded in-process queues; they are not exported through the
+OpenTelemetry SDK.
 
-The admin surface also serves `GET /metrics` for Prometheus scraping. The OTLP
-environment variables below control push export; they do not remove the admin
-Prometheus scrape endpoint. The scrape endpoint is bounded and may return
-`503 Service Unavailable` when another scrape is active or collection times out.
-OTLP export is fail-open: invalid OTLP configuration, an unreachable collector,
-or telemetry setup timeout disables the affected export path and logs a warning
+The admin surface also serves `GET /metrics` for Prometheus scraping from the
+same local metric registry. The OTLP variables below control push export; they
+do not remove the admin scrape endpoint. The scrape endpoint is bounded and may
+return `503 Service Unavailable` when another scrape is active or collection
+times out.
+
+OTLP metric export is fail-open: invalid OTLP configuration, an unreachable
+collector, or telemetry setup timeout disables metric export and logs a warning
 instead of preventing public/admin serving.
 
 | Variable | Default | Description |
 |---|---|---|
-| `UPDATE_IPSETS_OTEL` | (empty) | Set to `1`, `true`, or `enabled` to enable export. Set to `0`, `false`, or `disabled` to force-disable even when endpoint variables are present. |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | (none) | OTLP collector endpoint. With the default `http/protobuf` protocol, use an OTLP/HTTP endpoint such as `http://127.0.0.1:4318`. For plaintext gRPC, set `UPDATE_IPSETS_OTEL_PROTOCOL=grpc` and include the scheme, for example `http://127.0.0.1:4317`. |
-| `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` | (none) | Signal-specific OTLP traces endpoint. Setting it also enables export unless `UPDATE_IPSETS_OTEL` disables export. |
+| `UPDATE_IPSETS_OTEL` | (empty) | Set to `1`, `true`, or `enabled` to enable OTLP metric export. Set to `0`, `false`, or `disabled` to force-disable export even when endpoint variables are present. |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | (none) | OTLP collector endpoint for metrics. With the default `http/protobuf` protocol, use an OTLP/HTTP endpoint such as `http://127.0.0.1:4318`. For plaintext gRPC, set `UPDATE_IPSETS_OTEL_PROTOCOL=grpc` and include the scheme, for example `http://127.0.0.1:4317`. |
 | `OTEL_EXPORTER_OTLP_METRICS_ENDPOINT` | (none) | Signal-specific OTLP metrics endpoint. Setting it also enables export unless `UPDATE_IPSETS_OTEL` disables export. |
-| `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT` | (none) | Signal-specific OTLP logs endpoint. Setting it also enables export unless `UPDATE_IPSETS_OTEL` disables export. |
-| `UPDATE_IPSETS_OTEL_PROTOCOL` | `http/protobuf` | Export protocol: `http/protobuf` or `grpc`. Falls back to `OTEL_EXPORTER_OTLP_PROTOCOL` if not set. |
+| `UPDATE_IPSETS_OTEL_PROTOCOL` | `http/protobuf` | Metric export protocol: `http/protobuf` or `grpc`. Falls back to `OTEL_EXPORTER_OTLP_PROTOCOL` if not set. |
 | `OTEL_EXPORTER_OTLP_PROTOCOL` | (none) | Standard OTLP protocol variable. Used when `UPDATE_IPSETS_OTEL_PROTOCOL` is unset. |
-| `OTEL_METRIC_EXPORT_INTERVAL` | (none) | Metric export interval. Accepts integer milliseconds such as `10000` or duration strings such as `10s`. |
+| `OTEL_METRIC_EXPORT_INTERVAL` | `10s` | Metric export interval. Accepts integer milliseconds such as `10000` or duration strings such as `10s`. |
 | `UPDATE_IPSETS_OTEL_METRIC_INTERVAL` | (none) | Same as `OTEL_METRIC_EXPORT_INTERVAL`. Takes priority if both are set. |
-| `UPDATE_IPSETS_OTEL_TRACES` | (unset) | Set to `0`, `false`, `disabled`, `off`, or `none` to suppress trace export. |
 | `UPDATE_IPSETS_OTEL_METRICS` | (unset) | Set to `0`, `false`, `disabled`, `off`, or `none` to suppress OTLP metric export. |
-| `UPDATE_IPSETS_OTEL_LOGS` | (unset) | Set to `0`, `false`, `disabled`, `off`, or `none` to suppress log export. |
-| `OTEL_TRACES_EXPORTER` | (unset) | Set to `none` to disable traces. Standard OpenTelemetry variable. |
-| `OTEL_METRICS_EXPORTER` | (unset) | Set to `none` to disable OTLP metric export. Standard OpenTelemetry variable. |
-| `OTEL_LOGS_EXPORTER` | (unset) | Set to `none` to disable logs. Standard OpenTelemetry variable. |
+| `OTEL_METRICS_EXPORTER` | (unset) | Set to `none` to disable OTLP metric export. |
 
-The daemon also uses the standard OpenTelemetry SDK resource detector and OTLP
-exporters. These variables are read by the OpenTelemetry SDK when export is
-enabled. Signal-specific variants use `TRACES`, `METRICS`, or `LOGS` in place
-of `<SIGNAL>` and take priority for that signal.
+`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT`, `OTEL_EXPORTER_OTLP_LOGS_ENDPOINT`,
+`OTEL_TRACES_EXPORTER`, and `OTEL_LOGS_EXPORTER` do not enable trace or log
+export in this daemon version.
 
 Metric export uses stable default resource identity. Automatic host, OS,
 process resource attributes and the daemon build version are not attached to
@@ -221,15 +219,26 @@ when that trade-off is intentional.
 
 | Variable | Default | Description |
 |---|---|---|
-| `OTEL_SERVICE_NAME` | SDK default | Service name resource attribute. |
+| `OTEL_SERVICE_NAME` | SDK default | Service name resource attribute for metric export. |
 | `OTEL_RESOURCE_ATTRIBUTES` | (none) | Comma-separated resource attributes, such as `deployment.environment=prod`. |
-| `OTEL_EXPORTER_OTLP_HEADERS` / `OTEL_EXPORTER_OTLP_<SIGNAL>_HEADERS` | (none) | Key-value headers or gRPC metadata sent with OTLP exports. |
-| `OTEL_EXPORTER_OTLP_TIMEOUT` / `OTEL_EXPORTER_OTLP_<SIGNAL>_TIMEOUT` | `10000` | Export timeout in milliseconds. |
-| `OTEL_EXPORTER_OTLP_COMPRESSION` / `OTEL_EXPORTER_OTLP_<SIGNAL>_COMPRESSION` | (none) | OTLP payload compression. `gzip` is supported. |
-| `OTEL_EXPORTER_OTLP_INSECURE` / `OTEL_EXPORTER_OTLP_<SIGNAL>_INSECURE` | `false` | Disables transport security for exporter endpoint forms that support it. Prefer explicit `http://` or `https://` endpoints. |
-| `OTEL_EXPORTER_OTLP_CERTIFICATE` / `OTEL_EXPORTER_OTLP_<SIGNAL>_CERTIFICATE` | (none) | Trusted server certificate path for TLS verification. |
-| `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE` / `OTEL_EXPORTER_OTLP_<SIGNAL>_CLIENT_CERTIFICATE` | (none) | Client certificate path for mTLS. |
-| `OTEL_EXPORTER_OTLP_CLIENT_KEY` / `OTEL_EXPORTER_OTLP_<SIGNAL>_CLIENT_KEY` | (none) | Client private key path for mTLS. |
+| `OTEL_EXPORTER_OTLP_HEADERS` / `OTEL_EXPORTER_OTLP_METRICS_HEADERS` | (none) | Key-value headers or gRPC metadata sent with OTLP metric exports. |
+| `OTEL_EXPORTER_OTLP_TIMEOUT` / `OTEL_EXPORTER_OTLP_METRICS_TIMEOUT` | `10000` | Metric export timeout in milliseconds. |
+| `OTEL_EXPORTER_OTLP_COMPRESSION` / `OTEL_EXPORTER_OTLP_METRICS_COMPRESSION` | (none) | OTLP metric payload compression. `gzip` is supported. |
+| `OTEL_EXPORTER_OTLP_INSECURE` / `OTEL_EXPORTER_OTLP_METRICS_INSECURE` | `false` | Disables transport security for exporter endpoint forms that support it. Prefer explicit `http://` or `https://` endpoints. |
+| `OTEL_EXPORTER_OTLP_CERTIFICATE` / `OTEL_EXPORTER_OTLP_METRICS_CERTIFICATE` | (none) | Trusted server certificate path for TLS verification. |
+| `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE` / `OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE` | (none) | Client certificate path for mTLS. |
+| `OTEL_EXPORTER_OTLP_CLIENT_KEY` / `OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY` | (none) | Client private key path for mTLS. |
+
+Local log and trace buffers are bounded. Full buffers never block application
+work; drops are counted in local metrics. Oversized log and trace string
+payloads are replaced with a fixed truncated marker before enqueue so queued
+records do not retain arbitrary caller-owned strings.
+
+| Variable | Default | Description |
+|---|---|---|
+| `UPDATE_IPSETS_TELEMETRY_BUFFER_BYTES` | `52428800` | Total local log/trace buffer budget. Accepts bytes or binary `KB`/`KiB`, `MB`/`MiB`, `GB`/`GiB` suffixes. |
+| `UPDATE_IPSETS_LOG_BUFFER_BYTES` | half of total | Optional local log-buffer override. |
+| `UPDATE_IPSETS_TRACE_BUFFER_BYTES` | half of total | Optional local trace-buffer override. |
 
 The installed systemd unit defaults to local Netdata export:
 
@@ -239,7 +248,6 @@ Environment="UPDATE_IPSETS_OTEL=1"
 Environment="UPDATE_IPSETS_OTEL_PROTOCOL=grpc"
 Environment="OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4317"
 Environment="OTEL_METRIC_EXPORT_INTERVAL=10000"
-Environment="OTEL_TRACES_EXPORTER=none"
 ```
 
 ## Go runtime

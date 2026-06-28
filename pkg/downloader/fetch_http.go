@@ -13,29 +13,27 @@ import (
 	"time"
 
 	"github.com/firehol/update-ipsets/internal/observability"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 func (c *Client) Fetch(ctx context.Context, req Request) (result *Result, err error) {
 	started := time.Now()
 	ctx, span := observability.Start(ctx, "download.fetch",
-		attribute.String("feed.name", req.Name),
-		attribute.String("download.downloader", req.Downloader),
+		observability.String("feed.name", req.Name),
+		observability.String("download.downloader", req.Downloader),
 	)
 	defer func() {
-		attrs := []attribute.KeyValue{attribute.String("download.downloader", req.Downloader)}
 		status := "error"
 		var bytes int64
 		if result != nil {
 			status = string(result.Status)
 			bytes = result.BodySize
 		}
-		attrs = append(attrs, attribute.String("download.status", status))
-		observability.TryCount("download.fetches", 1, attrs...)
-		observability.TryBytes("download.fetch", bytes, attrs...)
-		observability.TryDuration("download.fetch", time.Since(started), attrs...)
+		attr := observability.String("download.status", status)
+		observability.TryCount("download.fetches", 1, attr)
+		observability.TryBytes("download.fetch", bytes, attr)
+		observability.TryDuration("download.fetch", time.Since(started), attr)
 		if err != nil || status == string(StatusFailed) {
-			observability.TryCount("download.errors", 1, attrs...)
+			observability.TryCount("download.errors", 1, attr)
 		}
 		observability.End(span, err)
 	}()

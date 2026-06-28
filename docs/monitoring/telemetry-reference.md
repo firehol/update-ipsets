@@ -1,10 +1,10 @@
 # Telemetry Reference
 
-You will learn the runtime fields and OpenTelemetry metrics that update-ipsets exposes.
+You will learn the runtime fields and local/exported metrics that update-ipsets exposes.
 
 ## Where telemetry appears
 
-The admin status API and OpenTelemetry are related but not identical.
+The admin status API and exported metrics are related but not identical.
 
 | Surface | Location | Meaning |
 |---------|----------|---------|
@@ -14,25 +14,28 @@ The admin status API and OpenTelemetry are related but not identical.
 | Admin engine counters | `engine.lifetime_metrics.counters` | Engine, downloader-status, public HTTP, admin HTTP, and entity counters |
 | Admin queue state | `queues` | Waiting, active, deferred, and recently transitioned work |
 | Admin system state | `system` | Go runtime, process, disk, CPU, I/O, and file-descriptor snapshots |
-| Prometheus scrape | `GET /metrics` on the admin surface | Current OpenTelemetry metrics in Prometheus text format |
-| OpenTelemetry | OTLP metrics, traces, logs | Designed counters, gauges, duration histograms, spans, and logs |
+| Prometheus scrape | `GET /metrics` on the admin surface | Current local metrics in Prometheus text format |
+| OpenTelemetry | OTLP metrics | Designed counters, gauges, and duration aggregates exported from local metrics |
 
-OpenTelemetry counters are cumulative. Duration metrics use the
-`<operation>.duration_ms` histogram naming pattern. Byte counters are exported
-only for operations where byte volume is part of the designed metric surface.
+Counters are cumulative. Duration metrics use the `<operation>.duration_ms`
+naming pattern and export count, sum, and max aggregates. Byte counters are
+exported only for operations where byte volume is part of the designed metric
+surface.
 
-## OpenTelemetry metric labels
+## Metric Labels
 
 Metric labels are reserved for bounded identity that helps operators group
-series. update-ipsets keeps labels such as feed name, status, route, operation
-type, component, and engine phase where they have direct diagnostic value.
+series. update-ipsets keeps only compile-time finite labels such as status,
+route, operation type, component, and engine phase where they have direct
+diagnostic value.
 
 Runtime quantities are values, not labels. Queue depth, batch size,
 selected-feed count, processor-step count, input bytes, fan-in counts, process
-ID, automatic host/OS identity, and service-version churn are not attached to
-OpenTelemetry metrics by default. Queue, host, and process details remain
-available through the admin status API, normal host/process monitoring, traces,
-logs, or explicit operator-provided resource attributes.
+ID, feed/provider identity, automatic host/OS identity, and service-version
+churn are not attached to metrics by default. Queue, host, feed/provider, and
+process details remain available through the admin status API, normal
+host/process monitoring, local logs, local traces, or explicit
+operator-provided resource attributes.
 
 HTTP API metrics use normalized route templates. The default HTTP duration
 metric keeps only `http.route`, `http.request.method`, and
@@ -44,9 +47,9 @@ API-triggered recalculation and dynamic work uses only `api.surface`,
 `api.action`, and `api.result` labels. Target counts are recorded as metric
 values, not labels.
 
-The default OpenTelemetry metric surface is an allow-list. Ad hoc internal
-operation timings remain available in admin snapshots, traces, or logs, but
-they do not become default Prometheus/OTLP metric families.
+The default metric surface is a compile-time allow-list. Ad hoc internal
+operation timings remain available in admin snapshots, local traces, or logs,
+but they do not become default Prometheus/OTLP metric families.
 
 `GET /metrics` is intentionally not protected by admin basic authentication.
 When the daemon uses a separate admin listener, this route is available on that
@@ -57,15 +60,16 @@ the endpoint returns `503 Service Unavailable` instead of blocking web serving.
 If the timed-out scrape worker is still unwinding, later scrapes also fail fast
 instead of starting more scrape workers.
 
-Metric export is best-effort under backpressure. The daemon records production
-metrics through non-blocking local queues; if telemetry export cannot keep up,
-some metric samples may be dropped before ingestion, admin, public serving,
-health, or watchdog work is delayed.
+Metric updates are exact local atomic state. OTLP exporter failure or
+backpressure cannot change local metric values.
 
-OpenTelemetry log export is also best-effort. The local application log still
-uses the configured local handler, while the OTel log branch uses a bounded
-async queue. If that queue is full, OTel log records may be dropped before
-daemon work is delayed.
+Runtime and process gauges are sampled by the daemon's local runtime sampler.
+Prometheus scrapes and OTLP export reads use the sampled local values; they do
+not read `/proc` or runtime counters directly.
+
+Local logs and traces use bounded daemon-owned queues. If a buffer is full, the
+daemon drops records before delaying application work and increments
+`telemetry.logs.dropped` or `telemetry.traces.dropped`.
 
 ## Admin scheduler counters
 
@@ -119,25 +123,25 @@ These fields appear under `system`. They are snapshots, not monotonic counters.
 | `proc_read_syscalls`, `proc_write_syscalls` | Process I/O syscall counters |
 | `open_fds` | Current open file descriptors |
 
-## Default OpenTelemetry Metrics
+## Default Metrics
 
-The default OpenTelemetry surface is deliberately small. It currently contains
-48 designed instrument names before Prometheus expands counters and histograms
-into text-format sample names.
+The default metric surface is deliberately small. It currently contains
+81 designed metric names before Prometheus expands counters and duration
+aggregates into text-format sample names.
 
 Detailed engine, scheduler, metadata, entity, file, and processor timings still
 appear in admin status snapshots where they are useful for local diagnosis.
-They are not default OpenTelemetry metric families.
+They are not default metric families.
 
 ## HTTP and API
 
-Default OpenTelemetry API metrics are intentionally small.
+Default API metrics are intentionally small.
 
 | Metric | Surface | Meaning |
 |--------|---------|---------|
-| `http.server.request.duration` | OpenTelemetry | RED metric for public and admin API requests. Use histogram count/sum/buckets for rate and latency; use `http.response.status_code` for errors. Labels are limited to route, method, and status. |
-| `api.recalculation.requests` | OpenTelemetry | Public or admin API calls that performed dynamic compute or requested recalculation/recovery work. |
-| `api.recalculation.targets` | OpenTelemetry | Number of feeds/artifacts queued by an API-triggered recalculation/recovery action. |
+| `http.server.request.duration` | Metrics | RED metric for public and admin API requests. Use count/sum/max for rate and latency; use `http.response.status_code` for errors. Labels are limited to route, method, and status. |
+| `api.recalculation.requests` | Metrics | Public or admin API calls that performed dynamic compute or requested recalculation/recovery work. |
+| `api.recalculation.targets` | Metrics | Number of feeds/artifacts queued by an API-triggered recalculation/recovery action. |
 
 `api.recalculation.requests` and `api.recalculation.targets` use these bounded
 labels:
@@ -148,53 +152,27 @@ labels:
 | `api.action` | Bounded action such as `compose`, `search`, `feed_search`, `run_due`, `feed_recheck`, `feed_reprocess`, `artifact_recheck`, `integrity_reprocess`, or `entity_rebuild` |
 | `api.result` | Bounded result such as `ok`, `error`, `scheduled`, `conflict`, `rejected`, `in_progress`, or `clean` |
 
-Default OpenTelemetry export drops `http.server.request.body.size`,
+The default metric schema omits `http.server.request.body.size`,
 `http.server.response.body.size`, and ad hoc handler metrics under
 `http.admin_*`, `http.home_*`, `http.compare_set.*`, and
 `http.entity_artifact.*`.
 
 Some detailed HTTP work counters still appear in admin engine snapshots for
-local operator inspection. They are not part of the default OpenTelemetry API
+local operator inspection. They are not part of the default API
 metric surface unless a later area-specific metric design reintroduces them.
 
-## Feed State
+## Feed Catalog
 
 | Metric | Meaning |
 |--------|---------|
-| `feed.state` | Numeric current-state gauge per public feed |
-| `feed.health.state` | Numeric health-class gauge per public feed |
-| `feed.entries` | Current entry count per public feed |
-| `feed.unique_ips` | Current unique-IP count per public feed |
-| `feed.errors` | Current downloader failure count per public feed |
-| `feed.freshness.seconds` | Seconds since the feed was last processed |
-| `feed.last_success.timestamp` | Unix timestamp of the last successful processed output |
+| `feed.catalog.feeds` | Number of public catalog feed summaries |
+| `feed.catalog.entries` | Aggregate public catalog entry count |
+| `feed.catalog.unique_ips` | Aggregate public catalog unique-IP count |
+| `feed.catalog.errors` | Aggregate downloader errors across public catalog rows |
 
-Feed metrics use only the `feed.name` label.
-
-`feed.state` values:
-
-| Value | Meaning |
-|-------|---------|
-| `0` | Unknown or no explicit status |
-| `1` | Disabled |
-| `2` | Pending first observation |
-| `3` | Running |
-| `4` | Completed or otherwise known |
-| `5` | Degraded health |
-| `6` | Error or unavailable |
-
-`feed.health.state` values:
-
-| Value | Meaning |
-|-------|---------|
-| `0` | Unknown |
-| `1` | Healthy |
-| `2` | Delayed |
-| `3` | Risky |
-| `4` | Unavailable |
-| `5` | Archived |
-| `6` | Empty |
-| `7` | Unmaintained |
+Per-feed state, health, timestamps, entries, and error detail remain in the
+admin status API and public catalog artifacts. They are intentionally not metric
+labels.
 
 ## Artifact Cache
 
@@ -207,6 +185,16 @@ Feed metrics use only the `feed.name` label.
 
 Allowed labels are `cache.result` for lookups and `cache.reason` for evictions.
 
+## File Writes
+
+| Metric | Meaning |
+|--------|---------|
+| `file.write_atomic` | Atomic file write operations |
+| `file.write_atomic.bytes` | Bytes written by atomic file writes |
+| `file.write_atomic.duration_ms` | Atomic file write duration aggregate |
+
+Allowed label is `file.sync`.
+
 ## Scheduler
 
 | Metric | Meaning |
@@ -216,30 +204,32 @@ Allowed labels are `cache.result` for lookups and `cache.reason` for evictions.
 | `scheduler.work.completed` | Work completions by queue |
 | `scheduler.queue.depth` | Current queue depth by queue |
 | `scheduler.batch.items` | Current or latest processing batch size |
-| `scheduler.batch.duration_ms` | Processing batch duration histogram |
+| `scheduler.batch.duration_ms` | Processing batch duration aggregate |
+| `scheduler.action.admission_failures` | Failed scheduler action admissions |
+| `scheduler.recovered_panics` | Recovered scheduler panics by component |
 
-Allowed labels are `scheduler.queue` and `scheduler.result`. Queue depth and
-batch size are metric values, not labels.
+Allowed labels are `scheduler.queue`, `scheduler.result`, and
+`scheduler.component`. Queue depth and batch size are metric values, not labels.
 
 ## Downloader
 
 | Metric | Meaning |
 |--------|---------|
-| `download.fetches` | Downloader fetch attempts by downloader and result status |
+| `download.fetches` | Downloader fetch attempts by result status |
 | `download.fetch.bytes` | Response bytes from downloader fetches |
-| `download.fetch.duration_ms` | Downloader fetch duration histogram |
+| `download.fetch.duration_ms` | Downloader fetch duration aggregate |
 | `download.errors` | Downloader fetch failures |
 
-Allowed labels are `download.downloader` and `download.status`.
+Allowed label is `download.status`.
 
 ## Processor
 
 | Metric | Meaning |
 |--------|---------|
 | `processor.runs` | Processor pipeline runs by mode and status |
-| `processor.run.duration_ms` | Processor run duration histogram |
+| `processor.run.duration_ms` | Processor run duration aggregate |
 | `processor.temp.writes` | Temporary processor writes by kind |
-| `processor.temp.write.duration_ms` | Temporary processor write duration histogram |
+| `processor.temp.write.duration_ms` | Temporary processor write duration aggregate |
 
 Allowed labels are `processor.mode`, `processor.status`, and
 `processor.temp.kind`. Per-step processor timings remain admin snapshot or
@@ -252,7 +242,7 @@ trace detail, not default metrics.
 | `engine.runs` | Processing-engine runs by reason and status |
 | `engine.run.duration_ms` | End-to-end processing-engine run duration |
 | `engine.running` | Current engine running state, `1` or `0` |
-| `engine.phase.duration_ms` | Engine phase duration histogram |
+| `engine.phase.duration_ms` | Engine phase duration aggregate |
 | `engine.phase.current` | Current engine phase gauge, `1` for active phase and `0` otherwise |
 
 Allowed labels are `run.reason`, `run.status`, and `engine.phase`.
@@ -266,7 +256,7 @@ Current phases are `preflight`, `sources`, `geoip`, `bogons`,
 | Metric | Meaning |
 |--------|---------|
 | `integrity.checks` | Integrity checks by kind and result |
-| `integrity.check.duration_ms` | Integrity check duration histogram |
+| `integrity.check.duration_ms` | Integrity check duration aggregate |
 | `integrity.findings` | Current finding count by integrity kind |
 | `integrity.recovery.targets` | Recovery targets scheduled by kind and action |
 
@@ -279,8 +269,11 @@ Allowed labels are `integrity.kind`, `integrity.result`, and
 |--------|---------|
 | `background.tasks` | Background task starts/completions/failures by component |
 | `background.worker.wait.duration_ms` | Time spent waiting for a background worker slot |
-| `background.workers.active` | Active background workers by component |
-| `background.workers.limit` | Configured background worker limit by component |
+| `background.worker.long_running` | Long-running background worker diagnostics by component |
+| `background.workers.active` | Active background workers |
+| `background.workers.attach_duplicate` | Duplicate background-lane context attachment attempts |
+| `background.workers.finalization_panic` | Recovered panics while finalizing background-lane work |
+| `background.workers.limit` | Configured background worker limit |
 
 Allowed labels are `background.component` and `background.result`.
 
@@ -289,24 +282,50 @@ Allowed labels are `background.component` and `background.result`.
 | Metric | Meaning |
 |--------|---------|
 | `config.loads` | Configuration load attempts by result |
-| `config.load.duration_ms` | Configuration load duration histogram |
+| `config.load.duration_ms` | Configuration load duration aggregate |
 | `runtime.cache.operations` | Runtime cache load/save operations |
-| `runtime.cache.operation.duration_ms` | Runtime cache operation duration histogram |
+| `runtime.cache.operation.duration_ms` | Runtime cache operation duration aggregate |
+| `runtime.go.goroutines` | Current Go goroutine count |
+| `runtime.go.heap.alloc.bytes` | Bytes allocated and still in use by Go heap objects |
+| `runtime.go.heap.sys.bytes` | Bytes obtained from the OS for the Go heap |
+| `runtime.go.heap.inuse.bytes` | Bytes in Go heap spans currently in use |
+| `runtime.go.heap.released.bytes` | Bytes of idle Go heap released to the OS |
+| `runtime.go.heap.objects` | Live Go heap object count |
+| `runtime.go.stack.inuse.bytes` | Bytes in stack spans currently in use |
+| `runtime.go.sys.bytes` | Total bytes obtained from the OS by the Go runtime |
+| `runtime.go.gc.count` | Completed Go GC cycle count |
+| `runtime.go.gc.pause.total.ms` | Cumulative Go GC pause time in milliseconds |
+| `runtime.go.mem.limit.bytes` | Active Go memory limit, or `-1` when unlimited |
+| `runtime.process.rss.bytes` | Resident process memory from the OS |
+| `runtime.process.vms.bytes` | Virtual process memory from the OS |
+| `runtime.process.data.bytes` | Process data segment memory from the OS |
+| `runtime.process.cpu.user.ms` | Cumulative process user CPU time in milliseconds |
+| `runtime.process.cpu.system.ms` | Cumulative process system CPU time in milliseconds |
+| `runtime.process.cpu.total.ms` | Cumulative total process CPU time in milliseconds |
+| `runtime.process.read.bytes` | Process disk bytes read |
+| `runtime.process.write.bytes` | Process disk bytes written |
+| `runtime.process.cancelled_write.bytes` | Process cancelled write bytes |
+| `runtime.process.read.syscalls` | Process read syscall count |
+| `runtime.process.write.syscalls` | Process write syscall count |
+| `runtime.process.open_fds` | Current open file descriptor count |
 | `daemon.up` | Daemon liveness gauge, `1` while the process is scraping/exporting metrics |
+| `daemon.goroutine.panics` | Recovered daemon-control goroutine panics |
+| `daemon.watchdog.diagnostics` | Watchdog diagnostic events |
+| `engine.lane.diagnostics.panics` | Recovered engine-lane diagnostics panics |
+| `systemd.notify.failures` | systemd notify failures |
+| `telemetry.metrics.unknown` | Attempts to record a metric name outside the compile-time schema |
+| `telemetry.logs.dropped` | Local log records dropped because the bounded buffer was full |
+| `telemetry.traces.dropped` | Local trace records dropped because the bounded buffer was full |
 
-Allowed labels are `config.result`, `cache.operation`, and `cache.result`.
+Allowed labels are `config.result`, `cache.operation`, `cache.result`, and
+`daemon.goroutine`.
 
 ## iprange
 
-These OpenTelemetry metrics track IP set primitive operations.
-
-| Metric | Meaning |
-|--------|---------|
-| `iprange.operations` | IP range primitive operation counts |
-| `iprange.operation.duration_ms` | IP range primitive operation duration histogram |
-
-Allowed labels are `ip.version` and `iprange.operation`. Source type, compare
-mode, count mode, and bytes are not default metric labels.
+`pkg/iprange` returns plain operation counters to callers and does not import
+the application telemetry package. Those operation stats are not exported as
+default metric families until a production caller records them through a
+predeclared metric surface.
 
 ## Computing rates
 
@@ -316,4 +335,4 @@ Most counters are monotonic over the daemon lifetime. To compute rates, sample t
 rate = (counter_t2 - counter_t1) / (t2 - t1)
 ```
 
-Use admin status for spot checks. Use OpenTelemetry for durable dashboards, alerting, and history.
+Use admin status for spot checks. Use OpenTelemetry metric export for durable dashboards, alerting, and history.

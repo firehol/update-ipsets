@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/firehol/update-ipsets/internal/fileutil"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type Status string
@@ -81,7 +80,7 @@ func New(maxConnectTime, maxDownloadTime time.Duration) *Client {
 	return &Client{
 		client: &http.Client{
 			Timeout:   maxDownloadTime,
-			Transport: otelhttp.NewTransport(transport),
+			Transport: transport,
 			// Restrict redirects to HTTP(S) only and limit the chain length.
 			// This prevents SSRF via redirect to file://, gopher://, etc.
 			CheckRedirect: safeRedirectPolicy,
