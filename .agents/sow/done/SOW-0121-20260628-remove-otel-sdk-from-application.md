@@ -363,12 +363,14 @@ Local telemetry schema details now fixed for implementation:
   `internal/observability/metrics_schema.go`. Runtime values that do not match
   a declared dimension value map to the declared `other` bucket.
 - Buffer configuration names:
-  - `UPDATE_IPSETS_TELEMETRY_BUFFER_BYTES`: total local log/trace buffer budget.
+  - `UPDATE_IPSETS_TELEMETRY_BUFFER_BYTES`: total local telemetry buffer budget
+    before per-signal overrides. After SOW-0122, the default budget goes to the
+    local log buffer and local trace capture stays disabled.
     Default: `52428800` bytes (50 MiB).
   - `UPDATE_IPSETS_LOG_BUFFER_BYTES`: optional log-buffer budget override.
   - `UPDATE_IPSETS_TRACE_BUFFER_BYTES`: optional trace-buffer budget override.
-  - If per-signal overrides are unset, the total budget is split evenly between
-    logs and traces.
+    Unset or `0` disables local trace capture; a positive value enables a
+    bounded local trace buffer.
 - Log record schema:
   - fixed record fields: timestamp, level, message, program counter, and a
     bounded inline attribute array
@@ -746,7 +748,7 @@ Reviewer findings:
     a bounded ring but have no production reader yet. This is not a SOW-0121
     blocker because the trace queue is bounded, non-blocking, and counted, but
     it is valid work and is tracked by
-    `.agents/sow/pending/SOW-0122-20260628-local-trace-visibility-policy.md`.
+    `.agents/sow/done/SOW-0122-20260628-local-trace-visibility-policy.md`.
 
 Same-failure scan:
 
@@ -809,7 +811,7 @@ Follow-up mapping:
 
 - Valid follow-up: local trace events currently have no production reader.
   Tracked by
-  `.agents/sow/pending/SOW-0122-20260628-local-trace-visibility-policy.md`.
+  `.agents/sow/done/SOW-0122-20260628-local-trace-visibility-policy.md`.
 - Existing non-SOW blocker: full project-wide `make staticcheck` remains
   blocked by existing `pkg/engine` U1000 findings outside this SOW; scoped
   staticcheck for the changed packages passes.
@@ -828,7 +830,7 @@ will be moved to `.agents/sow/done/` with the implementation commit.
 
 ## Followup
 
-- `.agents/sow/pending/SOW-0122-20260628-local-trace-visibility-policy.md`
+- `.agents/sow/done/SOW-0122-20260628-local-trace-visibility-policy.md`
   tracks the local trace visibility policy follow-up.
 
 ## Regression Log

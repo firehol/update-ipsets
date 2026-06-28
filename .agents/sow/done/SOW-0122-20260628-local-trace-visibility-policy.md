@@ -2,10 +2,10 @@
 
 ## Status
 
-Status: in_progress
+Status: completed
 
-Sub-state: Urgent production fix implemented with focused validation; full
-SOW closure validation and external review are still pending.
+Sub-state: urgent production fix, local closure validation, external review,
+and SOW lifecycle closure completed.
 
 ## Requirements
 
@@ -147,7 +147,7 @@ Artifact impact plan:
 - Specs: update operating-principles and admin-ui/monitoring specs as needed.
 - End-user/operator docs: update monitoring/admin docs as needed.
 - End-user/operator skills: likely unaffected.
-- SOW lifecycle: this is a pending follow-up from SOW-0121.
+- SOW lifecycle: this closes the trace visibility follow-up from SOW-0121.
 
 Open-source reference evidence:
 
@@ -216,6 +216,30 @@ Open decisions:
   work or trace-drop counter increments.
 - Kept explicit positive `UPDATE_IPSETS_TRACE_BUFFER_BYTES` as the opt-in path.
 - Updated operator docs and operating-principles spec for the new default.
+- Local install and smoke checks passed after the urgent fix: installed binary
+  version `45d8eb8`, service active, `/healthz` OK, `/api/v1/status`
+  responded, `/api/v1/admin/integrity` returned clean, and default trace-drop
+  metric churn was not observed.
+
+### 2026-06-29
+
+- Closure validation initially found a missed architecture-posture issue:
+  `internal/observability/observability_test.go` had grown to 829 lines.
+- Split the observability tests into smaller responsibility-focused files
+  instead of relaxing the architecture baseline:
+  - `internal/observability/observability_test.go`
+  - `internal/observability/observability_setup_test.go`
+  - `internal/observability/logs_test.go`
+  - `internal/observability/traces_test.go`
+- External reviewers completed without blocking findings:
+  - `glm`: production-grade; noted only the accepted non-goal that enabled
+    local traces have no production reader.
+  - `minimax`: production-grade; found stale SOW wording, fixed in this
+    closure pass.
+  - `kimi`: production-grade; no blockers.
+  - `mimo`: production-grade; no blockers.
+  - `deepseek`: production-grade; no blockers.
+  - `qwen`: production-grade; no blockers.
 
 ## Validation
 
@@ -225,17 +249,28 @@ Focused validation for urgent production push:
 - Source guard inspected OpenTelemetry imports; direct OTel SDK imports remain
   confined to `internal/observability/otelexporter`, with existing contract
   tests covering that rule.
+- Local install and service smoke passed after commit `45d8eb8`.
+
+Closure validation on 2026-06-29:
+
+- `go test ./internal/observability` passed.
+- `go test ./tools/archposture` passed.
+- `make test` passed after splitting the large observability test file.
+- `make lint` passed.
+- `make race` passed, including `tools/dronebl2ipsets`.
+- External reviewer pass completed with no blocking findings. The only
+  actionable finding was stale SOW wording, fixed before closure.
 
 Pending before final closure:
 
-- `make test`
-- `make lint`
-- `make race`
-- External reviewer pass requested by the parent SOW-0121 goal.
+- None.
 
 ## Outcome
 
-Pending full closure validation and external review.
+Implementation, local install smoke, local closure validation, and external
+review passed. The selected policy is complete: local trace capture is disabled
+by default, can be enabled only with an explicit positive trace-buffer setting,
+and no trace UI/API/export reader was added.
 
 ## Lessons Extracted
 
@@ -245,7 +280,24 @@ Pending full closure validation and external review.
 
 ## Followup
 
-None yet.
+None.
+
+## Artifact Maintenance Gate
+
+- `AGENTS.md`: no update needed; existing SOW and telemetry guardrails already
+  cover this closure.
+- Runtime project skills: no update needed; SOW-0121 already recorded the
+  durable telemetry rules for bounded non-blocking local logs/traces.
+- Specs: operating-principles was updated by the implementation commit to
+  record disabled-by-default local trace capture.
+- End-user/operator docs: monitoring and environment-variable docs were updated
+  by the implementation commit to describe the disabled default and explicit
+  opt-in setting.
+- End-user/operator skills: no update needed; no exported operator skill
+  surface changed.
+- SOW lifecycle: SOW-0122 completed and moved from `.agents/sow/current/` to
+  `.agents/sow/done/`; SOW-0121 follow-up references were updated to the done
+  path.
 
 ## Regression Log
 
