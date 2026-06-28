@@ -145,7 +145,7 @@ func recoverDaemonControlPanic(logger *slog.Logger, name string) {
 		if name == "" {
 			name = "unknown"
 		}
-		observability.Count(context.Background(), "daemon.goroutine.panics", 1, attribute.String("daemon.goroutine", name))
+		observability.TryCount("daemon.goroutine.panics", 1, attribute.String("daemon.goroutine", name))
 		if logger != nil {
 			logger.Error("daemon control goroutine panic recovered",
 				"goroutine", name,

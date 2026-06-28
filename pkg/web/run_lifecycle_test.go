@@ -10,7 +10,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -21,7 +20,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 
@@ -75,6 +73,44 @@ func TestRunServesHTTPS(t *testing.T) {
 	assertHTTPServerClosed(t, client, "https://"+addr+"/healthz")
 }
 
+func TestAnnounceRunReadyDoesNotUseConfiguredLogger(t *testing.T) {
+	blocking := newReleasableBlockingHandler()
+	defer blocking.releaseNow()
+
+	previousReady := systemdReadyNotify
+	t.Cleanup(func() { systemdReadyNotify = previousReady })
+	ready := make(chan string, 1)
+	systemdReadyNotify = func(status string) error {
+		ready <- status
+		return nil
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		announceRunReady([]namedServer{{name: "public", addr: "127.0.0.1:0"}}, Options{
+			Logger: slog.New(blocking),
+		})
+	}()
+
+	select {
+	case <-blocking.entered:
+		t.Fatal("announceRunReady used the configured logger")
+	case status := <-ready:
+		if !strings.Contains(status, "public=127.0.0.1:0") {
+			t.Fatalf("ready status = %q, want public listener", status)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("announceRunReady did not notify readiness")
+	}
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("announceRunReady did not return")
+	}
+}
+
 func TestRunServesSplitAdminOnSeparateListeners(t *testing.T) {
 	t.Setenv("UPDATE_IPSETS_ADMIN_USER", "admin")
 	t.Setenv("UPDATE_IPSETS_ADMIN_PASSWORD", "secret")
@@ -124,9 +160,13 @@ func TestRunServesSplitAdminOnSeparateListeners(t *testing.T) {
 	if err != nil {
 		t.Fatalf("admin /healthz request failed: %v", err)
 	}
+	body, err = io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
-	if resp.StatusCode != http.StatusNotFound {
-		t.Fatalf("admin /healthz status = %d, want 404", resp.StatusCode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK || string(body) != "ok\n" {
+		t.Fatalf("unexpected admin health response: status=%d body=%q", resp.StatusCode, body)
 	}
 
 	req, err := http.NewRequest(http.MethodGet, "http://"+adminAddr+"/admin", nil)
@@ -317,7 +357,7 @@ func TestRunRejectsDisabledAdminWithoutAcknowledgement(t *testing.T) {
 	}
 }
 
-func TestPrepareEngineForRunCleansOnlyOldPublishStages(t *testing.T) {
+func TestPrepareEngineForRunDoesNotCleanPublishStagesBeforeServing(t *testing.T) {
 	root := t.TempDir()
 	cfgPath := filepath.Join(root, "config.yaml")
 	cfg := fmt.Sprintf(`
@@ -373,14 +413,9 @@ sources:
 	if err := prepareEngineForRun(eng, Options{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}); err != nil {
 		t.Fatal(err)
 	}
-	for _, path := range []string{oldWebStage, oldEntityStage} {
-		if _, err := os.Stat(path); !os.IsNotExist(err) {
-			t.Fatalf("expected old stage %q to be removed, stat err = %v", path, err)
-		}
-	}
-	for _, path := range []string{recentWebStage, recentEntityStage} {
+	for _, path := range []string{oldWebStage, recentWebStage, oldEntityStage, recentEntityStage} {
 		if _, err := os.Stat(path); err != nil {
-			t.Fatalf("expected recent stage %q to remain, stat err = %v", path, err)
+			t.Fatalf("prepareEngineForRun removed or blocked on publish-stage cleanup for %q: %v", path, err)
 		}
 	}
 }
@@ -390,9 +425,7 @@ func TestDelayedPublishStageCleanupStopsOnContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	done := startDelayedPublishStageCleanup(ctx, eng, Options{
-		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
-	}, time.Now().UTC())
+	done := startDelayedPublishStageCleanup(ctx, eng, time.Now().UTC())
 
 	select {
 	case <-done:
@@ -401,134 +434,8 @@ func TestDelayedPublishStageCleanupStopsOnContextCancel(t *testing.T) {
 	}
 }
 
-func TestWatchdogSelfHealthCadenceAndThreshold(t *testing.T) {
-	if got, want := watchdogSelfHealthTick(2*time.Second), time.Second; got != want {
-		t.Fatalf("watchdogSelfHealthTick(short) = %s, want %s", got, want)
-	}
-	if got, want := watchdogSelfHealthTick(2*time.Minute), 15*time.Second; got != want {
-		t.Fatalf("watchdogSelfHealthTick(long) = %s, want %s", got, want)
-	}
-	if got, want := watchdogSelfHealthTick(40*time.Second), 10*time.Second; got != want {
-		t.Fatalf("watchdogSelfHealthTick(mid) = %s, want %s", got, want)
-	}
-	if got, want := watchdogSelfHealthThreshold(10*time.Second, 2*time.Second), 15*time.Second; got != want {
-		t.Fatalf("watchdogSelfHealthThreshold(3/2 wins) = %s, want %s", got, want)
-	}
-	if got, want := watchdogSelfHealthThreshold(2*time.Second, 2*time.Second), 4*time.Second; got != want {
-		t.Fatalf("watchdogSelfHealthThreshold(deadline wins) = %s, want %s", got, want)
-	}
-}
-
-func TestRunWatchdogContinuesAfterNotifyError(t *testing.T) {
-	previousNotify := systemdWatchdogNotify
-	t.Cleanup(func() { systemdWatchdogNotify = previousNotify })
-
-	var calls atomic.Int64
-	systemdWatchdogNotify = func(string) error {
-		calls.Add(1)
-		return errors.New("notify failed")
-	}
-	t.Setenv("WATCHDOG_USEC", "20000")
-
-	ctx, cancel := context.WithCancel(t.Context())
-	done := startRunWatchdog(ctx, slog.New(slog.NewTextHandler(io.Discard, nil)))
-	waitForWebCondition(t, func() bool { return calls.Load() >= 2 }, "watchdog retry after notify error")
-
-	cancel()
-	select {
-	case <-done:
-	case <-time.After(2 * time.Second):
-		t.Fatal("watchdog loop did not stop after context cancellation")
-	}
-}
-
-func TestRunWatchdogTicksWhileStartupIntegrityRecoveryBlocked(t *testing.T) {
-	previousNotify := systemdWatchdogNotify
-	t.Cleanup(func() { systemdWatchdogNotify = previousNotify })
-
-	var calls atomic.Int64
-	systemdWatchdogNotify = func(string) error {
-		calls.Add(1)
-		return nil
-	}
-	t.Setenv("WATCHDOG_USEC", "20000")
-
-	startupRecoveryEntered := make(chan struct{})
-	releaseStartupRecovery := make(chan struct{})
-	var enterOnce sync.Once
-	var releaseOnce sync.Once
-	releaseStartup := func() {
-		releaseOnce.Do(func() { close(releaseStartupRecovery) })
-	}
-	restoreHook := setStartupIntegrityRecoveryBeforeCheckHookForTest(func() {
-		enterOnce.Do(func() { close(startupRecoveryEntered) })
-		<-releaseStartupRecovery
-	})
-	t.Cleanup(restoreHook)
-
-	eng := newRunLifecycleBlockedRunEngine(t)
-	addr := freeTCPAddr(t)
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	t.Cleanup(releaseStartup)
-
-	done := make(chan error, 1)
-	go func() {
-		done <- Run(ctx, eng, Options{
-			Listen:    addr,
-			EnableAll: true,
-			Logger:    slog.New(slog.NewTextHandler(io.Discard, nil)),
-		})
-	}()
-
-	select {
-	case <-startupRecoveryEntered:
-	case <-time.After(2 * time.Second):
-		t.Fatal("startup integrity recovery did not start")
-	}
-	waitForWebCondition(t, func() bool { return calls.Load() >= 2 }, "watchdog ticks while startup integrity recovery is blocked")
-
-	releaseStartup()
-	client := &http.Client{Timeout: 2 * time.Second}
-	resp := waitForHTTPGet(t, client, "http://"+addr+"/healthz")
-	_ = resp.Body.Close()
-
-	cancel()
-	select {
-	case err := <-done:
-		if err != nil {
-			t.Fatalf("Run returned error: %v", err)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("timed out waiting for daemon shutdown")
-	}
-}
-
-func TestRunWatchdogUpdatesHeartbeatOnlyAfterSuccessfulNotify(t *testing.T) {
-	previousNotify := systemdWatchdogNotify
-	t.Cleanup(func() { systemdWatchdogNotify = previousNotify })
-
-	var lastBeat atomic.Int64
-	oldBeat := time.Now().Add(-time.Hour).UnixNano()
-	lastBeat.Store(oldBeat)
-	systemdWatchdogNotify = func(string) error {
-		return errors.New("notify failed")
-	}
-	sendRunWatchdogTick(t.Context(), slog.New(slog.NewTextHandler(io.Discard, nil)), &lastBeat)
-	if got := lastBeat.Load(); got != oldBeat {
-		t.Fatalf("failed watchdog notify updated heartbeat to %d, want %d", got, oldBeat)
-	}
-
-	systemdWatchdogNotify = func(string) error { return nil }
-	sendRunWatchdogTick(t.Context(), slog.New(slog.NewTextHandler(io.Discard, nil)), &lastBeat)
-	if got := lastBeat.Load(); got <= oldBeat {
-		t.Fatalf("successful watchdog notify left heartbeat at %d, want newer than %d", got, oldBeat)
-	}
-}
-
 func TestStartupEntityArtifactsPanicDoesNotBlockWait(t *testing.T) {
-	var logs strings.Builder
-	done := startStartupEntityArtifacts(t.Context(), slog.New(slog.NewTextHandler(&logs, nil)), func(context.Context) error {
+	done := startStartupEntityArtifacts(t.Context(), func(context.Context) error {
 		panic("startup artifact panic")
 	})
 
@@ -537,61 +444,48 @@ func TestStartupEntityArtifactsPanicDoesNotBlockWait(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("startup entity artifact goroutine did not close after panic")
 	}
-	if !strings.Contains(logs.String(), "daemon control goroutine panic recovered") {
-		t.Fatalf("panic recovery log missing: %s", logs.String())
-	}
 }
 
-func TestWatchdogSelfHealthStopsOnContextCancel(t *testing.T) {
-	var lastBeat atomic.Int64
-	lastBeat.Store(time.Now().UnixNano())
-	ctx, cancel := context.WithCancel(t.Context())
-	done := startWatchdogSelfHealth(ctx, slog.New(slog.NewTextHandler(io.Discard, nil)), 20*time.Millisecond, 10*time.Millisecond, &lastBeat)
-	cancel()
+func TestStartupEntityArtifactLoggingReturns(t *testing.T) {
+	done := startStartupEntityArtifacts(t.Context(), func(context.Context) error {
+		return nil
+	})
 
 	select {
 	case <-done:
 	case <-time.After(2 * time.Second):
-		t.Fatal("watchdog self-health observer did not stop after context cancellation")
+		t.Fatal("startup entity artifact goroutine did not close after success logging")
 	}
 }
 
-func TestWatchdogDiagnosticSanitizesAndCaps(t *testing.T) {
-	longPath := "/srv/update-ipsets/private/customer-a/raw/feeds/very/long/path/with/many/segments/source.ipset"
-	fixture := strings.Join([]string{
-		"POST /api/v1/admin/reload Authorization: Bearer abc.def.secret",
-		"Cookie: session=secret-cookie",
-		"password=sensitive token=abc api_key=secret-key",
-		`{"token":"json-secret","password":"json-password","request_body":"1.2.3.4\n5.6.7.8"}`,
-		"payload=raw-feed: 192.0.2.1 198.51.100.2/32",
-		longPath,
-	}, "\n")
-	text := SanitizeDiagnosticText(fixture, 512)
-	for _, forbidden := range []string{
-		"sensitive",
-		"abc.def.secret",
-		"secret-cookie",
-		"secret-key",
-		"json-secret",
-		"json-password",
-		"1.2.3.4",
-		"5.6.7.8",
-		"192.0.2.1",
-		"198.51.100.2",
-		longPath,
-	} {
-		if strings.Contains(text, forbidden) {
-			t.Fatalf("diagnostic text leaked %q: %s", forbidden, text)
-		}
+func TestStartupCriticalInfrastructureCleanupNilEngineDoesNotBlockWait(t *testing.T) {
+	done := startStartupCriticalInfrastructureCleanup(t.Context(), nil)
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("startup critical infrastructure cleanup goroutine did not close with nil engine")
 	}
-	if !strings.Contains(text, ".../many/segments/source.ipset") {
-		t.Fatalf("diagnostic text did not retain bounded path suffix: %s", text)
-	}
-	if got := SanitizeDiagnosticText(strings.Repeat("x", 1024), 128); len(got) > 128 {
-		t.Fatalf("SanitizeDiagnosticText length = %d, want capped", len(got))
-	}
-	if got := sanitizedGoroutineSample(1, 256); len(got) > 256 {
-		t.Fatalf("sanitized goroutine sample length = %d, want capped", len(got))
+}
+
+func TestWatchdogProbeFailureLogDoesNotUseConfiguredLogger(t *testing.T) {
+	blocking := newReleasableBlockingHandler()
+	defer blocking.releaseNow()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		sendRunWatchdogTick(t.Context(), nil, func(context.Context) error {
+			return fmt.Errorf("probe failed")
+		})
+	}()
+
+	select {
+	case <-done:
+	case <-blocking.entered:
+		t.Fatal("watchdog probe failure logging used the configured logger")
+	case <-time.After(2 * time.Second):
+		t.Fatal("watchdog probe failure logging did not return")
 	}
 }
 

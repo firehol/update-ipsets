@@ -25,7 +25,7 @@ func TestBuildSnapshotOrdersDueFirst(t *testing.T) {
 	rt := engine.Runtime{BaseDir: t.TempDir(), IgnoreRepeatingDownloadErrors: 10}
 
 	entries := []cache.Entry{
-		{Name: "due", CheckedDate: now.Add(-2 * time.Hour).Unix()},
+		{Name: "due", CheckedDate: now.Add(-2 * time.Hour).Unix(), LastRunReason: runreason.ReasonManualRun},
 		{Name: "later", CheckedDate: now.Unix()},
 	}
 
@@ -35,6 +35,9 @@ func TestBuildSnapshotOrdersDueFirst(t *testing.T) {
 	}
 	if snapshot.Items[0].Name != "due" {
 		t.Fatalf("expected due item first, got %q", snapshot.Items[0].Name)
+	}
+	if snapshot.Items[0].LastRunReason != "manual_run" {
+		t.Fatalf("expected due item run reason, got %q", snapshot.Items[0].LastRunReason)
 	}
 }
 

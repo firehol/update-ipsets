@@ -17,7 +17,7 @@ func (s *surfaceRoutes) registerAdmin(mux *http.ServeMux) {
 	adminFeedsRouter := wrapAdminAuth(s.opts, handleAdminFeedsRouter(s.eng, s.runner, s.opts))
 
 	if s.opts.MetricsHandler != nil {
-		mux.Handle("GET /metrics", s.opts.MetricsHandler)
+		mux.Handle("GET /metrics", servingMetricsHandler(s.opts.MetricsHandler))
 	}
 	mux.HandleFunc("GET /admin", wrapAdminAuth(s.opts, handleAdminPage))
 	mux.HandleFunc("GET /admin/", wrapAdminAuth(s.opts, handleAdminPage))
@@ -198,13 +198,13 @@ func (s *surfaceRoutes) handleRawFeedFile() http.HandlerFunc {
 			return
 		}
 		name := strings.TrimSuffix(strings.TrimSuffix(rel, ".ipset"), ".netset")
-		expected, ok := publicRawFeedRel(s.eng, name)
-		if !ok || expected != rel {
-			http.NotFound(w, r)
-			return
-		}
 		state, stateOK := s.servingStateOrUnavailable(w)
 		if !stateOK {
+			return
+		}
+		expected, ok := state.rawFeedRel(name)
+		if !ok || expected != rel {
+			http.NotFound(w, r)
 			return
 		}
 		if serveRawFeedRel(w, r, rel, state.ipsetsDir, state.baseDir) {
@@ -252,12 +252,12 @@ func (s *surfaceRoutes) serveDirectPublishedArtifact(w http.ResponseWriter, r *h
 		http.NotFound(w, r)
 		return
 	}
-	if feedName, ok := feedScopedPublicArtifactName(s.eng, rel); ok && !s.eng.IsPublicFeedName(feedName) {
-		http.NotFound(w, r)
-		return
-	}
 	state, stateOK := s.servingStateOrUnavailable(w)
 	if !stateOK {
+		return
+	}
+	if feedName, ok := feedScopedPublicArtifactName(state, rel); ok && !state.isPublicFeedName(feedName) {
+		http.NotFound(w, r)
 		return
 	}
 	if _, ok := safePath(state.outputDir, rel); !ok {
@@ -281,13 +281,13 @@ func hasHiddenPathSegment(rel string) bool {
 
 func (s *surfaceRoutes) serveDirectRawFeed(w http.ResponseWriter, r *http.Request, rel string) {
 	name := strings.TrimSuffix(strings.TrimSuffix(rel, ".ipset"), ".netset")
-	expected, ok := publicRawFeedRel(s.eng, name)
-	if !ok || expected != rel {
-		http.NotFound(w, r)
-		return
-	}
 	state, stateOK := s.servingStateOrUnavailable(w)
 	if !stateOK {
+		return
+	}
+	expected, ok := state.rawFeedRel(name)
+	if !ok || expected != rel {
+		http.NotFound(w, r)
 		return
 	}
 	if serveRawFeedRel(w, r, rel, state.ipsetsDir, state.baseDir) {

@@ -38,6 +38,26 @@ func (e *Engine) operationSnapshot() operationSnapshot {
 	}
 }
 
+func (e *Engine) tryOperationSnapshot() (operationSnapshot, bool) {
+	if e == nil {
+		return operationSnapshot{}, true
+	}
+	if !e.mu.TryRLock() {
+		return operationSnapshot{}, false
+	}
+	defer e.mu.RUnlock()
+	return operationSnapshot{
+		cfg:                e.cfg,
+		runtime:            e.runtime,
+		downloads:          e.downloads,
+		geoProviders:       e.geoProviders,
+		ledgerCache:        e.ledgerCache,
+		retentionMaxWindow: cloneRetentionWindowMap(e.retentionMaxWindow),
+		asnLookupCache:     e.asnLookupCache,
+		feedHealthPolicy:   feedhealth.PolicyFromConfig(e.cfg),
+	}, true
+}
+
 func (e *Engine) configRuntimePolicySnapshot() (*config.Config, Runtime, feedhealth.Policy) {
 	if e == nil {
 		return nil, Runtime{}, feedhealth.Policy{}
@@ -49,6 +69,17 @@ func (e *Engine) configRuntimePolicySnapshot() (*config.Config, Runtime, feedhea
 
 func (e *Engine) ConfigRuntimePolicySnapshot() (*config.Config, Runtime, feedhealth.Policy) {
 	return e.configRuntimePolicySnapshot()
+}
+
+func (e *Engine) TryConfigRuntimePolicySnapshot() (*config.Config, Runtime, feedhealth.Policy, bool) {
+	if e == nil {
+		return nil, Runtime{}, feedhealth.Policy{}, true
+	}
+	if !e.mu.TryRLock() {
+		return nil, Runtime{}, feedhealth.Policy{}, false
+	}
+	defer e.mu.RUnlock()
+	return e.cfg, e.runtime, feedhealth.PolicyFromConfig(e.cfg), true
 }
 
 func cloneRetentionWindowMap(in map[string]time.Duration) map[string]time.Duration {

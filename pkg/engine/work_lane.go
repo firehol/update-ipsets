@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -341,34 +340,6 @@ func (l *WorkLane) Snapshot() LaneSnapshot {
 	return l.snapshotAt(time.Now().UTC())
 }
 
-func (l *WorkLane) snapshotAt(now time.Time) LaneSnapshot {
-	if l == nil {
-		return LaneSnapshot{}
-	}
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	active := make([]LaneWorkSnapshot, 0, len(l.active))
-	for _, item := range l.active {
-		active = append(active, item.snapshot(now))
-	}
-	slices.SortFunc(active, func(a, b LaneWorkSnapshot) int {
-		return a.QueuedAt.Compare(b.QueuedAt)
-	})
-	waiting := make([]LaneWorkSnapshot, 0, len(l.queue))
-	for _, item := range l.queue {
-		if item.state == LaneWorkQueued {
-			waiting = append(waiting, item.snapshot(now))
-		}
-	}
-	return LaneSnapshot{
-		Limit:        l.limit,
-		ActiveCount:  len(active),
-		WaitingCount: len(waiting),
-		Active:       active,
-		Waiting:      waiting,
-	}
-}
-
 func (l *WorkLane) Shutdown(grace time.Duration) {
 	if l == nil {
 		return
@@ -426,7 +397,7 @@ func (l *WorkLane) AttachContext(ctx context.Context, grace time.Duration) {
 	if l.attachStarted {
 		l.attachDuplicateCount++
 		l.mu.Unlock()
-		observability.Count(observability.BackgroundContext(), "background.workers.attach_duplicate", 1)
+		observability.TryCount("background.workers.attach_duplicate", 1)
 		return
 	}
 	l.attachStarted = true
@@ -575,14 +546,10 @@ func (l *WorkLane) workerGaugeMetricLocked(ctx context.Context) laneWorkerMetric
 
 func observeLaneWorkerMetrics(metrics []laneWorkerMetric) {
 	for _, metric := range metrics {
-		ctx := metric.ctx
-		if ctx == nil {
-			ctx = context.Background()
-		}
-		observability.Gauge(ctx, "background.workers.limit", int64(metric.limit))
-		observability.Gauge(ctx, "background.workers.active", int64(metric.active))
+		observability.TryGauge("background.workers.limit", int64(metric.limit))
+		observability.TryGauge("background.workers.active", int64(metric.active))
 		if metric.observeWait && metric.wait > 0 {
-			observability.Duration(ctx, "background.worker.wait", metric.wait, laneWorkMetricAttrs(metric.work)...)
+			observability.TryDuration("background.worker.wait", metric.wait, laneWorkMetricAttrs(metric.work)...)
 		}
 	}
 }
@@ -688,7 +655,7 @@ func (l *WorkLane) recoverFinishPanic(item *laneItem, recovered any) (err error)
 	}()
 
 	cancel()
-	observability.Count(ctx, "background.workers.finalization_panic", 1)
+	observability.TryCount("background.workers.finalization_panic", 1)
 	l.notifyStarts(notifications)
 	l.startAsync(starts)
 	observeLaneWorkerMetrics(metrics)

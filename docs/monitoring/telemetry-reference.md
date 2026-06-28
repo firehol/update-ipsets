@@ -51,7 +51,21 @@ they do not become default Prometheus/OTLP metric families.
 `GET /metrics` is intentionally not protected by admin basic authentication.
 When the daemon uses a separate admin listener, this route is available on that
 admin listener and not on the public listener. When the daemon uses one shared
-listener, `/metrics` is exposed on that listener.
+listener, `/metrics` is exposed on that listener. Scrapes are bounded; if a
+scrape is already active or telemetry collection cannot finish quickly enough,
+the endpoint returns `503 Service Unavailable` instead of blocking web serving.
+If the timed-out scrape worker is still unwinding, later scrapes also fail fast
+instead of starting more scrape workers.
+
+Metric export is best-effort under backpressure. The daemon records production
+metrics through non-blocking local queues; if telemetry export cannot keep up,
+some metric samples may be dropped before ingestion, admin, public serving,
+health, or watchdog work is delayed.
+
+OpenTelemetry log export is also best-effort. The local application log still
+uses the configured local handler, while the OTel log branch uses a bounded
+async queue. If that queue is full, OTel log records may be dropped before
+daemon work is delayed.
 
 ## Admin scheduler counters
 

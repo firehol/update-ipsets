@@ -45,6 +45,8 @@ const (
 	otlpProtocolGRPC otlpProtocol = "grpc"
 )
 
+const otlpStartupTimeout = 2 * time.Second
+
 var ephemeralMetricAttributeKeys = []attribute.Key{
 	attribute.Key("engine.batch.size"),
 	attribute.Key("file.bytes"),
@@ -150,11 +152,31 @@ var (
 	meter  = otel.Meter(scopeName)
 	tracer = otel.Tracer(scopeName)
 
-	instrumentsMu sync.Mutex
+	instrumentsMu sync.RWMutex
 	counters      = map[string]metric.Int64Counter{}
 	histograms    = map[string]metric.Float64Histogram{}
 	gauges        = map[string]metric.Int64Gauge{}
 )
+
+var designedGaugeMetricNames = map[string]struct{}{
+	"background.workers.active":   {},
+	"background.workers.limit":    {},
+	"daemon.up":                   {},
+	"engine.phase.current":        {},
+	"engine.running":              {},
+	"feed.entries":                {},
+	"feed.errors":                 {},
+	"feed.freshness.seconds":      {},
+	"feed.health.state":           {},
+	"feed.last_success.timestamp": {},
+	"feed.state":                  {},
+	"feed.unique_ips":             {},
+	"integrity.findings":          {},
+	"scheduler.batch.items":       {},
+	"scheduler.queue.depth":       {},
+	"web.artifact.cache.bytes":    {},
+	"web.artifact.cache.entries":  {},
+}
 
 type Setup struct {
 	Enabled           bool
@@ -164,6 +186,12 @@ type Setup struct {
 }
 
 func Init(ctx context.Context, serviceName, version string, baseLogger *slog.Logger) (*Setup, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	setupCtx, cancel := boundedSetupContext(ctx, otlpStartupTimeout)
+	defer cancel()
+
 	if serviceName == "" {
 		serviceName = "update-ipsets"
 	}
@@ -175,10 +203,12 @@ func Init(ctx context.Context, serviceName, version string, baseLogger *slog.Log
 	}
 
 	otlpEnabled := enabledFromEnv()
+	otlpActive := false
 
-	metricRes, err := newResource(ctx, serviceName, version, false, false)
+	metricRes, err := newResource(setupCtx, serviceName, version, false, false)
 	if err != nil {
-		return nil, err
+		baseLogger.Warn("opentelemetry resource setup failed; using local metrics resource", "error", err)
+		metricRes = fallbackResource(serviceName, version, false)
 	}
 
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
@@ -189,84 +219,114 @@ func Init(ctx context.Context, serviceName, version string, baseLogger *slog.Log
 	var shutdowns []func(context.Context) error
 	var richRes *resource.Resource
 	if otlpEnabled && (signalEnabled("traces", true) || signalEnabled("logs", true)) {
-		richRes, err = newResource(ctx, serviceName, version, true, true)
+		richRes, err = newResource(setupCtx, serviceName, version, true, true)
 		if err != nil {
-			return nil, err
+			baseLogger.Warn("opentelemetry rich resource setup failed; using fallback resource", "error", err)
+			richRes = fallbackResource(serviceName, version, true)
 		}
 	}
 
 	prometheusReader, prometheusHandler, err := newPrometheusMetrics()
 	if err != nil {
-		return nil, errors.Join(err, shutdownAll(ctx, shutdowns))
+		baseLogger.Warn("prometheus metrics setup failed; /metrics disabled", "error", err)
 	}
 	metricProviderOpts := []sdkmetric.Option{
 		sdkmetric.WithResource(metricRes),
-		sdkmetric.WithReader(prometheusReader),
 		sdkmetric.WithView(metricCardinalityView()),
+	}
+	if prometheusReader != nil {
+		metricProviderOpts = append(metricProviderOpts, sdkmetric.WithReader(prometheusReader))
 	}
 
 	var protocol otlpProtocol
 	if otlpEnabled {
 		protocol, err = protocolFromEnv()
 		if err != nil {
-			return nil, errors.Join(err, shutdownAll(ctx, shutdowns))
+			baseLogger.Warn("opentelemetry protocol setup failed; OTLP export disabled", "error", err)
+			otlpEnabled = false
 		}
+	}
+	if otlpEnabled {
+		if err := setupCtx.Err(); err != nil {
+			baseLogger.Warn("opentelemetry startup budget expired; OTLP export disabled", "error", err)
+			otlpEnabled = false
+		}
+	}
 
+	if otlpEnabled {
 		if signalEnabled("traces", true) {
-			traceExporter, err := newTraceExporter(ctx, protocol)
-			if err != nil {
-				return nil, errors.Join(err, shutdownAll(ctx, shutdowns))
+			if err := setupCtx.Err(); err != nil {
+				baseLogger.Warn("opentelemetry trace export disabled", "error", err)
+			} else {
+				traceExporter, err := newTraceExporter(setupCtx, protocol)
+				if err != nil {
+					baseLogger.Warn("opentelemetry trace export disabled", "error", err)
+				} else {
+					tracerProvider := sdktrace.NewTracerProvider(
+						sdktrace.WithResource(richRes),
+						sdktrace.WithBatcher(traceExporter),
+					)
+					otel.SetTracerProvider(tracerProvider)
+					tracer = otel.Tracer(scopeName)
+					shutdowns = append(shutdowns, tracerProvider.Shutdown)
+					otlpActive = true
+				}
 			}
-			tracerProvider := sdktrace.NewTracerProvider(
-				sdktrace.WithResource(richRes),
-				sdktrace.WithBatcher(traceExporter),
-			)
-			otel.SetTracerProvider(tracerProvider)
-			tracer = otel.Tracer(scopeName)
-			shutdowns = append(shutdowns, tracerProvider.Shutdown)
 		}
 
 		if signalEnabled("metrics", true) {
-			metricReaderOpts, err := metricReaderOptionsFromEnv()
-			if err != nil {
-				return nil, errors.Join(err, shutdownAll(ctx, shutdowns))
+			if err := setupCtx.Err(); err != nil {
+				baseLogger.Warn("opentelemetry metric export disabled", "error", err)
+			} else {
+				metricReaderOpts, err := metricReaderOptionsFromEnv()
+				if err != nil {
+					baseLogger.Warn("opentelemetry metric export disabled", "error", err)
+				} else {
+					metricExporter, err := newMetricExporter(setupCtx, protocol)
+					if err != nil {
+						baseLogger.Warn("opentelemetry metric export disabled", "error", err)
+					} else {
+						metricProviderOpts = append(metricProviderOpts, sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter, metricReaderOpts...)))
+						otlpActive = true
+					}
+				}
 			}
-			metricExporter, err := newMetricExporter(ctx, protocol)
-			if err != nil {
-				return nil, errors.Join(err, shutdownAll(ctx, shutdowns))
-			}
-			metricProviderOpts = append(metricProviderOpts, sdkmetric.WithReader(sdkmetric.NewPeriodicReader(metricExporter, metricReaderOpts...)))
 		}
 	}
 	meterProvider := sdkmetric.NewMeterProvider(metricProviderOpts...)
 	otel.SetMeterProvider(meterProvider)
 	instrumentsMu.Lock()
 	meter = otel.Meter(scopeName)
-	counters = map[string]metric.Int64Counter{}
-	histograms = map[string]metric.Float64Histogram{}
-	gauges = map[string]metric.Int64Gauge{}
+	counters, histograms, gauges = precreateMetricInstruments(meter)
 	instrumentsMu.Unlock()
 	shutdowns = append(shutdowns, meterProvider.Shutdown)
-	Gauge(ctx, "daemon.up", 1)
+	TryGauge("daemon.up", 1)
 
 	logger := baseLogger
 	if otlpEnabled && signalEnabled("logs", true) {
-		logExporter, err := newLogExporter(ctx, protocol)
-		if err != nil {
-			return nil, errors.Join(err, shutdownAll(ctx, shutdowns))
+		if err := setupCtx.Err(); err != nil {
+			baseLogger.Warn("opentelemetry log export disabled", "error", err)
+		} else {
+			logExporter, err := newLogExporter(setupCtx, protocol)
+			if err != nil {
+				baseLogger.Warn("opentelemetry log export disabled", "error", err)
+			} else {
+				loggerProvider := sdklog.NewLoggerProvider(
+					sdklog.WithResource(richRes),
+					sdklog.WithProcessor(sdklog.NewBatchProcessor(logExporter)),
+				)
+				logglobal.SetLoggerProvider(loggerProvider)
+				otelHandler := newAsyncLogHandler(otelslog.NewHandler(scopeName, otelslog.WithLoggerProvider(loggerProvider)), asyncLogQueueSize)
+				logger = slog.New(newTeeHandler(baseLogger.Handler(), otelHandler))
+				shutdowns = append(shutdowns, loggerProvider.Shutdown)
+				shutdowns = append(shutdowns, otelHandler.Shutdown)
+				otlpActive = true
+			}
 		}
-		loggerProvider := sdklog.NewLoggerProvider(
-			sdklog.WithResource(richRes),
-			sdklog.WithProcessor(sdklog.NewBatchProcessor(logExporter)),
-		)
-		logglobal.SetLoggerProvider(loggerProvider)
-		otelHandler := otelslog.NewHandler(scopeName, otelslog.WithLoggerProvider(loggerProvider))
-		logger = slog.New(newTeeHandler(baseLogger.Handler(), otelHandler))
-		shutdowns = append(shutdowns, loggerProvider.Shutdown)
 	}
 
 	return &Setup{
-		Enabled:           otlpEnabled,
+		Enabled:           otlpActive,
 		Logger:            logger,
 		PrometheusHandler: prometheusHandler,
 		shutdown: func(ctx context.Context) error {
@@ -296,6 +356,30 @@ func newResource(ctx context.Context, serviceName, version string, includeProces
 	}
 	options = append(options, resource.WithAttributes(attrs...))
 	return resource.New(ctx, options...)
+}
+
+func fallbackResource(serviceName, version string, includeVersion bool) *resource.Resource {
+	attrs := []attribute.KeyValue{
+		semconv.ServiceName(serviceName),
+		semconv.ServiceNamespace("firehol"),
+	}
+	if includeVersion {
+		attrs = append(attrs, semconv.ServiceVersion(version))
+	}
+	return resource.NewSchemaless(attrs...)
+}
+
+func boundedSetupContext(ctx context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if timeout <= 0 {
+		return ctx, func() {}
+	}
+	if _, ok := ctx.Deadline(); ok {
+		return ctx, func() {}
+	}
+	return context.WithTimeout(ctx, timeout)
 }
 
 func metricCardinalityView() sdkmetric.View {
@@ -643,53 +727,68 @@ func boundedMetricLabel(value string, allowed map[string]struct{}) string {
 	return "other"
 }
 
+func precreateMetricInstruments(m metric.Meter) (map[string]metric.Int64Counter, map[string]metric.Float64Histogram, map[string]metric.Int64Gauge) {
+	nextCounters := make(map[string]metric.Int64Counter, len(designedMetricNames))
+	nextHistograms := make(map[string]metric.Float64Histogram, len(designedMetricNames))
+	nextGauges := make(map[string]metric.Int64Gauge, len(designedGaugeMetricNames))
+	for name := range designedMetricNames {
+		switch {
+		case designedGaugeMetricInstrument(name):
+			created, err := m.Int64Gauge(name)
+			if err == nil {
+				nextGauges[name] = created
+			}
+		case name == "http.server.request.duration":
+			created, err := m.Float64Histogram(name, metric.WithUnit("s"))
+			if err == nil {
+				nextHistograms[name] = created
+			}
+		case strings.HasSuffix(name, ".duration_ms"):
+			created, err := m.Float64Histogram(name, metric.WithUnit("ms"))
+			if err == nil {
+				nextHistograms[name] = created
+			}
+		default:
+			created, err := m.Int64Counter(name)
+			if err == nil {
+				nextCounters[name] = created
+			}
+		}
+	}
+	return nextCounters, nextHistograms, nextGauges
+}
+
+func designedGaugeMetricInstrument(name string) bool {
+	_, ok := designedGaugeMetricNames[name]
+	return ok
+}
+
 func counter(name string) (metric.Int64Counter, bool) {
 	if !designedMetricInstrument(name) {
 		return nil, false
 	}
-	instrumentsMu.Lock()
-	defer instrumentsMu.Unlock()
-	if existing, ok := counters[name]; ok {
-		return existing, true
-	}
-	created, err := meter.Int64Counter(name)
-	if err != nil {
-		return nil, false
-	}
-	counters[name] = created
-	return created, true
+	instrumentsMu.RLock()
+	existing, ok := counters[name]
+	instrumentsMu.RUnlock()
+	return existing, ok
 }
 
 func histogram(name string) (metric.Float64Histogram, bool) {
 	if !designedMetricInstrument(name) {
 		return nil, false
 	}
-	instrumentsMu.Lock()
-	defer instrumentsMu.Unlock()
-	if existing, ok := histograms[name]; ok {
-		return existing, true
-	}
-	created, err := meter.Float64Histogram(name, metric.WithUnit("ms"))
-	if err != nil {
-		return nil, false
-	}
-	histograms[name] = created
-	return created, true
+	instrumentsMu.RLock()
+	existing, ok := histograms[name]
+	instrumentsMu.RUnlock()
+	return existing, ok
 }
 
 func gauge(name string) (metric.Int64Gauge, bool) {
 	if !designedMetricInstrument(name) {
 		return nil, false
 	}
-	instrumentsMu.Lock()
-	defer instrumentsMu.Unlock()
-	if existing, ok := gauges[name]; ok {
-		return existing, true
-	}
-	created, err := meter.Int64Gauge(name)
-	if err != nil {
-		return nil, false
-	}
-	gauges[name] = created
-	return created, true
+	instrumentsMu.RLock()
+	existing, ok := gauges[name]
+	instrumentsMu.RUnlock()
+	return existing, ok
 }

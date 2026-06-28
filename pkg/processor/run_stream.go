@@ -35,8 +35,8 @@ func RunStream(ctx context.Context, steps []config.ProcessorStep, srcPath, tmpDi
 			attribute.String("processor.mode", "stream"),
 			attribute.String("processor.status", status),
 		}
-		observability.Count(ctx, "processor.runs", 1, attrs...)
-		observability.Duration(ctx, "processor.run", time.Since(started), attrs...)
+		observability.TryCount("processor.runs", 1, attrs...)
+		observability.TryDuration("processor.run", time.Since(started), attrs...)
 		observability.End(span, opErr)
 	}()
 	if err := checkContext(ctx); err != nil {
@@ -168,7 +168,7 @@ func classifyPipeline(steps []config.ProcessorStep) []pipelineSegment {
 func runStreamableSegment(ctx context.Context, steps []config.ProcessorStep, srcPath, tmpDir string) (string, error) {
 	started := time.Now()
 	defer func() {
-		observability.Observe(ctx, "processor.stream.segment", 1, 0, time.Since(started), attribute.String("processor.segment", "streamable"))
+		observability.TryObserve("processor.stream.segment", 1, 0, time.Since(started), attribute.String("processor.segment", "streamable"))
 	}()
 	if err := checkContext(ctx); err != nil {
 		return "", err
@@ -204,10 +204,10 @@ func runStreamableSegment(ctx context.Context, steps []config.ProcessorStep, src
 		stepStarted := time.Now()
 		next, err := fn(reader, step.Args)
 		if err != nil {
-			observability.Observe(ctx, "processor.stream.step", 1, 0, time.Since(stepStarted), attribute.String("processor.step", name), attribute.String("processor.status", "error"))
+			observability.TryObserve("processor.stream.step", 1, 0, time.Since(stepStarted), attribute.String("processor.step", name), attribute.String("processor.status", "error"))
 			return "", fmt.Errorf("%s: %w", name, err)
 		}
-		observability.Observe(ctx, "processor.stream.step", 1, 0, time.Since(stepStarted), attribute.String("processor.step", name), attribute.String("processor.status", "ok"))
+		observability.TryObserve("processor.stream.step", 1, 0, time.Since(stepStarted), attribute.String("processor.step", name), attribute.String("processor.status", "ok"))
 		if c, ok := next.(io.Closer); ok && next != reader {
 			closers = append(closers, c)
 		}
@@ -222,7 +222,7 @@ func runStreamableSegment(ctx context.Context, steps []config.ProcessorStep, src
 func runBytesSegment(ctx context.Context, steps []config.ProcessorStep, srcPath, tmpDir string) (string, error) {
 	started := time.Now()
 	defer func() {
-		observability.Observe(ctx, "processor.stream.segment", 1, 0, time.Since(started), attribute.String("processor.segment", "bytes"))
+		observability.TryObserve("processor.stream.segment", 1, 0, time.Since(started), attribute.String("processor.segment", "bytes"))
 	}()
 	if err := checkContext(ctx); err != nil {
 		return "", err
@@ -247,8 +247,8 @@ func runBytesSegment(ctx context.Context, steps []config.ProcessorStep, srcPath,
 func writeReaderToTemp(ctx context.Context, r io.Reader, tmpDir string) (string, error) {
 	started := time.Now()
 	defer func() {
-		observability.Count(observability.BackgroundContext(), "processor.temp.writes", 1, attribute.String("processor.temp.kind", "stream"))
-		observability.Duration(observability.BackgroundContext(), "processor.temp.write", time.Since(started), attribute.String("processor.temp.kind", "stream"))
+		observability.TryCount("processor.temp.writes", 1, attribute.String("processor.temp.kind", "stream"))
+		observability.TryDuration("processor.temp.write", time.Since(started), attribute.String("processor.temp.kind", "stream"))
 	}()
 	if err := checkContext(ctx); err != nil {
 		return "", err
@@ -282,8 +282,8 @@ func writeReaderToTemp(ctx context.Context, r io.Reader, tmpDir string) (string,
 func writeBytesToTemp(ctx context.Context, data []byte, tmpDir string) (string, error) {
 	started := time.Now()
 	defer func() {
-		observability.Count(observability.BackgroundContext(), "processor.temp.writes", 1, attribute.String("processor.temp.kind", "bytes"))
-		observability.Duration(observability.BackgroundContext(), "processor.temp.write", time.Since(started), attribute.String("processor.temp.kind", "bytes"))
+		observability.TryCount("processor.temp.writes", 1, attribute.String("processor.temp.kind", "bytes"))
+		observability.TryDuration("processor.temp.write", time.Since(started), attribute.String("processor.temp.kind", "bytes"))
 	}()
 	if err := checkContext(ctx); err != nil {
 		return "", err
@@ -316,8 +316,8 @@ func writeBytesToTemp(ctx context.Context, data []byte, tmpDir string) (string, 
 func copyToTemp(ctx context.Context, srcPath, tmpDir string) (string, error) {
 	started := time.Now()
 	defer func() {
-		observability.Count(observability.BackgroundContext(), "processor.temp.writes", 1, attribute.String("processor.temp.kind", "copy"))
-		observability.Duration(observability.BackgroundContext(), "processor.temp.write", time.Since(started), attribute.String("processor.temp.kind", "copy"))
+		observability.TryCount("processor.temp.writes", 1, attribute.String("processor.temp.kind", "copy"))
+		observability.TryDuration("processor.temp.write", time.Since(started), attribute.String("processor.temp.kind", "copy"))
 	}()
 	if err := checkContext(ctx); err != nil {
 		return "", err
@@ -385,7 +385,7 @@ func copyFile(ctx context.Context, src, dst string) error {
 	started := time.Now()
 	var bytes int64
 	defer func() {
-		observability.Observe(observability.BackgroundContext(), "file.copy", 1, bytes, time.Since(started))
+		observability.TryObserve("file.copy", 1, bytes, time.Since(started))
 	}()
 	if err := checkContext(ctx); err != nil {
 		return err

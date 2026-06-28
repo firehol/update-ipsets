@@ -35,6 +35,17 @@ func (e *Engine) SchedulerConfigSnapshot() SchedulerConfigSnapshot {
 	return SchedulerConfigSnapshotForConfig(e.cfg)
 }
 
+func (e *Engine) TrySchedulerConfigSnapshot() (SchedulerConfigSnapshot, bool) {
+	if e == nil {
+		return SchedulerConfigSnapshot{}, true
+	}
+	if !e.mu.TryRLock() {
+		return SchedulerConfigSnapshot{}, false
+	}
+	defer e.mu.RUnlock()
+	return SchedulerConfigSnapshotForConfig(e.cfg), true
+}
+
 func SchedulerConfigSnapshotForConfig(cfg *config.Config) SchedulerConfigSnapshot {
 	snapshot := SchedulerConfigSnapshot{}
 	if cfg == nil {

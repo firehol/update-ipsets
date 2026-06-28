@@ -425,92 +425,13 @@ func (e *Engine) ConfigRuntimeSnapshot() (*config.Config, Runtime) {
 	return e.configRuntimeSnapshot()
 }
 
-func (e *Engine) Enable(names []string, all bool) error {
+func (e *Engine) TryConfigRuntimeSnapshot() (*config.Config, Runtime, bool) {
 	if e == nil {
-		return nil
+		return nil, Runtime{}, true
 	}
-	cfg, rt := e.configRuntimeSnapshot()
-	if all {
-		// After config.ExpandDerivatives, every feed (including
-		// merges and retention variants) is in cfg.Sources. The
-		// old sortedMergeNames walk is redundant.
-		names = config.SortedSourceNames(cfg)
+	if !e.mu.TryRLock() {
+		return nil, Runtime{}, false
 	}
-	for _, name := range names {
-		if name == "" {
-			continue
-		}
-		path := sourceEnablePathForRuntime(rt, name)
-		if err := os.MkdirAll(filepath.Dir(path), generatedDirMode); err != nil {
-			return err
-		}
-		if err := touchFileAt(path, time.Unix(0, 0)); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (e *Engine) EnableArtifacts(names []string, all bool) error {
-	if e == nil {
-		return nil
-	}
-	cfg, rt := e.configRuntimeSnapshot()
-	if all {
-		names = config.SortedArtifactNames(cfg)
-	}
-	for _, name := range names {
-		if name == "" || cfg == nil || cfg.ArtifactByName(name) == nil {
-			continue
-		}
-		path := artifactEnablePathForRuntime(rt, name)
-		if err := os.MkdirAll(filepath.Dir(path), generatedDirMode); err != nil {
-			return err
-		}
-		if err := touchFileAt(path, time.Unix(0, 0)); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (e *Engine) Disable(names []string, all bool) error {
-	if e == nil {
-		return nil
-	}
-	cfg, rt := e.configRuntimeSnapshot()
-	if all {
-		// After config.ExpandDerivatives, every feed (including
-		// merges and retention variants) is in cfg.Sources. The
-		// old sortedMergeNames walk is redundant.
-		names = config.SortedSourceNames(cfg)
-	}
-	for _, name := range names {
-		if name == "" {
-			continue
-		}
-		if err := os.Remove(sourceEnablePathForRuntime(rt, name)); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return err
-		}
-	}
-	return nil
-}
-
-func (e *Engine) DisableArtifacts(names []string, all bool) error {
-	if e == nil {
-		return nil
-	}
-	cfg, rt := e.configRuntimeSnapshot()
-	if all {
-		names = config.SortedArtifactNames(cfg)
-	}
-	for _, name := range names {
-		if name == "" || cfg == nil || cfg.ArtifactByName(name) == nil {
-			continue
-		}
-		if err := os.Remove(artifactEnablePathForRuntime(rt, name)); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return err
-		}
-	}
-	return nil
+	defer e.mu.RUnlock()
+	return e.cfg, e.runtime, true
 }

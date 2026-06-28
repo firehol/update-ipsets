@@ -37,6 +37,21 @@ func (e *Engine) cachePersistenceSnapshot() CachePersistenceSnapshot {
 	return worker.Snapshot()
 }
 
+func (e *Engine) tryCachePersistenceSnapshot() (CachePersistenceSnapshot, bool) {
+	if e == nil {
+		return CachePersistenceSnapshot{State: CachePersistenceIdle}, true
+	}
+	if !e.cachePersistenceMu.TryLock() {
+		return CachePersistenceSnapshot{}, false
+	}
+	worker := e.cachePersistence
+	e.cachePersistenceMu.Unlock()
+	if worker == nil {
+		return CachePersistenceSnapshot{State: CachePersistenceIdle}, true
+	}
+	return worker.TrySnapshot()
+}
+
 func (e *Engine) StopCachePersistence(ctx context.Context) error {
 	if e == nil {
 		return nil

@@ -6,19 +6,38 @@ func (e *Engine) StatusSnapshot() StatusSnapshot {
 	return e.statusSnapshot()
 }
 
+func (e *Engine) TryStatusSnapshot() (StatusSnapshot, bool) {
+	return e.statusSnapshotBestEffort(false)
+}
+
 func (e *Engine) StatusSnapshotLight() StatusSnapshotLight {
-	engineLane := LaneSnapshot{}
-	if e.engineLane != nil {
-		engineLane = e.attachEngineLaneWarning(e.engineLane.Snapshot())
-	}
-	gitLane := LaneSnapshot{}
-	if e.gitLane != nil {
-		gitLane = e.gitLane.Snapshot()
-	}
-	pipelineIntegrityCache, entityIntegrityCache := e.IntegrityCacheStatus()
+	snapshot, _ := e.statusSnapshotLightBestEffort(true)
+	return snapshot
+}
+
+func (e *Engine) TryStatusSnapshotLight() (StatusSnapshotLight, bool) {
+	return e.statusSnapshotLightBestEffort(false)
+}
+
+func (e *Engine) statusSnapshotLightBestEffort(wait bool) (StatusSnapshotLight, bool) {
+	engineLane, gitLane, ok := e.statusLaneSnapshots(wait)
 	now := time.Now().UTC()
-	cachePersistence := e.cachePersistenceSnapshot()
-	e.mu.RLock()
+	cachePersistence, cacheOK := e.statusCachePersistenceSnapshot(wait)
+	ok = ok && cacheOK
+	if wait {
+		e.mu.RLock()
+	} else if !e.mu.TryRLock() {
+		return StatusSnapshotLight{
+			Running:                engineLane.ActiveCount > 0 || engineLane.WaitingCount > 0,
+			EngineLane:             engineLane,
+			GitLane:                gitLane,
+			CachePersistence:       cachePersistence,
+			PipelineIntegrityCache: PipelineIntegrityCacheStatus{CacheState: IntegrityCacheCold},
+			EntityIntegrityCache:   EntityIntegrityCacheStatus{CacheState: IntegrityCacheCold},
+			BackgroundLimit:        engineLane.Limit,
+			BackgroundRunning:      engineLane.ActiveCount,
+		}, false
+	}
 	runState := normalizeRunStateLocked(e.runState, e.running)
 	running := runState != RunStateIdle
 	lastStarted := e.lastStarted
@@ -41,13 +60,18 @@ func (e *Engine) StatusSnapshotLight() StatusSnapshotLight {
 	entityRefreshPending := len(e.entityRefreshPending)
 	entityHealthPending := len(e.entityHealthPending)
 	entityRebuildPending := e.entityRebuildQueued
+	integrityOpts := IntegrityOptions{WebDir: e.runtime.WebDir}
 	lastConfigReload := e.lastConfigReload
 	configReloadCount := e.configReloadCount
 	lastConfigReloadError := e.lastConfigReloadError
 	startupRepairDeferred := e.startupRepairDeferred
 	startupRepairDeferredTargets := e.startupRepairDeferredTargets
 	e.mu.RUnlock()
-	activeFeeds := e.snapshotActiveFeeds()
+	pipelineIntegrityCache, entityIntegrityCache, integrityOK := e.statusIntegrityCacheSnapshots(integrityOpts, wait)
+	activeFeeds, activeFeedsOK := e.statusActiveFeeds(wait)
+	activeOperations, activeOperationsOK := e.statusActiveOperations(wait, now)
+	backgroundTasks, backgroundTasksOK := e.statusBackgroundTasks(wait)
+	ok = ok && integrityOK && activeFeedsOK && activeOperationsOK && backgroundTasksOK
 	return StatusSnapshotLight{
 		Running:                      running,
 		RunState:                     runState,
@@ -60,8 +84,8 @@ func (e *Engine) StatusSnapshotLight() StatusSnapshotLight {
 		CurrentBatch:                 snapshotRunBatch(currentBatch, activeFeeds),
 		PhasePlan:                    phasePlan,
 		ActiveFeeds:                  activeFeeds,
-		ActiveOperations:             e.snapshotActiveOperations(now),
-		BackgroundTasks:              e.snapshotBackgroundTasks(),
+		ActiveOperations:             activeOperations,
+		BackgroundTasks:              backgroundTasks,
 		EngineLane:                   engineLane,
 		GitLane:                      gitLane,
 		CachePersistence:             cachePersistence,
@@ -86,22 +110,33 @@ func (e *Engine) StatusSnapshotLight() StatusSnapshotLight {
 		LastConfigReloadError:        lastConfigReloadError,
 		StartupRepairDeferred:        startupRepairDeferred,
 		StartupRepairDeferredTargets: startupRepairDeferredTargets,
-	}
+	}, ok
 }
 
 func (e *Engine) statusSnapshot() StatusSnapshot {
-	engineLane := LaneSnapshot{}
-	if e.engineLane != nil {
-		engineLane = e.attachEngineLaneWarning(e.engineLane.Snapshot())
-	}
-	gitLane := LaneSnapshot{}
-	if e.gitLane != nil {
-		gitLane = e.gitLane.Snapshot()
-	}
-	pipelineIntegrityCache, entityIntegrityCache := e.IntegrityCacheStatus()
+	snapshot, _ := e.statusSnapshotBestEffort(true)
+	return snapshot
+}
+
+func (e *Engine) statusSnapshotBestEffort(wait bool) (StatusSnapshot, bool) {
+	engineLane, gitLane, ok := e.statusLaneSnapshots(wait)
 	now := time.Now().UTC()
-	cachePersistence := e.cachePersistenceSnapshot()
-	e.mu.RLock()
+	cachePersistence, cacheOK := e.statusCachePersistenceSnapshot(wait)
+	ok = ok && cacheOK
+	if wait {
+		e.mu.RLock()
+	} else if !e.mu.TryRLock() {
+		return StatusSnapshot{
+			Running:                engineLane.ActiveCount > 0 || engineLane.WaitingCount > 0,
+			EngineLane:             engineLane,
+			GitLane:                gitLane,
+			CachePersistence:       cachePersistence,
+			PipelineIntegrityCache: PipelineIntegrityCacheStatus{CacheState: IntegrityCacheCold},
+			EntityIntegrityCache:   EntityIntegrityCacheStatus{CacheState: IntegrityCacheCold},
+			BackgroundLimit:        engineLane.Limit,
+			BackgroundRunning:      engineLane.ActiveCount,
+		}, false
+	}
 	runState := normalizeRunStateLocked(e.runState, e.running)
 	running := runState != RunStateIdle
 	lastStarted := e.lastStarted
@@ -132,20 +167,26 @@ func (e *Engine) statusSnapshot() StatusSnapshot {
 	entityRefreshPending := len(e.entityRefreshPending)
 	entityHealthPending := len(e.entityHealthPending)
 	entityRebuildPending := e.entityRebuildQueued
+	integrityOpts := IntegrityOptions{WebDir: e.runtime.WebDir}
 	lastConfigReload := e.lastConfigReload
 	configReloadCount := e.configReloadCount
 	lastConfigReloadError := e.lastConfigReloadError
 	startupRepairDeferred := e.startupRepairDeferred
 	startupRepairDeferredTargets := e.startupRepairDeferredTargets
 	e.mu.RUnlock()
+	pipelineIntegrityCache, entityIntegrityCache, integrityOK := e.statusIntegrityCacheSnapshots(integrityOpts, wait)
 	var currentMetrics *RunMetricsSnapshot
 	if current := e.currentRunMetrics(); current != nil {
-		snap := current.snapshot(true)
-		currentMetrics = &snap
+		if snap, ok := current.trySnapshot(true); ok {
+			currentMetrics = &snap
+		}
 	}
-	activeFeeds := e.snapshotActiveFeeds()
+	activeFeeds, activeFeedsOK := e.statusActiveFeeds(wait)
+	activeOperations, activeOperationsOK := e.statusActiveOperations(wait, now)
+	backgroundTasks, backgroundTasksOK := e.statusBackgroundTasks(wait)
+	ok = ok && integrityOK && activeFeedsOK && activeOperationsOK && backgroundTasksOK
 	backgroundLimit, backgroundRunning := engineLane.Limit, engineLane.ActiveCount
-	lifetimeMetrics := e.lifetimeMetricsSnapshot()
+	lifetimeMetrics := e.tryLifetimeMetricsSnapshot()
 	return StatusSnapshot{
 		Running:                      running,
 		RunState:                     runState,
@@ -159,8 +200,8 @@ func (e *Engine) statusSnapshot() StatusSnapshot {
 		CurrentBatch:                 snapshotRunBatch(currentBatch, activeFeeds),
 		PhasePlan:                    phasePlan,
 		ActiveFeeds:                  activeFeeds,
-		ActiveOperations:             e.snapshotActiveOperations(now),
-		BackgroundTasks:              e.snapshotBackgroundTasks(),
+		ActiveOperations:             activeOperations,
+		BackgroundTasks:              backgroundTasks,
 		EngineLane:                   engineLane,
 		GitLane:                      gitLane,
 		CachePersistence:             cachePersistence,
@@ -190,7 +231,70 @@ func (e *Engine) statusSnapshot() StatusSnapshot {
 		LastConfigReloadError:        lastConfigReloadError,
 		StartupRepairDeferred:        startupRepairDeferred,
 		StartupRepairDeferredTargets: startupRepairDeferredTargets,
+	}, ok
+}
+
+func (e *Engine) statusLaneSnapshots(wait bool) (LaneSnapshot, LaneSnapshot, bool) {
+	ok := true
+	engineLane := LaneSnapshot{}
+	if e.engineLane != nil {
+		if wait {
+			engineLane = e.attachEngineLaneWarning(e.engineLane.Snapshot())
+		} else if snap, snapOK := e.engineLane.TrySnapshot(); snapOK {
+			var warningOK bool
+			engineLane, warningOK = e.tryAttachEngineLaneWarning(snap)
+			ok = ok && warningOK
+		} else {
+			ok = false
+		}
 	}
+	gitLane := LaneSnapshot{}
+	if e.gitLane != nil {
+		if wait {
+			gitLane = e.gitLane.Snapshot()
+		} else if snap, snapOK := e.gitLane.TrySnapshot(); snapOK {
+			gitLane = snap
+		} else {
+			ok = false
+		}
+	}
+	return engineLane, gitLane, ok
+}
+
+func (e *Engine) statusCachePersistenceSnapshot(wait bool) (CachePersistenceSnapshot, bool) {
+	if wait {
+		return e.cachePersistenceSnapshot(), true
+	}
+	return e.tryCachePersistenceSnapshot()
+}
+
+func (e *Engine) statusIntegrityCacheSnapshots(opts IntegrityOptions, wait bool) (PipelineIntegrityCacheStatus, EntityIntegrityCacheStatus, bool) {
+	if wait {
+		pipeline, entity := e.integrityCacheStatusForNormalizedOptions(opts)
+		return pipeline, entity, true
+	}
+	return e.tryIntegrityCacheStatusForNormalizedOptions(opts)
+}
+
+func (e *Engine) statusActiveFeeds(wait bool) ([]ActiveFeed, bool) {
+	if wait {
+		return e.snapshotActiveFeeds(), true
+	}
+	return e.trySnapshotActiveFeeds()
+}
+
+func (e *Engine) statusActiveOperations(wait bool, now time.Time) ([]ActiveOperation, bool) {
+	if wait {
+		return e.snapshotActiveOperations(now), true
+	}
+	return e.trySnapshotActiveOperations(now)
+}
+
+func (e *Engine) statusBackgroundTasks(wait bool) ([]BackgroundTaskSnapshot, bool) {
+	if wait {
+		return e.snapshotBackgroundTasks(), true
+	}
+	return e.trySnapshotBackgroundTasks()
 }
 
 func normalizeRunStateLocked(state RunState, running bool) RunState {

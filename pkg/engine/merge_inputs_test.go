@@ -6,7 +6,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/firehol/update-ipsets/pkg/cache"
 	"github.com/firehol/update-ipsets/pkg/config"
+	"github.com/firehol/update-ipsets/pkg/feedhealth"
 )
 
 func TestMergeCompositionExcludesArchivedAndUnmaintainedInputs(t *testing.T) {
@@ -82,6 +84,71 @@ func TestMergeCompositionExcludesArchivedAndUnmaintainedInputs(t *testing.T) {
 	}
 	if gotReasons["unmaintained"] != mergeInputReasonUnmaintained {
 		t.Fatalf("unmaintained exclusion reason = %q, want %q", gotReasons["unmaintained"], mergeInputReasonUnmaintained)
+	}
+}
+
+func TestMergeCompositionForConfigRuntimePolicyEntriesUsesProvidedEntries(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0).UTC()
+	baseDir := t.TempDir()
+	cfg := config.New()
+	cfg.Runtime.FeedHealthSingleObservationGraceMins = 60
+	cfg.Runtime.FeedHealthDefaultHealthyCadenceMins = 60
+	cfg.Runtime.FeedHealthDefaultRiskyCadenceMins = 60
+	cfg.Runtime.FeedHealthArchivalThresholdMins = 60
+	cfg.Sources["included"] = &config.Source{Name: "included", Frequency: 60, IPV: "ipv4", Output: "ipset"}
+	cfg.Sources["merged"] = &config.Source{
+		Name:         "merged",
+		Frequency:    60,
+		IPV:          "ipv4",
+		Output:       "ipset",
+		DerivedFrom:  []string{"included"},
+		MergeSources: []string{"included"},
+		Provenance:   config.ProvenanceSecondaryMerge,
+	}
+	eng := newEngineFixture(t, withConfig(cfg), withRuntime(func(rt *Runtime) {
+		rt.BaseDir = baseDir
+	}), withNow(func() time.Time { return now }))
+	for _, name := range []string{"included", "merged"} {
+		if err := os.WriteFile(sourceEnablePathForRuntime(eng.runtime, name), nil, 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(baseDir, "included.ipset"), []byte("1.2.3.4\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	liveStateEntry := eng.state.Entry("included")
+	liveStateEntry.Name = "included"
+	liveStateEntry.ProcessedDate = now.Add(-130 * time.Minute).Unix()
+	liveStateEntry.SourceDate = now.Add(-130 * time.Minute).Unix()
+	liveStateEntry.CheckedDate = now.Unix()
+	liveStateEntry.Entries = 1
+	liveStateEntry.Version = 3
+	cachedEntries := map[string]cache.Entry{
+		"included": {
+			Name:          "included",
+			ProcessedDate: now.Add(-30 * time.Minute).Unix(),
+			SourceDate:    now.Add(-30 * time.Minute).Unix(),
+			CheckedDate:   now.Unix(),
+			Entries:       1,
+			Version:       4,
+		},
+	}
+
+	composition := eng.MergeCompositionForConfigRuntimePolicyEntries(
+		cfg,
+		eng.runtime,
+		feedhealth.PolicyFromConfig(cfg),
+		false,
+		cfg.Sources["merged"],
+		cachedEntries,
+	)
+
+	if len(composition.Included) != 1 || composition.Included[0].Name != "included" {
+		t.Fatalf("included = %+v, want cached included entry to win over stale live state", composition.Included)
+	}
+	if len(composition.Excluded) != 0 {
+		t.Fatalf("excluded = %+v, want none from cached entries", composition.Excluded)
 	}
 }
 

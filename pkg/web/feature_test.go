@@ -782,6 +782,7 @@ sources:
 		t.Fatal(err)
 	}
 	runner := scheduler.New(eng, true, nil)
+	_ = runner.Snapshot()
 	return eng, newHandler(eng, opts, runner)
 }
 

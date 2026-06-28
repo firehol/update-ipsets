@@ -96,7 +96,19 @@ description: "Go, React, config, and repo conventions for update-ipsets. MUST be
 - Admin integrity GET handlers must be cache-first. They may return cached
   settled findings or queue a refresh and report in-progress state, but they
   must not synchronously scan pipeline artifacts, entity sidecars, or recovery
-  plans from the HTTP request path (from SOW-0117).
+  plans from the HTTP request path. Use non-blocking integrity cache snapshots
+  in web handlers; a busy integrity cache must degrade to in-progress/busy
+  response state instead of making admin serving wait (from SOW-0117).
+- Admin full status, schedule, feed-detail, and feed-manifest handlers are
+  still web-serving request paths. Use cached scheduler/feed heartbeat state
+  for runtime rows and timestamps; do not call fresh scheduler snapshot
+  builders or walk all cache entries from those handlers. A feed manifest may
+  stat the finite configured files for the one selected feed (from SOW-0117
+  regression).
+- Merge composition on admin feed-detail is selected-feed detail only. Compute it
+  from cached scheduler/feed heartbeat rows for the selected merge; do not call
+  all-merge composition builders or snapshot the full cache state from web
+  request handlers (from SOW-0117 regression).
 - Public sitemap entity detail URLs must come from the published/staged entity
   index artifacts used by the public API. Do not derive sitemap entity coverage
   from an independent live aggregation path unless the public index artifacts
@@ -154,12 +166,20 @@ description: "Go, React, config, and repo conventions for update-ipsets. MUST be
 - Public route handlers must not freeze runtime public-serving roots or web
   artifact cache limits at server construction. Serve public artifacts, raw
   ipset/netset files, entity artifacts, homepage artifacts, and MCP markdown
-  through the route-owned public-serving generation refreshed by the engine
-  reload-publication listener. Runtime reloads that change the effective
-  `WebDir`, `WebDirForIPSets`, `BaseDir`, or web artifact cache limits must
-  publish a fresh serving state/cache; public requests remain cache-first
-  readers and must not fall back to stale roots or rebuild missing artifacts
-  (from SOW-0119).
+  through the route-owned public-serving generation refreshed by engine config
+  reload and successful run publication. Runtime reloads that change the
+  effective `WebDir`, `WebDirForIPSets`, `BaseDir`, or web artifact cache
+  limits must publish a fresh serving state/cache; successful runs that publish
+  artifacts must refresh cache-derived raw-feed availability. Public requests
+  remain cache-first readers and must not fall back to stale roots or rebuild
+  missing artifacts (from SOW-0119 and SOW-0117 regression).
+- Public request handlers must use the immutable public serving state for
+  categories, public feed identities, provider identities,
+  critical-infrastructure target identities, feed summaries, and raw-feed
+  availability. Do not call engine public-catalog helpers, live cache snapshots,
+  or request-time serving-state rebuilds from production web handlers. Config
+  decides public identity; cache/materialized-file state decides raw body
+  availability (from SOW-0117 regression).
 - Public artifact and raw-download routes must open files relative to the
   configured served root with traversal-resistant APIs such as `os.Root`.
   Lexical path checks alone are not enough because a symlink under `WebDir`,
@@ -280,3 +300,52 @@ description: "Go, React, config, and repo conventions for update-ipsets. MUST be
 - Do not create a second source of truth for product contracts outside `.agents/sow/specs/` (from SOW-0009).
 - Do not replace simple scheduler/cadence logic with dependency-graph machinery without explicit approval.
 - Do not make background work invisible; operator-visible daemon work belongs in admin status/UI (from SOW-0004).
+- Do not make web serving depend on telemetry progress. Watchdog, `/healthz`,
+  admin/public serving, and request-path telemetry must not wait for
+  OpenTelemetry export, lazy metric instrument creation, OTel-backed logging,
+  ingestion, integrity, artifact generation, or broad admin/cache snapshots
+  (from SOW-0117 regression).
+- Public serving-state request paths must be readers of an already-published
+  serving state. Refresh serving state from reload-publication runtime data or
+  non-blocking engine try-locks outside request handling; if unavailable, return
+  `503` rather than acquiring broad engine config locks from public handlers
+  (from SOW-0117 regression).
+- Telemetry startup must be fail-open. Bad OTLP configuration, unreachable
+  collectors, resource detector errors, or expired telemetry setup budgets must
+  disable/degrade OTLP export and log a warning, not stop daemon startup or web
+  serving (from SOW-0117 regression).
+- Web request telemetry must use project-owned non-blocking helpers or local
+  counters. Do not wrap public/admin servers with request-path `otelhttp`
+  instrumentation; if telemetry cannot keep up, drop samples before delaying a
+  request.
+- Production metric export must use non-blocking `observability.Try*` helpers.
+  Do not call `observability.Count`, `Bytes`, `Duration`, `Gauge`, `Observe`, or
+  `APIRecalculation` from production `cmd/`, `internal/`, or `pkg/` code
+  outside `internal/observability`; those synchronous helpers are implementation
+  details for the async worker and tests (from SOW-0117 regression).
+- If web request handlers update local engine/admin timing or counter books,
+  use best-effort `Try*` helpers that drop when the local telemetry lock is
+  busy. Do not call blocking engine telemetry helpers from `pkg/web`.
+- Admin status must also read current-run, lifetime, and scheduler telemetry
+  snapshots in a best-effort way. If a telemetry book is busy, omit/degrade that
+  telemetry section instead of waiting on a local telemetry lock.
+- Public/admin HTTP middleware must not use the configured application logger
+  directly on the request path. That logger may be OpenTelemetry-backed; use a
+  bounded serving-safe local logger or another drop-before-delay mechanism for
+  access/error and panic logs (from SOW-0117 regression).
+- OpenTelemetry log export must also be drop-before-delay. If an application
+  logger tees local logs to an OTel slog handler, the OTel handler must sit
+  behind a bounded async queue so exporter backpressure cannot delay engine,
+  scheduler, admin, watchdog, or shutdown work (from SOW-0117 regression).
+- Daemon lifecycle control logs on the web-serving path, including pre-listen
+  cleanup, startup integrity recovery, startup entity-artifact checks, ready,
+  stopping, watchdog, daemon-control panic recovery, and delayed startup cleanup
+  control logs, must use the same serving-safe logger rule. They must not wait
+  for an OpenTelemetry-backed application logger before proving or preserving
+  web-serving liveness (from SOW-0117 regression).
+- The admin-surface `/metrics` endpoint is telemetry on the web-serving
+  surface. Wrap Prometheus/OpenTelemetry scrape handlers with bounded timeout
+  and single-active-scrape protection; do not mount raw metrics handlers
+  directly on the web mux. If a timed-out scrape worker keeps running after its
+  request context is canceled, later scrapes should fail fast instead of
+  starting replacement exporter goroutines (from SOW-0117 regression).

@@ -1,14 +1,36 @@
 package web
 
 import (
+	"context"
+	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/firehol/update-ipsets/pkg/config"
 	"github.com/firehol/update-ipsets/pkg/engine"
+	"github.com/firehol/update-ipsets/pkg/scheduler"
 )
+
+const defaultAdminManifestBuildTimeout = 5 * time.Second
+
+var (
+	adminManifestBuildTimeout = defaultAdminManifestBuildTimeout
+	adminManifestBuildSlots   = make(chan struct{}, 1)
+	adminManifestSettingsMu   sync.RWMutex
+	adminManifestFS           = manifestFS{
+		stat:    os.Stat,
+		readDir: os.ReadDir,
+	}
+)
+
+type manifestFS struct {
+	stat    func(string) (os.FileInfo, error)
+	readDir func(string) ([]os.DirEntry, error)
+}
 
 // ManifestFile describes one file the pipeline should be
 // maintaining for a feed, together with its actual on-disk
@@ -89,7 +111,7 @@ type ManifestResponse struct {
 // pipeline actually produced what it claims. A visible
 // "20/20 present" tells them everything is fine; a "17/20 with
 // 3 missing" tells them exactly what to reprocess.
-func handleAdminFeedManifest(eng *engine.Engine) http.HandlerFunc {
+func handleAdminFeedManifest(eng *engine.Engine, runner *scheduler.Runner) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		apiNoCache(w)
 		if !isReadMethod(r.Method) {
@@ -109,7 +131,11 @@ func handleAdminFeedManifest(eng *engine.Engine) http.HandlerFunc {
 			return
 		}
 
-		cfg, rt := eng.ConfigRuntimeSnapshot()
+		cfg, rt, ok := eng.TryConfigRuntimeSnapshot()
+		if !ok {
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "engine configuration is busy; retry shortly"})
+			return
+		}
 		if cfg == nil {
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": "unknown feed: " + name})
 			return
@@ -123,7 +149,16 @@ func handleAdminFeedManifest(eng *engine.Engine) http.HandlerFunc {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "feed configuration is missing a canonical name"})
 			return
 		}
-		resp := buildFeedManifest(src.Name, src, cfg, rt, eng)
+		resp, err := buildFeedManifestWithin(r.Context(), src.Name, src, cfg, rt, eng, cachedManifestProcessedDate(runner, src.Name))
+		if err != nil {
+			status := http.StatusServiceUnavailable
+			message := "feed manifest inspection is busy; retry shortly"
+			if errors.Is(err, context.DeadlineExceeded) {
+				message = "feed manifest inspection timed out; retry shortly"
+			}
+			writeJSON(w, status, map[string]string{"error": message})
+			return
+		}
 		writeJSON(w, http.StatusOK, resp)
 	}
 }
@@ -133,8 +168,72 @@ func handleAdminFeedManifest(eng *engine.Engine) http.HandlerFunc {
 // The enumeration is derived from the catalog configuration, so
 // it stays in sync automatically when providers are added,
 // removed, or renamed.
-func buildFeedManifest(name string, src *config.Source, cfg *config.Config, rt engine.Runtime, eng *engine.Engine) ManifestResponse {
-	return newFeedManifestBuilder(name, src, cfg, rt, eng).build()
+func buildFeedManifest(name string, src *config.Source, cfg *config.Config, rt engine.Runtime, eng *engine.Engine, processedDate int64) ManifestResponse {
+	_, fs := currentAdminManifestBuildSettings()
+	return buildFeedManifestWithFS(name, src, cfg, rt, eng, processedDate, fs)
+}
+
+func buildFeedManifestWithin(ctx context.Context, name string, src *config.Source, cfg *config.Config, rt engine.Runtime, eng *engine.Engine, processedDate int64) (ManifestResponse, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	timeout, fs := currentAdminManifestBuildSettings()
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	select {
+	case adminManifestBuildSlots <- struct{}{}:
+	default:
+		return ManifestResponse{}, errAdminManifestBusy
+	}
+
+	resultCh := make(chan ManifestResponse, 1)
+	go func() {
+		defer func() { <-adminManifestBuildSlots }()
+		resultCh <- buildFeedManifestWithFS(name, src, cfg, rt, eng, processedDate, fs)
+	}()
+
+	select {
+	case result := <-resultCh:
+		return result, nil
+	case <-ctx.Done():
+		return ManifestResponse{}, ctx.Err()
+	}
+}
+
+var errAdminManifestBusy = errors.New("admin manifest inspection is busy")
+
+func currentAdminManifestBuildSettings() (time.Duration, manifestFS) {
+	adminManifestSettingsMu.RLock()
+	timeout := adminManifestBuildTimeout
+	fs := adminManifestFS
+	adminManifestSettingsMu.RUnlock()
+	if timeout <= 0 {
+		timeout = defaultAdminManifestBuildTimeout
+	}
+	if fs.stat == nil {
+		fs.stat = os.Stat
+	}
+	if fs.readDir == nil {
+		fs.readDir = os.ReadDir
+	}
+	return timeout, fs
+}
+
+func buildFeedManifestWithFS(name string, src *config.Source, cfg *config.Config, rt engine.Runtime, eng *engine.Engine, processedDate int64, fs manifestFS) ManifestResponse {
+	return newFeedManifestBuilder(name, src, cfg, rt, eng, processedDate, fs).build()
+}
+
+func cachedManifestProcessedDate(runner *scheduler.Runner, name string) int64 {
+	if runner == nil || name == "" {
+		return 0
+	}
+	for _, item := range cachedSchedulerSnapshot(runner).Items {
+		if item.Name == name && !item.ProcessedAt.IsZero() {
+			return item.ProcessedAt.Unix()
+		}
+	}
+	return 0
 }
 
 // statManifestFile fills in the runtime state of a manifest
@@ -142,8 +241,8 @@ func buildFeedManifest(name string, src *config.Source, cfg *config.Config, rt e
 // whether that mtime is strictly before the reference
 // ProcessedDate (which marks it as stale relative to the last
 // successful run of the heavy fan-out block).
-func statManifestFile(mf ManifestFile, processedDate int64) ManifestFile {
-	info, err := os.Stat(mf.Path)
+func (b *feedManifestBuilder) statManifestFile(mf ManifestFile) ManifestFile {
+	info, err := b.fs.stat(mf.Path)
 	if err != nil {
 		mf.Exists = false
 		return mf
@@ -158,7 +257,7 @@ func statManifestFile(mf ManifestFile, processedDate int64) ManifestFile {
 	// by this check.
 	switch mf.Kind {
 	case "metadata", "history", "changesets", "retention", "comparison", "insights", "geo", "asn", "bogons":
-		if processedDate > 0 && mf.MTime < processedDate {
+		if b.resp.ProcessedDate > 0 && mf.MTime < b.resp.ProcessedDate {
 			mf.Stale = true
 		}
 	}

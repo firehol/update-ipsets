@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/firehol/update-ipsets/pkg/cache"
 	"github.com/firehol/update-ipsets/pkg/engine"
@@ -79,6 +80,7 @@ sources:
 		t.Fatal(err)
 	}
 	runner := scheduler.New(eng, true, nil)
+	_ = runner.Snapshot()
 	return eng, newHandler(eng, opts, runner)
 }
 
@@ -486,6 +488,23 @@ sources:
 	eng, err := engine.New(cfgPath, nil)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if err := scheduler.SaveSnapshot(filepath.Join(eng.Runtime().CacheDir, "scheduler-state.json"), scheduler.Snapshot{
+		GeneratedAt: time.Unix(1_700_000_000, 0).UTC(),
+		ArtifactItems: []scheduler.Item{{
+			Name:             "dronebl",
+			Enabled:          true,
+			FrequencyMinutes: 60,
+			Failures:         4,
+			CheckedAt:        time.Unix(1_700_000_000, 0).UTC(),
+			UpdatedAt:        time.Unix(1_700_000_100, 0).UTC(),
+			LastStatus:       "download_failed",
+			LastError:        "artifact too large",
+			NextDue:          time.Unix(1_700_000_200, 0).UTC(),
+			Detail:           "cached artifact detail",
+		}},
+	}); err != nil {
+		t.Fatalf("write scheduler snapshot: %v", err)
 	}
 	runner := scheduler.New(eng, true, nil)
 	handler := newHandler(eng, Options{EnableAll: true}, runner)

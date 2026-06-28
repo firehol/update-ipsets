@@ -473,7 +473,9 @@ Startup MAY:
 - create required directories
 - reconcile cheap configuration-derived metadata
 - recover durable staged inputs
-- plan integrity recovery
+- start web/admin serving
+- queue or run guarded integrity recovery outside the listener startup
+  critical path
 
 Startup MUST NOT block service availability on expensive historical analytics,
 including:
@@ -488,10 +490,10 @@ including:
 flowchart TD
     A[Process starts] --> B[Load config and persisted state]
     B --> C[Recover durable staged .new files]
-    C --> D[Plan integrity recovery]
-    D --> E[Start downloader loop]
-    D --> F[Start processing loop]
-    D --> G[Web/admin service becomes available]
+    C --> D[Start downloader loop]
+    C --> E[Start processing loop]
+    C --> F[Web/admin service becomes available]
+    F --> G[Queue guarded startup integrity recovery]
 ```
 
 ## Automatic downloader selection

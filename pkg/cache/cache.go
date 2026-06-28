@@ -376,9 +376,8 @@ func observeRuntimeCacheOperation(operation, result string, dur time.Duration) {
 		attribute.String("cache.operation", operation),
 		attribute.String("cache.result", result),
 	}
-	ctx := observability.BackgroundContext()
-	observability.Count(ctx, "runtime.cache.operations", 1, attrs...)
-	observability.Duration(ctx, "runtime.cache.operation", dur, attrs...)
+	observability.TryCount("runtime.cache.operations", 1, attrs...)
+	observability.TryDuration("runtime.cache.operation", dur, attrs...)
 }
 
 // Entry returns the entry for name, creating it if absent.
@@ -428,6 +427,22 @@ func cloneEntry(entry *Entry) Entry {
 	entryMu := entry.entryMu()
 	entryMu.RLock()
 	defer entryMu.RUnlock()
+	return cloneEntryUnlocked(entry)
+}
+
+func tryCloneEntry(entry *Entry) (Entry, bool) {
+	if entry == nil {
+		return Entry{}, true
+	}
+	entryMu := entry.entryMu()
+	if !entryMu.TryRLock() {
+		return Entry{}, false
+	}
+	defer entryMu.RUnlock()
+	return cloneEntryUnlocked(entry), true
+}
+
+func cloneEntryUnlocked(entry *Entry) Entry {
 	clone := *entry
 	clone.mu = new(sync.RWMutex)
 	if entry.HistoryMinutes != nil {
@@ -494,6 +509,31 @@ func (st *State) SnapshotEntries() map[string]Entry {
 		}
 	}
 	return out
+}
+
+// TrySnapshotEntries returns copies of all entries without waiting for cache
+// locks. The second return value is false when the state or any entry is busy.
+func (st *State) TrySnapshotEntries() (map[string]Entry, bool) {
+	if st == nil {
+		return map[string]Entry{}, true
+	}
+	if !st.mu.TryRLock() {
+		return nil, false
+	}
+	defer st.mu.RUnlock()
+
+	out := make(map[string]Entry, len(st.Entries))
+	for name, entry := range st.Entries {
+		if entry == nil {
+			continue
+		}
+		clone, ok := tryCloneEntry(entry)
+		if !ok {
+			return nil, false
+		}
+		out[name] = clone
+	}
+	return out, true
 }
 
 // SnapshotState returns a detached state copy suitable for asynchronous

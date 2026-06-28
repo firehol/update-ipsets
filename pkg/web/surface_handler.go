@@ -34,6 +34,7 @@ func newAdminHandlerWithContext(ctx context.Context, eng *engine.Engine, opts Op
 
 func newSurfaceHandlerWithContext(ctx context.Context, eng *engine.Engine, opts Options, runner *scheduler.Runner, mode listenerMode) http.Handler {
 	mux := http.NewServeMux()
+	registerHealthz(mux)
 	servePublic := mode != listenerModeAdminOnly
 	serveAdmin := mode != listenerModePublicOnly
 	routes := newSurfaceRoutesWithContext(ctx, eng, opts, runner)
@@ -62,6 +63,14 @@ func newSurfaceHandlerWithContext(ctx context.Context, eng *engine.Engine, opts 
 		trustProxy:      opts.TrustProxyHeaders,
 		trustCloudflare: opts.TrustCloudflareHeaders,
 	}
+	requestLogger := requestPathLogger(opts.Logger)
 
-	return logMiddleware(opts.Logger, resolver, corsMiddleware(gzipMiddleware(recoverMiddleware(opts.Logger, resolver, rateLimitMiddleware(resolver, mux)))))
+	return logMiddleware(requestLogger, resolver, corsMiddleware(gzipMiddleware(recoverMiddleware(requestLogger, resolver, rateLimitMiddleware(resolver, mux)))))
+}
+
+func registerHealthz(mux *http.ServeMux) {
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte("ok\n"))
+	})
 }

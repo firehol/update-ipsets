@@ -1,10 +1,13 @@
 package web
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/firehol/update-ipsets/pkg/scheduler"
 )
@@ -37,7 +40,7 @@ func TestSurfaceHandlerModesRegisterExpectedSurfaces(t *testing.T) {
 	assertRouteStatus(t, publicOnly, "/metrics", "", http.StatusNotFound)
 	assertRouteStatus(t, publicOnly, "/admin", "admin", http.StatusNotFound)
 	assertRouteStatus(t, publicOnly, "/api/v1/admin/status", "admin", http.StatusNotFound)
-	assertRouteStatus(t, adminOnly, "/healthz", "", http.StatusNotFound)
+	assertRouteStatus(t, adminOnly, "/healthz", "", http.StatusOK)
 	assertRouteStatus(t, adminOnly, "/api/v1/status", "", http.StatusNotFound)
 	assertRouteStatus(t, adminOnly, "/api/v1/categories", "", http.StatusOK)
 	assertRouteStatus(t, adminOnly, "/metrics", "", http.StatusOK)
@@ -55,6 +58,88 @@ func assertRouteStatus(t *testing.T, server *webHTTPTestServer, path, user strin
 	if status != want {
 		t.Fatalf("%s status = %d, want %d", path, status, want)
 	}
+}
+
+func TestMetricsHandlerIsBoundedAndSingleActiveScrape(t *testing.T) {
+	entered := make(chan struct{})
+	release := make(chan struct{})
+	exited := make(chan struct{})
+	var enteredOnce sync.Once
+	var releaseOnce sync.Once
+	var exitedOnce sync.Once
+	raw := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		enteredOnce.Do(func() { close(entered) })
+		defer exitedOnce.Do(func() { close(exited) })
+		<-release
+		_, _ = w.Write([]byte("update_ipsets_test_metric 1\n"))
+	})
+	handler := newServingMetricsHandler(raw, 20*time.Millisecond)
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+	t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
+	client := &http.Client{Timeout: time.Second}
+
+	firstDone := make(chan int, 1)
+	go func() {
+		firstDone <- getStatus(t, client, server.URL)
+	}()
+
+	select {
+	case <-entered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("metrics scrape handler did not start")
+	}
+
+	secondDone := make(chan int, 1)
+	go func() {
+		secondDone <- getStatus(t, client, server.URL)
+	}()
+	select {
+	case status := <-secondDone:
+		if status != http.StatusServiceUnavailable {
+			t.Fatalf("concurrent scrape status = %d, want %d", status, http.StatusServiceUnavailable)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("concurrent metrics scrape blocked behind active scrape")
+	}
+
+	select {
+	case status := <-firstDone:
+		if status != http.StatusServiceUnavailable {
+			t.Fatalf("timed-out scrape status = %d, want %d", status, http.StatusServiceUnavailable)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("blocked metrics scrape did not time out")
+	}
+
+	if status := getStatus(t, client, server.URL); status != http.StatusServiceUnavailable {
+		t.Fatalf("scrape while timed-out exporter is still running status = %d, want %d", status, http.StatusServiceUnavailable)
+	}
+
+	releaseOnce.Do(func() { close(release) })
+	select {
+	case <-exited:
+	case <-time.After(2 * time.Second):
+		t.Fatal("timed-out metrics exporter did not exit after release")
+	}
+
+	if status := getStatus(t, client, server.URL); status != http.StatusOK {
+		t.Fatalf("scrape after timed-out exporter exited status = %d, want %d", status, http.StatusOK)
+	}
+}
+
+func getStatus(t *testing.T, client *http.Client, url string) int {
+	t.Helper()
+	resp, err := client.Get(url)
+	if err != nil {
+		t.Errorf("GET %s: %v", url, err)
+		return 0
+	}
+	_, _ = io.Copy(io.Discard, resp.Body)
+	if err := resp.Body.Close(); err != nil {
+		t.Errorf("close response body: %v", err)
+	}
+	return resp.StatusCode
 }
 
 func TestLegacyIPSetRedirectStaysOnLocalSite(t *testing.T) {

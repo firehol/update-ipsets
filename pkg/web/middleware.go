@@ -108,6 +108,10 @@ func recoverMiddleware(logger *slog.Logger, resolver *clientIPResolver, next htt
 	})
 }
 
+func requestPathLogger(_ *slog.Logger) *slog.Logger {
+	return plainLivenessLogger()
+}
+
 func wrapAdminAuth(opts Options, handler http.HandlerFunc) http.HandlerFunc {
 	switch opts.AdminAuthMode {
 	case AdminAuthModeDisabled:

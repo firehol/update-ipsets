@@ -108,6 +108,68 @@ or filesystem-wide diagnostics inline. They MUST use cached scheduler/feed
 heartbeat state and shared short-lived runtime samples. If the cache is cold,
 the endpoint should report the cached/unknown state rather than rebuilding broad
 state in the request goroutine.
+Full admin status, schedule, feed-detail, and feed-manifest endpoints are still
+web-serving request paths. They MAY build bounded diagnostic views from already
+held config/runtime state and MAY stat the finite manifest files for one
+operator-selected feed, but they MUST NOT refresh the scheduler snapshot, walk
+all cache entries, or rebuild all feed/artifact rows from the HTTP request
+goroutine.
+
+Admin serving, public serving, `/healthz`, watchdog proof, and request-path
+telemetry are part of the web-serving availability contract. They MUST NOT wait
+for ingestion, artifact generation, integrity scans, exporter backpressure, or
+lazy telemetry instrument creation. Telemetry may observe web serving, but it
+MUST be initialized ahead of request/liveness use and fail open on the request
+path. If telemetry export, log bridging, or instrument setup is blocked, the
+web request and watchdog path must continue or fail the serving probe according
+to HTTP availability, not according to telemetry progress.
+Request-path telemetry MUST use local/project-owned non-blocking recording. It
+MUST NOT wrap web serving with synchronous OpenTelemetry SDK instrumentation.
+When telemetry queues are full, request-path metric samples MUST be dropped
+before delaying a public, admin, `/healthz`, or watchdog request.
+Public serving-state refresh is also part of this contract. Request handlers
+MUST read an already-published serving state. Initial serving-state setup MAY use
+a non-blocking engine try-lock; reload listeners SHOULD use the runtime supplied
+by the committed reload publication. If no serving state is available, public
+artifact routes return `503` instead of acquiring broad engine config locks or
+refreshing state from the request path.
+The serving state MUST carry the public catalog data needed by request handlers:
+categories, public feed identities, provider identities, critical-infrastructure
+target identities, feed summaries, and raw-feed availability. Config determines
+public feed/provider/target identity; cache/materialized-file state determines
+whether a raw `.ipset`/`.netset` body is currently safe to stream. Normal
+successful run publication and config reload publication MUST refresh this
+serving state before request handlers rely on new artifacts. Public/admin
+handlers MUST NOT call engine public-catalog helpers or cache snapshots from the
+request path to decide these identities.
+If web handlers also update local project telemetry books used by admin
+diagnostics, those updates MUST be best-effort try-lock/drop operations, not
+blocking mutex waits. Background engine/scheduler work may keep exact blocking
+local telemetry where it is outside the web-serving path.
+Admin status diagnostic snapshots that expose local telemetry books MUST also be
+best-effort. If a current-run, lifetime, or scheduler telemetry book is busy,
+the admin response should omit or degrade that telemetry section instead of
+waiting.
+Request-path logging for public/admin HTTP middleware is also web-serving
+telemetry. Access/error/panic logs emitted by HTTP middleware MUST NOT use an
+OpenTelemetry-backed application logger or any logger that can wait for
+telemetry export. They MUST use a bounded serving-safe local logger or another
+drop-before-delay mechanism.
+
+The systemd watchdog MUST prove web serving, not only process liveness. Once
+listeners are up, watchdog ticks SHOULD perform a bounded local HTTP `/healthz`
+probe against every configured serving listener before sending `WATCHDOG=1`.
+In split-listener mode, both public and admin listeners are part of that proof.
+If web serving cannot answer, the watchdog MUST withhold the tick so systemd can
+restart the service. Watchdog diagnostics and systemd notification errors MUST
+use bounded local logging and MUST NOT depend on OpenTelemetry export or other
+blocking telemetry paths.
+Daemon lifecycle control logs on the web-serving path, including pre-listen
+cleanup, startup integrity recovery, startup entity-artifact checks, ready,
+stopping, watchdog, daemon-control panic recovery, and delayed startup cleanup
+control logs, MUST follow the same serving-safe logging rule. They MUST NOT wait
+for an OpenTelemetry-backed application logger before proving or preserving
+web-serving liveness.
 
 ## No repeated-view upstream dependency rule
 
@@ -452,6 +514,37 @@ source algebra, and lookups. Engine, CLI, daemon, or admin callers own turning
 those local stats into OpenTelemetry metrics, structured logs, admin status, or
 another operator surface.
 
+Request-path telemetry MUST be non-blocking relative to web availability.
+Metric instruments used by frequent HTTP, admin status, watchdog, and liveness
+paths MUST be created during telemetry initialization or otherwise obtained from
+a non-blocking cache before those paths run. A request, `/healthz` response, or
+watchdog proof MUST NOT create OpenTelemetry instruments lazily, wait for an
+exporter flush, or hold a telemetry registry lock that can be blocked by export
+or batch processing.
+Request-path OpenTelemetry export, request-path middleware logging, and
+web-serving lifecycle control logging MUST be fed through bounded, drop-on-full
+handoffs or equivalent local-only mechanisms. Losing telemetry samples or
+access/error/lifecycle log entries is acceptable; delaying web serving to
+preserve telemetry or logs is not.
+OpenTelemetry log export MUST follow the same drop-before-delay rule. If the
+application logger tees local logs to an OTel slog handler, the OTel branch MUST
+use a bounded async queue. Exporter backpressure MAY drop OTel log records; it
+MUST NOT delay engine, scheduler, admin, public, health, watchdog, or shutdown
+work.
+Request-path local telemetry updates, including engine/admin operation timing
+books, MUST follow the same rule: try to record and drop if the local telemetry
+book is busy.
+Admin diagnostic status reads of local telemetry books MUST likewise try to
+snapshot and omit busy telemetry sections rather than wait.
+Production OpenTelemetry metric export MUST use project-owned non-blocking
+helpers application-wide. Production `cmd/`, `internal/`, and `pkg/` code
+outside the observability implementation MUST NOT call synchronous metric
+helpers directly. If telemetry export is congested, dropping metric samples is
+preferred to delaying downloader, processor, engine, admin, public, health, or
+watchdog work. Trace span lifecycle may remain on background processing paths,
+but it MUST NOT be added to admin, public, `/healthz`, watchdog, or request
+middleware paths without a new non-blocking design.
+
 At minimum, telemetry SHOULD cover:
 
 - download requests, HTTP statuses, and transferred bytes
@@ -497,9 +590,11 @@ details remain available through admin status and host/process monitoring
 instead of metric identity labels.
 
 HTTP API metrics MUST follow a low-cardinality RED model. The default
-OpenTelemetry HTTP server metric is `http.server.request.duration`; it MUST
-keep only `http.route`, `http.request.method`, and
-`http.response.status_code` labels. HTTP routes MUST be normalized templates
+OpenTelemetry HTTP server metric is `http.server.request.duration`; it is
+emitted by the daemon's non-blocking HTTP wrapper, not by a request-path
+`otelhttp` server wrapper. It MUST keep only `http.route`,
+`http.request.method`, and `http.response.status_code` labels. HTTP routes MUST
+be normalized templates
 such as `/api/v1/sets/{name}/search` or
 `/api/v1/admin/feeds/{name}/recheck`, never raw feed names, provider names,
 client IPs, query strings, or arbitrary probe paths. Default OpenTelemetry
@@ -522,7 +617,12 @@ Prometheus endpoint MUST use the same OpenTelemetry metric views and stable
 metric resource identity as OTLP metric export. It SHOULD use an application
 registry rather than the process-global Prometheus registry so the scrape
 surface represents update-ipsets telemetry rather than unrelated runtime
-collectors.
+collectors. Because `/metrics` is telemetry on the web-serving surface, scrapes
+MUST be bounded: a blocked scrape MUST time out, and concurrent scrapes MUST be
+rejected before they can stack up behind telemetry collection. If a timed-out
+scrape exporter keeps running after its request context is canceled, later
+scrapes MUST keep failing fast instead of starting replacement exporter
+goroutines until the existing scrape worker exits.
 
 The daemon MUST provide OpenTelemetry-compatible export for traces, metrics, and
 logs. OpenTelemetry export is opt-in and MUST be enabled when either:
@@ -536,6 +636,15 @@ logs. OpenTelemetry export is opt-in and MUST be enabled when either:
 endpoint variables are present. When enabled, the daemon MUST preserve the
 existing local log output while also sending logs through the OpenTelemetry log
 bridge.
+
+OpenTelemetry export MUST be fail-open during daemon startup. Invalid OTLP
+configuration, unreachable collectors, resource-detector errors, or expired
+telemetry setup budgets MUST disable the affected OTLP export path and log a
+warning, not prevent the daemon from starting or the website from serving. The
+local admin Prometheus `/metrics` surface SHOULD remain available when OTLP
+export degrades. If local metrics setup itself fails, only `/metrics` may be
+disabled; public/admin page serving, `/healthz`, and the watchdog contract MUST
+continue without telemetry export.
 
 The daemon MUST support both OTLP HTTP/protobuf and OTLP/gRPC exporters.
 Protocol selection MUST accept `UPDATE_IPSETS_OTEL_PROTOCOL` first, then

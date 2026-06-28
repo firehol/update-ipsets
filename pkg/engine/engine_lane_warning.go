@@ -35,7 +35,31 @@ func (e *Engine) engineLaneLongHoldWarningSnapshot() *LaneLongHoldWarning {
 	return &warning
 }
 
+func (e *Engine) tryEngineLaneLongHoldWarningSnapshot() (*LaneLongHoldWarning, bool) {
+	if e == nil {
+		return nil, true
+	}
+	if !e.engineLaneLongHoldWarningMu.TryRLock() {
+		return nil, false
+	}
+	defer e.engineLaneLongHoldWarningMu.RUnlock()
+	if e.engineLaneLongHoldWarning == nil {
+		return nil, true
+	}
+	warning := *e.engineLaneLongHoldWarning
+	return &warning, true
+}
+
 func (e *Engine) attachEngineLaneWarning(snapshot LaneSnapshot) LaneSnapshot {
 	snapshot.LongHoldWarning = e.engineLaneLongHoldWarningSnapshot()
 	return snapshot
+}
+
+func (e *Engine) tryAttachEngineLaneWarning(snapshot LaneSnapshot) (LaneSnapshot, bool) {
+	warning, ok := e.tryEngineLaneLongHoldWarningSnapshot()
+	if !ok {
+		return snapshot, false
+	}
+	snapshot.LongHoldWarning = warning
+	return snapshot, true
 }

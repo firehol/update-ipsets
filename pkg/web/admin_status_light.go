@@ -21,21 +21,29 @@ type adminStatusLight struct {
 
 func buildAdminStatusLight(eng *engine.Engine, runner *scheduler.Runner) adminStatusLight {
 	sys := detailedStatusCached()
-	cfg, rt := eng.ConfigRuntimeSnapshot()
+	cfg, rt, cfgOK := eng.TryConfigRuntimeSnapshot()
 	totalConfigured := 0
 	if cfg != nil {
 		totalConfigured = len(cfg.Sources)
 	}
 	activity := runner.ActivitySnapshotLight()
-	snapshot := runner.CachedSnapshot()
+	snapshot := cachedSchedulerSnapshot(runner)
+	if !cfgOK {
+		totalConfigured = len(snapshot.Items)
+	}
+	feedsSummary := summarizeAdminFeedsFromSchedulerSnapshot(totalConfigured, snapshot, activity)
+	if len(snapshot.Items) == 0 && cfg != nil {
+		feedsSummary = summarizeAdminFeeds(totalConfigured, buildAdminFeedsFromCachedStatus(eng, runner))
+	}
+	engineStatus, _ := eng.TryStatusSnapshotLight()
 	return adminStatusLight{
 		PublicBaseURL: strings.TrimSpace(rt.PublicBaseURL),
 		System:        adminSystemFromDetailed(sys),
-		Engine:        eng.StatusSnapshotLight(),
+		Engine:        engineStatus,
 		Scheduler:     sanitizeSchedulerSnapshot(snapshot),
 		Queues:        activity,
 		Metrics:       runner.MetricsSnapshot(),
-		Feeds:         summarizeAdminFeedsFromSchedulerSnapshot(totalConfigured, snapshot, activity),
+		Feeds:         feedsSummary,
 	}
 }
 

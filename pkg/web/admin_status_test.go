@@ -7,9 +7,11 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/firehol/update-ipsets/internal/runtimeinfo"
 	"github.com/firehol/update-ipsets/pkg/config"
 	"github.com/firehol/update-ipsets/pkg/engine"
 	"github.com/firehol/update-ipsets/pkg/feedhealth"
@@ -138,9 +140,12 @@ func TestSanitizeSchedulerSnapshotClampsOutOfRangeTimes(t *testing.T) {
 	snap := scheduler.Snapshot{
 		GeneratedAt: time.Date(12000, time.January, 1, 0, 0, 0, 0, time.UTC),
 		Items: []scheduler.Item{{
-			Name:      "sample",
-			CheckedAt: time.Date(12001, time.January, 1, 0, 0, 0, 0, time.UTC),
-			NextDue:   time.Date(12002, time.January, 1, 0, 0, 0, 0, time.UTC),
+			Name:        "sample",
+			CheckedAt:   time.Date(12001, time.January, 1, 0, 0, 0, 0, time.UTC),
+			UpdatedAt:   time.Date(12002, time.January, 1, 0, 0, 0, 0, time.UTC),
+			ProcessedAt: time.Date(12003, time.January, 1, 0, 0, 0, 0, time.UTC),
+			StartedAt:   time.Date(12004, time.January, 1, 0, 0, 0, 0, time.UTC),
+			NextDue:     time.Date(12005, time.January, 1, 0, 0, 0, 0, time.UTC),
 		}},
 	}
 
@@ -150,6 +155,15 @@ func TestSanitizeSchedulerSnapshotClampsOutOfRangeTimes(t *testing.T) {
 	}
 	if !sanitized.Items[0].CheckedAt.IsZero() {
 		t.Fatalf("expected checked_at to be zero, got %v", sanitized.Items[0].CheckedAt)
+	}
+	if !sanitized.Items[0].UpdatedAt.IsZero() {
+		t.Fatalf("expected updated_at to be zero, got %v", sanitized.Items[0].UpdatedAt)
+	}
+	if !sanitized.Items[0].ProcessedAt.IsZero() {
+		t.Fatalf("expected processed_at to be zero, got %v", sanitized.Items[0].ProcessedAt)
+	}
+	if !sanitized.Items[0].StartedAt.IsZero() {
+		t.Fatalf("expected started_at to be zero, got %v", sanitized.Items[0].StartedAt)
 	}
 	if !sanitized.Items[0].NextDue.IsZero() {
 		t.Fatalf("expected next_due to be zero, got %v", sanitized.Items[0].NextDue)
@@ -269,6 +283,53 @@ func TestAdminStatusLightUsesRuntimeStatsSampler(t *testing.T) {
 	}
 }
 
+func TestAdminStatusFullUsesCachedRuntimeStatsWithoutSynchronousCapture(t *testing.T) {
+	setDetailedStatusCacheForTest(t, time.Now().UTC().Add(-time.Hour), detailedSystemInfo{
+		Goroutines: 321,
+		HeapSys:    654_321,
+		DiskFree:   "stale cached sentinel",
+		RSSKB:      987,
+	})
+	var captures atomic.Int32
+	restore := setDetailedStatusCaptureForTest(func() runtimeinfo.Snapshot {
+		captures.Add(1)
+		return runtimeinfo.Snapshot{
+			Goroutines: 999,
+			HeapSys:    999,
+			RSSKB:      999,
+		}
+	})
+	t.Cleanup(restore)
+
+	_, handler := testHandler(t, Options{
+		EnableAll:                 true,
+		AdminAuthMode:             AdminAuthModeDisabled,
+		AllowUnauthenticatedAdmin: true,
+	})
+	server := newWebHTTPTestServer(t, handler)
+
+	var fullPayload adminStatus
+	status, _ := server.getJSON(t, "/api/v1/admin/status?mode=full", &fullPayload)
+	if status != http.StatusOK {
+		t.Fatalf("admin full status HTTP status = %d, want 200", status)
+	}
+	if got := captures.Load(); got != 0 {
+		t.Fatalf("admin full status captured runtime stats synchronously %d times", got)
+	}
+	if fullPayload.System.Goroutines != 321 {
+		t.Fatalf("admin full status goroutines = %d, want cached sampler value 321", fullPayload.System.Goroutines)
+	}
+	if fullPayload.System.HeapSys != 654_321 {
+		t.Fatalf("admin full status heap_sys = %d, want cached sampler value 654321", fullPayload.System.HeapSys)
+	}
+	if fullPayload.System.DiskFree != "stale cached sentinel" {
+		t.Fatalf("admin full status disk_free = %q, want cached sampler value", fullPayload.System.DiskFree)
+	}
+	if fullPayload.System.RSSKB != 987 {
+		t.Fatalf("admin full status rss_kb = %d, want cached sampler value 987", fullPayload.System.RSSKB)
+	}
+}
+
 func TestAdminStatusLightIncludesEngineLane(t *testing.T) {
 	eng, handler := testHandler(t, Options{
 		EnableAll:                 true,
@@ -362,44 +423,6 @@ func TestAdminStatusLightIncludesFeedHealthSummary(t *testing.T) {
 	}
 	if lightPayload.Feeds != want {
 		t.Fatalf("admin light status feeds summary = %+v, want %+v", lightPayload.Feeds, want)
-	}
-}
-
-func TestAdminStatusLightUsesCachedSchedulerSnapshotWithoutRebuild(t *testing.T) {
-	opts := Options{
-		EnableAll:                 true,
-		AdminAuthMode:             AdminAuthModeDisabled,
-		AllowUnauthenticatedAdmin: true,
-	}
-	eng, _ := testHandler(t, opts)
-	stale := scheduler.Snapshot{
-		GeneratedAt: time.Unix(1_700_000_000, 0).UTC(),
-		Items: []scheduler.Item{{
-			Name:        "cached-sentinel",
-			Enabled:     true,
-			HealthClass: string(feedhealth.ClassHealthy),
-			Entries:     7,
-			UniqueIPs:   11,
-			CheckedAt:   time.Unix(1_700_000_000, 0).UTC(),
-			NextDue:     time.Unix(1_700_000_001, 0).UTC(),
-		}},
-	}
-	if err := scheduler.SaveSnapshot(filepath.Join(eng.Runtime().CacheDir, "scheduler-state.json"), stale); err != nil {
-		t.Fatalf("write scheduler snapshot: %v", err)
-	}
-	runner := scheduler.New(eng, true, nil)
-	server := newWebHTTPTestServer(t, newHandler(eng, opts, runner))
-
-	var lightPayload adminStatusLight
-	status, _ := server.getJSON(t, "/api/v1/admin/status?mode=light", &lightPayload)
-	if status != http.StatusOK {
-		t.Fatalf("admin light status HTTP status = %d, want 200", status)
-	}
-	if got := lightPayload.Scheduler.Items; len(got) != 1 || got[0].Name != "cached-sentinel" {
-		t.Fatalf("light status scheduler items = %+v, want cached sentinel without rebuild", got)
-	}
-	if lightPayload.Feeds.Healthy != 1 || lightPayload.Feeds.TotalEntries != 7 || lightPayload.Feeds.TotalUniqueIPs != 11 {
-		t.Fatalf("light status cached feed summary = %+v, want healthy cached sentinel counters", lightPayload.Feeds)
 	}
 }
 

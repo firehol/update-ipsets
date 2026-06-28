@@ -3,7 +3,6 @@ package web
 import (
 	"context"
 	"fmt"
-	"log/slog"
 	"sync"
 	"syscall"
 	"time"
@@ -181,7 +180,7 @@ func (s *runtimeStatsSampler) Start(ctx context.Context) {
 }
 
 func refreshDetailedStatusSafely() {
-	defer recoverDaemonControlPanic(slog.Default(), "runtime_stats_sampler")
+	defer recoverDaemonControlPanic("runtime_stats_sampler")
 	refreshDetailedStatus()
 }
 

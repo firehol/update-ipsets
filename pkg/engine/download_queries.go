@@ -163,6 +163,14 @@ func (e *Engine) HasLocalReprocessState(name string) bool {
 	return e.hasLocalReprocessStateWithSnapshot(snap, name)
 }
 
+func (e *Engine) TryHasLocalReprocessState(name string) (bool, bool) {
+	snap, ok := e.tryOperationSnapshot()
+	if !ok {
+		return false, false
+	}
+	return e.hasLocalReprocessStateWithSnapshot(snap, name), true
+}
+
 func (e *Engine) hasLocalReprocessStateWithSnapshot(snap operationSnapshot, name string) bool {
 	if e == nil || snap.cfg == nil {
 		return false
@@ -184,6 +192,14 @@ func (e *Engine) ResolveRecheckTarget(ctx context.Context, name string) string {
 	ctx = nonNilContext(ctx)
 	snap := e.operationSnapshot()
 	return e.resolveRecheckTargetWithSnapshot(ctx, snap, name)
+}
+
+func (e *Engine) TryResolveRecheckTarget(name string) (string, bool) {
+	snap, ok := e.tryOperationSnapshot()
+	if !ok {
+		return "", false
+	}
+	return e.resolveRecheckTargetFastWithSnapshot(snap, name), true
 }
 
 func (e *Engine) ResolveRecheckAdmission(ctx context.Context, name string) RecheckAdmission {
@@ -227,6 +243,35 @@ func (e *Engine) resolveRecheckTargetWithSnapshot(ctx context.Context, snap oper
 		}
 		if len(src.DerivedFrom) > 0 {
 			return e.resolveRecheckTargetWithSnapshot(ctx, snap, src.DerivedFrom[0])
+		}
+		return name
+	}
+	if src.ArtifactParent == "" {
+		return name
+	}
+	if fileExists(preferStagedPath(snap.sourcePath(name))) || fileExists(latestFeedBodyPath(snap.feedBodyPath(name))) {
+		return name
+	}
+	if snap.cfg.ArtifactByName(src.ArtifactParent) != nil {
+		return src.ArtifactParent
+	}
+	return name
+}
+
+func (e *Engine) resolveRecheckTargetFastWithSnapshot(snap operationSnapshot, name string) string {
+	if e == nil || snap.cfg == nil {
+		return name
+	}
+	src := snap.cfg.Sources[name]
+	if src == nil {
+		return name
+	}
+	if snap.isHistoryDerivative(name) {
+		if fileExists(latestFeedBodyPath(snap.feedBodyPath(name))) {
+			return name
+		}
+		if len(src.DerivedFrom) > 0 {
+			return e.resolveRecheckTargetFastWithSnapshot(snap, src.DerivedFrom[0])
 		}
 		return name
 	}

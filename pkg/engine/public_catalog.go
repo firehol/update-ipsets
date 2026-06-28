@@ -67,6 +67,108 @@ type PublicCriticalFeed struct {
 	Role string `json:"role,omitempty"`
 }
 
+type PublicServingCatalogSnapshot struct {
+	Categories                      []PublicCategory
+	Feeds                           []PublicFeedSummary
+	PublicFeedNames                 map[string]struct{}
+	RawFeedFiles                    map[string]string
+	GeoProviders                    []GeoProvider
+	ASNProviders                    []ASNProvider
+	BogonProviders                  []BogonProvider
+	CriticalInfrastructureProviders []CriticalInfrastructureProvider
+	CriticalInfrastructureTargets   map[string]struct{}
+}
+
+func (e *Engine) TryPublicServingCatalogSnapshot() (PublicServingCatalogSnapshot, bool) {
+	var out PublicServingCatalogSnapshot
+	snap, ok := e.tryOperationSnapshot()
+	if !ok {
+		return out, false
+	}
+	if snap.cfg == nil {
+		return out, true
+	}
+	entries, ok := e.tryEntryMapSnapshot()
+	if !ok {
+		return out, false
+	}
+
+	out.Categories = publicCategoriesForConfig(snap.cfg)
+	out.GeoProviders = geoProvidersForConfig(snap.cfg)
+	out.ASNProviders = asnProvidersForConfig(snap.cfg)
+	out.BogonProviders = bogonProvidersForConfig(snap.cfg)
+	out.CriticalInfrastructureProviders = criticalInfrastructureProvidersForConfig(snap.cfg)
+	out.PublicFeedNames = map[string]struct{}{}
+	out.RawFeedFiles = map[string]string{}
+	out.CriticalInfrastructureTargets = map[string]struct{}{}
+
+	now := e.now().UTC()
+	configured := configuredNamesForConfig(snap.cfg)
+	configuredNames := make([]string, 0, len(configured))
+	for name := range configured {
+		configuredNames = append(configuredNames, name)
+	}
+	sort.Strings(configuredNames)
+	for _, name := range configuredNames {
+		if isPublicFeedNameForConfig(snap.cfg, name) {
+			out.PublicFeedNames[name] = struct{}{}
+		}
+		if !isCriticalInfrastructureOutputName(snap.cfg, name) && isCriticalInfrastructureComparableName(snap.cfg, name) {
+			out.CriticalInfrastructureTargets[name] = struct{}{}
+		}
+	}
+
+	resolver := newEffectiveEntryResolver(snap.cfg, entries)
+	names := make([]string, 0, len(entries))
+	for name := range entries {
+		if configured[name] {
+			names = append(names, name)
+		}
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		raw := entries[name]
+		entry := resolver.entry(name, &raw)
+		if entry == nil {
+			continue
+		}
+		if isPublicFeedNameForConfig(snap.cfg, name) {
+			src := lookupSourceForConfig(snap.cfg, name)
+			out.Feeds = append(out.Feeds, buildPublicFeedSummary(entry, src, snap.feedHealthPolicy, now, isRedistributableForConfig(snap.cfg, name)))
+			if isPublicRawFeedAvailableForSnapshot(snap, name, entry, now) {
+				out.RawFeedFiles[name] = entry.File
+			}
+		}
+	}
+	observePublicFeedSummaries(out.Feeds, now)
+	return out, true
+}
+
+func (e *Engine) tryEntryMapSnapshot() (map[string]cache.Entry, bool) {
+	if e == nil || e.state == nil {
+		return map[string]cache.Entry{}, true
+	}
+	return e.state.TrySnapshotEntries()
+}
+
+func isPublicRawFeedAvailableForSnapshot(snap operationSnapshot, name string, entry *cache.Entry, now time.Time) bool {
+	if entry == nil || entry.File == "" {
+		return false
+	}
+	if !isRedistributableForConfig(snap.cfg, name) {
+		return false
+	}
+	src := lookupSourceForConfig(snap.cfg, name)
+	if feedhealth.Classify(entry, src, snap.feedHealthPolicy, now).Class == feedhealth.ClassArchived {
+		return false
+	}
+	if !rawFeedFileMatches(name, entry.File) {
+		return false
+	}
+	_, ok := safeRuntimeFilePath(snap.runtime.BaseDir, entry.File)
+	return ok
+}
+
 func (e *Engine) PublicFeedSummaries() []PublicFeedSummary {
 	if e == nil {
 		return nil
@@ -169,13 +271,13 @@ func observePublicFeedSummaries(summaries []PublicFeedSummary, now time.Time) {
 	for i := range summaries {
 		summary := summaries[i]
 		attrs := []attribute.KeyValue{attribute.String("feed.name", summary.Name)}
-		observability.Gauge(observability.BackgroundContext(), "feed.state", feedStateCode(summary), attrs...)
-		observability.Gauge(observability.BackgroundContext(), "feed.health.state", feedHealthCode(summary.Health.Class), attrs...)
-		observability.Gauge(observability.BackgroundContext(), "feed.entries", int64(summary.Entries), attrs...)
-		observability.Gauge(observability.BackgroundContext(), "feed.unique_ips", uint64ToInt64(summary.UniqueIPs), attrs...)
-		observability.Gauge(observability.BackgroundContext(), "feed.errors", int64(summary.DownloadFailures), attrs...)
-		observability.Gauge(observability.BackgroundContext(), "feed.freshness.seconds", feedFreshnessSeconds(summary, now), attrs...)
-		observability.Gauge(observability.BackgroundContext(), "feed.last_success.timestamp", summary.ProcessedDate, attrs...)
+		observability.TryGauge("feed.state", feedStateCode(summary), attrs...)
+		observability.TryGauge("feed.health.state", feedHealthCode(summary.Health.Class), attrs...)
+		observability.TryGauge("feed.entries", int64(summary.Entries), attrs...)
+		observability.TryGauge("feed.unique_ips", uint64ToInt64(summary.UniqueIPs), attrs...)
+		observability.TryGauge("feed.errors", int64(summary.DownloadFailures), attrs...)
+		observability.TryGauge("feed.freshness.seconds", feedFreshnessSeconds(summary, now), attrs...)
+		observability.TryGauge("feed.last_success.timestamp", summary.ProcessedDate, attrs...)
 	}
 }
 

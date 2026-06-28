@@ -50,6 +50,69 @@ func TestReloadPublicationListenerReplacesByName(t *testing.T) {
 	waitForEngineLaneIdle(t, eng)
 }
 
+func TestReloadPublicationListenerObservesSuccessfulRunPublication(t *testing.T) {
+	root := t.TempDir()
+	cfgPath := filepath.Join(root, "config.yaml")
+	writeRuntimeReloadConfig(t, cfgPath, root, 2)
+
+	eng, err := New(cfgPath, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var calls atomic.Int32
+	var seenWebDir string
+	eng.RegisterReloadPublicationListener("test.run_publication", func(pub ReloadPublication) error {
+		calls.Add(1)
+		seenWebDir = pub.Runtime.WebDir
+		return nil
+	})
+
+	report, err := runSchedulerStyleOnce(t, eng, RunOptions{EnableAll: true, Manual: true, CleanupOld: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(report.Updated) == 0 {
+		t.Fatalf("run updated no feeds; listener contract needs a published run")
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("run publication listener calls = %d, want 1", got)
+	}
+	if want := eng.Runtime().WebDir; seenWebDir != want {
+		t.Fatalf("run publication listener web dir = %q, want %q", seenWebDir, want)
+	}
+	waitForEngineLaneIdle(t, eng)
+}
+
+func TestReloadPublicationListenerErrorDoesNotFailSuccessfulRun(t *testing.T) {
+	root := t.TempDir()
+	cfgPath := filepath.Join(root, "config.yaml")
+	writeRuntimeReloadConfig(t, cfgPath, root, 2)
+
+	eng, err := New(cfgPath, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var calls atomic.Int32
+	eng.RegisterReloadPublicationListener("test.run_publication_error", func(ReloadPublication) error {
+		calls.Add(1)
+		return errors.New("serving snapshot refresh failed")
+	})
+
+	report, err := runSchedulerStyleOnce(t, eng, RunOptions{EnableAll: true, Manual: true, CleanupOld: true})
+	if err != nil {
+		t.Fatalf("run error = %v, want successful run despite listener diagnostics", err)
+	}
+	if len(report.Updated) == 0 {
+		t.Fatalf("run updated no feeds; listener contract needs a published run")
+	}
+	if got := calls.Load(); got != 1 {
+		t.Fatalf("run publication listener calls = %d, want 1", got)
+	}
+	waitForEngineLaneIdle(t, eng)
+}
+
 func TestReloadPublicationListenerErrorSurvivesCleanupQueueFailure(t *testing.T) {
 	root := t.TempDir()
 	cfgPath := filepath.Join(root, "config.yaml")

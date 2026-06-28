@@ -14,7 +14,10 @@ func (e *Engine) PublicCategories() []PublicCategory {
 	if e == nil {
 		return nil
 	}
-	cfg := e.Config()
+	return publicCategoriesForConfig(e.Config())
+}
+
+func publicCategoriesForConfig(cfg *config.Config) []PublicCategory {
 	if cfg == nil {
 		return nil
 	}

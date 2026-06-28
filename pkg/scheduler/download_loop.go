@@ -19,9 +19,10 @@ func (r *Runner) runFetchLoop(ctx context.Context, wg *sync.WaitGroup) {
 		if workers < 1 {
 			workers = 1
 		}
-		entries := r.eng.EntriesSnapshotForConfig(cfg)
+		entries := r.eng.EntriesSnapshotWithArtifactsForConfig(cfg)
 		snapshot := BuildSnapshotWithPolicy(cfg, rt, policy, entries, r.enableAll, now)
-		artifactItems := BuildArtifactItemsWithPolicy(cfg, rt, policy, r.eng.EntriesSnapshotWithArtifactsForConfig(cfg), r.enableAll, now)
+		artifactItems := BuildArtifactItemsWithPolicy(cfg, rt, policy, entries, r.enableAll, now)
+		snapshot.ArtifactItems = artifactItems
 		r.storeSnapshot(snapshot)
 		transitions := healthTransitionDetails(prev, snapshot)
 		if len(transitions) > 0 {
@@ -80,12 +81,12 @@ func (r *Runner) runDownload(ctx context.Context, item queuedWork) {
 	if statusName == "" {
 		statusName = "unknown"
 	}
-	r.eng.ObserveCounter("download.status."+statusName, 1, decision.BodySize)
+	r.eng.TryObserveCounter("download.status."+statusName, 1, decision.BodySize)
 	if decision.HTTPCode > 0 {
-		r.eng.ObserveCounter(fmt.Sprintf("download.http_status.%d", decision.HTTPCode), 1, decision.BodySize)
+		r.eng.TryObserveCounter(fmt.Sprintf("download.http_status.%d", decision.HTTPCode), 1, decision.BodySize)
 	}
 	if len(decision.ProcessingNames) > 0 {
-		r.eng.ObserveCounter("download.processing_names", int64(len(decision.ProcessingNames)), 0)
+		r.eng.TryObserveCounter("download.processing_names", int64(len(decision.ProcessingNames)), 0)
 	}
 	r.finishDownload(item.Name)
 	finished = true

@@ -8,11 +8,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"go.opentelemetry.io/otel/attribute"
-	otelmetric "go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 )
 
@@ -104,6 +104,65 @@ func TestShutdownAllAndSetupShutdown(t *testing.T) {
 	}
 }
 
+func TestInitFailsOpenWhenOTLPProtocolInvalid(t *testing.T) {
+	t.Setenv("UPDATE_IPSETS_OTEL", "1")
+	t.Setenv("UPDATE_IPSETS_OTEL_PROTOCOL", "invalid")
+
+	var logs bytes.Buffer
+	setup, err := Init(t.Context(), "test-service", "test-version", slog.New(slog.NewTextHandler(&logs, nil)))
+	if err != nil {
+		t.Fatalf("Init() error = %v, want nil", err)
+	}
+	t.Cleanup(func() {
+		if err := setup.Shutdown(t.Context()); err != nil {
+			t.Fatalf("Setup.Shutdown() error = %v", err)
+		}
+	})
+	if setup.Enabled {
+		t.Fatal("Setup.Enabled = true, want false when OTLP protocol is invalid")
+	}
+	if setup.PrometheusHandler == nil {
+		t.Fatal("PrometheusHandler = nil, want local metrics after OTLP setup failure")
+	}
+	Gauge(t.Context(), "daemon.up", 1)
+	assertMetricsHandlerContains(t, setup.PrometheusHandler, "daemon_up")
+	if !strings.Contains(logs.String(), "OTLP export disabled") {
+		t.Fatalf("Init() logs did not report OTLP degradation:\n%s", logs.String())
+	}
+}
+
+func TestInitFailsOpenWhenOTLPMetricExporterCannotStart(t *testing.T) {
+	t.Setenv("UPDATE_IPSETS_OTEL", "1")
+	t.Setenv("UPDATE_IPSETS_OTEL_PROTOCOL", "grpc")
+	t.Setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:1")
+	t.Setenv("OTEL_TRACES_EXPORTER", "none")
+	t.Setenv("OTEL_LOGS_EXPORTER", "none")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	var logs bytes.Buffer
+	setup, err := Init(ctx, "test-service", "test-version", slog.New(slog.NewTextHandler(&logs, nil)))
+	if err != nil {
+		t.Fatalf("Init() error = %v, want nil", err)
+	}
+	t.Cleanup(func() {
+		if err := setup.Shutdown(t.Context()); err != nil {
+			t.Fatalf("Setup.Shutdown() error = %v", err)
+		}
+	})
+	if setup.Enabled {
+		t.Fatal("Setup.Enabled = true, want false when the only OTLP signal cannot start")
+	}
+	if setup.PrometheusHandler == nil {
+		t.Fatal("PrometheusHandler = nil, want local metrics after OTLP exporter failure")
+	}
+	Gauge(t.Context(), "daemon.up", 1)
+	assertMetricsHandlerContains(t, setup.PrometheusHandler, "daemon_up")
+	if !strings.Contains(logs.String(), "startup budget expired") {
+		t.Fatalf("Init() logs did not report startup budget degradation:\n%s", logs.String())
+	}
+}
+
 func TestTracingHelpersHandleDefaults(t *testing.T) {
 	ctx, span := Start(context.Background(), "", attribute.String("component", "test"))
 	if ctx == nil {
@@ -149,6 +208,31 @@ func TestMetricHelpersRecordDesignedInstruments(t *testing.T) {
 	}
 }
 
+func TestMetricHelpersDoNotCreateInstrumentsOnRecord(t *testing.T) {
+	_, restore := installTestMeter(t)
+	defer restore()
+
+	instrumentsMu.RLock()
+	counterCount := len(counters)
+	histogramCount := len(histograms)
+	gaugeCount := len(gauges)
+	instrumentsMu.RUnlock()
+
+	Count(t.Context(), "download.fetches", 1)
+	Duration(t.Context(), "download.fetch", time.Millisecond)
+	Gauge(t.Context(), "daemon.up", 1)
+	Count(t.Context(), "not.designed", 1)
+	Duration(t.Context(), "not.designed", time.Millisecond)
+	Gauge(t.Context(), "not.designed", 1)
+
+	instrumentsMu.RLock()
+	defer instrumentsMu.RUnlock()
+	if len(counters) != counterCount || len(histograms) != histogramCount || len(gauges) != gaugeCount {
+		t.Fatalf("metric recording mutated instrument registry: counters %d->%d histograms %d->%d gauges %d->%d",
+			counterCount, len(counters), histogramCount, len(histograms), gaugeCount, len(gauges))
+	}
+}
+
 func TestAPIRecalculationMetricsExposeBoundedLabels(t *testing.T) {
 	handler, restore := installTestMeter(t)
 	defer restore()
@@ -181,6 +265,56 @@ func TestAPIRecalculationMetricsExposeBoundedLabels(t *testing.T) {
 		if strings.Contains(body, forbidden) {
 			t.Fatalf("/metrics body exposed unbounded recalculation label %q:\n%s", forbidden, body)
 		}
+	}
+}
+
+func TestHTTPServerRequestMetricUsesProjectOwnedInstrument(t *testing.T) {
+	handler, restore := installTestMeter(t)
+	defer restore()
+
+	recordHTTPServerRequest(t.Context(), "/healthz", http.MethodGet, http.StatusNoContent, 2*time.Millisecond)
+
+	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("/metrics status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{
+		"http_server_request_duration_seconds",
+		`http_request_method="GET"`,
+		`http_response_status_code="204"`,
+		`http_route="/healthz"`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("/metrics body missing %q:\n%s", want, body)
+		}
+	}
+}
+
+func TestAsyncMetricTryHelpersDropWhenQueueFull(t *testing.T) {
+	asyncMetrics = make(chan asyncMetric, 1)
+	asyncMetrics <- asyncMetric{kind: asyncMetricCount, name: "download.fetches", count: 1}
+	asyncMetricsStarted.Store(true)
+	t.Cleanup(func() {
+		asyncMetrics = make(chan asyncMetric, asyncMetricQueueSize)
+		asyncMetricsStarted.Store(false)
+	})
+
+	done := make(chan struct{})
+	go func() {
+		TryCount("download.fetches", 1)
+		TryDuration("download.fetch", time.Millisecond)
+		TryGauge("daemon.up", 1)
+		TryHTTPServerRequest("/healthz", http.MethodGet, http.StatusOK, time.Millisecond)
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("async metric Try helpers blocked behind a full telemetry queue")
 	}
 }
 
@@ -223,6 +357,91 @@ func TestTeeHandlerFanout(t *testing.T) {
 	}
 }
 
+func TestAsyncLogHandlerDropsWhenExporterBlocked(t *testing.T) {
+	blocking := newBlockingSlogHandler()
+	handler := newAsyncLogHandler(blocking, 1)
+	t.Cleanup(func() {
+		blocking.release()
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+		_ = handler.Shutdown(ctx)
+	})
+
+	done := make(chan struct{})
+	go func() {
+		for i := 0; i < 32; i++ {
+			record := slog.NewRecord(time.Now(), slog.LevelInfo, "message", 0)
+			_ = handler.Handle(t.Context(), record)
+		}
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("async log handler blocked caller behind blocked exporter")
+	}
+}
+
+func TestAsyncLogHandlerIgnoresRecordsAfterShutdown(t *testing.T) {
+	var out bytes.Buffer
+	handler := newAsyncLogHandler(slog.NewTextHandler(&out, nil), 1)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	if err := handler.Shutdown(ctx); err != nil {
+		t.Fatalf("Shutdown() error = %v", err)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		for i := 0; i < 32; i++ {
+			record := slog.NewRecord(time.Now(), slog.LevelInfo, "late", 0)
+			_ = handler.Handle(t.Context(), record)
+		}
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("async log handler blocked late records after shutdown")
+	}
+}
+
+type blockingSlogHandler struct {
+	releaseOnce sync.Once
+	releaseCh   chan struct{}
+}
+
+func newBlockingSlogHandler() *blockingSlogHandler {
+	return &blockingSlogHandler{
+		releaseCh: make(chan struct{}),
+	}
+}
+
+func (h *blockingSlogHandler) Enabled(context.Context, slog.Level) bool {
+	return true
+}
+
+func (h *blockingSlogHandler) Handle(context.Context, slog.Record) error {
+	<-h.releaseCh
+	return nil
+}
+
+func (h *blockingSlogHandler) WithAttrs([]slog.Attr) slog.Handler {
+	return h
+}
+
+func (h *blockingSlogHandler) WithGroup(string) slog.Handler {
+	return h
+}
+
+func (h *blockingSlogHandler) release() {
+	h.releaseOnce.Do(func() {
+		close(h.releaseCh)
+	})
+}
+
 func installTestMeter(t *testing.T) (http.Handler, func()) {
 	t.Helper()
 	exporter, handler, err := newPrometheusMetrics()
@@ -245,9 +464,7 @@ func installTestMeter(t *testing.T) (http.Handler, func()) {
 	oldCounters := counters
 	oldHistograms := histograms
 	oldGauges := gauges
-	counters = map[string]otelmetric.Int64Counter{}
-	histograms = map[string]otelmetric.Float64Histogram{}
-	gauges = map[string]otelmetric.Int64Gauge{}
+	counters, histograms, gauges = precreateMetricInstruments(meter)
 	instrumentsMu.Unlock()
 
 	restore := func() {
@@ -259,6 +476,19 @@ func installTestMeter(t *testing.T) (http.Handler, func()) {
 		instrumentsMu.Unlock()
 	}
 	return handler, restore
+}
+
+func assertMetricsHandlerContains(t *testing.T, handler http.Handler, want string) {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, "/metrics", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("/metrics status = %d, want %d", rec.Code, http.StatusOK)
+	}
+	if body := rec.Body.String(); !strings.Contains(body, want) {
+		t.Fatalf("/metrics body missing %q:\n%s", want, body)
+	}
 }
 
 func metricLineContains(body, name string, labels []string, value string) bool {

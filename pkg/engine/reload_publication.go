@@ -6,14 +6,15 @@ import (
 	"sort"
 )
 
-// ReloadPublication describes the runtime generation that has been installed
-// into the engine and is now visible to public readers.
+// ReloadPublication describes the runtime generation that is visible to public
+// readers. It is dispatched after config reloads and successful run
+// publications so serving layers can refresh immutable read snapshots.
 type ReloadPublication struct {
 	Runtime Runtime
 }
 
-// ReloadPublicationListener observes a committed runtime generation. It must
-// be cheap and non-blocking; broad repair work belongs in the scheduler lanes.
+// ReloadPublicationListener observes a committed public-serving generation. It
+// must be cheap and non-blocking; broad repair work belongs in scheduler lanes.
 type ReloadPublicationListener func(ReloadPublication) error
 
 type reloadPublicationListenerEntry struct {

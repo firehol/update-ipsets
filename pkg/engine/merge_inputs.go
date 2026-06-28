@@ -3,6 +3,7 @@ package engine
 import (
 	"slices"
 	"sort"
+	"time"
 
 	"github.com/firehol/update-ipsets/pkg/cache"
 	"github.com/firehol/update-ipsets/pkg/config"
@@ -73,6 +74,24 @@ func (e *Engine) MergeCompositionsForConfigRuntimePolicy(cfg *config.Config, rt 
 		runtime:          rt,
 		feedHealthPolicy: policy,
 	})
+}
+
+func (e *Engine) MergeCompositionForConfigRuntimePolicyEntries(cfg *config.Config, rt Runtime, policy feedhealth.Policy, enableAll bool, src *config.Source, entries map[string]cache.Entry) MergeComposition {
+	if e == nil || cfg == nil || src == nil {
+		return MergeComposition{}
+	}
+	snap := operationSnapshot{
+		cfg:              cfg,
+		runtime:          rt,
+		feedHealthPolicy: policy,
+	}
+	resolver := newEffectiveEntryResolver(cfg, entries)
+	now := time.Now().UTC()
+	if e.now != nil {
+		now = e.now().UTC()
+	}
+	health := e.newFeedHealthClassifierForConfigPolicy(cfg, policy, entries, now)
+	return e.mergeCompositionWithResolverForSnapshot(src, enableAll, resolver, health, snap)
 }
 
 func (e *Engine) mergeCompositionsWithSnapshot(enableAll bool, snap operationSnapshot) map[string]MergeComposition {

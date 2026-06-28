@@ -15,7 +15,8 @@ The daemon supports two modes, controlled by `--admin-auth-mode`:
 endpoint and is intentionally served without basic authentication. In split mode
 it is available only on the admin listener. In shared-listener mode it is
 available on the shared listener, so protect that listener with bind address,
-firewall, or network policy.
+firewall, or network policy. The endpoint is bounded and may return
+`503 Service Unavailable` when another scrape is active or collection times out.
 
 ## Required mode
 

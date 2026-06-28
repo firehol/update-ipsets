@@ -1,9 +1,14 @@
 package web
 
 import (
+	"net/http"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/firehol/update-ipsets/pkg/scheduler"
 )
 
 func TestBuildFeedManifestRequiresConfiguredProviderFanOutArtifacts(t *testing.T) {
@@ -14,7 +19,7 @@ func TestBuildFeedManifestRequiresConfiguredProviderFanOutArtifacts(t *testing.T
 		t.Fatal("sample source missing")
 	}
 
-	resp := buildFeedManifest("sample", src, cfg, eng.Runtime(), eng)
+	resp := buildFeedManifest("sample", src, cfg, eng.Runtime(), eng, 0)
 
 	assertManifestRequiredFile(t, resp, "geo", "geodb", "sample_geodb.json")
 	assertManifestRequiredFile(t, resp, "asn", "asndb", "sample_asn_asndb.json")
@@ -59,7 +64,7 @@ func TestBuildFeedManifestUsesProviderSourceForDatabaseFeeds(t *testing.T) {
 			if src == nil {
 				t.Fatalf("%s source missing", tc.name)
 			}
-			resp := buildFeedManifest(tc.name, src, cfg, eng.Runtime(), eng)
+			resp := buildFeedManifest(tc.name, src, cfg, eng.Runtime(), eng, 0)
 			providerSource := requireManifestKind(t, resp, "provider_source")
 			if !providerSource.Required {
 				t.Fatalf("provider_source required = false, want true")
@@ -73,6 +78,136 @@ func TestBuildFeedManifestUsesProviderSourceForDatabaseFeeds(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestAdminFeedManifestUsesCachedSchedulerProcessedDate(t *testing.T) {
+	opts := Options{
+		EnableAll:                 true,
+		AdminAuthMode:             AdminAuthModeDisabled,
+		AllowUnauthenticatedAdmin: true,
+	}
+	eng, _ := testHandlerWithProviderCatalog(t, opts)
+	processedAt := time.Unix(1_700_000_150, 0).UTC()
+	if err := scheduler.SaveSnapshot(filepath.Join(eng.Runtime().CacheDir, "scheduler-state.json"), scheduler.Snapshot{
+		GeneratedAt: processedAt,
+		Items: []scheduler.Item{{
+			Name:        "sample",
+			ProcessedAt: processedAt,
+		}},
+	}); err != nil {
+		t.Fatalf("write scheduler snapshot: %v", err)
+	}
+	runner := scheduler.New(eng, true, nil)
+	server := newWebHTTPTestServer(t, newHandler(eng, opts, runner))
+
+	var resp ManifestResponse
+	status, _ := server.getJSON(t, "/api/v1/admin/feeds/sample/manifest", &resp)
+	if status != http.StatusOK {
+		t.Fatalf("manifest status = %d, want 200", status)
+	}
+	if got, want := resp.ProcessedDate, processedAt.Unix(); got != want {
+		t.Fatalf("manifest processed_date = %d, want cached scheduler value %d", got, want)
+	}
+}
+
+func TestAdminFeedManifestTimesOutWhenFilesystemInspectionStalls(t *testing.T) {
+	opts := Options{
+		EnableAll:                 true,
+		AdminAuthMode:             AdminAuthModeDisabled,
+		AllowUnauthenticatedAdmin: true,
+	}
+	eng, _ := testHandlerWithProviderCatalog(t, opts)
+	runner := scheduler.New(eng, true, nil)
+	server := newWebHTTPTestServer(t, newHandler(eng, opts, runner))
+
+	blockStat := make(chan struct{})
+	restoreSettings := setAdminManifestTestSettings(10*time.Millisecond, manifestFS{
+		stat: func(string) (os.FileInfo, error) {
+			<-blockStat
+			return nil, os.ErrNotExist
+		},
+	})
+	t.Cleanup(func() {
+		close(blockStat)
+		waitForAdminManifestSlot(t)
+		restoreSettings()
+	})
+
+	started := time.Now()
+	var body map[string]string
+	status, _ := server.getJSON(t, "/api/v1/admin/feeds/sample/manifest", &body)
+	if status != http.StatusServiceUnavailable {
+		t.Fatalf("manifest status = %d, want 503; body=%v", status, body)
+	}
+	if !strings.Contains(body["error"], "timed out") {
+		t.Fatalf("manifest error = %q, want timeout", body["error"])
+	}
+	if elapsed := time.Since(started); elapsed > time.Second {
+		t.Fatalf("manifest timeout response took %s, want bounded response", elapsed)
+	}
+}
+
+func TestAdminFeedManifestReportsBusyWhenInspectionAlreadyRunning(t *testing.T) {
+	opts := Options{
+		EnableAll:                 true,
+		AdminAuthMode:             AdminAuthModeDisabled,
+		AllowUnauthenticatedAdmin: true,
+	}
+	eng, _ := testHandlerWithProviderCatalog(t, opts)
+	runner := scheduler.New(eng, true, nil)
+	server := newWebHTTPTestServer(t, newHandler(eng, opts, runner))
+
+	adminManifestBuildSlots <- struct{}{}
+	t.Cleanup(func() {
+		<-adminManifestBuildSlots
+	})
+
+	var body map[string]string
+	status, _ := server.getJSON(t, "/api/v1/admin/feeds/sample/manifest", &body)
+	if status != http.StatusServiceUnavailable {
+		t.Fatalf("manifest status = %d, want 503; body=%v", status, body)
+	}
+	if !strings.Contains(body["error"], "busy") {
+		t.Fatalf("manifest error = %q, want busy", body["error"])
+	}
+}
+
+func waitForAdminManifestSlot(t *testing.T) {
+	t.Helper()
+	deadline := time.After(time.Second)
+	ticker := time.NewTicker(time.Millisecond)
+	defer ticker.Stop()
+	for {
+		select {
+		case adminManifestBuildSlots <- struct{}{}:
+			<-adminManifestBuildSlots
+			return
+		case <-deadline:
+			t.Fatal("admin manifest slot remained busy")
+		case <-ticker.C:
+		}
+	}
+}
+
+func setAdminManifestTestSettings(timeout time.Duration, fs manifestFS) func() {
+	adminManifestSettingsMu.Lock()
+	oldTimeout := adminManifestBuildTimeout
+	oldFS := adminManifestFS
+	adminManifestBuildTimeout = timeout
+	if fs.stat != nil {
+		adminManifestFS.stat = fs.stat
+	}
+	if fs.readDir != nil {
+		adminManifestFS.readDir = fs.readDir
+	}
+	adminManifestSettingsMu.Unlock()
+
+	return func() {
+		adminManifestSettingsMu.Lock()
+		adminManifestBuildTimeout = oldTimeout
+		adminManifestFS = oldFS
+		adminManifestSettingsMu.Unlock()
 	}
 }
 

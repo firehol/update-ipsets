@@ -45,12 +45,54 @@ func (b *CounterBook) Add(name string, count, bytes int64) {
 	b.stats[name] = current
 }
 
+func (b *CounterBook) TryAdd(name string, count, bytes int64) bool {
+	if b == nil || name == "" {
+		return true
+	}
+	if count < 0 {
+		count = 0
+	}
+	if bytes < 0 {
+		bytes = 0
+	}
+	if count == 0 && bytes == 0 {
+		return true
+	}
+	if !b.mu.TryLock() {
+		return false
+	}
+	defer b.mu.Unlock()
+	if b.stats == nil {
+		b.stats = make(map[string]counterStat)
+	}
+	current := b.stats[name]
+	current.count += count
+	current.bytes += bytes
+	b.stats[name] = current
+	return true
+}
+
 func (b *CounterBook) Snapshot() []CounterStatSnapshot {
 	if b == nil {
 		return nil
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	return b.snapshotLocked()
+}
+
+func (b *CounterBook) TrySnapshot() ([]CounterStatSnapshot, bool) {
+	if b == nil {
+		return nil, true
+	}
+	if !b.mu.TryLock() {
+		return nil, false
+	}
+	defer b.mu.Unlock()
+	return b.snapshotLocked(), true
+}
+
+func (b *CounterBook) snapshotLocked() []CounterStatSnapshot {
 	if len(b.stats) == 0 {
 		return nil
 	}

@@ -5,7 +5,9 @@ You will learn how to enable, configure, and disable OpenTelemetry export in upd
 The admin surface also serves `GET /metrics` in Prometheus text format. This
 scrape endpoint is available without admin basic authentication and does not
 require OTLP export to be enabled. In split-listener deployments, expose only
-the admin listener to systems that should scrape it.
+the admin listener to systems that should scrape it. The endpoint is bounded:
+concurrent or stuck scrapes return `503 Service Unavailable` rather than waiting
+indefinitely.
 
 ## Enabling export
 
@@ -32,6 +34,12 @@ export OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=http://localhost:4318
 Use the collector's OTLP/HTTP endpoint when the protocol is left at the default
 `http/protobuf`. Use the OTLP/gRPC endpoint, commonly port `4317`, only when
 `UPDATE_IPSETS_OTEL_PROTOCOL=grpc` or `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` is set.
+
+OTLP export is fail-open. If the collector is unreachable, an OTLP option is
+invalid, or telemetry setup times out during startup, update-ipsets logs a
+warning and continues serving. Local stderr logs continue, and the admin
+`GET /metrics` scrape endpoint remains available when local metrics setup
+succeeds.
 
 ## Disabling export
 

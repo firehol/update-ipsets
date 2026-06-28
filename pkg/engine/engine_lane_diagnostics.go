@@ -41,7 +41,7 @@ func (e *Engine) runEngineLaneDiagnostics(ctx context.Context) {
 func (e *Engine) logLongRunningEngineLaneWorkSafely(ctx context.Context, now time.Time, lastLogged map[string]time.Time) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
-			observability.Count(context.Background(), "engine.lane.diagnostics.panics", 1)
+			observability.TryCount("engine.lane.diagnostics.panics", 1)
 			if e != nil && e.logger != nil {
 				func() {
 					defer func() {
@@ -78,8 +78,7 @@ func (e *Engine) logLongRunningEngineLaneWork(ctx context.Context, now time.Time
 		}
 		lastLogged[key] = now
 		e.recordEngineLaneLongHoldWarning(work, now, threshold)
-		observability.Count(
-			ctx,
+		observability.TryCount(
 			"background.worker.long_running",
 			1,
 			attribute.String("background.component", string(work.Component)),

@@ -31,11 +31,11 @@ func (c *Client) Fetch(ctx context.Context, req Request) (result *Result, err er
 			bytes = result.BodySize
 		}
 		attrs = append(attrs, attribute.String("download.status", status))
-		observability.Count(ctx, "download.fetches", 1, attrs...)
-		observability.Bytes(ctx, "download.fetch", bytes, attrs...)
-		observability.Duration(ctx, "download.fetch", time.Since(started), attrs...)
+		observability.TryCount("download.fetches", 1, attrs...)
+		observability.TryBytes("download.fetch", bytes, attrs...)
+		observability.TryDuration("download.fetch", time.Since(started), attrs...)
 		if err != nil || status == string(StatusFailed) {
-			observability.Count(ctx, "download.errors", 1, attrs...)
+			observability.TryCount("download.errors", 1, attrs...)
 		}
 		observability.End(span, err)
 	}()

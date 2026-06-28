@@ -11,7 +11,10 @@ import (
 	"time"
 )
 
-var ErrIntegrityCacheNotFresh = errors.New("integrity cache is not fresh")
+var (
+	ErrIntegrityCacheNotFresh = errors.New("integrity cache is not fresh")
+	ErrIntegrityCacheBusy     = errors.New("integrity cache is busy")
+)
 
 var (
 	integrityRefreshHookMu            sync.Mutex
@@ -181,10 +184,54 @@ func (e *Engine) PipelineIntegrityCacheSnapshot(opts IntegrityOptions) PipelineI
 	return state.snapshotLocked()
 }
 
+func (e *Engine) TryPipelineIntegrityCacheSnapshot(opts IntegrityOptions) (PipelineIntegrityCacheSnapshot, bool) {
+	opts, ok := e.tryNormalizeIntegrityOptions(opts)
+	if !ok {
+		return PipelineIntegrityCacheSnapshot{CacheState: IntegrityCacheCold, Findings: []IntegrityFinding{}}, false
+	}
+	if !e.pipelineIntegrityCacheMu.TryRLock() {
+		return PipelineIntegrityCacheSnapshot{
+			CacheState:      IntegrityCacheRefreshRunning,
+			Running:         true,
+			IncludeArchived: opts.IncludeArchived,
+			EnableAll:       opts.EnableAll,
+			WebDir:          opts.WebDir,
+			Findings:        []IntegrityFinding{},
+		}, false
+	}
+	defer e.pipelineIntegrityCacheMu.RUnlock()
+	state := e.pipelineIntegrityCacheForReadLocked(opts)
+	if state == nil {
+		return PipelineIntegrityCacheSnapshot{
+			CacheState:      IntegrityCacheCold,
+			IncludeArchived: opts.IncludeArchived,
+			EnableAll:       opts.EnableAll,
+			WebDir:          opts.WebDir,
+			Findings:        []IntegrityFinding{},
+		}, true
+	}
+	return state.snapshotLocked(), true
+}
+
 func (e *Engine) EntityIntegrityCacheSnapshot() EntityIntegrityCacheSnapshot {
 	e.entityIntegrityCacheMu.RLock()
 	defer e.entityIntegrityCacheMu.RUnlock()
 	return e.entityIntegrityCache.snapshotLocked()
+}
+
+func (e *Engine) TryEntityIntegrityCacheSnapshot() (EntityIntegrityCacheSnapshot, bool) {
+	if e == nil {
+		return EntityIntegrityCacheSnapshot{CacheState: IntegrityCacheCold, Findings: []EntityIntegrityFinding{}}, true
+	}
+	if !e.entityIntegrityCacheMu.TryRLock() {
+		return EntityIntegrityCacheSnapshot{
+			CacheState: IntegrityCacheRefreshRunning,
+			Running:    true,
+			Findings:   []EntityIntegrityFinding{},
+		}, false
+	}
+	defer e.entityIntegrityCacheMu.RUnlock()
+	return e.entityIntegrityCache.snapshotLocked(), true
 }
 
 func (e *Engine) IntegrityCacheStatus() (PipelineIntegrityCacheStatus, EntityIntegrityCacheStatus) {
@@ -192,21 +239,64 @@ func (e *Engine) IntegrityCacheStatus() (PipelineIntegrityCacheStatus, EntityInt
 		return PipelineIntegrityCacheStatus{CacheState: IntegrityCacheCold}, EntityIntegrityCacheStatus{CacheState: IntegrityCacheCold}
 	}
 	opts := e.normalizeIntegrityOptions(IntegrityOptions{})
-	e.pipelineIntegrityCacheMu.RLock()
+	return e.integrityCacheStatusForNormalizedOptions(opts)
+}
+
+func (e *Engine) integrityCacheStatusForNormalizedOptions(opts IntegrityOptions) (PipelineIntegrityCacheStatus, EntityIntegrityCacheStatus) {
+	pipeline, entity, _ := e.integrityCacheStatusForNormalizedOptionsBestEffort(opts, true)
+	return pipeline, entity
+}
+
+func (e *Engine) tryIntegrityCacheStatusForNormalizedOptions(opts IntegrityOptions) (PipelineIntegrityCacheStatus, EntityIntegrityCacheStatus, bool) {
+	return e.integrityCacheStatusForNormalizedOptionsBestEffort(opts, false)
+}
+
+func (e *Engine) integrityCacheStatusForNormalizedOptionsBestEffort(opts IntegrityOptions, wait bool) (PipelineIntegrityCacheStatus, EntityIntegrityCacheStatus, bool) {
+	if e == nil {
+		return PipelineIntegrityCacheStatus{CacheState: IntegrityCacheCold}, EntityIntegrityCacheStatus{CacheState: IntegrityCacheCold}, true
+	}
+	ok := true
 	pipeline := PipelineIntegrityCacheStatus{
 		CacheState:      IntegrityCacheCold,
 		IncludeArchived: opts.IncludeArchived,
 		EnableAll:       opts.EnableAll,
 		WebDir:          opts.WebDir,
 	}
-	if state := e.pipelineIntegrityCacheForReadLocked(opts); state != nil {
-		pipeline = state.statusLocked()
+	if wait {
+		e.pipelineIntegrityCacheMu.RLock()
+		if state := e.pipelineIntegrityCacheForReadLocked(opts); state != nil {
+			pipeline = state.statusLocked()
+		}
+		e.pipelineIntegrityCacheMu.RUnlock()
+	} else {
+		if e.pipelineIntegrityCacheMu.TryRLock() {
+			if state := e.pipelineIntegrityCacheForReadLocked(opts); state != nil {
+				pipeline = state.statusLocked()
+			}
+			e.pipelineIntegrityCacheMu.RUnlock()
+		} else {
+			pipeline.CacheState = IntegrityCacheRefreshRunning
+			pipeline.Running = true
+			ok = false
+		}
 	}
-	e.pipelineIntegrityCacheMu.RUnlock()
-	e.entityIntegrityCacheMu.RLock()
-	entity := e.entityIntegrityCache.statusLocked()
-	e.entityIntegrityCacheMu.RUnlock()
-	return pipeline, entity
+
+	entity := EntityIntegrityCacheStatus{CacheState: IntegrityCacheCold}
+	if wait {
+		e.entityIntegrityCacheMu.RLock()
+		entity = e.entityIntegrityCache.statusLocked()
+		e.entityIntegrityCacheMu.RUnlock()
+	} else {
+		if e.entityIntegrityCacheMu.TryRLock() {
+			entity = e.entityIntegrityCache.statusLocked()
+			e.entityIntegrityCacheMu.RUnlock()
+		} else {
+			entity.CacheState = IntegrityCacheRefreshRunning
+			entity.Running = true
+			ok = false
+		}
+	}
+	return pipeline, entity, ok
 }
 
 func (e *Engine) QueuePipelineIntegrityRefresh(ctx context.Context, opts IntegrityOptions, trigger string) (PipelineIntegrityCacheSnapshot, error) {
@@ -214,7 +304,11 @@ func (e *Engine) QueuePipelineIntegrityRefresh(ctx context.Context, opts Integri
 		return PipelineIntegrityCacheSnapshot{CacheState: IntegrityCacheCold, Findings: []IntegrityFinding{}}, nil
 	}
 	ctx = nonNilContext(ctx)
-	opts = e.normalizeIntegrityOptions(opts)
+	var ok bool
+	opts, ok = e.tryNormalizeIntegrityOptions(opts)
+	if !ok {
+		return PipelineIntegrityCacheSnapshot{CacheState: IntegrityCacheRefreshRunning, Running: true, Findings: []IntegrityFinding{}}, ErrIntegrityCacheBusy
+	}
 	workID := e.nextIntegrityWorkID("pipeline")
 	work := LaneWork{
 		ID:            workID,
@@ -242,10 +336,16 @@ func (e *Engine) QueuePipelineIntegrityRefresh(ctx context.Context, opts Integri
 		return scanErr
 	})
 	if err != nil {
-		return e.PipelineIntegrityCacheSnapshot(opts), err
+		snap, _ := e.TryPipelineIntegrityCacheSnapshot(opts)
+		return snap, err
 	}
-	e.setPipelineIntegrityQueued(opts, workID, ticket)
-	return e.PipelineIntegrityCacheSnapshot(opts), nil
+	if !e.trySetPipelineIntegrityQueued(opts, workID, ticket) {
+		return pipelineIntegritySnapshotFromTicket(opts, ticket), nil
+	}
+	if snap, ok := e.TryPipelineIntegrityCacheSnapshot(opts); ok {
+		return snap, nil
+	}
+	return pipelineIntegritySnapshotFromTicket(opts, ticket), nil
 }
 
 func (e *Engine) QueuePipelineIntegrityReprocess(ctx context.Context, opts IntegrityOptions, trigger string, fn func(context.Context, []IntegrityFinding) error) (LaneTicket, error) {
@@ -256,10 +356,16 @@ func (e *Engine) QueuePipelineIntegrityReprocess(ctx context.Context, opts Integ
 		return LaneTicket{}, errors.New("integrity reprocess requires callback")
 	}
 	ctx = nonNilContext(ctx)
-	opts = e.normalizeIntegrityOptions(opts)
+	var ok bool
+	opts, ok = e.tryNormalizeIntegrityOptions(opts)
+	if !ok {
+		return LaneTicket{}, ErrIntegrityCacheBusy
+	}
 	workID := e.nextIntegrityWorkID("pipeline_reprocess")
 
-	e.pipelineIntegrityCacheMu.RLock()
+	if !e.pipelineIntegrityCacheMu.TryRLock() {
+		return LaneTicket{}, ErrIntegrityCacheBusy
+	}
 	state := e.pipelineIntegrityCacheForReadLocked(opts)
 	if state == nil || state.state != IntegrityCacheFresh {
 		e.pipelineIntegrityCacheMu.RUnlock()
@@ -282,7 +388,7 @@ func (e *Engine) QueuePipelineIntegrityReprocess(ctx context.Context, opts Integ
 		if err := contextErr(laneCtx); err != nil {
 			return err
 		}
-		return fn(laneCtx, cloneIntegrityFindings(findings))
+		return fn(laneCtx, e.integrityFindingsWithRecoveryPlanIfMissing(findings))
 	})
 }
 
@@ -321,10 +427,16 @@ func (e *Engine) QueueEntityIntegrityRefresh(ctx context.Context, trigger string
 		return scanErr
 	})
 	if err != nil {
-		return e.EntityIntegrityCacheSnapshot(), err
+		snap, _ := e.TryEntityIntegrityCacheSnapshot()
+		return snap, err
 	}
-	e.setEntityIntegrityQueued(workID, ticket)
-	return e.EntityIntegrityCacheSnapshot(), nil
+	if !e.trySetEntityIntegrityQueued(workID, ticket) {
+		return entityIntegritySnapshotFromTicket(ticket), nil
+	}
+	if snap, ok := e.TryEntityIntegrityCacheSnapshot(); ok {
+		return snap, nil
+	}
+	return entityIntegritySnapshotFromTicket(ticket), nil
 }
 
 func (e *Engine) StorePipelineIntegrityFindings(opts IntegrityOptions, findings []IntegrityFinding, err error) {
@@ -384,6 +496,22 @@ func (e *Engine) normalizeIntegrityOptions(opts IntegrityOptions) IntegrityOptio
 	return opts
 }
 
+func (e *Engine) tryNormalizeIntegrityOptions(opts IntegrityOptions) (IntegrityOptions, bool) {
+	if e == nil {
+		return opts, true
+	}
+	opts.WebDir = strings.TrimSpace(opts.WebDir)
+	if opts.WebDir != "" {
+		return opts, true
+	}
+	_, rt, ok := e.TryConfigRuntimeSnapshot()
+	if !ok {
+		return opts, false
+	}
+	opts.WebDir = rt.WebDir
+	return opts, true
+}
+
 func (e *Engine) pipelineIntegrityCacheForReadLocked(opts IntegrityOptions) *pipelineIntegrityCacheState {
 	if e == nil || len(e.pipelineIntegrityCaches) == 0 {
 		return nil
@@ -440,6 +568,19 @@ func (e *Engine) nextIntegrityWorkID(scope string) string {
 func (e *Engine) setPipelineIntegrityQueued(opts IntegrityOptions, workID string, ticket LaneTicket) {
 	e.pipelineIntegrityCacheMu.Lock()
 	defer e.pipelineIntegrityCacheMu.Unlock()
+	e.setPipelineIntegrityQueuedLocked(opts, workID, ticket)
+}
+
+func (e *Engine) trySetPipelineIntegrityQueued(opts IntegrityOptions, workID string, ticket LaneTicket) bool {
+	if !e.pipelineIntegrityCacheMu.TryLock() {
+		return false
+	}
+	defer e.pipelineIntegrityCacheMu.Unlock()
+	e.setPipelineIntegrityQueuedLocked(opts, workID, ticket)
+	return true
+}
+
+func (e *Engine) setPipelineIntegrityQueuedLocked(opts IntegrityOptions, workID string, ticket LaneTicket) {
 	state := e.pipelineIntegrityCacheForUpdateLocked(opts)
 	if ticket.Coalesced && strings.TrimSpace(ticket.ID) != "" {
 		workID = ticket.ID
@@ -484,6 +625,10 @@ func (e *Engine) setPipelineIntegrityRunning(opts IntegrityOptions, workID, trig
 }
 
 func (e *Engine) setPipelineIntegritySettled(opts IntegrityOptions, workID string, findings []IntegrityFinding, err error) {
+	settledFindings := cloneIntegrityFindings(findings)
+	if err == nil {
+		settledFindings = e.integrityFindingsWithRecoveryPlan(settledFindings)
+	}
 	e.pipelineIntegrityCacheMu.Lock()
 	defer e.pipelineIntegrityCacheMu.Unlock()
 	state := e.pipelineIntegrityCacheForUpdateLocked(opts)
@@ -509,12 +654,25 @@ func (e *Engine) setPipelineIntegritySettled(opts IntegrityOptions, workID strin
 	state.generation++
 	state.checkedAt = now
 	state.lastError = ""
-	state.findings = cloneIntegrityFindings(findings)
+	state.findings = settledFindings
 }
 
 func (e *Engine) setEntityIntegrityQueued(workID string, ticket LaneTicket) {
 	e.entityIntegrityCacheMu.Lock()
 	defer e.entityIntegrityCacheMu.Unlock()
+	e.setEntityIntegrityQueuedLocked(workID, ticket)
+}
+
+func (e *Engine) trySetEntityIntegrityQueued(workID string, ticket LaneTicket) bool {
+	if !e.entityIntegrityCacheMu.TryLock() {
+		return false
+	}
+	defer e.entityIntegrityCacheMu.Unlock()
+	e.setEntityIntegrityQueuedLocked(workID, ticket)
+	return true
+}
+
+func (e *Engine) setEntityIntegrityQueuedLocked(workID string, ticket LaneTicket) {
 	if ticket.Coalesced && strings.TrimSpace(ticket.ID) != "" {
 		workID = ticket.ID
 	}
@@ -579,138 +737,4 @@ func (e *Engine) setEntityIntegritySettled(workID string, findings []EntityInteg
 	e.entityIntegrityCache.checkedAt = now
 	e.entityIntegrityCache.lastError = ""
 	e.entityIntegrityCache.findings = cloneEntityIntegrityFindings(findings)
-}
-
-func (s pipelineIntegrityCacheState) snapshotLocked() PipelineIntegrityCacheSnapshot {
-	state := s.state
-	if state == "" {
-		state = IntegrityCacheCold
-	}
-	return PipelineIntegrityCacheSnapshot{
-		Generation:         s.generation,
-		CacheState:         state,
-		Running:            state == IntegrityCacheRefreshRunning,
-		Queued:             state == IntegrityCacheRefreshQueued,
-		Coalesced:          s.ticket != nil && s.ticket.Coalesced,
-		Ticket:             cloneLaneTicketPtr(s.ticket),
-		IncludeArchived:    s.scope.IncludeArchived,
-		EnableAll:          s.scope.EnableAll,
-		WebDir:             s.scope.WebDir,
-		CheckedAt:          s.checkedAt,
-		LastStarted:        s.startedAt,
-		LastEnded:          s.endedAt,
-		LastError:          s.lastError,
-		StartupScanRunning: s.startupScanRunning,
-		Findings:           cloneIntegrityFindings(s.findings),
-	}
-}
-
-func (s entityIntegrityCacheState) snapshotLocked() EntityIntegrityCacheSnapshot {
-	state := s.state
-	if state == "" {
-		state = IntegrityCacheCold
-	}
-	return EntityIntegrityCacheSnapshot{
-		Generation:         s.generation,
-		CacheState:         state,
-		Running:            state == IntegrityCacheRefreshRunning,
-		Queued:             state == IntegrityCacheRefreshQueued,
-		Coalesced:          s.ticket != nil && s.ticket.Coalesced,
-		Ticket:             cloneLaneTicketPtr(s.ticket),
-		CheckedAt:          s.checkedAt,
-		LastStarted:        s.startedAt,
-		LastEnded:          s.endedAt,
-		LastError:          s.lastError,
-		StartupScanRunning: s.startupScanRunning,
-		Findings:           cloneEntityIntegrityFindings(s.findings),
-	}
-}
-
-func (s pipelineIntegrityCacheState) statusLocked() PipelineIntegrityCacheStatus {
-	snap := s.snapshotLocked()
-	return PipelineIntegrityCacheStatus{
-		Generation:         snap.Generation,
-		CacheState:         snap.CacheState,
-		Running:            snap.Running,
-		Queued:             snap.Queued,
-		Coalesced:          snap.Coalesced,
-		Ticket:             cloneLaneTicketPtr(snap.Ticket),
-		IncludeArchived:    snap.IncludeArchived,
-		EnableAll:          snap.EnableAll,
-		WebDir:             snap.WebDir,
-		CheckedAt:          snap.CheckedAt,
-		LastStarted:        snap.LastStarted,
-		LastEnded:          snap.LastEnded,
-		LastError:          snap.LastError,
-		StartupScanRunning: snap.StartupScanRunning,
-		Count:              len(s.findings),
-	}
-}
-
-func (s entityIntegrityCacheState) statusLocked() EntityIntegrityCacheStatus {
-	snap := s.snapshotLocked()
-	return EntityIntegrityCacheStatus{
-		Generation:         snap.Generation,
-		CacheState:         snap.CacheState,
-		Running:            snap.Running,
-		Queued:             snap.Queued,
-		Coalesced:          snap.Coalesced,
-		Ticket:             cloneLaneTicketPtr(snap.Ticket),
-		CheckedAt:          snap.CheckedAt,
-		LastStarted:        snap.LastStarted,
-		LastEnded:          snap.LastEnded,
-		LastError:          snap.LastError,
-		StartupScanRunning: snap.StartupScanRunning,
-		Count:              len(s.findings),
-	}
-}
-
-func cloneLaneTicket(ticket LaneTicket) *LaneTicket {
-	return &LaneTicket{
-		ID:        ticket.ID,
-		Kind:      ticket.Kind,
-		Component: ticket.Component,
-		Queued:    ticket.Queued,
-		Coalesced: ticket.Coalesced,
-		State:     ticket.State,
-	}
-}
-
-func cloneLaneTicketPtr(ticket *LaneTicket) *LaneTicket {
-	if ticket == nil {
-		return nil
-	}
-	return cloneLaneTicket(*ticket)
-}
-
-func cloneIntegrityFindings(in []IntegrityFinding) []IntegrityFinding {
-	if len(in) == 0 {
-		return []IntegrityFinding{}
-	}
-	out := make([]IntegrityFinding, len(in))
-	copy(out, in)
-	for i := range out {
-		out[i].MissingFiles = append([]string(nil), out[i].MissingFiles...)
-		out[i].StaleFiles = append([]string(nil), out[i].StaleFiles...)
-		out[i].MalformedFiles = append([]string(nil), out[i].MalformedFiles...)
-		out[i].BlockedFeeds = append([]string(nil), out[i].BlockedFeeds...)
-		out[i].RecoveryTargets = append([]string(nil), out[i].RecoveryTargets...)
-	}
-	return out
-}
-
-func cloneEntityIntegrityFindings(in []EntityIntegrityFinding) []EntityIntegrityFinding {
-	if len(in) == 0 {
-		return []EntityIntegrityFinding{}
-	}
-	out := make([]EntityIntegrityFinding, len(in))
-	copy(out, in)
-	return out
-}
-
-func defaultString(value, fallback string) string {
-	if strings.TrimSpace(value) == "" {
-		return fallback
-	}
-	return value
 }

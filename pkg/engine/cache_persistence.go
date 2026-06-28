@@ -77,6 +77,21 @@ func (w *cachePersistenceWorker) Snapshot() CachePersistenceSnapshot {
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	return w.snapshotLocked()
+}
+
+func (w *cachePersistenceWorker) TrySnapshot() (CachePersistenceSnapshot, bool) {
+	if w == nil {
+		return CachePersistenceSnapshot{State: CachePersistenceIdle}, true
+	}
+	if !w.mu.TryLock() {
+		return CachePersistenceSnapshot{}, false
+	}
+	defer w.mu.Unlock()
+	return w.snapshotLocked(), true
+}
+
+func (w *cachePersistenceWorker) snapshotLocked() CachePersistenceSnapshot {
 	state := CachePersistenceIdle
 	pending := w.pending != nil
 	switch {

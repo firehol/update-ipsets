@@ -174,8 +174,7 @@ func observeBackgroundTask(component, result string) {
 	if result == "" {
 		result = "unknown"
 	}
-	observability.Count(
-		observability.BackgroundContext(),
+	observability.TryCount(
 		"background.tasks",
 		1,
 		attribute.String("background.component", component),
@@ -213,6 +212,17 @@ func (e *Engine) snapshotBackgroundTasks() []BackgroundTaskSnapshot {
 	e.backgroundTasksMu.RLock()
 	defer e.backgroundTasksMu.RUnlock()
 	return backgroundTasksFromMap(e.backgroundTasks)
+}
+
+func (e *Engine) trySnapshotBackgroundTasks() ([]BackgroundTaskSnapshot, bool) {
+	if e == nil {
+		return nil, true
+	}
+	if !e.backgroundTasksMu.TryRLock() {
+		return nil, false
+	}
+	defer e.backgroundTasksMu.RUnlock()
+	return backgroundTasksFromMap(e.backgroundTasks), true
 }
 
 func backgroundEntityTaskDetail(kind string, count int) string {

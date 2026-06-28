@@ -450,6 +450,17 @@ func (e *Engine) snapshotActiveOperations(now time.Time) []ActiveOperation {
 	return activeOperationsFromMap(e.activeOperations, now)
 }
 
+func (e *Engine) trySnapshotActiveOperations(now time.Time) ([]ActiveOperation, bool) {
+	if e == nil {
+		return nil, true
+	}
+	if !e.activeOperationsMu.TryRLock() {
+		return nil, false
+	}
+	defer e.activeOperationsMu.RUnlock()
+	return activeOperationsFromMap(e.activeOperations, now), true
+}
+
 func activeOperationKey(operation, feed, stage string) string {
 	return operation + "\x00" + feed + "\x00" + stage
 }

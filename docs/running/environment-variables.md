@@ -183,7 +183,11 @@ The daemon can export traces, metrics, and logs through OTLP. See the [Monitorin
 
 The admin surface also serves `GET /metrics` for Prometheus scraping. The OTLP
 environment variables below control push export; they do not remove the admin
-Prometheus scrape endpoint.
+Prometheus scrape endpoint. The scrape endpoint is bounded and may return
+`503 Service Unavailable` when another scrape is active or collection times out.
+OTLP export is fail-open: invalid OTLP configuration, an unreachable collector,
+or telemetry setup timeout disables the affected export path and logs a warning
+instead of preventing public/admin serving.
 
 | Variable | Default | Description |
 |---|---|---|

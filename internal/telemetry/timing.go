@@ -29,6 +29,10 @@ func (b *TimingBook) Observe(name string, dur time.Duration) {
 	b.ObserveAggregate(name, 1, dur, dur)
 }
 
+func (b *TimingBook) TryObserve(name string, dur time.Duration) bool {
+	return b.TryObserveAggregate(name, 1, dur, dur)
+}
+
 func (b *TimingBook) ObserveAggregate(name string, count int64, total, max time.Duration) {
 	if b == nil || name == "" || count <= 0 {
 		return
@@ -53,12 +57,54 @@ func (b *TimingBook) ObserveAggregate(name string, count int64, total, max time.
 	b.stats[name] = current
 }
 
+func (b *TimingBook) TryObserveAggregate(name string, count int64, total, max time.Duration) bool {
+	if b == nil || name == "" || count <= 0 {
+		return true
+	}
+	if total < 0 {
+		total = 0
+	}
+	if max < 0 {
+		max = 0
+	}
+	if !b.mu.TryLock() {
+		return false
+	}
+	defer b.mu.Unlock()
+	if b.stats == nil {
+		b.stats = make(map[string]timingStat)
+	}
+	current := b.stats[name]
+	current.count += count
+	current.total += total
+	if max > current.max {
+		current.max = max
+	}
+	b.stats[name] = current
+	return true
+}
+
 func (b *TimingBook) Snapshot() []TimingStatSnapshot {
 	if b == nil {
 		return nil
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	return b.snapshotLocked()
+}
+
+func (b *TimingBook) TrySnapshot() ([]TimingStatSnapshot, bool) {
+	if b == nil {
+		return nil, true
+	}
+	if !b.mu.TryLock() {
+		return nil, false
+	}
+	defer b.mu.Unlock()
+	return b.snapshotLocked(), true
+}
+
+func (b *TimingBook) snapshotLocked() []TimingStatSnapshot {
 	if len(b.stats) == 0 {
 		return nil
 	}

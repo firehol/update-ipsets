@@ -137,6 +137,21 @@ func (m *runMetrics) observeOperation(name string, dur time.Duration) {
 	}
 }
 
+func (m *runMetrics) tryObserveOperation(name string, dur time.Duration) {
+	if m == nil || name == "" {
+		return
+	}
+	m.operations.TryObserve(name, dur)
+	if !m.mu.TryLock() {
+		return
+	}
+	phaseBook := m.phaseOperationBookLocked(m.currentPhase)
+	m.mu.Unlock()
+	if phaseBook != nil {
+		phaseBook.TryObserve(name, dur)
+	}
+}
+
 func (m *runMetrics) observeOperationAggregate(name string, count int64, total, max time.Duration) {
 	if m == nil || name == "" {
 		return
@@ -163,11 +178,26 @@ func (m *runMetrics) observeCounter(name string, count, bytes int64) {
 	}
 }
 
+func (m *runMetrics) tryObserveCounter(name string, count, bytes int64) {
+	if m == nil || name == "" {
+		return
+	}
+	m.counters.TryAdd(name, count, bytes)
+	if !m.mu.TryLock() {
+		return
+	}
+	phaseBook := m.phaseCounterBookLocked(m.currentPhase)
+	m.mu.Unlock()
+	if phaseBook != nil {
+		phaseBook.TryAdd(name, count, bytes)
+	}
+}
+
 func (m *runMetrics) observeFeedOperation(feedName, operation string, dur time.Duration) {
 	if m == nil || feedName == "" || operation == "" {
 		return
 	}
-	observability.Duration(observability.BackgroundContext(), operation, dur, attribute.String("feed.name", feedName))
+	observability.TryDuration(operation, dur, attribute.String("feed.name", feedName))
 	m.mu.Lock()
 	feed := m.feeds[feedName]
 	if feed == nil {
@@ -304,6 +334,131 @@ func (m *runMetrics) snapshot(current bool) RunMetricsSnapshot {
 	}
 }
 
+func (m *runMetrics) trySnapshot(current bool) (RunMetricsSnapshot, bool) {
+	if m == nil {
+		return RunMetricsSnapshot{}, true
+	}
+	now := time.Now()
+	if !m.mu.TryLock() {
+		return RunMetricsSnapshot{}, false
+	}
+	startedAt := m.startedAt
+	phaseTotals := make(map[RunPhase]time.Duration, len(m.phaseTotals)+1)
+	for phase, total := range m.phaseTotals {
+		phaseTotals[phase] = total
+	}
+	currentPhase := m.currentPhase
+	phaseStartedAt := m.phaseStartedAt
+	feedSnaps := make([]FeedTimingSnapshot, 0, len(m.feeds))
+	feedBooks := make(map[string]*telemetry.TimingBook, len(m.feeds))
+	for name, feed := range m.feeds {
+		if feed == nil {
+			continue
+		}
+		feedSnaps = append(feedSnaps, FeedTimingSnapshot{
+			Name:    name,
+			TotalMS: telemetryDurationMillis(feed.total),
+		})
+		feedBooks[name] = &feed.operations
+	}
+	feedWork := make([]FeedWorkSnapshot, 0, len(m.feedWork))
+	for _, snap := range m.feedWork {
+		feedWork = append(feedWork, snap)
+	}
+	phaseOperationBooks := make(map[RunPhase]*telemetry.TimingBook, len(m.phaseOperations))
+	for phase, book := range m.phaseOperations {
+		if book != nil {
+			phaseOperationBooks[phase] = book
+		}
+	}
+	phaseCounterBooks := make(map[RunPhase]*telemetry.CounterBook, len(m.phaseCounters))
+	for phase, book := range m.phaseCounters {
+		if book != nil {
+			phaseCounterBooks[phase] = book
+		}
+	}
+	operationBook := &m.operations
+	counterBook := &m.counters
+	m.mu.Unlock()
+
+	for i := range feedSnaps {
+		if book := feedBooks[feedSnaps[i].Name]; book != nil {
+			if ops, ok := book.TrySnapshot(); ok {
+				feedSnaps[i].Operations = ops
+			}
+		}
+	}
+	phaseOperations := make(map[RunPhase][]telemetry.TimingStatSnapshot, len(phaseOperationBooks))
+	for phase, book := range phaseOperationBooks {
+		if ops, ok := book.TrySnapshot(); ok {
+			phaseOperations[phase] = ops
+		}
+	}
+	phaseCounters := make(map[RunPhase][]telemetry.CounterStatSnapshot, len(phaseCounterBooks))
+	for phase, book := range phaseCounterBooks {
+		if counters, ok := book.TrySnapshot(); ok {
+			phaseCounters[phase] = counters
+		}
+	}
+
+	if current && currentPhase.Valid() && !phaseStartedAt.IsZero() {
+		phaseTotals[currentPhase] += now.Sub(phaseStartedAt)
+	}
+
+	phaseNames := make([]RunPhase, 0, len(phaseTotals))
+	for phase := range phaseTotals {
+		if !phase.Valid() {
+			continue
+		}
+		phaseNames = append(phaseNames, phase)
+	}
+	sort.Slice(phaseNames, func(i, j int) bool {
+		return phaseNames[i] < phaseNames[j]
+	})
+	phaseSnapshots := make([]RunPhaseTimingSnapshot, 0, len(phaseNames))
+	phaseMetrics := make([]RunPhaseMetricsSnapshot, 0, len(phaseNames))
+	for _, phase := range phaseNames {
+		durationMS := telemetryDurationMillis(phaseTotals[phase])
+		phaseSnapshots = append(phaseSnapshots, RunPhaseTimingSnapshot{
+			Phase:      phase,
+			DurationMS: durationMS,
+		})
+		phaseMetrics = append(phaseMetrics, RunPhaseMetricsSnapshot{
+			Phase:      phase,
+			DurationMS: durationMS,
+			Work:       phaseWorkSnapshot(phase, durationMS, phaseOperations[phase], phaseCounters[phase]),
+			Operations: phaseOperations[phase],
+			Counters:   phaseCounters[phase],
+		})
+	}
+
+	sort.Slice(feedSnaps, func(i, j int) bool {
+		if feedSnaps[i].TotalMS != feedSnaps[j].TotalMS {
+			return feedSnaps[i].TotalMS > feedSnaps[j].TotalMS
+		}
+		return feedSnaps[i].Name < feedSnaps[j].Name
+	})
+	if len(feedSnaps) > maxSlowFeedSnapshots {
+		feedSnaps = feedSnaps[:maxSlowFeedSnapshots]
+	}
+	sort.Slice(feedWork, func(i, j int) bool {
+		return feedWork[i].Name < feedWork[j].Name
+	})
+
+	operations, _ := operationBook.TrySnapshot()
+	counters, _ := counterBook.TrySnapshot()
+	return RunMetricsSnapshot{
+		StartedAt:  startedAt,
+		Current:    current,
+		PhaseTimes: phaseSnapshots,
+		Phases:     phaseMetrics,
+		Feeds:      feedWork,
+		Operations: operations,
+		Counters:   counters,
+		SlowFeeds:  feedSnaps,
+	}, true
+}
+
 func (m *runMetrics) phaseSnapshot(phase RunPhase, durationMS int64) RunPhaseMetricsSnapshot {
 	if m == nil || !phase.Valid() {
 		return RunPhaseMetricsSnapshot{}
@@ -433,7 +588,7 @@ func (m *runMetrics) advancePhaseLocked(now time.Time, next RunPhase) (RunPhaseT
 			DurationMS: telemetryDurationMillis(dur),
 		}
 		ok = true
-		observability.Duration(observability.BackgroundContext(), "engine.phase", dur, attribute.String("engine.phase", string(m.currentPhase)))
+		observability.TryDuration("engine.phase", dur, attribute.String("engine.phase", string(m.currentPhase)))
 	}
 	m.currentPhase = next
 	m.phaseStartedAt = now

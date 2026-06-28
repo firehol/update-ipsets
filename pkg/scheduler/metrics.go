@@ -61,9 +61,10 @@ func (m *metricsState) snapshot() MetricsSnapshot {
 	if m == nil {
 		return MetricsSnapshot{}
 	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return MetricsSnapshot{
+	if !m.mu.TryLock() {
+		return MetricsSnapshot{}
+	}
+	snap := MetricsSnapshot{
 		DownloadEnqueued:           m.downloadEnqueued,
 		DownloadDeferred:           m.downloadDeferred,
 		DownloadStarted:            m.downloadStarted,
@@ -83,18 +84,22 @@ func (m *metricsState) snapshot() MetricsSnapshot {
 		Degraded:                   m.degraded,
 		DegradedReason:             m.degradedReason,
 		DegradedAt:                 m.degradedAt,
-		Operations:                 m.operations.Snapshot(),
 	}
+	m.mu.Unlock()
+	if operations, ok := m.operations.TrySnapshot(); ok {
+		snap.Operations = operations
+	}
+	return snap
 }
 
 func (m *metricsState) recordDownloadEnqueue(waiting int) {
 	if m == nil {
 		return
 	}
-	observability.Count(observability.BackgroundContext(), "scheduler.queue.admissions", 1,
+	observability.TryCount("scheduler.queue.admissions", 1,
 		attribute.String("scheduler.queue", "download"),
 		attribute.String("scheduler.result", "queued"))
-	observability.Gauge(observability.BackgroundContext(), "scheduler.queue.depth", int64(waiting), attribute.String("scheduler.queue", "download"))
+	observability.TryGauge("scheduler.queue.depth", int64(waiting), attribute.String("scheduler.queue", "download"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.downloadEnqueued++
@@ -107,7 +112,7 @@ func (m *metricsState) recordDownloadDeferred() {
 	if m == nil {
 		return
 	}
-	observability.Count(observability.BackgroundContext(), "scheduler.queue.admissions", 1,
+	observability.TryCount("scheduler.queue.admissions", 1,
 		attribute.String("scheduler.queue", "download"),
 		attribute.String("scheduler.result", "deferred"))
 	m.mu.Lock()
@@ -119,7 +124,7 @@ func (m *metricsState) recordDownloadStart() {
 	if m == nil {
 		return
 	}
-	observability.Count(observability.BackgroundContext(), "scheduler.work.started", 1, attribute.String("scheduler.queue", "download"))
+	observability.TryCount("scheduler.work.started", 1, attribute.String("scheduler.queue", "download"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.downloadStarted++
@@ -129,7 +134,7 @@ func (m *metricsState) recordDownloadFinish() {
 	if m == nil {
 		return
 	}
-	observability.Count(observability.BackgroundContext(), "scheduler.work.completed", 1, attribute.String("scheduler.queue", "download"))
+	observability.TryCount("scheduler.work.completed", 1, attribute.String("scheduler.queue", "download"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.downloadFinished++
@@ -139,10 +144,10 @@ func (m *metricsState) recordProcessingEnqueue(waiting int) {
 	if m == nil {
 		return
 	}
-	observability.Count(observability.BackgroundContext(), "scheduler.queue.admissions", 1,
+	observability.TryCount("scheduler.queue.admissions", 1,
 		attribute.String("scheduler.queue", "processing"),
 		attribute.String("scheduler.result", "queued"))
-	observability.Gauge(observability.BackgroundContext(), "scheduler.queue.depth", int64(waiting), attribute.String("scheduler.queue", "processing"))
+	observability.TryGauge("scheduler.queue.depth", int64(waiting), attribute.String("scheduler.queue", "processing"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.processingEnqueued++
@@ -155,10 +160,10 @@ func (m *metricsState) recordProcessingRequeue(waiting int) {
 	if m == nil {
 		return
 	}
-	observability.Count(observability.BackgroundContext(), "scheduler.queue.admissions", 1,
+	observability.TryCount("scheduler.queue.admissions", 1,
 		attribute.String("scheduler.queue", "processing"),
 		attribute.String("scheduler.result", "requeued"))
-	observability.Gauge(observability.BackgroundContext(), "scheduler.queue.depth", int64(waiting), attribute.String("scheduler.queue", "processing"))
+	observability.TryGauge("scheduler.queue.depth", int64(waiting), attribute.String("scheduler.queue", "processing"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.processingRequeued++
@@ -171,8 +176,8 @@ func (m *metricsState) recordBatchStart(size int) {
 	if m == nil {
 		return
 	}
-	observability.Count(observability.BackgroundContext(), "scheduler.work.started", 1, attribute.String("scheduler.queue", "processing"))
-	observability.Gauge(observability.BackgroundContext(), "scheduler.batch.items", int64(size), attribute.String("scheduler.queue", "processing"))
+	observability.TryCount("scheduler.work.started", 1, attribute.String("scheduler.queue", "processing"))
+	observability.TryGauge("scheduler.batch.items", int64(size), attribute.String("scheduler.queue", "processing"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.processingBatchesStarted++
@@ -184,9 +189,9 @@ func (m *metricsState) recordBatchComplete(size int, dur time.Duration) {
 	if m == nil {
 		return
 	}
-	observability.Count(observability.BackgroundContext(), "scheduler.work.completed", 1, attribute.String("scheduler.queue", "processing"))
-	observability.Duration(observability.BackgroundContext(), "scheduler.batch", dur, attribute.String("scheduler.queue", "processing"))
-	observability.Gauge(observability.BackgroundContext(), "scheduler.batch.items", int64(size), attribute.String("scheduler.queue", "processing"))
+	observability.TryCount("scheduler.work.completed", 1, attribute.String("scheduler.queue", "processing"))
+	observability.TryDuration("scheduler.batch", dur, attribute.String("scheduler.queue", "processing"))
+	observability.TryGauge("scheduler.batch.items", int64(size), attribute.String("scheduler.queue", "processing"))
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.processingBatchesCompleted++
@@ -198,8 +203,8 @@ func (m *metricsState) observeOperation(name string, dur time.Duration) {
 	if m == nil {
 		return
 	}
-	observability.Duration(observability.BackgroundContext(), name, dur)
-	m.operations.Observe(name, dur)
+	observability.TryDuration(name, dur)
+	m.operations.TryObserve(name, dur)
 }
 
 func (m *metricsState) recordSnapshotPersistError() {
@@ -215,7 +220,7 @@ func (m *metricsState) recordRecoveredPanic(component string, now time.Time) {
 	if m == nil {
 		return
 	}
-	observability.Count(observability.BackgroundContext(), "scheduler.recovered_panics", 1,
+	observability.TryCount("scheduler.recovered_panics", 1,
 		attribute.String("scheduler.component", component))
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -227,7 +232,7 @@ func (m *metricsState) recordActionAdmissionFailure(now time.Time) {
 	if m == nil {
 		return
 	}
-	observability.Count(observability.BackgroundContext(), "scheduler.action.admission_failures", 1)
+	observability.TryCount("scheduler.action.admission_failures", 1)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	m.actionAdmissionFailures++

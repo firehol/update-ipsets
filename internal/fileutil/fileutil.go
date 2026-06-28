@@ -90,7 +90,7 @@ func WriteAtomicNoSync(path string, data []byte, mode os.FileMode) error {
 
 func writeAtomic(path string, data []byte, mode os.FileMode, syncFile bool) error {
 	started := time.Now()
-	ctx, span := observability.Start(context.Background(), "file.write_atomic",
+	_, span := observability.Start(context.Background(), "file.write_atomic",
 		attribute.String("file.path", path),
 		attribute.Bool("file.sync", syncFile),
 		attribute.Int("file.bytes", len(data)),
@@ -100,7 +100,7 @@ func writeAtomic(path string, data []byte, mode os.FileMode, syncFile bool) erro
 		attrs := []attribute.KeyValue{
 			attribute.Bool("file.sync", syncFile),
 		}
-		observability.Observe(ctx, "file.write_atomic", 1, int64(len(data)), time.Since(started), attrs...)
+		observability.TryObserve("file.write_atomic", 1, int64(len(data)), time.Since(started), attrs...)
 		observability.End(span, opErr)
 	}()
 	if opErr = os.MkdirAll(filepath.Dir(path), GeneratedDirMode); opErr != nil { // nosemgrep: go.lang.correctness.permissions.file_permission.incorrect-default-permission - 0700 is the restrictive usable directory mode.

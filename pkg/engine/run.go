@@ -157,8 +157,8 @@ func (e *Engine) runOnceAdmitted(ctx context.Context, opts RunOptions) (report *
 			attribute.String("run.reason", runReason.String()),
 			attribute.String("run.status", status),
 		}
-		observability.Count(ctx, "engine.runs", 1, attrs...)
-		observability.Duration(ctx, "engine.run", time.Since(runStarted), attrs...)
+		observability.TryCount("engine.runs", 1, attrs...)
+		observability.TryDuration("engine.run", time.Since(runStarted), attrs...)
 	}()
 	defer func() {
 		if recovered := recover(); recovered != nil {
@@ -225,7 +225,7 @@ func (e *Engine) runOnceAdmitted(ctx context.Context, opts RunOptions) (report *
 	}
 	runHasStarted = true
 	runSnapshot := e.operationSnapshot()
-	observability.Gauge(ctx, "engine.running", 1)
+	observability.TryGauge("engine.running", 1)
 	runDiagnostics = e.newEngineRunDiagnostics(runReason, opts, runStarted)
 	stopProgressLogging := e.startRunProgressLogger(ctx, runDiagnostics)
 	defer stopProgressLogging()
@@ -439,7 +439,7 @@ func (e *Engine) completeRunFinalization(finalization *runFinalization) (finaliz
 			finalizationErr = errors.Join(finalizationErr, fmt.Errorf("%w: run finalization panicked: %v", ErrLanePanic, recovered))
 		}
 		e.markRunIdleAfterFinalization(report, errors.Join(finalization.runErr, finalizationErr))
-		observability.Gauge(observability.BackgroundContext(), "engine.running", 0)
+		observability.TryGauge("engine.running", 0)
 	}()
 	finalizationErr = e.completeRunPublication(finalization)
 	finalization.cacheSnapshot = e.state.SnapshotState()
@@ -505,6 +505,9 @@ func (e *Engine) completeRunPublication(finalization *runFinalization) (err erro
 		return err
 	}
 	e.MarkIntegrityCachesStale()
+	if listenerErr := e.dispatchReloadPublication(ReloadPublication{Runtime: finalization.snapshot.runtime}); listenerErr != nil && e.logger != nil {
+		e.logger.Error("public serving publication listener failed", "error", listenerErr)
+	}
 	return nil
 }
 

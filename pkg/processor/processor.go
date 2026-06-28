@@ -114,8 +114,8 @@ func Run(ctx context.Context, steps []config.ProcessorStep, input []byte) ([]byt
 			attribute.String("processor.mode", "memory"),
 			attribute.String("processor.status", status),
 		}
-		observability.Count(ctx, "processor.runs", 1, attrs...)
-		observability.Duration(ctx, "processor.run", time.Since(started), attrs...)
+		observability.TryCount("processor.runs", 1, attrs...)
+		observability.TryDuration("processor.run", time.Since(started), attrs...)
 		observability.End(span, opErr)
 	}()
 	if err := checkContext(ctx); err != nil {
@@ -145,10 +145,10 @@ func Run(ctx context.Context, steps []config.ProcessorStep, input []byte) ([]byt
 		next, err := fn(ctx, out, step.Args)
 		if err != nil {
 			opErr = fmt.Errorf("%s: %w", name, err)
-			observability.Observe(ctx, "processor.step", 1, int64(len(out)), time.Since(stepStarted), attribute.String("processor.step", name), attribute.String("processor.status", "error"))
+			observability.TryObserve("processor.step", 1, int64(len(out)), time.Since(stepStarted), attribute.String("processor.step", name), attribute.String("processor.status", "error"))
 			return nil, opErr
 		}
-		observability.Observe(ctx, "processor.step", 1, int64(len(out)), time.Since(stepStarted), attribute.String("processor.step", name), attribute.String("processor.status", "ok"))
+		observability.TryObserve("processor.step", 1, int64(len(out)), time.Since(stepStarted), attribute.String("processor.step", name), attribute.String("processor.status", "ok"))
 		if err := checkContext(ctx); err != nil {
 			opErr = err
 			return nil, err

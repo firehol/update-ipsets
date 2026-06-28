@@ -24,10 +24,6 @@ func (s *surfaceRoutes) registerPublicAPI(mux *http.ServeMux) {
 	mux.HandleFunc("GET /mcp", s.handleMCP())
 	mux.HandleFunc("DELETE /mcp", s.handleMCP())
 
-	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte("ok\n"))
-	})
 	mux.HandleFunc("GET /api/v1/status", func(w http.ResponseWriter, r *http.Request) {
 		apiNoCache(w)
 		writeJSON(w, http.StatusOK, buildPublicStatus(s.eng))
@@ -138,14 +134,22 @@ func (s *surfaceRoutes) registerAdminPublicMetadataAPI(mux *http.ServeMux) {
 func (s *surfaceRoutes) handlePublicCategories() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		apiNoCache(w)
-		writeJSON(w, http.StatusOK, s.eng.PublicCategories())
+		state, ok := s.servingStateOrUnavailable(w)
+		if !ok {
+			return
+		}
+		writeJSON(w, http.StatusOK, state.catalog.Categories)
 	}
 }
 
 func (s *surfaceRoutes) handlePublicFeedList() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		apiNoCache(w)
-		writeJSON(w, http.StatusOK, s.eng.PublicFeedSummaries())
+		state, ok := s.servingStateOrUnavailable(w)
+		if !ok {
+			return
+		}
+		writeJSON(w, http.StatusOK, state.catalog.Feeds)
 	}
 }
 
@@ -185,7 +189,11 @@ func (s *surfaceRoutes) handlePublicSet(prefix string) http.HandlerFunc {
 			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid set name"})
 			return
 		}
-		if !s.eng.IsPublicFeedName(name) {
+		state, stateOK := s.servingStateOrUnavailable(w)
+		if !stateOK {
+			return
+		}
+		if !state.isPublicFeedName(name) {
 			writeJSON(w, http.StatusNotFound, map[string]string{"error": fmt.Sprintf("unknown set %q", name)})
 			return
 		}
@@ -235,23 +243,39 @@ func (s *surfaceRoutes) servePublicSetAction(w http.ResponseWriter, r *http.Requ
 	case action == "insights":
 		s.servePublicSetInsights(w, r, name)
 	case action == "countries":
-		writeJSON(w, http.StatusOK, s.eng.GeoProviders())
+		state, ok := s.servingStateOrUnavailable(w)
+		if !ok {
+			return
+		}
+		writeJSON(w, http.StatusOK, state.catalog.GeoProviders)
 	case strings.HasPrefix(action, "countries/"):
 		s.servePublicSetCountryProvider(w, name, strings.TrimPrefix(action, "countries/"))
 	case action == "asn":
-		writeJSON(w, http.StatusOK, s.eng.ASNProviders())
+		state, ok := s.servingStateOrUnavailable(w)
+		if !ok {
+			return
+		}
+		writeJSON(w, http.StatusOK, state.catalog.ASNProviders)
 	case strings.HasPrefix(action, "asn/"):
 		provider := strings.TrimPrefix(action, "asn/")
 		s.servePublicSetProviderFile(w, r, name, provider, "_asn_", "no ASN data for %q with provider %q")
 	case action == "bogons":
-		writeJSON(w, http.StatusOK, s.eng.BogonProviders())
+		state, ok := s.servingStateOrUnavailable(w)
+		if !ok {
+			return
+		}
+		writeJSON(w, http.StatusOK, state.catalog.BogonProviders)
 	case strings.HasPrefix(action, "bogons/"):
 		provider := strings.TrimPrefix(action, "bogons/")
 		s.servePublicSetProviderFile(w, r, name, provider, "_bogons_", "no bogon data for %q with provider %q")
 	case action == "infrastructure":
 		s.servePublicSetCriticalAggregate(w, r, name)
 	case action == "infrastructure/providers":
-		writeJSON(w, http.StatusOK, s.eng.CriticalInfrastructureProviders())
+		state, ok := s.servingStateOrUnavailable(w)
+		if !ok {
+			return
+		}
+		writeJSON(w, http.StatusOK, state.catalog.CriticalInfrastructureProviders)
 	case strings.HasPrefix(action, "infrastructure/"):
 		s.servePublicSetCriticalProvider(w, r, name, strings.TrimPrefix(action, "infrastructure/"))
 	default:
@@ -260,13 +284,13 @@ func (s *surfaceRoutes) servePublicSetAction(w http.ResponseWriter, r *http.Requ
 }
 
 func (s *surfaceRoutes) servePublicSetRawData(w http.ResponseWriter, r *http.Request, name string) {
-	rel, ok := publicRawFeedRel(s.eng, name)
-	if !ok {
-		plainError(w, http.StatusNotFound, fmt.Sprintf("raw feed data for %q is not available", name))
-		return
-	}
 	state, stateOK := s.servingStateOrUnavailable(w)
 	if !stateOK {
+		return
+	}
+	rel, ok := state.rawFeedRel(name)
+	if !ok {
+		plainError(w, http.StatusNotFound, fmt.Sprintf("raw feed data for %q is not available", name))
 		return
 	}
 	if serveRawFeedRel(w, r, rel, state.ipsetsDir, state.baseDir) {
@@ -288,13 +312,13 @@ func (s *surfaceRoutes) servePublicSetFile(w http.ResponseWriter, r *http.Reques
 }
 
 func (s *surfaceRoutes) servePublicSetInsights(w http.ResponseWriter, r *http.Request, name string) {
-	if _, err := s.eng.Entry(name); err != nil {
-		jsonError(w, http.StatusNotFound, err)
-		return
-	}
 	rel := cacheSuffixRel(name, "_insights.json")
 	state, ok := s.servingStateOrUnavailable(w)
 	if !ok {
+		return
+	}
+	if !state.isPublicFeedName(name) {
+		jsonError(w, http.StatusNotFound, fmt.Errorf("unknown set %q", name))
 		return
 	}
 	if state.cache.ServeRootedFile(w, r, state.outputDir, rel, "application/json") {
@@ -337,11 +361,15 @@ func (s *surfaceRoutes) servePublicSetProviderFile(w http.ResponseWriter, r *htt
 }
 
 func (s *surfaceRoutes) servePublicSetCriticalAggregate(w http.ResponseWriter, r *http.Request, name string) {
-	if len(s.eng.CriticalInfrastructureProviders()) == 0 {
+	state, ok := s.servingStateOrUnavailable(w)
+	if !ok {
+		return
+	}
+	if len(state.catalog.CriticalInfrastructureProviders) == 0 {
 		jsonError(w, http.StatusNotFound, fmt.Errorf("no critical infrastructure providers are configured"))
 		return
 	}
-	if !s.eng.IsCriticalInfrastructureTarget(name) {
+	if !state.criticalInfrastructureTarget(name) {
 		jsonError(w, http.StatusNotFound, fmt.Errorf("critical infrastructure data is not generated for %q", name))
 		return
 	}
@@ -351,10 +379,6 @@ func (s *surfaceRoutes) servePublicSetCriticalAggregate(w http.ResponseWriter, r
 	// is the operator-facing tripwire if that invariant ever breaks; the
 	// public path MUST NOT surface that internal concept to end users.
 	rel := cacheSuffixRel(name, "_critical_infrastructure.json")
-	state, ok := s.servingStateOrUnavailable(w)
-	if !ok {
-		return
-	}
 	if state.cache.ServeRootedFile(w, r, state.outputDir, rel, "application/json") {
 		return
 	}
@@ -366,19 +390,19 @@ func (s *surfaceRoutes) servePublicSetCriticalProvider(w http.ResponseWriter, r 
 		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid provider name"})
 		return
 	}
-	if !s.eng.IsCriticalInfrastructureTarget(name) {
-		jsonError(w, http.StatusNotFound, fmt.Errorf("critical infrastructure data is not generated for %q", name))
-		return
-	}
-	if !knownCriticalInfrastructureProvider(s.eng, provider) {
-		jsonError(w, http.StatusNotFound, fmt.Errorf("unknown critical infrastructure provider %q", provider))
-		return
-	}
-	rel := cacheSuffixRel(name, "_critical_"+provider+".json")
 	state, ok := s.servingStateOrUnavailable(w)
 	if !ok {
 		return
 	}
+	if !state.criticalInfrastructureTarget(name) {
+		jsonError(w, http.StatusNotFound, fmt.Errorf("critical infrastructure data is not generated for %q", name))
+		return
+	}
+	if !state.criticalInfrastructureProvider(provider) {
+		jsonError(w, http.StatusNotFound, fmt.Errorf("unknown critical infrastructure provider %q", provider))
+		return
+	}
+	rel := cacheSuffixRel(name, "_critical_"+provider+".json")
 	if state.cache.ServeRootedFile(w, r, state.outputDir, rel, "application/json") {
 		return
 	}

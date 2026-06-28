@@ -37,10 +37,10 @@ func handleCountryIndex(eng *engine.Engine, cache *fileCache, outputDir string) 
 	return func(w http.ResponseWriter, r *http.Request) {
 		rel := filepath.Join("countries", "index.json")
 		if cache != nil && cache.ServeRootedFile(w, r, outputDir, rel, "application/json") {
-			eng.ObserveCounter("http.entity_artifact.country_index_hit", 1, 0)
+			eng.TryObserveCounter("http.entity_artifact.country_index_hit", 1, 0)
 			return
 		}
-		eng.ObserveCounter("http.entity_artifact.country_index_miss", 1, 0)
+		eng.TryObserveCounter("http.entity_artifact.country_index_miss", 1, 0)
 		apiNoCache(w)
 		if exists, readable := rootedRegularFileStatus(outputDir, rel); exists && !readable {
 			jsonError(w, http.StatusServiceUnavailable, errors.New("country index artifact is not readable"))
@@ -68,10 +68,10 @@ func handleCountryDetail(eng *engine.Engine, cache *fileCache, outputDir string)
 		}
 		rel := filepath.Join("countries", code+".json")
 		if cache != nil && cache.ServeRootedFile(w, r, outputDir, rel, "application/json") {
-			eng.ObserveCounter("http.entity_artifact.country_detail_hit", 1, 0)
+			eng.TryObserveCounter("http.entity_artifact.country_detail_hit", 1, 0)
 			return
 		}
-		eng.ObserveCounter("http.entity_artifact.country_detail_miss", 1, 0)
+		eng.TryObserveCounter("http.entity_artifact.country_detail_miss", 1, 0)
 		apiNoCache(w)
 		if exists, readable := rootedRegularFileStatus(outputDir, rel); !exists {
 			writeJSON(w, http.StatusNotFound, map[string]string{
@@ -105,10 +105,10 @@ func handleASNIndex(eng *engine.Engine, cache *fileCache, outputDir string) http
 	return func(w http.ResponseWriter, r *http.Request) {
 		rel := filepath.Join("asns", "index.json")
 		if cache != nil && cache.ServeRootedFile(w, r, outputDir, rel, "application/json") {
-			eng.ObserveCounter("http.entity_artifact.asn_index_hit", 1, 0)
+			eng.TryObserveCounter("http.entity_artifact.asn_index_hit", 1, 0)
 			return
 		}
-		eng.ObserveCounter("http.entity_artifact.asn_index_miss", 1, 0)
+		eng.TryObserveCounter("http.entity_artifact.asn_index_miss", 1, 0)
 		apiNoCache(w)
 		if exists, readable := rootedRegularFileStatus(outputDir, rel); exists && !readable {
 			jsonError(w, http.StatusServiceUnavailable, errors.New("ASN index artifact is not readable"))
@@ -136,10 +136,10 @@ func handleASNDetail(eng *engine.Engine, cache *fileCache, outputDir string) htt
 		}
 		rel := filepath.Join("asns", strconv.FormatUint(number, 10)+".json")
 		if cache != nil && cache.ServeRootedFile(w, r, outputDir, rel, "application/json") {
-			eng.ObserveCounter("http.entity_artifact.asn_detail_hit", 1, 0)
+			eng.TryObserveCounter("http.entity_artifact.asn_detail_hit", 1, 0)
 			return
 		}
-		eng.ObserveCounter("http.entity_artifact.asn_detail_miss", 1, 0)
+		eng.TryObserveCounter("http.entity_artifact.asn_detail_miss", 1, 0)
 		apiNoCache(w)
 		if exists, readable := rootedRegularFileStatus(outputDir, rel); !exists {
 			writeJSON(w, http.StatusNotFound, map[string]string{

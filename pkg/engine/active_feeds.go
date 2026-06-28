@@ -52,6 +52,17 @@ func (e *Engine) snapshotActiveFeeds() []ActiveFeed {
 	return activeFeedsFromMap(e.activeFeeds)
 }
 
+func (e *Engine) trySnapshotActiveFeeds() ([]ActiveFeed, bool) {
+	if e == nil {
+		return nil, true
+	}
+	if !e.activeFeedsMu.TryRLock() {
+		return nil, false
+	}
+	defer e.activeFeedsMu.RUnlock()
+	return activeFeedsFromMap(e.activeFeeds), true
+}
+
 func (e *Engine) ActiveFeedsSnapshot() []ActiveFeed {
 	if e == nil {
 		return nil

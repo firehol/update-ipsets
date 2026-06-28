@@ -22,18 +22,39 @@ type Item struct {
 	Enabled          bool      `json:"enabled"`
 	HealthClass      string    `json:"health_class,omitempty"`
 	FrequencyMinutes int       `json:"frequency_minutes"`
+	File             string    `json:"file,omitempty"`
+	Source           string    `json:"source,omitempty"`
+	PublicURL        string    `json:"public_url,omitempty"`
+	Hash             string    `json:"hash,omitempty"`
 	Entries          int       `json:"entries,omitempty"`
+	EntriesMin       int       `json:"entries_min,omitempty"`
+	EntriesMax       int       `json:"entries_max,omitempty"`
 	UniqueIPs        uint64    `json:"unique_ips,omitempty"`
+	IPsMin           uint64    `json:"ips_min,omitempty"`
+	IPsMax           uint64    `json:"ips_max,omitempty"`
+	AvgUpdateMins    int       `json:"avg_update_mins,omitempty"`
+	MinUpdateMins    int       `json:"min_update_mins,omitempty"`
+	MaxUpdateMins    int       `json:"max_update_mins,omitempty"`
+	Version          int       `json:"version,omitempty"`
 	Failures         int       `json:"failures"`
 	CheckedAt        time.Time `json:"checked_at,omitempty"`
+	UpdatedAt        time.Time `json:"updated_at,omitempty"`
+	ProcessedAt      time.Time `json:"processed_at,omitempty"`
+	StartedAt        time.Time `json:"started_at,omitempty"`
+	ClockSkewSeconds int64     `json:"clock_skew_seconds,omitempty"`
+	LastStatus       string    `json:"last_status,omitempty"`
+	LastRunReason    string    `json:"last_run_reason,omitempty"`
+	LastError        string    `json:"last_error,omitempty"`
+	LastProcessingMS int64     `json:"last_processing_ms,omitempty"`
 	NeverRun         bool      `json:"never_run,omitempty"`
 	NextDue          time.Time `json:"next_due,omitempty"`
 	Detail           string    `json:"detail,omitempty"`
 }
 
 type Snapshot struct {
-	GeneratedAt time.Time `json:"generated_at"`
-	Items       []Item    `json:"items"`
+	GeneratedAt   time.Time `json:"generated_at"`
+	Items         []Item    `json:"items"`
+	ArtifactItems []Item    `json:"artifact_items,omitempty"`
 }
 
 func BuildSnapshot(cfg *config.Config, rt engine.Runtime, entries []cache.Entry, enableAll bool, now time.Time) Snapshot {
@@ -76,10 +97,30 @@ func BuildSnapshotWithPolicy(cfg *config.Config, rt engine.Runtime, policy feedh
 			Enabled:          enabled,
 			HealthClass:      string(health.Class),
 			FrequencyMinutes: frequency,
+			File:             entry.File,
+			Source:           entry.Source,
+			PublicURL:        entry.PublicURL,
+			Hash:             entry.Hash,
 			Entries:          entry.Entries,
+			EntriesMin:       entry.EntriesMin,
+			EntriesMax:       entry.EntriesMax,
 			UniqueIPs:        entry.UniqueIPs,
+			IPsMin:           entry.IPsMin,
+			IPsMax:           entry.IPsMax,
+			AvgUpdateMins:    entry.AverageUpdateMins,
+			MinUpdateMins:    entry.MinUpdateMins,
+			MaxUpdateMins:    entry.MaxUpdateMins,
+			Version:          entry.Version,
 			Failures:         entry.DownloadFailures,
 			CheckedAt:        unixTime(entry.CheckedDate),
+			UpdatedAt:        unixTime(entry.SourceDate),
+			ProcessedAt:      unixTime(entry.ProcessedDate),
+			StartedAt:        unixTime(entry.StartedDate),
+			ClockSkewSeconds: entry.ClockSkewSeconds,
+			LastStatus:       entry.LastStatus,
+			LastRunReason:    entry.LastRunReason.String(),
+			LastError:        entry.LastError,
+			LastProcessingMS: entry.LastProcessingMS,
 			NeverRun:         entry.CheckedDate == 0 && entry.SourceDate == 0,
 			NextDue:          next,
 			Detail:           detail,
@@ -124,6 +165,10 @@ func BuildArtifactItemsWithPolicy(cfg *config.Config, rt engine.Runtime, policy 
 			FrequencyMinutes: artifact.Frequency,
 			Failures:         index[name].DownloadFailures,
 			CheckedAt:        unixTime(index[name].CheckedDate),
+			UpdatedAt:        unixTime(index[name].SourceDate),
+			LastStatus:       index[name].LastStatus,
+			LastRunReason:    index[name].LastRunReason.String(),
+			LastError:        index[name].LastError,
 			NextDue:          next,
 			Detail:           detail,
 		})
@@ -313,7 +358,7 @@ var saveSchedulerSnapshot = SaveSnapshot
 
 func (r *Runner) storeSnapshot(snapshot Snapshot) {
 	r.mu.Lock()
-	changed := !snapshotItemsEqual(r.snapshot.Items, snapshot.Items)
+	changed := !snapshotItemsEqual(r.snapshot.Items, snapshot.Items) || !snapshotItemsEqual(r.snapshot.ArtifactItems, snapshot.ArtifactItems)
 	r.snapshot = snapshot
 	r.mu.Unlock()
 	if !changed {
@@ -329,8 +374,9 @@ func (r *Runner) currentSnapshot() Snapshot {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return Snapshot{
-		GeneratedAt: r.snapshot.GeneratedAt,
-		Items:       append([]Item(nil), r.snapshot.Items...),
+		GeneratedAt:   r.snapshot.GeneratedAt,
+		Items:         append([]Item(nil), r.snapshot.Items...),
+		ArtifactItems: append([]Item(nil), r.snapshot.ArtifactItems...),
 	}
 }
 

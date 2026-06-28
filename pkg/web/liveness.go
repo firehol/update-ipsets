@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"os"
 	"regexp"
 	"runtime"
 	"strings"
@@ -11,15 +12,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/firehol/update-ipsets/internal/observability"
 	"github.com/firehol/update-ipsets/pkg/systemd"
-	"go.opentelemetry.io/otel/attribute"
 )
 
 const (
 	systemdNotifyFailureLogInterval = time.Minute
 	watchdogSelfHealthMinTick       = time.Second
 	watchdogSelfHealthMaxTick       = 15 * time.Second
+	servingSafeLogQueueSize         = 1024
 )
 
 var (
@@ -40,7 +40,90 @@ var (
 	diagnosticBearerPattern         = regexp.MustCompile(`(?i)\bbearer\s+[A-Za-z0-9._~+/=-]+`)
 	diagnosticIPv4Pattern           = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}\b`)
 	diagnosticLongPathPattern       = regexp.MustCompile(`(?:/[^\s:/]+){5,}[^\s:]*`)
+
+	servingSafeLoggerOnce sync.Once
+	servingSafeLogger     *slog.Logger
 )
+
+type asyncSlogRecord struct {
+	handler slog.Handler
+	record  slog.Record
+}
+
+type asyncSlogHandler struct {
+	handler slog.Handler
+	queue   chan asyncSlogRecord
+	done    chan struct{}
+	stop    sync.Once
+}
+
+func newAsyncSlogHandler(handler slog.Handler, queueSize int) *asyncSlogHandler {
+	if queueSize <= 0 {
+		queueSize = 1
+	}
+	h := &asyncSlogHandler{
+		handler: handler,
+		queue:   make(chan asyncSlogRecord, queueSize),
+		done:    make(chan struct{}),
+	}
+	go h.run()
+	return h
+}
+
+func (h *asyncSlogHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return h != nil && h.handler != nil && h.handler.Enabled(ctx, level)
+}
+
+func (h *asyncSlogHandler) Handle(_ context.Context, record slog.Record) error {
+	if h == nil || h.handler == nil {
+		return nil
+	}
+	select {
+	case h.queue <- asyncSlogRecord{handler: h.handler, record: record.Clone()}:
+	default:
+	}
+	return nil
+}
+
+func (h *asyncSlogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	if h == nil || h.handler == nil {
+		return h
+	}
+	return &asyncSlogHandler{
+		handler: h.handler.WithAttrs(attrs),
+		queue:   h.queue,
+		done:    h.done,
+	}
+}
+
+func (h *asyncSlogHandler) WithGroup(name string) slog.Handler {
+	if h == nil || h.handler == nil {
+		return h
+	}
+	return &asyncSlogHandler{
+		handler: h.handler.WithGroup(name),
+		queue:   h.queue,
+		done:    h.done,
+	}
+}
+
+func (h *asyncSlogHandler) Close() {
+	if h == nil {
+		return
+	}
+	h.stop.Do(func() { close(h.done) })
+}
+
+func (h *asyncSlogHandler) run() {
+	for {
+		select {
+		case <-h.done:
+			return
+		case event := <-h.queue:
+			_ = event.handler.Handle(context.Background(), event.record)
+		}
+	}
+}
 
 type rateLimitedLogCounter struct {
 	mu         sync.Mutex
@@ -73,18 +156,18 @@ func watchdogSelfHealthThreshold(watchdogInterval, notifyDeadline time.Duration)
 	return threshold
 }
 
-func startWatchdogSelfHealth(ctx context.Context, logger *slog.Logger, watchdogInterval, notifyDeadline time.Duration, lastBeat *atomic.Int64) <-chan struct{} {
+func startWatchdogSelfHealth(ctx context.Context, watchdogInterval, notifyDeadline time.Duration, lastBeat *atomic.Int64) <-chan struct{} {
 	done := make(chan struct{})
 	if ctx == nil || watchdogInterval <= 0 || lastBeat == nil {
 		close(done)
 		return done
 	}
-	logger = nonNilLogger(logger)
+	logger := plainLivenessLogger()
 	tick := watchdogSelfHealthTick(watchdogInterval)
 	threshold := watchdogSelfHealthThreshold(watchdogInterval, notifyDeadline)
 	go func() {
 		defer close(done)
-		defer recoverDaemonControlPanic(logger, "watchdog_self_health")
+		defer recoverDaemonControlPanic("watchdog_self_health")
 		ticker := time.NewTicker(tick)
 		defer ticker.Stop()
 		var lastDiagnostic time.Time
@@ -102,7 +185,6 @@ func startWatchdogSelfHealth(ctx context.Context, logger *slog.Logger, watchdogI
 					continue
 				}
 				lastDiagnostic = now
-				observability.Count(ctx, "daemon.watchdog.diagnostics", 1)
 				logger.Error("watchdog heartbeat stalled",
 					"elapsed_ms", elapsed.Milliseconds(),
 					"threshold_ms", threshold.Milliseconds(),
@@ -113,15 +195,14 @@ func startWatchdogSelfHealth(ctx context.Context, logger *slog.Logger, watchdogI
 	return done
 }
 
-func reportSystemdNotifyError(ctx context.Context, logger *slog.Logger, kind string, err error) {
+func reportSystemdNotifyError(kind string, err error) {
 	if err == nil {
 		return
 	}
-	logger = nonNilLogger(logger)
+	logger := plainLivenessLogger()
 	if kind == "" {
 		kind = "unknown"
 	}
-	observability.Count(ctx, "systemd.notify.failures", 1, attribute.String("systemd.notify.kind", kind))
 	limiter := systemdNotifyLimiter(kind)
 	if shouldLog, suppressed := limiter.allow(time.Now()); shouldLog {
 		args := []any{"kind", kind, "error", err}
@@ -153,18 +234,17 @@ func (l *rateLimitedLogCounter) allow(now time.Time) (bool, uint64) {
 	return false, 0
 }
 
-func recoverDaemonControlPanic(logger *slog.Logger, name string) {
+func recoverDaemonControlPanic(name string) {
 	if recovered := recover(); recovered != nil {
-		reportDaemonControlPanic(logger, name, recovered)
+		reportDaemonControlPanic(name, recovered)
 	}
 }
 
-func reportDaemonControlPanic(logger *slog.Logger, name string, recovered any) {
-	logger = nonNilLogger(logger)
+func reportDaemonControlPanic(name string, recovered any) {
+	logger := plainLivenessLogger()
 	if name == "" {
 		name = "unknown"
 	}
-	observability.Count(context.Background(), "daemon.goroutine.panics", 1, attribute.String("daemon.goroutine", name))
 	logger.Error("daemon control goroutine panic recovered",
 		"goroutine", name,
 		"panic", recovered,
@@ -240,9 +320,12 @@ func shortenDiagnosticPath(path string) string {
 	return ".../" + tail
 }
 
-func nonNilLogger(logger *slog.Logger) *slog.Logger {
-	if logger != nil {
-		return logger
-	}
-	return slog.Default()
+func plainLivenessLogger() *slog.Logger {
+	servingSafeLoggerOnce.Do(func() {
+		servingSafeLogger = slog.New(newAsyncSlogHandler(
+			slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelInfo}),
+			servingSafeLogQueueSize,
+		))
+	})
+	return servingSafeLogger
 }

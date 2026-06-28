@@ -42,6 +42,48 @@ func (e *Engine) IntegrityRecoveryPlan(findings []IntegrityFinding) (recheck []s
 	return sortedNames(recheckSet), sortedNames(reprocessSet)
 }
 
+func (e *Engine) integrityFindingsWithRecoveryPlan(findings []IntegrityFinding) []IntegrityFinding {
+	out := cloneIntegrityFindings(findings)
+	if e == nil || len(out) == 0 {
+		return out
+	}
+	snap := e.operationSnapshot()
+	if snap.cfg == nil {
+		return out
+	}
+	for i := range out {
+		recheckTargets, reprocessTargets := e.integrityRecoveryForFindingWithSnapshot(snap, out[i])
+		switch {
+		case len(recheckTargets) > 0:
+			out[i].RecoveryAction = IntegrityRecoveryActionRecheck
+			out[i].RecoveryTargets = append([]string(nil), recheckTargets...)
+		case len(reprocessTargets) > 0:
+			out[i].RecoveryAction = IntegrityRecoveryActionReprocess
+			out[i].RecoveryTargets = append([]string(nil), reprocessTargets...)
+		default:
+			out[i].RecoveryAction = ""
+			out[i].RecoveryTargets = nil
+		}
+	}
+	return out
+}
+
+func (e *Engine) integrityFindingsWithRecoveryPlanIfMissing(findings []IntegrityFinding) []IntegrityFinding {
+	if !integrityFindingsNeedRecoveryPlan(findings) {
+		return cloneIntegrityFindings(findings)
+	}
+	return e.integrityFindingsWithRecoveryPlan(findings)
+}
+
+func integrityFindingsNeedRecoveryPlan(findings []IntegrityFinding) bool {
+	for _, finding := range findings {
+		if finding.RecoveryAction == "" && len(finding.RecoveryTargets) == 0 {
+			return true
+		}
+	}
+	return false
+}
+
 func (e *Engine) integrityRecoveryForFinding(finding IntegrityFinding) (recheck []string, reprocess []string) {
 	return e.integrityRecoveryForFindingWithSnapshot(e.operationSnapshot(), finding)
 }

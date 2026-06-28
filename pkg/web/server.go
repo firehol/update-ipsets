@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -13,9 +14,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/firehol/update-ipsets/internal/observability"
 	"github.com/firehol/update-ipsets/pkg/engine"
 	"github.com/firehol/update-ipsets/pkg/scheduler"
-	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 //go:embed static
@@ -99,7 +100,11 @@ func validateRunOptions(eng *engine.Engine, opts Options) error {
 		if strings.TrimSpace(opts.AdminListen) == strings.TrimSpace(opts.Listen) {
 			return fmt.Errorf("--admin-listen must differ from --listen; omit --admin-listen to share one listener")
 		}
-		if strings.TrimSpace(eng.Runtime().PublicBaseURL) == "" {
+		_, rt, ok := eng.TryConfigRuntimeSnapshot()
+		if !ok {
+			return fmt.Errorf("engine runtime is busy; cannot validate --admin-listen without blocking web startup")
+		}
+		if strings.TrimSpace(rt.PublicBaseURL) == "" {
 			return fmt.Errorf("runtime.public_base_url must be configured when --admin-listen is used")
 		}
 	}
@@ -107,14 +112,9 @@ func validateRunOptions(eng *engine.Engine, opts Options) error {
 }
 
 func newHTTPServer(addr string, handler http.Handler) *http.Server {
-	instrumented := otelhttp.NewHandler(withTelemetryRoutePattern(handler), "http.server",
-		otelhttp.WithSpanNameFormatter(func(_ string, r *http.Request) string {
-			return r.Method + " " + telemetryRouteName(r.URL.Path)
-		}),
-	)
 	return &http.Server{
 		Addr:              addr,
-		Handler:           instrumented,
+		Handler:           withTelemetryRoutePattern(handler),
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		WriteTimeout:      120 * time.Second,
@@ -125,9 +125,77 @@ func newHTTPServer(addr string, handler http.Handler) *http.Server {
 
 func withTelemetryRoutePattern(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		handler.ServeHTTP(w, r)
-		r.Pattern = telemetryRouteName(r.URL.Path)
+		started := time.Now()
+		route := telemetryRouteName(r.URL.Path)
+		rec := &telemetryResponseWriter{ResponseWriter: w}
+		r.Pattern = route
+		handler.ServeHTTP(rec, r)
+		r.Pattern = route
+		observability.TryHTTPServerRequest(route, r.Method, rec.statusCode(), time.Since(started))
 	})
+}
+
+type telemetryResponseWriter struct {
+	http.ResponseWriter
+	status int
+	bytes  int64
+}
+
+func (w *telemetryResponseWriter) WriteHeader(code int) {
+	if w.status != 0 {
+		return
+	}
+	w.status = code
+	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *telemetryResponseWriter) Write(data []byte) (int, error) {
+	if w.status == 0 {
+		w.status = http.StatusOK
+	}
+	n, err := w.ResponseWriter.Write(data)
+	w.bytes += int64(n)
+	return n, err
+}
+
+func (w *telemetryResponseWriter) Flush() {
+	if w.status == 0 {
+		w.status = http.StatusOK
+	}
+	if f, ok := w.ResponseWriter.(http.Flusher); ok {
+		f.Flush()
+	}
+}
+
+func (w *telemetryResponseWriter) ReadFrom(r io.Reader) (int64, error) {
+	if w.status == 0 {
+		w.status = http.StatusOK
+	}
+	if rf, ok := w.ResponseWriter.(io.ReaderFrom); ok {
+		n, err := rf.ReadFrom(r)
+		w.bytes += n
+		return n, err
+	}
+	return io.Copy(telemetryBodyWriter{w: w}, r)
+}
+
+func (w *telemetryResponseWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
+}
+
+func (w *telemetryResponseWriter) statusCode() int {
+	if w.status == 0 {
+		return http.StatusOK
+	}
+	return w.status
+}
+
+type telemetryBodyWriter struct {
+	w *telemetryResponseWriter
+}
+
+func (w telemetryBodyWriter) Write(data []byte) (int, error) {
+	return w.w.Write(data)
 }
 
 func telemetryRouteName(path string) string {
@@ -287,27 +355,32 @@ func readyMessage(servers []namedServer) string {
 	return "listening on " + strings.Join(parts, ", ")
 }
 
-func publicRawFeedRel(eng *engine.Engine, name string) (string, bool) {
-	if eng == nil {
-		return "", false
-	}
-	return eng.PublicRawFeedFile(name)
-}
-
 func sanitizeSchedulerSnapshot(snap scheduler.Snapshot) scheduler.Snapshot {
 	out := scheduler.Snapshot{
-		GeneratedAt: sanitizeJSONTime(snap.GeneratedAt),
-		Items:       make([]scheduler.Item, 0, len(snap.Items)),
+		GeneratedAt:   sanitizeJSONTime(snap.GeneratedAt),
+		Items:         make([]scheduler.Item, 0, len(snap.Items)),
+		ArtifactItems: make([]scheduler.Item, 0, len(snap.ArtifactItems)),
 	}
 	for _, item := range snap.Items {
 		item.CheckedAt = sanitizeJSONTime(item.CheckedAt)
+		item.UpdatedAt = sanitizeJSONTime(item.UpdatedAt)
+		item.ProcessedAt = sanitizeJSONTime(item.ProcessedAt)
+		item.StartedAt = sanitizeJSONTime(item.StartedAt)
 		item.NextDue = sanitizeJSONTime(item.NextDue)
 		out.Items = append(out.Items, item)
+	}
+	for _, item := range snap.ArtifactItems {
+		item.CheckedAt = sanitizeJSONTime(item.CheckedAt)
+		item.UpdatedAt = sanitizeJSONTime(item.UpdatedAt)
+		item.ProcessedAt = sanitizeJSONTime(item.ProcessedAt)
+		item.StartedAt = sanitizeJSONTime(item.StartedAt)
+		item.NextDue = sanitizeJSONTime(item.NextDue)
+		out.ArtifactItems = append(out.ArtifactItems, item)
 	}
 	return out
 }
 
-func feedScopedPublicArtifactName(eng *engine.Engine, rel string) (string, bool) {
+func feedScopedPublicArtifactName(state *publicServingState, rel string) (string, bool) {
 	rel = strings.TrimSpace(strings.TrimPrefix(rel, "/"))
 	if rel == "" || strings.Contains(rel, "/") {
 		return "", false
@@ -329,10 +402,10 @@ func feedScopedPublicArtifactName(eng *engine.Engine, rel string) (string, bool)
 		return strings.TrimSuffix(rel, "_insights.json"), true
 	case strings.HasSuffix(rel, ".json"):
 		base := strings.TrimSuffix(rel, ".json")
-		if eng != nil && eng.IsPublicFeedName(base) {
+		if state != nil && state.isPublicFeedName(base) {
 			return base, true
 		}
-		if name, ok := providerScopedArtifactFeedName(eng, base); ok {
+		if name, ok := state.providerScopedArtifactFeedName(base); ok {
 			return name, true
 		}
 		return base, true
@@ -341,49 +414,6 @@ func feedScopedPublicArtifactName(eng *engine.Engine, rel string) (string, bool)
 	default:
 		return "", false
 	}
-}
-
-func knownCriticalInfrastructureProvider(eng *engine.Engine, provider string) bool {
-	for _, item := range eng.CriticalInfrastructureProviders() {
-		if item.Name == provider {
-			return true
-		}
-	}
-	return false
-}
-
-func providerScopedArtifactFeedName(eng *engine.Engine, base string) (string, bool) {
-	if eng == nil {
-		return "", false
-	}
-	for _, provider := range eng.GeoProviders() {
-		suffix := "_" + provider.Name
-		if strings.HasSuffix(base, suffix) {
-			return strings.TrimSuffix(base, suffix), true
-		}
-	}
-	for _, provider := range eng.ASNProviders() {
-		suffix := "_asn_" + provider.Name
-		if strings.HasSuffix(base, suffix) {
-			return strings.TrimSuffix(base, suffix), true
-		}
-	}
-	for _, provider := range eng.BogonProviders() {
-		suffix := "_bogons_" + provider.Name
-		if strings.HasSuffix(base, suffix) {
-			return strings.TrimSuffix(base, suffix), true
-		}
-	}
-	if strings.HasSuffix(base, "_critical_infrastructure") {
-		return strings.TrimSuffix(base, "_critical_infrastructure"), true
-	}
-	for _, provider := range eng.CriticalInfrastructureProviders() {
-		suffix := "_critical_" + provider.Name
-		if strings.HasSuffix(base, suffix) {
-			return strings.TrimSuffix(base, suffix), true
-		}
-	}
-	return "", false
 }
 
 func sanitizeJSONTime(ts time.Time) time.Time {

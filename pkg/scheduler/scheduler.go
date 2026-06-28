@@ -90,7 +90,7 @@ func New(eng *engine.Engine, enableAll bool, logger *slog.Logger) *Runner {
 			deferred: make(map[string]queuedWork),
 		},
 	}
-	if snapshot, err := LoadSnapshot(runner.statePath); err == nil && len(snapshot.Items) > 0 {
+	if snapshot, err := LoadSnapshot(runner.statePath); err == nil && (len(snapshot.Items) > 0 || len(snapshot.ArtifactItems) > 0) {
 		runner.snapshot = snapshot
 	}
 	return runner
@@ -200,14 +200,16 @@ func (r *Runner) Snapshot() Snapshot {
 		return cached
 	}
 	cfg, rt, policy := r.eng.ConfigRuntimePolicySnapshot()
+	entries := r.eng.EntriesSnapshotWithArtifactsForConfig(cfg)
 	snapshot := BuildSnapshotWithPolicy(
 		cfg,
 		rt,
 		policy,
-		r.eng.EntriesSnapshotForConfig(cfg),
+		entries,
 		r.enableAll,
 		now,
 	)
+	snapshot.ArtifactItems = BuildArtifactItemsWithPolicy(cfg, rt, policy, entries, r.enableAll, now)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.snapshot = snapshot
@@ -224,9 +226,25 @@ func (r *Runner) CachedSnapshot() Snapshot {
 	}
 	r.mu.RLock()
 	defer r.mu.RUnlock()
+	return r.snapshotLocked()
+}
+
+func (r *Runner) TryCachedSnapshot() (Snapshot, bool) {
+	if r == nil {
+		return Snapshot{}, true
+	}
+	if !r.mu.TryRLock() {
+		return Snapshot{}, false
+	}
+	defer r.mu.RUnlock()
+	return r.snapshotLocked(), true
+}
+
+func (r *Runner) snapshotLocked() Snapshot {
 	return Snapshot{
-		GeneratedAt: r.snapshot.GeneratedAt,
-		Items:       append([]Item(nil), r.snapshot.Items...),
+		GeneratedAt:   r.snapshot.GeneratedAt,
+		Items:         append([]Item(nil), r.snapshot.Items...),
+		ArtifactItems: append([]Item(nil), r.snapshot.ArtifactItems...),
 	}
 }
 
@@ -275,11 +293,13 @@ func (r *Runner) ActivitySnapshotLight() ActivitySnapshot {
 	if r == nil {
 		return ActivitySnapshot{}
 	}
-	configSnapshot := r.schedulerConfigSnapshot()
+	configSnapshot := r.schedulerConfigSnapshotLight()
 	includeProcessing := func(name string) bool {
 		return !configSnapshot.IsProviderDatabase(name)
 	}
-	r.stateMu.RLock()
+	if !r.stateMu.TryRLock() {
+		return ActivitySnapshot{}
+	}
 	downloadWaiting := queueSnapshotFromMap(r.download.waiting, nil)
 	for i := range downloadWaiting {
 		if !r.downloadInputsSettledLocked(configSnapshot.DerivedFrom(downloadWaiting[i].Name)) {
@@ -298,6 +318,14 @@ func (r *Runner) ActivitySnapshotLight() ActivitySnapshot {
 	}
 	r.stateMu.RUnlock()
 	return snap
+}
+
+func (r *Runner) schedulerConfigSnapshotLight() engine.SchedulerConfigSnapshot {
+	if r == nil || r.eng == nil {
+		return engine.SchedulerConfigSnapshot{}
+	}
+	snapshot, _ := r.eng.TrySchedulerConfigSnapshot()
+	return snapshot
 }
 
 func (r *Runner) operatorProcessingActive(include func(name string) bool) []ActiveQueueFeed {

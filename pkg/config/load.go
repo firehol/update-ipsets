@@ -148,7 +148,6 @@ func observeConfigLoad(result string, dur time.Duration) {
 		result = "unknown"
 	}
 	attr := attribute.String("config.result", result)
-	ctx := observability.BackgroundContext()
-	observability.Count(ctx, "config.loads", 1, attr)
-	observability.Duration(ctx, "config.load", dur, attr)
+	observability.TryCount("config.loads", 1, attr)
+	observability.TryDuration("config.load", dur, attr)
 }

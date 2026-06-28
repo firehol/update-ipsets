@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -97,13 +98,12 @@ type entityIntegrityActionResult struct {
 func buildIntegrityReport(ctx context.Context, eng *engine.Engine, includeArchived, enableAll bool, webDir string) (integrityReport, error) {
 	started := time.Now()
 	opts := engine.IntegrityOptions{IncludeArchived: includeArchived, EnableAll: enableAll, WebDir: webDir}
-	snap := eng.PipelineIntegrityCacheSnapshot(opts)
+	snap, _ := eng.TryPipelineIntegrityCacheSnapshot(opts)
 
 	findings := snap.Findings
 	if findings == nil {
 		findings = []engine.IntegrityFinding{}
 	}
-	findings = annotateIntegrityFindings(eng, findings)
 	out := integrityReport{
 		IncludeArchived:    includeArchived,
 		Status:             integrityStatusForFindings(findings, snap),
@@ -148,11 +148,11 @@ func buildEntityIntegrityReport(ctx context.Context, eng *engine.Engine) (entity
 	result := "error"
 	findingCount := 0
 	defer func() {
-		eng.ObserveOperation("admin.entity_integrity_check", time.Since(started))
-		eng.ObserveCounter("admin.entity_integrity_check", 1, 0)
+		eng.TryObserveOperation("admin.entity_integrity_check", time.Since(started))
+		eng.TryObserveCounter("admin.entity_integrity_check", 1, 0)
 		observeIntegrityCheck("entity", result, findingCount, time.Since(started))
 	}()
-	snap := eng.EntityIntegrityCacheSnapshot()
+	snap, _ := eng.TryEntityIntegrityCacheSnapshot()
 
 	findings := snap.Findings
 	findingCount = len(findings)
@@ -209,7 +209,7 @@ func handleAdminEntityIntegrityRebuildWithContext(ctx context.Context, eng *engi
 			return
 		}
 		if result.Coalesced {
-			snap := eng.EntityIntegrityCacheSnapshot()
+			snap, _ := eng.TryEntityIntegrityCacheSnapshot()
 			observeAPIRecalculation(r, "admin", "entity_rebuild", "in_progress", 0)
 			writeJSON(w, http.StatusOK, entityIntegrityActionResult{
 				Status:             integrityStatusInProgress,
@@ -223,7 +223,7 @@ func handleAdminEntityIntegrityRebuildWithContext(ctx context.Context, eng *engi
 			})
 			return
 		}
-		snap := eng.EntityIntegrityCacheSnapshot()
+		snap, _ := eng.TryEntityIntegrityCacheSnapshot()
 		observeAPIRecalculation(r, "admin", "entity_rebuild", "scheduled", 1)
 		observeIntegrityRecoveryTargets("entity", "rebuild", 1)
 		writeJSON(w, http.StatusAccepted, entityIntegrityActionResult{
@@ -269,7 +269,7 @@ func handleAdminIntegrityRefresh(ctx context.Context, eng *engine.Engine, enable
 			CheckedAt:          snap.CheckedAt,
 			LastError:          snap.LastError,
 			Count:              len(snap.Findings),
-			Findings:           annotateIntegrityFindings(eng, snap.Findings),
+			Findings:           snap.Findings,
 		})
 	}
 }
@@ -353,26 +353,6 @@ func sanitizeEntityIntegrityReport(report entityIntegrityReport) entityIntegrity
 	return report
 }
 
-func annotateIntegrityFindings(eng *engine.Engine, findings []engine.IntegrityFinding) []engine.IntegrityFinding {
-	if len(findings) == 0 {
-		return findings
-	}
-	out := make([]engine.IntegrityFinding, len(findings))
-	copy(out, findings)
-	for i := range out {
-		recheckNames, reprocessNames := eng.IntegrityRecoveryPlan([]engine.IntegrityFinding{out[i]})
-		switch {
-		case len(recheckNames) > 0:
-			out[i].RecoveryAction = engine.IntegrityRecoveryActionRecheck
-			out[i].RecoveryTargets = recheckNames
-		case len(reprocessNames) > 0:
-			out[i].RecoveryAction = engine.IntegrityRecoveryActionReprocess
-			out[i].RecoveryTargets = reprocessNames
-		}
-	}
-	return out
-}
-
 func handleAdminIntegrityReprocess(ctx context.Context, eng *engine.Engine, runner *scheduler.Runner, webDir string) http.HandlerFunc {
 	ctx = nonNilHandlerContext(ctx)
 	return func(w http.ResponseWriter, r *http.Request) {
@@ -385,7 +365,28 @@ func handleAdminIntegrityReprocess(ctx context.Context, eng *engine.Engine, runn
 
 		includeArchived := includeArchivedQuery(r)
 		opts := engine.IntegrityOptions{IncludeArchived: includeArchived, EnableAll: runner.EnableAll(), WebDir: webDir}
-		snap := eng.PipelineIntegrityCacheSnapshot(opts)
+		snap, ok := eng.TryPipelineIntegrityCacheSnapshot(opts)
+		if !ok {
+			observeAPIRecalculation(r, "admin", "integrity_reprocess", "in_progress", 0)
+			writeJSON(w, http.StatusServiceUnavailable, integrityReprocessResult{
+				IncludeArchived:    includeArchived,
+				Status:             integrityStatusInProgress,
+				Generation:         snap.Generation,
+				CacheState:         snap.CacheState,
+				Running:            true,
+				StartupScanRunning: snap.StartupScanRunning,
+				Queued:             snap.Queued,
+				Coalesced:          snap.Coalesced,
+				Ticket:             snap.Ticket,
+				LastStarted:        snap.LastStarted,
+				LastEnded:          snap.LastEnded,
+				CheckedAt:          snap.CheckedAt,
+				LastError:          snap.LastError,
+				Count:              0,
+				Findings:           []engine.IntegrityFinding{},
+			})
+			return
+		}
 		if snap.CacheState != engine.IntegrityCacheFresh {
 			queued, err := eng.QueuePipelineIntegrityRefresh(ctx, opts, "admin_reprocess")
 			if err != nil {
@@ -413,7 +414,7 @@ func handleAdminIntegrityReprocess(ctx context.Context, eng *engine.Engine, runn
 			})
 			return
 		}
-		findings := annotateIntegrityFindings(eng, snap.Findings)
+		findings := snap.Findings
 		report := integrityReport{
 			IncludeArchived:    includeArchived,
 			Status:             integrityStatusForFindings(findings, snap),
@@ -446,13 +447,13 @@ func handleAdminIntegrityReprocess(ctx context.Context, eng *engine.Engine, runn
 			return
 		}
 
-		recheckNames, reprocessNames := eng.IntegrityRecoveryPlan(report.Findings)
+		recheckNames, reprocessNames := recoveryTargetsFromFindings(report.Findings)
 		names := append(append([]string(nil), recheckNames...), reprocessNames...)
 		ticket, err := eng.QueuePipelineIntegrityReprocess(ctx, opts, "admin_reprocess", func(laneCtx context.Context, findings []engine.IntegrityFinding) error {
 			if err := laneCtx.Err(); err != nil {
 				return err
 			}
-			recheckNames, reprocessNames := eng.IntegrityRecoveryPlan(findings)
+			recheckNames, reprocessNames := recoveryTargetsFromFindings(findings)
 			if len(recheckNames) > 0 {
 				observeIntegrityRecoveryTargets("pipeline", "recheck", len(recheckNames))
 				if err := runner.TriggerSourcesWithin(laneCtx, scheduler.LaneActionAdmissionTimeout, scheduler.PendingAction{
@@ -514,6 +515,10 @@ func handleAdminIntegrityReprocess(ctx context.Context, eng *engine.Engine, runn
 			statusCode = http.StatusOK
 		}
 		observeAPIRecalculation(r, "admin", "integrity_reprocess", resultStatus, len(names))
+		targetCount := len(names)
+		if targetCount == 0 {
+			targetCount = report.Count
+		}
 		writeJSON(w, statusCode, integrityReprocessResult{
 			IncludeArchived:    includeArchived,
 			Status:             resultStatus,
@@ -528,7 +533,7 @@ func handleAdminIntegrityReprocess(ctx context.Context, eng *engine.Engine, runn
 			LastEnded:          report.LastEnded,
 			CheckedAt:          report.CheckedAt,
 			LastError:          report.LastError,
-			Count:              len(names),
+			Count:              targetCount,
 			Names:              names,
 			RecheckNames:       recheckNames,
 			ReprocessNames:     reprocessNames,
@@ -537,9 +542,46 @@ func handleAdminIntegrityReprocess(ctx context.Context, eng *engine.Engine, runn
 	}
 }
 
+func recoveryTargetsFromFindings(findings []engine.IntegrityFinding) (recheckNames, reprocessNames []string) {
+	recheckSet := make(map[string]struct{})
+	reprocessSet := make(map[string]struct{})
+	for _, finding := range findings {
+		switch finding.RecoveryAction {
+		case engine.IntegrityRecoveryActionRecheck:
+			for _, target := range finding.RecoveryTargets {
+				if target != "" {
+					recheckSet[target] = struct{}{}
+				}
+			}
+		case engine.IntegrityRecoveryActionReprocess:
+			for _, target := range finding.RecoveryTargets {
+				if target != "" {
+					reprocessSet[target] = struct{}{}
+				}
+			}
+		}
+	}
+	for name := range recheckSet {
+		delete(reprocessSet, name)
+	}
+	return sortedMapKeys(recheckSet), sortedMapKeys(reprocessSet)
+}
+
+func sortedMapKeys(values map[string]struct{}) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(values))
+	for name := range values {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	return names
+}
+
 func jsonQueueSubmissionError(w http.ResponseWriter, err error) {
 	status := http.StatusInternalServerError
-	if errors.Is(err, engine.ErrLaneShuttingDown) {
+	if errors.Is(err, engine.ErrLaneShuttingDown) || errors.Is(err, engine.ErrIntegrityCacheBusy) {
 		status = http.StatusServiceUnavailable
 	}
 	jsonError(w, status, err)
@@ -585,10 +627,9 @@ func observeIntegrityCheck(kind, result string, findings int, dur time.Duration)
 		attribute.String("integrity.kind", kind),
 		attribute.String("integrity.result", result),
 	}
-	ctx := observability.BackgroundContext()
-	observability.Count(ctx, "integrity.checks", 1, attrs...)
-	observability.Duration(ctx, "integrity.check", dur, attrs...)
-	observability.Gauge(ctx, "integrity.findings", int64(findings), attribute.String("integrity.kind", kind))
+	observability.TryCount("integrity.checks", 1, attrs...)
+	observability.TryDuration("integrity.check", dur, attrs...)
+	observability.TryGauge("integrity.findings", int64(findings), attribute.String("integrity.kind", kind))
 }
 
 func observeIntegrityRecoveryTargets(kind, action string, targets int) {
@@ -601,8 +642,7 @@ func observeIntegrityRecoveryTargets(kind, action string, targets int) {
 	if action == "" {
 		action = "unknown"
 	}
-	observability.Count(
-		observability.BackgroundContext(),
+	observability.TryCount(
 		"integrity.recovery.targets",
 		int64(targets),
 		attribute.String("integrity.kind", kind),

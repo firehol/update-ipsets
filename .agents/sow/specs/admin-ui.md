@@ -159,6 +159,11 @@ rows, or artifact rows MUST use one coherent config/runtime/policy generation
 per response. They MAY build richer diagnostics than the light heartbeat, but
 they MUST pass the captured generation through inner builders instead of mixing
 fresh config/runtime/cache snapshots while constructing one response.
+Full admin status responses are still web-serving request paths. Their feed,
+artifact, and schedule-derived rows MUST come from cached scheduler/feed
+heartbeat state rather than rebuilding the scheduler snapshot or walking all
+cache entries from the HTTP handler. Full mode MAY include richer engine and
+runtime diagnostic structures that are already held in memory.
 
 ### 2. Feed inventory
 
@@ -166,13 +171,47 @@ A full table of feeds remains the main operator inventory.
 
 This table MUST NOT be replaced by transient queue panels.
 
+The high-frequency feed inventory endpoint `GET /api/v1/admin/feeds` MUST be a
+cached operator snapshot. It SHOULD render configured feed rows plus the latest
+cached scheduler/feed heartbeat state. It MUST NOT rebuild the scheduler
+snapshot, walk all cache entries, or run full feed-health/composition builders
+from the HTTP request path on every poll. Richer one-feed diagnostics belong in
+`GET /api/v1/admin/feeds/{name}` or explicit full diagnostic status paths.
+
+One-feed detail endpoint `GET /api/v1/admin/feeds/{name}` is also a web-serving
+request path. It MAY assemble a richer configured-source view for the selected
+feed, but all runtime status, cadence, counts, timestamps, and processing
+fields MUST come from cached scheduler/feed heartbeat state. It MUST NOT rebuild
+the scheduler snapshot or walk all cache entries. Merge-composition detail for a
+selected merge feed MUST be computed only for that selected feed and from cached
+scheduler/feed heartbeat rows; it MUST NOT call all-merge composition builders
+that snapshot the full cache state.
+
+Feed manifest endpoint `GET /api/v1/admin/feeds/{name}/manifest` MAY stat the
+finite configured artifact files for the one selected feed because that is the
+operator-visible purpose of the endpoint. It MUST use cached scheduler/feed
+heartbeat state for runtime timestamps such as processed date and MUST NOT walk
+all cache entries to discover that value.
+
 ### 3. Artifact inventory
 
 Artifact parents MUST be visible and manageable separately from feed rows.
 
+The high-frequency artifact inventory endpoint `GET /api/v1/admin/artifacts`
+follows the same cached snapshot rule as feed inventory. Artifact parent rows
+MUST preserve scheduler-visible fields such as enablement, last status, last
+error, failures, last check, last update, next check, and scheduler detail from
+the cached artifact heartbeat. The handler MUST NOT rebuild artifact children or
+walk all cache entries on every poll.
+
 ### 4. Schedule visibility
 
 Operators MUST be able to inspect when items are expected to run and why.
+
+The schedule endpoint MUST be a cached scheduler snapshot view. It MUST expose
+next/last check times, cadence, failures, and scheduler detail from cached
+heartbeat rows. It MUST NOT rebuild the scheduler snapshot, walk all cache
+entries, or compute full feed diagnostics from the HTTP request path.
 
 ### 5. Integrity
 
@@ -193,6 +232,9 @@ of view. If no fresh settled integrity snapshot is available, the handler MUST
 queue a bounded engine-lane refresh and return an `in_progress` or equivalent
 cache-state response. A normal admin page reload MUST NOT synchronously scan the
 artifact tree, rebuild entity plans, or block behind broad engine-owned work.
+It MUST also avoid waiting for integrity-cache locks; a busy cache returns
+in-progress/busy state. Recovery hints shown in findings must come from cached
+integrity results, not request-time recovery-plan computation.
 
 The admin API MUST expose explicit operator refresh actions for pipeline and
 entity integrity. Those actions queue engine-lane integrity refresh work and

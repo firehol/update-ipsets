@@ -308,17 +308,17 @@ func (c *fileCache) evictLocked() {
 		path, _ := back.Value.(string)
 		entry := c.files[path]
 		c.removeLocked(path, entry)
-		observability.Count(observability.BackgroundContext(), "web.artifact.cache.evictions", 1, attribute.String("cache.reason", reason))
+		observability.TryCount("web.artifact.cache.evictions", 1, attribute.String("cache.reason", reason))
 	}
 }
 
 func (c *fileCache) observeStateLocked() {
-	observability.Gauge(observability.BackgroundContext(), "web.artifact.cache.entries", int64(len(c.files)))
-	observability.Gauge(observability.BackgroundContext(), "web.artifact.cache.bytes", c.bytes)
+	observability.TryGauge("web.artifact.cache.entries", int64(len(c.files)))
+	observability.TryGauge("web.artifact.cache.bytes", c.bytes)
 }
 
 func observeWebArtifactCacheLookup(result string) {
-	observability.Count(observability.BackgroundContext(), "web.artifact.cache.lookups", 1, attribute.String("cache.result", result))
+	observability.TryCount("web.artifact.cache.lookups", 1, attribute.String("cache.result", result))
 }
 
 func serveUncachedFile(w http.ResponseWriter, r *http.Request, path string, contentType string) bool {

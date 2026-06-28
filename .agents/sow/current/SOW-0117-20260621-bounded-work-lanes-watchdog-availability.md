@@ -2,13 +2,13 @@
 
 ## Status
 
-Status: completed
+Status: in-progress
 
-Sub-state: reopened for 2026-06-25 production deadlock/watchdog regression
-analysis and fix; V27 full-scope external rerun found no remaining SOW-0117
-deadlock/liveness blockers after explicit light-status coverage hardening. Closed
-with the implementation, validation evidence, and follow-up SOW-0118 split
-recorded.
+Sub-state: reopened for 2026-06-27 production watchdog/liveness regression.
+Production evidence shows the previous closure missed a web-serving dependency:
+admin polling, HTTP telemetry, and watchdog proof are all part of the web-serving
+availability contract and must never block behind ingestion, artifact work, or
+telemetry backpressure.
 
 ## Requirements
 
@@ -11279,3 +11279,1173 @@ Current conclusion:
   validation or external review.
 - The next related work is SOW-0118, the separately tracked runtime
   reload/config snapshot race audit.
+
+## Regression - 2026-06-27
+
+### Status
+
+Status: in progress.
+
+### Purpose
+
+Restore the actual production availability contract:
+
+- admin serving is web serving;
+- HTTP telemetry is web serving when enabled on request paths;
+- watchdog proof is web serving;
+- these web-serving paths MUST never block behind ingestion, artifact
+  generation, integrity, admin full snapshots, telemetry export, telemetry
+  instrument creation, or telemetry log backpressure.
+
+The goal is not to keep a non-responsive process alive. The goal is to keep the
+public/admin web server responsive independently of ingestion. If the web server
+itself cannot respond, the watchdog MUST fail and systemd should restart it.
+
+### Production Evidence
+
+Sanitized production evidence from 2026-06-27:
+
+- `systemd` killed the daemon for watchdog timeouts at 02:20:45, 06:30:23, and
+  10:30:03 UTC. Each failure reported `Failed with result 'watchdog'` and a
+  memory peak around 1.5 GiB, so the observed failure mode was watchdog liveness,
+  not an OOM kill.
+- Production had OpenTelemetry enabled with OTLP gRPC and a 10-second metric
+  export interval.
+- The 10:30 watchdog stack showed the watchdog path calling
+  `reportSystemdNotifyError()` at `pkg/web/server_run.go`, then
+  `observability.Count()` at `pkg/web/liveness.go` and
+  `internal/observability/observability.go`, then blocking in OpenTelemetry
+  metric pipeline/instrument code.
+- The self-health diagnostic path was also observed calling
+  `observability.Count()` before logging the stalled heartbeat.
+- The same crash window showed admin requests in `buildAdminFeeds()` and
+  `buildAdminArtifacts()`, both entering `Runner.ActivitySnapshot()` and then
+  `Engine.EntriesSnapshotForConfig()`, which clones all cache entries through
+  `State.SnapshotEntries()`.
+- UI polling evidence shows `/api/v1/admin/status` every 3 seconds and
+  `/api/v1/admin/feeds` plus `/api/v1/admin/artifacts` every 10 seconds.
+
+### Root-Cause Model
+
+Facts:
+
+- `newHTTPServer()` wraps HTTP serving in `otelhttp.NewHandler()`.
+- When OTel logs are enabled, the configured logger tees synchronous log records
+  to an OTel log handler.
+- Metric instruments are lazily created under `instrumentsMu`, and the current
+  implementation calls into OpenTelemetry while holding that mutex.
+- Watchdog and watchdog self-health code currently records OpenTelemetry
+  counters and uses the normal OTel-backed logger.
+- High-frequency admin feeds/artifacts endpoints still build full dynamic rows
+  from full scheduler activity and full cache-entry snapshots.
+
+Conclusion:
+
+- SOW-0117 fixed many engine-lane deadlock classes, but it did not fully define
+  or enforce web-serving liveness. Web-serving includes admin serving, request
+  telemetry, and watchdog proof. The implementation still allows these paths to
+  block behind telemetry and broad cache snapshots.
+
+### Pre-Implementation Gate
+
+Problem/root-cause model:
+
+- Production watchdog failures are caused by web-serving dependencies that are
+  not bounded: OTel instrument/export/log paths and admin polling paths can
+  block or consume enough CPU/GC/I/O to keep the service from proving web
+  serving liveness within the systemd watchdog window.
+
+Evidence reviewed:
+
+- Production `systemd` watchdog kill timestamps and stack dumps from
+  2026-06-27.
+- `pkg/web/server.go` for `otelhttp` wrapping of HTTP servers.
+- `internal/observability/observability.go` for OTel metric/log setup and lazy
+  instrument creation.
+- `internal/observability/slog.go` for synchronous tee logging.
+- `pkg/web/liveness.go` and `pkg/web/server_run.go` for watchdog notify and
+  self-health paths.
+- `pkg/web/admin.go`, `pkg/scheduler/scheduler.go`, `pkg/engine/query.go`, and
+  `pkg/cache/cache.go` for high-frequency admin full snapshot paths.
+- `ui/src/pages/admin.tsx` and `ui/src/lib/queries/admin.ts` for admin polling
+  cadence.
+
+Affected contracts and surfaces:
+
+- Web serving liveness and systemd watchdog semantics.
+- Admin API/UI polling behavior.
+- Telemetry setup and request instrumentation behavior.
+- Operating principles and admin UI specs.
+- Tests for web liveness, watchdog behavior, admin polling cost, and
+  observability non-blocking behavior.
+
+Existing patterns to reuse:
+
+- Existing light admin status path and cached scheduler snapshot.
+- Existing `systemd.NotifyWithDeadline()` bounded systemd notification helper.
+- Existing SOW-0117 engine-lane and downloader-lane ownership model.
+- Existing test helpers in `pkg/web` and `internal/observability`.
+
+Risk and blast radius:
+
+- This is production liveness code. Regressions can either keep a broken web
+  server alive or cause unnecessary restarts.
+- Telemetry changes can alter what data reaches OTel. Telemetry is secondary to
+  web-serving availability; if a tradeoff exists, drop or degrade telemetry
+  before risking web serving.
+- Admin API changes must preserve operator value while making high-frequency
+  polling cache/light.
+
+Sensitive data handling plan:
+
+- Do not store raw production hostnames, private client IPs, tokens, or full
+  environment output in SOWs, specs, docs, code comments, or tests.
+- Production evidence in this SOW is summarized and sanitized.
+
+Implementation plan:
+
+1. Add behavioral tests proving watchdog/liveness paths do not call OTel and do
+   not block behind OTel instrument creation or OTel-backed logging.
+2. Add behavioral tests proving high-frequency admin feeds/artifacts endpoints
+   use cached/light scheduler state and do not invoke full cache snapshots.
+3. Make observability instruments pre-created during initialization or created
+   outside global project locks; request paths must use cached instruments only.
+4. Make synchronous logging able to use a plain non-OTel logger for liveness
+   paths, and remove OTel metrics/logs from watchdog and watchdog self-health.
+5. Change watchdog proof from process-only ticker to a bounded internal web
+   liveness probe through the real HTTP server path, using a cheap route that
+   does not touch ingestion/admin-heavy state.
+6. Change admin feeds/artifacts high-frequency endpoints or UI polling contract
+   so automatic polling is cache/light. Full inventory/detail remains explicit
+   operator action or lower-frequency diagnostic behavior.
+7. Update specs and project skills so future work treats admin, request
+   telemetry, and watchdog proof as web-serving liveness paths.
+
+Validation plan:
+
+- Focused Go tests for `pkg/web`, `internal/observability`, and affected
+  scheduler/engine status paths.
+- Race tests for changed liveness/observability/web code.
+- UI tests/lint/build if polling or API client behavior changes.
+- `make test`, `make lint`, and `make build` before closure.
+- Production install only after local validation and explicit user instruction.
+
+Artifact impact plan:
+
+- No public feed artifacts should change.
+- Admin API response shapes may gain lightweight or cached fields but must not
+  remove existing documented fields without an explicit compatibility decision.
+- Specs must record the web-serving liveness contract.
+- SOW lifecycle: this SOW has been moved back to `.agents/sow/current/` and
+  must be closed by marking `Status: completed`, moving it back to
+  `.agents/sow/done/`, and committing implementation plus SOW lifecycle change
+  together.
+
+Open decisions:
+
+- None. The user supplied the design contract: admin is web serving, telemetry
+  is web serving, watchdog is web serving, and these must never block.
+
+### Implementation Update - 2026-06-27
+
+Implemented changes:
+
+- Web-serving telemetry is no longer allowed to lazily create project metric
+  instruments from hot paths. `internal/observability` now pre-creates designed
+  counters, histograms, and gauges during telemetry setup; request/liveness
+  helpers use cached instruments only.
+- Watchdog and watchdog self-health diagnostics no longer emit OpenTelemetry
+  counters or use the OpenTelemetry-backed application logger. They use a local
+  bounded stderr logger so telemetry export/logging cannot block liveness
+  reporting.
+- The systemd watchdog now proves real HTTP serving by probing `/healthz` on
+  each configured listener before sending `WATCHDOG=1`. In split listener mode,
+  both the public and admin listener must answer.
+- `/healthz` is registered on every serving surface, including admin-only split
+  listeners. It returns only a cheap `ok` response and does not touch ingestion,
+  admin snapshots, telemetry counters, or broad runtime state.
+- Startup integrity recovery moved out of the listener startup critical path.
+  The daemon starts web/admin serving first, then queues the guarded startup
+  recovery work through background ownership.
+- High-frequency admin feed and artifact list endpoints now render from cached
+  scheduler heartbeat state plus cheap live queue state. They do not call full
+  scheduler rebuilds or full cache-entry snapshots on every automatic poll.
+- Scheduler snapshots now carry artifact-parent rows and the operator-facing
+  status fields needed by cached admin rows: last status, last error, last run
+  reason, checked time, updated time, next due, failures, and detail.
+- Admin light status keeps the feed summary populated from cached scheduler
+  state so the global admin counters do not collapse to zeros when the UI polls
+  the lightweight endpoint.
+
+Behavioral test coverage added:
+
+- Observability test proving metric helpers do not grow instrument registries
+  when known or unknown metrics are recorded from hot paths.
+- Watchdog tests proving the heartbeat is updated only after a successful web
+  probe and systemd notify, and proving watchdog self-health does not use a
+  caller logger that can block.
+- Split-listener route tests proving admin-only listeners expose cheap
+  `/healthz`.
+- Admin tests proving `/api/v1/admin/feeds` and `/api/v1/admin/artifacts` use
+  cached scheduler state for operator rows.
+- Scheduler test proving run reason is preserved in cached scheduler snapshots.
+
+Spec updates:
+
+- `.agents/sow/specs/operating-principles.md` now defines admin/public serving,
+  `/healthz`, watchdog proof, and request-path telemetry as one web-serving
+  availability contract.
+- `.agents/sow/specs/operating-principles.md` now requires request-path
+  telemetry to be pre-initialized/non-blocking and forbids lazy OpenTelemetry
+  instrument creation from frequent HTTP/liveness paths.
+- `.agents/sow/specs/admin-ui.md` now records that high-frequency feed and
+  artifact inventory endpoints are cached heartbeat surfaces, while richer
+  diagnostics belong in detail/full diagnostic paths.
+- `.agents/sow/specs/pipeline.md` now records that web/admin serving starts
+  before guarded startup integrity recovery is queued.
+
+Validation run:
+
+- `go test ./internal/observability` passed.
+- `go test ./pkg/scheduler` passed.
+- `go test ./pkg/web` passed.
+- `go test ./tools/archposture` passed after moving cached admin helpers and
+  watchdog tests into focused files instead of updating the architecture
+  baseline.
+- `make test` passed.
+- `make build` passed.
+- `go test -race ./internal/observability ./pkg/scheduler ./pkg/web` passed.
+
+Remaining validation before release/deployment:
+
+- Re-run production install only after local validation and explicit user
+  instruction.
+
+### Additional Implementation Update - 2026-06-27 Request-Path Telemetry
+
+Clarified contract:
+
+- Web serving does have telemetry, but request-path telemetry is part of web
+  serving availability.
+- Public/admin requests, `/healthz`, and watchdog proofs MUST NOT wait for
+  OpenTelemetry SDK request instrumentation, exporter backpressure, lazy metric
+  creation, or OTel-backed logging.
+- If request-path telemetry cannot keep up, telemetry samples are dropped before
+  web serving is delayed.
+
+Implemented changes:
+
+- Removed the `otelhttp` HTTP server wrapper from `pkg/web/server.go`.
+- Added a project-owned HTTP telemetry wrapper that captures normalized route,
+  method, status, and duration, then enqueues the metric through a bounded
+  drop-on-full telemetry path.
+- Added non-blocking `Try*` telemetry helpers in `internal/observability`.
+  These helpers never call the OpenTelemetry SDK from the caller goroutine.
+- Converted web cache, API recalculation, and integrity telemetry to `Try*`
+  helpers.
+- Changed exported engine `ObserveOperation` and `ObserveCounter` methods used
+  by web handlers to preserve local lifetime/current-run counters while sending
+  OpenTelemetry samples through non-blocking helpers.
+
+Behavioral/guardrail test coverage added:
+
+- `internal/observability` test proving `http.server.request.duration` is now a
+  project-owned metric instrument with bounded route/method/status labels.
+- `pkg/web` AST guardrail test proving web-serving source files do not import
+  the `otelhttp` server instrumentation package.
+- `pkg/web` AST guardrail test proving web-serving source files do not call
+  synchronous observability helpers such as `Count`, `Duration`, `Gauge`,
+  `APIRecalculation`, `Start`, or `End`.
+
+Additional validation run:
+
+- `go test ./internal/observability` passed.
+- `go test ./pkg/web` passed.
+- `go test ./pkg/engine` passed.
+- `go test ./pkg/scheduler` passed.
+- `go test ./tools/archposture` passed.
+- `make test` passed.
+- `make build` passed.
+- `go test -race ./internal/observability ./pkg/engine ./pkg/scheduler ./pkg/web`
+  passed.
+- `make lint` passed.
+
+### Additional Implementation Update - 2026-06-27 Admin Snapshot And Startup Order Audit
+
+Clarified contract:
+
+- Web serving includes full admin status, schedule, feed detail, and feed
+  manifest endpoints. These endpoints may be lower-frequency diagnostics, but
+  they are still HTTP request paths and must not run whole-catalog scheduler or
+  cache rebuilds.
+- Startup recovery must not merely move out of the foreground call stack; it
+  must start only after HTTP serve goroutines have been launched and `/healthz`
+  is reachable.
+
+Implemented changes:
+
+- `Run()` now builds and listens on HTTP servers first, starts the serve
+  goroutines, starts the web-serving watchdog, announces readiness, and only
+  then starts scheduler/background startup work including guarded startup
+  integrity recovery.
+- `serveRunServers()` accepts an optional after-start hook so startup
+  background work can be queued after HTTP serving has actually started.
+- Full admin status now uses cached scheduler status for feed and artifact
+  rows instead of rebuilding scheduler snapshots or walking all cache entries
+  from the HTTP handler.
+- Admin schedule now uses `runner.CachedSnapshot()` only.
+- Admin feed detail now uses cached scheduler rows and lightweight activity
+  state for runtime fields.
+- Admin feed manifest now gets `processed_date` from the cached scheduler
+  snapshot instead of walking all cache entries; the endpoint still performs
+  its intended bounded per-feed manifest file stat checks.
+- Public/admin HTTP middleware now uses a bounded async/drop serving-safe local
+  logger for access/error and panic logs instead of the configured application
+  logger, because the configured logger may be OpenTelemetry-backed. This closes
+  the remaining request-path telemetry/logging backpressure gap for 4xx/5xx and
+  recovered-panic responses.
+- Daemon lifecycle control logs for readiness, stopping/shutdown, watchdog, and
+  daemon-control panic recovery, and delayed startup cleanup now use the same
+  serving-safe logger instead of the configured application logger. This
+  prevents an OpenTelemetry-backed logger from blocking readiness notification,
+  lifecycle channel closure, or web-serving lifecycle control after listeners
+  are up.
+- The admin-surface `/metrics` route now wraps the Prometheus/OpenTelemetry
+  scrape handler in bounded web-serving protection: one active scrape at a time,
+  a 5 second timeout, and immediate `503 Service Unavailable` responses for
+  concurrent scrapes. This prevents telemetry collection from stacking blocked
+  scrape work on the web-serving surface. Follow-up audit confirmed the wrapper
+  intentionally keeps the single scrape slot occupied while a timed-out exporter
+  goroutine is still unwinding, so later scrapes fail fast instead of starting
+  replacement exporter goroutines and building an unbounded telemetry pile-up.
+- Scheduler cached snapshot rows now carry the runtime fields needed by those
+  cached admin views: file/source/public URL/hash, counts, cadence, version,
+  checked/source/processed/started timestamps, last status, last run reason,
+  last error, clock skew, and last processing duration.
+
+Behavioral/guardrail test coverage added:
+
+- Startup watchdog test now proves `/healthz` is reachable before the startup
+  integrity recovery hook is allowed to block.
+- Admin status tests prove light and full status preserve cached scheduler
+  sentinel values instead of rebuilding fresh snapshots.
+- Admin schedule test proves schedule rows use cached scheduler state.
+- Admin feed/detail tests prove runtime fields come from cached scheduler rows.
+- Admin manifest test proves `processed_date` comes from cached scheduler state.
+- Middleware tests prove request-path logger selection and client-error logging
+  do not touch a blocking caller logger.
+- Middleware tests prove the serving-safe local logger drops log records before
+  blocking request-path callers when the underlying sink is blocked.
+- Lifecycle tests prove readiness announcement does not use a blocking
+  configured application logger before notifying systemd.
+- Lifecycle tests prove daemon-control panic recovery does not use a blocking
+  configured application logger before closing its lifecycle channel.
+- Web telemetry guardrail tests now also reject passing the configured logger
+  directly to request-path middleware.
+- Metrics route tests prove an active blocked scrape times out and concurrent
+  scrapes return `503 Service Unavailable` instead of waiting behind it.
+- Metrics route tests also prove a scrape after timeout but before the timed-out
+  exporter exits returns `503 Service Unavailable` immediately, and that normal
+  scrapes recover after the exporter exits.
+
+Focused validation run:
+
+- Static audit passed: web request-path source has no `otelhttp` import and no
+  direct synchronous `observability.Count`, `Duration`, `Gauge`,
+  `APIRecalculation`, `Start`, `End`, `Observe`, or `Bytes` calls.
+- Static audit passed: the only direct configured logger use in web serving is
+  converted through `requestPathLogger(opts.Logger)` before request middleware;
+  remaining `opts.Logger` use in `pkg/web/server_run.go` is scheduler
+  construction, which belongs to scheduler/background logging instead of the
+  web-serving request/lifecycle path.
+- Static audit passed: ready/shutdown/watchdog lifecycle control now uses the
+  serving-safe logger instead of the configured application logger.
+- Static audit passed: `pkg/web` has no live scheduler snapshot rebuild or
+  cache-entry walk from admin request handlers; the only integrity call is the
+  queued startup recovery path after listeners start.
+- Static audit passed: the admin-surface `/metrics` route mounts
+  `servingMetricsHandler(...)`, not the raw configured metrics handler.
+- Static audit passed: the bounded `/metrics` wrapper uses one scrape worker
+  slot to prevent unbounded stuck exporter goroutines; blocked callers receive
+  `503 Service Unavailable` rather than waiting for telemetry collection.
+- `go test ./pkg/web -run 'TestMetricsHandlerIsBoundedAndSingleActiveScrape|TestSurfaceHandlerModesRegisterExpectedSurfaces|TestWebServingDoesNotImportOtelHTTP|TestWebServingDoesNotCallSynchronousObservability|TestWebServingMiddlewareDoesNotUseConfiguredLogger' -count=1`
+  passed after the bounded `/metrics` wrapper.
+- `go test ./internal/observability ./pkg/engine ./pkg/scheduler ./pkg/web`
+  passed.
+- `go test ./pkg/web -run 'TestAsyncSlogHandlerDropsBeforeBlocking|TestRequestPathLoggerDoesNotUseCallerLogger|TestSurfaceHandlerClientErrorLoggingDoesNotUseCallerLogger|TestRunWatchdog|TestWatchdogSelfHealth' -count=1`
+  passed after the bounded async/drop request-path logger fix.
+- `go test ./pkg/web` passed.
+- `go test ./internal/observability ./pkg/engine ./pkg/scheduler` passed.
+- `go test ./tools/archposture` passed after splitting cached admin snapshot
+  tests into a focused `pkg/web/admin_cached_test.go` file.
+- `git diff --check` passed.
+
+Full local validation run:
+
+- `make test` passed.
+- `make build` passed.
+- `go test -race ./internal/observability ./pkg/engine ./pkg/scheduler ./pkg/web`
+  passed.
+- `make lint` passed.
+- `make test-strict` passed.
+- `make race` passed, including the nested `tools/dronebl2ipsets` module.
+
+Follow-up validation after the `/metrics` stuck-exporter edge-case audit:
+
+- `go test ./pkg/web -run 'TestMetricsHandlerIsBoundedAndSingleActiveScrape|TestSurfaceHandlerModesRegisterExpectedSurfaces|TestWebServingDoesNotImportOtelHTTP|TestWebServingDoesNotCallSynchronousObservability|TestWebServingMiddlewareDoesNotUseConfiguredLogger' -count=1`
+  passed.
+- `go test ./pkg/web` passed.
+- `go test ./internal/observability ./pkg/engine ./pkg/scheduler` passed.
+- `go test ./tools/archposture` passed.
+- `git diff --check` passed.
+- `make test` passed.
+- `make build` passed.
+- `make lint` passed.
+- `go test -race ./internal/observability ./pkg/engine ./pkg/scheduler ./pkg/web`
+  passed.
+
+Follow-up validation after daemon lifecycle control logging was moved to the
+serving-safe logger:
+
+- `go test ./pkg/web -run 'TestAnnounceRunReadyDoesNotUseConfiguredLogger|TestRunWatchdog|TestMetricsHandlerIsBoundedAndSingleActiveScrape' -count=1`
+  passed.
+- `go test ./pkg/web` passed.
+- `go test ./internal/observability ./pkg/engine ./pkg/scheduler` passed.
+- `go test ./tools/archposture` passed.
+- `git diff --check` passed.
+- `make test` passed.
+- `make build` passed.
+- `make lint` passed.
+- `go test -race ./internal/observability ./pkg/engine ./pkg/scheduler ./pkg/web`
+  passed.
+- `make test-strict` passed.
+
+Follow-up validation after daemon-control panic recovery was moved to the
+serving-safe logger:
+
+- `go test ./pkg/web -run 'TestAnnounceRunReadyDoesNotUseConfiguredLogger|TestStartupEntityArtifactsPanicDoesNotBlockWait|TestRunWatchdog|TestMetricsHandlerIsBoundedAndSingleActiveScrape' -count=1`
+  passed.
+- `go test ./pkg/web` passed.
+- `go test ./internal/observability ./pkg/engine ./pkg/scheduler` passed.
+- `go test ./tools/archposture` passed.
+- `git diff --check` passed.
+- `make test` passed.
+- `make build` passed.
+- `make lint` passed.
+- `go test -race ./internal/observability ./pkg/engine ./pkg/scheduler ./pkg/web`
+  passed.
+- `make test-strict` passed.
+
+Follow-up after classifying web serving telemetry as required but non-blocking:
+
+- Clarified the implementation contract: web serving does have telemetry, but
+  request-path telemetry is an observer only. It may enqueue samples to a
+  bounded local queue, and it must drop samples before delaying public/admin
+  serving, `/healthz`, watchdog proof, or lifecycle control.
+- Hardened the last direct lifecycle logging edges. Pre-listen cleanup, startup
+  integrity recovery, startup entity-artifact checks, delayed startup cleanup,
+  shutdown watcher, watchdog probe-failure logging, readiness, stopping,
+  systemd notification errors, and daemon-control panic recovery now force the
+  serving-safe logger internally. A future caller passing an
+  OpenTelemetry-backed application logger cannot make these paths block on log
+  export.
+- Added behavior tests proving startup entity artifact success logging and
+  watchdog probe-failure logging do not use a blocking configured logger.
+- Added an AST guardrail test proving the named web-serving lifecycle
+  functions do not use `opts.Logger`.
+- Added best-effort local engine telemetry methods for web request handlers.
+  `TryObserveOperation` and `TryObserveCounter` still enqueue OpenTelemetry
+  samples through the drop-on-full path, but local run/lifetime timing books now
+  use `TryLock` and drop samples if a telemetry book is busy.
+- Converted the web request handlers that report admin/public request telemetry
+  to `TryObserve*` calls: admin status, admin feeds, entity artifact cache hits,
+  and entity integrity check telemetry no longer wait on local telemetry locks.
+- Changed full admin status queue rows to use `ActivitySnapshotLight()`. Full
+  mode still returns the promised diagnostic engine fields, but its queue list no
+  longer walks engine cache state through `Runner.ActivitySnapshot()`.
+- Added web architecture guardrail tests that reject future `pkg/web` calls to
+  blocking `ObserveOperation`, blocking `ObserveCounter`, or
+  engine/cache-backed `ActivitySnapshot()`.
+- Hardened admin diagnostic metric snapshots. Scheduler metrics, current engine
+  run metrics, and engine lifetime metrics now use best-effort try-lock
+  snapshots when exposed through admin status. A busy telemetry book degrades or
+  omits that telemetry section instead of delaying the admin response.
+- Added tests that deliberately hold telemetry/metrics locks and prove
+  `TrySnapshot`, scheduler metrics snapshots, run-metrics snapshots, and full
+  engine status snapshots return without waiting.
+
+Focused validation run:
+
+- `go test ./pkg/web -run 'Test(WebServing|StartupEntity|WatchdogProbeFailure|RunWatchdog|AnnounceRunReady|DelayedPublish)'`
+  passed.
+- `go test ./pkg/web` passed.
+- `go test ./internal/observability ./pkg/engine ./pkg/scheduler ./pkg/web`
+  passed.
+- `go test ./tools/archposture` passed.
+- `git diff --check` passed.
+- `make test` passed.
+- `go test -race ./pkg/web` passed.
+- `make lint` passed.
+
+Additional focused validation after the best-effort local telemetry change:
+
+- `go test ./internal/telemetry` passed.
+- `go test ./pkg/web -run 'TestWebServing|TestAdminStatus|TestStartupEntity|TestWatchdogProbeFailure|TestRunWatchdog|TestAnnounceRunReady|TestDelayedPublish'`
+  passed.
+- `go test ./pkg/engine -run 'Test.*Metrics|Test.*StatusSnapshot|TestRunReason'`
+  passed.
+- `go test ./pkg/scheduler -run 'Test.*Snapshot|Test.*Activity|Test.*Metrics|Test.*Policy'`
+  passed.
+- `go test ./internal/telemetry ./internal/observability ./pkg/engine ./pkg/scheduler ./pkg/web ./tools/archposture`
+  passed.
+- `git diff --check` passed.
+- `go test -race ./pkg/web` passed.
+- `make test` passed.
+- `make lint` passed.
+- `make build` passed.
+- Final `git diff --check` passed.
+
+Additional focused validation after admin diagnostic metric snapshots became
+best-effort:
+
+- `go test ./internal/telemetry ./pkg/scheduler ./pkg/engine -run 'Test(TimingBook|CounterBook|MetricsSnapshot|RunMetricsTrySnapshot|StatusSnapshotDoesNotWait)'`
+  passed.
+- `go test ./pkg/web -run 'TestAdminStatus|TestWebServing'` passed.
+- `go test ./internal/telemetry ./internal/observability ./pkg/engine ./pkg/scheduler ./pkg/web ./tools/archposture`
+  passed.
+- `go test -race ./pkg/engine ./pkg/scheduler ./pkg/web` passed.
+- `git diff --check` passed.
+- `make test` passed.
+- `make lint` passed.
+- `make build` passed.
+- `make test-strict` passed.
+- `make race` passed.
+
+Additional guard and validation after proving request-path telemetry drops when
+the telemetry queue is full:
+
+- Added `TestAsyncMetricTryHelpersDropWhenQueueFull`. The test fills the
+  project-owned async telemetry queue, marks the worker as already initialized
+  without starting a drain goroutine, then proves `TryCount`, `TryDuration`,
+  `TryGauge`, and `TryHTTPServerRequest` return instead of waiting.
+- Source audit over `pkg/web` excluding generated static assets found no
+  `otelhttp`, no synchronous `observability.Count`/`Duration`/`Gauge`/
+  `Observe`/`Start`/`End`/`APIRecalculation` calls, no blocking
+  `ObserveOperation`/`ObserveCounter`, and no `ActivitySnapshot()` calls.
+  Remaining web telemetry calls are `Try*` helpers, and the remaining queue
+  snapshots use `ActivitySnapshotLight()`.
+- Source audit confirmed `/metrics` is served only through
+  `servingMetricsHandler`, watchdog proof uses `webServingWatchdogProbe`, and
+  systemd notifications use `NotifyWithDeadline`.
+- `go test ./internal/observability -run 'Test(AsyncMetricTryHelpersDropWhenQueueFull|HTTPServerRequestMetricUsesProjectOwnedInstrument|MetricHelpersDoNotCreateInstrumentsOnRecord)'`
+  passed.
+- `go test ./internal/observability ./internal/telemetry ./pkg/engine ./pkg/scheduler ./pkg/web ./pkg/systemd`
+  passed.
+- `make test` passed.
+- `make lint` passed.
+- `make build` passed.
+- `make test-strict` passed.
+- `make race` passed.
+
+Additional staticcheck cleanup after the queue-full telemetry guard:
+
+- `make staticcheck` initially found new web liveness findings where
+  serving-safe functions accepted a logger argument and then immediately
+  replaced it with `plainLivenessLogger()`. The runtime behavior was already
+  serving-safe, but the API shape was misleading.
+- Removed caller-supplied logger parameters from watchdog self-health,
+  watchdog tick, readiness notify, systemd notify error reporting, and daemon
+  control panic reporting paths. These paths now make the serving-safe logger
+  dependency explicit by construction.
+- Removed the now-unused `nonNilLogger` helper and updated watchdog/readiness
+  tests to match the stronger contract: callers cannot pass an
+  OpenTelemetry-backed logger into these paths.
+- `go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./internal/observability ./internal/telemetry ./pkg/web ./pkg/scheduler ./pkg/systemd`
+  passed.
+- Full `make staticcheck` still fails on a broad existing `pkg/engine` U1000
+  unused-code class spanning many engine modules outside this SOW's changed
+  engine telemetry files. The web-serving/liveness/staticcheck findings from
+  this SOW are resolved. The engine unused-code cleanup is tracked separately
+  in `.agents/sow/pending/SOW-0120-20260627-engine-staticcheck-unused-code-cleanup.md`
+  because it would remove or rewire many unrelated engine helper wrappers.
+- `go test ./internal/observability ./internal/telemetry ./pkg/engine ./pkg/scheduler ./pkg/web ./pkg/systemd`
+  passed.
+- `make test` passed.
+- `make lint` passed.
+- `make build` passed.
+- `make test-strict` passed.
+- `make race` passed.
+
+Final follow-up after removing the remaining caller-supplied lifecycle logger
+seams and scheduler synchronous telemetry:
+
+- Removed the remaining caller-supplied logger parameters from startup
+  entity-artifact checks, delayed startup cleanup, and shutdown watcher
+  lifecycle helpers. These helpers now construct the serving-safe logger
+  internally, so future callers cannot pass an OpenTelemetry-backed application
+  logger into those web-serving lifecycle paths.
+- Updated the startup entity-artifact tests to assert the observable contract:
+  panic recovery and success logging return instead of hanging. The old
+  configured-logger blocking fixture is no longer needed for those helpers
+  because the helpers no longer accept a logger.
+- Converted scheduler hot telemetry emitters from synchronous
+  `observability.Count` / `Duration` / `Gauge` to `TryCount` / `TryDuration` /
+  `TryGauge`. Converted scheduler download-loop engine counters to
+  `TryObserveCounter`, and scheduler operation timing to best-effort local
+  observation.
+- Source audit over `pkg/web`, `pkg/scheduler`, `internal/observability`, and
+  `internal/telemetry` found no remaining production calls to synchronous
+  observability helpers, blocking engine `ObserveOperation` / `ObserveCounter`,
+  or request-path `ActivitySnapshot()`. The only scoped hit is a test fixture
+  that deliberately uses `eng.ObserveOperation`.
+- `go test ./pkg/web -run 'TestRunWatchdog|TestWatchdog|TestAnnounceRunReady|TestStartupEntity|TestDaemon|TestMetricsHandler|TestWebServing|TestDelayedPublish'`
+  passed.
+- `go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./internal/observability ./internal/telemetry ./pkg/web ./pkg/scheduler ./pkg/systemd`
+  passed.
+- `go test ./internal/observability ./internal/telemetry ./pkg/engine ./pkg/scheduler ./pkg/web ./pkg/systemd`
+  passed.
+- `make test` passed.
+- `make lint` passed.
+- `make build` passed.
+- `make test-strict` passed.
+- `make race` passed, including the nested `tools/dronebl2ipsets` module.
+- `git diff --check` passed.
+
+Remaining validation before release/deployment:
+
+- Production install and production smoke are not run in this local validation
+  pass. They require explicit user instruction.
+
+Current release status:
+
+- Local code validation is clean.
+- The SOW remains open until the user approves closure, commit/push, and
+  installation.
+
+Additional final correction after re-auditing web-serving runtime status:
+
+- The full admin status endpoint still called `detailedStatus()` from
+  `pkg/web/admin.go`. That function can synchronously refresh runtime/process
+  stats on the HTTP request path when the cache is stale.
+- Changed full admin status to use `detailedStatusCached()` like light admin
+  status. Full mode still returns the full diagnostic payload shape, but runtime
+  stats are now read from the sampler cache and never captured synchronously in
+  the request handler.
+- Added
+  `TestAdminStatusFullUsesCachedRuntimeStatsWithoutSynchronousCapture`, which
+  seeds a stale cached sentinel and installs a capture hook. The test fails if
+  full admin status tries to refresh runtime stats synchronously.
+- Added `TestWebServingDoesNotRefreshRuntimeStatusSynchronously`, an AST
+  contract guard that fails if production `pkg/web` code calls
+  `detailedStatus()` again.
+
+Final local validation after the full-admin-status runtime status correction:
+
+- `go test ./pkg/web -run 'TestAdminStatus(FullUsesCachedRuntimeStatsWithoutSynchronousCapture|LightUsesRuntimeStatsSampler)|TestWebServing'`
+  passed.
+- `go test ./internal/observability ./internal/telemetry ./pkg/engine ./pkg/scheduler ./pkg/web ./pkg/systemd`
+  passed.
+- `go test ./pkg/web -run 'TestWebServingDoesNot'` passed.
+- Source audit: `rg -n "\bdetailedStatus\(" pkg/web --glob '*.go' --glob '!**/*_test.go'`
+  now finds only the `detailedStatus` function definition in `pkg/web/sysinfo.go`.
+- `git diff --check` passed.
+- `staticcheck ./internal/observability ./internal/telemetry ./pkg/scheduler ./pkg/web ./pkg/systemd`
+  passed.
+- `make test` passed.
+- `make build` passed.
+- `make lint` passed.
+- `make test-strict` passed.
+- `make race` passed, including the nested `tools/dronebl2ipsets` module.
+- `make staticcheck` still fails only on the already-recorded broad
+  `pkg/engine` U1000 unused-code backlog tracked in
+  `.agents/sow/pending/SOW-0120-20260627-engine-staticcheck-unused-code-cleanup.md`.
+
+Final release status after this correction:
+
+- Local validation for the web-serving/telemetry/watchdog contract is clean.
+- Full-repo staticcheck is blocked by the separate engine unused-code cleanup
+  SOW.
+- The SOW remains open until the user approves closure, commit/push, and
+  installation.
+
+Additional final correction after re-auditing telemetry and web-serving
+snapshot dependencies:
+
+- Web serving does have telemetry. The HTTP server wraps every request in
+  per-route request telemetry, and admin/public handlers report request-level
+  counters and timings. The corrected contract is stricter than "has
+  telemetry": every web-serving telemetry path must be best-effort and must not
+  wait on OpenTelemetry, exporter work, local telemetry books, engine status
+  locks, or queue-status locks.
+- Replaced async telemetry worker startup `sync.Once` with an atomic
+  compare-and-swap guard. This removes the last first-request synchronization
+  point in the async telemetry enqueue path. `TryCount`, `TryDuration`,
+  `TryGauge`, `TryObserve`, `TryAPIRecalculation`, and
+  `TryHTTPServerRequest` enqueue to a bounded channel and drop samples when the
+  queue is full.
+- Added non-blocking engine config/status APIs and converted web/admin request
+  builders to use them. Admin status, public status, admin feeds, admin
+  artifacts, and feed manifest handlers now use `TryConfigRuntimeSnapshot`,
+  `TryConfigRuntimePolicySnapshot`, `TryStatusSnapshot`, or
+  `TryStatusSnapshotLight` where a request could otherwise wait behind engine
+  mutation work.
+- Made `TryStatusSnapshot` and `TryStatusSnapshotLight` non-blocking across the
+  status dependencies they expose. They now try-lock the engine lane, git lane,
+  cache persistence pointer/worker, active feeds, active operations, background
+  tasks, and engine-lane long-hold warning state. If any dependency is busy, the
+  snapshot returns degraded/best-effort data with `ok=false` instead of waiting.
+- Changed public serving state reads so request paths return the already
+  published serving state. They no longer refresh the public serving state on
+  demand from a request handler, avoiding a request-time config/runtime lock.
+- Kept the architecture posture guard intact by moving lane snapshot generation
+  into a focused `work_lane_snapshot.go` file instead of relaxing the
+  large-file baseline.
+- Added behavioral tests that deliberately hold engine/status dependency locks
+  and prove the public try-snapshot APIs return without waiting.
+- Added a web static guard that rejects production request-path calls to
+  blocking engine config/status snapshots, except the explicit startup/reload
+  producer paths.
+
+Final local validation after the telemetry and status-snapshot correction:
+
+- `go test ./internal/observability -run 'TestAsyncMetricTryHelpersDropWhenQueueFull|TestHTTPServerRequestMetricUsesProjectOwnedInstrument|TestMetricHelpersDoNotCreateInstrumentsOnRecord'`
+  passed.
+- `go test ./pkg/engine -run 'TestTrySnapshotsDoNotWaitForEngineMutex|TestTryStatusSnapshotsDoNotWaitForStatusComponentLocks|TestStatusSnapshotDoesNotWaitForCurrentMetricsLock|TestRunMetricsTrySnapshotDoesNotWaitForMetricsLock'`
+  passed.
+- `go test ./pkg/web -run 'TestWebServingDoesNot|TestAdminStatus|TestAdminFeeds|TestAdminFeed|TestAdminArtifacts|TestPublicStatus|TestTelemetry'`
+  passed.
+- `go test ./internal/observability ./internal/telemetry ./pkg/engine ./pkg/scheduler ./pkg/web ./pkg/systemd`
+  passed.
+- `go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./internal/observability ./internal/telemetry ./pkg/scheduler ./pkg/web ./pkg/systemd`
+  passed.
+- `make test` passed.
+- `make build` passed.
+- `make lint` passed.
+- `make test-strict` passed when rerun cleanly by itself. A prior
+  `make test-strict` run failed in `pkg/scheduler` while several heavy
+  validators were running in parallel; rerunning `pkg/scheduler` alone and then
+  the full strict target both passed.
+- `make race` passed, including the nested `tools/dronebl2ipsets` module.
+- `git diff --check` passed.
+- `make staticcheck` still fails only on the already-recorded broad
+  `pkg/engine` U1000 unused-code backlog tracked in
+  `.agents/sow/pending/SOW-0120-20260627-engine-staticcheck-unused-code-cleanup.md`.
+
+Current release status after this correction:
+
+- Local validation for the web-serving/telemetry/watchdog contract is clean.
+- Full-repo staticcheck remains blocked by the separate engine unused-code
+  cleanup SOW.
+- Production install and smoke validation have not been run in this pass; they
+  require explicit user instruction.
+
+Additional final correction after auditing remaining admin request paths:
+
+- The feed manifest endpoint is an admin web-serving path. It can stat only the
+  finite configured files for one feed, but it must not become an unbounded
+  request-time filesystem walk. Added a single-slot manifest inspection guard
+  and a bounded timeout. If inspection is already running or stalls, the
+  endpoint returns `503 Service Unavailable` instead of delaying admin serving.
+- Made manifest inspection race-safe by copying the bounded timeout and
+  filesystem hooks before the async worker starts. The race detector had found
+  that the timeout test could restore a test hook while the timed-out worker was
+  still unwinding. The worker now owns an immutable per-request hook snapshot,
+  and the test waits for the slot to drain before restoring hooks.
+- The scheduler light/cached snapshot paths are also admin web-serving
+  dependencies. `ActivitySnapshotLight()` now uses try-lock/cached state and
+  `TryCachedSnapshot()` avoids waiting on the cached scheduler snapshot mutex.
+- Admin action preflights now have non-blocking variants for recheck/reprocess
+  target resolution and enable/disable marker checks. HTTP handlers return a
+  short busy response instead of waiting for the engine config/runtime mutex.
+- The web static guard now rejects production request-path calls to direct
+  scheduler cached snapshots, blocking admin action preflight helpers, and broad
+  engine/admin status snapshots.
+
+Final local validation after this request-path audit:
+
+- `go test -race ./pkg/web` passed.
+- `make race` passed, including the nested `tools/dronebl2ipsets` module.
+- `make test` passed.
+- `make build` passed.
+- `make lint` passed.
+- `make test-strict` passed.
+- `git diff --check` passed.
+- `go test ./tools/archposture` passed.
+- `staticcheck ./internal/observability ./internal/telemetry ./pkg/scheduler ./pkg/web ./pkg/systemd`
+  passed.
+- `staticcheck -checks=inherit,-U1000 ./pkg/engine` passed. Full staticcheck
+  remains blocked by the already-recorded broad `pkg/engine` U1000 unused-code
+  backlog tracked in
+  `.agents/sow/pending/SOW-0120-20260627-engine-staticcheck-unused-code-cleanup.md`.
+
+Current release status after this request-path audit:
+
+- Local validation for the web-serving/telemetry/watchdog contract is clean.
+- Full-repo staticcheck remains blocked only by the separate engine unused-code
+  cleanup SOW.
+- Production install and smoke validation have not been run in this pass; they
+  require explicit user instruction.
+
+Additional final correction after auditing admin integrity cache dependencies:
+
+- Fact: web serving has telemetry, but telemetry is web serving and must be an
+  observer only. If telemetry cannot keep up, telemetry samples are dropped
+  before any request, `/healthz`, watchdog proof, or admin endpoint is delayed.
+- Fact: admin integrity GET/reprocess handlers still had blocking integrity
+  cache reads:
+  - `pkg/web/integrity.go` called blocking pipeline/entity integrity cache
+    snapshots.
+  - `pkg/web/integrity.go` computed recovery plans from the request path,
+    which can take an engine snapshot and filesystem metadata checks.
+- Fix: added try-lock integrity cache snapshot APIs and converted admin
+  integrity request paths to use them. Busy cache locks now produce
+  `in_progress` / `503 Service Unavailable` responses instead of request-path
+  waiting.
+- Fix: recovery hints are now attached when pipeline integrity findings are
+  stored by the engine-side producer. GET handlers read cached hints only.
+  Reprocess response target lists are derived from cached hints; fallback
+  recovery planning, if needed for older cache entries, happens inside the
+  engine-lane callback, not before the HTTP response.
+- Fix: pipeline/entity integrity refresh queue methods no longer wait for
+  integrity cache locks while shaping their immediate HTTP response. If the
+  cache lock is busy after lane submission, they return ticket-derived queued
+  state.
+- Fix: web static contract tests now reject production request-path calls to
+  blocking integrity cache snapshots and integrity recovery planning, except
+  startup integrity recovery before live request serving competition exists.
+- Kept architecture posture intact by splitting integrity cache snapshot/ticket
+  shaping helpers into focused files instead of updating the large-file
+  baseline.
+
+Validation run after the admin integrity cache correction:
+
+- `go test ./pkg/engine -run 'TestTryIntegrityCacheSnapshotsDoNotWaitForCacheLocks|TestIntegrityQueueAPIsDoNotWaitForCacheLocks|TestTryStatusSnapshotsDoNotWaitForStatusComponentLocks|TestTrySnapshotsDoNotWaitForEngineMutex'`
+  passed.
+- `go test ./pkg/web -run 'TestWebServingDoesNot|TestBuildIntegrityReportAnnotatesRecoveryMetadata|TestHandleAdminIntegrityReprocessReturnsSplitTargets|TestAdminIntegrityRefreshRoutesQueueEngineLaneWork'`
+  passed.
+- `go test ./internal/observability ./internal/telemetry ./pkg/engine ./pkg/scheduler ./pkg/web ./pkg/systemd`
+  passed.
+- `go test -race ./pkg/web` passed.
+- `go test ./tools/archposture` passed.
+- `git diff --check` passed.
+- `staticcheck ./internal/observability ./internal/telemetry ./pkg/scheduler ./pkg/web ./pkg/systemd`
+  passed.
+- `staticcheck -checks=inherit,-U1000 ./pkg/engine` passed.
+- `make test` passed.
+- `make build` passed.
+- `make lint` passed.
+- `make race` passed, including the nested `tools/dronebl2ipsets` module.
+- `make test-strict` passed.
+
+Current release status after this correction:
+
+- Local validation for the web-serving/telemetry/watchdog contract is clean.
+- Full-repo staticcheck remains blocked only by the separate engine unused-code
+  cleanup SOW.
+- Production install and smoke validation have not been run in this pass; they
+  require explicit user instruction.
+
+Clarification after the explicit web telemetry question:
+
+- Fact: web serving does have telemetry. `pkg/web/server.go` wraps every HTTP
+  request with `withTelemetryRoutePattern()` and records route/method/status
+  duration through `observability.TryHTTPServerRequest()`.
+- Fact: web serving does not use the standard `otelhttp` middleware by design.
+  That middleware would put OpenTelemetry SDK/exporter behavior on the request
+  path. In this project, telemetry is an observer of web serving, not a
+  dependency of web serving.
+- Fact: `internal/observability/metrics_async.go` uses a bounded channel and a
+  non-blocking `select` with `default`; when telemetry is congested, samples are
+  dropped instead of delaying the HTTP response.
+- Fact: `/metrics` is the telemetry scrape endpoint. It is intentionally
+  isolated behind `servingMetricsHandler()`, with one active scrape and a
+  timeout, so a stuck Prometheus/OpenTelemetry scrape can fail its own request
+  without stacking more scrape goroutines or blocking admin/public routes.
+- Validation:
+  - `go test ./pkg/web -run 'TestWebServingDoesNot|TestMetricsHandlerIsBoundedAndSingleActiveScrape|TestSurfaceHandlerModesRegisterExpectedSurfaces'`
+    passed.
+  - `go test ./internal/observability -run 'TestAsyncMetricTryHelpersDropWhenQueueFull|TestPrometheusMetricsExposeHTTPServerRequestDuration'`
+    passed.
+
+Follow-up correction after auditing all production metric export call sites:
+
+- Fact: the web request path was already using non-blocking telemetry, but
+  synchronous metric export helpers still existed in non-web production code:
+  daemon panic recovery, downloader fetch metrics, processor metrics, runtime
+  cache metrics, config load metrics, file-write metrics, engine run metrics,
+  background work metrics, feed gauges, and engine-lane diagnostics.
+- Risk: these call sites are not direct HTTP handlers, but they can run inside
+  ingestion, engine-lane, or lifecycle work. A blocked OpenTelemetry exporter
+  should not be able to slow those paths or keep shared state held longer than
+  necessary.
+- Fix: converted all production metric export call sites under `cmd/`,
+  `internal/`, and `pkg/` to non-blocking `observability.Try*` helpers.
+- Fix: added `internal/observability/metric_contract_test.go`, an AST contract
+  test that rejects future production calls to synchronous metric helpers
+  outside the observability implementation.
+- Scope note: trace span `Start`/`End` calls remain on background downloader,
+  processor, file, and engine paths. They are not mounted on admin/public
+  serving, `/healthz`, watchdog, or request middleware paths. Moving tracing to
+  a fully best-effort design is a separate design decision if needed later.
+- Durable artifacts updated:
+  - `.agents/skills/project-coding/SKILL.md`
+  - `.agents/skills/project-operations/SKILL.md`
+  - `.agents/sow/specs/operating-principles.md`
+  - `docs/monitoring/telemetry-reference.md`
+- Validation:
+  - `rg -n "observability\\.(Count|Bytes|Duration|Gauge|Observe|APIRecalculation)\\(" cmd internal pkg --glob '*.go' --glob '!**/*_test.go'`
+    returned no matches.
+  - `go test ./internal/observability` passed.
+  - `go test ./cmd/update-ipsets ./pkg/downloader ./internal/fileutil ./pkg/cache ./pkg/config ./pkg/processor ./pkg/engine`
+    passed.
+  - `go test ./pkg/web -run 'TestWebServingDoesNot|TestMetricsHandlerIsBoundedAndSingleActiveScrape|TestSurfaceHandlerModesRegisterExpectedSurfaces'`
+    passed.
+  - `go test ./internal/observability ./internal/telemetry ./pkg/downloader ./pkg/processor ./pkg/cache ./pkg/config ./pkg/engine ./pkg/scheduler ./pkg/web ./pkg/systemd`
+    passed.
+  - `staticcheck ./cmd/update-ipsets ./internal/fileutil` passed.
+  - `staticcheck ./internal/observability ./internal/telemetry ./pkg/downloader ./pkg/processor ./pkg/cache ./pkg/config ./pkg/scheduler ./pkg/web ./pkg/systemd`
+    passed.
+  - `staticcheck -checks=inherit,-U1000 ./pkg/engine` passed.
+  - `go test ./tools/archposture` passed.
+  - `make test` passed.
+  - `make build` passed.
+  - `make lint` passed.
+  - `make race` passed, including nested `tools/dronebl2ipsets`.
+  - `make test-strict` passed.
+  - `git diff --check` passed.
+  - `make staticcheck` still fails only on the broad pre-existing `pkg/engine`
+    U1000 unused-code cleanup backlog tracked in
+    `.agents/sow/pending/SOW-0120-20260627-engine-staticcheck-unused-code-cleanup.md`.
+
+Follow-up correction after auditing trace/log telemetry paths:
+
+- Fact: request-path logs and web-serving lifecycle logs already use the
+  serving-safe local logger, but the application logger returned by
+  `observability.Init()` still teed local logs to the OpenTelemetry slog handler
+  synchronously.
+- Risk: engine and scheduler logs are not direct HTTP handlers, but they can run
+  inside ingestion, engine-lane, shutdown, or diagnostic work. A blocked
+  OpenTelemetry log exporter should not delay those paths or keep shared state
+  held longer than necessary.
+- Fix: added a bounded async log handler in `internal/observability`. The local
+  logger branch remains immediate, while the OpenTelemetry log branch enqueues
+  to a bounded queue and drops records when full.
+- Fix: shutdown now closes the async OTel log queue before shutting down the
+  OTel logger provider, bounded by the existing shutdown context.
+- Fix: added a test that blocks the log sink, repeatedly logs through the async
+  handler, and proves callers return without waiting for exporter progress.
+- Scope note: trace span `Start`/`End` remains on background downloader,
+  processor, file, and engine paths only. No admin/public serving, `/healthz`,
+  watchdog, or request middleware path uses trace spans.
+- Fix: extended the web telemetry contract tests to reject future
+  `observability.Start` / `observability.End` calls from production `pkg/web`
+  files, so trace work cannot be added to request/liveness paths without
+  intentionally changing this contract.
+- Durable artifacts updated:
+  - `.agents/skills/project-coding/SKILL.md`
+  - `.agents/skills/project-operations/SKILL.md`
+  - `.agents/sow/specs/operating-principles.md`
+  - `docs/monitoring/telemetry-reference.md`
+- Validation:
+  - `go test ./internal/observability` passed.
+  - `staticcheck ./internal/observability` passed.
+
+Follow-up correction after auditing web-serving catalog and telemetry
+dependencies:
+
+- Fact: web serving already had request telemetry through the HTTP middleware,
+  but the contract is stricter than "has telemetry". Admin/public serving,
+  `/healthz`, watchdog proof, `/metrics`, request logging, and request counters
+  are all web-serving paths. They must emit telemetry without waiting for
+  telemetry export, lazy instruments, ingestion, cache snapshots, or broad engine
+  locks.
+- Fact: public routes still obtained categories, feed summaries, public feed
+  identity, provider identity, raw-feed file identity, and critical-target
+  identity from engine-backed helpers. Those helpers are correct domain APIs, but
+  they are not safe request-path dependencies because they can wait on engine or
+  cache state.
+- Fact: the first immutable public serving-state change fixed config-reload
+  serving roots but initially built public feed identity from cache entries only.
+  That was too narrow: config decides whether a name is public, while cache and
+  materialized file state decide only whether raw `.ipset`/`.netset` bodies are
+  currently safe to stream.
+- Fact: the existing publication listener fired on config reload only. After
+  moving raw-feed availability into immutable serving state, a normal successful
+  engine run also has to publish a serving-state generation; otherwise raw routes
+  could keep the pre-run empty availability snapshot.
+- Fix: added `cache.State.TrySnapshotEntries()` and per-entry try-lock cloning so
+  catalog refresh can fail fast instead of waiting for cache locks.
+- Fix: added `Engine.TryPublicServingCatalogSnapshot()`, which returns a
+  serving-safe catalog snapshot. Config-derived identity maps are built from the
+  current config generation; feed summaries and raw-feed availability are built
+  only from a successful non-blocking cache snapshot.
+- Fix: public category/feed/provider/raw/critical routes and MCP feed search now
+  read the immutable `publicServingState` instead of calling live engine catalog
+  helpers from the request path.
+- Fix: successful run publication now dispatches the public-serving publication
+  listener after staged files are visible. Listener failures are logged and do
+  not turn a successful run into a failed run.
+- Fix: static web contract tests now reject future production calls from web
+  handlers to blocking engine snapshots, direct cleanup helpers, fresh merge
+  composition builders, and engine-backed public-catalog helpers.
+- Durable artifacts updated:
+  - `.agents/skills/project-coding/SKILL.md`
+  - `.agents/sow/specs/operating-principles.md`
+- Validation:
+  - `go test ./pkg/web -run 'TestPublicArtifactRoutes|TestRawFeedRoutes|TestPublicRuntimeOverride|TestPublicFileCache|TestPublicServingState|TestPublicOnlyHandlerRegistersReloadListener'`
+    passed.
+  - `go test ./pkg/engine -run 'TestReloadPublicationListener'` passed.
+  - `go test ./pkg/cache ./pkg/engine ./pkg/mcp ./pkg/web -run 'TestTrySnapshotEntries|TestPublic|TestWebServingDoesNot|TestSurfaceHandlerModesRegisterExpectedSurfaces|TestMetricsHandlerIsBoundedAndSingleActiveScrape|TestRunWatchdogTicksWhileStartupIntegrityRecoveryBlocked|TestPrepareEngineForRunDoesNotCleanPublishStagesBeforeServing|TestHandleFindFeeds|TestFindFeedsToolSchema'`
+    passed.
+  - `go test ./internal/observability ./internal/telemetry ./pkg/scheduler ./pkg/cache ./pkg/engine ./pkg/mcp ./pkg/web ./pkg/systemd`
+    passed.
+  - `go test ./pkg/scheduler -run 'TestMetricsSnapshotDoesNotWaitForMetricsLock|TestActivitySnapshotLightDoesNotWaitForSchedulerStateLock|TestTryCachedSnapshotDoesNotWaitForSchedulerSnapshotLock'`
+    passed.
+  - `staticcheck ./internal/observability ./internal/telemetry ./pkg/cache ./pkg/mcp ./pkg/scheduler ./pkg/web ./pkg/systemd`
+    passed.
+  - `staticcheck -checks=inherit,-U1000 ./pkg/engine` passed.
+  - `make test` passed.
+  - `make build` passed.
+  - `make lint` passed.
+  - `make race` passed, including nested `tools/dronebl2ipsets`.
+  - `make test-strict` passed.
+  - `git diff --check` passed.
+
+Follow-up correction after auditing public serving state and admin merge detail:
+
+- Fact: `pkg/web/surface_routes.go` still refreshed public serving state through
+  blocking `Engine.ConfigRuntimeSnapshot()` during route setup/reload, and an
+  earlier request-path fallback could refresh serving state from
+  `currentPublicServingState()`.
+- Risk: public routes and MCP markdown reads could become dependent on a broad
+  engine config lock. That violates the current contract: public handlers should
+  read already-published serving state or return a visible unavailable response.
+- Fix: public serving state setup now uses `TryConfigRuntimeSnapshot()`.
+  Reload-publication listeners use the `Runtime` supplied by the committed
+  `ReloadPublication`, so reload refresh does not reacquire the engine config
+  lock.
+- Fix: `currentPublicServingState()` is now a pure atomic read. If no state is
+  available, public artifact routes return `503 Service Unavailable` instead of
+  lazily rebuilding state from the request path.
+- Fact: `GET /api/v1/admin/feeds/{name}` still called
+  `MergeCompositionsForConfigRuntimePolicy()`, which snapshots all cache entries
+  and computes all merge compositions even when the selected feed is not a merge.
+- Risk: one admin feed-detail request could wait behind cache/state work and do
+  unnecessary all-merge work. This was a smaller version of the same class of
+  bug that made admin status depend on heavy engine state.
+- Fix: admin feed-detail now computes merge composition only for the selected
+  merge feed, using cached scheduler/feed heartbeat rows as its runtime entry
+  source.
+- Fix: added an engine helper that accepts caller-provided cache entries for one
+  merge composition, so web code can reuse engine merge semantics without
+  snapshotting live engine state.
+- Tests added:
+  - engine helper uses caller-provided cached entries instead of live engine
+    state
+  - admin feed-detail merge composition is populated from a cached scheduler
+    snapshot
+  - web static guard rejects future production calls to the fresh all-merge
+    composition APIs
+  - web static guard no longer allows `refreshPublicServingState()` to call a
+    blocking engine snapshot
+- Durable artifacts updated:
+  - `.agents/skills/project-coding/SKILL.md`
+  - `.agents/sow/specs/admin-ui.md`
+  - `.agents/sow/specs/operating-principles.md`
+- Validation:
+  - `go test ./pkg/web ./pkg/engine -run 'TestWebServingDoesNot|TestAdminFeedDetailUsesCachedSchedulerRowsForMergeComposition|TestMergeCompositionForConfigRuntimePolicyEntriesUsesProvidedEntries|TestSurfaceHandlerModesRegisterExpectedSurfaces|TestMetricsHandlerIsBoundedAndSingleActiveScrape'`
+    passed.
+  - `rg -n "ConfigRuntimeSnapshot\\(|ConfigRuntimePolicySnapshot\\(|StatusSnapshot\\(|StatusSnapshotLight\\(|PipelineIntegrityCacheSnapshot\\(|EntityIntegrityCacheSnapshot\\(|MergeCompositionsForConfigRuntimePolicy\\(|MergeCompositions\\(|\\.MergeComposition\\(|SnapshotEntries\\(|ActivitySnapshot\\(|CachedSnapshot\\(|ObserveOperation\\(|ObserveCounter\\(|observability\\.(Count|Bytes|Duration|Gauge|Observe|APIRecalculation|Start|End)\\(" pkg/web -g '*.go'`
+    returned only allowed `Try*` production calls, test-only blocking calls, and
+    the startup integrity background worker.
+  - `go test ./internal/observability ./pkg/web ./pkg/engine ./pkg/scheduler`
+    passed.
+  - `staticcheck ./internal/observability ./pkg/web ./pkg/scheduler` passed.
+  - `make test` passed.
+  - `make build` passed.
+  - `make lint` passed.
+  - `staticcheck -checks=inherit,-U1000 ./pkg/engine` passed.
+  - `staticcheck ./internal/observability ./internal/telemetry ./pkg/scheduler ./pkg/web ./pkg/systemd`
+    passed.
+  - `make race` passed, including nested `tools/dronebl2ipsets`.
+  - `make test-strict` passed.
+  - `git diff --check` passed.
+  - `go test -race ./internal/observability` passed.
+  - `go test ./cmd/update-ipsets ./pkg/web ./pkg/engine ./pkg/scheduler` passed.
+  - `rg -n "observability\\.(Count|Bytes|Duration|Gauge|Observe|APIRecalculation)\\(" cmd internal pkg --glob '*.go' --glob '!**/*_test.go'`
+    returned no matches.
+  - `staticcheck ./cmd/update-ipsets ./internal/observability ./pkg/web ./pkg/scheduler`
+    passed.
+  - `make test` passed.
+  - `make build` passed.
+  - `make lint` passed.
+  - `make race` passed, including nested `tools/dronebl2ipsets`.
+  - `make test-strict` passed.
+  - `staticcheck -checks=inherit,-U1000 ./pkg/engine` passed.
+  - `staticcheck ./cmd/update-ipsets ./internal/observability ./internal/telemetry ./pkg/downloader ./pkg/processor ./pkg/cache ./pkg/config ./pkg/scheduler ./pkg/web ./pkg/systemd`
+    passed.
+  - `git diff --check` passed.
+  - `make staticcheck` still fails only on the broad pre-existing `pkg/engine`
+    U1000 unused-code cleanup backlog tracked in
+    `.agents/sow/pending/SOW-0120-20260627-engine-staticcheck-unused-code-cleanup.md`.
+  - `rg -n "otelslog\\.NewHandler|newTeeHandler|newAsyncLogHandler|opts\\.Logger|requestPathLogger|plainLivenessLogger" internal/observability pkg/web --glob '*.go' --glob '!**/*_test.go'`
+    shows the OTel slog handler wrapped by `newAsyncLogHandler`, while web
+    request and lifecycle paths use `plainLivenessLogger()`.
+  - `go test ./internal/observability ./cmd/update-ipsets ./pkg/engine ./pkg/scheduler ./pkg/web`
+    passed.
+  - `go test ./pkg/web -run 'TestWebServingDoesNot'` passed after adding the
+    trace guard.
+  - `staticcheck ./internal/observability ./cmd/update-ipsets ./pkg/scheduler ./pkg/web`
+    passed.
+  - `staticcheck ./pkg/web` passed after adding the trace guard.
+  - `staticcheck -checks=inherit,-U1000 ./pkg/engine` passed.
+  - `make test` passed.
+  - `make build` passed.
+  - `make lint` passed.
+  - `make race` passed, including nested `tools/dronebl2ipsets`.
+  - `make test-strict` passed.
+  - `git diff --check` passed.
+  - `rg -n "observability\\.(Count|Bytes|Duration|Gauge|Observe|APIRecalculation)\\(" cmd internal pkg --glob '*.go' --glob '!**/*_test.go'`
+    returned no matches.
+	  - `rg -n "observability\\.(Start|End)\\(" pkg/web --glob '*.go' --glob '!**/*_test.go'`
+	    returned no matches.
+
+Follow-up correction after auditing telemetry startup:
+
+- Fact: web request telemetry was non-blocking, but daemon startup still called
+  `observability.Init(context.Background(), ...)` before starting web serving.
+  Inside `observability.Init()`, OTLP exporters were constructed before the web
+  server existed, and `daemon.up` was still recorded with the synchronous metric
+  helper.
+- Fact: the OpenTelemetry Go OTLP metric gRPC exporter documents that it may
+  establish a connection during exporter construction and return an error if the
+  connection cannot be established within the provided context. With
+  `context.Background()`, telemetry setup could therefore become a startup
+  dependency.
+- Risk: if the configured collector is unavailable, malformed, slow, or if
+  resource detection fails, telemetry could prevent public/admin serving from
+  starting. That violates the user contract: web serving may have telemetry, but
+  telemetry must never be the thing that decides whether web serving works.
+- Fix: `observability.Init()` now creates a bounded startup context internally,
+  degrades OTLP export per signal when setup fails, logs warnings, and continues
+  returning a local setup. Invalid OTLP protocol disables OTLP export instead of
+  failing daemon startup.
+- Fix: local Prometheus `/metrics` setup remains independent of OTLP export.
+  When OTLP fails, local metrics remain available. If local metrics setup itself
+  fails, only `/metrics` is disabled; the daemon can still serve public/admin
+  routes.
+- Fix: startup `daemon.up` now uses `TryGauge()` instead of the synchronous
+  metric helper.
+- Tests added:
+  - invalid OTLP protocol returns a usable local metrics setup and `Enabled=false`
+  - expired OTLP/gRPC setup budget returns a usable local metrics setup and
+    `Enabled=false`
+- Durable artifacts updated:
+  - `.agents/skills/project-coding/SKILL.md`
+  - `.agents/skills/project-operations/SKILL.md`
+  - `.agents/sow/specs/operating-principles.md`
+  - `docs/monitoring/opentelemetry-setup.md`
+  - `docs/running/environment-variables.md`
+- Validation:
+  - `go test ./internal/observability` passed.
+  - `staticcheck ./internal/observability` passed.

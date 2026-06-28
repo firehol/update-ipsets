@@ -228,7 +228,10 @@ func (e *Engine) BogonProviders() []BogonProvider {
 	if e == nil {
 		return nil
 	}
-	cfg := e.Config()
+	return bogonProvidersForConfig(e.Config())
+}
+
+func bogonProvidersForConfig(cfg *config.Config) []BogonProvider {
 	if cfg == nil {
 		return nil
 	}
@@ -255,7 +258,10 @@ func (e *Engine) ASNProviders() []ASNProvider {
 	if e == nil {
 		return nil
 	}
-	cfg := e.Config()
+	return asnProvidersForConfig(e.Config())
+}
+
+func asnProvidersForConfig(cfg *config.Config) []ASNProvider {
 	if cfg == nil {
 		return nil
 	}
@@ -283,7 +289,10 @@ func (e *Engine) GeoProviders() []GeoProvider {
 	if e == nil {
 		return nil
 	}
-	cfg := e.Config()
+	return geoProvidersForConfig(e.Config())
+}
+
+func geoProvidersForConfig(cfg *config.Config) []GeoProvider {
 	if cfg == nil {
 		return nil
 	}
@@ -346,8 +355,8 @@ func (e *Engine) CountryComparisonInDir(name, provider, dir string) (*CountryCom
 		if info, statErr := os.Stat(path); statErr == nil {
 			bytes = info.Size()
 		}
-		e.observeRunCounter("engine.country_comparison_json_read", 1, bytes)
-		e.observeRunOperation("engine.country_comparison_json_load", time.Since(start))
+		e.TryObserveCounter("engine.country_comparison_json_read", 1, bytes)
+		e.TryObserveOperation("engine.country_comparison_json_load", time.Since(start))
 	}
 	return payload, err
 }

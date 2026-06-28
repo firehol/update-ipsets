@@ -1,7 +1,6 @@
 package web
 
 import (
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -22,9 +21,10 @@ type feedManifestBuilder struct {
 	webDir     string
 	libDir     string
 	isDatabase bool
+	fs         manifestFS
 }
 
-func newFeedManifestBuilder(name string, src *config.Source, cfg *config.Config, rt engine.Runtime, eng *engine.Engine) *feedManifestBuilder {
+func newFeedManifestBuilder(name string, src *config.Source, cfg *config.Config, rt engine.Runtime, eng *engine.Engine, processedDate int64, fs manifestFS) *feedManifestBuilder {
 	baseDir := rt.BaseDir
 	webDir := rt.WebDir
 	if webDir == "" {
@@ -37,12 +37,13 @@ func newFeedManifestBuilder(name string, src *config.Source, cfg *config.Config,
 		cfg:        cfg,
 		rt:         rt,
 		eng:        eng,
-		resp:       ManifestResponse{Feed: name, ProcessedDate: manifestProcessedDate(eng, cfg, name)},
+		resp:       ManifestResponse{Feed: name, ProcessedDate: processedDate},
 		root:       daemonRoot(baseDir),
 		baseDir:    baseDir,
 		webDir:     webDir,
 		libDir:     rt.LibDir,
 		isDatabase: isDatabase,
+		fs:         fs,
 	}
 }
 
@@ -56,23 +57,14 @@ func (b *feedManifestBuilder) build() ManifestResponse {
 	return b.resp
 }
 
-func manifestProcessedDate(eng *engine.Engine, cfg *config.Config, name string) int64 {
-	for _, entry := range eng.EntriesSnapshotForConfig(cfg) {
-		if entry.Name == name {
-			return entry.ProcessedDate
-		}
-	}
-	return 0
-}
-
 func (b *feedManifestBuilder) add(kind, provider, path string, required bool) {
-	b.resp.Files = append(b.resp.Files, statManifestFile(ManifestFile{
+	b.resp.Files = append(b.resp.Files, b.statManifestFile(ManifestFile{
 		Rel:      relOrPath(b.root, path),
 		Path:     path,
 		Kind:     kind,
 		Provider: provider,
 		Required: required,
-	}, b.resp.ProcessedDate))
+	}))
 }
 
 func (b *feedManifestBuilder) addBaseFiles() {
@@ -140,7 +132,7 @@ func (b *feedManifestBuilder) addBinaryFiles() {
 
 func (b *feedManifestBuilder) addHistorySnapshots() {
 	rollupDir := filepath.Join(b.rt.HistoryDir, b.name)
-	entries, err := os.ReadDir(rollupDir)
+	entries, err := b.fs.readDir(rollupDir)
 	if err != nil {
 		return
 	}

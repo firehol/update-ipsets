@@ -19,7 +19,10 @@ func (c *EngineFeedCatalog) FeedFilterOptions() FeedFilterOptions {
 	if c == nil || c.eng == nil {
 		return FeedFilterOptions{}
 	}
-	summaries := c.eng.PublicFeedSummaries()
+	return FeedFilterOptionsFromSummaries(c.eng.PublicFeedSummaries())
+}
+
+func FeedFilterOptionsFromSummaries(summaries []engine.PublicFeedSummary) FeedFilterOptions {
 	categories := make(map[string]struct{}, len(summaries))
 	maintainers := make(map[string]struct{}, len(summaries))
 	licenses := make(map[string]struct{}, len(summaries))
@@ -43,8 +46,10 @@ func (c *EngineFeedCatalog) FeedFilterOptions() FeedFilterOptions {
 }
 
 func (c *EngineFeedCatalog) FindFeeds(filters FeedFilters) ([]FeedHit, error) {
-	summaries := c.eng.PublicFeedSummaries()
-	now := time.Now().UTC()
+	return FindFeedsInSummaries(c.eng.PublicFeedSummaries(), filters, time.Now().UTC()), nil
+}
+
+func FindFeedsInSummaries(summaries []engine.PublicFeedSummary, filters FeedFilters, now time.Time) []FeedHit {
 	hits := make([]FeedHit, 0, len(summaries))
 	for i := range summaries {
 		s := &summaries[i]
@@ -77,7 +82,7 @@ func (c *EngineFeedCatalog) FindFeeds(filters FeedFilters) ([]FeedHit, error) {
 		}
 		hits = append(hits, hit)
 	}
-	return hits, nil
+	return hits
 }
 
 func freshnessBucket(processedDate int64, now time.Time) string {
