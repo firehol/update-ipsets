@@ -114,23 +114,23 @@ func telemetryBufferBudgetsFromEnv() (int64, int64, error) {
 	if raw := firstEnv("UPDATE_IPSETS_TELEMETRY_BUFFER_BYTES"); raw != "" {
 		parsed, err := parseBufferBytes(raw)
 		if err != nil {
-			return DefaultLogTraceBufferBytes / 2, DefaultLogTraceBufferBytes / 2, err
+			return DefaultLogTraceBufferBytes, 0, err
 		}
 		total = parsed
 	}
-	logBytes := total / 2
-	traceBytes := total - logBytes
+	logBytes := total
+	traceBytes := int64(0)
 	if raw := firstEnv("UPDATE_IPSETS_LOG_BUFFER_BYTES"); raw != "" {
 		parsed, err := parseBufferBytes(raw)
 		if err != nil {
-			return DefaultLogTraceBufferBytes / 2, DefaultLogTraceBufferBytes / 2, err
+			return DefaultLogTraceBufferBytes, 0, err
 		}
 		logBytes = parsed
 	}
 	if raw := firstEnv("UPDATE_IPSETS_TRACE_BUFFER_BYTES"); raw != "" {
-		parsed, err := parseBufferBytes(raw)
+		parsed, err := parseTraceBufferBytes(raw)
 		if err != nil {
-			return DefaultLogTraceBufferBytes / 2, DefaultLogTraceBufferBytes / 2, err
+			return DefaultLogTraceBufferBytes, 0, err
 		}
 		traceBytes = parsed
 	}
@@ -138,6 +138,14 @@ func telemetryBufferBudgetsFromEnv() (int64, int64, error) {
 }
 
 func parseBufferBytes(raw string) (int64, error) {
+	return parseBufferBytesValue(raw, false)
+}
+
+func parseTraceBufferBytes(raw string) (int64, error) {
+	return parseBufferBytesValue(raw, true)
+}
+
+func parseBufferBytesValue(raw string, allowZero bool) (int64, error) {
 	trimmed := strings.ToLower(strings.TrimSpace(raw))
 	if trimmed == "" {
 		return 0, nil
@@ -164,6 +172,9 @@ func parseBufferBytes(raw string) (int64, error) {
 	value, err := strconv.ParseInt(trimmed, 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("invalid telemetry buffer size %q: %w", raw, err)
+	}
+	if value == 0 && allowZero {
+		return 0, nil
 	}
 	if value <= 0 {
 		return 0, fmt.Errorf("telemetry buffer size must be positive, got %q", raw)

@@ -661,14 +661,17 @@ accepted. OTLP metric export MUST be suppressible with
 
 Local log and trace buffers MUST be configurable through:
 
-- `UPDATE_IPSETS_TELEMETRY_BUFFER_BYTES`: total default budget, default 50 MiB
+- `UPDATE_IPSETS_TELEMETRY_BUFFER_BYTES`: default local log budget, default 50 MiB
 - `UPDATE_IPSETS_LOG_BUFFER_BYTES`: optional log-buffer override
-- `UPDATE_IPSETS_TRACE_BUFFER_BYTES`: optional trace-buffer override
+- `UPDATE_IPSETS_TRACE_BUFFER_BYTES`: optional trace-buffer override; unset or `0`
+  disables local trace capture
 
-If log/trace overrides are unset, the total budget is split evenly between
-local logs and local traces. Buffer values are bytes by default and MAY use
-`KB`/`KiB`, `MB`/`MiB`, or `GB`/`GiB` suffixes. All suffixes are interpreted
-as powers of 1024.
+Local trace capture MUST be disabled by default. When disabled, trace start/end
+calls MUST return without queue allocation, event enqueue, or trace-drop counter
+churn. Operators MAY enable bounded local traces by setting
+`UPDATE_IPSETS_TRACE_BUFFER_BYTES` to a positive value. Buffer values are bytes
+by default and MAY use `KB`/`KiB`, `MB`/`MiB`, or `GB`/`GiB` suffixes. All
+suffixes are interpreted as powers of 1024.
 
 Runtime and process gauges MUST be updated by a local daemon-owned sampler.
 Prometheus scrapes and OTLP export collection MUST read the sampled local gauge

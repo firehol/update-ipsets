@@ -33,7 +33,8 @@ sudo systemctl restart update-ipsets
 - Enables OpenTelemetry metric export
 - Uses gRPC protocol (required by Netdata's otel-plugin)
 - Pushes metrics every 10 seconds, matching Netdata's default OTel chart interval
-- Keeps traces and logs local in bounded daemon-owned buffers
+- Keeps logs local in bounded daemon-owned buffers; local traces stay disabled
+  unless explicitly enabled with a trace buffer
 
 ## Verifying the integration
 

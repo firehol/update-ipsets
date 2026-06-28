@@ -78,8 +78,8 @@ func Init(ctx context.Context, serviceName, version string, baseLogger *slog.Log
 	logBufferBytes, traceBufferBytes, err := telemetryBufferBudgetsFromEnv()
 	if err != nil {
 		baseLogger.Warn("local telemetry buffer configuration invalid; using default", "error", err)
-		logBufferBytes = DefaultLogTraceBufferBytes / 2
-		traceBufferBytes = DefaultLogTraceBufferBytes / 2
+		logBufferBytes = DefaultLogTraceBufferBytes
+		traceBufferBytes = 0
 	}
 	configureTraceQueue(traceBufferBytes)
 	traceQueue := activeTraceQueue.Load()
@@ -171,6 +171,9 @@ var nextSpanID atomic.Uint64
 func Start(ctx context.Context, name string, attrs ...Attr) (context.Context, Span) {
 	if ctx == nil {
 		ctx = context.Background()
+	}
+	if activeTraceQueue.Load() == nil {
+		return ctx, Span{}
 	}
 	if name == "" {
 		name = "operation"
@@ -327,5 +330,5 @@ func resetMetricsForTest() {
 		series.maxMicros.Store(0)
 	}
 	nextSpanID.Store(0)
-	configureTraceQueue(DefaultLogTraceBufferBytes / 2)
+	configureTraceQueue(0)
 }

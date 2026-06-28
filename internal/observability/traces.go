@@ -59,7 +59,7 @@ func newTraceQueue(bufferBytes int64) *traceQueue {
 
 func traceQueueCapacity(bufferBytes int64) int {
 	if bufferBytes <= 0 {
-		bufferBytes = DefaultLogTraceBufferBytes / 2
+		return 0
 	}
 	recordSize := int64(unsafe.Sizeof(TraceEvent{}))
 	if recordSize <= 0 {
@@ -76,7 +76,10 @@ func traceQueueCapacity(bufferBytes int64) int {
 }
 
 func configureTraceQueue(bufferBytes int64) {
-	next := newTraceQueue(bufferBytes)
+	var next *traceQueue
+	if bufferBytes > 0 {
+		next = newTraceQueue(bufferBytes)
+	}
 	if previous := activeTraceQueue.Swap(next); previous != nil {
 		previous.stopQueue()
 	}
@@ -85,7 +88,6 @@ func configureTraceQueue(bufferBytes int64) {
 func enqueueTraceEvent(event TraceEvent) {
 	queue := activeTraceQueue.Load()
 	if queue == nil {
-		TryCount("telemetry.traces.dropped", 1)
 		return
 	}
 	queue.tryAppend(event)
@@ -93,7 +95,6 @@ func enqueueTraceEvent(event TraceEvent) {
 
 func (q *traceQueue) tryAppend(event TraceEvent) {
 	if q == nil || q.closed.Load() || q.queue == nil {
-		TryCount("telemetry.traces.dropped", 1)
 		return
 	}
 	select {

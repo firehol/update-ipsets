@@ -139,21 +139,25 @@ export OTEL_METRIC_EXPORT_INTERVAL=10000
 
 Shorter intervals give finer resolution but consume more network and collector resources. The installed default is 10 seconds, matching Netdata's OTel chart interval.
 
-## Local log and trace buffers
+## Local log and optional trace buffers
 
-Local log and trace capture is bounded and never waits for a remote collector.
-Full buffers drop records before delaying application work. The exact local
-drop counters are `telemetry.logs.dropped` and `telemetry.traces.dropped`.
-Oversized log messages, log string attributes, trace names, and trace string
-attributes are replaced with a fixed truncated marker before enqueue, so the
-bounded queues do not retain arbitrary caller-owned strings.
+Local log capture is bounded and never waits for a remote collector. Local
+trace capture is disabled by default and can be enabled only with an explicit
+trace buffer. Full enabled buffers drop records before delaying application
+work. The exact local drop counters are `telemetry.logs.dropped` and
+`telemetry.traces.dropped`. Oversized log messages, log string attributes,
+trace names, and trace string attributes are replaced with a fixed truncated
+marker before enqueue, so bounded queues do not retain arbitrary caller-owned
+strings.
 
 ```bash
-# Default total budget is 50 MiB, split evenly between logs and traces.
+# Default local log budget is 50 MiB.
 export UPDATE_IPSETS_TELEMETRY_BUFFER_BYTES=50MiB
 
 # Optional per-signal overrides.
 export UPDATE_IPSETS_LOG_BUFFER_BYTES=32MB
+
+# Local traces are opt-in; unset or 0 disables trace capture.
 export UPDATE_IPSETS_TRACE_BUFFER_BYTES=18MB
 ```
 

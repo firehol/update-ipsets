@@ -229,16 +229,17 @@ when that trade-off is intentional.
 | `OTEL_EXPORTER_OTLP_CLIENT_CERTIFICATE` / `OTEL_EXPORTER_OTLP_METRICS_CLIENT_CERTIFICATE` | (none) | Client certificate path for mTLS. |
 | `OTEL_EXPORTER_OTLP_CLIENT_KEY` / `OTEL_EXPORTER_OTLP_METRICS_CLIENT_KEY` | (none) | Client private key path for mTLS. |
 
-Local log and trace buffers are bounded. Full buffers never block application
-work; drops are counted in local metrics. Oversized log and trace string
-payloads are replaced with a fixed truncated marker before enqueue so queued
-records do not retain arbitrary caller-owned strings.
+Local log buffers are bounded. Local trace capture is disabled by default and
+uses a bounded buffer only when explicitly enabled. Full enabled buffers never
+block application work; drops are counted in local metrics. Oversized log and
+trace string payloads are replaced with a fixed truncated marker before enqueue
+so queued records do not retain arbitrary caller-owned strings.
 
 | Variable | Default | Description |
 |---|---|---|
-| `UPDATE_IPSETS_TELEMETRY_BUFFER_BYTES` | `52428800` | Total local log/trace buffer budget. Accepts bytes or binary `KB`/`KiB`, `MB`/`MiB`, `GB`/`GiB` suffixes. |
-| `UPDATE_IPSETS_LOG_BUFFER_BYTES` | half of total | Optional local log-buffer override. |
-| `UPDATE_IPSETS_TRACE_BUFFER_BYTES` | half of total | Optional local trace-buffer override. |
+| `UPDATE_IPSETS_TELEMETRY_BUFFER_BYTES` | `52428800` | Default local log-buffer budget. Accepts bytes or binary `KB`/`KiB`, `MB`/`MiB`, `GB`/`GiB` suffixes. |
+| `UPDATE_IPSETS_LOG_BUFFER_BYTES` | telemetry buffer value | Optional local log-buffer override. |
+| `UPDATE_IPSETS_TRACE_BUFFER_BYTES` | `0` | Optional local trace-buffer override. Unset or `0` disables trace capture. |
 
 The installed systemd unit defaults to local Netdata export:
 

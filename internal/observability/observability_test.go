@@ -280,8 +280,8 @@ func TestTelemetryBufferBudgetEnvironmentParsing(t *testing.T) {
 	if err != nil {
 		t.Fatalf("telemetryBufferBudgetsFromEnv() error = %v", err)
 	}
-	if want := int64(25 * 1024 * 1024); logBytes != want || traceBytes != want {
-		t.Fatalf("split budgets = log %d trace %d, want %d each", logBytes, traceBytes, want)
+	if want := int64(50 * 1024 * 1024); logBytes != want || traceBytes != 0 {
+		t.Fatalf("default budgets = log %d trace %d, want log %d and trace disabled", logBytes, traceBytes, want)
 	}
 
 	t.Setenv("UPDATE_IPSETS_LOG_BUFFER_BYTES", "4KB")
@@ -295,8 +295,12 @@ func TestTelemetryBufferBudgetEnvironmentParsing(t *testing.T) {
 	}
 
 	t.Setenv("UPDATE_IPSETS_TRACE_BUFFER_BYTES", "0")
-	if _, _, err := telemetryBufferBudgetsFromEnv(); err == nil {
-		t.Fatal("telemetryBufferBudgetsFromEnv() error = nil for zero trace buffer")
+	logBytes, traceBytes, err = telemetryBufferBudgetsFromEnv()
+	if err != nil {
+		t.Fatalf("telemetryBufferBudgetsFromEnv() zero trace override error = %v", err)
+	}
+	if logBytes != 4*1024 || traceBytes != 0 {
+		t.Fatalf("zero trace override budgets = log %d trace %d, want 4096 and 0", logBytes, traceBytes)
 	}
 }
 
@@ -501,6 +505,20 @@ func TestTraceQueueDropsInsteadOfBlocking(t *testing.T) {
 	}
 }
 
+func TestTraceCaptureDisabledByDefault(t *testing.T) {
+	resetMetricsForTest()
+
+	_, span := Start(context.Background(), "disabled.trace", String("status", "ok"))
+	End(span, nil)
+
+	if events := SnapshotTraceEvents(); len(events) != 0 {
+		t.Fatalf("SnapshotTraceEvents() length = %d, want no events while traces are disabled", len(events))
+	}
+	if got := optionalCounterValue("telemetry.traces.dropped", nil); got != 0 {
+		t.Fatalf("telemetry.traces.dropped = %d, want 0 while traces are disabled", got)
+	}
+}
+
 func TestTraceQueueTruncatesOversizedStringPayloads(t *testing.T) {
 	resetMetricsForTest()
 	configureTraceQueue(1 << 20)
@@ -573,6 +591,14 @@ func TestSetupUsesLocalMetricsAndShutdownOrder(t *testing.T) {
 	if setup.PrometheusHandler == nil {
 		t.Fatal("Setup.PrometheusHandler = nil")
 	}
+	_, span := Start(context.Background(), "default.trace.disabled")
+	End(span, nil)
+	if events := SnapshotTraceEvents(); len(events) != 0 {
+		t.Fatalf("SnapshotTraceEvents() length = %d, want no default trace capture", len(events))
+	}
+	if got := optionalCounterValue("telemetry.traces.dropped", nil); got != 0 {
+		t.Fatalf("telemetry.traces.dropped = %d, want no trace drops while default trace capture is disabled", got)
+	}
 	assertMetricsHandlerContains(t, setup.PrometheusHandler, "daemon_up 1")
 	assertMetricsHandlerContains(t, setup.PrometheusHandler, "runtime_go_goroutines")
 
@@ -595,6 +621,28 @@ func TestSetupUsesLocalMetricsAndShutdownOrder(t *testing.T) {
 	}
 	if want := []int{2, 1}; len(order) != len(want) || order[0] != want[0] || order[1] != want[1] {
 		t.Fatalf("shutdown order = %#v, want %#v", order, want)
+	}
+}
+
+func TestInitEnablesTraceCaptureWithExplicitTraceBuffer(t *testing.T) {
+	resetMetricsForTest()
+	t.Setenv("UPDATE_IPSETS_TRACE_BUFFER_BYTES", "64KB")
+
+	var logs bytes.Buffer
+	setup, err := Init(t.Context(), "test-service", "test-version", slog.New(slog.NewTextHandler(&logs, nil)))
+	if err != nil {
+		t.Fatalf("Init() error = %v", err)
+	}
+	t.Cleanup(func() {
+		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+		defer cancel()
+		_ = setup.Shutdown(ctx)
+	})
+
+	_, span := Start(context.Background(), "enabled.trace", String("status", "ok"))
+	End(span, nil)
+	if events := SnapshotTraceEvents(); len(events) != 2 {
+		t.Fatalf("SnapshotTraceEvents() length = %d, want start and end events", len(events))
 	}
 }
 

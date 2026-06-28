@@ -67,9 +67,10 @@ Runtime and process gauges are sampled by the daemon's local runtime sampler.
 Prometheus scrapes and OTLP export reads use the sampled local values; they do
 not read `/proc` or runtime counters directly.
 
-Local logs and traces use bounded daemon-owned queues. If a buffer is full, the
-daemon drops records before delaying application work and increments
-`telemetry.logs.dropped` or `telemetry.traces.dropped`.
+Local logs use a bounded daemon-owned queue. Local traces are disabled by
+default and use a bounded daemon-owned queue only when explicitly enabled. If
+an enabled buffer is full, the daemon drops records before delaying application
+work and increments `telemetry.logs.dropped` or `telemetry.traces.dropped`.
 
 ## Admin scheduler counters
 

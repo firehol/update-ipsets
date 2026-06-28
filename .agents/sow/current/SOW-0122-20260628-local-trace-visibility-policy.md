@@ -2,9 +2,10 @@
 
 ## Status
 
-Status: open
+Status: in_progress
 
-Sub-state: Pending user decision; created as a follow-up from SOW-0121 reviewer findings.
+Sub-state: Urgent production fix implemented with focused validation; full
+SOW closure validation and external review are still pending.
 
 ## Requirements
 
@@ -28,8 +29,9 @@ Facts:
   ring and exposes `SnapshotTraceEvents`.
 - `SnapshotTraceEvents` is currently used by tests only; no admin API, public
   API, exporter, or operator command reads it in production.
-- The default telemetry budget is split between logs and traces, so the trace
-  ring can reserve memory even though operators cannot inspect it yet.
+- Before this SOW, the default telemetry budget was split between logs and
+  traces, so the trace ring could reserve memory even though operators could
+  not inspect it.
 - SOW-0121 intentionally removed OpenTelemetry trace export from application
   hot paths.
 
@@ -82,7 +84,7 @@ Risks:
 
 ## Pre-Implementation Gate
 
-Status: blocked
+Status: ready
 
 Problem / root-cause model:
 
@@ -167,29 +169,79 @@ Open decisions:
 
 ## Implications And Decisions
 
-Pending.
+1. Decision: local trace capture policy.
+
+   Selection: `B` from user. Do not add a trace UI/API reader, and disable
+   local trace capture by default.
+
+   Rationale:
+   - The project goal is to remove any avoidable instrumentation cost from
+     ingestion and web-serving hot paths.
+   - A trace buffer with no operator reader has weak production value.
+   - Operators can still enable bounded local traces explicitly by configuring
+     a trace buffer when needed for diagnostics.
+
+   Implications:
+   - Default startup MUST NOT allocate or run a trace queue.
+   - Default `Start`/`End` tracing calls MUST return without enqueue work or
+     trace-drop counter churn when traces are disabled.
+   - `telemetry.traces.dropped` MUST count real enabled-queue drops, not
+     disabled tracing.
+   - No admin UI, admin API, public API, or remote trace export is added by
+     this SOW.
 
 ## Plan
 
-Pending user decision.
+1. Record the selected policy: no trace UI/API and trace capture disabled by
+   default.
+2. Change local telemetry buffer parsing so default startup allocates only the
+   log buffer and leaves the trace queue disabled.
+3. Make disabled tracing a fast, silent path: no trace queue allocation, no
+   trace ID assignment, no enqueue, and no trace-drop counter churn.
+4. Keep explicit trace-buffer configuration as the opt-in path.
+5. Update specs and operator docs to match the new default.
+6. Run focused validation now for the urgent production push.
+7. Run full SOW closure validation and external reviewers before final closure.
 
 ## Execution Log
 
 ### 2026-06-28
 
 - Created as a concrete follow-up from SOW-0121 closure review.
+- Recorded user decision to add no trace UI/API and disable local trace capture
+  by default.
+- Changed observability startup so unset trace-buffer configuration disables
+  the trace queue.
+- Changed disabled trace `Start`/`End` behavior so it returns without enqueue
+  work or trace-drop counter increments.
+- Kept explicit positive `UPDATE_IPSETS_TRACE_BUFFER_BYTES` as the opt-in path.
+- Updated operator docs and operating-principles spec for the new default.
 
 ## Validation
 
-Pending.
+Focused validation for urgent production push:
+
+- `go test ./internal/observability` passed.
+- Source guard inspected OpenTelemetry imports; direct OTel SDK imports remain
+  confined to `internal/observability/otelexporter`, with existing contract
+  tests covering that rule.
+
+Pending before final closure:
+
+- `make test`
+- `make lint`
+- `make race`
+- External reviewer pass requested by the parent SOW-0121 goal.
 
 ## Outcome
 
-Pending.
+Pending full closure validation and external review.
 
 ## Lessons Extracted
 
-Pending.
+- Disabled instrumentation must not be counted as dropped instrumentation.
+  Drop counters represent enabled-buffer pressure, not a deliberately disabled
+  signal.
 
 ## Followup
 
