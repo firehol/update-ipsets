@@ -422,9 +422,9 @@ ReadWritePaths=${INSTALL_DIR}/data ${INSTALL_DIR}/cache ${INSTALL_DIR}/lib ${INS
 
 # Resource limits
 LimitNOFILE=65536
-MemoryHigh=1536M
-MemoryMax=2G
-Environment=GOMEMLIMIT=1536MiB
+MemoryHigh=2.5G
+MemoryMax=3G
+Environment=GOMEMLIMIT=2GiB
 
 [Install]
 WantedBy=multi-user.target

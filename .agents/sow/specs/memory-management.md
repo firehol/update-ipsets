@@ -238,13 +238,15 @@ return managed memory before the kernel reaches the service `MemoryMax`.
 
 The default managed unit uses:
 
-- `MemoryHigh=1536M`
-- `MemoryMax=2G`
-- `GOMEMLIMIT=1536MiB`
+- `MemoryHigh=2.5G`
+- `MemoryMax=3G`
+- `GOMEMLIMIT=2GiB`
 
-These defaults leave headroom for memory that the Go runtime soft limit does not
-directly manage, including kernel file cache, slab, mmap/file-backed reads, and
-other operating-system-held memory charged to the service cgroup.
+The Go target is intentionally below `MemoryHigh`, and `MemoryHigh` is
+intentionally below `MemoryMax`. These separate bands leave headroom for memory
+that the Go runtime soft limit does not directly manage, including kernel file
+cache, slab, mmap/file-backed reads, stacks, and other operating-system-held
+memory charged to the service cgroup.
 
 ## Artifact acquisition and extraction contract
 

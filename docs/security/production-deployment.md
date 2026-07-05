@@ -201,7 +201,7 @@ Configure memory limits for production:
 
 ```ini
 [Service]
-MemoryHigh=512M
+MemoryHigh=640M
 MemoryMax=768M
 Environment="GOMEMLIMIT=512MiB"
 ```

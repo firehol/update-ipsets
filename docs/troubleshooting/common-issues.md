@@ -83,7 +83,7 @@ sudo systemctl edit update-ipsets
 # Add:
 # [Service]
 # Environment="GOMEMLIMIT=512MiB"
-# MemoryHigh=512M
+# MemoryHigh=640M
 # MemoryMax=768M
 sudo systemctl restart update-ipsets
 ```

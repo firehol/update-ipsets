@@ -51,7 +51,7 @@ The generated systemd unit:
 - serves the public listener on `127.0.0.1:18888`
 - serves admin on `127.0.0.1:18889` with admin auth disabled
 - moves the admin listener to the Tailscale IPv4 address when `tailscale ip -4` returns one
-- sets `MemoryHigh=1536M`, `MemoryMax=2G`, and `GOMEMLIMIT=1536MiB`
+- sets `MemoryHigh=2.5G`, `MemoryMax=3G`, and `GOMEMLIMIT=2GiB`
 - writes logs to the `iplists` journal namespace
 
 The Tailscale address is detected when `install.sh` writes the unit. If
