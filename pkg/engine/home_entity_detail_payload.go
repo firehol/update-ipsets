@@ -2,6 +2,7 @@ package engine
 
 import (
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -136,8 +137,19 @@ func writeJSONFile(path string, value any) error {
 	return writeFileAtomicNoSync(path, append(data, '\n'), generatedFileMode)
 }
 
-func writeJSONFileAt(path string, value any, mod time.Time) error {
-	if err := writeJSONFile(path, value); err != nil {
+func writeEntityJSONFile(path string, value any) error {
+	_, err := writeEntityJSONFileNoSync(path, value)
+	return err
+}
+
+func writeEntityJSONFileNoSync(path string, value any) (int64, error) {
+	return writeFileAtomicNoSyncWithWriter(path, generatedFileMode, func(w io.Writer) error {
+		return writeJSONCompact(w, value)
+	})
+}
+
+func writeEntityJSONFileAt(path string, value any, mod time.Time) error {
+	if err := writeEntityJSONFile(path, value); err != nil {
 		return err
 	}
 	if mod.IsZero() {

@@ -115,15 +115,11 @@ func (p *entityArtifactFeedPresence) scan(target string) (bool, error) {
 
 func (e *Engine) writeObservedJSONFile(path string, value any, metric string) error {
 	start := time.Now()
-	data, err := jsonMarshalTabIndent(value)
+	written, err := writeEntityJSONFileNoSync(path, value)
 	if err != nil {
 		return err
 	}
-	body := append(data, '\n')
-	if err := writeFileAtomicNoSync(path, body, generatedFileMode); err != nil {
-		return err
-	}
-	e.observeRunCounter(metric, 1, int64(len(body)))
+	e.observeRunCounter(metric, 1, written)
 	e.observeRunOperation(metric, time.Since(start))
 	return nil
 }

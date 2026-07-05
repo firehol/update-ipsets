@@ -213,7 +213,7 @@ func (e *Engine) rewriteSelectedEntityIndexes(ctx context.Context, snap operatio
 			return generated, err
 		}
 		rel := e.publicCountryIndexRelPath()
-		if err := writeJSONFile(filepath.Join(webBatch.stageDir, rel), e.buildCountryIndexFromFeedSidecarsWithSnapshot(snap, allSidecars)); err != nil {
+		if err := writeEntityJSONFile(filepath.Join(webBatch.stageDir, rel), e.buildCountryIndexFromFeedSidecarsWithSnapshot(snap, allSidecars)); err != nil {
 			return generated, err
 		}
 		generated = append(generated, output.GeneratedFile{Path: filepath.Join(outputDirForRuntime(snap.runtime), rel), Redistributable: true})
@@ -224,7 +224,7 @@ func (e *Engine) rewriteSelectedEntityIndexes(ctx context.Context, snap operatio
 			return generated, err
 		}
 		rel := e.publicASNIndexRelPath()
-		if err := writeJSONFile(filepath.Join(webBatch.stageDir, rel), e.buildASNIndexFromFeedSidecarsWithSnapshot(snap, allSidecars)); err != nil {
+		if err := writeEntityJSONFile(filepath.Join(webBatch.stageDir, rel), e.buildASNIndexFromFeedSidecarsWithSnapshot(snap, allSidecars)); err != nil {
 			return generated, err
 		}
 		generated = append(generated, output.GeneratedFile{Path: filepath.Join(outputDirForRuntime(snap.runtime), rel), Redistributable: true})

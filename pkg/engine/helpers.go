@@ -592,6 +592,10 @@ func writeFileAtomicNoSync(path string, data []byte, mode os.FileMode) error {
 	return fileutil.WriteAtomicNoSync(path, data, mode)
 }
 
+func writeFileAtomicNoSyncWithWriter(path string, mode os.FileMode, write func(io.Writer) error) (int64, error) {
+	return fileutil.WriteAtomicNoSyncWithWriter(path, mode, write)
+}
+
 func writeFileAtomicAt(path string, data []byte, mode os.FileMode, mod time.Time) error {
 	if err := writeFileAtomic(path, data, mode); err != nil {
 		return err

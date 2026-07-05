@@ -159,6 +159,15 @@ file and the existing raw mirror file have identical bytes, mirror publication
 may do the same. Comparisons MUST be bounded and streaming/file-backed rather
 than loading large artifacts wholesale into heap.
 
+Entity artifact JSON publication for feed sidecars, country/ASN detail
+sidecars, public detail payloads, and entity indexes MUST avoid whole-output
+JSON buffers in refresh and repair hot paths. Writers SHOULD stream compact
+valid JSON into the staged temporary file, then atomically rename it and apply
+the explicit logical mtime owned by the entity artifact contract.
+Pretty-printing or byte-identical whitespace preservation MUST NOT take
+priority over bounded memory and daemon availability for these generated
+artifacts.
+
 Entity feed sidecar rebuild workers MUST NOT buffer one completed sidecar per
 target feed before staging or aggregation can consume them. Worker result
 buffers SHOULD be bounded by worker concurrency so full catalog rebuilds do not

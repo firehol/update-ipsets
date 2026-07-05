@@ -668,6 +668,12 @@ The pipeline MUST route feed families like this:
   JSON bodies. Those touch updates MUST be queued in the publish batch and
   applied during the serialized publish step, not applied directly to live
   files during staging.
+- entity feed sidecar, actor JSON sidecar, public detail JSON, and entity index
+  rewrites in entity refresh, repair, and full rebuild paths MUST use bounded
+  streaming writers when generating staged JSON. They MUST NOT call whole-buffer
+  pretty JSON marshaling for large entity payloads because that can stall the
+  daemon under cgroup memory pressure and starve web-serving watchdog
+  heartbeats.
 - entity integrity MUST NOT treat a country/ASN actor sidecar as stale solely
   because a related feed sidecar has a newer mtime; unchanged actor
   contributions are intentionally not rewritten, so mtime-only dependency

@@ -220,7 +220,7 @@ func (s *entityArtifactWriteState) stageFeedSidecar(name string) error {
 		delete(s.feedTimes, name)
 		return nil
 	}
-	if err := writeJSONFileAt(filepath.Join(s.entityBatch.stageDir, e.entityFeedSidecarRelPath(name)), sidecar, logicalTime); err != nil {
+	if err := writeEntityJSONFileAt(filepath.Join(s.entityBatch.stageDir, e.entityFeedSidecarRelPath(name)), sidecar, logicalTime); err != nil {
 		return err
 	}
 	s.feedTimes[name] = logicalTime
@@ -395,12 +395,12 @@ func (s *entityArtifactWriteState) writeCountryDetail(code string, sidecar *coun
 		return nil
 	}
 	logicalTime := countryDetailLogicalMTime(sidecar, s.feedTimes, e.now().UTC())
-	if err := writeJSONFileAt(filepath.Join(s.entityBatch.stageDir, e.entityCountrySidecarRelPath(code)), sidecar, logicalTime); err != nil {
+	if err := writeEntityJSONFileAt(filepath.Join(s.entityBatch.stageDir, e.entityCountrySidecarRelPath(code)), sidecar, logicalTime); err != nil {
 		return err
 	}
 	rel := e.publicCountryDetailRelPath(code)
 	countryPayload := e.materializeCountryDetailWithHealth(sidecar, health)
-	if err := writeJSONFile(filepath.Join(s.webBatch.stageDir, rel), countryPayload); err != nil {
+	if err := writeEntityJSONFile(filepath.Join(s.webBatch.stageDir, rel), countryPayload); err != nil {
 		return err
 	}
 	s.generated = append(s.generated, output.GeneratedFile{Path: filepath.Join(outputDirForRuntime(s.snapshot.runtime), rel), Timestamp: logicalTime, Redistributable: true})
@@ -421,12 +421,12 @@ func (s *entityArtifactWriteState) writeASNDetail(asn uint32, sidecar *asnDetail
 		return nil
 	}
 	logicalTime := asnDetailLogicalMTime(sidecar, s.feedTimes, e.now().UTC())
-	if err := writeJSONFileAt(filepath.Join(s.entityBatch.stageDir, e.entityASNSidecarRelPath(asn)), sidecar, logicalTime); err != nil {
+	if err := writeEntityJSONFileAt(filepath.Join(s.entityBatch.stageDir, e.entityASNSidecarRelPath(asn)), sidecar, logicalTime); err != nil {
 		return err
 	}
 	rel := e.publicASNDetailRelPath(asn)
 	asnPayload := e.materializeASNDetailWithHealth(sidecar, health)
-	if err := writeJSONFile(filepath.Join(s.webBatch.stageDir, rel), asnPayload); err != nil {
+	if err := writeEntityJSONFile(filepath.Join(s.webBatch.stageDir, rel), asnPayload); err != nil {
 		return err
 	}
 	s.generated = append(s.generated, output.GeneratedFile{Path: filepath.Join(outputDirForRuntime(s.snapshot.runtime), rel), Timestamp: logicalTime, Redistributable: true})
@@ -470,7 +470,7 @@ func (s *entityArtifactWriteState) stageEntityIndexes() error {
 		s.task.Update("building indexes", "building country and ASN index payloads", 0, 2)
 	}
 	countryIndex := e.buildCountryIndexFromFeedSidecarsWithSnapshot(s.snapshot, s.allSidecars)
-	if err := writeJSONFile(filepath.Join(s.webBatch.stageDir, e.publicCountryIndexRelPath()), countryIndex); err != nil {
+	if err := writeEntityJSONFile(filepath.Join(s.webBatch.stageDir, e.publicCountryIndexRelPath()), countryIndex); err != nil {
 		return err
 	}
 	s.generated = append(s.generated, output.GeneratedFile{Path: filepath.Join(outputDirForRuntime(s.snapshot.runtime), e.publicCountryIndexRelPath()), Redistributable: true})
@@ -479,7 +479,7 @@ func (s *entityArtifactWriteState) stageEntityIndexes() error {
 	}
 
 	asnIndex := e.buildASNIndexFromFeedSidecarsWithSnapshot(s.snapshot, s.allSidecars)
-	if err := writeJSONFile(filepath.Join(s.webBatch.stageDir, e.publicASNIndexRelPath()), asnIndex); err != nil {
+	if err := writeEntityJSONFile(filepath.Join(s.webBatch.stageDir, e.publicASNIndexRelPath()), asnIndex); err != nil {
 		return err
 	}
 	s.generated = append(s.generated, output.GeneratedFile{Path: filepath.Join(outputDirForRuntime(s.snapshot.runtime), e.publicASNIndexRelPath()), Redistributable: true})

@@ -762,6 +762,11 @@ This means:
   slow JSON/entity materialization does not block unrelated entity staging while
   still preventing stale staged batches from overwriting newer committed
   artifacts
+- entity refresh and repair work MUST treat large JSON emission as a bounded
+  streaming file operation. It MUST NOT materialize a complete pretty-printed
+  JSON artifact in heap before writing, because production deployments run under
+  explicit `GOMEMLIMIT`/systemd memory controls and must keep web serving and
+  watchdog heartbeats progressing while ingestion work is active.
 - surgical country/ASN refreshes SHOULD suppress unchanged actor rewrites by
   comparing per-feed contribution deltas before selecting actors; unchanged
   per-feed actor contributions MUST NOT trigger cosmetic work in the ordinary

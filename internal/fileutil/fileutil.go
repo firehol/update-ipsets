@@ -3,6 +3,7 @@
 package fileutil
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -87,6 +88,17 @@ func WriteAtomicNoSync(path string, data []byte, mode os.FileMode) error {
 	return writeAtomic(path, data, mode, false)
 }
 
+// WriteAtomicWithWriter writes data produced by write to path atomically,
+// returning the number of bytes written to the temporary file before rename.
+func WriteAtomicWithWriter(path string, mode os.FileMode, write func(io.Writer) error) (int64, error) {
+	return writeAtomicWithWriter(path, mode, true, write)
+}
+
+// WriteAtomicNoSyncWithWriter is the streaming equivalent of WriteAtomicNoSync.
+func WriteAtomicNoSyncWithWriter(path string, mode os.FileMode, write func(io.Writer) error) (int64, error) {
+	return writeAtomicWithWriter(path, mode, false, write)
+}
+
 func writeAtomic(path string, data []byte, mode os.FileMode, syncFile bool) error {
 	started := time.Now()
 	_, span := observability.Start(context.Background(), "file.write_atomic",
@@ -130,4 +142,72 @@ func writeAtomic(path string, data []byte, mode os.FileMode, syncFile bool) erro
 	}
 	opErr = os.Rename(tmpName, path)
 	return opErr
+}
+
+func writeAtomicWithWriter(path string, mode os.FileMode, syncFile bool, write func(io.Writer) error) (int64, error) {
+	if write == nil {
+		return 0, fmt.Errorf("write callback is required")
+	}
+	started := time.Now()
+	_, span := observability.Start(context.Background(), "file.write_atomic",
+		observability.String("file.path", path),
+		observability.Bool("file.sync", syncFile),
+	)
+	var opErr error
+	var written int64
+	defer func() {
+		attrs := []observability.Attr{
+			observability.Bool("file.sync", syncFile),
+		}
+		observability.TryObserve("file.write_atomic", 1, written, time.Since(started), attrs...)
+		observability.End(span, opErr)
+	}()
+	if opErr = os.MkdirAll(filepath.Dir(path), GeneratedDirMode); opErr != nil { // nosemgrep: go.lang.correctness.permissions.file_permission.incorrect-default-permission - 0700 is the restrictive usable directory mode.
+		return 0, opErr
+	}
+	tmp, opErr := os.CreateTemp(filepath.Dir(path), ".tmp-*")
+	if opErr != nil {
+		return 0, opErr
+	}
+	tmpName := tmp.Name()
+	defer func() { _ = os.Remove(tmpName) }()
+	counter := &countingWriter{w: tmp}
+	buffered := bufio.NewWriterSize(counter, 64*1024)
+	if opErr = write(buffered); opErr != nil {
+		written = counter.n
+		_ = tmp.Close()
+		return counter.n, opErr
+	}
+	if opErr = buffered.Flush(); opErr != nil {
+		written = counter.n
+		_ = tmp.Close()
+		return counter.n, opErr
+	}
+	written = counter.n
+	if opErr = tmp.Chmod(mode); opErr != nil {
+		_ = tmp.Close()
+		return written, opErr
+	}
+	if syncFile {
+		if opErr = tmp.Sync(); opErr != nil {
+			_ = tmp.Close()
+			return written, opErr
+		}
+	}
+	if opErr = tmp.Close(); opErr != nil {
+		return written, opErr
+	}
+	opErr = os.Rename(tmpName, path)
+	return written, opErr
+}
+
+type countingWriter struct {
+	w io.Writer
+	n int64
+}
+
+func (w *countingWriter) Write(p []byte) (int, error) {
+	n, err := w.w.Write(p)
+	w.n += int64(n)
+	return n, err
 }

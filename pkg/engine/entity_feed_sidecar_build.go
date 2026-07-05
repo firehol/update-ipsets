@@ -287,7 +287,7 @@ func (e *Engine) stageFeedEntitySidecarResult(result feedEntitySidecarBuildResul
 		entityBatch.markDelete(e.entityFeedPendingRelPath(result.name))
 		return true, nil
 	}
-	if err := writeJSONFileAt(filepath.Join(entityBatch.stageDir, e.entityFeedPendingRelPath(result.name)), result.sidecar, logicalTime); err != nil {
+	if err := writeEntityJSONFileAt(filepath.Join(entityBatch.stageDir, e.entityFeedPendingRelPath(result.name)), result.sidecar, logicalTime); err != nil {
 		return false, err
 	}
 	return true, nil

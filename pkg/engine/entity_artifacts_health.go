@@ -129,7 +129,7 @@ func (e *Engine) stageHealthTransitionCountryPayload(snap operationSnapshot, web
 	}
 	rel := e.publicCountryDetailRelPath(code)
 	payload := e.materializeCountryDetailWithHealth(sidecar, health)
-	if err := writeJSONFile(filepath.Join(webBatch.stageDir, rel), payload); err != nil {
+	if err := writeEntityJSONFile(filepath.Join(webBatch.stageDir, rel), payload); err != nil {
 		return nil, err
 	}
 	logicalTime := sidecarInfo.ModTime().UTC()
@@ -153,7 +153,7 @@ func (e *Engine) stageHealthTransitionASNPayload(snap operationSnapshot, webBatc
 	}
 	rel := e.publicASNDetailRelPath(asn)
 	payload := e.materializeASNDetailWithHealth(sidecar, health)
-	if err := writeJSONFile(filepath.Join(webBatch.stageDir, rel), payload); err != nil {
+	if err := writeEntityJSONFile(filepath.Join(webBatch.stageDir, rel), payload); err != nil {
 		return nil, err
 	}
 	logicalTime := sidecarInfo.ModTime().UTC()

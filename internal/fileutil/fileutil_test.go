@@ -1,6 +1,8 @@
 package fileutil
 
 import (
+	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -210,5 +212,64 @@ func TestWriteAtomicEmptyData(t *testing.T) {
 	}
 	if info.Size() != 0 {
 		t.Fatalf("expected empty file, got size %d", info.Size())
+	}
+}
+
+func TestWriteAtomicNoSyncWithWriterWritesAndReportsBytes(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "nested", "streamed.json")
+	want := `{"ok":true}` + "\n"
+
+	written, err := WriteAtomicNoSyncWithWriter(path, 0o640, func(w io.Writer) error {
+		_, err := io.WriteString(w, want)
+		return err
+	})
+	if err != nil {
+		t.Fatalf("WriteAtomicNoSyncWithWriter returned error: %v", err)
+	}
+	if written != int64(len(want)) {
+		t.Fatalf("written bytes = %d, want %d", written, len(want))
+	}
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile returned error: %v", err)
+	}
+	if string(got) != want {
+		t.Fatalf("content mismatch: got %q want %q", got, want)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatalf("Stat returned error: %v", err)
+	}
+	if gotMode := info.Mode().Perm(); gotMode != 0o640 {
+		t.Fatalf("mode = %04o, want 0640", gotMode)
+	}
+}
+
+func TestWriteAtomicNoSyncWithWriterCleansUpFailedWrite(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "failed.json")
+	sentinel := errors.New("encode failed")
+
+	_, err := WriteAtomicNoSyncWithWriter(path, 0o600, func(w io.Writer) error {
+		if _, writeErr := io.WriteString(w, `{"partial":`); writeErr != nil {
+			return writeErr
+		}
+		return sentinel
+	})
+	if !errors.Is(err, sentinel) {
+		t.Fatalf("error = %v, want sentinel", err)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("final path should not exist after failed write, stat err = %v", err)
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("ReadDir returned error: %v", err)
+	}
+	for _, entry := range entries {
+		if entry.Name() != "failed.json" {
+			t.Fatalf("unexpected leftover temp file: %s", entry.Name())
+		}
 	}
 }
