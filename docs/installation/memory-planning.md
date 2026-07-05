@@ -61,8 +61,8 @@ These are starting points. Monitor actual usage and adjust.
 | Medium (100–300 feeds) | 640M | 768M | 512MiB |
 | Large (300+ feeds) | 1G–1.5G | 1.5G–2G | 768MiB–1GiB |
 
-The installed unit ships with `MemoryHigh=2.5G`, `MemoryMax=3G`, and
-`GOMEMLIMIT=2GiB`. These defaults are intentionally larger than the table above
+The installed unit ships with `MemoryHigh=2.75G`, `MemoryMax=3G`, and
+`GOMEMLIMIT=2560MiB`. These defaults are intentionally larger than the table above
 because the public FireHOL-style catalog can run large entity refresh and
 metadata batches. Lower these values if the server shares resources with other
 services.

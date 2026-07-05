@@ -13,8 +13,8 @@ description: "Install, daemon, admin, and runtime operation guidance for update-
 - Default local service name: `update-ipsets` (evidence: `install.sh`).
 - Default local daemon listen in install flow: `:18888` (evidence: `install.sh`, `README.md`, `ui/vite.config.ts`).
 - Runtime catalog install path: `/opt/update-ipsets/etc/config/` (evidence: `install.sh`, `README.md`).
-- Managed install memory defaults are `MemoryHigh=2.5G`, `MemoryMax=3G`, and
-  `GOMEMLIMIT=2GiB`; `GOMEMLIMIT` is intentionally below `MemoryHigh` because
+- Managed install memory defaults are `MemoryHigh=2.75G`, `MemoryMax=3G`, and
+  `GOMEMLIMIT=2560MiB`; `GOMEMLIMIT` is intentionally below `MemoryHigh` because
   it is a Go runtime soft target and does not account for all memory charged to
   the service cgroup. It does not replace cgroup hard limits or bounded
   algorithms (evidence: `install.sh`,

@@ -12,11 +12,13 @@ Stabilize managed daemon installs under production entity-refresh memory pressur
 
 ### User Request
 
-The user approved changing the managed install defaults to:
+The user first approved changing the managed install defaults to `MemoryMax=3G`,
+`MemoryHigh=2.5G`, and `GOMEMLIMIT=2GiB`. On 2026-07-06, the user requested
+more headroom between the three bands. The final approved defaults are:
 
 - `MemoryMax=3G`
-- `MemoryHigh=2.5G`
-- `GOMEMLIMIT=2GiB`
+- `MemoryHigh=2.75G`
+- `GOMEMLIMIT=2560MiB`
 
 ### Assistant Understanding
 
@@ -25,16 +27,16 @@ Facts:
 - The current managed unit uses `MemoryHigh=1536M`, `MemoryMax=2G`, and `GOMEMLIMIT=1536MiB`.
 - Production cgroup memory events showed repeated `memory.high` pressure without kernel OOM kills.
 - The Go runtime memory limit does not include all memory charged to the service cgroup.
-- Go rejects `GOMEMLIMIT=2G`; the valid spelling is `2GiB` or `2048MiB`.
+- Go rejects `GOMEMLIMIT=2G`, and Go rejects fractional `GOMEMLIMIT=2.5GiB`; the valid exact spelling for 2.5 GiB is `2560MiB`.
 
 Inference:
 
 - Coupling `GOMEMLIMIT` to `MemoryHigh` leaves too little headroom for non-Go memory, kernel memory, mmap/file-backed reads, file cache pressure, stacks, and transient allocator behavior.
-- The approved defaults create three bands: Go target at 2GiB, kernel pressure at 2.5G, hard kill at 3G.
+- The approved defaults create three bands: Go target at 2.5 GiB, kernel pressure at 2.75G, hard kill at 3G.
 
 ### Acceptance Criteria
 
-- `install.sh` writes the managed unit with `MemoryHigh=2.5G`, `MemoryMax=3G`, and `GOMEMLIMIT=2GiB`.
+- `install.sh` writes the managed unit with `MemoryHigh=2.75G`, `MemoryMax=3G`, and `GOMEMLIMIT=2560MiB`.
 - Operator docs and runtime docs describe the new defaults.
 - The memory-management spec records that `GOMEMLIMIT` is intentionally lower than `MemoryHigh`.
 - Project operations skill records the new managed install defaults.
@@ -56,8 +58,8 @@ Evidence reviewed:
 - `.agents/sow/specs/memory-management.md` managed service memory guardrail.
 - Operator docs under `docs/installation/` and `docs/running/`.
 - Local `go doc runtime/debug.SetMemoryLimit`.
-- Local check that `GOMEMLIMIT=2G` fails and `GOMEMLIMIT=2GiB` works.
-- Local `systemd-analyze verify` check that `MemoryHigh=2.5G` and `MemoryMax=3G` are accepted in a unit file.
+- Local check that `GOMEMLIMIT=2G` and `GOMEMLIMIT=2.5GiB` fail, while `GOMEMLIMIT=2560MiB` works.
+- Local `systemd-analyze verify` check that `MemoryHigh=2.75G` and `MemoryMax=3G` are accepted in a unit file.
 
 Affected contracts and surfaces:
 
@@ -95,7 +97,7 @@ Validation plan:
 
 - `bash -n install.sh`
 - `systemd-analyze verify` on a temporary unit containing the new resource lines.
-- `GOMEMLIMIT=2GiB go version`
+- `GOMEMLIMIT=2560MiB go version`
 - `rg` scan proving old default text no longer remains except unrelated examples.
 
 Artifact impact plan:
@@ -109,7 +111,7 @@ Artifact impact plan:
 
 Open decisions:
 
-- None. The user approved the concrete default values. The only spelling adjustment is Go-required `2GiB` instead of invalid `2G`.
+- None. The user approved the concrete default values. The spelling adjustment is Go-required `2560MiB` instead of invalid fractional `2.5GiB`.
 
 ## Plan
 
@@ -126,13 +128,18 @@ Open decisions:
 - Updated the memory-management spec to state that the Go target, cgroup pressure threshold, and cgroup hard limit are deliberately separate bands.
 - Updated the project operations skill so future operational work sees the new managed install defaults.
 
+### 2026-07-06
+
+- Adjusted the final managed install defaults to `MemoryHigh=2.75G`, `MemoryMax=3G`, and `GOMEMLIMIT=2560MiB` after the user requested more headroom between the Go target and systemd pressure threshold.
+- Verified that Go rejects fractional `GOMEMLIMIT=2.5GiB`; `2560MiB` is the exact accepted 2.5 GiB spelling.
+
 ## Validation
 
 Checks run:
 
 - `bash -n install.sh` passed.
-- `systemd-analyze verify` on a temporary unit with `MemoryHigh=2.5G`, `MemoryMax=3G`, and `Environment=GOMEMLIMIT=2GiB` passed.
-- `GOMEMLIMIT=2GiB go version` passed.
+- `systemd-analyze verify` on a temporary unit with `MemoryHigh=2.75G`, `MemoryMax=3G`, and `Environment=GOMEMLIMIT=2560MiB` passed.
+- `GOMEMLIMIT=2560MiB go version` passed.
 - `rg --pcre2` scan for old managed default text and invalid `GOMEMLIMIT=2G` forms returned no matches in active install/spec/doc/skill surfaces.
 
 Validation not run:

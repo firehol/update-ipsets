@@ -255,7 +255,7 @@ Environment="OTEL_METRIC_EXPORT_INTERVAL=10000"
 
 | Variable | Default | Description |
 |---|---|---|
-| `GOMEMLIMIT` | (none; installed unit: `2GiB`) | Soft memory target for the Go runtime GC. Not a hard kill limit. Drives more aggressive garbage collection and memory return. Example: `512MiB`. Use `MiB`/`GiB` suffixes, not plain `M`/`G`. |
+| `GOMEMLIMIT` | (none; installed unit: `2560MiB`) | Soft memory target for the Go runtime GC. Not a hard kill limit. Drives more aggressive garbage collection and memory return. Example: `512MiB`. Use `MiB`/`GiB` suffixes, not plain `M`/`G`. |
 
 Combine `GOMEMLIMIT` with systemd `MemoryHigh` for "degrade under pressure" behavior — the daemon gets slower instead of crashing:
 

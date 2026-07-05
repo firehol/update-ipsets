@@ -238,9 +238,9 @@ return managed memory before the kernel reaches the service `MemoryMax`.
 
 The default managed unit uses:
 
-- `MemoryHigh=2.5G`
+- `MemoryHigh=2.75G`
 - `MemoryMax=3G`
-- `GOMEMLIMIT=2GiB`
+- `GOMEMLIMIT=2560MiB`
 
 The Go target is intentionally below `MemoryHigh`, and `MemoryHigh` is
 intentionally below `MemoryMax`. These separate bands leave headroom for memory
