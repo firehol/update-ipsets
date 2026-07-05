@@ -161,28 +161,123 @@ func TestHandleAdminEntityIntegrityReturnsEntityFindings(t *testing.T) {
 	}
 }
 
-func TestHandleAdminEntityIntegrityGetIsCacheFirstWhenCacheIsCold(t *testing.T) {
-	eng := newEntityIntegrityTestEngine(t)
+func TestAdminIntegrityGetQueuesRefreshWhenPipelineCacheIsCold(t *testing.T) {
+	eng, handler := testHandler(t, Options{
+		EnableAll:                 true,
+		AdminAuthMode:             AdminAuthModeDisabled,
+		AllowUnauthenticatedAdmin: true,
+	})
+	eng.StorePipelineIntegrityFindings(engine.IntegrityOptions{}, []engine.IntegrityFinding{{Feed: "sample"}}, nil)
+	blockIntegrityEngineLane(t, eng)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/integrity/entities", nil)
-	rec := httptest.NewRecorder()
-	handleAdminEntityIntegrity(context.Background(), eng).ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK {
-		t.Fatalf("status code = %d, want %d", rec.Code, http.StatusOK)
+	server := newWebHTTPTestServer(t, handler)
+	var report integrityReport
+	status, _ := server.getJSON(t, "/api/v1/admin/integrity?include_archived=true", &report)
+	if status != http.StatusOK {
+		t.Fatalf("pipeline integrity GET status = %d, want 200", status)
 	}
+	if report.Status != integrityStatusInProgress {
+		t.Fatalf("status = %q, want %q: %+v", report.Status, integrityStatusInProgress, report)
+	}
+	if report.CacheState != engine.IntegrityCacheRefreshQueued {
+		t.Fatalf("cache_state = %q, want %q: %+v", report.CacheState, engine.IntegrityCacheRefreshQueued, report)
+	}
+	if !report.Queued || !report.Running || report.Ticket == nil {
+		t.Fatalf("expected queued refresh metadata, got %+v", report)
+	}
+	if report.Count != 0 || len(report.Findings) != 0 {
+		t.Fatalf("cold cache must not report findings, got count=%d findings=%+v", report.Count, report.Findings)
+	}
+}
+
+func TestAdminIntegrityGetQueuesRefreshAndSuppressesStalePipelineFindings(t *testing.T) {
+	eng, handler := testHandler(t, Options{
+		EnableAll:                 true,
+		AdminAuthMode:             AdminAuthModeDisabled,
+		AllowUnauthenticatedAdmin: true,
+	})
+	eng.StorePipelineIntegrityFindings(engine.IntegrityOptions{}, []engine.IntegrityFinding{{Feed: "sample"}}, nil)
+	blockIntegrityEngineLane(t, eng)
+	eng.MarkIntegrityCachesStale()
+
+	server := newWebHTTPTestServer(t, handler)
+	var report integrityReport
+	status, _ := server.getJSON(t, "/api/v1/admin/integrity", &report)
+	if status != http.StatusOK {
+		t.Fatalf("pipeline integrity GET status = %d, want 200", status)
+	}
+	if report.Status != integrityStatusInProgress {
+		t.Fatalf("status = %q, want %q: %+v", report.Status, integrityStatusInProgress, report)
+	}
+	if report.CacheState != engine.IntegrityCacheRefreshQueued {
+		t.Fatalf("cache_state = %q, want %q: %+v", report.CacheState, engine.IntegrityCacheRefreshQueued, report)
+	}
+	if !report.Queued || !report.Running || report.Ticket == nil {
+		t.Fatalf("expected queued refresh metadata, got %+v", report)
+	}
+	if report.Count != 0 || len(report.Findings) != 0 {
+		t.Fatalf("stale cache findings must not be reported as current issues, got count=%d findings=%+v", report.Count, report.Findings)
+	}
+}
+
+func TestHandleAdminEntityIntegrityGetQueuesRefreshWhenCacheIsCold(t *testing.T) {
+	eng := newEntityIntegrityTestEngine(t)
+	eng.StorePipelineIntegrityFindings(engine.IntegrityOptions{}, []engine.IntegrityFinding{{Feed: "sample"}}, nil)
+	blockIntegrityEngineLane(t, eng)
+
+	handler := newTestAdminHandler(t, eng)
+	server := newWebHTTPTestServer(t, handler)
 
 	var report entityIntegrityReport
-	if err := json.Unmarshal(rec.Body.Bytes(), &report); err != nil {
-		t.Fatalf("decode response: %v", err)
+	status, _ := server.getJSON(t, "/api/v1/admin/integrity/entities", &report)
+	if status != http.StatusOK {
+		t.Fatalf("entity integrity GET status = %d, want 200", status)
 	}
-	if report.Status != integrityStatusClean {
-		t.Fatalf("status = %q, want %q", report.Status, integrityStatusClean)
+	if report.Status != integrityStatusInProgress {
+		t.Fatalf("status = %q, want %q: %+v", report.Status, integrityStatusInProgress, report)
 	}
-	if report.CacheState != engine.IntegrityCacheCold {
-		t.Fatalf("cache_state = %q, want cold", report.CacheState)
+	if report.CacheState != engine.IntegrityCacheRefreshQueued {
+		t.Fatalf("cache_state = %q, want %q: %+v", report.CacheState, engine.IntegrityCacheRefreshQueued, report)
 	}
-	if report.Queued || report.Running {
-		t.Fatalf("GET must not queue or run refresh work, got %+v", report)
+	if !report.Queued || !report.Running || report.Ticket == nil {
+		t.Fatalf("expected queued refresh metadata, got %+v", report)
+	}
+	if report.Count != 0 || len(report.Findings) != 0 {
+		t.Fatalf("cold cache must not report findings, got count=%d findings=%+v", report.Count, report.Findings)
+	}
+}
+
+func TestAdminEntityIntegrityGetQueuesRefreshAndSuppressesStaleFindings(t *testing.T) {
+	eng := newEntityIntegrityTestEngine(t)
+	eng.StorePipelineIntegrityFindings(engine.IntegrityOptions{}, []engine.IntegrityFinding{{Feed: "sample"}}, nil)
+	eng.StoreEntityIntegrityFindings([]engine.EntityIntegrityFinding{{
+		Scope:   "global",
+		Kind:    "config_newer",
+		Subject: "entity_artifacts",
+		Reason:  "test stale cache finding",
+	}}, nil)
+	blockIntegrityEngineLane(t, eng)
+	eng.MarkIntegrityCachesStale()
+
+	handler := newTestAdminHandler(t, eng)
+	server := newWebHTTPTestServer(t, handler)
+
+	var report entityIntegrityReport
+	status, _ := server.getJSON(t, "/api/v1/admin/integrity/entities", &report)
+	if status != http.StatusOK {
+		t.Fatalf("entity integrity GET status = %d, want 200", status)
+	}
+	if report.Status != integrityStatusInProgress {
+		t.Fatalf("status = %q, want %q: %+v", report.Status, integrityStatusInProgress, report)
+	}
+	if report.CacheState != engine.IntegrityCacheRefreshQueued {
+		t.Fatalf("cache_state = %q, want %q: %+v", report.CacheState, engine.IntegrityCacheRefreshQueued, report)
+	}
+	if !report.Queued || !report.Running || report.Ticket == nil {
+		t.Fatalf("expected queued refresh metadata, got %+v", report)
+	}
+	if report.Count != 0 || len(report.Findings) != 0 {
+		t.Fatalf("stale cache findings must not be reported as current issues, got count=%d findings=%+v", report.Count, report.Findings)
 	}
 }
 
@@ -311,6 +406,40 @@ func storeEntityIntegrityCache(t *testing.T, eng *engine.Engine) {
 		t.Fatalf("entity integrity scan: %v", err)
 	}
 	eng.StoreEntityIntegrityFindings(findings, nil)
+}
+
+func blockIntegrityEngineLane(t *testing.T, eng *engine.Engine) {
+	t.Helper()
+
+	releaseLane := make(chan struct{})
+	laneStarted := make(chan struct{})
+	_, err := eng.QueuePipelineIntegrityReprocess(t.Context(), engine.IntegrityOptions{}, "test_block", func(ctx context.Context, _ []engine.IntegrityFinding) error {
+		close(laneStarted)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-releaseLane:
+			return nil
+		}
+	})
+	if err != nil {
+		t.Fatalf("queue blocking integrity reprocess: %v", err)
+	}
+	<-laneStarted
+	t.Cleanup(func() {
+		close(releaseLane)
+		waitForEngineLaneClear(t, eng, 2*time.Second)
+	})
+}
+
+func newTestAdminHandler(t *testing.T, eng *engine.Engine) http.Handler {
+	t.Helper()
+
+	return newHandler(eng, Options{
+		EnableAll:                 true,
+		AdminAuthMode:             AdminAuthModeDisabled,
+		AllowUnauthenticatedAdmin: true,
+	}, scheduler.New(eng, true, nil))
 }
 
 func TestHandleAdminIntegrityReprocessReturnsSplitTargets(t *testing.T) {

@@ -97,11 +97,12 @@ func buildIntegrityReport(ctx context.Context, eng *engine.Engine, includeArchiv
 	started := time.Now()
 	opts := engine.IntegrityOptions{IncludeArchived: includeArchived, EnableAll: enableAll, WebDir: webDir}
 	snap, _ := eng.TryPipelineIntegrityCacheSnapshot(opts)
-
-	findings := snap.Findings
-	if findings == nil {
-		findings = []engine.IntegrityFinding{}
+	snap, err := queuePipelineIntegrityRefreshForStaleGET(ctx, eng, opts, snap)
+	if err != nil {
+		return integrityReport{}, err
 	}
+
+	findings := reportablePipelineIntegrityFindings(snap)
 	out := integrityReport{
 		IncludeArchived:    includeArchived,
 		Status:             integrityStatusForFindings(findings, snap),
@@ -134,7 +135,7 @@ func handleAdminIntegrity(ctx context.Context, eng *engine.Engine, enableAll boo
 		apiNoCache(w)
 		report, err := buildIntegrityReport(ctx, eng, includeArchivedQuery(r), enableAll, webDir)
 		if err != nil {
-			jsonError(w, http.StatusInternalServerError, err)
+			jsonQueueSubmissionError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, report)
@@ -151,8 +152,12 @@ func buildEntityIntegrityReport(ctx context.Context, eng *engine.Engine) (entity
 		observeIntegrityCheck("entity", result, findingCount, time.Since(started))
 	}()
 	snap, _ := eng.TryEntityIntegrityCacheSnapshot()
+	snap, err := queueEntityIntegrityRefreshForStaleGET(ctx, eng, snap)
+	if err != nil {
+		return entityIntegrityReport{}, err
+	}
 
-	findings := snap.Findings
+	findings := reportableEntityIntegrityFindings(snap)
 	findingCount = len(findings)
 	out := entityIntegrityReport{
 		Status:             entityIntegrityStatusForFindings(findings, snap),
@@ -184,7 +189,7 @@ func handleAdminEntityIntegrity(ctx context.Context, eng *engine.Engine) http.Ha
 		apiNoCache(w)
 		report, err := buildEntityIntegrityReport(ctx, eng)
 		if err != nil {
-			jsonError(w, http.StatusInternalServerError, err)
+			jsonQueueSubmissionError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, report)
@@ -349,6 +354,44 @@ func sanitizeEntityIntegrityReport(report entityIntegrityReport) entityIntegrity
 		report.Findings[i].ReferenceMTime = sanitizeJSONTime(report.Findings[i].ReferenceMTime)
 	}
 	return report
+}
+
+func queuePipelineIntegrityRefreshForStaleGET(ctx context.Context, eng *engine.Engine, opts engine.IntegrityOptions, snap engine.PipelineIntegrityCacheSnapshot) (engine.PipelineIntegrityCacheSnapshot, error) {
+	if snap.CacheState == engine.IntegrityCacheFresh ||
+		snap.CacheState == engine.IntegrityCacheRefreshQueued ||
+		snap.CacheState == engine.IntegrityCacheRefreshRunning {
+		return snap, nil
+	}
+	return eng.QueuePipelineIntegrityRefresh(ctx, opts, "admin_get")
+}
+
+func queueEntityIntegrityRefreshForStaleGET(ctx context.Context, eng *engine.Engine, snap engine.EntityIntegrityCacheSnapshot) (engine.EntityIntegrityCacheSnapshot, error) {
+	if snap.CacheState == engine.IntegrityCacheFresh ||
+		snap.CacheState == engine.IntegrityCacheRefreshQueued ||
+		snap.CacheState == engine.IntegrityCacheRefreshRunning {
+		return snap, nil
+	}
+	return eng.QueueEntityIntegrityRefresh(ctx, "admin_get")
+}
+
+func reportablePipelineIntegrityFindings(snap engine.PipelineIntegrityCacheSnapshot) []engine.IntegrityFinding {
+	if snap.CacheState != engine.IntegrityCacheFresh {
+		return []engine.IntegrityFinding{}
+	}
+	if snap.Findings == nil {
+		return []engine.IntegrityFinding{}
+	}
+	return snap.Findings
+}
+
+func reportableEntityIntegrityFindings(snap engine.EntityIntegrityCacheSnapshot) []engine.EntityIntegrityFinding {
+	if snap.CacheState != engine.IntegrityCacheFresh {
+		return []engine.EntityIntegrityFinding{}
+	}
+	if snap.Findings == nil {
+		return []engine.EntityIntegrityFinding{}
+	}
+	return snap.Findings
 }
 
 func handleAdminIntegrityReprocess(ctx context.Context, eng *engine.Engine, runner *scheduler.Runner, webDir string) http.HandlerFunc {
@@ -586,23 +629,21 @@ func jsonQueueSubmissionError(w http.ResponseWriter, err error) {
 }
 
 func integrityStatusForFindings(findings []engine.IntegrityFinding, snap engine.PipelineIntegrityCacheSnapshot) string {
+	if snap.CacheState != engine.IntegrityCacheFresh {
+		return integrityStatusInProgress
+	}
 	if len(findings) > 0 {
 		return integrityStatusIssues
-	}
-	if snap.CacheState == engine.IntegrityCacheRefreshQueued ||
-		snap.CacheState == engine.IntegrityCacheRefreshRunning {
-		return integrityStatusInProgress
 	}
 	return integrityStatusClean
 }
 
 func entityIntegrityStatusForFindings(findings []engine.EntityIntegrityFinding, snap engine.EntityIntegrityCacheSnapshot) string {
+	if snap.CacheState != engine.IntegrityCacheFresh {
+		return integrityStatusInProgress
+	}
 	if len(findings) > 0 {
 		return integrityStatusIssues
-	}
-	if snap.CacheState == engine.IntegrityCacheRefreshQueued ||
-		snap.CacheState == engine.IntegrityCacheRefreshRunning {
-		return integrityStatusInProgress
 	}
 	return integrityStatusClean
 }

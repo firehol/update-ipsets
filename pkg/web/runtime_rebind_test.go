@@ -397,6 +397,7 @@ func TestAdminIntegrityRouteRebindsWebDirAfterRuntimeReload(t *testing.T) {
 	if err := eng.ReloadContext(t.Context()); err != nil {
 		t.Fatal(err)
 	}
+	eng.StorePipelineIntegrityFindings(engine.IntegrityOptions{EnableAll: true, WebDir: newWebDir}, []engine.IntegrityFinding{{Feed: "new-root"}}, nil)
 
 	status, _, body = server.get(t, "/api/v1/admin/integrity")
 	if status != http.StatusOK {

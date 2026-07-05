@@ -12250,6 +12250,113 @@ Follow-up correction after auditing trace/log telemetry paths:
   - `go test ./internal/observability` passed.
   - `staticcheck ./internal/observability` passed.
 
+### 2026-07-06 - Production Integrity Cache Staleness Regression
+
+User report:
+
+- Production admin UI shows many integrity issues for both broken pipeline runs
+  and entity artifacts after the service has continued processing successfully.
+
+Sanitized production evidence:
+
+- The production service is running and `/healthz` returns `ok`.
+- `GET /api/v1/admin/integrity` returned `status=issues`,
+  `cache_state=stale`, `count=2`, and `checked_at=2026-07-05T15:42:17Z`.
+- The stale pipeline findings referenced public feed names
+  `romainmarcoux_malicious_ad` and `serpro_reputation`.
+- Current artifact mtimes for those feeds are newer than the primary data mtimes,
+  so the specific stale-secondary findings shown by the cached response were no
+  longer current at inspection time.
+- `GET /api/v1/admin/integrity/entities` returned `status=issues`,
+  `cache_state=stale`, `count=1`, and a `config_newer` finding.
+- Current entity artifact version mtime was newer than the loaded config mtime,
+  so the entity finding was also stale at inspection time.
+- Startup logs show the previous service instance was stopped while some feeds
+  were processing; the next startup scan correctly found stale outputs and
+  queued recovery. Later processing repaired the artifacts, but the stale
+  integrity caches remained visible as current issue lists.
+
+Code evidence:
+
+- `pkg/web/integrity.go` builds admin GET reports from
+  `eng.TryPipelineIntegrityCacheSnapshot()` and
+  `eng.TryEntityIntegrityCacheSnapshot()`.
+- The current status helpers return `issues` before considering whether the
+  snapshot cache state is `stale`, so old findings from a stale cache are shown
+  as current operator truth.
+- `docs/integrity/running-integrity-checks.md` and
+  `docs/integrity/entity-integrity.md` already define the expected contract:
+  admin GET is cache-first, but if the cache is cold or stale the daemon queues
+  an integrity refresh in the engine lane and reports `in_progress`.
+- `pkg/web/integrity_test.go` contains a stale test contract for cold entity
+  integrity GET: it expected `clean` and explicitly expected no refresh queue.
+  That test protected the wrong behavior.
+
+Problem / root-cause model:
+
+- The integrity scan and recovery path worked; this is not evidence of current
+  on-disk corruption for the inspected findings.
+- The admin read path exposed stale cache contents as active issues. Operators
+  therefore saw old issues after background processing had already repaired the
+  files.
+- The test gap is concrete: existing tests did not verify the documented
+  cold/stale GET behavior for pipeline or entity integrity.
+
+Implementation plan:
+
+1. Add behavioral tests that cover admin GET with cold and stale pipeline/entity
+   integrity caches.
+2. Keep admin GET cache-first and non-blocking: no inline filesystem scan.
+3. When cache state is `cold` or `stale`, queue the matching engine-lane
+   integrity refresh and return `in_progress` with an empty findings list rather
+   than stale findings.
+4. Keep fresh cache behavior unchanged: fresh findings still return `issues`,
+   and fresh empty findings still return `clean`.
+
+Validation plan:
+
+- Run targeted `pkg/web` integrity tests.
+- Run `go test ./pkg/web ./pkg/engine`.
+- Run `staticcheck -checks=inherit,-U1000 ./pkg/engine` and
+  `staticcheck ./pkg/web` if the code change touches those packages.
+- Confirm documentation already matches the final API behavior; update specs or
+  docs only if implementation details require a contract clarification.
+
+Sensitive data handling:
+
+- Durable artifacts use sanitized production evidence only. No private endpoint,
+  credential, token, customer data, private IP, or raw production log block is
+  recorded.
+
+Implementation:
+
+- Added HTTP-level admin integrity tests for cold pipeline cache, stale pipeline
+  cache with old findings, cold entity cache, and stale entity cache with old
+  findings.
+- Changed admin integrity GET report builders to queue an engine-lane refresh
+  when the cache state is `cold` or `stale`.
+- Changed report building so only `fresh` cache findings are returned as
+  reportable operator findings.
+- Made the status helpers defensive: any non-fresh cache state reports
+  `in_progress` before findings are considered.
+- Updated the runtime-rebind test to respect the reload contract that marks
+  integrity caches stale; after reload the test stores a fresh new-scope cache
+  before asserting route rebinding.
+
+Validation:
+
+- `go test -count=1 ./pkg/web -run 'TestAdminIntegrityGetQueuesRefresh|TestHandleAdminEntityIntegrityGetQueuesRefresh|TestAdminEntityIntegrityGetQueuesRefresh'`
+  passed.
+- `go test -count=1 ./pkg/web ./pkg/engine` passed.
+- `go test -count=1 ./tools/archposture` passed.
+- `staticcheck ./pkg/web` passed.
+- `staticcheck -checks=inherit,-U1000 ./pkg/engine` passed.
+- `go test -race -count=1 ./pkg/web -run 'TestAdminIntegrityGetQueuesRefresh|TestHandleAdminEntityIntegrityGetQueuesRefresh|TestAdminEntityIntegrityGetQueuesRefresh'`
+  passed.
+- `make test` passed.
+- `make build` passed.
+- `make lint` passed.
+
 Follow-up correction after auditing web-serving catalog and telemetry
 dependencies:
 
