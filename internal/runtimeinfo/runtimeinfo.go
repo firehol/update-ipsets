@@ -1,13 +1,8 @@
 package runtimeinfo
 
 import (
-	"os"
-	"runtime"
-	"runtime/debug"
-	"strconv"
-	"strings"
+	"runtime/metrics"
 	"syscall"
-	"time"
 )
 
 type Snapshot struct {
@@ -55,29 +50,66 @@ type Delta struct {
 	ProcWriteSyscalls       uint64 `json:"proc_write_syscalls,omitempty"`
 }
 
+const (
+	metricGoroutines = iota
+	metricHeapObjectsBytes
+	metricHeapFreeBytes
+	metricHeapReleasedBytes
+	metricHeapUnusedBytes
+	metricHeapStacksBytes
+	metricOSStacksBytes
+	metricTotalBytes
+	metricHeapObjects
+	metricGCCycles
+	metricGoMemLimit
+	metricGCPauseCPUSeconds
+)
+
+// Capture intentionally avoids runtime.ReadMemStats and procfs reads. It runs
+// from liveness-sensitive samplers, so optional process details stay unknown
+// rather than risking stop-the-world or kernel file I/O stalls.
 func Capture() Snapshot {
-	var mem runtime.MemStats
-	runtime.ReadMemStats(&mem)
-	out := Snapshot{
-		Goroutines:   runtime.NumGoroutine(),
-		HeapAlloc:    mem.HeapAlloc,
-		HeapSys:      mem.HeapSys,
-		HeapInuse:    mem.HeapInuse,
-		HeapIdle:     mem.HeapIdle,
-		HeapReleased: mem.HeapReleased,
-		HeapObjects:  mem.HeapObjects,
-		StackInuse:   mem.StackInuse,
-		Sys:          mem.Sys,
-		NumGC:        mem.NumGC,
-		PauseTotalNS: mem.PauseTotalNs,
-		PauseTotalMS: int64(mem.PauseTotalNs / uint64(time.Millisecond)),
-		LastGCUnix:   int64(mem.LastGC),
-		GoMemLimit:   GoMemLimit(),
+	samples := [...]metrics.Sample{
+		{Name: "/sched/goroutines:goroutines"},
+		{Name: "/memory/classes/heap/objects:bytes"},
+		{Name: "/memory/classes/heap/free:bytes"},
+		{Name: "/memory/classes/heap/released:bytes"},
+		{Name: "/memory/classes/heap/unused:bytes"},
+		{Name: "/memory/classes/heap/stacks:bytes"},
+		{Name: "/memory/classes/os-stacks:bytes"},
+		{Name: "/memory/classes/total:bytes"},
+		{Name: "/gc/heap/objects:objects"},
+		{Name: "/gc/cycles/total:gc-cycles"},
+		{Name: "/gc/gomemlimit:bytes"},
+		{Name: "/cpu/classes/gc/pause:cpu-seconds"},
 	}
-	readProcessMemory(&out)
+	metrics.Read(samples[:])
+
+	heapObjectsBytes := metricUint64(samples[:], metricHeapObjectsBytes)
+	heapFreeBytes := metricUint64(samples[:], metricHeapFreeBytes)
+	heapReleasedBytes := metricUint64(samples[:], metricHeapReleasedBytes)
+	heapUnusedBytes := metricUint64(samples[:], metricHeapUnusedBytes)
+	heapStacksBytes := metricUint64(samples[:], metricHeapStacksBytes)
+	osStacksBytes := metricUint64(samples[:], metricOSStacksBytes)
+	pauseTotalSeconds := metricFloat64(samples[:], metricGCPauseCPUSeconds)
+	pauseTotalNS := uint64(pauseTotalSeconds * 1_000_000_000)
+
+	out := Snapshot{
+		Goroutines:   int(metricUint64(samples[:], metricGoroutines)),
+		HeapAlloc:    heapObjectsBytes,
+		HeapSys:      heapObjectsBytes + heapFreeBytes + heapReleasedBytes + heapUnusedBytes,
+		HeapInuse:    heapObjectsBytes + heapUnusedBytes,
+		HeapIdle:     heapFreeBytes + heapReleasedBytes,
+		HeapReleased: heapReleasedBytes,
+		HeapObjects:  metricUint64(samples[:], metricHeapObjects),
+		StackInuse:   heapStacksBytes + osStacksBytes,
+		Sys:          metricUint64(samples[:], metricTotalBytes),
+		NumGC:        uint32(metricUint64(samples[:], metricGCCycles)),
+		PauseTotalNS: pauseTotalNS,
+		PauseTotalMS: int64(pauseTotalNS / 1_000_000),
+		GoMemLimit:   normalizeMemoryLimit(metricUint64(samples[:], metricGoMemLimit)),
+	}
 	readProcessUsage(&out)
-	readProcessIO(&out)
-	readOpenFDs(&out)
 	return out
 }
 
@@ -97,11 +129,9 @@ func Diff(start, end Snapshot) Delta {
 }
 
 func GoMemLimit() int64 {
-	limit := debug.SetMemoryLimit(-1)
-	if limit <= 0 || limit >= 1<<62 {
-		return -1
-	}
-	return limit
+	samples := [...]metrics.Sample{{Name: "/gc/gomemlimit:bytes"}}
+	metrics.Read(samples[:])
+	return normalizeMemoryLimit(metricUint64(samples[:], 0))
 }
 
 func unsignedDelta(start, end uint64) uint64 {
@@ -111,33 +141,33 @@ func unsignedDelta(start, end uint64) uint64 {
 	return end - start
 }
 
-func readProcessMemory(out *Snapshot) {
-	data, err := os.ReadFile("/proc/self/status")
-	if err != nil {
-		return
+func normalizeMemoryLimit(limit uint64) int64 {
+	if limit == 0 || limit >= 1<<62 {
+		return -1
 	}
-	for _, line := range strings.Split(string(data), "\n") {
-		key, value, ok := strings.Cut(line, ":")
-		if !ok {
-			continue
-		}
-		fields := strings.Fields(strings.TrimSpace(value))
-		if len(fields) == 0 {
-			continue
-		}
-		n, err := strconv.ParseUint(fields[0], 10, 64)
-		if err != nil {
-			continue
-		}
-		switch key {
-		case "VmRSS":
-			out.RSSKB = n
-		case "VmSize":
-			out.VMSKB = n
-		case "VmData":
-			out.DataKB = n
-		}
+	return int64(limit)
+}
+
+func metricUint64(samples []metrics.Sample, index int) uint64 {
+	if index < 0 || index >= len(samples) {
+		return 0
 	}
+	value := samples[index].Value
+	if value.Kind() != metrics.KindUint64 {
+		return 0
+	}
+	return value.Uint64()
+}
+
+func metricFloat64(samples []metrics.Sample, index int) float64 {
+	if index < 0 || index >= len(samples) {
+		return 0
+	}
+	value := samples[index].Value
+	if value.Kind() != metrics.KindFloat64 {
+		return 0
+	}
+	return value.Float64()
 }
 
 func readProcessUsage(out *Snapshot) {
@@ -153,41 +183,4 @@ func readProcessUsage(out *Snapshot) {
 	out.CPUUserMS = usage.Utime.Sec*1000 + int64(usage.Utime.Usec)/1000
 	out.CPUSystemMS = usage.Stime.Sec*1000 + int64(usage.Stime.Usec)/1000
 	out.CPUTotalMS = out.CPUUserMS + out.CPUSystemMS
-}
-
-func readProcessIO(out *Snapshot) {
-	data, err := os.ReadFile("/proc/self/io")
-	if err != nil {
-		return
-	}
-	for _, line := range strings.Split(string(data), "\n") {
-		key, value, ok := strings.Cut(line, ":")
-		if !ok {
-			continue
-		}
-		n, err := strconv.ParseUint(strings.TrimSpace(value), 10, 64)
-		if err != nil {
-			continue
-		}
-		switch key {
-		case "read_bytes":
-			out.ProcReadBytes = n
-		case "write_bytes":
-			out.ProcWriteBytes = n
-		case "cancelled_write_bytes":
-			out.ProcCancelledWriteBytes = n
-		case "syscr":
-			out.ProcReadSyscalls = n
-		case "syscw":
-			out.ProcWriteSyscalls = n
-		}
-	}
-}
-
-func readOpenFDs(out *Snapshot) {
-	entries, err := os.ReadDir("/proc/self/fd")
-	if err != nil {
-		return
-	}
-	out.OpenFDs = len(entries)
 }

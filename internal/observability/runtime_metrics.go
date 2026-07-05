@@ -69,26 +69,9 @@ func observeRuntimeMetrics() {
 	TryGauge("runtime.go.gc.count", int64(snap.NumGC))
 	TryGauge("runtime.go.gc.pause.total.ms", snap.PauseTotalMS)
 	TryGauge("runtime.go.mem.limit.bytes", snap.GoMemLimit)
-	TryGauge("runtime.process.rss.bytes", kibMetricValue(snap.RSSKB))
-	TryGauge("runtime.process.vms.bytes", kibMetricValue(snap.VMSKB))
-	TryGauge("runtime.process.data.bytes", kibMetricValue(snap.DataKB))
 	TryGauge("runtime.process.cpu.user.ms", snap.CPUUserMS)
 	TryGauge("runtime.process.cpu.system.ms", snap.CPUSystemMS)
 	TryGauge("runtime.process.cpu.total.ms", snap.CPUTotalMS)
-	TryGauge("runtime.process.read.bytes", uint64MetricValue(snap.ProcReadBytes))
-	TryGauge("runtime.process.write.bytes", uint64MetricValue(snap.ProcWriteBytes))
-	TryGauge("runtime.process.cancelled_write.bytes", uint64MetricValue(snap.ProcCancelledWriteBytes))
-	TryGauge("runtime.process.read.syscalls", uint64MetricValue(snap.ProcReadSyscalls))
-	TryGauge("runtime.process.write.syscalls", uint64MetricValue(snap.ProcWriteSyscalls))
-	TryGauge("runtime.process.open_fds", int64(snap.OpenFDs))
-}
-
-func kibMetricValue(value uint64) int64 {
-	const maxKiB = uint64MetricMax / 1024
-	if value > maxKiB {
-		return int64(uint64MetricMax)
-	}
-	return int64(value * 1024)
 }
 
 func uint64MetricValue(value uint64) int64 {

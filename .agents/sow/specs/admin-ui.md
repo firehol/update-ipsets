@@ -415,9 +415,9 @@ At minimum, admin diagnostics or structured progress logs SHOULD expose:
 - monotonic byte/count counters for network, file, JSON, mmap, sidecar, and
   artifact work where those operations materially affect resource use
 - process CPU user/system/total seconds
-- process memory size and resident set snapshots
-- process read/write bytes and read/write syscall snapshots when the platform
-  exposes them
+- Go runtime heap and GC snapshots
+- host-monitoring links or operator guidance for process RSS, open file
+  descriptors, and process I/O pressure
 - current background-maintenance worker limit and active worker count
 
 These values MUST be snapshot-diff friendly. An operator or automated test

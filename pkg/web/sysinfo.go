@@ -95,9 +95,9 @@ type detailedSystemInfo struct {
 	// Go memory limit (GOMEMLIMIT)
 	GoMemLimit int64 `json:"go_mem_limit"` // -1 if not set
 
-	// Process stats (populated on Linux, zero elsewhere)
-	RSSKB              uint64  `json:"rss_kb"`
-	VMSKB              uint64  `json:"vms_kb"`
+	// Process stats collected without procfs reads from liveness-sensitive samplers.
+	RSSKB              uint64  `json:"rss_kb,omitempty"`
+	VMSKB              uint64  `json:"vms_kb,omitempty"`
 	DataKB             uint64  `json:"data_kb,omitempty"`
 	CPUUserSeconds     float64 `json:"cpu_user_seconds,omitempty"`
 	CPUSystemSeconds   float64 `json:"cpu_system_seconds,omitempty"`
@@ -206,7 +206,7 @@ func captureDetailedStatus(now time.Time) detailedSystemInfo {
 		PauseTotalNs: sample.PauseTotalNS,
 		LastGCUnix:   sample.LastGCUnix,
 
-		GoMemLimit: runtimeinfo.GoMemLimit(),
+		GoMemLimit: sample.GoMemLimit,
 
 		RSSKB:              sample.RSSKB,
 		VMSKB:              sample.VMSKB,

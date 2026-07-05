@@ -6,7 +6,7 @@ import (
 	"github.com/firehol/update-ipsets/internal/runtimeinfo"
 )
 
-func TestCaptureReturnsRuntimeAndProcessCounters(t *testing.T) {
+func TestCaptureReturnsSafeRuntimeCounters(t *testing.T) {
 	snap := runtimeinfo.Capture()
 	if snap.Goroutines <= 0 {
 		t.Fatalf("goroutines = %d, want positive runtime count", snap.Goroutines)
@@ -16,6 +16,12 @@ func TestCaptureReturnsRuntimeAndProcessCounters(t *testing.T) {
 	}
 	if snap.GoMemLimit == 0 {
 		t.Fatalf("go memory limit = 0, want -1 or a positive limit")
+	}
+	if snap.RSSKB != 0 || snap.VMSKB != 0 || snap.DataKB != 0 {
+		t.Fatalf("procfs memory counters = rss:%d vms:%d data:%d, want unset", snap.RSSKB, snap.VMSKB, snap.DataKB)
+	}
+	if snap.ProcReadBytes != 0 || snap.ProcWriteBytes != 0 || snap.OpenFDs != 0 {
+		t.Fatalf("procfs I/O/fd counters = read:%d write:%d fds:%d, want unset", snap.ProcReadBytes, snap.ProcWriteBytes, snap.OpenFDs)
 	}
 }
 

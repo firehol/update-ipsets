@@ -677,6 +677,12 @@ Runtime and process gauges MUST be updated by a local daemon-owned sampler.
 Prometheus scrapes and OTLP export collection MUST read the sampled local gauge
 state and MUST NOT read `/proc`, walk file descriptors, or run runtime
 collection work from scrape/export request paths.
+The daemon-owned runtime sampler is also part of the liveness contract. It MUST
+NOT call `runtime.ReadMemStats`, read `/proc/self/*`, walk `/proc/self/fd`, or
+perform broad filesystem diagnostics. Use non-stop-the-world runtime metrics
+and cheap local counters; optional OS process details such as RSS, process I/O,
+and open-FD count belong in host monitoring unless a future bounded collector
+can prove they cannot block web serving, watchdog proof, or engine progress.
 
 Primitive operation stats from `pkg/iprange` MUST remain plain local counters
 returned to callers. `pkg/iprange` MUST NOT import project telemetry packages

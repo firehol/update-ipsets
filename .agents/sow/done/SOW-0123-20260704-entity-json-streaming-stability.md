@@ -4,7 +4,7 @@
 
 Status: completed
 
-Sub-state: implementation locally validated and committed with SOW closure
+Sub-state: runtime/proc sampler regression fixed, locally validated, and closing with hotfix commit
 
 ## Requirements
 
@@ -282,4 +282,135 @@ None yet.
 
 ## Regression Log
 
-None yet.
+See the dated regression section below.
+
+## Regression - 2026-07-05
+
+### Production Observation
+
+Crash #5 occurred on production at `2026-07-05 02:42:39 UTC` while processing an entity artifact refresh for 190 changed feeds.
+
+Facts:
+
+- The crash happened before commit `09b408b` was created, pushed, and installed. The streaming JSON fix in this SOW was committed at `2026-07-05 06:53:29 UTC`, and the production binary mtime after install was `2026-07-05 06:55:08 UTC`.
+- The service log before the crash showed `refreshing country and ASN entity artifacts for 190 changed feeds`.
+- The watchdog crash stack showed `runtimeinfo.Capture()` being called concurrently from three periodic sampler surfaces:
+  - `internal/observability.observeRuntimeMetrics()` calling `runtime.ReadMemStats()`.
+  - `pkg/engine.refreshEngineRuntimeStats()` reading `/proc/self/status`.
+  - `pkg/web.captureDetailedStatus()` reading `/proc/self/io`.
+- The same production run had an OTLP metric export timeout shortly before the watchdog crash, but the proven local stack frame in this regression is the project-owned runtime sampler.
+
+Inference:
+
+- The previous streaming JSON fix has not been disproven by Crash #5 because Crash #5 predates that build.
+- A separate liveness bug remains: periodic runtime telemetry uses a shared sampler that performs stop-the-world memory snapshots and procfs file reads. That is unsafe during high-memory, high-I/O entity refreshes, and it is on both observability and admin/web status paths.
+
+Uncertainty:
+
+- The stack proves sampler activity during watchdog failure. It does not by itself prove a Go runtime bug or prove that procfs reads alone made stop-the-world impossible. The implementation bug is still actionable because liveness-critical telemetry must not call STW/procfs APIs.
+
+### Regression Pre-Implementation Gate
+
+Status: ready
+
+Problem / root-cause model:
+
+- `internal/runtimeinfo.Capture()` is used by runtime metrics, engine diagnostics, and web/admin status sampling.
+- It currently calls `runtime.ReadMemStats()`, reads `/proc/self/status`, reads `/proc/self/io`, and lists `/proc/self/fd`.
+- Under entity refresh pressure, these calls can align with high allocation and I/O load. The production stack shows one sampler in `runtime.stopTheWorld()` and two other sampler paths in procfs reads.
+- Web serving and watchdog liveness must not depend on telemetry progress.
+
+Evidence reviewed:
+
+- Production journal around the crash window.
+- Production installed-binary mtime and build metadata.
+- `internal/runtimeinfo/runtimeinfo.go`
+- `internal/observability/runtime_metrics.go`
+- `pkg/engine/run_diagnostics.go`
+- `pkg/web/sysinfo.go`
+- `internal/runtimeinfo/runtimeinfo_test.go`
+- Local `go doc runtime/metrics`, which states `runtime/metrics` is the stable runtime metrics API and is similar to `runtime.ReadMemStats` but more general.
+
+Affected contracts and surfaces:
+
+- Admin/web system status runtime fields.
+- Engine run-progress runtime and runtime-delta fields.
+- Local observability runtime gauges.
+- Watchdog/web liveness under background entity refresh pressure.
+
+Existing patterns to reuse:
+
+- Keep cached runtime status sampling outside request handlers.
+- Keep telemetry fail-open and non-blocking.
+- Preserve exact local metrics for fields that can be sampled safely.
+
+Risk and blast radius:
+
+- RSS, VMS, data segment, proc I/O counters, and open-FD count will become unknown/zero in the periodic samplers unless a future safe, bounded collector is added.
+- Go heap, GC cycle count, Go memory limit, goroutine count, and process CPU counters remain available.
+- Admin UI may show less process-detail telemetry, but service liveness is more important than optional diagnostics.
+
+Sensitive data handling plan:
+
+- Only sanitized production timing, stack class, and local file paths are recorded. No secrets, customer data, private endpoints, personal data, or raw production artifacts are written.
+
+Implementation plan:
+
+1. Replace `runtime.ReadMemStats()` in `runtimeinfo.Capture()` with `runtime/metrics` sampling for Go runtime counters.
+2. Remove procfs reads from the default `Capture()` path used by periodic samplers.
+3. Keep `syscall.Getrusage()` CPU counters because they are cheap and do not read procfs files.
+4. Update runtimeinfo tests to assert the safe sampler contract and retained runtime counters.
+5. Update operating/memory specs to state periodic runtime telemetry must not call stop-the-world memory APIs or procfs file reads.
+
+Validation plan:
+
+- `go test -count=1 ./internal/runtimeinfo ./internal/observability ./pkg/web ./pkg/engine`
+- `make build`
+- Same-failure scan for remaining production `runtimeinfo.Capture()` callers and procfs reads.
+
+Artifact impact plan:
+
+- AGENTS.md: no update expected; the existing telemetry and liveness guardrails already cover the rule.
+- Runtime project skills: no update expected unless validation reveals a missing durable working rule.
+- Specs: update operating-principles and memory-management.
+- End-user/operator docs: no update expected; this is internal stability and telemetry-detail reduction.
+- End-user/operator skills: no update expected.
+- SOW lifecycle: keep reopened until implementation and validation finish, then close and move back to `done` with the fix commit.
+
+Open decisions:
+
+- None. The user already established that telemetry must never block or endanger service liveness. The selected approach is surgical: remove unsafe periodic sampling while preserving cheap runtime counters.
+
+### Regression Execution
+
+Implemented:
+
+- Replaced `runtimeinfo.Capture()` stop-the-world/procfs sampling with `runtime/metrics` for Go runtime counters.
+- Removed default `/proc/self/status`, `/proc/self/io`, and `/proc/self/fd` reads from periodic runtime sampling.
+- Kept `syscall.Getrusage()` process CPU counters.
+- Stopped exporting process RSS, VMS, data segment, process I/O, process I/O syscall, and open-FD gauges from the local metric schema because they are no longer collected by the daemon sampler.
+- Updated web/admin status behavior so procfs-derived fields remain optional/unset by default.
+- Updated operator docs and specs to direct OS process RSS, I/O, and FD monitoring to host monitoring instead of the application sampler.
+
+Validation:
+
+- `go test -count=1 ./internal/runtimeinfo ./internal/observability ./pkg/web ./pkg/engine` passed.
+- `make build` passed.
+- `make test` passed.
+- `make lint` passed.
+- `make staticcheck` still fails on the pre-existing broad `pkg/engine` `U1000` unused-code backlog. The output did not identify the runtime sampler or observability files changed by this regression fix.
+
+Same-failure scan:
+
+- `grep -R "runtime.ReadMemStats" -n internal pkg cmd --include='*.go' | grep -v '_test.go'` finds only the explanatory code comment in `internal/runtimeinfo/runtimeinfo.go`.
+- `grep -R '"/proc/self' -n internal pkg cmd --include='*.go'` finds no production procfs reads.
+- `grep -R "runtimeinfo.Capture" -n internal pkg cmd --include='*.go'` finds only the intended runtime, engine, and web/admin sampler call sites plus tests.
+
+Regression artifact maintenance:
+
+- AGENTS.md: no update; existing liveness and telemetry guardrails already apply.
+- Runtime project skills: no update; existing coding/testing/content rules covered this fix.
+- Specs: updated `operating-principles`, `memory-management`, and `admin-ui`.
+- End-user/operator docs: updated telemetry reference, runtime-status docs, and monitoring overview.
+- End-user/operator skills: no update.
+- SOW lifecycle: completed and moved back to `done` with the runtime sampler hotfix commit.

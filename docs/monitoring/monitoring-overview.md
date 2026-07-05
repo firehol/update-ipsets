@@ -30,7 +30,7 @@ These signals give the most operational insight.
 - **Download failure rate** — in exported metrics, compare `download.errors` and `download.fetches{download.status="error"}` against successful `download.fetches` statuses. In the admin API, inspect `engine.lifetime_metrics.counters` entries beginning with `download.status.`.
 - **Scheduler throughput** — sample `metrics.download_enqueued`, `metrics.download_started`, `metrics.download_finished`, `metrics.processing_enqueued`, and `metrics.processing_batches_completed`.
 - **Processing duration** — watch `engine.phase.duration_ms`, `engine.run.duration_ms`, `engine.last_metrics.phase_times`, and operation timings in `engine.lifetime_metrics.operations`.
-- **Memory** — track `system.rss_kb`, `system.heap_alloc`, `system.heap_sys`, `system.num_gc`, and host process charts. Sustained growth above `GOMEMLIMIT` suggests a leak or an unbounded workload.
+- **Memory** — track `system.heap_alloc`, `system.heap_sys`, `system.num_gc`, and host process charts for RSS/I/O pressure. Sustained growth above `GOMEMLIMIT` suggests a leak or an unbounded workload.
 - **Public/API activity** — in exported metrics, watch `http.server.request.duration` and `api.recalculation.*`. In the admin API, detailed counters such as `http.home_summary.requests`, `http.compare_set.requests`, `http.admin_status`, and `http.admin_feeds` remain under `engine.lifetime_metrics.counters`.
 
 ## Quick check with the admin API

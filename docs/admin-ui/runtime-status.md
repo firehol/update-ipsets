@@ -61,9 +61,9 @@ These counters are cumulative. To see what happened in the last hour, sample the
 The heartbeat shows the compact resource fields operators need most often: heap, goroutines, disk free, and integrity. The admin status API also exposes process-level resource snapshots under `system`:
 
 - **CPU** — user, system, and total seconds since start.
-- **Memory** — Go heap and OS process memory such as `rss_kb`, `vms_kb`, and `data_kb`.
-- **File descriptors** — open FD count.
-- **I/O** — process read/write byte counters and syscall counters.
+- **Memory** — Go heap counters from the application, plus host monitoring for RSS and I/O pressure.
+- **File descriptors** — use host monitoring for open FD count.
+- **I/O** — use host monitoring for process read/write bytes and syscall counters.
 
 ## Snapshot-diff workflow
 

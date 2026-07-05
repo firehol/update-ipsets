@@ -116,18 +116,18 @@ These fields appear under `system`. They are snapshots, not monotonic counters.
 | `go_version`, `goos`, `goarch` | Go runtime and platform |
 | `goroutines` | Current goroutine count |
 | `heap_alloc`, `heap_sys`, `heap_inuse`, `stack_inuse`, `sys` | Go runtime memory statistics in bytes |
-| `num_gc`, `last_gc_unix`, `gc_pause_total_ns` | Garbage-collection statistics |
+| `num_gc`, `last_gc_unix`, `gc_pause_total_ns` | Garbage-collection statistics; `last_gc_unix` may be unset when the safe runtime sampler cannot collect it without stop-the-world APIs |
 | `disk_free` | Free space string for the configured runtime disk |
-| `rss_kb`, `vms_kb`, `data_kb` | Process memory from the operating system, in KiB |
 | `cpu_user_seconds`, `cpu_system_seconds`, `cpu_total_seconds` | Process CPU usage |
-| `proc_read_bytes`, `proc_write_bytes`, `proc_cancelled_write_bytes` | Process I/O byte counters |
-| `proc_read_syscalls`, `proc_write_syscalls` | Process I/O syscall counters |
-| `open_fds` | Current open file descriptors |
+
+OS process memory, file descriptor, and process I/O counters are intentionally
+not collected by the application runtime sampler. Use host monitoring for
+those signals so admin/web serving does not depend on procfs reads.
 
 ## Default Metrics
 
 The default metric surface is deliberately small. It currently contains
-81 designed metric names before Prometheus expands counters and duration
+75 designed metric names before Prometheus expands counters and duration
 aggregates into text-format sample names.
 
 Detailed engine, scheduler, metadata, entity, file, and processor timings still
@@ -295,20 +295,11 @@ Allowed labels are `background.component` and `background.result`.
 | `runtime.go.stack.inuse.bytes` | Bytes in stack spans currently in use |
 | `runtime.go.sys.bytes` | Total bytes obtained from the OS by the Go runtime |
 | `runtime.go.gc.count` | Completed Go GC cycle count |
-| `runtime.go.gc.pause.total.ms` | Cumulative Go GC pause time in milliseconds |
+| `runtime.go.gc.pause.total.ms` | Cumulative Go GC pause estimate in milliseconds from runtime metrics |
 | `runtime.go.mem.limit.bytes` | Active Go memory limit, or `-1` when unlimited |
-| `runtime.process.rss.bytes` | Resident process memory from the OS |
-| `runtime.process.vms.bytes` | Virtual process memory from the OS |
-| `runtime.process.data.bytes` | Process data segment memory from the OS |
 | `runtime.process.cpu.user.ms` | Cumulative process user CPU time in milliseconds |
 | `runtime.process.cpu.system.ms` | Cumulative process system CPU time in milliseconds |
 | `runtime.process.cpu.total.ms` | Cumulative total process CPU time in milliseconds |
-| `runtime.process.read.bytes` | Process disk bytes read |
-| `runtime.process.write.bytes` | Process disk bytes written |
-| `runtime.process.cancelled_write.bytes` | Process cancelled write bytes |
-| `runtime.process.read.syscalls` | Process read syscall count |
-| `runtime.process.write.syscalls` | Process write syscall count |
-| `runtime.process.open_fds` | Current open file descriptor count |
 | `daemon.up` | Daemon liveness gauge, `1` while the process is scraping/exporting metrics |
 | `daemon.goroutine.panics` | Recovered daemon-control goroutine panics |
 | `daemon.watchdog.diagnostics` | Watchdog diagnostic events |

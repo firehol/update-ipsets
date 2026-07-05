@@ -40,22 +40,14 @@ func TestDetailedStatusFields(t *testing.T) {
 	}
 }
 
-func TestDetailedStatusRSSOnLinux(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("RSS reading is Linux-only")
-	}
-	// Verify /proc/self/status exists.
-	if _, err := os.Stat("/proc/self/status"); err != nil {
-		t.Skip("/proc/self/status not available")
-	}
-
+func TestDetailedStatusDoesNotExposeProcfsCountersByDefault(t *testing.T) {
 	setDetailedStatusCacheForTest(t, time.Time{}, detailedSystemInfo{})
 	info := detailedStatus()
-	if info.RSSKB == 0 {
-		t.Fatal("expected non-zero RSS on Linux")
+	if info.RSSKB != 0 || info.VMSKB != 0 || info.DataKB != 0 {
+		t.Fatalf("procfs memory counters = rss:%d vms:%d data:%d, want unset", info.RSSKB, info.VMSKB, info.DataKB)
 	}
-	if info.VMSKB == 0 {
-		t.Fatal("expected non-zero VMS on Linux")
+	if info.ProcReadBytes != 0 || info.ProcWriteBytes != 0 || info.OpenFDs != 0 {
+		t.Fatalf("procfs I/O/fd counters = read:%d write:%d fds:%d, want unset", info.ProcReadBytes, info.ProcWriteBytes, info.OpenFDs)
 	}
 }
 

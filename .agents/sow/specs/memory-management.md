@@ -174,6 +174,16 @@ buffers SHOULD be bounded by worker concurrency so full catalog rebuilds do not
 retain every completed feed sidecar in a channel while slower staging work
 catches up.
 
+## Runtime telemetry sampling contract
+
+Periodic runtime telemetry MUST be safe under memory and I/O pressure. The
+default sampler MUST NOT call stop-the-world memory APIs such as
+`runtime.ReadMemStats`, read `/proc/self/*`, walk file descriptors, or perform
+broad filesystem diagnostics. Go runtime counters SHOULD come from the runtime
+metrics API or equivalent non-stop-the-world sources. OS process RSS, process
+I/O, and open-FD counts are optional diagnostics and SHOULD come from host
+monitoring rather than the application sampler.
+
 Admin/status response builders SHOULD reuse already-created snapshots inside a
 single response construction path when the same source of truth is needed by
 multiple sections. They MUST NOT trade this for stale cross-request state; each
