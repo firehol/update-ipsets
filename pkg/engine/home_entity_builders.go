@@ -18,6 +18,7 @@ type entityOutputView struct {
 	e            *Engine
 	runtime      Runtime
 	stageDir     string
+	cache        bool
 	mu           *sync.Mutex
 	countryCache map[string]countryComparisonCacheEntry
 	asnCache     map[string]asnRowsCacheEntry
@@ -41,10 +42,28 @@ func newEntityOutputView(e *Engine, stageDir string) entityOutputView {
 }
 
 func newEntityOutputViewWithRuntime(e *Engine, rt Runtime, stageDir string) entityOutputView {
+	return newEntityOutputViewWithRuntimeCache(e, rt, stageDir, false)
+}
+
+func newCachedEntityOutputViewWithRuntime(e *Engine, rt Runtime, stageDir string) entityOutputView {
+	return newEntityOutputViewWithRuntimeCache(e, rt, stageDir, true)
+}
+
+func newEntityOutputViewWithRuntimeCache(e *Engine, rt Runtime, stageDir string, cache bool) entityOutputView {
+	view := entityOutputView{
+		e:        e,
+		runtime:  rt,
+		stageDir: strings.TrimSpace(stageDir),
+		cache:    cache,
+	}
+	if !cache {
+		return view
+	}
 	return entityOutputView{
 		e:            e,
 		runtime:      rt,
 		stageDir:     strings.TrimSpace(stageDir),
+		cache:        true,
 		mu:           &sync.Mutex{},
 		countryCache: map[string]countryComparisonCacheEntry{},
 		asnCache:     map[string]asnRowsCacheEntry{},
@@ -55,8 +74,9 @@ func (v entityOutputView) countryComparison(name, provider string) (*CountryComp
 	if v.e == nil || provider == "" {
 		return nil, fmt.Errorf("country provider is not configured")
 	}
-	key := name + "\x00" + provider
-	if v.mu != nil {
+	key := ""
+	if v.cache && v.mu != nil {
+		key = name + "\x00" + provider
 		v.mu.Lock()
 		if cached, ok := v.countryCache[key]; ok {
 			v.mu.Unlock()
@@ -72,7 +92,7 @@ func (v entityOutputView) countryComparison(name, provider string) (*CountryComp
 	pathGroups = append(pathGroups, geoCountryCandidatePaths(outputDirForRuntime(v.runtime), name, provider))
 	data, err := readFirstExisting(pathGroups...)
 	if err != nil {
-		if v.mu != nil {
+		if v.cache && v.mu != nil {
 			v.mu.Lock()
 			v.countryCache[key] = countryComparisonCacheEntry{err: err}
 			v.mu.Unlock()
@@ -82,7 +102,7 @@ func (v entityOutputView) countryComparison(name, provider string) (*CountryComp
 	v.e.observeRunCounter("entity.output_view.country_json_read", 1, int64(len(data)))
 	var payload CountryComparisonPayload
 	if err := json.Unmarshal(data, &payload); err != nil {
-		if v.mu != nil {
+		if v.cache && v.mu != nil {
 			v.mu.Lock()
 			v.countryCache[key] = countryComparisonCacheEntry{err: err}
 			v.mu.Unlock()
@@ -90,7 +110,7 @@ func (v entityOutputView) countryComparison(name, provider string) (*CountryComp
 		return nil, err
 	}
 	v.e.observeRunCounter("entity.output_view.country_json_decode", 1, int64(len(data)))
-	if v.mu != nil {
+	if v.cache && v.mu != nil {
 		v.mu.Lock()
 		v.countryCache[key] = countryComparisonCacheEntry{payload: &payload}
 		v.mu.Unlock()
@@ -110,8 +130,9 @@ func (v entityOutputView) topASNsWithError(name, provider string) ([]topASNRow, 
 	if v.e == nil || provider == "" {
 		return nil, fmt.Errorf("ASN provider is not configured")
 	}
-	key := name + "\x00" + provider
-	if v.mu != nil {
+	key := ""
+	if v.cache && v.mu != nil {
+		key = name + "\x00" + provider
 		v.mu.Lock()
 		if cached, ok := v.asnCache[key]; ok {
 			v.mu.Unlock()
@@ -127,7 +148,7 @@ func (v entityOutputView) topASNsWithError(name, provider string) ([]topASNRow, 
 	pathGroups = append(pathGroups, asnCandidatePaths(outputDirForRuntime(v.runtime), name, provider))
 	data, err := readFirstExisting(pathGroups...)
 	if err != nil {
-		if v.mu != nil {
+		if v.cache && v.mu != nil {
 			v.mu.Lock()
 			v.asnCache[key] = asnRowsCacheEntry{err: err}
 			v.mu.Unlock()
@@ -143,7 +164,7 @@ func (v entityOutputView) topASNsWithError(name, provider string) ([]topASNRow, 
 		} `json:"by_asn"`
 	}
 	if err := json.Unmarshal(data, &payload); err != nil {
-		if v.mu != nil {
+		if v.cache && v.mu != nil {
 			v.mu.Lock()
 			v.asnCache[key] = asnRowsCacheEntry{err: err}
 			v.mu.Unlock()
@@ -155,7 +176,7 @@ func (v entityOutputView) topASNsWithError(name, provider string) ([]topASNRow, 
 	for _, row := range payload.ByASN {
 		rows = append(rows, topASNRow{ASN: row.ASN, Name: row.Name, Count: row.Count})
 	}
-	if v.mu != nil {
+	if v.cache && v.mu != nil {
 		v.mu.Lock()
 		v.asnCache[key] = asnRowsCacheEntry{rows: append([]topASNRow(nil), rows...)}
 		v.mu.Unlock()

@@ -37,6 +37,7 @@ type entityArtifactWriteState struct {
 	liveSidecars     map[string]*feedEntitySidecar
 	liveSidecarNames map[string]struct{}
 	newSidecars      map[string]*feedEntitySidecar
+	newSidecarNames  map[string]struct{}
 	feedTimes        map[string]time.Time
 	changedFeeds     map[string]struct{}
 
@@ -156,21 +157,37 @@ func (s *entityArtifactWriteState) loadFeedSidecars() error {
 		}
 	}
 	s.feedTimes = e.loadFeedEntitySidecarMTimesWithRuntime(s.snapshot.runtime)
+	if s.full {
+		return s.buildAndStageFullFeedSidecars()
+	}
 	s.newSidecars, err = e.buildFeedEntitySidecarsWithSnapshot(s.ctx, s.snapshot, s.targetFeeds, s.view, s.task)
 	return err
 }
 
-func (s *entityArtifactWriteState) stageFeedSidecars() error {
-	if s.full {
-		if err := s.markStaleFeedSidecarDeletesForFullRebuild(); err != nil {
+func (s *entityArtifactWriteState) buildAndStageFullFeedSidecars() error {
+	s.newSidecarNames = make(map[string]struct{}, len(s.targetFeeds))
+	return s.engine.visitBuiltFeedEntitySidecarsWithSnapshot(s.ctx, s.snapshot, s.targetFeeds, s.view, s.task, func(name string, sidecar *feedEntitySidecar) error {
+		if sidecar == nil {
+			return nil
+		}
+		s.newSidecarNames[name] = struct{}{}
+		if err := s.stageFeedSidecar(name, sidecar); err != nil {
 			return err
 		}
+		s.addAffectedSidecarEntities(sidecar)
+		return nil
+	})
+}
+
+func (s *entityArtifactWriteState) stageFeedSidecars() error {
+	if s.full {
+		return s.markStaleFeedSidecarDeletesForFullRebuild()
 	}
 	for _, name := range s.targetFeeds {
 		if err := contextErr(s.ctx); err != nil {
 			return err
 		}
-		if err := s.stageFeedSidecar(name); err != nil {
+		if err := s.stageFeedSidecar(name, s.newSidecars[name]); err != nil {
 			return err
 		}
 	}
@@ -183,7 +200,7 @@ func (s *entityArtifactWriteState) markStaleFeedSidecarDeletesForFullRebuild() e
 		if err := contextErr(s.ctx); err != nil {
 			return err
 		}
-		if _, ok := s.newSidecars[name]; !ok {
+		if _, ok := s.newSidecarNames[name]; !ok {
 			s.entityBatch.markDelete(e.entityFeedSidecarRelPath(name))
 		}
 	}
@@ -201,9 +218,8 @@ func (s *entityArtifactWriteState) markStaleFeedSidecarDeletesForFullRebuild() e
 	return nil
 }
 
-func (s *entityArtifactWriteState) stageFeedSidecar(name string) error {
+func (s *entityArtifactWriteState) stageFeedSidecar(name string, sidecar *feedEntitySidecar) error {
 	e := s.engine
-	sidecar := s.newSidecars[name]
 	_, sidecarRefTime, err := e.entityFeedSidecarReferenceInOutputDirWithSnapshot(
 		s.snapshot,
 		name,
@@ -257,17 +273,14 @@ func (s *entityArtifactWriteState) currentSidecarReplacements() map[string]*feed
 }
 
 func (s *entityArtifactWriteState) walkCurrentFeedSidecars(visit feedEntitySidecarVisitFunc) error {
+	if s.full {
+		return s.engine.walkFeedEntitySidecarsInDir(s.ctx, filepath.Join(s.entityBatch.stageDir, "feeds"), visit)
+	}
 	return s.engine.walkMergedFeedEntitySidecarsWithRuntime(s.ctx, s.snapshot.runtime, s.currentSidecarReplacements(), s.full, visit)
 }
 
 func (s *entityArtifactWriteState) collectAffectedEntities() error {
 	if s.full {
-		for _, name := range sortedFeedEntitySidecarNames(s.newSidecars) {
-			if err := contextErr(s.ctx); err != nil {
-				return err
-			}
-			s.addAffectedSidecarEntities(s.newSidecars[name])
-		}
 		return nil
 	}
 	for _, name := range s.targetFeeds {

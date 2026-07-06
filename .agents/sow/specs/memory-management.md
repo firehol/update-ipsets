@@ -183,6 +183,13 @@ buffers SHOULD be bounded by worker concurrency so full catalog rebuilds do not
 retain every completed feed sidecar in a channel while slower staging work
 catches up.
 
+Entity comparison input readers used by aggregate, sidecar, country detail, and
+ASN detail builders MUST treat decoded country/ASN comparison JSON payloads as
+single-pass scratch by default. A decoded-payload cache MAY exist only behind an
+explicit opt-in for a caller that proves repeated reads in the same operation;
+the cache MUST remain scoped to that operation and MUST NOT become cross-run or
+cross-request state.
+
 ## Runtime telemetry sampling contract
 
 Periodic runtime telemetry MUST be safe under memory and I/O pressure. The

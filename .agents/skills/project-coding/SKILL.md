@@ -72,6 +72,10 @@ description: "Go, React, config, and repo conventions for update-ipsets. MUST be
   or feed-presence indexes. Do not reintroduce decoded all-sidecar maps in
   these hot paths unless a SOW proves the bounded-memory impact and records why
   streaming cannot preserve the artifact contract (from SOW-0125).
+- Entity comparison input readers used by aggregate, sidecar, country detail,
+  and ASN detail builders must not retain decoded country/ASN comparison JSON
+  payloads by default. Keep any decoded-payload cache explicit, operation-local,
+  and justified by repeated reads in the same operation (from SOW-0126).
 - Merge composition has signed inputs: additive `sources` and subtractive `exclude`. Preserve both the full dependency list and the signed include/exclude lists; do not overload `DerivedFrom` or `merge_excluded` when adding merge behavior (from SOW-0025).
 - Merge-derived feeds may carry supported `use:` roles. When adding one, prove the role propagates from merge YAML to the expanded `Source`, the provider list, generated artifact expectations, and public serving path (from SOW-0025 regression).
 - Configured subtractive merge inputs are strict dependencies for any otherwise-computable merge. Missing or disabled subtractive parents block publication; archived, unmaintained, or currently failing subtractive parents must still be applied when their durable local canonical body exists, because skipping a materialized subtraction would broaden the merge output (from SOW-0025 regression and SOW-0116 integrity follow-up).

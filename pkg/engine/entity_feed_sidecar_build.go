@@ -26,12 +26,26 @@ func (e *Engine) buildFeedEntitySidecars(ctx context.Context, names []string, vi
 }
 
 func (e *Engine) buildFeedEntitySidecarsWithSnapshot(ctx context.Context, snap operationSnapshot, names []string, view entityOutputView, task *BackgroundTaskHandle) (map[string]*feedEntitySidecar, error) {
-	ctx = nonNilContext(ctx)
-	if err := contextErr(ctx); err != nil {
+	out := make(map[string]*feedEntitySidecar, len(names))
+	err := e.visitBuiltFeedEntitySidecarsWithSnapshot(ctx, snap, names, view, task, func(name string, sidecar *feedEntitySidecar) error {
+		if sidecar != nil {
+			out[name] = sidecar
+		}
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
+	return out, nil
+}
+
+func (e *Engine) visitBuiltFeedEntitySidecarsWithSnapshot(ctx context.Context, snap operationSnapshot, names []string, view entityOutputView, task *BackgroundTaskHandle, visit func(name string, sidecar *feedEntitySidecar) error) error {
+	ctx = nonNilContext(ctx)
+	if err := contextErr(ctx); err != nil {
+		return err
+	}
 	if len(names) == 0 {
-		return nil, nil
+		return nil
 	}
 	geoProvider := preferredGeoProviderForConfig(snap.cfg)
 	asnProvider := preferredASNProviderForConfig(snap.cfg)
@@ -45,7 +59,6 @@ func (e *Engine) buildFeedEntitySidecarsWithSnapshot(ctx context.Context, snap o
 		asnDB = asnLease.Database()
 	}
 
-	out := make(map[string]*feedEntitySidecar, len(names))
 	if task != nil {
 		task.Update("building feed sidecars", fmt.Sprintf("computing entity sidecars for %d feeds", len(names)), 0, len(names))
 	}
@@ -70,7 +83,14 @@ func (e *Engine) buildFeedEntitySidecarsWithSnapshot(ctx context.Context, snap o
 			continue
 		}
 		if result.sidecar != nil {
-			out[result.name] = result.sidecar
+			if visit != nil {
+				if err := visit(result.name, result.sidecar); err != nil {
+					if errs.add(fmt.Errorf("visit built feed entity sidecar %s: %w", result.name, err)) {
+						cancel()
+					}
+					continue
+				}
+			}
 		}
 		progress++
 		if task != nil {
@@ -78,12 +98,12 @@ func (e *Engine) buildFeedEntitySidecarsWithSnapshot(ctx context.Context, snap o
 		}
 	}
 	if err := errs.err(); err != nil {
-		return nil, err
+		return err
 	}
 	if err := contextErr(buildCtx); err != nil {
-		return nil, err
+		return err
 	}
-	return out, nil
+	return nil
 }
 
 func (e *Engine) stageFeedEntitySidecarsFromLoadedProviders(ctx context.Context, geoProviders geoPreparedProviders, asnDBs asnDatasets, updatedNames []string, webStageDir string, entityBatch *stagedPublishBatch, setCache *latestSetCache) ([]string, error) {

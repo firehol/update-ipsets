@@ -11,11 +11,15 @@ type feedEntitySidecarVisitFunc func(name string, sidecar *feedEntitySidecar) er
 type feedEntitySidecarWalker func(feedEntitySidecarVisitFunc) error
 
 func (e *Engine) walkCommittedFeedEntitySidecarsWithRuntime(ctx context.Context, rt Runtime, visit feedEntitySidecarVisitFunc) error {
+	return e.walkFeedEntitySidecarsInDir(ctx, entityFeedsDirForRuntime(rt), visit)
+}
+
+func (e *Engine) walkFeedEntitySidecarsInDir(ctx context.Context, dir string, visit feedEntitySidecarVisitFunc) error {
 	ctx = nonNilContext(ctx)
 	if visit == nil {
 		return nil
 	}
-	paths, err := sortedJSONFiles(entityFeedsDirForRuntime(rt))
+	paths, err := sortedJSONFiles(dir)
 	if err != nil {
 		return err
 	}
