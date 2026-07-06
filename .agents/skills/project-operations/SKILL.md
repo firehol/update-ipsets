@@ -26,21 +26,22 @@ description: "Install, daemon, admin, and runtime operation guidance for update-
   `.agents/sow/specs/files-layout.md`).
 - Daemon-created mutable runtime/publication artifacts are owner-private:
   managed installs use `0600` for non-executable files, `0700` for directories,
-  and `UMask=0077`; reinstall repairs existing mutable runtime trees to those
-  modes (evidence: `install.sh`,
+  and `UMask=0077`; normal reinstall ensures the bounded mutable directory
+  roots exist with the right owner/group/mode and does not recursively rewrite
+  existing runtime trees. Explicit repair is available with
+  `./install.sh --repair-runtime-permissions` and must change only paths with
+  owner/group/mode drift (evidence: `install.sh`,
   `.agents/sow/specs/files-layout.md`).
 - Install command wrappers must preserve the real failing command status. Do
   not use `if ! "$@"; then exit_code=$?` because `$?` becomes the negated
   status inside the block. Use a positive `if "$@"; then return 0; else ...`
   form or another pattern that records the command status before negation.
-- Reinstall permission repair can race with a running daemon's mutable temp
-  files. For managed live installs, use race-aware traversal such as GNU
-  `find ... -ignore_readdir_race` on daemon-owned runtime/publication trees, or
-  stop the daemon first if strict traversal is required.
+- Explicit runtime permission repair must stop the daemon when it is active.
+  Normal live installs must not scan or rewrite daemon-owned runtime trees.
 - Managed installs may compact generated `data/` and `web/` Git object stores
-  during mutable runtime repair, after ownership repair and only when the
-  service is stopped or not running. This is private Git maintenance for
-  generated publication trees; it must not rewrite feed files or public
+  only during explicit mutable runtime repair, after ownership repair and only
+  when the service is stopped or not running. This is private Git maintenance
+  for generated publication trees; it must not rewrite feed files or public
   artifacts.
 
 ## Important environment

@@ -35,6 +35,8 @@
 # Usage:
 #   ./install.sh                          # full install to /opt/update-ipsets, restart service
 #   ./install.sh --no-restart             # install but do not restart
+#   ./install.sh --repair-runtime-permissions
+#                                         # also stop service and repair mutable runtime ownership/modes
 #   ./install.sh /opt/custom              # install to custom directory
 #   ./install.sh /opt/custom --no-restart
 #
@@ -100,13 +102,43 @@ repair_git_object_stores() {
   done
 }
 
+repair_mutable_runtime_permissions() {
+  local install_dir="$1"
+  local roots=(
+    "${install_dir}/data"
+    "${install_dir}/cache"
+    "${install_dir}/lib"
+    "${install_dir}/web"
+    "${install_dir}/run"
+    "${install_dir}/tmp"
+  )
+
+  echo -e "${GREEN}Repairing mutable runtime ownership and permissions...${NC}"
+  run sudo find "${roots[@]}" \
+    -ignore_readdir_race \
+    \( -type d -o -type f \) \
+    \( ! -user iplists -o ! -group iplists \) \
+    -exec chown iplists:iplists {} +
+  run sudo find "${roots[@]}" \
+    -ignore_readdir_race \
+    -type d \
+    ! -perm 0700 \
+    -exec chmod 0700 {} +
+  run sudo find "${roots[@]}" \
+    -ignore_readdir_race \
+    -type f \
+    ! -perm 0600 \
+    -exec chmod 0600 {} +
+}
+
 SERVICE_STOPPED_FOR_INSTALL=0
-MUTABLE_REPAIR_ALLOWED=0
 stop_active_service_for_mutable_repair() {
-  if [ "$RESTART" -ne 1 ]; then
-    return 0
-  fi
   if systemctl is-active --quiet update-ipsets; then
+    if [ "$RESTART" -ne 1 ]; then
+      echo -e "${RED}[ERROR]${NC} --repair-runtime-permissions cannot run against an active service with --no-restart." >&2
+      echo "        Stop the service manually first, or omit --no-restart so the installer can stop and start it." >&2
+      exit 2
+    fi
     echo -e "${GREEN}Stopping update-ipsets before repairing mutable runtime trees...${NC}"
     run sudo systemctl stop update-ipsets
     SERVICE_STOPPED_FOR_INSTALL=1
@@ -116,13 +148,17 @@ stop_active_service_for_mutable_repair() {
 # Parse arguments: positional = install dir, --no-restart anywhere = skip restart.
 INSTALL_DIR="/opt/update-ipsets"
 RESTART=1
+REPAIR_RUNTIME_PERMISSIONS=0
 for arg in "$@"; do
   case "$arg" in
     --no-restart)
       RESTART=0
       ;;
+    --repair-runtime-permissions)
+      REPAIR_RUNTIME_PERMISSIONS=1
+      ;;
     -h|--help)
-      sed -n '2,34p' "$0"
+      sed -n '2,42p' "$0"
       exit 0
       ;;
     -*)
@@ -137,6 +173,12 @@ done
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
+
+if [ "$REPAIR_RUNTIME_PERMISSIONS" -eq 1 ] && [ "$RESTART" -eq 0 ] && systemctl is-active --quiet update-ipsets; then
+  echo -e "${RED}[ERROR]${NC} --repair-runtime-permissions cannot run against an active service with --no-restart." >&2
+  echo "        Stop the service manually first, or omit --no-restart so the installer can stop and start it." >&2
+  exit 2
+fi
 
 # ----------------------------------------------------------------------------
 # Step 1: Build the React UI
@@ -208,25 +250,6 @@ run go build \
 # ----------------------------------------------------------------------------
 
 echo -e "${GREEN}[5/7] Installing to ${INSTALL_DIR}…${NC}"
-run sudo mkdir -p \
-    "${INSTALL_DIR}/bin" \
-    "${INSTALL_DIR}/etc" \
-    "${INSTALL_DIR}/data/history" \
-    "${INSTALL_DIR}/data/errors" \
-    "${INSTALL_DIR}/cache" \
-    "${INSTALL_DIR}/lib" \
-    "${INSTALL_DIR}/web/files" \
-    "${INSTALL_DIR}/run" \
-    "${INSTALL_DIR}/tmp"
-
-if [ "$RESTART" -eq 0 ] && systemctl is-active --quiet update-ipsets; then
-    echo -e "${YELLOW}Skipping stale publish stage repair while update-ipsets is running with --no-restart.${NC}"
-    echo "      Restart the service and run the installer without --no-restart to repair generated stage directories safely."
-else
-    stop_active_service_for_mutable_repair
-    repair_stale_publish_stages "${INSTALL_DIR}"
-    MUTABLE_REPAIR_ALLOWED=1
-fi
 
 # Create service identity if missing. The group is explicit because some
 # useradd policies do not create a same-name group for system users.
@@ -237,6 +260,31 @@ fi
 if ! id -u iplists >/dev/null 2>&1; then
     echo -e "${GREEN}Creating iplists system user...${NC}"
     run sudo useradd --system --gid iplists --home-dir "${INSTALL_DIR}" --no-create-home --shell /usr/sbin/nologin iplists
+fi
+
+run sudo install -d -o root -g iplists -m 0750 \
+    "${INSTALL_DIR}" \
+    "${INSTALL_DIR}/bin" \
+    "${INSTALL_DIR}/etc"
+run sudo install -d -o iplists -g iplists -m 0700 \
+    "${INSTALL_DIR}/data" \
+    "${INSTALL_DIR}/data/history" \
+    "${INSTALL_DIR}/data/errors" \
+    "${INSTALL_DIR}/cache" \
+    "${INSTALL_DIR}/lib" \
+    "${INSTALL_DIR}/web" \
+    "${INSTALL_DIR}/web/files" \
+    "${INSTALL_DIR}/run" \
+    "${INSTALL_DIR}/tmp"
+
+if [ "$REPAIR_RUNTIME_PERMISSIONS" -eq 1 ]; then
+    stop_active_service_for_mutable_repair
+    repair_stale_publish_stages "${INSTALL_DIR}"
+    repair_mutable_runtime_permissions "${INSTALL_DIR}"
+    repair_git_object_stores "${INSTALL_DIR}"
+else
+    echo -e "${GREEN}Skipping mutable runtime repair during normal install.${NC}"
+    echo "      Use --repair-runtime-permissions to stop the service and repair existing runtime ownership/modes."
 fi
 
 run sudo install -o root -g iplists -m 0750 update-ipsets "${INSTALL_DIR}/bin/update-ipsets"
@@ -290,37 +338,6 @@ run sudo chmod 0750 "${INSTALL_DIR}" "${INSTALL_DIR}/bin" "${INSTALL_DIR}/etc"
 run sudo chmod 0750 "${INSTALL_DIR}/bin/update-ipsets"
 run sudo find "${INSTALL_DIR}/etc" -type d -exec chmod 0750 {} +
 run sudo find "${INSTALL_DIR}/etc" -type f -exec chmod 0640 {} +
-run sudo chown -R iplists:iplists \
-    "${INSTALL_DIR}/data" \
-    "${INSTALL_DIR}/cache" \
-    "${INSTALL_DIR}/lib" \
-    "${INSTALL_DIR}/web" \
-    "${INSTALL_DIR}/run" \
-    "${INSTALL_DIR}/tmp"
-run sudo find \
-    "${INSTALL_DIR}/data" \
-    "${INSTALL_DIR}/cache" \
-    "${INSTALL_DIR}/lib" \
-    "${INSTALL_DIR}/web" \
-    "${INSTALL_DIR}/run" \
-    "${INSTALL_DIR}/tmp" \
-    -ignore_readdir_race \
-    -type d -exec chmod 0700 {} +
-run sudo find \
-    "${INSTALL_DIR}/data" \
-    "${INSTALL_DIR}/cache" \
-    "${INSTALL_DIR}/lib" \
-    "${INSTALL_DIR}/web" \
-    "${INSTALL_DIR}/run" \
-    "${INSTALL_DIR}/tmp" \
-    -ignore_readdir_race \
-    -type f -exec chmod 0600 {} +
-
-if [ "$MUTABLE_REPAIR_ALLOWED" -eq 1 ]; then
-    repair_git_object_stores "${INSTALL_DIR}"
-else
-    echo -e "${YELLOW}Skipping generated git repository maintenance while update-ipsets may be running.${NC}"
-fi
 
 # Per-feed HTML description pages are embedded into the binary at
 # build time (pkg/web/static/feed-descriptions/*.html via //go:embed).

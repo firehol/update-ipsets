@@ -25,6 +25,10 @@ The install script:
 - Installs or updates the systemd unit
 - Creates a timestamped backup of the previous configuration if it changed
 
+When the service is already running, the installer keeps the old daemon serving
+while it performs those steps. The new binary and generated unit take effect at
+the final restart.
+
 The configuration backup covers the YAML catalog update. Markdown templates are
 copied separately: identical templates are left alone, but differing repository
 template files are overwritten in place under the installed template directory.
@@ -32,9 +36,9 @@ Keep customized templates or patches outside the install tree before updating.
 
 ## Restart
 
-`./install.sh` restarts the service when it is already active. If the service is
-enabled but inactive, the installer starts it. If the service is not enabled, or
-if you used `--no-restart`, restart manually when you are ready:
+`./install.sh` restarts the service at the end when it is already active. If the
+service is enabled but inactive, the installer starts it. If the service is not
+enabled, or if you used `--no-restart`, restart manually when you are ready:
 
 ```bash
 sudo systemctl restart update-ipsets
@@ -47,11 +51,11 @@ background work after startup.
 
 ## Zero-downtime considerations
 
-The daemon usually restarts quickly, but very large catalogs or slow disks can
-add startup latency because the feed-output integrity check runs before the
-listeners are marked ready. If you have a reverse proxy in front of
-update-ipsets, the proxy's health check against `/healthz` detects the brief
-unavailability and retries.
+Normal installs do the build, copy, and systemd unit update while the old daemon
+is still serving. The unavoidable downtime for a binary update is the final
+process restart. If you have a reverse proxy in front of update-ipsets, the
+proxy's health check against `/healthz` detects the brief unavailability and
+retries.
 
 For true zero-downtime, run two instances behind a load balancer and restart them one at a time.
 

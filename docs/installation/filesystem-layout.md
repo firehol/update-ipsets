@@ -117,9 +117,15 @@ Files with a `.new` suffix are staged inputs waiting for the processing engine t
 The managed install makes `data/`, `cache/`, `lib/`, `web/`, `run/`, and `tmp/`
 owned by `iplists:iplists` and searchable only by the service user. The generated
 systemd unit grants write access only to those mutable runtime directories, not
-to the full install tree. The unit sets `UMask=0077`, and reinstalling repairs
-existing generated directories to `0700` and generated non-executable files to
-`0600`.
+to the full install tree. The unit sets `UMask=0077`, so daemon-created runtime
+directories use `0700` and daemon-created non-executable files use `0600`.
+
+Normal reinstalls do not recursively scan or rewrite existing generated runtime
+trees. They only ensure the bounded runtime directory roots exist with the right
+owner/group/mode. Use `./install.sh --repair-runtime-permissions` when a
+migration or manual intervention damaged existing runtime permissions; that
+maintenance mode stops the service and changes only paths whose owner, group, or
+mode is wrong.
 
 Daemon-created runtime files are readable only by the `iplists` service user.
 Public access to feed data and website artifacts is provided by the daemon's

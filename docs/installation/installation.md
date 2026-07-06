@@ -38,9 +38,14 @@ The installer does these things in order:
 6. Installs the binary to `/opt/update-ipsets/bin/update-ipsets`
 7. Deploys the feed catalog from `configs/firehol/` to `/opt/update-ipsets/etc/config/`
 8. Copies Markdown templates from `configs/templates/markdown/` to `/opt/update-ipsets/etc/config/templates/markdown/`
-9. Makes `bin/` and `etc/` owned by `root:iplists` with group-only access, and makes runtime directories writable by `iplists`
+9. Makes `bin/` and `etc/` owned by `root:iplists` with group-only access, and ensures runtime directory roots are writable by `iplists`
 10. Installs the systemd unit at `/etc/systemd/system/update-ipsets.service`
-11. Reloads systemd, restarts the service if it is active, starts it if it is enabled but inactive, or leaves it stopped if it is not enabled
+11. Reloads systemd, then restarts the service if it is active, starts it if it is enabled but inactive, or leaves it stopped if it is not enabled
+
+When the service is already running, normal installs keep the old daemon serving
+while the new binary, catalog, templates, and unit are installed. The running
+daemon does not watch those files automatically. It picks up the new binary and
+unit only at the final restart.
 
 ## Installed service defaults
 
@@ -84,6 +89,25 @@ Add `--no-restart` to install without restarting the running service:
 ```
 
 The new binary takes effect on the next manual restart.
+
+### Repair runtime permissions
+
+Normal installs do not recursively scan or rewrite the mutable runtime trees
+under `data/`, `cache/`, `lib/`, `web/`, `run/`, and `tmp/`. The daemon creates
+new runtime files with private permissions through the managed systemd
+`UMask=0077`, and the installer only ensures the bounded directory roots exist
+with the correct owner/group/mode.
+
+If a migration or manual change damaged existing runtime permissions, run:
+
+```bash
+./install.sh --repair-runtime-permissions
+```
+
+This explicit maintenance mode stops the active service, removes stale generated
+publish-stage directories, scans the mutable runtime trees, and changes only
+paths whose owner, group, or mode is wrong. It also compacts generated Git object
+stores when present.
 
 ## Configuration and template handling on reinstall
 

@@ -102,8 +102,12 @@ For managed systemd installs:
 - managed systemd installs MUST set a compatible process umask, currently
   `UMask=0077`, so direct file and directory creation preserves the generated
   artifact permission contract
-- install and packaging flows MUST repair existing mutable runtime directories
-  and files to the same directory/file modes during reinstall
+- normal install and packaging flows MUST ensure the bounded mutable runtime
+  directory roots exist with the correct owner/group/mode, but MUST NOT
+  recursively rewrite existing mutable runtime trees during every reinstall
+- explicit mutable-runtime repair flows MUST be available for permission drift;
+  those flows MUST scan for wrong owner/group/mode and invoke `chown`/`chmod`
+  only for paths that need a change
 - public HTTP availability is provided by the daemon or configured serving
   process, not by making generated runtime/publication files world-readable
 - systemd write access SHOULD be scoped to mutable runtime directories instead
@@ -761,10 +765,10 @@ state and MUST NOT leave an engine-lane slot held indefinitely.
 
 The `.git/` directories under generated publication trees are private Git
 object stores, not product data. When generated Git publication is enabled, the
-runtime MAY run Git auto-maintenance after sync attempts. During managed
-installs where mutable runtime repair is allowed and the service is stopped, the
-installer MAY compact/prune these generated Git object stores without changing
-working-tree content.
+runtime MAY run Git auto-maintenance after sync attempts. During explicit
+managed install repair where mutable runtime repair is requested and the service
+is stopped, the installer MAY compact/prune these generated Git object stores
+without changing working-tree content.
 
 ## Staging and temporary naming rules
 

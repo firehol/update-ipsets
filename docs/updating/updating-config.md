@@ -29,7 +29,8 @@ git pull
 
 - Updated files are deployed to `/opt/update-ipsets/etc/config/`
 - The previous config directory is preserved as a timestamped backup
-- An active service is restarted by the installer unless you pass `--no-restart`
+- An active service keeps running while files are deployed, then is restarted at
+  the end unless you pass `--no-restart`
 
 Markdown templates are updated separately from the YAML catalog:
 
