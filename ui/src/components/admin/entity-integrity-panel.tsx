@@ -3,7 +3,10 @@ import { CheckCircle2, Play, RefreshCw, Wrench } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { EntityIntegrityFinding } from "@/lib/api-types";
-import { adminRebuildEntityArtifacts } from "@/lib/api-client/admin";
+import {
+  adminEntityIntegrityRefresh,
+  adminRebuildEntityArtifacts,
+} from "@/lib/api-client/admin";
 import { queryKeys } from "@/lib/query-keys";
 import { adminEntityIntegrityOptions } from "@/lib/queries/admin";
 import { Button } from "@/components/ui/button";
@@ -16,7 +19,28 @@ export function EntityIntegrityPanel() {
     ...adminEntityIntegrityOptions(),
     retry: false,
     refetchInterval: (state) =>
-      state.state.data?.status === "in_progress" ? 5000 : false,
+      state.state.data?.running ||
+      state.state.data?.queued ||
+      state.state.data?.startup_scan_running
+        ? 5000
+        : false,
+  });
+
+  const refreshIntegrity = useMutation({
+    mutationFn: adminEntityIntegrityRefresh,
+    onSuccess: (result) => {
+      if (result.status === "in_progress") {
+        toast.info("Entity integrity check is already queued or running");
+      } else {
+        toast.success("Queued entity integrity re-check");
+      }
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.adminEntityIntegrity(),
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.adminStatus() });
+    },
+    onError: (e: Error) =>
+      toast.error(`Entity integrity re-check failed: ${e.message}`),
   });
 
   const rebuildAll = useMutation({
@@ -29,7 +53,9 @@ export function EntityIntegrityPanel() {
       }
       setConfirmRebuild(false);
       queryClient.invalidateQueries({ queryKey: queryKeys.adminStatus() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.adminEntityIntegrity() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.adminEntityIntegrity(),
+      });
     },
     onError: (e: Error) => {
       toast.error(`Entity rebuild failed: ${e.message}`);
@@ -40,6 +66,11 @@ export function EntityIntegrityPanel() {
   const findings = query.data?.findings ?? [];
   const count = query.data?.count ?? 0;
   const status = query.data?.status ?? "clean";
+  const integrityWorkActive = Boolean(
+    query.data?.running ||
+    query.data?.queued ||
+    query.data?.startup_scan_running,
+  );
 
   return (
     <section id="admin-entity-integrity-panel" className="mb-12">
@@ -49,12 +80,12 @@ export function EntityIntegrityPanel() {
         <div className="ml-auto flex items-center gap-2">
           <button
             type="button"
-            onClick={() => query.refetch()}
-            disabled={query.isFetching}
+            onClick={() => refreshIntegrity.mutate()}
+            disabled={refreshIntegrity.isPending || integrityWorkActive}
             className="inline-flex items-center gap-2 border-b border-border pb-1 text-[13px] text-muted-foreground transition-colors hover:border-foreground hover:text-foreground disabled:opacity-50"
           >
             <RefreshCw
-              className={`h-3.5 w-3.5 ${query.isFetching ? "animate-spin" : ""}`}
+              className={`h-3.5 w-3.5 ${refreshIntegrity.isPending || integrityWorkActive ? "animate-spin" : ""}`}
             />
             Re-check
           </button>
@@ -63,7 +94,7 @@ export function EntityIntegrityPanel() {
               <Button
                 type="button"
                 onClick={() => rebuildAll.mutate()}
-                disabled={rebuildAll.isPending || status === "in_progress"}
+                disabled={rebuildAll.isPending || integrityWorkActive}
                 className="inline-flex items-center gap-2"
               >
                 {rebuildAll.isPending ? (
@@ -85,7 +116,7 @@ export function EntityIntegrityPanel() {
             <Button
               type="button"
               onClick={() => setConfirmRebuild(true)}
-              disabled={rebuildAll.isPending || status === "in_progress"}
+              disabled={rebuildAll.isPending || integrityWorkActive}
               className="inline-flex items-center gap-2"
             >
               <Play className="h-3.5 w-3.5" />
@@ -99,7 +130,8 @@ export function EntityIntegrityPanel() {
 
       {!query.isLoading && query.error && (
         <p className="border border-border bg-card px-6 py-5 text-sm text-destructive">
-          Entity artifact integrity check failed: {(query.error as Error).message}
+          Entity artifact integrity check failed:{" "}
+          {(query.error as Error).message}
         </p>
       )}
 
@@ -107,9 +139,13 @@ export function EntityIntegrityPanel() {
         <div className="flex items-center gap-3 border border-border bg-card px-6 py-3 text-sm">
           {status === "in_progress" ? (
             <>
-              <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
+              <RefreshCw
+                className={`h-4 w-4 text-muted-foreground ${integrityWorkActive ? "animate-spin" : ""}`}
+              />
               <span className="text-muted-foreground">
-                Entity artifact repair is running in the background.
+                {integrityWorkActive
+                  ? "Entity integrity check is queued or running."
+                  : "Entity integrity cache is stale; current findings are hidden until a fresh check settles."}
               </span>
             </>
           ) : (
@@ -139,7 +175,9 @@ function EntityIntegrityFindingsTable({
   return (
     <div className="rounded-md border border-border bg-card">
       <div className="border-b border-border px-6 py-3 text-sm text-muted-foreground">
-        <strong className="font-semibold text-foreground">{findings.length}</strong>{" "}
+        <strong className="font-semibold text-foreground">
+          {findings.length}
+        </strong>{" "}
         entity artifact finding{findings.length === 1 ? "" : "s"} across feed
         sidecars, country/ASN pages, indexes, or global files.
       </div>

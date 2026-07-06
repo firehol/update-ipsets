@@ -178,11 +178,14 @@ description: "Test commands, fixtures, and validation patterns for update-ipsets
   background tasks for entity-specific repairs/refreshes. Without both, the
   admin API can show transient stale rows as settled issues (from SOW-0017
   regression).
-- Admin pipeline/entity integrity tests must prove GET handlers are
-  cache-first: cold or stale cache returns in-progress/queued refresh state,
-  fresh cache returns settled findings, and reprocess uses fresh cached
-  findings instead of running a live scan from the HTTP handler. Engine-lane
-  tickets and coalescing state are observable API contract (from SOW-0117).
+- Admin pipeline/entity integrity tests must prove GET handlers are passive
+  cache-first readers: cold or stale cache returns in-progress/cache-state with
+  no current findings and no queued engine-lane work, fresh cache returns
+  settled findings, and reprocess uses fresh cached findings instead of running
+  a live scan from the HTTP handler. Admin status summaries must also report
+  zero current findings for stale/cold/queued/running caches. POST
+  refresh/reprocess actions own engine-lane tickets and coalescing state as
+  observable API contract (from SOW-0117 regression).
 - Scheduler recovery tests for artifact parents must include DroneBL-style
   staged parent artifacts and prove recovery queues the parent in the
   downloader FIFO without materializing children directly from startup recovery

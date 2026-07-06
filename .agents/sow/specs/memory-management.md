@@ -168,6 +168,15 @@ Pretty-printing or byte-identical whitespace preservation MUST NOT take
 priority over bounded memory and daemon availability for these generated
 artifacts.
 
+Entity artifact aggregation MUST also avoid keeping every committed feed entity
+sidecar decoded in heap while rebuilding selected country/ASN artifacts,
+indexes, or the feed-presence index. Refresh, repair, and rebuild paths SHOULD
+walk committed sidecars one at a time, overlay staged replacements/deletions as
+a bounded logical view, and feed the existing detail/index builders from that
+stream. Implementations MAY retain builders for the selected country/ASN output
+set being emitted, but MUST NOT add an additional full decoded all-sidecar map
+when a streaming scan can produce the same public/private artifacts.
+
 Entity feed sidecar rebuild workers MUST NOT buffer one completed sidecar per
 target feed before staging or aggregation can consume them. Worker result
 buffers SHOULD be bounded by worker concurrency so full catalog rebuilds do not

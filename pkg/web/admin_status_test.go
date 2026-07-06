@@ -393,6 +393,24 @@ func TestAdminStatusLightIncludesIntegritySummary(t *testing.T) {
 	if lightPayload.Engine.EntityIntegrityCache.Count != 1 {
 		t.Fatalf("entity integrity cache count = %d, want 1", lightPayload.Engine.EntityIntegrityCache.Count)
 	}
+
+	eng.MarkIntegrityCachesStale()
+	status, _ = server.getJSON(t, "/api/v1/admin/status?mode=light", &lightPayload)
+	if status != http.StatusOK {
+		t.Fatalf("admin light status after stale HTTP status = %d, want 200", status)
+	}
+	if lightPayload.Engine.PipelineIntegrityCache.CacheState != engine.IntegrityCacheStale {
+		t.Fatalf("stale pipeline integrity cache state = %q, want %q", lightPayload.Engine.PipelineIntegrityCache.CacheState, engine.IntegrityCacheStale)
+	}
+	if lightPayload.Engine.PipelineIntegrityCache.Count != 0 {
+		t.Fatalf("stale pipeline integrity cache count = %d, want 0", lightPayload.Engine.PipelineIntegrityCache.Count)
+	}
+	if lightPayload.Engine.EntityIntegrityCache.CacheState != engine.IntegrityCacheStale {
+		t.Fatalf("stale entity integrity cache state = %q, want %q", lightPayload.Engine.EntityIntegrityCache.CacheState, engine.IntegrityCacheStale)
+	}
+	if lightPayload.Engine.EntityIntegrityCache.Count != 0 {
+		t.Fatalf("stale entity integrity cache count = %d, want 0", lightPayload.Engine.EntityIntegrityCache.Count)
+	}
 }
 
 func TestAdminStatusLightIncludesFeedHealthSummary(t *testing.T) {

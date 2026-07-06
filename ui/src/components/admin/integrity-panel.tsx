@@ -11,7 +11,10 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { IntegrityFinding } from "@/lib/api-types";
-import { adminIntegrityReprocess } from "@/lib/api-client/admin";
+import {
+  adminIntegrityRefresh,
+  adminIntegrityReprocess,
+} from "@/lib/api-client/admin";
 import { queryKeys } from "@/lib/query-keys";
 import { adminIntegrityOptions } from "@/lib/queries/admin";
 import { Button } from "@/components/ui/button";
@@ -44,8 +47,8 @@ import { absoluteTime } from "@/lib/admin-format";
  * Refresh is manual (no polling). Integrity runs walk every
  * secondary file in webDir — expensive.
  *
- * One exception: while the backend reports "in_progress", the
- * panel polls briefly until the active run settles. Without
+ * One exception: while the backend reports queued/running work,
+ * the panel polls briefly until the active run settles. Without
  * that, the UI can get stuck showing the waiting message from
  * an old response forever.
  */
@@ -58,7 +61,28 @@ export function IntegrityPanel() {
     ...adminIntegrityOptions(includeArchived),
     retry: false,
     refetchInterval: (query) =>
-      query.state.data?.status === "in_progress" ? 5000 : false,
+      query.state.data?.running ||
+      query.state.data?.queued ||
+      query.state.data?.startup_scan_running
+        ? 5000
+        : false,
+  });
+
+  const refreshIntegrity = useMutation({
+    mutationFn: () => adminIntegrityRefresh({ includeArchived }),
+    onSuccess: (result) => {
+      if (result.status === "in_progress") {
+        toast.info("Integrity check is already queued or running");
+      } else {
+        toast.success("Queued integrity re-check");
+      }
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.adminIntegrity(includeArchived),
+      });
+      queryClient.invalidateQueries({ queryKey: queryKeys.adminStatus() });
+    },
+    onError: (e: Error) =>
+      toast.error(`Integrity re-check failed: ${e.message}`),
   });
 
   const recoverAll = useMutation({
@@ -69,10 +93,16 @@ export function IntegrityPanel() {
       } else if (result.status === "in_progress") {
         toast.info("Integrity check is waiting for the active run to finish");
       } else {
-        toast.success(`Scheduled integrity recovery for ${result.count} item(s)`);
+        toast.success(
+          `Scheduled integrity recovery for ${result.count} item(s)`,
+        );
       }
-      queryClient.invalidateQueries({ queryKey: queryKeys.adminIntegrityRoot() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.adminEntityIntegrity() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.adminIntegrityRoot(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.adminEntityIntegrity(),
+      });
       queryClient.invalidateQueries({ queryKey: queryKeys.adminStatus() });
     },
     onError: (e: Error) => toast.error(`Recovery failed: ${e.message}`),
@@ -81,6 +111,11 @@ export function IntegrityPanel() {
   const findings = integrityQuery.data?.findings ?? [];
   const count = integrityQuery.data?.count ?? 0;
   const status = integrityQuery.data?.status ?? "clean";
+  const integrityWorkActive = Boolean(
+    integrityQuery.data?.running ||
+    integrityQuery.data?.queued ||
+    integrityQuery.data?.startup_scan_running,
+  );
 
   return (
     <section id="admin-integrity-panel" className="mb-12">
@@ -102,12 +137,12 @@ export function IntegrityPanel() {
         <div className="ml-auto flex items-center gap-2">
           <button
             type="button"
-            onClick={() => integrityQuery.refetch()}
-            disabled={integrityQuery.isFetching}
+            onClick={() => refreshIntegrity.mutate()}
+            disabled={refreshIntegrity.isPending || integrityWorkActive}
             className="inline-flex items-center gap-2 border-b border-border pb-1 text-[13px] text-muted-foreground transition-colors hover:border-foreground hover:text-foreground disabled:opacity-50"
           >
             <RefreshCw
-              className={`h-3.5 w-3.5 ${integrityQuery.isFetching ? "animate-spin" : ""}`}
+              className={`h-3.5 w-3.5 ${refreshIntegrity.isPending || integrityWorkActive ? "animate-spin" : ""}`}
             />
             Re-check
           </button>
@@ -143,9 +178,13 @@ export function IntegrityPanel() {
         <div className="flex items-center gap-3 border border-border bg-card px-6 py-3 text-sm">
           {status === "in_progress" ? (
             <>
-              <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />
+              <RefreshCw
+                className={`h-4 w-4 text-muted-foreground ${integrityWorkActive ? "animate-spin" : ""}`}
+              />
               <span className="text-muted-foreground">
-                Integrity check is waiting for the active run to finish.
+                {integrityWorkActive
+                  ? "Integrity check is queued or running."
+                  : "Integrity cache is stale; current findings are hidden until a fresh check settles."}
               </span>
             </>
           ) : (
@@ -326,7 +365,10 @@ function IntegrityFindingDetail({ finding }: { finding: IntegrityFinding }) {
         </div>
       )}
       {missing.length > 0 && (
-        <FindingFileList title={`Missing (${missing.length})`} items={missing} />
+        <FindingFileList
+          title={`Missing (${missing.length})`}
+          items={missing}
+        />
       )}
       {stale.length > 0 && (
         <FindingFileList title={`Stale (${stale.length})`} items={stale} />
@@ -347,13 +389,7 @@ function IntegrityFindingDetail({ finding }: { finding: IntegrityFinding }) {
   );
 }
 
-function FindingFileList({
-  title,
-  items,
-}: {
-  title: string;
-  items: string[];
-}) {
+function FindingFileList({ title, items }: { title: string; items: string[] }) {
   return (
     <div>
       <div className="eyebrow mb-2 text-destructive">{title}</div>

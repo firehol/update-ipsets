@@ -49,6 +49,10 @@ func (s entityIntegrityCacheState) snapshotLocked() EntityIntegrityCacheSnapshot
 
 func (s pipelineIntegrityCacheState) statusLocked() PipelineIntegrityCacheStatus {
 	snap := s.snapshotLocked()
+	count := 0
+	if snap.CacheState == IntegrityCacheFresh {
+		count = len(s.findings)
+	}
 	return PipelineIntegrityCacheStatus{
 		Generation:         snap.Generation,
 		CacheState:         snap.CacheState,
@@ -64,12 +68,16 @@ func (s pipelineIntegrityCacheState) statusLocked() PipelineIntegrityCacheStatus
 		LastEnded:          snap.LastEnded,
 		LastError:          snap.LastError,
 		StartupScanRunning: snap.StartupScanRunning,
-		Count:              len(s.findings),
+		Count:              count,
 	}
 }
 
 func (s entityIntegrityCacheState) statusLocked() EntityIntegrityCacheStatus {
 	snap := s.snapshotLocked()
+	count := 0
+	if snap.CacheState == IntegrityCacheFresh {
+		count = len(s.findings)
+	}
 	return EntityIntegrityCacheStatus{
 		Generation:         snap.Generation,
 		CacheState:         snap.CacheState,
@@ -82,7 +90,7 @@ func (s entityIntegrityCacheState) statusLocked() EntityIntegrityCacheStatus {
 		LastEnded:          snap.LastEnded,
 		LastError:          snap.LastError,
 		StartupScanRunning: snap.StartupScanRunning,
-		Count:              len(s.findings),
+		Count:              count,
 	}
 }
 

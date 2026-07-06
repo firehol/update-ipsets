@@ -22,7 +22,6 @@ type entitySurgicalRefreshState struct {
 	targetFeeds []string
 	deltas      []feedEntityDelta
 	presence    *entityArtifactFeedPresence
-	allSidecars map[string]*feedEntitySidecar
 
 	affectedCountries map[string]struct{}
 	affectedASNs      map[uint32]struct{}
@@ -213,31 +212,20 @@ func (s *entitySurgicalRefreshState) detailPatchDetail() string {
 	return fmt.Sprintf("patching affected entity artifacts: %d countries and %d ASNs", len(s.affectedCountries), len(s.affectedASNs))
 }
 
-func (s *entitySurgicalRefreshState) loadMergedFeedSidecars() (map[string]*feedEntitySidecar, error) {
-	if s.allSidecars != nil {
-		return s.allSidecars, nil
-	}
-	sidecars, err := s.e.loadAllFeedEntitySidecarsWithRuntime(s.snap.runtime)
-	if err != nil {
-		return nil, err
-	}
+func (s *entitySurgicalRefreshState) sidecarReplacements() map[string]*feedEntitySidecar {
+	replacements := make(map[string]*feedEntitySidecar, len(s.deltas))
 	for _, delta := range s.deltas {
-		if delta.new == nil {
-			delete(sidecars, delta.name)
-			continue
-		}
-		sidecars[delta.name] = delta.new
+		replacements[delta.name] = delta.new
 	}
-	s.allSidecars = sidecars
-	return sidecars, nil
+	return replacements
+}
+
+func (s *entitySurgicalRefreshState) walkMergedFeedSidecars(visit feedEntitySidecarVisitFunc) error {
+	return s.e.walkMergedFeedEntitySidecarsWithRuntime(s.ctx, s.snap.runtime, s.sidecarReplacements(), false, visit)
 }
 
 func (s *entitySurgicalRefreshState) rebuildAffectedDetailsFromFeedSidecars() error {
-	sidecars, err := s.loadMergedFeedSidecars()
-	if err != nil {
-		return err
-	}
-	countrySidecars, asnSidecars, err := s.e.buildSelectedEntityDetailSidecarsFromFeedSidecars(sidecars, s.affectedCountries, s.affectedASNs, false)
+	countrySidecars, asnSidecars, err := s.e.buildSelectedEntityDetailSidecarsFromFeedSidecarWalker(s.ctx, s.snap, s.affectedCountries, s.affectedASNs, false, s.walkMergedFeedSidecars)
 	if err != nil {
 		return err
 	}
@@ -398,12 +386,5 @@ func (s *entitySurgicalRefreshState) stageFeedPresenceIndex() error {
 	if err := contextErr(s.ctx); err != nil {
 		return err
 	}
-	sidecars, err := s.loadMergedFeedSidecars()
-	if err != nil {
-		return err
-	}
-	if err := contextErr(s.ctx); err != nil {
-		return err
-	}
-	return stageEntityFeedPresenceIndex(s.ent.stagedPublishBatch, entityFeedPresenceNamesFromSidecars(sidecars))
+	return stageEntityFeedPresenceIndexFromWalker(s.ctx, s.ent.stagedPublishBatch, s.walkMergedFeedSidecars)
 }

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -24,14 +25,22 @@ type selectedEntityDetailSidecarBuilder struct {
 }
 
 func (e *Engine) newSelectedEntityDetailSidecarBuilder(sidecars map[string]*feedEntitySidecar, targetCountries map[string]struct{}, targetASNs map[uint32]struct{}, full bool) (*selectedEntityDetailSidecarBuilder, error) {
-	snap := e.operationSnapshot()
+	builder, err := e.newSelectedEntityDetailSidecarStreamBuilder(e.operationSnapshot(), targetCountries, targetASNs, full)
+	if err != nil {
+		return nil, err
+	}
+	builder.sidecars = sidecars
+	return builder, nil
+}
+
+func (e *Engine) newSelectedEntityDetailSidecarStreamBuilder(snap operationSnapshot, targetCountries map[string]struct{}, targetASNs map[uint32]struct{}, full bool) (*selectedEntityDetailSidecarBuilder, error) {
 	if e == nil || snap.cfg == nil {
 		return nil, fmt.Errorf("engine is not configured")
 	}
 	builder := &selectedEntityDetailSidecarBuilder{
 		e:               e,
 		snapshot:        snap,
-		sidecars:        sidecars,
+		sidecars:        nil,
 		targetCountries: targetCountries,
 		targetASNs:      targetASNs,
 		full:            full,
@@ -68,8 +77,33 @@ func (b *selectedEntityDetailSidecarBuilder) initTargetBuilders() {
 }
 
 func (b *selectedEntityDetailSidecarBuilder) build() (map[string]*countryDetailSidecar, map[uint32]*asnDetailSidecar, error) {
-	for _, name := range sortedFeedEntitySidecarNames(b.sidecars) {
-		b.addFeedSidecar(name, b.sidecars[name])
+	return b.buildFromMap(context.Background(), b.sidecars)
+}
+
+func (b *selectedEntityDetailSidecarBuilder) buildFromMap(ctx context.Context, sidecars map[string]*feedEntitySidecar) (map[string]*countryDetailSidecar, map[uint32]*asnDetailSidecar, error) {
+	return b.buildFromWalker(ctx, func(visit feedEntitySidecarVisitFunc) error {
+		for _, name := range sortedFeedEntitySidecarNames(sidecars) {
+			if err := visit(name, sidecars[name]); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+func (b *selectedEntityDetailSidecarBuilder) buildFromWalker(ctx context.Context, walk feedEntitySidecarWalker) (map[string]*countryDetailSidecar, map[uint32]*asnDetailSidecar, error) {
+	ctx = nonNilContext(ctx)
+	if walk == nil {
+		return b.countrySidecars(), b.asnSidecars(), nil
+	}
+	if err := walk(func(name string, sidecar *feedEntitySidecar) error {
+		if err := contextErr(ctx); err != nil {
+			return err
+		}
+		b.addFeedSidecar(name, sidecar)
+		return nil
+	}); err != nil {
+		return nil, nil, err
 	}
 	return b.countrySidecars(), b.asnSidecars(), nil
 }

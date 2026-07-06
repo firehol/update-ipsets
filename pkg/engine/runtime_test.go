@@ -597,6 +597,21 @@ func TestStatusSnapshotReportsIntegrityCacheSummaries(t *testing.T) {
 	if got, want := snap.EntityIntegrityCache.Count, 1; got != want {
 		t.Fatalf("entity integrity cache count = %d, want %d", got, want)
 	}
+
+	eng.MarkIntegrityCachesStale()
+	snap = eng.StatusSnapshotLight()
+	if got, want := snap.PipelineIntegrityCache.CacheState, IntegrityCacheStale; got != want {
+		t.Fatalf("stale pipeline integrity cache state = %q, want %q", got, want)
+	}
+	if got, want := snap.PipelineIntegrityCache.Count, 0; got != want {
+		t.Fatalf("stale pipeline integrity cache count = %d, want %d", got, want)
+	}
+	if got, want := snap.EntityIntegrityCache.CacheState, IntegrityCacheStale; got != want {
+		t.Fatalf("stale entity integrity cache state = %q, want %q", got, want)
+	}
+	if got, want := snap.EntityIntegrityCache.Count, 0; got != want {
+		t.Fatalf("stale entity integrity cache count = %d, want %d", got, want)
+	}
 }
 
 func TestPipelineIntegrityCacheKeepsIndependentScopes(t *testing.T) {

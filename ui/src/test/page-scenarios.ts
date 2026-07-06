@@ -154,6 +154,18 @@ export function adminWriteActionHandlers(
         names: ["beta_malware"],
       });
     }),
+    http.post("/api/v1/admin/integrity/refresh", ({ request }) => {
+      record(request);
+      return HttpResponse.json({
+        status: "scheduled",
+      });
+    }),
+    http.post("/api/v1/admin/integrity/entities/refresh", ({ request }) => {
+      record(request);
+      return HttpResponse.json({
+        status: "scheduled",
+      });
+    }),
     http.post("/api/v1/admin/integrity/entities/rebuild", ({ request }) => {
       record(request);
       return HttpResponse.json({

@@ -161,7 +161,7 @@ func TestHandleAdminEntityIntegrityReturnsEntityFindings(t *testing.T) {
 	}
 }
 
-func TestAdminIntegrityGetQueuesRefreshWhenPipelineCacheIsCold(t *testing.T) {
+func TestAdminIntegrityGetReturnsColdPipelineCacheWithoutQueueingRefresh(t *testing.T) {
 	eng, handler := testHandler(t, Options{
 		EnableAll:                 true,
 		AdminAuthMode:             AdminAuthModeDisabled,
@@ -179,24 +179,26 @@ func TestAdminIntegrityGetQueuesRefreshWhenPipelineCacheIsCold(t *testing.T) {
 	if report.Status != integrityStatusInProgress {
 		t.Fatalf("status = %q, want %q: %+v", report.Status, integrityStatusInProgress, report)
 	}
-	if report.CacheState != engine.IntegrityCacheRefreshQueued {
-		t.Fatalf("cache_state = %q, want %q: %+v", report.CacheState, engine.IntegrityCacheRefreshQueued, report)
+	if report.CacheState != engine.IntegrityCacheCold {
+		t.Fatalf("cache_state = %q, want %q: %+v", report.CacheState, engine.IntegrityCacheCold, report)
 	}
-	if !report.Queued || !report.Running || report.Ticket == nil {
-		t.Fatalf("expected queued refresh metadata, got %+v", report)
+	if report.Queued || report.Running || report.Ticket != nil {
+		t.Fatalf("GET must not queue refresh work, got %+v", report)
 	}
 	if report.Count != 0 || len(report.Findings) != 0 {
 		t.Fatalf("cold cache must not report findings, got count=%d findings=%+v", report.Count, report.Findings)
 	}
+	assertNoQueuedEngineLaneWork(t, eng)
 }
 
-func TestAdminIntegrityGetQueuesRefreshAndSuppressesStalePipelineFindings(t *testing.T) {
+func TestAdminIntegrityGetReturnsStalePipelineCacheWithoutQueueingRefresh(t *testing.T) {
 	eng, handler := testHandler(t, Options{
 		EnableAll:                 true,
 		AdminAuthMode:             AdminAuthModeDisabled,
 		AllowUnauthenticatedAdmin: true,
 	})
 	eng.StorePipelineIntegrityFindings(engine.IntegrityOptions{}, []engine.IntegrityFinding{{Feed: "sample"}}, nil)
+	eng.StorePipelineIntegrityFindings(engine.IntegrityOptions{EnableAll: true}, []engine.IntegrityFinding{{Feed: "sample"}}, nil)
 	blockIntegrityEngineLane(t, eng)
 	eng.MarkIntegrityCachesStale()
 
@@ -209,18 +211,19 @@ func TestAdminIntegrityGetQueuesRefreshAndSuppressesStalePipelineFindings(t *tes
 	if report.Status != integrityStatusInProgress {
 		t.Fatalf("status = %q, want %q: %+v", report.Status, integrityStatusInProgress, report)
 	}
-	if report.CacheState != engine.IntegrityCacheRefreshQueued {
-		t.Fatalf("cache_state = %q, want %q: %+v", report.CacheState, engine.IntegrityCacheRefreshQueued, report)
+	if report.CacheState != engine.IntegrityCacheStale {
+		t.Fatalf("cache_state = %q, want %q: %+v", report.CacheState, engine.IntegrityCacheStale, report)
 	}
-	if !report.Queued || !report.Running || report.Ticket == nil {
-		t.Fatalf("expected queued refresh metadata, got %+v", report)
+	if report.Queued || report.Running || report.Ticket != nil {
+		t.Fatalf("GET must not queue refresh work, got %+v", report)
 	}
 	if report.Count != 0 || len(report.Findings) != 0 {
 		t.Fatalf("stale cache findings must not be reported as current issues, got count=%d findings=%+v", report.Count, report.Findings)
 	}
+	assertNoQueuedEngineLaneWork(t, eng)
 }
 
-func TestHandleAdminEntityIntegrityGetQueuesRefreshWhenCacheIsCold(t *testing.T) {
+func TestHandleAdminEntityIntegrityGetReturnsColdCacheWithoutQueueingRefresh(t *testing.T) {
 	eng := newEntityIntegrityTestEngine(t)
 	eng.StorePipelineIntegrityFindings(engine.IntegrityOptions{}, []engine.IntegrityFinding{{Feed: "sample"}}, nil)
 	blockIntegrityEngineLane(t, eng)
@@ -236,18 +239,19 @@ func TestHandleAdminEntityIntegrityGetQueuesRefreshWhenCacheIsCold(t *testing.T)
 	if report.Status != integrityStatusInProgress {
 		t.Fatalf("status = %q, want %q: %+v", report.Status, integrityStatusInProgress, report)
 	}
-	if report.CacheState != engine.IntegrityCacheRefreshQueued {
-		t.Fatalf("cache_state = %q, want %q: %+v", report.CacheState, engine.IntegrityCacheRefreshQueued, report)
+	if report.CacheState != engine.IntegrityCacheCold {
+		t.Fatalf("cache_state = %q, want %q: %+v", report.CacheState, engine.IntegrityCacheCold, report)
 	}
-	if !report.Queued || !report.Running || report.Ticket == nil {
-		t.Fatalf("expected queued refresh metadata, got %+v", report)
+	if report.Queued || report.Running || report.Ticket != nil {
+		t.Fatalf("GET must not queue refresh work, got %+v", report)
 	}
 	if report.Count != 0 || len(report.Findings) != 0 {
 		t.Fatalf("cold cache must not report findings, got count=%d findings=%+v", report.Count, report.Findings)
 	}
+	assertNoQueuedEngineLaneWork(t, eng)
 }
 
-func TestAdminEntityIntegrityGetQueuesRefreshAndSuppressesStaleFindings(t *testing.T) {
+func TestAdminEntityIntegrityGetReturnsStaleCacheWithoutQueueingRefresh(t *testing.T) {
 	eng := newEntityIntegrityTestEngine(t)
 	eng.StorePipelineIntegrityFindings(engine.IntegrityOptions{}, []engine.IntegrityFinding{{Feed: "sample"}}, nil)
 	eng.StoreEntityIntegrityFindings([]engine.EntityIntegrityFinding{{
@@ -270,15 +274,16 @@ func TestAdminEntityIntegrityGetQueuesRefreshAndSuppressesStaleFindings(t *testi
 	if report.Status != integrityStatusInProgress {
 		t.Fatalf("status = %q, want %q: %+v", report.Status, integrityStatusInProgress, report)
 	}
-	if report.CacheState != engine.IntegrityCacheRefreshQueued {
-		t.Fatalf("cache_state = %q, want %q: %+v", report.CacheState, engine.IntegrityCacheRefreshQueued, report)
+	if report.CacheState != engine.IntegrityCacheStale {
+		t.Fatalf("cache_state = %q, want %q: %+v", report.CacheState, engine.IntegrityCacheStale, report)
 	}
-	if !report.Queued || !report.Running || report.Ticket == nil {
-		t.Fatalf("expected queued refresh metadata, got %+v", report)
+	if report.Queued || report.Running || report.Ticket != nil {
+		t.Fatalf("GET must not queue refresh work, got %+v", report)
 	}
 	if report.Count != 0 || len(report.Findings) != 0 {
 		t.Fatalf("stale cache findings must not be reported as current issues, got count=%d findings=%+v", report.Count, report.Findings)
 	}
+	assertNoQueuedEngineLaneWork(t, eng)
 }
 
 func TestHandleAdminEntityIntegrityRebuildSchedulesBackgroundRebuild(t *testing.T) {
@@ -430,6 +435,15 @@ func blockIntegrityEngineLane(t *testing.T, eng *engine.Engine) {
 		close(releaseLane)
 		waitForEngineLaneClear(t, eng, 2*time.Second)
 	})
+}
+
+func assertNoQueuedEngineLaneWork(t *testing.T, eng *engine.Engine) {
+	t.Helper()
+
+	lane := eng.StatusSnapshotLight().EngineLane
+	if lane.WaitingCount != 0 || len(lane.Waiting) != 0 {
+		t.Fatalf("GET queued engine-lane work: waiting_count=%d waiting=%+v", lane.WaitingCount, lane.Waiting)
+	}
 }
 
 func newTestAdminHandler(t *testing.T, eng *engine.Engine) http.Handler {

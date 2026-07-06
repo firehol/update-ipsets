@@ -97,10 +97,6 @@ func buildIntegrityReport(ctx context.Context, eng *engine.Engine, includeArchiv
 	started := time.Now()
 	opts := engine.IntegrityOptions{IncludeArchived: includeArchived, EnableAll: enableAll, WebDir: webDir}
 	snap, _ := eng.TryPipelineIntegrityCacheSnapshot(opts)
-	snap, err := queuePipelineIntegrityRefreshForStaleGET(ctx, eng, opts, snap)
-	if err != nil {
-		return integrityReport{}, err
-	}
 
 	findings := reportablePipelineIntegrityFindings(snap)
 	out := integrityReport{
@@ -152,10 +148,6 @@ func buildEntityIntegrityReport(ctx context.Context, eng *engine.Engine) (entity
 		observeIntegrityCheck("entity", result, findingCount, time.Since(started))
 	}()
 	snap, _ := eng.TryEntityIntegrityCacheSnapshot()
-	snap, err := queueEntityIntegrityRefreshForStaleGET(ctx, eng, snap)
-	if err != nil {
-		return entityIntegrityReport{}, err
-	}
 
 	findings := reportableEntityIntegrityFindings(snap)
 	findingCount = len(findings)
@@ -354,24 +346,6 @@ func sanitizeEntityIntegrityReport(report entityIntegrityReport) entityIntegrity
 		report.Findings[i].ReferenceMTime = sanitizeJSONTime(report.Findings[i].ReferenceMTime)
 	}
 	return report
-}
-
-func queuePipelineIntegrityRefreshForStaleGET(ctx context.Context, eng *engine.Engine, opts engine.IntegrityOptions, snap engine.PipelineIntegrityCacheSnapshot) (engine.PipelineIntegrityCacheSnapshot, error) {
-	if snap.CacheState == engine.IntegrityCacheFresh ||
-		snap.CacheState == engine.IntegrityCacheRefreshQueued ||
-		snap.CacheState == engine.IntegrityCacheRefreshRunning {
-		return snap, nil
-	}
-	return eng.QueuePipelineIntegrityRefresh(ctx, opts, "admin_get")
-}
-
-func queueEntityIntegrityRefreshForStaleGET(ctx context.Context, eng *engine.Engine, snap engine.EntityIntegrityCacheSnapshot) (engine.EntityIntegrityCacheSnapshot, error) {
-	if snap.CacheState == engine.IntegrityCacheFresh ||
-		snap.CacheState == engine.IntegrityCacheRefreshQueued ||
-		snap.CacheState == engine.IntegrityCacheRefreshRunning {
-		return snap, nil
-	}
-	return eng.QueueEntityIntegrityRefresh(ctx, "admin_get")
 }
 
 func reportablePipelineIntegrityFindings(snap engine.PipelineIntegrityCacheSnapshot) []engine.IntegrityFinding {

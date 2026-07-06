@@ -55,9 +55,13 @@ Trigger full rebuild from the admin UI entity integrity panel.
 
 The entity integrity panel is backed by authenticated admin API endpoints:
 
+Admin status summaries count only fresh entity integrity findings. Stale or
+cold entity-integrity cache states show their state, but old findings are not
+counted as current issues until a fresh check settles.
+
 | Endpoint | Purpose |
 |---|---|
-| `GET /api/v1/admin/integrity/entities` | Return cached country/ASN entity findings, or queue a refresh and report `in_progress` when the cache is cold or stale. |
+| `GET /api/v1/admin/integrity/entities` | Return cached country/ASN entity findings. Cold or stale caches report `in_progress` with no current findings and do not queue work. |
 | `POST /api/v1/admin/integrity/entities/refresh` | Queue a fresh entity-integrity refresh in the engine lane. |
 | `POST /api/v1/admin/integrity/entities/rebuild` | Queue a full country and ASN entity artifact rebuild. |
 

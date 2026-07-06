@@ -2,7 +2,9 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strconv"
@@ -32,11 +34,11 @@ type entityArtifactWriteState struct {
 	geoRefTime  time.Time
 	asnRefTime  time.Time
 
-	liveSidecars map[string]*feedEntitySidecar
-	newSidecars  map[string]*feedEntitySidecar
-	allSidecars  map[string]*feedEntitySidecar
-	feedTimes    map[string]time.Time
-	changedFeeds map[string]struct{}
+	liveSidecars     map[string]*feedEntitySidecar
+	liveSidecarNames map[string]struct{}
+	newSidecars      map[string]*feedEntitySidecar
+	feedTimes        map[string]time.Time
+	changedFeeds     map[string]struct{}
 
 	affectedCountries map[string]struct{}
 	affectedASNs      map[uint32]struct{}
@@ -135,9 +137,23 @@ func (s *entityArtifactWriteState) loadProviderReferences() error {
 func (s *entityArtifactWriteState) loadFeedSidecars() error {
 	e := s.engine
 	var err error
-	s.liveSidecars, err = e.loadAllFeedEntitySidecarsWithRuntime(s.snapshot.runtime)
-	if err != nil {
-		return err
+	if s.full {
+		s.liveSidecarNames, err = committedFeedEntitySidecarNamesWithRuntime(s.snapshot.runtime)
+		if err != nil {
+			return err
+		}
+	} else {
+		s.liveSidecars = make(map[string]*feedEntitySidecar, len(s.targetFeeds))
+		for _, name := range s.targetFeeds {
+			sidecar, loadErr := e.loadCommittedFeedEntitySidecarWithRuntime(s.snapshot.runtime, name)
+			if loadErr != nil {
+				if errors.Is(loadErr, os.ErrNotExist) {
+					continue
+				}
+				return loadErr
+			}
+			s.liveSidecars[name] = sidecar
+		}
 	}
 	s.feedTimes = e.loadFeedEntitySidecarMTimesWithRuntime(s.snapshot.runtime)
 	s.newSidecars, err = e.buildFeedEntitySidecarsWithSnapshot(s.ctx, s.snapshot, s.targetFeeds, s.view, s.task)
@@ -158,13 +174,12 @@ func (s *entityArtifactWriteState) stageFeedSidecars() error {
 			return err
 		}
 	}
-	s.mergeAllSidecars()
 	return nil
 }
 
 func (s *entityArtifactWriteState) markStaleFeedSidecarDeletesForFullRebuild() error {
 	e := s.engine
-	for name := range s.liveSidecars {
+	for name := range s.liveSidecarNames {
 		if err := contextErr(s.ctx); err != nil {
 			return err
 		}
@@ -227,32 +242,31 @@ func (s *entityArtifactWriteState) stageFeedSidecar(name string) error {
 	return nil
 }
 
-func (s *entityArtifactWriteState) mergeAllSidecars() {
-	s.allSidecars = s.liveSidecars
+func (s *entityArtifactWriteState) currentSidecarReplacements() map[string]*feedEntitySidecar {
 	if s.full {
-		s.allSidecars = make(map[string]*feedEntitySidecar, len(s.newSidecars))
+		return s.newSidecars
 	}
+	replacements := make(map[string]*feedEntitySidecar, len(s.changedFeeds))
 	for _, name := range s.targetFeeds {
-		if !s.full {
-			if _, ok := s.changedFeeds[name]; !ok {
-				continue
-			}
-		}
-		if sidecar := s.newSidecars[name]; sidecar == nil {
-			delete(s.allSidecars, name)
+		if _, ok := s.changedFeeds[name]; !ok {
 			continue
 		}
-		s.allSidecars[name] = s.newSidecars[name]
+		replacements[name] = s.newSidecars[name]
 	}
+	return replacements
+}
+
+func (s *entityArtifactWriteState) walkCurrentFeedSidecars(visit feedEntitySidecarVisitFunc) error {
+	return s.engine.walkMergedFeedEntitySidecarsWithRuntime(s.ctx, s.snapshot.runtime, s.currentSidecarReplacements(), s.full, visit)
 }
 
 func (s *entityArtifactWriteState) collectAffectedEntities() error {
 	if s.full {
-		for _, sidecar := range s.allSidecars {
+		for _, name := range sortedFeedEntitySidecarNames(s.newSidecars) {
 			if err := contextErr(s.ctx); err != nil {
 				return err
 			}
-			s.addAffectedSidecarEntities(sidecar)
+			s.addAffectedSidecarEntities(s.newSidecars[name])
 		}
 		return nil
 	}
@@ -291,7 +305,7 @@ func (s *entityArtifactWriteState) hasNoAffectedEntities() bool {
 
 func (s *entityArtifactWriteState) stageNoAffectedArtifacts() ([]output.GeneratedFile, error) {
 	e := s.engine
-	if err := stageEntityFeedPresenceIndex(s.entityBatch, entityFeedPresenceNamesFromSidecars(s.allSidecars)); err != nil {
+	if err := stageEntityFeedPresenceIndexFromWalker(s.ctx, s.entityBatch, s.walkCurrentFeedSidecars); err != nil {
 		return nil, err
 	}
 	if err := writeFileAtomic(filepath.Join(s.entityBatch.stageDir, "version"), []byte(entityArtifactsVersion+"\n"), generatedFileMode); err != nil {
@@ -359,7 +373,7 @@ func (s *entityArtifactWriteState) writeSelectedEntityDetails() error {
 	if s.task != nil {
 		s.task.Update("aggregating entity details", s.entityDetailProgressDetail(), 0, s.entityDetailProgressTotal())
 	}
-	countrySidecars, asnSidecars, err := e.buildSelectedEntityDetailSidecarsFromFeedSidecars(s.allSidecars, s.affectedCountries, s.affectedASNs, s.full)
+	countrySidecars, asnSidecars, err := e.buildSelectedEntityDetailSidecarsFromFeedSidecarWalker(s.ctx, s.snapshot, s.affectedCountries, s.affectedASNs, s.full, s.walkCurrentFeedSidecars)
 	if err != nil {
 		return err
 	}
@@ -469,7 +483,10 @@ func (s *entityArtifactWriteState) stageEntityIndexes() error {
 	if s.task != nil {
 		s.task.Update("building indexes", "building country and ASN index payloads", 0, 2)
 	}
-	countryIndex := e.buildCountryIndexFromFeedSidecarsWithSnapshot(s.snapshot, s.allSidecars)
+	countryIndex, asnIndex, err := e.buildEntityIndexesFromFeedSidecarWalkerWithSnapshot(s.ctx, s.snapshot, s.walkCurrentFeedSidecars, true, true)
+	if err != nil {
+		return err
+	}
 	if err := writeEntityJSONFile(filepath.Join(s.webBatch.stageDir, e.publicCountryIndexRelPath()), countryIndex); err != nil {
 		return err
 	}
@@ -478,7 +495,6 @@ func (s *entityArtifactWriteState) stageEntityIndexes() error {
 		s.task.Update("building indexes", "building country and ASN index payloads", 1, 2)
 	}
 
-	asnIndex := e.buildASNIndexFromFeedSidecarsWithSnapshot(s.snapshot, s.allSidecars)
 	if err := writeEntityJSONFile(filepath.Join(s.webBatch.stageDir, e.publicASNIndexRelPath()), asnIndex); err != nil {
 		return err
 	}
@@ -513,7 +529,7 @@ func (s *entityArtifactWriteState) stageSitemapHomeAndVersion() error {
 		return err
 	}
 	s.generated = append(s.generated, homeAggregate)
-	if err := stageEntityFeedPresenceIndex(s.entityBatch, entityFeedPresenceNamesFromSidecars(s.allSidecars)); err != nil {
+	if err := stageEntityFeedPresenceIndexFromWalker(s.ctx, s.entityBatch, s.walkCurrentFeedSidecars); err != nil {
 		return err
 	}
 

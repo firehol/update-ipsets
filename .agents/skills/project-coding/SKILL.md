@@ -67,6 +67,11 @@ description: "Go, React, config, and repo conventions for update-ipsets. MUST be
   empty. Do not encode empty contribution state as an absent sidecar; integrity
   and surgical refresh depend on a complete canonical feed-sidecar store (from
   SOW-0116 regression follow-up).
+- Entity artifact refresh, repair, and rebuild paths must stream committed
+  feed entity sidecars when rebuilding selected country/ASN details, indexes,
+  or feed-presence indexes. Do not reintroduce decoded all-sidecar maps in
+  these hot paths unless a SOW proves the bounded-memory impact and records why
+  streaming cannot preserve the artifact contract (from SOW-0125).
 - Merge composition has signed inputs: additive `sources` and subtractive `exclude`. Preserve both the full dependency list and the signed include/exclude lists; do not overload `DerivedFrom` or `merge_excluded` when adding merge behavior (from SOW-0025).
 - Merge-derived feeds may carry supported `use:` roles. When adding one, prove the role propagates from merge YAML to the expanded `Source`, the provider list, generated artifact expectations, and public serving path (from SOW-0025 regression).
 - Configured subtractive merge inputs are strict dependencies for any otherwise-computable merge. Missing or disabled subtractive parents block publication; archived, unmaintained, or currently failing subtractive parents must still be applied when their durable local canonical body exists, because skipping a materialized subtraction would broaden the merge output (from SOW-0025 regression and SOW-0116 integrity follow-up).
@@ -93,12 +98,14 @@ description: "Go, React, config, and repo conventions for update-ipsets. MUST be
   refresh, full entity rebuild, and generated-artifact cleanup. Downloader
   acquisition, DroneBL artifact recovery, and artifact child materialization
   stay in the scheduler downloader FIFO (from SOW-0117).
-- Admin integrity GET handlers must be cache-first. They may return cached
-  settled findings or queue a refresh and report in-progress state, but they
-  must not synchronously scan pipeline artifacts, entity sidecars, or recovery
-  plans from the HTTP request path. Use non-blocking integrity cache snapshots
-  in web handlers; a busy integrity cache must degrade to in-progress/busy
-  response state instead of making admin serving wait (from SOW-0117).
+- Admin integrity GET handlers must be passive cache-first readers. They may
+  return cached settled findings or an in-progress/cache-state response for
+  cold, stale, queued, running, or busy caches, but they must not synchronously
+  scan pipeline artifacts, entity sidecars, or recovery plans, and they must not
+  queue refresh work from the HTTP request path. Explicit POST refresh/reprocess
+  actions own engine-lane admission. Admin status summaries must count only
+  fresh integrity findings; non-fresh cache states expose state metadata with a
+  current finding count of zero (from SOW-0117 regression).
 - Admin full status, schedule, feed-detail, and feed-manifest handlers are
   still web-serving request paths. Use cached scheduler/feed heartbeat state
   for runtime rows and timestamps; do not call fresh scheduler snapshot

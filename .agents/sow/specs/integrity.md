@@ -439,10 +439,12 @@ If a run is already active:
 Admin integrity request handling MUST be cache-first and lane-admitted:
 
 - ordinary `GET` handlers MUST return the last in-memory settled snapshot, or
-  queue a refresh and return an in-progress/cache-state response when the
-  snapshot is cold or stale
+  return an in-progress/cache-state response with no current findings when the
+  snapshot is cold or stale; they MUST NOT queue refresh work
 - `GET` handlers MUST NOT synchronously scan the full artifact tree, entity
   sidecar tree, or pipeline recovery plan in the HTTP request goroutine
+- admin status summaries MUST count only fresh integrity findings; non-fresh
+  cache states expose cache-state metadata but a current finding count of zero
 - explicit refresh actions MUST submit bounded engine-lane integrity refresh
   work and return typed queued/running/coalesced state
 - explicit reprocess actions MUST use a fresh cached recovery plan; when the

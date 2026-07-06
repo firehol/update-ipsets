@@ -15,8 +15,11 @@ start a fresh evaluation of all settled local state.
 
 The page itself is cache-first. Loading or refreshing the admin page returns
 the last settled integrity snapshot when one exists. If the cache is cold or
-stale, the daemon queues an integrity refresh in the engine lane and reports
-`in_progress` instead of scanning the artifact tree inside the HTTP request.
+stale, the page reports `in_progress` with no current findings instead of
+scanning the artifact tree or queuing work from the HTTP request. Click
+**Re-check** to queue a fresh integrity refresh in the engine lane.
+Admin status summaries count only fresh integrity findings; stale or cold cache
+states show their state but do not count old findings as current issues.
 
 ### Include archived feeds
 
@@ -28,7 +31,7 @@ The integrity panel is backed by authenticated admin API endpoints:
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /api/v1/admin/integrity` | Return cached feed-output integrity findings, or queue a refresh and report `in_progress` when the cache is cold or stale. |
+| `GET /api/v1/admin/integrity` | Return cached feed-output integrity findings. Cold or stale caches report `in_progress` with no current findings and do not queue work. |
 | `GET /api/v1/admin/integrity?include_archived=true` | Use the archived-inclusive cache scope. |
 | `POST /api/v1/admin/integrity/refresh` | Queue a fresh feed-output integrity refresh in the engine lane. |
 | `POST /api/v1/admin/integrity/refresh?include_archived=true` | Queue a fresh archived-inclusive integrity refresh. |

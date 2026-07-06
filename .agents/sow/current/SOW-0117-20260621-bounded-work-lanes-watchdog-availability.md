@@ -12250,6 +12250,103 @@ Follow-up correction after auditing trace/log telemetry paths:
   - `go test ./internal/observability` passed.
   - `staticcheck ./internal/observability` passed.
 
+### 2026-07-06 - Admin Integrity GET Admission Regression
+
+User report:
+
+- Production admin UI showed one entity integrity finding while the service was
+  otherwise healthy.
+
+Sanitized production evidence:
+
+- `/healthz` returned `ok`; the service was active.
+- A fresh entity integrity scan reported `feed_sidecar_stale` findings for two
+  feeds after a run updated their feed-scoped country artifacts.
+- Direct file mtimes shortly afterward showed the corresponding entity feed
+  sidecars had caught up to the reference feed country artifact mtimes, proving
+  the findings were a transient ordering window rather than durable corruption.
+- Admin status then showed `entity_integrity_cache.cache_state=refresh_running`
+  or `refresh_queued` and kept a stale nonzero count while the direct report hid
+  stale findings.
+- Engine-lane snapshots showed `integrity_refresh` work admitted from
+  `trigger=admin_get` ahead of queued `entity_refresh` work. One observed
+  integrity scan held the lane for about one minute while the entity refresh
+  that would clear the finding waited behind it.
+
+Code evidence:
+
+- `pkg/web/integrity.go` queued `QueuePipelineIntegrityRefresh(...,
+  "admin_get")` and `QueueEntityIntegrityRefresh(..., "admin_get")` from
+  ordinary GET report builders.
+- `ui/src/components/admin/entity-integrity-panel.tsx` loaded
+  `/api/v1/admin/integrity/entities` on mount and polled every five seconds
+  while the response status was `in_progress`.
+- `docs/integrity/*.md`, `.agents/sow/specs/integrity.md`,
+  `.agents/sow/specs/admin-ui.md`, `.agents/skills/project-coding/SKILL.md`,
+  and `.agents/skills/project-testing/SKILL.md` still permitted GET handlers to
+  queue refresh work, contradicting the free-lane availability intent.
+
+Problem / root-cause model:
+
+- The on-disk entity repair path is working.
+- The regression is admission ordering: admin GET requests became write-like
+  refresh triggers. When the admin panel is open, GET can enqueue broad
+  integrity scans on the same single FIFO engine lane that entity refresh uses.
+  That lets diagnosis work delay repair work and makes transient findings last
+  longer.
+- The status summary also exposed stale nonzero counts while direct integrity
+  reports suppressed non-fresh findings, making the admin UI look inconsistent.
+
+Decision:
+
+- No new user decision is required for the hotfix. This applies the already
+  approved SOW-0117 contract: admin page loads are free-lane/cache-read work;
+  explicit POST actions queue engine-lane refresh/reprocess/rebuild work.
+
+Implementation plan:
+
+1. Make pipeline/entity integrity GET report builders passive cache reads.
+2. Keep stale/cold non-fresh GET responses at `status=in_progress` with empty
+   current findings, but do not attach queued tickets or enqueue lane work.
+3. Wire admin UI `Re-check` buttons to POST refresh endpoints.
+4. Poll only while the API reports actual queued/running/startup work, not just
+   because a cache is stale.
+5. Make admin status summary counts match the detailed report contract: only
+   fresh integrity findings count as current findings.
+6. Update specs, operator docs, and project skills so future work preserves the
+   POST-only refresh contract.
+
+Validation plan:
+
+- Add backend behavioral tests proving GET on cold/stale pipeline/entity caches
+  does not queue engine-lane work and does not report stale findings as current.
+- Add engine/web status-summary tests proving stale pipeline/entity integrity
+  caches report `count=0`.
+- Add UI behavioral tests proving pipeline/entity `Re-check` buttons call POST
+  refresh endpoints.
+- Run focused web/UI tests, changed package tests, lint/build gates, and a
+  read-only production status check after install.
+
+Validation results:
+
+- `go test -count=1 ./pkg/web -run 'TestAdminIntegrityGetReturns|TestHandleAdminEntityIntegrityGetReturns|TestAdminEntityIntegrityGetReturns|TestAdminIntegrityRefreshRoutesQueueEngineLaneWork'`
+  passed.
+- `go test -count=1 ./pkg/web ./pkg/engine` passed.
+- `go test ./tools/archposture -count=1` passed.
+- `staticcheck ./pkg/web` passed.
+- `staticcheck -checks=inherit,-U1000 ./pkg/engine` passed.
+- `pnpm --dir ui test -- --run src/pages/admin-actions.test.tsx` passed
+  (Vitest ran the UI suite).
+- `pnpm --dir ui lint` passed.
+- `pnpm --dir ui build` passed.
+- `make test` passed.
+- `make build` passed.
+- `make lint` passed.
+- Read-only production check before installing this fix showed the old build
+  still reporting a stale entity-integrity cache with a nonzero summary count
+  while entity refresh work was active. This validates the status-summary
+  regression and is expected to clear after the fixed build is installed.
+
 ### 2026-07-06 - Production Integrity Cache Staleness Regression
 
 User report:

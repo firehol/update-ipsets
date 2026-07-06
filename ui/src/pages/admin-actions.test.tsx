@@ -118,6 +118,26 @@ test("recovers feed integrity findings through the admin API", async () => {
   });
 });
 
+test("queues a pipeline integrity re-check through the admin API", async () => {
+  const requests: string[] = [];
+  server.use(...adminPageHandlers(), ...adminWriteActionHandlers(requests));
+
+  const { user } = renderUI(
+    <>
+      <IntegrityPanel />
+      <Toaster richColors closeButton />
+    </>,
+  );
+
+  await screen.findByText(/all feeds have up-to-date/i);
+  await user.click(screen.getByRole("button", { name: "Re-check" }));
+
+  expect(await screen.findByText("Queued integrity re-check")).toBeVisible();
+  await waitFor(() => {
+    expect(requests).toContain("POST /api/v1/admin/integrity/refresh");
+  });
+});
+
 test("expands integrity finding details from the keyboard", async () => {
   server.use(...integrityIssueHandlers());
 
@@ -172,9 +192,29 @@ test("queues an entity artifact rebuild through the admin API", async () => {
   expect(await screen.findByText("Queued full country and ASN rebuild"))
     .toBeVisible();
   await waitFor(() => {
-    expect(requests).toContain(
-      "POST /api/v1/admin/integrity/entities/rebuild",
-    );
+    expect(requests).toContain("POST /api/v1/admin/integrity/entities/rebuild");
+  });
+});
+
+test("queues an entity integrity re-check through the admin API", async () => {
+  const requests: string[] = [];
+  server.use(...adminPageHandlers(), ...adminWriteActionHandlers(requests));
+
+  const { user } = renderUI(
+    <>
+      <EntityIntegrityPanel />
+      <Toaster richColors closeButton />
+    </>,
+  );
+
+  await screen.findByText(/country and asn artifacts are current/i);
+  await user.click(screen.getByRole("button", { name: "Re-check" }));
+
+  expect(
+    await screen.findByText("Queued entity integrity re-check"),
+  ).toBeVisible();
+  await waitFor(() => {
+    expect(requests).toContain("POST /api/v1/admin/integrity/entities/refresh");
   });
 });
 

@@ -229,12 +229,15 @@ of practical reach.
 
 Admin integrity GET endpoints MUST be cache-only from the HTTP handler's point
 of view. If no fresh settled integrity snapshot is available, the handler MUST
-queue a bounded engine-lane refresh and return an `in_progress` or equivalent
-cache-state response. A normal admin page reload MUST NOT synchronously scan the
-artifact tree, rebuild entity plans, or block behind broad engine-owned work.
-It MUST also avoid waiting for integrity-cache locks; a busy cache returns
-in-progress/busy state. Recovery hints shown in findings must come from cached
-integrity results, not request-time recovery-plan computation.
+return an `in_progress` or equivalent cache-state response with no current
+findings and MUST NOT queue refresh work. A normal admin page reload MUST NOT
+synchronously scan the artifact tree, rebuild entity plans, or block behind
+broad engine-owned work. It MUST also avoid waiting for integrity-cache locks;
+a busy cache returns in-progress/busy state. Admin status summaries MUST count
+only fresh integrity findings; stale, cold, queued, running, or busy cache
+states expose their state metadata but a current finding count of zero.
+Recovery hints shown in findings must come from cached integrity results, not
+request-time recovery-plan computation.
 
 The admin API MUST expose explicit operator refresh actions for pipeline and
 entity integrity. Those actions queue engine-lane integrity refresh work and

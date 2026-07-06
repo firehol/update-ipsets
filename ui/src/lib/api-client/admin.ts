@@ -128,12 +128,31 @@ export async function adminIntegrityReprocess(opts?: {
   );
 }
 
+export async function adminIntegrityRefresh(opts?: {
+  includeArchived?: boolean;
+}): Promise<IntegrityReprocessResult> {
+  const params = new URLSearchParams();
+  if (opts?.includeArchived) params.set("include_archived", "true");
+  const queryString = params.toString();
+  return fetchJSON<IntegrityReprocessResult>(
+    `/api/v1/admin/integrity/refresh${queryString ? `?${queryString}` : ""}`,
+    { method: "POST" },
+  );
+}
+
 export async function adminEntityIntegrity(
   signal?: AbortSignal,
 ): Promise<EntityIntegrityReport> {
   return fetchJSON<EntityIntegrityReport>(
     "/api/v1/admin/integrity/entities",
     signalInit(signal),
+  );
+}
+
+export async function adminEntityIntegrityRefresh(): Promise<EntityIntegrityActionResult> {
+  return fetchJSON<EntityIntegrityActionResult>(
+    "/api/v1/admin/integrity/entities/refresh",
+    { method: "POST" },
   );
 }
 

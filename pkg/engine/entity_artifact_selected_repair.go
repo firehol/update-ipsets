@@ -37,20 +37,14 @@ func (e *Engine) stageRewriteSelectedEntityArtifacts(ctx context.Context, countr
 		return nil, err
 	}
 
-	allSidecars, err := e.loadAllFeedEntitySidecarsWithRuntime(snap.runtime)
-	if err != nil {
-		webBatch.cleanup()
-		entityBatch.cleanup()
-		return nil, err
-	}
 	generated := make([]output.GeneratedFile, 0, len(countries)+len(asns)+2)
-	generated, err = e.rewriteSelectedEntityDetails(ctx, snap, webBatch, entityBatch, allSidecars, countries, asns, generated, task)
+	generated, err = e.rewriteSelectedEntityDetails(ctx, snap, webBatch, entityBatch, countries, asns, generated, task)
 	if err != nil {
 		webBatch.cleanup()
 		entityBatch.cleanup()
 		return nil, err
 	}
-	generated, err = e.rewriteSelectedEntityIndexes(ctx, snap, webBatch, allSidecars, rebuildCountryIndex, rebuildASNIndex, generated, task)
+	generated, err = e.rewriteSelectedEntityIndexes(ctx, snap, webBatch, rebuildCountryIndex, rebuildASNIndex, generated, task)
 	if err != nil {
 		webBatch.cleanup()
 		entityBatch.cleanup()
@@ -75,7 +69,7 @@ func (e *Engine) stageRewriteSelectedEntityArtifacts(ctx context.Context, countr
 	}, nil
 }
 
-func (e *Engine) rewriteSelectedEntityDetails(ctx context.Context, snap operationSnapshot, webBatch *webPublishBatch, entityBatch *entityPublishBatch, allSidecars map[string]*feedEntitySidecar, countries map[string]struct{}, asns map[uint32]struct{}, generated []output.GeneratedFile, task *BackgroundTaskHandle) ([]output.GeneratedFile, error) {
+func (e *Engine) rewriteSelectedEntityDetails(ctx context.Context, snap operationSnapshot, webBatch *webPublishBatch, entityBatch *entityPublishBatch, countries map[string]struct{}, asns map[uint32]struct{}, generated []output.GeneratedFile, task *BackgroundTaskHandle) ([]output.GeneratedFile, error) {
 	if len(countries) == 0 && len(asns) == 0 {
 		return generated, nil
 	}
@@ -83,7 +77,10 @@ func (e *Engine) rewriteSelectedEntityDetails(ctx context.Context, snap operatio
 	if task != nil {
 		task.Update("repairing entity details", selectedEntityRepairDetail(countries, asns), 0, total)
 	}
-	countrySidecars, asnSidecars, err := e.buildSelectedEntityDetailSidecarsFromFeedSidecars(allSidecars, countries, asns, false)
+	walk := func(visit feedEntitySidecarVisitFunc) error {
+		return e.walkCommittedFeedEntitySidecarsWithRuntime(ctx, snap.runtime, visit)
+	}
+	countrySidecars, asnSidecars, err := e.buildSelectedEntityDetailSidecarsFromFeedSidecarWalker(ctx, snap, countries, asns, false, walk)
 	if err != nil {
 		return generated, err
 	}
@@ -193,7 +190,7 @@ func (e *Engine) stageSelectedASNDetail(snap operationSnapshot, webBatch *webPub
 	return nil
 }
 
-func (e *Engine) rewriteSelectedEntityIndexes(ctx context.Context, snap operationSnapshot, webBatch *webPublishBatch, allSidecars map[string]*feedEntitySidecar, rebuildCountryIndex, rebuildASNIndex bool, generated []output.GeneratedFile, task *BackgroundTaskHandle) ([]output.GeneratedFile, error) {
+func (e *Engine) rewriteSelectedEntityIndexes(ctx context.Context, snap operationSnapshot, webBatch *webPublishBatch, rebuildCountryIndex, rebuildASNIndex bool, generated []output.GeneratedFile, task *BackgroundTaskHandle) ([]output.GeneratedFile, error) {
 	indexSteps := 0
 	if rebuildCountryIndex {
 		indexSteps++
@@ -208,12 +205,19 @@ func (e *Engine) rewriteSelectedEntityIndexes(ctx context.Context, snap operatio
 		task.Update("repairing entity indexes", "rewriting country and ASN index payloads", 0, indexSteps)
 	}
 	progress := 0
+	walk := func(visit feedEntitySidecarVisitFunc) error {
+		return e.walkCommittedFeedEntitySidecarsWithRuntime(ctx, snap.runtime, visit)
+	}
+	countryIndex, asnIndex, err := e.buildEntityIndexesFromFeedSidecarWalkerWithSnapshot(ctx, snap, walk, rebuildCountryIndex, rebuildASNIndex)
+	if err != nil {
+		return generated, err
+	}
 	if rebuildCountryIndex {
 		if err := contextErr(ctx); err != nil {
 			return generated, err
 		}
 		rel := e.publicCountryIndexRelPath()
-		if err := writeEntityJSONFile(filepath.Join(webBatch.stageDir, rel), e.buildCountryIndexFromFeedSidecarsWithSnapshot(snap, allSidecars)); err != nil {
+		if err := writeEntityJSONFile(filepath.Join(webBatch.stageDir, rel), countryIndex); err != nil {
 			return generated, err
 		}
 		generated = append(generated, output.GeneratedFile{Path: filepath.Join(outputDirForRuntime(snap.runtime), rel), Redistributable: true})
@@ -224,7 +228,7 @@ func (e *Engine) rewriteSelectedEntityIndexes(ctx context.Context, snap operatio
 			return generated, err
 		}
 		rel := e.publicASNIndexRelPath()
-		if err := writeEntityJSONFile(filepath.Join(webBatch.stageDir, rel), e.buildASNIndexFromFeedSidecarsWithSnapshot(snap, allSidecars)); err != nil {
+		if err := writeEntityJSONFile(filepath.Join(webBatch.stageDir, rel), asnIndex); err != nil {
 			return generated, err
 		}
 		generated = append(generated, output.GeneratedFile{Path: filepath.Join(outputDirForRuntime(snap.runtime), rel), Redistributable: true})
