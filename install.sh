@@ -295,7 +295,7 @@ run sudo install -o root -g iplists -m 0750 update-ipsets "${INSTALL_DIR}/bin/up
 # change and scheduling a full country/ASN artifact rebuild.
 CONFIG_TARGET="${INSTALL_DIR}/etc/config"
 LEGACY_CONFIG_TARGET="${INSTALL_DIR}/etc/config.yaml"
-if [ -d "${CONFIG_TARGET}" ] && diff -qr configs/firehol "${CONFIG_TARGET}" >/dev/null; then
+if [ -d "${CONFIG_TARGET}" ] && diff -qr -x templates configs/firehol "${CONFIG_TARGET}" >/dev/null; then
     echo -e "${GREEN}Active configuration already up to date.${NC}"
 else
     if [ -e "${CONFIG_TARGET}" ]; then

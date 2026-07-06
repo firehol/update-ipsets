@@ -4,7 +4,7 @@
 
 Status: completed
 
-Sub-state: completed and ready for SOW move
+Sub-state: completed after regression fix
 
 ## Requirements
 
@@ -228,4 +228,31 @@ None yet.
 
 ## Regression Log
 
-None yet.
+## Regression - 2026-07-06
+
+After local install validation, a repeated normal install still created
+`/opt/update-ipsets/etc/config.bak.*`. Investigation showed the catalog diff
+compared `configs/firehol` against `/opt/update-ipsets/etc/config`, but the
+installer also stores Markdown templates under
+`/opt/update-ipsets/etc/config/templates/markdown`. Because `templates/` is not
+part of `configs/firehol`, every install saw the active config as different.
+
+Evidence:
+
+- `diff -qr configs/firehol /opt/update-ipsets/etc/config` reported `Only in /opt/update-ipsets/etc/config: templates`.
+- `diff -qr -x templates configs/firehol /opt/update-ipsets/etc/config` returned clean.
+
+Fix:
+
+- Exclude the installed `templates` directory from the catalog diff because
+  templates are compared and installed by the separate template block.
+
+Validation:
+
+- `bash -n install.sh` passed.
+- `shellcheck install.sh` passed.
+- `diff -qr -x templates configs/firehol /opt/update-ipsets/etc/config` returned clean.
+- Re-running `./install.sh` printed `Active configuration already up to date` and `Markdown templates already up to date`.
+- The latest config backup stayed `config.bak.20260706081650`; no new backup was created by the rerun.
+- `/healthz` returned `ok`.
+- `systemctl is-active update-ipsets` returned `active`.
