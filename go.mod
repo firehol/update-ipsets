@@ -4,10 +4,10 @@ go 1.26.4
 
 require (
 	github.com/firehol/update-ipsets/tools/dronebl2ipsets v0.0.0
-	github.com/mark3labs/mcp-go v0.54.1
+	github.com/mark3labs/mcp-go v0.56.0
 	github.com/oschwald/maxminddb-golang v1.13.1
 	github.com/vishvananda/netlink v1.3.1
-	github.com/yuin/goldmark v1.8.2
+	github.com/yuin/goldmark v1.8.4
 	go.opentelemetry.io/otel v1.44.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc v1.44.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.44.0
@@ -15,7 +15,7 @@ require (
 	go.opentelemetry.io/otel/sdk v1.44.0
 	go.opentelemetry.io/otel/sdk/metric v1.44.0
 	go.yaml.in/yaml/v3 v3.0.4
-	golang.org/x/sys v0.45.0
+	golang.org/x/sys v0.47.0
 	golang.org/x/time v0.15.0
 	mvdan.cc/sh/v3 v3.13.1
 )
