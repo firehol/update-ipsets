@@ -111,3 +111,89 @@ Minor observations from second review (deferred, non-blocking):
 - Specs: No changes needed (no contract changes)
 - Docs: No changes needed (no operator-visible changes)
 - SOW lifecycle: SOW-0083 completed, moved to done/
+
+## Regression - 2026-08-02
+
+### Purpose
+
+Make response gzip negotiation comply with HTTP quality values without changing
+which response paths are eligible for compression.
+
+### Evidence
+
+- `pkg/web/http.go` uses a case-insensitive substring search for `gzip`.
+  Consequently, `Accept-Encoding: gzip;q=0` incorrectly enables compression.
+- RFC 9110 section 12.5.3 defines `q=0` as not acceptable, exact
+  case-insensitive coding matching, and `*` as matching codings that are not
+  explicitly listed.
+- `grafana/mimir @ 9f0e877a2bd39df7d83362d78906846c39323a6a`,
+  `pkg/util/gziphandler/gzip.go:472`, applies the same precedence: an explicit
+  gzip quality overrides wildcard quality, and only a positive value accepts
+  gzip.
+
+### Decision
+
+Use a small local parser for the one available server coding, gzip:
+
+- explicit `gzip` takes precedence over `*`;
+- only a valid quality value greater than zero enables gzip;
+- omitted quality means `q=1`;
+- malformed `gzip` and `x-gzip` entries do not enable compression and prevent
+  wildcard fallback; malformed unrelated entries are ignored;
+- absent or empty `Accept-Encoding` preserves the existing uncompressed
+  behavior;
+- the existing path allowlist and `HEAD` behavior remain unchanged.
+
+This is the long-term-best option because it follows the HTTP contract without
+adding a dependency or a general negotiation framework the server does not need.
+
+### Risk And Validation
+
+- Risk is limited to response encoding selection. Incorrect parsing could send
+  gzip to a client that rejected it or miss compression for a capable client.
+- Add table-driven behavioral coverage for `q=0`, positive qualities,
+  case-insensitivity, wildcard precedence, malformed values, exact token
+  matching, and multiple field values.
+- Run focused web tests, the full Go suite, race validation for `pkg/web`, vet,
+  and repository lint/build gates.
+- No installation or service operation is allowed for this regression.
+
+### Artifact Impact
+
+- Update the operating-principles response-compression contract.
+- No config, API schema, UI, generated artifact, or operator procedure changes.
+- Return this SOW to `done/` only after implementation and validation pass.
+
+### Implementation And Outcome
+
+- Replaced substring matching with allocation-light parsing of every
+  `Accept-Encoding` field and comma-separated entry.
+- Added exact, case-insensitive handling for `gzip` and its deprecated
+  `x-gzip` alias, valid RFC quality values, wildcard fallback, and explicit
+  coding precedence.
+- Added behavioral tests for zero and positive qualities, invalid qualities,
+  wildcard precedence, exact-token matching, aliases, case, whitespace, and
+  repeated header fields.
+
+Validation:
+
+- `go test ./pkg/web -run '^TestGzip' -count=1` - passed
+- `go test ./pkg/web -count=1` - passed
+- `go test -shuffle=on -count=3 ./pkg/web` - passed
+- `go test ./...` - passed
+- `go test -race ./...` - passed
+- `go vet ./...` - passed
+- `make test` did not reach tests because its UI prerequisite attempted a
+  non-interactive `pnpm install`; it was not forced because installation was
+  explicitly prohibited. The equivalent complete Go suite passed directly.
+
+### Regression Artifact Maintenance
+
+- `AGENTS.md`: no update needed; no project-wide guardrail changed.
+- Project skills: no update needed; no reusable workflow changed.
+- Specs: updated `operating-principles.md` with the response negotiation
+  contract.
+- End-user/operator docs and skills: no update needed; no user procedure or
+  public API changed.
+- SOW lifecycle: regression fixed and validated; SOW returned to `done/` with
+  `Status: completed`.

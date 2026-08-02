@@ -175,3 +175,53 @@ func TestGzipAcceptsUppercaseEncoding(t *testing.T) {
 		t.Fatalf("expected gzip encoding for uppercase GZIP, got %q", got)
 	}
 }
+
+func TestGzipNegotiatesAcceptEncodingQuality(t *testing.T) {
+	tests := []struct {
+		name       string
+		headers    []string
+		compressed bool
+	}{
+		{name: "zero quality", headers: []string{"gzip;q=0"}},
+		{name: "uppercase zero quality", headers: []string{"GZIP;Q=0"}},
+		{name: "positive quality", headers: []string{"br, gzip;q=0.001"}, compressed: true},
+		{name: "maximum quality", headers: []string{"gzip;q=1.000"}, compressed: true},
+		{name: "zero decimal quality", headers: []string{"gzip;q=0.000"}},
+		{name: "quality whitespace", headers: []string{"gzip ; q = 0.5"}, compressed: true},
+		{name: "positive wildcard", headers: []string{"br;q=1, *;q=0.5"}, compressed: true},
+		{name: "zero wildcard", headers: []string{"br;q=1, *;q=0"}},
+		{name: "explicit zero overrides wildcard", headers: []string{"gzip;q=0, *;q=1"}},
+		{name: "malformed explicit overrides wildcard", headers: []string{"gzip;q=invalid, *;q=1"}},
+		{name: "legacy alias", headers: []string{"x-gzip;q=0.5"}, compressed: true},
+		{name: "legacy alias zero quality", headers: []string{"x-gzip;q=0"}},
+		{name: "exact token", headers: []string{"notgzip"}},
+		{name: "malformed quality", headers: []string{"gzip;q=invalid"}},
+		{name: "quality over one", headers: []string{"gzip;q=2"}},
+		{name: "invalid one fraction", headers: []string{"gzip;q=1.001"}},
+		{name: "too many quality digits", headers: []string{"gzip;q=0.0001"}},
+		{name: "unknown parameter", headers: []string{"gzip;level=1"}},
+		{name: "duplicate quality", headers: []string{"gzip;q=1;q=0"}},
+		{name: "multiple field values", headers: []string{"br", "gzip;q=1"}, compressed: true},
+	}
+
+	backend := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("response"))
+	})
+	handler := gzipMiddleware(backend)
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/api/v1/test", nil)
+			for _, value := range test.headers {
+				req.Header.Add("Accept-Encoding", value)
+			}
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+
+			got := rec.Header().Get("Content-Encoding") == "gzip"
+			if got != test.compressed {
+				t.Fatalf("Content-Encoding gzip = %v, want %v", got, test.compressed)
+			}
+		})
+	}
+}

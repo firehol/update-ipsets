@@ -419,7 +419,13 @@ The server applies gzip compression to responses for paths matching:
 - `.json`, `.xml`, `.txt`, `.csv`, `.js`, `.css`, `.html` suffixes
 - root path `/`
 
-Compression is conditional on the `Accept-Encoding: gzip` request header. When enabled, responses include `Content-Encoding: gzip` and `Vary: Accept-Encoding`.
+Compression is conditional on HTTP `Accept-Encoding` negotiation. An explicit
+case-insensitive `gzip` or `x-gzip` entry with a valid quality value greater than
+zero enables gzip. When neither is explicitly listed, a positive `*` wildcard
+enables gzip. An explicit zero or malformed gzip quality overrides a wildcard
+and keeps the response uncompressed. Missing or empty `Accept-Encoding` also
+keeps the response uncompressed. When enabled, responses include
+`Content-Encoding: gzip` and `Vary: Accept-Encoding`.
 
 ### IP search rate limiting
 

@@ -19,7 +19,7 @@ var gzipPool = sync.Pool{
 
 func gzipMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.Contains(strings.ToLower(r.Header.Get("Accept-Encoding")), "gzip") {
+		if !acceptsGzip(r.Header.Values("Accept-Encoding")) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -52,6 +52,77 @@ func gzipMiddleware(next http.Handler) http.Handler {
 		w.Header().Add("Vary", "Accept-Encoding")
 		next.ServeHTTP(&gzipResponseWriter{ResponseWriter: w, Writer: gz}, r)
 	})
+}
+
+func acceptsGzip(values []string) bool {
+	var explicit, explicitAccepted bool
+	var wildcard, wildcardAccepted bool
+	for _, value := range values {
+		for item := range strings.SplitSeq(value, ",") {
+			coding, accepted, valid := parseAcceptEncodingItem(item)
+			switch {
+			case strings.EqualFold(coding, "gzip"), strings.EqualFold(coding, "x-gzip"):
+				explicit = true
+				explicitAccepted = explicitAccepted || valid && accepted
+			case coding == "*":
+				wildcard = true
+				wildcardAccepted = wildcardAccepted || valid && accepted
+			}
+		}
+	}
+	if explicit {
+		return explicitAccepted
+	}
+	return wildcard && wildcardAccepted
+}
+
+func parseAcceptEncodingItem(item string) (coding string, accepted, valid bool) {
+	coding, parameters, hasParameters := strings.Cut(strings.TrimSpace(item), ";")
+	coding = strings.TrimSpace(coding)
+	if coding == "" {
+		return "", false, false
+	}
+	if !hasParameters {
+		return coding, true, true
+	}
+
+	seenQuality := false
+	accepted = true
+	for parameter := range strings.SplitSeq(parameters, ";") {
+		name, value, ok := strings.Cut(parameter, "=")
+		if !ok || seenQuality || !strings.EqualFold(strings.TrimSpace(name), "q") {
+			return coding, false, false
+		}
+		accepted, ok = parseQualityValue(strings.TrimSpace(value))
+		if !ok {
+			return coding, false, false
+		}
+		seenQuality = true
+	}
+	if !seenQuality {
+		return coding, false, false
+	}
+	return coding, accepted, true
+}
+
+func parseQualityValue(value string) (positive, valid bool) {
+	if value == "0" {
+		return false, true
+	}
+	if value == "1" {
+		return true, true
+	}
+	if len(value) < 2 || len(value) > 5 || value[1] != '.' || (value[0] != '0' && value[0] != '1') {
+		return false, false
+	}
+	positive = value[0] == '1'
+	for i := 2; i < len(value); i++ {
+		if value[i] < '0' || value[i] > '9' || value[0] == '1' && value[i] != '0' {
+			return false, false
+		}
+		positive = positive || value[i] != '0'
+	}
+	return positive, true
 }
 
 func corsMiddleware(next http.Handler) http.Handler {
