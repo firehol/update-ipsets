@@ -396,7 +396,7 @@ ExecStart=${INSTALL_DIR}/bin/update-ipsets daemon \\
     --web-dir ${INSTALL_DIR}/web \\
     --web-files-dir ${INSTALL_DIR}/web/files
 
-Restart=on-failure
+Restart=always
 RestartSec=30
 WatchdogSec=300
 WorkingDirectory=${INSTALL_DIR}
